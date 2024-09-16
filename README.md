@@ -4,12 +4,12 @@ https://collabexperience.com
 
 ### Reasons for posting on github 
 1) Post release notes 
-2) Post code (code needs major cleanup effort, but anybody can "view-source" today already)
+2) Post code (code needs major cleanup effort, but anybody can "view-source" from main website)
 3) Post roadmap/ideas
 4) Get others to join and help in the project
-5) Post attributation/licenses
-6) Post supporting collateral here
-7) Request tracking 
+5) Post attribution/licenses
+6) Post supporting collateral 
+7) Request tracking using github
 
 ### Release Notes:
 
@@ -50,7 +50,7 @@ Huge update:
 - kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator 
 
 ### Roadmap / ideas
-Not listed in order of timeline or priority. No warranty or guarantee below features will ever be added. 
+Not listed in order of priority or timeline. No warranty or guarantee below features will ever be added. 
 - Major code cleanup and documentation. 
 - Major UI update.
 - Create an intro video.
@@ -65,10 +65,9 @@ Not listed in order of timeline or priority. No warranty or guarantee below feat
 - Further shorten URL when an item repeats itself. 
 - Ability to add custom generic devices.  Camera, microphones and displays. 
 - Add other room objects. Add a ceiling layer that can be toggled off/on. 
-- Add draggable/resizable walls.  Might require an addtional layer
+- Add draggable/resizable walls.  Might require an additional layer.
 - Windows. Doors.
-- Other tables. Rectangle U-Table.
-- Tappered table. 
+- Other tables. Rectangle U-Table. Tappered table. 
 - MTR only devices to be labeled or selectable. 
 - Print out parts list, summary and picture. Format TBD. Options include: HTML to print/PDF. Direct to PowerPoint. Direct to PDF. 
 - Snap to grid. Snap to other.
@@ -76,6 +75,9 @@ Not listed in order of timeline or priority. No warranty or guarantee below feat
 - Add tooltip with help next to items.
 - Create a short intro video. 
 
+This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks.  
+
+_Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._ 
 
 
 
