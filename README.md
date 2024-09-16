@@ -23,6 +23,9 @@ https://collabexperience.com
 **v0.0** (circa 9/2024) first release - table / camera FOV and distances only 
 
 ### Attribution 
+- Konva.js
+- Google icons/fonts 
+- Mozilla DOMPurify 
 
 ### Roadmap 
 - Not listed in order of timeline or priority. No warranty or gurantee. 
