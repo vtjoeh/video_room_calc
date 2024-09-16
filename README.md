@@ -19,7 +19,7 @@ https://collabexperience.com
 - RoomOS QR code now automatically updates with changes. Updates are delayed 2-5 second for performance reasons.  QR code blurs during updates.  The QR code is designed for RoomOS web apps on the Board Pro or Desk Pro. QR Code is also accessible in any browser by adding '&qr' to query string parameter.  
 - Improvements to Quick Setup menu to keep confusing things from happening.
 
-**v0.1.502**
+**v0.1.501**
 - Added template examples. 
 - Added QR Code for Shareable Link. Only visible on RoomOS.
 - Slightly more complex video devices supported where camera and microphone are not located in x/y center of device. Added Room Kit EQX Floor Stand. 
