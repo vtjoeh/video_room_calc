@@ -84,8 +84,8 @@ This is a side project. Work is done nights, weekends and holidays.  As of Sept 
 - Bobby McGonigle. 
 - Win.
 - Alexis B. 
-- Julie. Anna, Paul & Joshua. 
-*Thank you to everybody who gave feedback or said thank you.*
+- Julie, Anna, Paul & Joshua. 
+- *Thank you to everybody who gave feedback or said thank you.*
 
 _Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._ 
 
