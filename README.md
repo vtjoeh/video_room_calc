@@ -80,11 +80,11 @@ Not listed in order of priority or timeline. No warranty or guarantee below feat
 This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks. 
 
 ### Special thanks to those who have tested, gave feedback or were just really patient.
-Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mark, Mike & Mike. 
-Bobby McGonigle. 
-Win.
-Alexis B. 
-Julie. Anna, Paul & Joshua. 
+- Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mark, Mike & Mike. 
+- Bobby McGonigle. 
+- Win.
+- Alexis B. 
+- Julie. Anna, Paul & Joshua. 
 *Thank you to everybody who gave feedback or said thank you.*
 
 _Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._ 
