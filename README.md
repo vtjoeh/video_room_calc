@@ -18,9 +18,24 @@ https://collabexperience.com
 - RoomOS QR code now automatically updates with changes. The QR code is designed for RoomOS but is accessible in browsers by adding '&qr' to query string parameter.  Updates are delayed 1 second for performance reasons.
 - Improvements to Quick Setup menu to keep confusing things from happening.
 
-**v0.1.5**- Huge update.  Drag and drop.  Microphones.  Multiple Cameras. Konva.js library + vanilla javascript. 
-**v0.1** (circa 10/2024) updated table / camera FOV based on more accurate data 
-**v0.0** (circa 9/2024) first release - table / camera FOV and distances only 
+**v0.1.5**- 
+Huge update.  
+- Drag and drop.
+- Multiple Microphones.
+- Multiple Cameras.
+- Multiple video devices. 
+- Multiple Tables. Resizable.
+- Chairs. 
+- Undo / Redo.
+- Toggle "guidances" on/off. 
+
+
+
+**v0.1** 
+(circa 10/2024) Updated table / camera FOV based on more accurate data. 
+
+**v0.0** 
+(circa 9/2024) First release.  Table / camera FOV and distances only. 
 
 ### Attribution 
 - Konva.js
