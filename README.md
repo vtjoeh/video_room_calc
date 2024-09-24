@@ -79,12 +79,13 @@ First 12 items listed are what I would like to do next. There is no warranty or 
 - Ability to change colors for accessibility purposes. 
 - Add Cross-view cross sectional view to determine camera height. 
 - Add view of the front of room. Important when the camera is above and below displays.  Sometimes next to display is better than below or above. 
-- Simulated view from camera (simple 2d view of single person zoom and 2 person zoom). 
+- Simulated view from camera (simple 2d view of single person zoom and 2 person zoom).
+- Add a PoE calculator for the mics, Navigator and PoE cameras. Include different Cisco switches. 
 - Add lobes to the microphones. 
 - Create a landing page that points to all things Cisco video device related that is scattered across internet. I own the domain "videoroomcalculator.com" and "collabexperience.com".  For example: Github macros, CE Deploy, roomos.cisco.com, hep.webex.com. 
-- See number of video inputs/outputs per a device (HDMI, 3.5 mm audio, Audio Over IP, HDCP support)
+- See number of video inputs/outputs per a device (HDMI, 3.5 mm audio, Audio Over IP, HDCP support). 
 - Links per a device to relevant information. E.g. datasheets.
-- Explore options and cost for backend database to save projects and supporting background files.  Security would be of top concern.
+- Explore options and cost for backend database to save projects and supporting background files. At the moment nothing of value is stored in the cloud except anonymous stats.  Backend database would cost more, need redundancy and security.
 - Have smaller devices like microphones auto-scale up in size for large rooms. 
 
 This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks. 
@@ -94,7 +95,8 @@ This is a side project. Work is done nights, weekends and holidays.  As of Sept 
 - Bobby McGonigle. 
 - Win.
 - Alexis B. 
-- Julie, Anna, Paul & Joshua. 
+- Julie, Anna, Paul & Joshua.
+- The Famous One
 - *Thank you to everybody who gave feedback or said thank you.*
 
 _Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._ 
