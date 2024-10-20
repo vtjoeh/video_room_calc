@@ -2,15 +2,6 @@
 Video Room Calculator for Cisco video devices by Joe Hughes (beta)
 https://collabexperience.com 
 
-### Reasons for posting on github 
-1) Post release notes 
-2) Post code (code needs major cleanup effort, but anybody can "view-source" from main website)
-3) Post roadmap/ideas
-4) Get others to join and help in the project
-5) Post attribution/licenses
-6) Post supporting collateral 
-7) Request tracking using github
-
 ### Release Notes:
 
 **v0.1.502**
