@@ -4,6 +4,11 @@ https://collabexperience.com
 
 ### Release Notes:
 
+**v0.1.503**
+- Added [Cisco Ceiling Microphone Pro](https://www.cisco.com/c/en/us/products/collateral/collaboration-endpoints/collaboration-peripherals/ceiling-microphone-pro-ds.html)
+- Updated licenes to MIT Non-AI. 
+- Added extra links to resources. 
+
 **v0.1.502**
 - Full URL query string in address bar now updated dynamically with changes. Copying address bar is similar to clicking on Shareable Link.
 - Shareable Link now copies a hyperlink that is name of the room.  If the room does not have a name, then "Video Room Calculator" is used.
