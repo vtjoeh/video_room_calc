@@ -1,4 +1,4 @@
-const version = "v0.1.502";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.  
+const version = "v0.1.503";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.  
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false;
 let versionQueryString;
@@ -348,6 +348,18 @@ let microphones = [
         width: 750,
         depth: 550,
         height: 270,
+    },
+    {
+        name: "Cisco Ceiling Microphone Pro",
+        id: "ceilingMicPro",
+        key: "MA",
+        micRadius: 3500,
+        micDeg: 360,
+        topImage: 'ceilingMicPro-top.png',
+        frontImage: 'ceilingMicPro-front.png',
+        width: 420,
+        depth: 420,
+        height: 48,
     },
 ]
 
@@ -3087,11 +3099,12 @@ function createShareableLink() {
     queryParams.set("x", strUrlQuery2);
     history.replaceState(null, null, fullShareLink); 
     
-    /* only create QR Code if on and every 1 second for performance */ 
+    /* only create QR Code if RoomOS only every 2 seconds for performance */ 
     if(qrCodeAlwaysOn){
         let qrImage = document.getElementById('qrCode').firstChild; 
         clearTimeout(timerQRcodeOn); 
 
+        /* blur the QR code until it is recreated */ 
         if(qrImage){
             qrImage.style.filter = 'blur(5px)';
             console.log('qrImage blud'); 
@@ -5825,7 +5838,7 @@ let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'room
 
 let legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
 
-let microphonesMenu = ['tableMicPro', 'tableMic', 'ceilingMic'];
+let microphonesMenu = ['ceilingMicPro','tableMicPro', 'tableMic','ceilingMic'];
 
 let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
