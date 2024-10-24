@@ -5,7 +5,7 @@ https://collabexperience.com
 ### Release Notes:
 
 **v0.1.503**
-- Added [Cisco Ceiling Microphone Pro](https://www.cisco.com/c/en/us/products/collateral/collaboration-endpoints/collaboration-peripherals/ceiling-microphone-pro-ds.html)
+- Added [Cisco Ceiling Microphone Pro](https://www.cisco.com/c/en/us/products/collateral/collaboration-endpoints/collaboration-peripherals/ceiling-microphone-pro-ds.html).
 - Updated license from MIT to MIT NON-AI. 
 - Added extra links to resources. 
 
