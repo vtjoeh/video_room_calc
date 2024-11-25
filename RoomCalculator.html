@@ -489,7 +489,7 @@
         }
     </style>
 
-<link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
         integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
@@ -755,6 +755,12 @@
                     <div id="chairsMenuContainer" class="containerItems">
                         <!-- Menu will be inserted -->
                     </div>
+                    <div class="menuDivider">
+                        Walls
+                    </div>
+                    <div id="wallsMenuContainer" class="containerItems">
+                        <!-- Menu will be inserted -->
+                    </div>
                 </div>
 
                 <div id="Panels" class="subtabcontent">
@@ -808,6 +814,15 @@
                         </div>
                     </div>
 
+
+                    <div class="inputRow" id="itemZheightDiv">
+                        <div>
+                            <label>Item Height:</label>
+                            <input type="text" id="itemZheight" maxlength="6" size="5" class="unitInput">
+                            <label class="unitFeetMeters">ft</label>
+                        </div>
+                    </div>
+
                     <div class="inputRow" id="itemDiagnoalTvDiv">
                         <div>
                             <label>Display Diagonal Inches:</label>
@@ -833,7 +848,8 @@
                     <br>
                     <div class="inputRow">
                         <div class="inputCellRight">
-                            <input type="submit" value="Update" onclick="updateItem()" class="button">
+                            <input type="submit" value="Update" onclick="updateItem()" class="button"
+                                id="btnUpdateItemId">
                         </div>
                     </div>
 
@@ -882,8 +898,8 @@
                             the Shareable Link do not affect the original. </i>
                     </div>
 
-                <br>
-                <br>
+                    <br>
+                    <br>
                 </div>
 
 
@@ -903,7 +919,7 @@
                     <br>
                     <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
                         Code Script</button>
-<!-- 
+                    <!-- 
                     <button class="btn" onclick="createQrCode()" id="refreshQRCode" title="Load QR Code" disabled>Update
                         QR Code</button> -->
 
@@ -913,7 +929,21 @@
                     <br>
 
                 </div>
+
+
+
                 <div id="test" style="visibility: hidden;">
+
+                    Experimental JSON File Download:
+                    <br>
+                    <input type="submit" value="Download JSON file"
+                        onclick="downloadFileWorkspace()" class="button">
+                    <br>
+                   
+
+                </div>
+
+                <div id="test2" style="visibility: hidden;">
                     <br>
                     Experimental File Image Upload:
                     <br>
@@ -928,7 +958,10 @@
                     <br>
                     <input type="file" id="fileConfig">
                     <br>
+
                 </div>
+
+
 
             </div>
         </div>
@@ -1063,10 +1096,12 @@
             <div> <b>Explanation:</b> The optimum viewing distance of the display is 1x to 3x the diagonal measurement
                 of the display. The farthest participant should be no farther than 4x the diagonal
                 measurement of the display. See <a
-                href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
-                target="_blank">Cisco's Best Practices: Creating Effective Video-enabled Workspaces
-            </a>. Some industry guidelines will recommend a slightly closer or farther range. See <a href="https://www.avixa.org/standards/discas-calculators/discas" target="_blank"> AVIXA's Display Image Calculators</a> 
-          </div>
+                    href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
+                    target="_blank">Cisco's Best Practices: Creating Effective Video-enabled Workspaces
+                </a>. Some industry guidelines will recommend a slightly closer or farther range. See <a
+                    href="https://www.avixa.org/standards/discas-calculators/discas" target="_blank"> AVIXA's Display
+                    Image Calculators</a>
+            </div>
             <div>
                 <br>
                 <div>
@@ -1123,14 +1158,18 @@
                     <span class='templateLinks'
                         onclick="loadTemplate('A1v0.1.5b4000c1800~Example: Larger Boardroom~B1111AH66a876f-900SA1950a1260f1721SA3283a905f900SA1446a1324f1721SA1689a1288f1721SA912a1383f1721SA1169a1355f1721SA2217a1228f1721SA2493a1195f1721SA2778a1163f1721SA3043a1128f1721SA918a431f54SA1184a458f54SA1469a493f54SA1745a525f54SA2012a555f54SA2273a589f54SA2517a610f54SA2794a643f54SA3051a675f54TC759a1297c800e2400f-900DB55a903f-900g100DA1829a24g85DA1890a1780f1800g85MC1600a1016f-900MC980a675f-900MC980a1077f-900MC1600a740f-900MC2350a817f-900MC2872a900f-900MC2350a984f-900')">
                         Larger Boardroom</span>
-                </a>  <a target="_blank" href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/camera/cross-view_guidelines.pdf" class="infoText">(Extended Speaker View)</a>
-                <br/>
+                </a> <a target="_blank"
+                    href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/camera/cross-view_guidelines.pdf"
+                    class="infoText">(Extended Speaker View)</a>
+                <br />
 
                 <a href="#ContainerRoomSvg">
                     <span class='templateLinks'
-                        onclick="loadTemplate('A1v0.1.5b4500c3300~Example: Classroom with Ceiling Mic Pro~B1011AE1374a37AE3189a32SA3566a2845f1800SA466a2851f1800SA640a246f-326SA1951a1555f1800SA3840a955f1800SA2870a957f1800SA1038a1562f1800SA3555a2188f1800SA712a1565f1800SA1346a2199f1800SA2879a2851f1800SA1064a2195f1800SA3837a2192f1800SA1348a963f1800SA2842a1561f1800SA2596a2847f1800SA455a2193f1800SA3812a1559f1800SA3849a2849f1800SA1321a1566f1800SA2259a2193f1800SA748a2855f1800SA2559a1556f1800SA2585a2189f1800SA2261a956f1800SA429a1560f1800SA2587a953f1800SA1978a951f1800SA1066a958f1800SA457a957f1800SA2868a2194f1800SA1987a2845f1800SA3529a1555f1800SA1357a2857f1800SA2270a2850f1800SA2233a1560f1800SA740a961f1800SA1976a2188f1800SA3557a951f1800SA1075a2852f1800SA737a2198f1800TA308a862c250e600f-900TA917a863c250e600f-900TA1829a857c250e600f-900TA2438a858c250e600f-900TA3408a856c250e600f-900TA280a1466c250e600f-900TA889a1467c250e600f-900TA1801a1461c250e600f-900TA2410a1462c250e600f-900TA3380a1460c250e600f-900TA306a2099c250e600f-900TA914a2100c250e600f-900TA1827a2094c250e600f-900TA2436a2095c250e600f-900TA3406a2093c250e600f-900TA317a2756c250e600f-900TA926a2758c250e600f-900TA1838a2751c250e600f-900TA2447a2752c250e600f-900TA3417a2750c250e600f-900DA2651a33g100DA1914a31g100DA3734a3259f1800g100MA1071a783MA3127a812MA1101a2307MA3033a2325')">
+                        onclick="loadTemplate('A1v0.1.5b4500c3300~Example: Classroom with Ceiling Mic Pro~B0001AE1374a37b700AE3189a32b700CB941a3196b700f1800SA466a2851f1800SA1075a2852f1800SA2587a953f1800SA2261a956f1800SA3840a955f1800SA1978a951f1800SA1346a2199f1800SA2842a1561f1800SA1357a2857f1800SA3555a2188f1800SA3529a1555f1800SA3849a2849f1800SA748a2855f1800SA1348a963f1800SA2259a2193f1800SA1951a1555f1800SA3812a1559f1800SA3837a2192f1800SA2879a2851f1800SA455a2193f1800SA2868a2194f1800SA2233a1560f1800SA1066a958f1800SA2596a2847f1800SA2870a957f1800SA1987a2845f1800SA2585a2189f1800SA1038a1562f1800SA429a1560f1800SA1976a2188f1800SA737a2198f1800SA3566a2845f1800SA457a957f1800SA712a1565f1800SA1321a1566f1800SA3557a951f1800SA2559a1556f1800SA740a961f1800SA2270a2850f1800SA1064a2195f1800SC729a223f-237SC3825a100f73TA308a862c250e600f-900TA917a863c250e600f-900TA1829a857c250e600f-900TA2438a858c250e600f-900TA3408a856c250e600f-900TA280a1466c250e600f-900TA889a1467c250e600f-900TA1801a1461c250e600f-900TA2410a1462c250e600f-900TA3380a1460c250e600f-900TA306a2099c250e600f-900TA914a2100c250e600f-900TA1827a2094c250e600f-900TA2436a2095c250e600f-900TA3406a2093c250e600f-900TA317a2756c250e600f-900TA926a2758c250e600f-900TA1838a2751c250e600f-900TA2447a2752c250e600f-900TA3417a2750c250e600f-900TA878a270c124e240f697WC4300a1203b820c100e100WC4306a2775b820c100e100WA285a1b820c33e324WA316a293b820c33e324f900WA3983a15b668c33e300f241WA4004a7b668c33e300f900WB4487a3258b820c33e4494f900DA504a3228b350f1800g100DA2651a33b350g100DA1914a31b350g100MA1071a783b820MA3127a812b820MA1101a2307b820MA3033a2325b820')">
                         Classroom</span>
-                </a>  <a class="infoText" target="_blank" href="https://github.com/gve-sw/gve_devnet_webex_devices_executive_room_multi_aux_switching_macro">(Requires a Macro)</a>
+                </a> <a class="infoText" target="_blank"
+                    href="https://github.com/gve-sw/gve_devnet_webex_devices_executive_room_multi_aux_switching_macro">(Requires
+                    a Macro)</a>
                 <br />
 
 
@@ -1138,15 +1177,18 @@
                     <span class='templateLinks'
                         onclick="loadTemplate('A1v0.1.5b2700c1800~Example: Cross View~B1001CB1358a1756f1800CB1370a34AE43a861f-900SA2289a893f900SA982a520SA1989a1259f1800SA715a1262f1800SA1975a509SA1750a506SA940a1265f1800SA1188a1268f1800SA1445a1262f1800SA1244a509SA701a511SA1708a1250f1800SA1501a503TA559a1136c500e1600f-900DB51a866f-900g70MC1379a892MC895a892MC1923a877')">
                         Cross-view</span>
-                </a> <a target="_blank" class="infoText" href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/camera/cross-view_guidelines.pdf">(Multi Camera Setup)</a>
-                <br/>
+                </a> <a target="_blank" class="infoText"
+                    href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/camera/cross-view_guidelines.pdf">(Multi
+                    Camera Setup)</a>
+                <br />
 
                 <a href="#ContainerRoomSvg">
                     <span class='templateLinks'
                         onclick="loadTemplate('A1v0.1.5b4000c4000~Example: Campfire~B1001AI1806a1918f900AE2172a1923f-900AE1983a1737f1800AE1987a2105SA1858a2875f-1800SA2931a2296f900SA1877a1011SA2114a1009SA2931a1579f900SA2930a2068f900SA1055a2295f-900SA1630a2876f-1800SA1057a2044f-900SA2095a2873f-1800SA2346a2875f-1800SA1626a1009SA1056a1807f-900SA2929a1831f900SA2342a1008SA1054a1579f-900TA1178a1475c254e927TA2188a1721c400e400f900TA2444a1128c254e927f900TA2807a2399c254e927f-1800TA1521a2762c254e927f-900DB1990a2269g50DB1990a1569f1800g50DB1639a1920f900g50DB2341a1921f-900g50MC2223a1259f-1800MC2676a2178f-900MC1309a2158f900MC2676a1716f-900MC1761a1259f-1800MC2204a2631MC1742a2631MC1309a1696f900')">
                         Campfire</span>
-                </a> <a target="_blank" class="infoText" href="https://github.com/ctg-tme/campfire-blueprint-macro">(Campfire Blueprint)</a>
-                <br/>
+                </a> <a target="_blank" class="infoText"
+                    href="https://github.com/ctg-tme/campfire-blueprint-macro">(Campfire Blueprint)</a>
+                <br />
 
                 <a href="#ContainerRoomSvg">
                     <div class='templateLinks'
@@ -1160,7 +1202,11 @@
                 </a>
                 <br />
                 <div><label class="underlineHeader">Alternative Tools: Webex Workspace Designer</label></div>
-                For awesome 3D renderings, see the official <a href="https://www.webex.com/us/en/workspaces/workspace-designer.html" target="_blank">Webex Workspace Designer</a>.  There are some delightful overlaps between the Workspace Designer and the Video Room Calculator.  The Video Room Calculator will continue since it provides drag, drop and rotation for some complex designs. 
+                For awesome 3D renderings, see the official <a
+                    href="https://www.webex.com/us/en/workspaces/workspace-designer.html" target="_blank">Webex
+                    Workspace Designer</a>. There are some delightful overlaps between the Workspace Designer and the
+                Video Room Calculator. The Video Room Calculator will continue since it provides drag, drop and rotation
+                for some complex designs.
                 <br>
                 <br>
                 <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site </a>
@@ -1189,8 +1235,8 @@
     <div id="ContainerFooter" class="HeaderFooter">
         <div>Version: <label id="lblVersion">vx.x</label> - For more information please contact joehughe@cisco.com</div>
     </div>
-    <!-- <script src="./js/konva.min.js"></script> -->
-    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    <script src="./js/konva.min.js"></script>
+    <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
     <script src="./js/roomcalc.js"></script>
 
     <!-- 
