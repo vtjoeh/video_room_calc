@@ -1,13 +1,13 @@
-const version = "v0.1.503";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.  
+const version = "v0.1.504";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false;
 let versionQueryString;
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
-let timerQRcodeOn; 
-const svgns = "http://www.w3.org/2000/svg";  // variable for the namespace 
+let timerQRcodeOn;
+const svgns = "http://www.w3.org/2000/svg";  // variable for the namespace
 const videoRoomCalcSVG = "videoRoomCalcSVG";
 let roomCanvas = "roomCanvas"; // roomCanvas will replace videoRoomCalcSVG
-let pxOffset = 40; // margin on the picture in pixels 
+let pxOffset = 40; // margin on the picture in pixels
 let pyOffset = pxOffset;
 let scale = 50; /* Scale of image. initial value.  Will be recalculated before drawing image */
 let roomWidth = 20;  /* initial values */
@@ -19,24 +19,24 @@ let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
 let roomName = '';
 
-let qrCodeButtonsVisible = false; 
+let qrCodeButtonsVisible = false;
 
-let onePersonCrop; // values will change when unit changes m * ft/m 
+let onePersonCrop; // values will change when unit changes m * ft/m
 let twoPersonCrop; // values will change when unit changes m * ft/m
 let onePersonZoom;
 let twoPersonZoom;
 
-let defaultOnePersonCrop = 2.1; // default in meters  
+let defaultOnePersonCrop = 2.1; // default in meters
 let defaultTwoPersonCrop = 3.2;  // default in meters
 
-let drawScaledLineMode = false; /* False by default.  True when scaled line is being drawn */ 
+let drawScaledLineMode = false; /* False by default.  True when scaled line is being drawn */
 let touchesLength = 0; /* hold the e.touches.length on start for a touch device */
 let stage = new Konva.Stage({ container: 'canvasDiv', name: 'theCanvas', id: 'theId' });
 let layerGrid = new Konva.Layer({
     name: 'layerGrid',
 });
-const sessionId = createUuid(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */ 
-const startTime = new Date(Date.now()); /* startTime is for statistics */ 
+const sessionId = createUuid(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */
+const startTime = new Date(Date.now()); /* startTime is for statistics */
 const clientTimeStamp = startTime.toUTCString();
 let videoDevice;
 let videoDeviceKey;
@@ -69,7 +69,7 @@ roomObj.items.shapes = [];
 roomObj.items.displays = [];
 roomObj.items.speakers = [];
 roomObj.items.microphones = [];
-roomObj.items.touchPanels = []; 
+roomObj.items.touchPanels = [];
 
 let unit = roomObj.unit;
 
@@ -211,13 +211,57 @@ let txtAttribution = new Konva.Text(
     }
 )
 
+/*
+var rotateImageObj = new Image();
+rotateImageObj.onload = function () {
+  var rotateImage = new Konva.Image({
+    x: 50,
+    y: 50,
+    image: rotateImageObj,
+    width: 106,
+    height: 118,
+  });
+
+  // add the shape to the layer
+  // layer.add(rotateImage);
+};
+rotateImageObj.src = './assets/rotateRight.png';
+*/
 let tr = new Konva.Transformer({
     resizeEnabled: false,
     flipEnabled: false,
     rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315, 360],
     name: 'theTransformer',
-    rotateAnchorOffset: 25,
+    rotateAnchorOffset: 25
 });
+
+
+
+
+/* Customize the rotation / rotator anchor */
+const rotateImageObj = new Image();
+
+rotateImageObj.onload = () => {
+
+    tr.anchorStyleFunc((anchor) => {
+        if (anchor.attrs.name.startsWith('rotater')) {
+
+            anchor.height(20);
+            anchor.offsetY(10);
+            anchor.width(20);
+            anchor.offsetX(10);
+            anchor.cornerRadius(anchor.width() / 2);
+            anchor.stroke('lightblue');
+            anchor.fill('');
+            anchor.fillPatternImage(rotateImageObj);
+            anchor.fillPatternOffset({ x: 0, y: 0 });
+
+        }
+
+    })
+};
+
+rotateImageObj.src = './assets/rotateRight.png';
 
 let groupBackground = new Konva.Group(
     {
@@ -363,7 +407,7 @@ let microphones = [
     },
 ]
 
-/* tables key starts with T */
+/* tables key starts with T, walls start with W */
 let tables = [{
     name: 'Table Rectangle',
     id: 'tblRect',
@@ -381,7 +425,30 @@ let tables = [{
     id: 'tblTrap',
     key: 'TC',
     frontImage: 'tblTrap-front.png',
-}
+},
+
+{
+    name: 'Wall Standard (10 cm / 3.9")',
+    id: 'wallStd',
+    key: 'WA',
+    frontImage: 'wallStd-front.png',
+},
+
+{
+    name: 'Glass Wall (10 cm / 3.9")',
+    id: 'wallGlass',
+    key: 'WB',
+    frontImage: 'wallGlass-front.png',
+},
+
+{
+    name: 'Column',
+    id: 'columnRect',
+    key: 'WC',
+    frontImage: 'columnRect-front.png',
+},
+
+
 ]
 
 /* chair key ID start with S */
@@ -395,7 +462,18 @@ let chairs = [
         width: 640,
         depth: 640,
         opacity: 0.4,
-    }
+    },
+    {
+        name: "Person Standing",
+        id: "personStanding",
+        key: "SC",
+        topImage: 'person-top.png',
+        frontImage: 'person-front.png',
+        width: 640,
+        depth: 640,
+        opacity: 1,
+    },
+
 ]
 
 /* displays key starts with D */
@@ -441,11 +519,11 @@ let displays = [
 
 expandVideoDeviceArray();
 
-/* 
-    Purpuse to merge videoDevice array and camera array.  
+/*
+    Purpuse to merge videoDevice array and camera array.
     Each videoDevice can have a codecParent and a cameraParent.
-    If the parent device has an attribute missing on the child device, it is added to the child device.  
-    cameraParent is applied before the codecParent. 
+    If the parent device has an attribute missing on the child device, it is added to the child device.
+    cameraParent is applied before the codecParent.
 */
 function expandVideoDeviceArray() {
     videoDevices = videoDevices.concat(cameras);
@@ -649,8 +727,8 @@ function addOnNumberInputListener() {
 
     for (var i = 0; i < txtInputs.length; i++) {
         txtInputs[i].addEventListener("input", (event) => {
-            event.target.value = event.target.value.replace(/[<]/i, '\uFF1C');  // don't allow scripting tags be typed. 
-            event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  // don't allow scripting tags be typed. 
+            event.target.value = event.target.value.replace(/[<]/i, '\uFF1C');  // don't allow scripting tags be typed.
+            event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  // don't allow scripting tags be typed.
             event.target.value = event.target.value.replace(/[~]/i, '\u301C');
             roomObj.name = event.target.value;
         })
@@ -704,29 +782,29 @@ function determineMobileDevice() {
 function logMouseMovements(event) {
 
 
-    
+
         let svg = document.getElementById('videoRoomCalcSVG');
         let svgBound = svg.getBoundingClientRect();
-    
+
         let svgPixelX = event.clientX - svgBound.x;
         let svgPixelY = event.clientY - svgBound.y;
-    
+
         let unitX = (svgPixelX - pxOffset) / scale;
         let unitY = (svgPixelY - pxOffset) / scale;
-    
+
         if (event.clientX > svgBound.x && event.clientX < svgBound.right && event.clientY > svgBound.y && (event.clientY + 50) < svgBound.bottom) {
             let style = 'display: block; position: fixed; top: ' + (event.clientY + -15) + 'px; left: ' + (event.clientX + 15) + "px; ";
             let styleCursorPoint = 'display: block; position: fixed; top: ' + (event.clientY - 176) + 'px; left: ' + (event.clientX - 27) + "px; font-size: 100px; font-family: Arial, Helvetica, sans-serif; opacity: 0.5'";
-    
+
             document.getElementById('divCoordXy').setAttribute('style', style);
             document.getElementById('lblCoordXy').innerHTML = "x:" + unitX.toFixed(1) + ", y:" + unitY.toFixed(1);
-    
+
             document.getElementById('divCursorPoint').setAttribute('style', styleCursorPoint);
         }
         else {
             document.getElementById('divCursorPoint').setAttribute('style', 'display: none;');
             document.getElementById('divCoordXy').setAttribute('style', 'display: none;');
-    
+
         }
 
 };
@@ -748,15 +826,15 @@ let lastSvgBoundHeight = 100;
 
 /*
     resizePage moves ContainerFeedback from div Container1 <--> Contariner2.  Also determine if scrolling is enabled.
-    
-    The DIVs inside Container2 div: 
+
+    The DIVs inside Container2 div:
         ContainerRoomSvg
             controlButtons
-            scroll-container (used to contain scrolling)		
+            scroll-container (used to contain scrolling)
                 large-container
                     canvasDiv
                         konvajs-content (DIV created by Konva.js)
-        
+
 */
 function resizePage() {
 
@@ -821,7 +899,7 @@ function copyLinkToClipboard() {
     //     alert('Copied link to clipboard');
     // });
 
-    
+
     let hyperTextName;
 
     const textUrl = document.getElementById('shareLink').getAttribute('href');
@@ -845,7 +923,7 @@ function copyLinkToClipboard() {
 
     navigator.clipboard.write(data).then(
         () => { alert('Copied link to clipboard') },
-        () =>{}
+        () => { }
     );
 
 
@@ -874,7 +952,7 @@ function convertMetersFeet() {
     roomObj.unit = unit;
     let ratio = 3.2808 /* Feet / meter */
     if (unit === 'feet') {
-        // feet is default                
+        // feet is default
     } else {
         ratio = 1 / ratio;
     };
@@ -924,6 +1002,10 @@ function convertMetersFeet() {
 
             if ('radius' in nodes) {
                 nodes.radius = nodes.radius * ratio;
+            }
+
+            if ('data_zHeight' in nodes) {
+                nodes.data_zHeight = round(nodes.data_zHeight * ratio);
             }
         }
 
@@ -980,14 +1062,20 @@ function getQueryString() {
     }
 
     if (urlParams.has('qr')) {
-        qrCodeButtonsVisible = true; 
+        qrCodeButtonsVisible = true;
 
         makeButtonsVisible();
     }
 
-    if(urlParams.has('test')){
-        console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.'); 
+    if (urlParams.has('test')) {
+        console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
         document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    }
+
+    if (urlParams.has('test2')) {
+        console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
+        document.getElementById('test').setAttribute('style', 'visibility: visible;');
+        document.getElementById('test2').setAttribute('style', 'visibility: visible;');
     }
 
     function updatePageValues(param) {
@@ -1173,7 +1261,7 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.OpenTilde;
 
         }
-        // new below 
+        // new below
         else if (lastCharType === charType.OpenLowLetterTilde && char != '~') {
             lowerCaseLetters = strBldrLowerCase;
             strBldrLowerCase = '';
@@ -1187,7 +1275,7 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.BetweenTilde;
 
         }
-        // new below 
+        // new below
         else if (lastCharType === charType.BetweenLowLetterTilde && char != '~') {
             output[objCount][lowerCaseLetters] += char;
             lastCharType = charType.BetweenLowLetterTilde;
@@ -1199,7 +1287,7 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.BetweenTilde;
 
         }
-        // new below *** 
+        // new below ***
         else if ((lastCharType === charType.OpenLowLetterTilde || lastCharType === charType.OpenTilde) && char === '~') {
             output[objCount].text = "";
             lastCharType = charType.EndTilde;
@@ -1323,7 +1411,9 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('b' in item) {
-                newItem.z = item.b / 100;
+                newItem.data_zHeight = item.b / 100;
+            } else {
+                newItem.data_zHeight = "";
             }
 
             if ('c' in item) {
@@ -1401,7 +1491,7 @@ function base26ToBinaryString(characters) {
     return binaryString;
 }
 
-/* 
+/*
     converts binaryToBase26().  00000
     Only goes up to 'zz' or 1010100011, which is 675 entries
 */
@@ -1459,7 +1549,7 @@ function updateSelectVideoDeviceOptions() {
         drpVideoDevice.add(drpOption, undefined);
     })
 
-    drpVideoDevice.value = 'roomBarPro'; // Set the Room Bar Pro as the default device. 
+    drpVideoDevice.value = 'roomBarPro'; // Set the Room Bar Pro as the default device.
 
     drpVideoDeviceChange(true);
 
@@ -1474,10 +1564,10 @@ function update() {
 }
 
 /*
-if the canvas is updated too quickly with a draw(true) followed by canvasToJSON() a 
-race condition occurs that deletes all nodes.  To keep this from happening, drawRoom() has a 
-setTimeOut(canvasToJSON()) command for delay. Any button or input that causes  a 
-drawRoom(true) will be disabled for the duration of that setTimeout in case the enduser clicks quickly. 
+if the canvas is updated too quickly with a draw(true) followed by canvasToJSON() a
+race condition occurs that deletes all nodes.  To keep this from happening, drawRoom() has a
+setTimeout(canvasToJSON()) command for delay. Any button or input that causes  a
+drawRoom(true) will be disabled for the duration of that setTimeout in case the enduser clicks quickly.
 */
 function disableDrawUpdateButtons(isDisabled) {
 
@@ -1495,11 +1585,11 @@ function disableDrawUpdateButtons(isDisabled) {
 }
 
 /*
-    Determine if Quick Setup menu should be displayed. 
-    Primary videodevice, primary table & primary display should be centered on the X axis. 
-    Primary videoDevice and primary display should be on the same Y axis. 
-    Check to see if the videoDevice is an all in one device.  
-    quickSetupState = 'insert', 'disabled' or 'update' 
+    Determine if Quick Setup menu should be displayed.
+    Primary videodevice, primary table & primary display should be centered on the X axis.
+    Primary videoDevice and primary display should be on the same Y axis.
+    Check to see if the videoDevice is an all in one device.
+    quickSetupState = 'insert', 'disabled' or 'update'
 */
 
 function isQuickSetupEnabled() {
@@ -1508,11 +1598,11 @@ function isQuickSetupEnabled() {
     let videoDevicesNum = roomObj.items.videoDevices.length;
     let displaysNum = roomObj.items.displays.length;
     let tablesNum = roomObj.items.tables.length;
-    let chairsNum = roomObj.items.chairs.length; 
-    let shapesNum = roomObj.items.shapes.length; 
-    let touchPanlesNum = roomObj.items.touchPanels.length; 
-    let microphones = roomObj.items.microphones.length; 
-    let otherDevices = chairsNum + shapesNum + touchPanlesNum + microphones; 
+    let chairsNum = roomObj.items.chairs.length;
+    let shapesNum = roomObj.items.shapes.length;
+    let touchPanlesNum = roomObj.items.touchPanels.length;
+    let microphones = roomObj.items.microphones.length;
+    let otherDevices = chairsNum + shapesNum + touchPanlesNum + microphones;
 
     quickSetupState = 'disabled';
 
@@ -1534,12 +1624,12 @@ function isQuickSetupEnabled() {
         }
     }
 
-    if(primaryDeviceIsAllInOne && touchPanlesNum > 0){
-        quickSetupState = 'disabled'; 
+    if (primaryDeviceIsAllInOne && touchPanlesNum > 0) {
+        quickSetupState = 'disabled';
     }
 
-    if(otherDevices > 0){
-        quickSetupState = 'disabled'; 
+    if (otherDevices > 0) {
+        quickSetupState = 'disabled';
     }
 
     let quickSetupEnabledText = 'Quick Setup (optional)';
@@ -1561,8 +1651,8 @@ function isQuickSetupEnabled() {
 
     createShareableLink();
 
-    /* internal functions 
-    Determine if the primary devices have the same X value to the 100th place.  
+    /* internal functions
+    Determine if the primary devices have the same X value to the 100th place.
     Determin if the primary display & primary video device have the same Y value to the hundreds place.
     If so return true.
     */
@@ -1584,8 +1674,8 @@ function isQuickSetupEnabled() {
                 if (roomObj.items.displays.length == 1) {
 
                     let displayX = Math.round(roomObj.items.displays[0].x * 100);
-                    let displayY = Math.round(roomObj.items.displays[0].y * 100); 
-                    let videoDeviceY = Math.round(roomObj.items.videoDevices[0].y * 100); 
+                    let displayY = Math.round(roomObj.items.displays[0].y * 100);
+                    let videoDeviceY = Math.round(roomObj.items.videoDevices[0].y * 100);
                     if (videoDeviceX === tableCenterX && videoDeviceX == displayX && displayY == videoDeviceY) {
                         return true;
                     } else {
@@ -1707,6 +1797,7 @@ function updateTxtPrimaryDeviceNameLabel(primaryDevieName) {
 
 function quickUpdateButton() {
     /* enable and disable updateButton in case it is pushed too quicly and overwhelms the canvas */
+    zoomInOut('reset');
     document.getElementById('quickUpdateButtonId').disabled = true;
     lastAction = 'update button';
     postHeartbeat();
@@ -1727,10 +1818,11 @@ function quickUpdateButton() {
 }
 
 function updateButtonRoomDimensions() {
+    zoomInOut('reset');
     update();
 
-    /* 
-    clicking the Update Room Dimensions updateButtonId too quickly like a five year old can create a race condition.  
+    /*
+    clicking the Update Room Dimensions updateButtonId too quickly like a five year old can create a race condition.
     Disable button for short period. Because of the current CSS, the button does not appear disabled to the end user
     */
     document.getElementById("updateButtonId").disabled = true;
@@ -1743,14 +1835,6 @@ function updateButtonRoomDimensions() {
 function drpVideoDeviceChange(firstRun = false) {
     let drpVideoDevice = document.getElementById('drpVideoDevice');
     let drpVideoDeviceValue = drpVideoDevice.value;
-    let divCustomSettings = document.getElementById('customSettings');
-
-    // if (drpVideoDeviceValue === 'custom') {
-    //     divCustomSettings.setAttribute('style', 'display: visibility;');
-    // } else {
-    //     divCustomSettings.setAttribute('style', 'display: none;');
-    //     updateDefaultsPersonCropUnit();
-    // }
 
     if (drpVideoDeviceValue === 'autoselect') {
         let roomLength = document.getElementById('roomLength').value;
@@ -1763,18 +1847,18 @@ function drpVideoDeviceChange(firstRun = false) {
         }
 
         if (roomLength <= 3.05) {
-            // select room bar 
+            // select room bar
             drpVideoDevice.value = 'roomBar';
         }
         else if (roomLength <= 6.05) {
-            // select room par pro 
+            // select room par pro
 
             drpVideoDevice.value = 'roomBarPro';
         } else if (roomLength <= 9.05) {
             // select room kit eq quad cam
             drpVideoDevice.value = 'roomKitEqQuadCam';
         } else {
-            // select room kit eq quad cam + 4K PTZ 
+            // select room kit eq quad cam + 4K PTZ
             drpVideoDevice.value = 'roomKitEqQuadPtz4k';
         }
     }
@@ -1929,7 +2013,7 @@ function getDistanceB(degreeB, distanceA) {
 
 //svgStart
 function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'stroke:#808080;stroke-width:2;opacity:0.3;') {
-    // scale 
+    // scale
 
     let solidStyle = style;
 
@@ -2021,7 +2105,7 @@ function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'str
 
     } while (pxMeasurementX <= (endX - increment * scale));
 
-    // append to SVG 
+    // append to SVG
 
     return groupLines;
 
@@ -2140,7 +2224,7 @@ function updatePersonCropUnit() {
 
     if (isNaN(onePersonCrop)) {
         if (unit == 'feet') {
-            // feet 
+            // feet
             onePersonCrop = Math.round(defaultOnePersonCrop * 3.2808 * 100) / 100;
 
         } else {
@@ -2154,7 +2238,7 @@ function updatePersonCropUnit() {
 
     if (isNaN(twoPersonCrop)) {
         if (unit == 'feet') {
-            // feet 
+            // feet
             twoPersonCrop = Math.round(defaultTwoPersonCrop * 3.2808 * 100) / 100;
 
         } else {
@@ -2425,7 +2509,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     //svgStart
     let viewBoxWidth = roomWidth + (pxOffset * 2) / scale;
     let viewBoxLength = roomLength + (pxOffset * 2) / scale;
-    //svgEnd 
+    //svgEnd
 
     let canvasWidth = roomWidth + (pxOffset * 2) / scale;
     let canvasLength = roomLength + (pxOffset * 2) / scale;
@@ -2456,7 +2540,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
     )
 
-    zoomInOut(0); // update Stage based on values 
+    zoomInOut(0); // update Stage based on values
 
     let backGroundImage = new Konva.Rect({
         x: 0,
@@ -2493,11 +2577,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     outerWall.setAttribute("id", "outerWall");
 
     pxLastGridLineY = pxOffset + roomLength * scale;
-    //svgEnd 
+    //svgEnd
 
     // create layer for Border
 
-    //create the outerWall 
+    //create the outerWall
     let cOuterWall = new Konva.Rect({
         x: pxOffset,
         y: pxOffset,
@@ -2516,10 +2600,10 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     layerGrid.add(grOuterWall);
 
-    // stage.add(layerGrid); 
+    // stage.add(layerGrid);
 
     //
-    // SVG Create a Clip Path for the room. 
+    // SVG Create a Clip Path for the room.
     //
 
     // SVG Create <defs> for Clip Path
@@ -2543,7 +2627,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     defsClipPath.appendChild(clipPathBorder);
 
-    svg.insertBefore(defsClipPath, svg.firstChild); // <defs> need to be at top of SVG 
+    svg.insertBefore(defsClipPath, svg.firstChild); // <defs> need to be at top of SVG
 
     // Draw the grid
 
@@ -2582,19 +2666,19 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     // let kTable = new Konva.Rect({
     //     x: ((viewBoxWidth - tableWidth) / 2) * scale,
-    //     y: (pxOffset + ((distDisplayToTable + frntWallToTv) * scale)), 
-    //     width: tableWidth * scale, 
-    //     height: tableLength * scale, 
+    //     y: (pxOffset + ((distDisplayToTable + frntWallToTv) * scale)),
+    //     width: tableWidth * scale,
+    //     height: tableLength * scale,
     //     fill: 'brown',
-    //     stroke: 'black', 
-    //     strokeWidth: 3, 
+    //     stroke: 'black',
+    //     strokeWidth: 3,
     //     opacity: 0.8,
     //     id: 'mainTable'
     // })
 
-    // let layerTable = new Konva.Layer(); 
+    // let layerTable = new Konva.Layer();
 
-    // layerTable.add(kTable); 
+    // layerTable.add(kTable);
 
     document.getElementById('keyTable').setAttribute('style', 'background: brown; opacity: 0.7; font-size: small; border-style: solid; border-color: lightgray; border-width: 1px; ');
 
@@ -2606,7 +2690,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     //svgStart
     const wideCameraViewSVG = document.createElementNS(svgns, "polygon");
-    //svgEnd 
+    //svgEnd
 
     // Yello Wide Angle view: Set the position and size of the <polygon> element
 
@@ -2616,7 +2700,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     // let triangleHeight = getDistanceA(wideFOV / 2, roomWidth / 2);
     let wFovTriangleHeight = roomLength - frntWallToTv;
 
-    let triangleBase = getDistanceB(wideFOV / 2, wFovTriangleHeight); //  half the triangleBase; 
+    let triangleBase = getDistanceB(wideFOV / 2, wFovTriangleHeight); //  half the triangleBase;
 
     let pxTriangleBase = triangleBase * scale;
     let secondX = (startX - pxTriangleBase).toFixed(2);
@@ -2635,24 +2719,24 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     wideCameraViewSVG.setAttribute("style", "stroke:black;stroke-width: 1;fill:yellow;opacity:0.3 ")
     wideCameraViewSVG.setAttribute("id", "wide-hfov-polygon");
     wideCameraViewSVG.setAttribute('clip-path', 'url(#clipPathBorder)');
-    //svgEnd 
+    //svgEnd
 
     // let wideCameraViewLine = new Konva.Line({
     //     points: [startX, startY, Number(secondX), Number(secondY), Number(thirdX), Number(thirdY)],
     //     stroke: 'black',
-    //     strokeWidth: '1', 
+    //     strokeWidth: '1',
     //     fill: 'yellow',
-    //     opacity: 0.3, 
+    //     opacity: 0.3,
     //     closed: true,
-    // }); 
+    // });
 
-    // kClipGroup.add(wideCameraViewLine); 
+    // kClipGroup.add(wideCameraViewLine);
 
-    // let layerMain = new Konva.Layer(); 
+    // let layerMain = new Konva.Layer();
 
-    // layerMain.add(kClipGroup); 
+    // layerMain.add(kClipGroup);
 
-    // stage.add(layerMain); 
+    // stage.add(layerMain);
 
     // stage.add(layerTable);
 
@@ -2662,7 +2746,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     layerGrid.draw();
 
     //
-    // Two Person Crop -- Create a <polygon> element for the zoom horizontal FOV 
+    // Two Person Crop -- Create a <polygon> element for the zoom horizontal FOV
     //
 
     const twoPersonCameraViewTriangle = document.createElementNS(svgns, "polygon");
@@ -2688,7 +2772,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     twoPersonCameraViewTriangle.setAttribute("clip-path", "url(#clipPathBorder)");
 
     //
-    // One Person Crop -- Create a <polygon> element for the zoom horizontal FOV 
+    // One Person Crop -- Create a <polygon> element for the zoom horizontal FOV
     //
 
     const onePerCameraViewTriangle = document.createElementNS(svgns, "polygon");
@@ -2727,7 +2811,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         let onePersonCropColor = "#8FBC8B"
         let twoPersonCropColor = "#87aeed";
-        let gradientBlurTransition = 5 // percent the gradient changes +/-   
+        let gradientBlurTransition = 5 // percent the gradient changes +/-
         let endPointPercent = 90; // Percent
         let stopPoint1Opacity = 1.0;
         let stopPoint2Opacity = 1.0;
@@ -2742,7 +2826,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         // farthestParticipantBlurStart = (farthestParticipantPercent - gradientBlur);
 
-        // farthestParticipantBlurEnd = (farthestParticipantPercent + gradientBlur);           
+        // farthestParticipantBlurEnd = (farthestParticipantPercent + gradientBlur);
 
         let defsGradient = document.createElementNS(svgns, "defs");
         defsGradient.setAttribute('id', 'defs-gradient-optimal');
@@ -2853,7 +2937,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         txtFourTimesFromDisplay.setAttribute("clip-path", "url(#clipPathBorder)");
 
         svg.appendChild(txtFourTimesFromDisplay);
-        // update labels in they key 
+        // update labels in they key
         document.getElementById('displayClosestParticipant').innerHTML = round(displayClosestParticipant, -1);
 
         document.getElementById('displayOptimalFarthestParticipant').innerHTML = round(displayClosestParticipant * 3, -1);
@@ -2960,7 +3044,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         trNodesFromUuids(roomObj.trNodes, false);
 
-        setTimeout(() => { deleteNegativeShapes() }, 250);
+        setTimeout(() => {
+            deleteNegativeShapes();
+            // roomObjToCanvas(roomObj.items);
+            // trNodesFromUuids(roomObj.trNodes, false);
+        }, 250);
 
         if (!dontSaveUndo) {
             /* canvasToJSON() needs a little time before running or else it won't capture the recenlty drawn room */
@@ -2975,12 +3063,12 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         updateShapesBasedOnNewScale();
     }
 
-    tr.nodes(tr.nodes()); /* reset tr.nodes so the box is draw again or in correct place */
+    tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
     addListeners(stage);
 
-    /* the Canvas scroll visully gets reset to 0,0 on a redraw, but the scrollContainer.scrollLeft && scrollContainer.scrollTop keep the same value.  
-        Setting the srollContainer.scrollLeft = dx does nothing since Javscript thinks it is the same value and keeps the incorrect 0,0 position.  
-        Changing the value a little does the trick to reset scroll values. 
+    /* the Canvas scroll visully gets reset to 0,0 on a redraw, but the scrollContainer.scrollLeft && scrollContainer.scrollTop keep the same value.
+        Setting the srollContainer.scrollLeft = dx does nothing since Javscript thinks it is the same value and keeps the incorrect 0,0 position.
+        Changing the value a little does the trick to reset scroll values.
     */
     if (dx > 0) {
         scrollContainer.scrollLeft = dx - 0.01;
@@ -3094,28 +3182,27 @@ function createShareableLink() {
     if (fullShareLink.length > 2950) {
         document.getElementById('qrCodeLinkText').style.backgroundColor = '#f9bfbf';
     }
-    
+
     let queryParams = new URLSearchParams(window.location.search);
     queryParams.set("x", strUrlQuery2);
-    history.replaceState(null, null, fullShareLink); 
-    
-    /* only create QR Code if RoomOS only every 2 seconds for performance */ 
-    if(qrCodeAlwaysOn){
-        let qrImage = document.getElementById('qrCode').firstChild; 
-        clearTimeout(timerQRcodeOn); 
+    history.replaceState(null, null, fullShareLink);
 
-        /* blur the QR code until it is recreated */ 
-        if(qrImage){
+    /* only create QR Code if RoomOS only every 2 seconds for performance */
+    if (qrCodeAlwaysOn) {
+        let qrImage = document.getElementById('qrCode').firstChild;
+        clearTimeout(timerQRcodeOn);
+
+        /* blur the QR code until it is recreated */
+        if (qrImage) {
             qrImage.style.filter = 'blur(5px)';
-            console.log('qrImage blud'); 
         }
 
-        timerQRcodeOn = setTimeout(()=>{
-            createQrCode(); 
-        }, 2000); 
+        timerQRcodeOn = setTimeout(() => {
+            createQrCode();
+        }, 2000);
 
     }
-    
+
 }
 
 function expand(num) {
@@ -3136,8 +3223,10 @@ function createShareableLinkItem(item) {
         strItem += 'a' + Math.round(round(item.y) * 100);
     }
 
-    if ('z' in item) {
-        strItem += 'b' + Math.round(round(item.z) * 100);
+    if ('data_zHeight' in item) {
+        if (item.data_zHeight != "") {
+            strItem += 'b' + Math.round(round(item.data_zHeight) * 100);
+        }
     }
 
     if ('width' in item) {
@@ -3440,6 +3529,7 @@ function toggleButton(button) {
 
 
 function btnUndoClicked() {
+    zoomInOut('reset');
     clearTimeout(undoArrayTimer);
     if (undoArray.length > 0) {
         redoArray.push(undoArray.pop());
@@ -3448,21 +3538,22 @@ function btnUndoClicked() {
         drawRoom(true, true, true);
         enableBtnUndoRedo();
         setTimeout(() => {
-            isQuickSetupEnabled(); 
-            updateQuickSetupItems(); 
+            isQuickSetupEnabled();
+            updateQuickSetupItems();
         }, 500);
 
     }
 }
 
 function btnRedoClicked() {
+    zoomInOut('reset');
     if (redoArray.length > 0) {
         undoArray.push(redoArray.pop())
         roomObj = structuredClone(undoArray[undoArray.length - 1]);
         drawRoom(true, true, true);
-        setTimeout(() => { 
-            isQuickSetupEnabled(); 
-            updateQuickSetupItems(); 
+        setTimeout(() => {
+            isQuickSetupEnabled();
+            updateQuickSetupItems();
         }, 500);
     }
     enableBtnUndoRedo();
@@ -3504,7 +3595,7 @@ function copyItems() {
             center.x = node.x();
             center.y = node.y();
         } else {
-            center = getCenter(node);
+            center = getShapeCenter(node);
         }
 
         let x2 = ((center.x - pxOffset) / scale) + (stage.width() * 0.04) / scale;
@@ -3517,6 +3608,10 @@ function copyItems() {
 
         if ('data_diagonalInches' in node) {
             newAttr.data_diagonalInches = node.data_diagonalInches;
+        }
+
+        if ('data_zHeight' in node) {
+            newAttr.data_zHeight = node.data_zHeight;
         }
 
         insertShapeItem(deviceId, node.getParent().name(), newAttr, uuid);
@@ -3828,7 +3923,7 @@ function updateInsertVideoDeviceOptions() {
         drpInsertVideoDevice.add(drpOption, undefined);
     })
 
-    // drpInsertVideoDevice.value = 'ptz4k'; // Set the Room Bar Pro as the default device. 
+    // drpInsertVideoDevice.value = 'ptz4k'; // Set the Room Bar Pro as the default device.
 
 }
 
@@ -3915,7 +4010,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-            insertShapeItem(device.data_deviceid, 'videoDevices', { x: device.x, y: device.y, rotation: device.rotation }, device.id);
+            insertShapeItem(device.data_deviceid, 'videoDevices', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
 
         }
     }
@@ -3923,7 +4018,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation }, device.id);
+            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
 
         }
     }
@@ -3931,7 +4026,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation }, device.id);
+            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
 
         }
     }
@@ -3939,7 +4034,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
 
-            insertShapeItem(device.data_deviceid, 'displays', { x: device.x, y: device.y, rotation: device.rotation, data_diagonalInches: device.data_diagonalInches }, device.id);
+            insertShapeItem(device.data_deviceid, 'displays', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight, data_diagonalInches: device.data_diagonalInches }, device.id);
 
         }
     }
@@ -3947,7 +4042,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
 
-            insertShapeItem(device.data_deviceid, 'chairs', { x: device.x, y: device.y, rotation: device.rotation }, device.id);
+            insertShapeItem(device.data_deviceid, 'chairs', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
 
         }
     }
@@ -3955,7 +4050,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
 
-            let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
+            let attrObj = { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }
 
             if ('height' in device) {
                 attrObj.height = device.height;
@@ -3973,7 +4068,6 @@ function roomObjToCanvas(roomObjItems) {
 }
 
 function canvasToJson() {
-    let scaleRoomObj = {};
     let transformGroups = layerTransform.getChildren();
 
     transformGroups.forEach((group) => {
@@ -3989,7 +4083,7 @@ function canvasToJson() {
 
     setTimeout(() => {
         isQuickSetupEnabled();
-        updateQuickSetupItems(); 
+        updateQuickSetupItems();
         updateTitleGroup();
 
     }, 500);
@@ -3997,7 +4091,7 @@ function canvasToJson() {
     function getNodesJson(parentGroup) {
         let theObjects = parentGroup.getChildren();
         let groupName = parentGroup.name();
-        scaleRoomObj[groupName] = [];
+
         roomObj.items[groupName] = [];
         let itemAttr = {};
 
@@ -4009,11 +4103,7 @@ function canvasToJson() {
                 element.rotation(0);
             }
 
-            /* scaleRoomObj is used for troubleshooting */
-            scaleRoomObj[groupName].push({ x: attrs.x, y: attrs.y, width: attrs.width, height: attrs.height, rotation: attrs.rotation, scaleX: attrs.scaleX, scaleY: attrs.scaleY, type: element.data_type, id: element.attrs.id, name: element.attrs.name, test: attrs.test })
 
-            let scaleX = Math.round(attrs.scaleX * 1000) / 1000;
-            let scaleY = Math.round(attrs.scaleY * 1000) / 1000;
 
             let rotation = attrs.rotation;
 
@@ -4021,7 +4111,7 @@ function canvasToJson() {
                 x = attrs.x;
                 y = attrs.y;
             } else {
-                let center = getCenter(element);
+                let center = getShapeCenter(element);
                 x = center.x;
                 y = center.y;
             }
@@ -4042,6 +4132,12 @@ function canvasToJson() {
                 itemAttr.data_diagonalInches = element.data_diagonalInches;
             }
 
+            if ('data_zHeight' in element) {
+                itemAttr.data_zHeight = element.data_zHeight;
+            } else {
+                itemAttr.data_zHeight = "";
+            }
+
             if (groupName === 'tables') {
                 itemAttr.width = (attrs.width / scale);
                 itemAttr.height = (attrs.height / scale);
@@ -4052,7 +4148,7 @@ function canvasToJson() {
 
     }
 
-    console.log(JSON.stringify(roomObj, null, 5)); 
+    // console.log(JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(() => {
@@ -4064,7 +4160,7 @@ function canvasToJson() {
 }
 
 /*
-    Save the tr.nodes() UUIDs to roomObj.trNodes[] array for the purpose of undo/redo shape items being shown selected. 
+    Save the tr.nodes() UUIDs to roomObj.trNodes[] array for the purpose of undo/redo shape items being shown selected.
 */
 function trNodesUuidToRoomObj() {
     let trNodes = tr.nodes();
@@ -4094,7 +4190,7 @@ function saveToUndoArray() {
     strUndoArrayLastItem = strUndoArrayLastItem.trim();
 
     if ((strRoomObj === strUndoArrayLastItem)) {
-
+        /* do nothing */
     } else {
         undoArray.push(structuredClone(roomObj));
         createShareableLink();
@@ -4112,19 +4208,28 @@ function saveToUndoArray() {
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
-    let table;
-    let width = 1220 / 1000 * scale; /* default width is about 4 feet */
-    let height = 2440 / 1000 * scale; /* default table height is about 8 feet */
+    let table, data_zHeight;
+    let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
+    let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
     let pixelX = scale * attrs.x + pxOffset;
     let pixelY = scale * attrs.y + pyOffset;
     let opacity = 0.8;
+    let wallWidth = 0.10 * scale;
+    let defautlWallHeight = 2.5;
 
-    let fillColor = 'brown';
-    let strokeColor = 'black';
+    let fillColor = 'brown'; /* default color */
+    let strokeColor = 'black'; /* default width */
+
+    if (insertDevice.id.startsWith('column')) {
+        width = 0.305 * scale;
+        height = 0.305 * scale;
+    }
 
     if (unit === 'feet') {
         width = width * 3.28084;
+        wallWidth = wallWidth * 3.28084;
         height = height * 3.28084;
+        defautlWallHeight = round(defautlWallHeight * 3.2804);
     }
 
     if ('width' in attrs) {
@@ -4141,6 +4246,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         rotation = 0;
     }
 
+    if ('data_zHeight' in attrs) {
+        data_zHeight = attrs.data_zHeight;
+
+    } else {
+        data_zHeight = "";
+    }
+
+    if (insertDevice.id.startsWith('wall') || insertDevice.id.startsWith('column')) {
+        if (data_zHeight == 0 || data_zHeight == "") {
+            data_zHeight = defautlWallHeight;
+        }
+    }
+
     if (insertDevice.id === 'tblRect') {
         table = new Konva.Rect({
             x: pixelX,
@@ -4155,6 +4273,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
         });
+
     }
 
     if (insertDevice.id === 'tblEllip') {
@@ -4178,6 +4297,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.fillStrokeShape(shape);
             }
         });
+
     }
 
     let width2 = 0.8; /* in meters */
@@ -4217,7 +4337,85 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+
+    if (insertDevice.id === 'wallStd') {
+        table = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: wallWidth,
+            height: height,
+            fill: 'gray',
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+            sceneFunc: (ctx, shape) => {
+                ctx.beginPath();
+                let height = shape.height();
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(wallWidth, 0);
+
+                ctx.lineTo(wallWidth, height);
+                ctx.lineTo(0, height);
+                ctx.closePath(0, 0);
+                ctx.fillStrokeShape(shape);
+            }
+        });
+    }
+
+    if (insertDevice.id === 'wallGlass') {
+        table = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: wallWidth,
+            height: height,
+            fill: '#ADD8E6',
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: 0.5,
+            sceneFunc: (ctx, shape) => {
+                ctx.beginPath();
+                let height = shape.height();
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(wallWidth, 0);
+
+                ctx.lineTo(wallWidth, height);
+                ctx.lineTo(0, height);
+                ctx.closePath(0, 0);
+                ctx.fillStrokeShape(shape);
+            }
+        });
+    }
+
+
+
+    if (insertDevice.id === 'columnRect') {
+        table = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: 'gray',
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+        });
+
+    }
+
     table.data_deviceid = insertDevice.id;
+
+    table.data_zHeight = data_zHeight;
 
     table.perfectDrawEnabled(perfectDrawEnabled);
 
@@ -4241,13 +4439,16 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (selectTrNode) {
-        tr.resizeEnabled(true);
+        // tr.resizeEnabled(true);
+        // resizeTableOrWall();
         tr.nodes([table]);
         enableCopyDelBtn();
         /* add delay before updateFormatDetails to give time for object to be inserted and roomObj JSON to be updated */
         setTimeout(() => {
+            resizeTableOrWall();
+            // tr.nodes([table]);
             updateFormatDetails(uuid)
-        }, 500);
+        }, 250);
     }
 
     table.on('dragmove', function (e) {
@@ -4257,7 +4458,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             enableCopyDelBtn();
             /* tables and other objects maybe resizable. */
             if (e.target.getParent() === groupTables) {
-                tr.resizeEnabled(true);
+                // tr.resizeEnabled(true);
+                resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
             }
@@ -4274,7 +4476,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 }
 
 /*
-    insertOffsetCount() not used at the moment due to drag and drop.  Might use the code gain.  
+    insertOffsetCount() not used at the moment due to drag and drop.  Might use the code gain.
 */
 function insertOffsetCount() {
     insertCountXOffset += 1;
@@ -4318,11 +4520,11 @@ function findUpperLeftXY(shape) {
     };
 }
 
-/* 
-    Take an item and insert into proper layerTransform group. 
-    deviceId e.g. roomBar found in devices.  
+/*
+    Take an item and insert into proper layerTransform group.
+    deviceId e.g. roomBar found in devices.
   attrs { x: x, y: y, rotation: rotation }
-  Insert based on un-scaled values. 
+  Insert based on un-scaled values.
   if UUID does not exist, create one for the object
 
 */
@@ -4336,10 +4538,10 @@ function updateShapesBasedOnNewScale() {
         oldPyOffset = layerTransform.data_pyOffset;
 
         updateNodeScale(layerTransform);
-        // updateNodeScale(grShadingMicrophone); 
-        // updateNodeScale(grShadingCamera); 
+        // updateNodeScale(grShadingMicrophone);
+        // updateNodeScale(grShadingCamera);
         // updateNodeScale(grShadingSpeaker);
-        // updateNodeScale(grDisplayDistance);  
+        // updateNodeScale(grDisplayDistance);
 
         function updateNodeScale(layer) {
 
@@ -4411,16 +4613,28 @@ function updateItem() {
     let data_diagonalInches = document.getElementById('itemDiagnoalTv').value;
     let x = document.getElementById('itemX').value;
     let y = document.getElementById('itemY').value;
-    let name = document.getElementById('itemName').value;
 
     let rotation = document.getElementById('itemRotation').value;
 
-    let data_deviceid = document.getElementById('itemType').innerText;
+    let data_zHeight = Number(document.getElementById('itemZheight').value);
+
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
 
+    /* Make the button disabled for a short time.  Pushing the button too fast too many times creates an issue where Canvas data is lost */
+    document.getElementById("btnUpdateItemId").disabled = true;
+
+    setTimeout(() => {
+        document.getElementById("btnUpdateItemId").disabled = false;
+
+    }, 700);
+
+    /* take the item.id from the web page and find it in the RoomObj json. The Canvas shape
+        gets deleted and rebuilt versus updated */
     roomObj.items[parentGroup].forEach((item, index) => {
+
+
         if (item.id === id) {
             if ('x' in item) {
                 item.x = x;
@@ -4446,31 +4660,54 @@ function updateItem() {
                 item.data_diagonalInches = data_diagonalInches;
             }
 
+            item.data_zHeight = data_zHeight;
+
             item.rotation = rotation;
 
             /* come back to updating name later as it will take more coding to transfer to copy link URL */
-            /*  item.name or item.data_name 
-            
+            /*  item.name or item.data_name
+
             if ('name' in item){
-                item.name = name; 
+                item.name = name;
             }
-            
+
             */
 
             if (document.getElementById('isPrimaryCheckBox').disabled === false && document.getElementById('isPrimaryCheckBox').checked === true) {
                 arrayMove(roomObj.items[parentGroup], index, 0);
-
             }
 
+            /*
+            right now I destroy the node and rebuild.  It was just easier to quickly code with guidance shadings
+            */
 
+            let node = stage.find('#' + id)[0];
 
+            let audioShading = stage.find('#audio~' + node.id())[0];
+            let videoShading = stage.find('#fov~' + node.id())[0];
+            let displayShading = stage.find('#dispDist~' + node.id())[0];
 
-            drawRoom(true, true);
+            node.destroy();
+            if (audioShading) {
+                audioShading.destroy();
+            }
 
+            if (videoShading) {
+                videoShading.destroy();
+            }
+
+            if (displayShading) {
+                displayShading.destroy();
+            }
+
+            insertShapeItem(item.data_deviceid, parentGroup, item, id, true);
+
+            /* give the canvas some time to be updated before updating */
             setTimeout(() => {
                 updateFormatDetails(id);
                 tr.nodes([stage.find('#' + id)[0]]);
                 enableCopyDelBtn();
+                canvasToJson();
             }, 100);
 
             return;
@@ -4482,7 +4719,7 @@ function updateItem() {
 }
 
 /*
-   Moves an object from one part of the array to another.  
+   Moves an object from one part of the array to another.
    Code from https://stackoverflow.com/questions/5306680/move-an-array-element-from-one-array-position-to-another
 */
 function arrayMove(arr, old_index, new_index) {
@@ -4558,12 +4795,6 @@ function deleteNegativeShapes() {
                     videoShading.destroy();
                 }
 
-                /* destroying nodes takes time */
-
-                // setTimeout(()=>{
-                //     canvasToJson();    
-                // }, 10); 
-
             }
 
         });
@@ -4585,16 +4816,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     let insertDevice = {};
     let group;
-    let width, height, rotation;
+    let width, height, rotation, data_zHeight;
     let abbrUnit = 'm';  /* abbreviated unit - will be m for meters, f for feet. Inserted in the shape rendering. */
 
     if (unit === 'feet') {
         abbrUnit = 'ft'
     }
 
-    /* 
-        Check if deviceId is in group tables 
-        if a table, break out of this and go to insertTable 
+    /*
+        Check if deviceId is in group tables
+        if a table, break out of this and go to insertTable
     */
     if (groupName === 'tables') {
         for (const device of tables) {
@@ -4705,7 +4936,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         rotation = 0;
     }
 
-    // need to move Display calculations here: 
+    // need to move Display calculations here:
     let data_diagonalInches = 0;
 
 
@@ -4717,8 +4948,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         attrs.data_diagonalInches = data_diagonalInches;
     }
 
+    if ('data_zHeight' in attrs) {
+        data_zHeight = attrs.data_zHeight;
+    } else {
+        data_zHeight = "";
+    }
+
     /*
-        Calculate width of displays based on Diagonal inches.  
+        Calculate width of displays based on Diagonal inches.
     */
     let displayNumber = 1;
     if (groupName === 'displays') {
@@ -4745,28 +4982,28 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     }
 
 
-    /* 
-        Testing scaling up the microphones and videodevices so they can be found 
-        Items that are displays and table items should not be scaled. 
+    /*
+        Testing scaling up the microphones and videodevices so they can be found
+        Items that are displays and table items should not be scaled.
     */
 
     /*
     let scaleMin = 20;
-    let scaleMinFactor = 1; 
+    let scaleMinFactor = 1;
     if (unit === 'meters'){
-        scaleMin = scaleMin * 3.28084; 
+        scaleMin = scaleMin * 3.28084;
     }
     if (scale < scaleMin) {
     if (!('data_diagonalInches' in attrs)){
             scaleMinFactor = scaleMin / scale;
-            width = width * scaleMinFactor; 
+            width = width * scaleMinFactor;
             height = height * scaleMinFactor;
         }
     }
     */
 
 
-    //convert to upper left pixel position before conversion 
+    //convert to upper left pixel position before conversion
     let cornerXY = findUpperLeftXY({ x: pixelX, y: pixelY, rotation: rotation, width: width, height: height });
 
 
@@ -4799,6 +5036,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.data_diagonalInches = data_diagonalInches;
         }
 
+        if ('data_zHeight' in attrs) {
+            imageItem.data_zHeight = data_zHeight;
+        }
+
         if ('name' in insertDevice) {
             imageItem.name(insertDevice.name);
         }
@@ -4825,7 +5066,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 enableCopyDelBtn();
                 /* tables and other objects maybe resizable. */
                 if (e.target.getParent() === groupTables) {
-                    tr.resizeEnabled(true);
+                    // tr.resizeEnabled(true);
+                    resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
                 }
@@ -5188,7 +5430,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         function moveShading(imageItem, shadingItem) {
 
-            let center = getCenter(imageItem);
+            let center = getShapeCenter(imageItem);
             let centerY = center.y;
             let centerX = center.x;
 
@@ -5221,7 +5463,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 }
 
-function getCenter(shape) {
+/* Get center of a shape from upper left x, upper right y cooridnate. A shape comes from Canvas / Konva.js */
+function getShapeCenter(shape) {
 
     return {
 
@@ -5236,6 +5479,21 @@ function getCenter(shape) {
     };
 }
 
+/* Get center of an item from upper left x, y cooridnates. An 'item' is found in roomObj.items[] */
+function getItemCenter(item) {
+
+    return {
+        x:
+            item.x
+            + (item.width / 2) * Math.cos(Math.PI / 180 * item.rotation)
+            + (item.height / 2) * Math.sin(Math.PI / 180 * (-item.rotation)),
+        y:
+            item.y +
+            (item.height / 2) * Math.cos(Math.PI / 180 * item.rotation) +
+            (item.width / 2) * Math.sin(Math.PI / 180 * item.rotation)
+    }
+
+}
 
 
 /* enableCopyButton is enacted anywhere tr.nodes([]) is used and changes from length=0 to lenth >0 */
@@ -5267,67 +5525,67 @@ function enableCopyDelBtn(e) {
 };
 
 /*
-    Rounds the number.  Default is to one-hundredth place, -2.  It drops trailing zeros if needed, unlike .toFixed() 
+    Rounds the number.  Default is to one-hundredth place, -2.  It drops trailing zeros if needed, unlike .toFixed()
 */
 function round(inNumber, place = -2) {
     let factor = 10 ** (-1 * place);
     return Math.round(inNumber * factor) / factor;
 }
 
-function updateQuickSetupItems(){
-    let primaryVideoDevice = roomObj.items.videoDevices[0]; 
-    let primaryTable = roomObj.items.tables[0]; 
-    let primaryDisplay = roomObj.items.displays[0]; 
+function updateQuickSetupItems() {
+    let primaryVideoDevice = roomObj.items.videoDevices[0];
+    let primaryTable = roomObj.items.tables[0];
+    let primaryDisplay = roomObj.items.displays[0];
 
-    if(primaryTable){
-        document.getElementById('tableWidth').value = round(primaryTable.width); 
-        document.getElementById('tableLength').value = round(primaryTable.height); 
+    if (primaryTable) {
+        document.getElementById('tableWidth').value = round(primaryTable.width);
+        document.getElementById('tableLength').value = round(primaryTable.height);
     }
 
-    if(primaryVideoDevice){
+    if (primaryVideoDevice && primaryTable) {
 
-        document.getElementById('drpVideoDevice').value = primaryVideoDevice.data_deviceid; 
+        document.getElementById('drpVideoDevice').value = primaryVideoDevice.data_deviceid;
         videoDevices.forEach((item) => {
             if (primaryVideoDevice.data_deviceid == item.id) {
                 let displayId;
-                let frntWallToTv = document.getElementById('frntWallToTv'); 
-                let distDisplayToTable = document.getElementById('distDisplayToTable'); 
+                let frntWallToTv = document.getElementById('frntWallToTv');
+                let distDisplayToTable = document.getElementById('distDisplayToTable');
                 let offset = (item.depth / 1000) / 2;
-                
+
                 if ('displayOffSetY' in item) {
                     offset = offset - (item.displayOffSetY / 1000);
                 }
-    
+
                 if (unit === 'feet') {
                     offset = offset * 3.2808;
                 }
 
                 frntWallToTv.value = round(primaryVideoDevice.y + offset);
 
-                distDisplayToTable.value = round(primaryTable.y - (primaryVideoDevice.y + offset)); 
-    
+                distDisplayToTable.value = round(primaryTable.y - (primaryVideoDevice.y + offset));
+
                 if ('diagonalInches' in item) {
                     primaryDeviceIsAllInOne = true;
-                    document.getElementById('tvDiag').value = item.diagonalInches; 
-                    document.getElementById('drpTvNum').value = '1'; 
-                    /* Room Kit EQX always has 2 displays */ 
-                    if(primaryVideoDevice.data_deviceid.startsWith('roomKitEqx')){
-                        document.getElementById('drpTvNum').value = '2'; 
+                    document.getElementById('tvDiag').value = item.diagonalInches;
+                    document.getElementById('drpTvNum').value = '1';
+                    /* Room Kit EQX always has 2 displays */
+                    if (primaryVideoDevice.data_deviceid.startsWith('roomKitEqx')) {
+                        document.getElementById('drpTvNum').value = '2';
                     }
                 } else {
                     primaryDeviceIsAllInOne = false;
 
-                    document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches; 
+                    document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches;
 
-                    if(primaryDisplay.data_deviceid === 'displaySngl'){
-                        document.getElementById('drpTvNum').value = '1'; 
-                    } 
-                    else if (primaryDisplay.data_deviceid === 'displayDbl'){
-                        document.getElementById('drpTvNum').value = '2'; 
+                    if (primaryDisplay.data_deviceid === 'displaySngl') {
+                        document.getElementById('drpTvNum').value = '1';
+                    }
+                    else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                        document.getElementById('drpTvNum').value = '2';
 
                     }
-                    else if (primaryDisplay.data_deviceid === 'displayDbl'){
-                        document.getElementById('drpTvNum').value = '3'; 
+                    else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                        document.getElementById('drpTvNum').value = '3';
                     }
 
                 }
@@ -5339,13 +5597,16 @@ function updateQuickSetupItems(){
 
 function updateFormatDetails(eventOrShapeId) {
 
-    let shape;
+    let shape; // shape is direct from canvans, item is in JSON.
 
     if (typeof eventOrShapeId === 'string') {
         shape = stage.find('#' + eventOrShapeId)[0];
+
     } else {
         shape = eventOrShapeId.target;
     }
+
+    console.trace('shape', shape);
 
     let id = shape.attrs.id;
     let parentGroup = shape.getParent().name();
@@ -5375,7 +5636,7 @@ function updateFormatDetails(eventOrShapeId) {
                 y = shape.y();
 
             } else {
-                let xy = getCenter(shape);
+                let xy = getShapeCenter(shape);
                 x = xy.x;
                 y = xy.y;
             }
@@ -5387,7 +5648,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemDiagnoalTvDiv').style.display = 'none';
             }
 
-            if (parentGroup === 'videoDevices' || parentGroup === 'displays' || parentGroup === 'tables') {
+            if (parentGroup === 'videoDevices' || parentGroup === 'displays' || shape.data_deviceid === 'tblRect') {
                 isPrimaryDiv.style.display = 'initial';
                 if (index === 0) {
                     isPrimaryCheckBox.checked = true;
@@ -5401,7 +5662,7 @@ function updateFormatDetails(eventOrShapeId) {
                 else if (parentGroup === 'displays') {
                     isPrimaryLabel.innerText = 'Is primary display?';
                 }
-                else if (parentGroup === 'tables') {
+                else if (parentGroup === 'tables' && shape.data_deviceid === 'tblRect') {
                     isPrimaryLabel.innerText = 'Is primary table?';
                 }
             }
@@ -5439,6 +5700,13 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemRotation').value = round(shape.rotation(), -1);
             }
 
+            if ('data_zHeight' in item) {  // data_zHeight should never be rendered.
+                document.getElementById('itemZheight').value = item.data_zHeight;
+            } else {
+                document.getElementById('itemZheight').value = "";
+            }
+
+
             return;
         }
     })
@@ -5447,7 +5715,7 @@ function updateFormatDetails(eventOrShapeId) {
 
 
 /*
-    On touch devices if the browser is zoomed and the user is inselect mode on the canvas, it is possible 
+    On touch devices if the browser is zoomed and the user is inselect mode on the canvas, it is possible
     to get stuck on the canvas and now way to scroll, touchmove or zoom out.  Clicking 4-6 times quickly on an iOS device
     will allow it set the proper web zoom.  No idea how this works on an android device.
 
@@ -5490,8 +5758,6 @@ function addListeners(stage) {
         if (e.target.findAncestor('.layerTransform')) {
             return;
         }
-
-        // tr.resizeEnabled(false);
 
         if (panScrollableOn) {
             return;
@@ -5573,7 +5839,8 @@ function addListeners(stage) {
 
         if (selected.length === 1 && selected[0].getParent().name() === 'tables') {
             /* if there is a single table, make it resizable */
-            tr.resizeEnabled(true);
+            // tr.resizeEnabled(true);
+            resizeTableOrWall();
         }
         enableCopyDelBtn();
     });
@@ -5584,7 +5851,7 @@ function addListeners(stage) {
         if (e.target.attrs.id) {
             if (tr.nodes().length === 1) {
                 updateFormatDetails(e);
-                
+
             }
         }
 
@@ -5615,7 +5882,8 @@ function addListeners(stage) {
 
             /* tables and other objects maybe resizable. */
             if (e.target.getParent() === groupTables) {
-                tr.resizeEnabled(true);
+                // tr.resizeEnabled(true);
+                resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
             }
@@ -5679,12 +5947,12 @@ function dragStart(event) {
 
     /* Safari drags the whole DIV by default and doesn't like event.dataTransfer.setDragImage, therefore temporarily removing the CSS class and then adding back in ondrag. */
 
-    /*  come back to this later; 
+    /*  come back to this later;
     if (isSafari) {
 
         draggedElement = event.target;
         tempClass = draggedElement.className;
-        draggedElement.className = 'flexItemsTemp'; 
+        draggedElement.className = 'flexItemsTemp';
         draggedElement.width = width;
     }
     */
@@ -5838,13 +6106,15 @@ let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'room
 
 let legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
 
-let microphonesMenu = ['ceilingMicPro','tableMicPro', 'tableMic','ceilingMic'];
+let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
 let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
 let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap'];
 
-let chairsMenu = ['chair'];
+let wallsMenu = ['wallStd', 'wallGlass', 'columnRect'];
+
+let chairsMenu = ['chair', 'personStanding'];
 
 createItemsOnMenu('cameraMenuContainer', videoDevicesMenu, 'videoDevices', videoDevices);
 
@@ -5861,6 +6131,8 @@ createItemsOnMenu('microphoneMenuContainer', microphonesMenu, 'microphones', mic
 createItemsOnMenu('displaysMenuContainer', displaysMenu, 'displays', displays);
 
 createItemsOnMenu('tablesMenuContainer', tablesMenu, 'tables', tables);
+
+createItemsOnMenu('wallsMenuContainer', wallsMenu, 'tables', tables);
 
 createItemsOnMenu('chairsMenuContainer', chairsMenu, 'chairs', chairs);
 
@@ -5929,7 +6201,7 @@ function addItemListeners(itemArray) {
         box.addEventListener('touchstart', function (e) {
 
             e.preventDefault();
-            // create a new node to drag, then delete it on touchend 
+            // create a new node to drag, then delete it on touchend
             newInsertItem = e.target.children[0].cloneNode(true);
             newInsertItem.style.zIndex = 1;
             document.body.appendChild(newInsertItem);
@@ -5974,12 +6246,12 @@ function addItemListeners(itemArray) {
 }
 
 
-/* 
-    Change stage.Width, stage.Height, stage.ScaleX and stage.ScaleY at the same time. 
+/*
+    Change stage.Width, stage.Height, stage.ScaleX and stage.ScaleY at the same time.
     Performance hits are taken with a larger canvas, so decide Zoom level allowed based on device.
-    Safari supports limited canvas sizes, so limit zoom size. 
+    Safari supports limited canvas sizes, so limit zoom size.
     RoomOS can run into memory issues, so keep the canvas smaller.
-    zoomChange is: + or - number, or 'in' or 'out' or 'reset' 
+    zoomChange is: + or - number, or 'in' or 'out' or 'reset'
  */
 function zoomInOut(zoomChange) {
     let scrollContainer = document.getElementById('scroll-container');
@@ -6132,9 +6404,9 @@ function type(value) {
 }
 
 
-/* 
+/*
     Cache Images so if internet is lost, insert images to canvas still works.
-    May try to determine a way so images don't need to be cached to reduce file downloads. 
+    May try to determine a way so images don't need to be cached to reduce file downloads.
 */
 
 function preLoadTopImages(list) {
@@ -6159,6 +6431,8 @@ function preLoadTopImages(list) {
 
             imageObj.src = imageLocation;
 
+
+
         }
     })
 }
@@ -6170,7 +6444,7 @@ if (isCacheImages) {
     preLoadTopImages(chairs);
 }
 
-/* 
+/*
     Load QR code javascript.  QR code is only needed for RoomOS devices, therefore is only downloaded on request
 */
 
@@ -6190,9 +6464,9 @@ function setExternalScripts(src) {
 async function loadQRCodeScript() {
 
     /* attribution: kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator */
-    
+
     const script = './js/qrcode.js';
-    qrCodeAlwaysOn = true; 
+    qrCodeAlwaysOn = true;
 
     document.getElementById('btnQRcodeLoad').disabled = true;
     const scripts = [script];
@@ -6202,41 +6476,41 @@ async function loadQRCodeScript() {
 
         await setExternalScripts(scripts[i]);
 
-        createQrCode(); 
+        createQrCode();
 
-        
 
-        createShareableLink(); 
+
+        createShareableLink();
     }
 }
 
 function createQrCode() {
 
- 
- 
-        // let link = document.getElementById('shareLink').getAttribute('href');
 
-        let typeNumber = 0;
-        let errorCorrectionLevel = 'L';
-        let qr = qrcode(typeNumber, errorCorrectionLevel);
-        qr.addData(fullShareLink);
-        qr.make();
 
-        document.getElementById('qrCode').innerHTML = qr.createImgTag();
+    // let link = document.getElementById('shareLink').getAttribute('href');
 
-        /* 
-            QR code library creates an img tag with width & height that changes with QR code. 
-            Remove that height and width and have it fit in its parent div. 
-        */ 
+    let typeNumber = 0;
+    let errorCorrectionLevel = 'L';
+    let qr = qrcode(typeNumber, errorCorrectionLevel);
+    qr.addData(fullShareLink);
+    qr.make();
 
-        let qrImage = document.getElementById('qrCode').firstChild; 
-        qrImage.removeAttribute("width");
-        qrImage.removeAttribute("height");
-        qrImage.style.width = '50%'; 
+    document.getElementById('qrCode').innerHTML = qr.createImgTag();
 
-        qrImage.style.filter = ''; 
+    /*
+        QR code library creates an img tag with width & height that changes with QR code.
+        Remove that height and width and have it fit in its parent div.
+    */
 
-        // let containerInputs = document.getElementById('ContainerInputs').; 
+    let qrImage = document.getElementById('qrCode').firstChild;
+    qrImage.removeAttribute("width");
+    qrImage.removeAttribute("height");
+    qrImage.style.width = '50%';
+
+    qrImage.style.filter = '';
+
+    // let containerInputs = document.getElementById('ContainerInputs').;
 
 }
 
@@ -6252,108 +6526,395 @@ function clearUrlQueryString() {
 
 
 function loadTemplate(x) {
-    resetRoomObj(); 
+    resetRoomObj();
     parseShortenedXYUrl(x);
     drawRoom(true, true);
-    const baseUrl = location.origin + location.pathname; 
+    const baseUrl = location.origin + location.pathname;
     document.getElementById("defaultOpenTab").click();
-    setTimeout(()=>{
+    setTimeout(() => {
         // history.replaceState(null, null, baseUrl);
         drawRoom();
-        canvasToJson(); 
-        let simpleTimeoput = setTimeOut(()=>{
-            createShareableLink(); 
-        }, 500); 
-        
+        canvasToJson();
+        let simpleTimeoput = setTimeout(() => {
+            createShareableLink();
+        }, 500);
 
-    }, 500);    
-    
+
+    }, 500);
+
 }
 
 const fileInput = document.getElementById('fileInput');
 
-fileInput.addEventListener('change', function(e) {
-  if (e.target.files && e.target.files[0]) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
+function resizeTableOrWall() {
 
-        
-      const image = new Image();
-      image.onload = function() {
-        const konvaImage = new Konva.Image({
-          image: image,
-          x: pxOffset,
-          y: pyOffset,
-          height: stage.height(),
-          opacity: 0.5,
-          draggable: true,
-        });
-        groupTables.add(konvaImage); 
+    let nodes = tr.nodes();
+    if (nodes.length === 1) {
 
-        console.log('image.width', image.width); 
-        console.log('image.height', image.height); 
-
-        let roomScaleWidth = (scale * roomObj.room.roomWidth); 
-        let roomScaleLength = (scale * roomObj.room.roomLength); 
-
-        let ratioRoomToImageWidth = image.width / roomScaleWidth; 
-        let ratioRoomToImageLength = image.height / roomScaleLength; 
-        
-        console.log('ratioRoomToImageWidth', ratioRoomToImageWidth); 
-        console.log('ratioRoomToImageWidth', ratioRoomToImageLength); 
-
-
-        let scaleImage = 1; 
-
-        if (ratioRoomToImageWidth  > ratioRoomToImageLength){
-            console.log('roomScale width is larger, use roomScaleLength'); 
-            scaleImage = ratioRoomToImageLength;   
+        if (nodes[0].data_deviceid.startsWith('wall')) {
+            tr.enabledAnchors(['top-center', 'bottom-center',]);
+            tr.resizeEnabled(true);
+        } else if (nodes[0].data_deviceid.startsWith('tbl')) {
+            tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
+            tr.resizeEnabled(true);
         } else {
-            console.log('roomScaleLength is larger, use roomScaleWidth')
-
-             
-            scaleImage = ratioRoomToImageWidth; 
-
+            tr.resizeEnabled(false);
         }
 
-        console.log('scaleImage', scaleImage); 
-        
-        konvaImage.width(image.width * scaleImage); 
+    }
 
-        konvaImage.height(image.height * scaleImage ); 
 
-        document.getElementById('scaleImageId').value = scaleImage; 
-      };
-      image.src = e.target.result;
-    };
-    reader.readAsDataURL(e.target.files[0]);
-    // document.getElementById("canvasDiv").style.cursor = "crosshair";
-    drawScaledLineMode = true; 
-  }
+}
+
+fileInput.addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+
+
+            const image = new Image();
+            image.onload = function () {
+                const konvaImage = new Konva.Image({
+                    image: image,
+                    x: pxOffset,
+                    y: pyOffset,
+                    height: stage.height(),
+                    opacity: 0.5,
+                    draggable: true,
+                });
+                groupTables.add(konvaImage);
+
+                let roomScaleWidth = (scale * roomObj.room.roomWidth);
+                let roomScaleLength = (scale * roomObj.room.roomLength);
+
+                let ratioRoomToImageWidth = image.width / roomScaleWidth;
+                let ratioRoomToImageLength = image.height / roomScaleLength;
+
+
+                let scaleImage = 1;
+
+                if (ratioRoomToImageWidth > ratioRoomToImageLength) {
+                    console.log('roomScale width is larger, use roomScaleLength');
+                    scaleImage = ratioRoomToImageLength;
+                } else {
+                    console.log('roomScaleLength is larger, use roomScaleWidth')
+
+
+                    scaleImage = ratioRoomToImageWidth;
+
+                }
+
+                console.log('scaleImage', scaleImage);
+
+                konvaImage.width(image.width * scaleImage);
+
+                konvaImage.height(image.height * scaleImage);
+
+                document.getElementById('scaleImageId').value = scaleImage;
+            };
+            image.src = e.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+        // document.getElementById("canvasDiv").style.cursor = "crosshair";
+        drawScaledLineMode = true;
+    }
 });
 
-const fileConfig = document.getElementById('fileConfig'); 
+const fileConfig = document.getElementById('fileConfig');
 
-fileConfig.addEventListener('change', function(e) {
+fileConfig.addEventListener('change', function (e) {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        console.log('reader.onload')
-        // console.log('e.target.result', e.target.result)
-        let jsonFile = reader.readAsText(e.target.result, "UTF-8"); 
-        console.log('jsonFile', jsonFile); 
-     };
-      // reader.readAsDataURL(e.target.files[0]);
-      let jsonFile = reader.readAsText(e.target.files[0], "UTF-8"); 
-      console.log('jsonFile', jsonFile); 
-    }
-  });
-  
+        const reader = new FileReader();
+        reader.onload = function (e) {
 
+            let jsonFile = reader.readAsText(e.target.result, "UTF-8");
+        };
+        // reader.readAsDataURL(e.target.files[0]);
+        let jsonFile = reader.readAsText(e.target.files[0], "UTF-8");
+        console.log('jsonFile', jsonFile);
+    }
+});
+
+/* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
+function downloadFileWorkspace() {
+    if (unit === 'feet') {
+        document.getElementById('drpMetersFeet').value = 'meters';
+        convertMetersFeet();
+        convertRoomObjToWorkspace(roomObj);
+        setTimeout(() => {
+            btnUndoClicked(); /* Use a btnUndoClicked() to set the room back to feet. This keeps rounding errors from happening */
+        }, 1000);
+    } else {
+        convertRoomObjToWorkspace(roomObj);
+    }
+}
+
+
+function convertRoomObjToWorkspace(roomObj) {
+
+    let workspaceObj = {};
+    workspaceObj.roomShape = {};
+    workspaceObj.roomShape.manual = "true";
+    workspaceObj.roomShape.width = roomObj.room.roomWidth;
+    workspaceObj.roomShape.length = roomObj.room.roomLength;
+    workspaceObj.roomShape.height = 2.5;
+    workspaceObj.customObjects = [];
+    workspaceObj.title = '';
+
+    if (roomObj.name == null || roomObj.name == '') {
+        workspaceObj.title = 'Created in Video Room Calculator';
+    } else {
+        workspaceObj.title = roomObj.name;
+    }
+
+
+    roomObj.items.chairs.forEach((item) => {
+        workspaceObjItemPush(item);
+    });
+
+    roomObj.items.microphones.forEach((item) => {
+        workspaceObjItemPush(item);
+    });
+
+    roomObj.items.tables.forEach((item) => {
+        if (item.data_deviceid.startsWith('tbl')) {
+            workspaceObjTablePush(item);
+        } else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column')) {
+            workspaceObjWallPush(item);
+        }
+
+    });
+
+    roomObj.items.videoDevices.forEach((item) => {
+        workspaceObjItemPush(item);
+    });
+
+    roomObj.items.displays.forEach((display) => {
+        workspaceObjDisplayPush(display);
+    })
+
+    function workspaceObjItemPush(item) {
+
+        let x, y;
+        let z = 0;
+
+        let attr = workSpaceKey[item.data_deviceid];
+
+        if ('data_zHeight' in item) {
+            if (item.data_zHeight != "") z = item.data_zHeight;
+        }
+
+        x = (item.x - (roomObj.room.roomWidth - 0.10) / 2);
+        y = (item.y - (roomObj.room.roomLength - 0.10) / 2);
+
+        if (item.data_deviceid === 'roomKitEqx') {
+            //   x = x + 0.020;  // need to do a trig transform.
+        }
+
+        let workspaceItem = {
+            id: item.id,
+            "position": [
+                x,
+                z,
+                y
+            ],
+            "rotation": [
+                0,
+                (item.rotation * -(Math.PI / 180)),
+                0
+            ]
+        }
+
+        workspaceItem = { ...workspaceItem, ...attr };
+
+        workspaceObj.customObjects.push(workspaceItem);
+    }
+
+    function workspaceObjDisplayPush(display) {
+
+        let x, y;
+        let z = displayHeight / 1000;
+        let displayScale = display.data_diagonalInches / 55;
+        let attr = workSpaceKey[display.data_deviceid];
+
+        z = z * displayScale / 2;
+
+        if ('data_zHeight' in display) {
+            if (display.data_zHeight != "") {
+                z = display.data_zHeight + z;
+            };
+        }
+
+        x = (display.x - (roomObj.room.roomWidth - 0.10) / 2);
+        y = (display.y - (roomObj.room.roomLength - 0.10) / 2);
+
+        let workspaceItem = {
+            id: display.id,
+            "position": [
+                x,
+                z,
+                y
+            ],
+            "rotation": [
+                0,
+                (display.rotation * -(Math.PI / 180)),
+                0
+            ],
+            "scale": [
+                displayScale,
+                displayScale,
+                displayScale
+            ]
+        }
+
+        workspaceItem = { ...workspaceItem, ...attr };
+
+        workspaceObj.customObjects.push(workspaceItem);
+    }
+
+    function workspaceObjTablePush(table) {
+
+        let x, y, z, workspaceItem;
+
+        let xy = getItemCenter(table);
+
+        let attr = workSpaceKey[table.data_deviceid];
+
+        x = (xy.x - roomObj.room.roomWidth / 2);
+        y = (xy.y - roomObj.room.roomLength / 2);
+
+        if ('data_zHeight' in table) {
+            if (table.data_zHeight != "") z = table.data_zHeight;
+        } else {
+            z = 0;
+        }
+
+
+        workspaceItem = {
+            id: table.id,
+            "position": [
+                x,
+                0,
+                y
+            ],
+            "rotation": [
+                0,
+                (table.rotation * -(Math.PI / 180)),
+                0
+            ],
+            "width": table.width,
+            "height": z,
+            "length": table.height
+        }
+
+
+        workspaceItem = { ...workspaceItem, ...attr };
+
+        workspaceObj.customObjects.push(workspaceItem);
+    }
+
+    function workspaceObjWallPush(wall) {
+
+        let x, y, z, workspaceItem;
+
+        let xy = getItemCenter(wall);
+
+        let attr = workSpaceKey[wall.data_deviceid];
+
+        x = (xy.x - roomObj.room.roomWidth / 2);
+        y = (xy.y - roomObj.room.roomLength / 2);
+
+        if ('data_zHeight' in wall) {
+            if (wall.data_zHeight != "") z = wall.data_zHeight;
+        } else {
+            z = 2.5; /* if no height set it to 2.5 m */
+        }
+
+
+        workspaceItem = {
+            id: wall.id,
+            "position": [
+                x,
+                (z / 2),
+                y
+            ],
+            "rotation": [
+                0,
+                (wall.rotation * -(Math.PI / 180)),
+                0
+            ],
+            "scale": [
+                wall.width,
+                z,
+                wall.height],
+        }
+
+
+        workspaceItem = { ...workspaceItem, ...attr };
+
+        workspaceObj.customObjects.push(workspaceItem);
+    }
+
+
+    downloadJsonWorkpaceFile(workspaceObj);
+
+}
+
+function downloadJsonWorkpaceFile(workspaceObj) {
+
+    let downloadRoomName;
+    const link = document.createElement("a");
+    const content = JSON.stringify(workspaceObj, null, 5);
+    const file = new Blob([content], { type: 'text/plain' });
+    link.href = URL.createObjectURL(file);
+    downloadRoomName = workspaceObj.title.replace(/[/\\?%*:|"<>]/g, '-');
+    downloadRoomName = downloadRoomName.trim() + '.json';
+    link.download = downloadRoomName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+workSpaceKey = {};
+workSpaceKey.roomBar = { objectType: 'videoDevice', deviceType: 'Room Bar', color: 'Light' };
+workSpaceKey.roomBarPro = { objectType: 'videoDevice', deviceType: 'Room Bar Pro', color: 'Light' };
+workSpaceKey.roomKitEqx = { objectType: 'videoDevice', deviceType: 'EQX', color: 'Light', mount: 'wall', screens: { size: 75, count: 2 } };
+workSpaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit EQ', color: 'Light' };
+workSpaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.roomKitEqPtz4k = { objectType: 'videoDevice', deviceType: 'crossview' };
+workSpaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.roomKitProQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit Pro', color: 'Light' };
+workSpaceKey.boardPro55 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 55 };
+workSpaceKey.boardPro75 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 75 };
+workSpaceKey.brdPro55G2 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 55 };
+workSpaceKey.brdPro75G2 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 75 };
+workSpaceKey.webexDesk = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.webexDeskPro = { objectType: 'videoDevice', deviceType: 'Desk Pro' };
+workSpaceKey.webexDeskMini = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.room55 = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.rmKitMini = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.roomKit = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.roomKitEqxFS = { objectType: 'videoDevice', deviceType: 'EQX', color: 'Light', mount: 'floor', screen: 75 };
+workSpaceKey.cameraP60 = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach' };
+workSpaceKey.quadCam = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.quadCamExt = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.quadPtz4kExt = { objectType: 'videoDevice', deviceType: '' };
+
+workSpaceKey.chair = { objectType: 'chair' };
+workSpaceKey.tblRect = { objectType: 'table', tableType: 'regular' };
+
+workSpaceKey.ceilingMicPro = { objectType: 'Ceiling Mic Pro', kind: 'mic', range: 4 };
+workSpaceKey.displaySngl = { objectType: 'screen' };
+
+workSpaceKey.wallStd = { objectType: 'wall' };
+workSpaceKey.wallGlass = { objectType: 'glass', };
+workSpaceKey.columnRect = { objectType: 'wall', color: '#808080' };
+workSpaceKey.personStanding = { objectType: 'custom', customUrl: "./3dmodels/persons/woman-standing.glb" };
 
 /*
-    Attribution: 
-    
+    Attribution:
+
     Konva.js: https://konvajs.org/ - MIT license can be found at https://github.com/konvajs/konva/blob/master/LICENSE
 
     DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
