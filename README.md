@@ -4,6 +4,12 @@ https://collabexperience.com
 
 ### Release Notes:
 
+**v0.1.504**
+- Added Walls, Glass Walls, Column rectangle, Standing Person objects. 
+- Added Height to each item. Height does not show up on the canvas rendering but is used for reference.  The assumption is that height is the bottom of most items to the ground (e.g. Quad Camera). For Walls, Glass Walls and Columns, it is assumed the item is touching the ground when height is measured.
+- Updated the rotator anchor from a rectangle to a circular arrow. 
+- Fixed a major bug that could cause items to delete when zoomed in and clicking an update button. Undo button was your friend before this issue was fixed. 
+
 **v0.1.503**
 - Added [Cisco Ceiling Microphone Pro](https://www.cisco.com/c/en/us/products/collateral/collaboration-endpoints/collaboration-peripherals/ceiling-microphone-pro-ds.html).
 - Updated license from MIT to MIT NON-AI. 
