@@ -271,28 +271,34 @@
             width: 22%;
         }
 
-        .subtablinks {
+        .subtablinks,
+        .subtablinks2 {
             width: 25%;
             height: 60px;
         }
 
-        .subtabcontent {
+        .subtabcontent,
+        .subtabcontent2 {
             display: none;
             padding: 6px 30px;
             border: 1px solid #ccc;
             border-top: none;
             min-height: 500px;
+            max-height: 100px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scroll-padding-right: 100px;
+        }
+
+        .subtabcontent {
             -webkit-user-select: none;
             /* Safari */
             -ms-user-select: none;
             /* IE 10 and IE 11 */
             user-select: none;
             /* Standard syntax */
-            max-height: 100px;
-            overflow-x: hidden;
-            overflow-y: auto;
-            scroll-padding-right: 100px;
         }
+
 
         .selectableMenuItems {
             display: inline-flex;
@@ -315,7 +321,8 @@
             opacity: 0.9;
         }
 
-        #Insert {
+        #Insert,
+        #Item {
             padding: 0px 0px;
         }
 
@@ -424,6 +431,127 @@
             background-color: #ADD8E6;
         }
 
+        /* tool tip example from https://www.w3schools.com/css/css_tooltip.asp */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted black;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 115%;
+            left: 100px;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 1s 1s;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: black transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* tool tips for icons */
+
+        .tooltipIcon {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltipIcon .tooltiptextIcon {
+            visibility: hidden;
+            width: 200px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 115%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 1s 1s;
+        }
+
+        .tooltipIcon .tooltiptextIcon::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: black transparent transparent transparent;
+        }
+
+        .tooltipIcon:hover .tooltiptextIcon {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* tooltip bottom */
+
+        .tooltipBottom {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted black;
+        }
+
+        .tooltipBottom .tooltiptextBottom {
+            visibility: hidden;
+            width: 200px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            top: 150%;
+            left: 80px;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 1s 1s;
+        }
+
+        .tooltipBottom .tooltiptextBottom::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent black transparent;
+        }
+
+        .tooltipBottom:hover .tooltiptextBottom {
+            visibility: visible;
+            opacity: 1;
+        }
+
         /* On screens that are 992px wide or less, go from four columns to two columns */
         @media screen and (max-width: 1180px) {
             #ContainerRoomSvg {
@@ -494,10 +622,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
         integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-
-
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=check_box_outline_blank,content_copy,delete,grid_on,info,label,label_off,mic,mic_off,pan_tool,redo,restart_alt,select,tv,tv_off,undo,videocam,videocam_off,zoom_in,zoom_out" />
 </head>
 
 <body>
@@ -551,7 +678,7 @@
                 </div>
 
                 <div id="quickSetup" class="menuDivider">
-                    Quick Setup
+                    Quick Setup (optional)
                 </div>
                 <div id="quickSetupItems">
                     <div class="inputRow">
@@ -569,7 +696,9 @@
                     </div>
                     <div class="inputRow">
                         <div class="inputCellLeft2">
-                            <label for="frntWallToTv">Front Wall to Display:</label>
+                            <label for="frntWallToTv" class="tooltip">Front Wall to Display:<span
+                                    class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table to
+                                    Display + Table Length. <br /><br />This assumes that the front of the display is aligned with the front of the video device.</span></label>
                         </div>
                         <div class="inputCellRight">
                             <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
@@ -579,7 +708,9 @@
                     </div>
                     <div class="inputRow">
                         <div class="inputCellLeft2">
-                            <label for="distDisplayToTable">Distance Table to Display:</label>
+                            <label for="distDisplayToTable" class="tooltip">Distance Table to Display:<span
+                                    class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table to
+                                    Display + Table Length. <br /> <br />This assumes that the front of the display is aligned with the front of the video device.</span></label>
                         </div>
                         <div class="inputCellRight">
                             <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5"
@@ -589,7 +720,9 @@
                     </div>
                     <div class="inputRow">
                         <div class="inputCellLeft2">
-                            <label for="tvDiag">Display Diagonal Inches:</label>
+                            <label for="tvDiag" class="tooltip">Display Diagonal Inches: <span class="tooltiptext">The
+                                    width & length of the display is calculated automatically based on the display diagonal
+                                    inches.</span></label>
                         </div>
                         <div class="inputCellRight">
                             <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
@@ -599,7 +732,7 @@
                     </div>
                     <div class="inputRow">
                         <div class="inputCellLeft2">
-                            <label for="drpTvNum">Number of Displays:</label>
+                            <label for="drpTvNum" class="tooltip">Number of Displays:<span class="tooltiptext">The number of displays placed side-by-side. Width of total displays is automatically calculated based on diagonal inches.</span></label>
                         </div>
                         <div class="inputCellRight">
                             <select name="drpTvNum" id="drpTvNum">
@@ -683,6 +816,7 @@
                         </div>
                     </div>
                 </div>
+
             </div>
 
 
@@ -750,7 +884,7 @@
                         <!-- Menu will be inserted -->
                     </div>
                     <div class="menuDivider">
-                        Chairs
+                        Chairs / Doors / People
                     </div>
                     <div id="chairsMenuContainer" class="containerItems">
                         <!-- Menu will be inserted -->
@@ -770,99 +904,194 @@
                     <div id="displaysMenuContainer" class="containerItems">
                         <!-- Menu will be inserted -->
                     </div>
+                    <div class="menuDivider">
+                        Navigator
+                    </div>
+                    <div id="navigatorsMenuContainer" class="containerItems">
+                        <!-- Menu will be inserted -->
+                    </div>
                 </div>
 
             </div>
             <div id="Item" class="tabcontent">
-                <div id="txtItemsDetailNote">
-                    <div class="menuDivider">
-                        Double click item on the room canvas.
-                    </div>
+                <div class="tab">
+                    <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
+                        id="subTabItemDetails">Items</button>
+                    <button class="subtablinks2" onclick="openSubTab2(event, 'RoomDetails')">Room</button>
+                    <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
+
                 </div>
-                <div id="itemDetailsVisible" style="display: none;">
-                    <div class="inputRow">
-                        Item Name: <input disabled type="text" id="itemName" size="45" class="">
-                    </div>
-                    <div class="inputRow" id="itemXY">
-                        <div class="inputCellLeft1">
-                            <label>Position X:&nbsp;&nbsp;&nbsp;</label>
-                            <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
-                        </div>
-                        <div class="inputCellRight">
-                            <label> Y:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>
-                            <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
-                            <label class="unitFeetMeters">ft</label>
-                        </div>
-                    </div>
-                    <div class="inputRow" id="itemWidthLength">
-                        <div class="inputCellLeft1">
-                            <label>Item Width:&nbsp;&nbsp;</label>
-                            <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
-                        </div>
-                        <div class="inputCellRight">
-                            <label> Length:</label>
-                            <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
-                            <label class="unitFeetMeters">ft</label>
-                        </div>
-                    </div>
 
-                    <div class="inputRow" id="itemRotationDiv">
-                        <div>
-                            <label>Item Rotation:</label>
-                            <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
-                            <label class="classDegree">&deg;</label>
+                <div id="ItemDetails" class="subtabcontent2" style="display: block;">
+                    <div id="txtItemsDetailNote">
+                        <div class="menuDivider">
+                            Double click item on the room canvas.
                         </div>
                     </div>
-
-
-                    <div class="inputRow" id="itemZheightDiv">
-                        <div>
-                            <label>Item Height:</label>
-                            <input type="text" id="itemZheight" maxlength="6" size="5" class="unitInput">
-                            <label class="unitFeetMeters">ft</label>
+                    <div id="itemDetailsVisible" style="display: none;">
+                        <div class="inputRow">
+                            Item Name: <input disabled type="text" id="itemName" size="45" class="">
                         </div>
-                    </div>
-
-                    <div class="inputRow" id="itemDiagnoalTvDiv">
-                        <div>
-                            <label>Display Diagonal Inches:</label>
-                            <input type="text" id="itemDiagnoalTv" maxlength="6" size="5"
-                                class="numberInput updateWidthOfDisplay"> in
+                        <div class="inputRow" id="itemXY">
+                            <div class="inputCellLeft1">
+                                <label class="tooltipBottom">Position X:<span class="tooltiptextBottom">Coordinates X & Y are the upper left hand corner of tables and walls but are the center of all other objects.</span></label>
+                                &nbsp;&nbsp;&nbsp;
+                                <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
+                            </div>
+                            <div class="inputCellRight">
+                                <label> Y:</label>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="inputRow" id="isPrimaryDiv">
-                        <div>
-                            <label id="isPrimaryLabel">Is primary?</label> <input type="checkbox" id="isPrimaryCheckBox"
-                                disabled>
-
+                        <div class="inputRow" id="itemZpositionDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltipBottom">Position Z (to base of object): <span class="tooltiptextBottom">[Optional] The vertical measurement from the floor to the base of the object. Not shown on the drawing of the Video Room Calculator.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
                         </div>
-                    </div>
-                    <!-- <div class="inputRow" id="itemWidth2Div">
+                        <div class="inputRow" id="itemWidthLength">
+                            <div class="inputCellLeft1">
+                                <label class="tooltipBottom">Item Width:<span class="tooltiptextBottom">Only tables, walls, and columns have adjustable widths and lengths. All other objects are fixed in size.</span></label>&nbsp;&nbsp;
+                                <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
+                            </div>
+                            <div class="inputCellRight">
+                                <label> Length:</label>
+                                <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="itemVheightDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltip">Item Height:<span class="tooltiptext">[Optional] Vertical height of the object.  Not shown on the drawing of the Video Room Calculator.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="itemRotationDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltip">Item Rotation:<span class="tooltiptext">Rotation in degrees from 0 to 360. Positive or negative values.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
+                                <label class="classDegree">&deg;</label>
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="tblRectRadiusDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table corners unless the Corner Radius Front Half has a value, in which case it is only two corners. The value should be no more than 1/2 of the length or width, whichever is smaller.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="tblRectRadius" maxlength="12" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="tblRectRadiusRightDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltip">Corner Radius Front Half<span class="tooltiptext">Radius of the front 2 table corners. If blank, the Corner Radius above is used for all 4 corners. The value should be no more than 1/2 of the length or width, whichever is smaller.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="tblRectRadiusRight" maxlength="12" size="5" class="unitInput">
+                                <label class="unitFeetMeters">ft</label>
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="itemDiagnoalTvDiv">
+                            <div class="inputCellLeft2">
+                                <label class="tooltip">Display Diagonal Inches:<span class="tooltiptext">The
+                                    width & length of the display is calculated automatically based on the display diagonal
+                                    inches.</span></label>
+                            </div>
+                            <div class="inputCellRight">
+                                <input type="text" id="itemDiagnoalTv" maxlength="6" size="5"
+                                    class="numberInput updateWidthOfDisplay"> in
+                            </div>
+                        </div>
+
+                        <div class="inputRow" id="isPrimaryDiv" >
+                            <div>
+                                <label id="isPrimaryLabel" class="tooltip">Is primary?<span class="tooltiptext">Primary devices are used in determining if Quick Setup is enabled and this field may be used for future features.</span></label> <input type="checkbox"
+                                    id="isPrimaryCheckBox" disabled>
+
+                            </div>
+                        </div>
+                        <!-- <div class="inputRow" id="itemWidth2Div">
                         <div class="inputCellLeft1">
                             <label>Item Width2:&nbsp;</label>
                             <input type="text" id="itemWidth2" value="4" maxlength="12" size="4" class="unitInput">
                         </div>
                     </div> -->
+                        <div class="inputRow">
+                            <div class="inputCellRight">
+                                <input type="submit" value="Update" onclick="updateItem()" class="button"
+                                    id="btnUpdateItemId">
+                            </div>
+                        </div>
 
-                    <br>
-                    <div class="inputRow">
-                        <div class="inputCellRight">
-                            <input type="submit" value="Update" onclick="updateItem()" class="button"
-                                id="btnUpdateItemId">
+                        <div class="inputRow" style="font-size: x-small;">
+                            <label>UUID: </label>
+                            <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
+                            <br />
+                            <label>Type: </label>
+                            <label id="itemType"></label>
+                            <label>- Group: </label>
+                            <label id="itemGroup"></label>
                         </div>
                     </div>
 
-                    <div class="inputRow" style="font-size: x-small;">
-                        <label>UUID: </label>
-                        <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
-                        <br />
-                        <label>Type: </label>
-                        <label id="itemType"></label>
-                        <br />
-                        <label>Group: </label>
-                        <label id="itemGroup"></label>
+                </div>
+
+
+                <div id="RoomDetails" class="subtabcontent2">
+                    <div class="inputRow">
+                        <div class="inputCellLeft2">
+                            <label class="tooltipBottom">Room Height:<span class="tooltiptextBottom">Room Height is not
+                                    rendered in the room canvas but is for informational purposes.</span></label>
+                        </div>
+                        <div class="inputCellRight">
+                            <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
+                            <label class="unitFeetMeters">ft</label>
+                        </div>
                     </div>
+                    <div class="inputRow" style="width: 90%;">
+                        <div class="inputCellLeft2">
+                            <label class="tooltipBottom">Software Experience: <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the Software Experience setting does not verify if the video device supports MTR.</span></label>
+                        </div>
+                        <select id="drpSoftware">
+                            <option value="select">-</option>
+                            <option value="webex">RoomOS Cisco Rooms</option>
+                            <option value="mtr">Microsoft Teams Rooms</option>
+                        </select>
+                    </div>
+                    <label class="tooltipBottom">Version / Author: <span class="tooltiptextBottom">Field to keep track of Version and/or Author. This field adds to the total URL length.</span></label>
+                    <div class="inputRow">
+                        <input type="text" id="authorVersion" style="width: 90%;" class="textInput">
+                    </div>
+
+                    <div class="inputRow">
+                        <div id="divUpdateRoomDetailsButton" class="inputCellRight">
+                            <input type="submit" value="Update Room Details" onclick="updateRoomDetails()"
+                                class="button" id="updateRoomDetailsBtn">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="SettingDetails" class="subtabcontent2">
+
+                <div class="menuDivider">
+                    ** New features coming soon **
+                </div>
                 </div>
             </div>
 
@@ -904,7 +1133,7 @@
 
 
                 <a href="#ContainerRoomSvg">
-                    <div class='templateLinks' onclick="loadTemplate('A1v0.1.502b2600c2000B1111')"> Reset room</div>
+                    <div class='templateLinks' onclick="loadTemplate('A1v0.1.502b2600c2000B1111')">Reset room</div>
                 </a>
                 <p></p>
                 <div id="RoomOSmessage" style="visibility: hidden;">
@@ -919,7 +1148,7 @@
                     <br>
                     <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
                         Code Script</button>
-                    <!-- 
+                    <!--
                     <button class="btn" onclick="createQrCode()" id="refreshQRCode" title="Load QR Code" disabled>Update
                         QR Code</button> -->
 
@@ -935,13 +1164,17 @@
                 <div id="test" style="visibility: hidden;">
 
                     Experimental JSON File Download:
-                    <br>
-                    <input type="submit" value="Download JSON file"
-                        onclick="downloadFileWorkspace()" class="button">
-                    <br>
-                   
 
+                    <div class="inputRow">
+
+                        <br>
+                        <input type="submit" value="Download JSON file" onclick="downloadFileWorkspace()"
+                            class="button">
+                        <label>Remove Default Walls</label> <input type="checkbox" id="removeDefaultWallsCheckBox">
+
+                    </div>
                 </div>
+
 
                 <div id="test2" style="visibility: hidden;">
                     <br>
@@ -961,12 +1194,15 @@
 
                 </div>
 
-
-
             </div>
+
+
+
         </div>
     </div>
+    <!-- </div>
     </div>
+    </div> -->
     <div>
         <div id="ContainerRoomSvg" class="floatColumns">
             <!-- <div id="controlButtons" style='width:inherit' style="font-size: small;"> -->
@@ -984,13 +1220,13 @@
                 <button class="btn" onclick="toggleLabels()" id="btnLabelToggle" title="Toggle Labels"><span
                         class="material-symbols-outlined">label_off</span></button>
                 <span style="font-size: x-large; opacity: 0.3;">|</span>
-                <button class="btn" id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo"><span
+                <button class="btn" id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo [Ctrl-Z]"><span
                         class="material-symbols-outlined">undo</span></button>
-                <button class="btn" id="btnRedo" onclick="btnRedoClicked()" disabled title="Redo"><span
+                <button class="btn" id="btnRedo" onclick="btnRedoClicked()" disabled title="Redo [Ctrl-Y]"><span
                         class="material-symbols-outlined">redo</span></button>
-                <button class="btn" id="btnCopy" onclick="copyItems()" disabled title="Copy"><span
-                        class="material-symbols-outlined" title="Copy">content_copy</span></button>
-                <button class="btn" id="btnDelete" onclick="deleteTrNodes()" disabled title="Delete"><span
+                <button class="btn" id="btnCopy" onclick="copyItems()" disabled title="Copy [Ctrl-D]"><span
+                        class="material-symbols-outlined">content_copy</span></button>
+                <button class="btn" id="btnDelete" onclick="deleteTrNodes()" disabled title="Delete [Backspace]"><span
                         class="material-symbols-outlined">delete</span></button>
                 <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled
                     title="Toggle Select/Pan"><span class="material-symbols-outlined">pan_tool</span></button>
@@ -1165,7 +1401,7 @@
 
                 <a href="#ContainerRoomSvg">
                     <span class='templateLinks'
-                        onclick="loadTemplate('A1v0.1.5b4500c3300~Example: Classroom with Ceiling Mic Pro~B0001AE1374a37b700AE3189a32b700CB941a3196b700f1800SA466a2851f1800SA1075a2852f1800SA2587a953f1800SA2261a956f1800SA3840a955f1800SA1978a951f1800SA1346a2199f1800SA2842a1561f1800SA1357a2857f1800SA3555a2188f1800SA3529a1555f1800SA3849a2849f1800SA748a2855f1800SA1348a963f1800SA2259a2193f1800SA1951a1555f1800SA3812a1559f1800SA3837a2192f1800SA2879a2851f1800SA455a2193f1800SA2868a2194f1800SA2233a1560f1800SA1066a958f1800SA2596a2847f1800SA2870a957f1800SA1987a2845f1800SA2585a2189f1800SA1038a1562f1800SA429a1560f1800SA1976a2188f1800SA737a2198f1800SA3566a2845f1800SA457a957f1800SA712a1565f1800SA1321a1566f1800SA3557a951f1800SA2559a1556f1800SA740a961f1800SA2270a2850f1800SA1064a2195f1800SC729a223f-237SC3825a100f73TA308a862c250e600f-900TA917a863c250e600f-900TA1829a857c250e600f-900TA2438a858c250e600f-900TA3408a856c250e600f-900TA280a1466c250e600f-900TA889a1467c250e600f-900TA1801a1461c250e600f-900TA2410a1462c250e600f-900TA3380a1460c250e600f-900TA306a2099c250e600f-900TA914a2100c250e600f-900TA1827a2094c250e600f-900TA2436a2095c250e600f-900TA3406a2093c250e600f-900TA317a2756c250e600f-900TA926a2758c250e600f-900TA1838a2751c250e600f-900TA2447a2752c250e600f-900TA3417a2750c250e600f-900TA878a270c124e240f697WC4300a1203b820c100e100WC4306a2775b820c100e100WA285a1b820c33e324WA316a293b820c33e324f900WA3983a15b668c33e300f241WA4004a7b668c33e300f900WB4487a3258b820c33e4494f900DA504a3228b350f1800g100DA2651a33b350g100DA1914a31b350g100MA1071a783b820MA3127a812b820MA1101a2307b820MA3033a2325b820')">
+                        onclick="loadTemplate('A1v0.1.5b4500c3300~Example: Classroom with Ceiling Mic Pro~B0001CB941a3196b700f1800AE3189a32b700AE1374a37b700SD3830a162f1800SA737a2198f1800SA429a1560f1800SA1951a1555f1800SA712a1565f1800SA3840a955f1800SA2261a956f1800SA3555a2188f1800SA1066a958f1800SA748a2855f1800SA3529a1555f1800SA1038a1562f1800SA2842a1561f1800SA1348a963f1800SA1978a951f1800SA1976a2188f1800SA3812a1559f1800SA740a961f1800SA1346a2199f1800SA2585a2189f1800SA455a2193f1800SA1064a2195f1800SA457a957f1800SA1987a2845f1800SA2270a2850f1800SA3837a2192f1800SA2259a2193f1800SA2870a957f1800SA3557a951f1800SA1075a2852f1800SA2587a953f1800SA1357a2857f1800SA466a2851f1800SA3566a2845f1800SA3849a2849f1800SA2233a1560f1800SA1321a1566f1800SA2559a1556f1800SA2868a2194f1800SA2596a2847f1800SA2879a2851f1800SC695a196f-237SC3819a141f73TA308a862c250e600f-900TA917a863c250e600f-900TA1829a857c250e600f-900TA2438a858c250e600f-900TA3408a856c250e600f-900TA280a1466c250e600f-900TA889a1467c250e600f-900TA1801a1461c250e600f-900TA2410a1462c250e600f-900TA3380a1460c250e600f-900TA306a2099c250e600f-900TA914a2100c250e600f-900TA1827a2094c250e600f-900TA2436a2095c250e600f-900TA3406a2093c250e600f-900TA317a2756c250e600f-900TA926a2758c250e600f-900TA1838a2751c250e600f-900TA2447a2752c250e600f-900TA3417a2750c250e600f-900WA285a1c33e324j820WA316a293c33e324f900j820WC4300a1203c100e100j820WC4306a2775c100e100j820WB4487a3258c33e4494f900j820TA922a383b75c240e150f1573h0i100j275DA1914a31b350g100DA504a3228b350f1800g100DA2651a33b350g100ME703a368b350f-1350MA1071a783b820MA3033a2325b820MA3127a812b820MA1101a2307b820')">
                         Classroom</span>
                 </a> <a class="infoText" target="_blank"
                     href="https://github.com/gve-sw/gve_devnet_webex_devices_executive_room_multi_aux_switching_macro">(Requires
@@ -1239,8 +1475,8 @@
     <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
     <script src="./js/roomcalc.js"></script>
 
-    <!-- 
-        Attribution: 
+    <!--
+        Attribution:
         Google Fonts: https://fonts.google.com/ license can be found at https://fonts.google.com/attribution
 
         Konva.js: MIT license can be found at https://github.com/konvajs/konva/blob/master/LICENSE
