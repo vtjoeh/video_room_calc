@@ -1,4 +1,4 @@
-const version = "v0.1.504";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.
+const version = "v0.1.505";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false;
 let versionQueryString;
@@ -18,6 +18,9 @@ let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height 
 let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
 let roomName = '';
+
+let pageLoadTimeBeforeAddresBarUpdate = 3000; /* ms: time to allow the page to fully update before writing to the address bar.  If too early, Konva/canvas is not fully loaded and provides incorrect information */
+let addressBarUpdate = false;  /* keep track if the address bar querystring has been updated. Used for onload. */
 
 let qrCodeButtonsVisible = false;
 
@@ -53,6 +56,9 @@ roomObj.unit = 'feet'; /* meters or feet*/
 roomObj.room = {};  /* Dimensions of the room and anything specific */
 roomObj.room.roomWidth = 26; /* roomWidth default value in feet */
 roomObj.room.roomLength = 20; /* roomLength default value in feet */
+roomObj.room.roomHeight = ''; /* default value of room is blank*/
+roomObj.software = ''; /* mtr or webex. RoomOS = webex */
+roomObj.authorVersion = ''; /* field for the author to change version numbers */
 roomObj.items = {}; /* all devices in the room will be stored here.  Video devices, displays, tables, etc. */
 roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
 roomObj.layersVisible = {};
@@ -211,22 +217,7 @@ let txtAttribution = new Konva.Text(
     }
 )
 
-/*
-var rotateImageObj = new Image();
-rotateImageObj.onload = function () {
-  var rotateImage = new Konva.Image({
-    x: 50,
-    y: 50,
-    image: rotateImageObj,
-    width: 106,
-    height: 118,
-  });
-
-  // add the shape to the layer
-  // layer.add(rotateImage);
-};
-rotateImageObj.src = './assets/rotateRight.png';
-*/
+/* tr is the Transformer that does the selection and rotation magic for Konva.  It is exists in its own group. */
 let tr = new Konva.Transformer({
     resizeEnabled: false,
     flipEnabled: false,
@@ -234,8 +225,6 @@ let tr = new Konva.Transformer({
     name: 'theTransformer',
     rotateAnchorOffset: 25
 });
-
-
 
 
 /* Customize the rotation / rotator anchor */
@@ -262,6 +251,7 @@ rotateImageObj.onload = () => {
 };
 
 rotateImageObj.src = './assets/rotateRight.png';
+
 
 let groupBackground = new Konva.Group(
     {
@@ -313,7 +303,7 @@ panRectangle.on('mouseup', (event) => {
     document.getElementById("canvasDiv").style.cursor = "grab";
 })
 
-panRectangle.hide(); /* use .hide() panRectangle to hide, but .show() to pan on the canvas.  */
+panRectangle.hide(); /* use .hide() for panRectangle to hide, but .show() to pan on the canvas.  */
 layerSelectionBox.add(panRectangle);
 
 /************************************************************************** */
@@ -354,7 +344,7 @@ let cameras = [
     { name: "Quad Cam + PTZ 4K Extended", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60 },
 ]
 
-/* microphone key starts with M */
+/* Microphone & Navigators - starts with M */
 let microphones = [
     {
         name: "Cisco Table Microphone",
@@ -405,9 +395,31 @@ let microphones = [
         depth: 420,
         height: 48,
     },
+    {
+        name: "Table Navigator",
+        id: "navigatorTable",
+        key: "ME",
+        topImage: 'navigatorTable-top.png',
+        frontImage: 'navigatorTable-menu.png',
+        width: 242,
+        depth: 163,
+        height: 96,
+
+    },
+    {
+        name: "Wall Navigator",
+        id: "navigatorWall",
+        key: "MF",
+        topImage: 'navigatorWall-top.png',
+        frontImage: 'navigatorWall-menu.png',
+        width: 242,
+        depth: 115,
+        height: 164,
+
+    },
 ]
 
-/* tables key starts with T, walls start with W */
+/* Tables & Walls. Table keys starts with T, Wall keys start with W */
 let tables = [{
     name: 'Table Rectangle',
     id: 'tblRect',
@@ -426,7 +438,12 @@ let tables = [{
     key: 'TC',
     frontImage: 'tblTrap-front.png',
 },
-
+{
+    name: 'Table U-Shaped',
+    id: 'tblShapeU',
+    key: 'TD',
+    frontImage: 'tblShapeU-menu.png',
+},
 {
     name: 'Wall Standard (10 cm / 3.9")',
     id: 'wallStd',
@@ -449,9 +466,10 @@ let tables = [{
 },
 
 
+
 ]
 
-/* chair key ID start with S */
+/* Chair, doors and people. Key ID start with S */
 let chairs = [
     {
         name: "Chair",
@@ -471,6 +489,36 @@ let chairs = [
         frontImage: 'person-front.png',
         width: 640,
         depth: 640,
+        opacity: 1,
+    },
+    {
+        name: "Door (right)",
+        id: "doorRight",
+        key: "SB",
+        topImage: 'doorRight-top.png',
+        frontImage: 'doorRight-menu.png',
+        width: 1117,
+        depth: 1016,
+        opacity: 1,
+    },
+    {
+        name: "Door (left)",
+        id: "doorLeft",
+        key: "SD",
+        topImage: 'doorLeft-top.png',
+        frontImage: 'doorLeft-menu.png',
+        width: 1117,
+        depth: 1016,
+        opacity: 1,
+    },
+    {
+        name: "Double Door",
+        id: "doorDouble",
+        key: "SE",
+        topImage: 'doorDouble-top.png',
+        frontImage: 'doorDouble-menu.png',
+        width: 2009,
+        depth: 1004,
         opacity: 1,
     },
 
@@ -514,7 +562,6 @@ let displays = [
 
     }
 ]
-
 
 
 expandVideoDeviceArray();
@@ -730,12 +777,16 @@ function addOnNumberInputListener() {
             event.target.value = event.target.value.replace(/[<]/i, '\uFF1C');  // don't allow scripting tags be typed.
             event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  // don't allow scripting tags be typed.
             event.target.value = event.target.value.replace(/[~]/i, '\u301C');
-            roomObj.name = event.target.value;
+            if (event.target.id === 'roomName') {
+                roomObj.name = event.target.value;
+            }
         })
 
         txtInputs[i].addEventListener("blur", (event) => {
-            roomObj.name = event.target.value;
-            // drawRoom(true, true);
+            if (event.target.id === 'roomName') {
+                roomObj.name = event.target.value;
+            }
+
         })
     }
 
@@ -893,13 +944,6 @@ function resizePage() {
 function copyLinkToClipboard() {
     createShareableLink();
 
-    let text = document.getElementById('shareLink').getAttribute('href');
-
-    // navigator.clipboard.writeText(text).then(() => {
-    //     alert('Copied link to clipboard');
-    // });
-
-
     let hyperTextName;
 
     const textUrl = document.getElementById('shareLink').getAttribute('href');
@@ -946,6 +990,68 @@ function updateLabelUnits() {
     });
 }
 
+/* converts the roomObj2, used for exporting to meters for 3d Workspace file. */
+function convertToMeters(roomObj2) {
+
+    let ratio = 1 / 3.2808;
+
+    //     roomObj.unit = 'meters';
+    roomObj2.room.roomWidth = roomObj2.room.roomWidth * ratio;
+    roomObj2.room.roomLength = roomObj2.room.roomLength * ratio;
+    roomObj2.room.tableWidth = roomObj2.room.tableWidth * ratio;
+    roomObj2.room.frntWallToTv = roomObj2.room.frntWallToTv * ratio;
+    roomObj2.room.tableLength = roomObj2.room.tableLength * ratio;
+    roomObj2.room.distDisplayToTable = roomObj2.room.distDisplayToTable * ratio;
+    roomObj2.room.onePersonCrop = roomObj2.room.onePersonCrop * ratio;
+    roomObj2.room.twoPersonCrop = roomObj2.room.twoPersonCrop * ratio;
+
+    for (const category in roomObj2.items) {
+        for (const i in roomObj2.items[category]) {
+            let nodes = roomObj2.items[category][i];
+
+            if ('x' in nodes) {
+                nodes.x = nodes.x * ratio;
+            }
+
+            if ('y' in nodes) {
+                nodes.y = nodes.y * ratio;
+            }
+
+            if ('width' in nodes) {
+                nodes.width = nodes.width * ratio;
+            }
+
+            if ('height' in nodes) {
+                nodes.height = nodes.height * ratio;
+            }
+
+            if ('radius' in nodes) {
+                nodes.radius = nodes.radius * ratio;
+            }
+
+            if ('data_zPosition' in nodes) {
+                nodes.data_zPosition = round(nodes.data_zPosition * ratio);
+            }
+
+            if ('data_vHeight' in nodes) {
+                nodes.data_vHeight = round(nodes.data_vHeight * ratio);
+            }
+
+            if ('tblRectRadius' in nodes) {
+                nodes.tblRectRadius = round(nodes.tblRectRadius * ratio);
+            }
+
+            if ('tblRectRadiusRight' in nodes) {
+                nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
+            }
+        }
+
+    }
+
+    return roomObj2;
+
+}
+
 function convertMetersFeet() {
     let unitValue = document.getElementById('drpMetersFeet').value;
     unit = unitValue;
@@ -970,9 +1076,17 @@ function convertMetersFeet() {
     updateTextBox('distDisplayToTable');
     updateTextBox('onePersonCrop');
     updateTextBox('twoPersonCrop');
+    // updateTextBox('roomHeight');
 
+    defaultWallHeight = defaultWallHeight * ratio;
+    console.log('defaultWallHeight line 1082', defaultWallHeight);
     roomObj.room.roomWidth = roomObj.room.roomWidth * ratio;
     roomObj.room.roomLength = roomObj.room.roomLength * ratio;
+    if ('roomHeight' in roomObj.room) {
+        roomObj.room.roomHeight = roomObj.room.roomHeight * ratio;
+        defaultWallHeight = roomObj.room.roomHeight;
+        console.log('defaultWallHeight line 1087', defaultWallHeight);
+    }
     roomObj.room.tableWidth = roomObj.room.tableWidth * ratio;
     roomObj.room.frntWallToTv = roomObj.room.frntWallToTv * ratio;
     roomObj.room.tableLength = roomObj.room.tableLength * ratio;
@@ -1004,8 +1118,21 @@ function convertMetersFeet() {
                 nodes.radius = nodes.radius * ratio;
             }
 
-            if ('data_zHeight' in nodes) {
-                nodes.data_zHeight = round(nodes.data_zHeight * ratio);
+            if ('data_zPosition' in nodes) {
+                nodes.data_zPosition = round(nodes.data_zPosition * ratio);
+            }
+
+
+            if ('data_vHeight' in nodes) {
+                nodes.data_vHeight = round(nodes.data_vHeight * ratio);
+            }
+
+            if ('tblRectRadius' in nodes) {
+                nodes.tblRectRadius = round(nodes.tblRectRadius * ratio);
+            }
+
+            if ('tblRectRadiusRight' in nodes) {
+                nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
             }
         }
 
@@ -1026,7 +1153,7 @@ function getQueryString() {
         let x = urlParams.get('x');
         document.getElementById('quickSetupItems').style.display = 'none';
         parseShortenedXYUrl(x);
-        drawRoom(true, true);
+        drawRoom(true, true, true);
 
     }
 
@@ -1154,6 +1281,10 @@ function getQueryString() {
     if (urlParams.has('tableWidth')) {
         drawRoom(true, true);
     }
+
+    setTimeout(()=>{
+        canvasToJson();
+    }, 1000)
 
 
 }
@@ -1316,7 +1447,6 @@ function parseShortenedXYUrl(parameters) {
 
     }
 
-
     /* create a new rmObj and then copy to the roomObj */
     output.forEach((item) => {
 
@@ -1345,6 +1475,20 @@ function parseShortenedXYUrl(parameters) {
             if ('c' in item) {
                 roomObj.room.roomLength = item.c / 100;
             }
+
+            if ('f' in item) {
+                roomObj.room.roomHeight = round(item.f / 100);
+                defaultWallHeight = roomObj.roomHeight;
+            }
+
+            if ('e' in item) {
+                if (item.e == "0") {
+                    roomObj.software = 'webex';
+                } else if (item.e == '1') {
+                    roomObj.software = 'mtr'
+                }
+            }
+
         }
         else if (item.sid === "B") {
             if ('value' in item) {
@@ -1377,6 +1521,10 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
+        } else if (item.sid === "C") { /* authorVersion */
+            if ('text' in item) {
+                roomObj.authorVersion = DOMPurify.sanitize(item.text);
+            }
         }
 
         if (item.sid in keyIdObj) {
@@ -1411,9 +1559,9 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('b' in item) {
-                newItem.data_zHeight = item.b / 100;
+                newItem.data_zPosition = item.b / 100;
             } else {
-                newItem.data_zHeight = "";
+                newItem.data_zPosition = "";
             }
 
             if ('c' in item) {
@@ -1436,6 +1584,21 @@ function parseShortenedXYUrl(parameters) {
 
             if ('g' in item) {
                 newItem.data_diagonalInches = item.g;
+            }
+
+            if ('h' in item) {
+                newItem.tblRectRadius = item.h / 100;
+            }
+
+            if ('i' in item) {
+                newItem.tblRectRadiusRight = item.i / 100;
+            }
+
+            if ('j' in item) {
+                console.log('j = ', )
+                newItem.data_vHeight = item.j / 100;
+            } else {
+                newItem.data_vHeight = "";
             }
 
             newItem.id = createUuid();
@@ -1470,6 +1633,35 @@ function resetRoomObj() {
     roomObj.items.speakers = [];
     roomObj.items.microphones = [];
 
+    roomObj.software = '';
+    roomObj.authorVersion = '';
+    roomObj.room = {
+        "roomWidth": 26,
+        "roomLength": 20,
+        "roomHeight": "",
+        "tableWidth": 4,
+        "tableLength": 10,
+        "distDisplayToTable": 5,
+        "frntWallToTv": 0.5,
+        "tvDiag": 65,
+        "drpTvNum": 1,
+    };
+
+    /* reset fields */
+
+    document.getElementById("tvDiag").value = "65";
+
+    document.getElementById('tableWidth').value = 4;
+
+    document.getElementById('tableLength').value = 10;
+
+    document.getElementById('frntWallToTv').value = 0.5;
+
+    document.getElementById('distDisplayToTable').value = 5;
+
+    document.getElementById('drpTvNum').value = '1';
+
+    document.getElementById('drpVideoDevice').value = 'roomBarPro';
 }
 
 
@@ -1530,10 +1722,17 @@ function binaryToBase26(binary) {
 
 onLoad();
 
+
+
 function onLoad() {
     updateSelectVideoDeviceOptions();
     getQueryString();
+    saveToUndoArray();
     postHeartbeat();
+    setTimeout(()=>{
+        addressBarUpdate = true;
+        canvasToJson();
+    }, pageLoadTimeBeforeAddresBarUpdate);
 }
 
 function updateSelectVideoDeviceOptions() {
@@ -2422,6 +2621,23 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     document.getElementById('roomWidth').value = round(roomObj.room.roomWidth);
     document.getElementById('roomLength').value = round(roomObj.room.roomLength);
     document.getElementById('roomName').value = roomObj.name;
+    document.getElementById('roomHeight').value = round(roomObj.room.roomHeight);
+    defaultWallHeight = round(roomObj.room.roomHeight);
+    document.getElementById('authorVersion').value = roomObj.authorVersion;
+
+    if ('software' in roomObj) {
+        if (roomObj.software == 'webex') {
+            document.getElementById('drpSoftware').value = 'webex';
+        }
+        else if (roomObj.software == 'mtr') {
+            document.getElementById('drpSoftware').value = 'mtr';
+        }
+        else {
+            document.getElementById('drpSoftware').value = 'select';
+        }
+    }
+
+
 
     let windowWidth = window.innerWidth;
 
@@ -2494,8 +2710,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     twoPersonZoom = getNumberValue('twoPersonZoom');
     roomObj.room.twoPersonZoom = twoPersonZoom;
 
-    let roomName = roomObj.name;
-
     let drpTvNum = getNumberValue('drpTvNum');
     roomObj.room.drpTvNum = drpTvNum;
 
@@ -2506,30 +2720,13 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     roomObj.room.onePersonCrop = onePersonCrop;
     roomObj.room.twoPersoncrop = twoPersonCrop;
 
-    //svgStart
-    let viewBoxWidth = roomWidth + (pxOffset * 2) / scale;
-    let viewBoxLength = roomLength + (pxOffset * 2) / scale;
-    //svgEnd
-
     let canvasWidth = roomWidth + (pxOffset * 2) / scale;
     let canvasLength = roomLength + (pxOffset * 2) / scale;
 
-    //svgStart
-    // Create an SVG <svg> element
-    const svg = document.createElementNS(svgns, "svg");
-
-    svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-    svg.setAttribute("xmlns", svgns);
-
-    // Set the width and height of the <svg> element
-    svg.setAttribute("width", (viewBoxWidth * scale).toFixed(2));
-    svg.setAttribute("height", ((viewBoxLength * scale) + 30).toFixed(2));
-    svg.setAttribute("id", videoRoomCalcSVG);
-    //svgEnd
-
     stageOriginalWidth = canvasWidth * scale;
     stageOriginalLength = (canvasLength * scale) + 30; // 30 is for title at bottom
-    // create Konva State
+
+    /* create Konva stage.  All things get written on the stage.  It requires at least 1 layer */
     stage = new Konva.Stage(
         {
             container: 'canvasDiv',
@@ -2554,34 +2751,13 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     panRectangle.setAttrs({
         width: stage.width(),
         height: stage.height(),
-    }
-    )
+    });
 
     groupBackground.add(backGroundImage);
 
     layerGrid.add(groupBackground);
 
-    // layerTransform.add(tr);
-
-    //svgStart
-    // Create a <rect> element for the outerWall
-    const outerWall = document.createElementNS(svgns, "rect");
-
-    // Set the position and size of the <rect> element
-
-    outerWall.setAttribute("x", (pxOffset).toFixed(2));
-    outerWall.setAttribute("y", (pxOffset).toFixed(2));
-    outerWall.setAttribute("width", (roomWidth * scale).toFixed(2));
-    outerWall.setAttribute("height", (roomLength * scale).toFixed(2));
-    outerWall.setAttribute("style", "fill:none;stroke:#74a6f7;stroke-width: 3")
-    outerWall.setAttribute("id", "outerWall");
-
-    pxLastGridLineY = pxOffset + roomLength * scale;
-    //svgEnd
-
-    // create layer for Border
-
-    //create the outerWall
+    /* create the outerWall (border) */
     let cOuterWall = new Konva.Rect({
         x: pxOffset,
         y: pxOffset,
@@ -2600,44 +2776,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     layerGrid.add(grOuterWall);
 
-    // stage.add(layerGrid);
-
-    //
-    // SVG Create a Clip Path for the room.
-    //
-
-    // SVG Create <defs> for Clip Path
-
-    const defsClipPath = document.createElementNS(svgns, "defs");
-    defsClipPath.setAttribute('id', 'def-clip-path-border');
-
-    // Create the <clipPath> border
-    const clipPathBorder = document.createElementNS(svgns, "clipPath");
-    clipPathBorder.setAttribute('id', 'clipPathBorder');
-
-    //svgStart
-    // create the <rect> for the clipPathBorder
-    const clipPathRect = document.createElementNS(svgns, "rect");
-    clipPathRect.setAttribute("x", (pxOffset));
-    clipPathRect.setAttribute("y", (pxOffset));
-    clipPathRect.setAttribute("width", (roomWidth * scale) - 1);
-    clipPathRect.setAttribute("height", (roomLength * scale) - 1);
-
-    clipPathBorder.appendChild(clipPathRect);
-
-    defsClipPath.appendChild(clipPathBorder);
-
-    svg.insertBefore(defsClipPath, svg.firstChild); // <defs> need to be at top of SVG
-
-    // Draw the grid
-
     let increment = 1.0;
+
     if (unit === 'meters') {
         increment = 0.25;
-
     }
-
-    let grid = drawGrid(pxOffset, pxOffset, (roomWidth * scale) + pxOffset, (roomLength * scale) + pxOffset, scale, increment);
 
     let kGrid = kDrawGrid(pxOffset, pxOffset, (roomWidth * scale) + pxOffset, (roomLength * scale) + pxOffset, scale, increment);
 
@@ -2647,39 +2790,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     layerGrid.add(kGrid);
 
-
-
-    //svgStart
-    // Create a <rect> element for the table
-    const table = document.createElementNS(svgns, "rect");
-
-    // Set the position and size of the <rect> element
-
-    table.setAttribute("x", (((viewBoxWidth - tableWidth) / 2) * scale).toFixed(2));
-    table.setAttribute("y", (pxOffset + ((distDisplayToTable + frntWallToTv) * scale)).toFixed(2));
-    table.setAttribute("width", (tableWidth * scale).toFixed(2));
-    table.setAttribute("height", (tableLength * scale).toFixed(2));
-    table.setAttribute("style", "fill:brown;stroke:black;stroke-width: 3; opacity: 0.8");
-    table.setAttribute("id", "table");
-    table.setAttribute("clip-path", "url(#clipPathBorder)");
-    //svgEnd
-
-    // let kTable = new Konva.Rect({
-    //     x: ((viewBoxWidth - tableWidth) / 2) * scale,
-    //     y: (pxOffset + ((distDisplayToTable + frntWallToTv) * scale)),
-    //     width: tableWidth * scale,
-    //     height: tableLength * scale,
-    //     fill: 'brown',
-    //     stroke: 'black',
-    //     strokeWidth: 3,
-    //     opacity: 0.8,
-    //     id: 'mainTable'
-    // })
-
-    // let layerTable = new Konva.Layer();
-
-    // layerTable.add(kTable);
-
     document.getElementById('keyTable').setAttribute('style', 'background: brown; opacity: 0.7; font-size: small; border-style: solid; border-color: lightgray; border-width: 1px; ');
 
     document.getElementById('keyWideZoom').setAttribute('style', 'background: yellow; opacity: 0.4; font-size: small; border-style: solid; border-color: lightgray; border-width: 1px;');
@@ -2688,348 +2798,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     document.getElementById('keyTwoPersonCrop').setAttribute('style', 'background: #87aeed; opacity: 1; font-size: small; border-style: solid; border-color: lightgray; border-width: 1px;');
 
-    //svgStart
-    const wideCameraViewSVG = document.createElementNS(svgns, "polygon");
-    //svgEnd
-
-    // Yello Wide Angle view: Set the position and size of the <polygon> element
-
-    let startX = Number((viewBoxWidth * scale / 2).toFixed(2));
-    let startY = (pxOffset + frntWallToTv * scale).toFixed(2);
-
-    // let triangleHeight = getDistanceA(wideFOV / 2, roomWidth / 2);
-    let wFovTriangleHeight = roomLength - frntWallToTv;
-
-    let triangleBase = getDistanceB(wideFOV / 2, wFovTriangleHeight); //  half the triangleBase;
-
-    let pxTriangleBase = triangleBase * scale;
-    let secondX = (startX - pxTriangleBase).toFixed(2);
-
-    let pxwFovTriangleHeight = wFovTriangleHeight * scale;
-
-    let secondY = (Number(startY) + Number(pxwFovTriangleHeight));
-
-    let thirdX = Number(Number(startX) + triangleBase * scale);
-    let thirdY = secondY;
-    let wideCameraViewPoints = startX + "," + startY + " " + Number(secondX).toFixed(2) + "," + Number(secondY).toFixed(2) + " " + Number(thirdX).toFixed(2) + "," + Number(thirdY).toFixed(2);
-
-    //svgStart
-    wideCameraViewSVG.setAttribute("points", wideCameraViewPoints);
-
-    wideCameraViewSVG.setAttribute("style", "stroke:black;stroke-width: 1;fill:yellow;opacity:0.3 ")
-    wideCameraViewSVG.setAttribute("id", "wide-hfov-polygon");
-    wideCameraViewSVG.setAttribute('clip-path', 'url(#clipPathBorder)');
-    //svgEnd
-
-    // let wideCameraViewLine = new Konva.Line({
-    //     points: [startX, startY, Number(secondX), Number(secondY), Number(thirdX), Number(thirdY)],
-    //     stroke: 'black',
-    //     strokeWidth: '1',
-    //     fill: 'yellow',
-    //     opacity: 0.3,
-    //     closed: true,
-    // });
-
-    // kClipGroup.add(wideCameraViewLine);
-
-    // let layerMain = new Konva.Layer();
-
-    // layerMain.add(kClipGroup);
-
-    // stage.add(layerMain);
-
-    // stage.add(layerTable);
-
-
-
-
     layerGrid.draw();
 
-    //
-    // Two Person Crop -- Create a <polygon> element for the zoom horizontal FOV
-    //
-
-    const twoPersonCameraViewTriangle = document.createElementNS(svgns, "polygon");
-
-    // Set the position and size of the <polygon> element
-
-    let teleStartX = (viewBoxWidth * scale / 2);
-    let teleStartY = (pxOffset + frntWallToTv * scale);
-
-    let teleTriangleHeight = getDistanceA(teleFOV / 2, twoPersonCrop / 2);
-
-    let zoomedDistForTriangle = teleTriangleHeight * twoPersonZoom;
-    let teleSecondX = (viewBoxWidth / 2 - twoPersonCrop / 2) * scale;
-    let teleSecondY = (zoomedDistForTriangle * scale) + pxOffset + frntWallToTv * scale;
-    let teleThirdX = (viewBoxWidth / 2 + twoPersonCrop / 2) * scale;
-    let teleThirdY = teleSecondY;
-
-    let zoomCameraViewPoints = teleStartX + "," + teleStartY + " " + teleSecondX + "," + teleSecondY + " " + teleThirdX + "," + teleThirdY;
-
-    twoPersonCameraViewTriangle.setAttribute("points", zoomCameraViewPoints);
-    twoPersonCameraViewTriangle.setAttribute("style", "fill:none;stroke:black;stroke-width: 1; opacity:1.0")
-    twoPersonCameraViewTriangle.setAttribute("id", "zoom-hfov-triangle");
-    twoPersonCameraViewTriangle.setAttribute("clip-path", "url(#clipPathBorder)");
-
-    //
-    // One Person Crop -- Create a <polygon> element for the zoom horizontal FOV
-    //
-
-    const onePerCameraViewTriangle = document.createElementNS(svgns, "polygon");
-
-    // Set the position and size of the <polygon> element
-
-    let teleOnePersonStartX = (viewBoxWidth * scale / 2).toFixed(2);
-    let teleOnePersonStartY = (pxOffset + frntWallToTv * scale).toFixed(2);
-
-    let teleOnePersonTriangleHeight = getDistanceA(teleFOV / 2, onePersonCrop / 2);
-    let zoomedOnePersonDistForTriangle = teleOnePersonTriangleHeight * onePersonZoom;
-    let teleOnePersonSecondX = (viewBoxWidth / 2 - onePersonCrop / 2) * scale;
-    let teleOnePersonSecondY = (zoomedOnePersonDistForTriangle * scale) + pxOffset + frntWallToTv * scale;
-    let teleOnePersonThirdX = (viewBoxWidth / 2 + onePersonCrop / 2) * scale;
-    let teleOnePersonThirdY = teleOnePersonSecondY;
-
-    let zoomOnePersonCameraViewPoints = teleOnePersonStartX + "," + teleOnePersonStartY + " " + teleOnePersonSecondX + "," + teleOnePersonSecondY + " " + teleOnePersonThirdX + "," + teleOnePersonThirdY;
-
-    onePerCameraViewTriangle.setAttribute("points", zoomOnePersonCameraViewPoints);
-    onePerCameraViewTriangle.setAttribute("style", "fill:none;stroke:green;stroke-width: 1; opacity:0.8")
-    onePerCameraViewTriangle.setAttribute("id", "zoom-oneperson-hfov-triangle");
-    onePerCameraViewTriangle.setAttribute("stroke-dasharray", "4");
-    onePerCameraViewTriangle.setAttribute("clip-path", "url(#clipPathBorder)");
-
-    let onePersonCropPieSlice = drawPieSlice({ id: "zoom-hfov-one-person-pie-slice", strokeColor: "gray", strokeWidth: 0.5, fillColor: 'none', centerX: Number(teleOnePersonStartX), centerY: Number(teleOnePersonStartY), angleDegrees: teleFOV, radius: (zoomedOnePersonDistForTriangle * scale), opacity: 1.0, clipPath: 'clipPathBorder' });
-
-    // let wideHFOVpoly = svg.getElementById('wide-hfov-polygon');
-
-    // let twoPersonCropPieSlice = drawPieSlice({ id: "zoom-hfov-two-person-pie-slice", fillColor: '#87aeed', centerX: Number(teleStartX), centerY: Number(teleStartY), angleDegrees: teleFOV, radius: (zoomedDistForTriangle * scale), opacity: 1.0, clipPath: 'clipPathBorder' });
-
-    let twoPersonCropPieSlice = drawPieSlice({ id: "zoom-hfov-two-person-pie-slice", strokeColor: "gray", strokeWidth: 0.5, fillColor: 'url(#defs-gradient-optimal)', centerX: Number(teleStartX), centerY: Number(teleStartY), angleDegrees: teleFOV, radius: (zoomedDistForTriangle * scale), opacity: 1.0, clipPath: 'clipPathBorder' });
-
-    createGradient(svg, twoPersonCropPieSlice, Number(teleStartX), Number(teleStartY), zoomedDistForTriangle, zoomedOnePersonDistForTriangle);
-
-    function createGradient(svg, shape, startX, startY, twoPersonCropDist, onePersonCropDist) {
-
-        let onePersonCropColor = "#8FBC8B"
-        let twoPersonCropColor = "#87aeed";
-        let gradientBlurTransition = 5 // percent the gradient changes +/-
-        let endPointPercent = 90; // Percent
-        let stopPoint1Opacity = 1.0;
-        let stopPoint2Opacity = 1.0;
-        let stopPoint3Opacity = 1.0;
-        let stopPoint4Opacity = 0.2;
-        let stopPoint1Percent = 0 + '%';
-        let stopPoint2Percent = (((onePersonCropDist / twoPersonCropDist) * 100)).toFixed(1);
-        let stopPoint3Percent = (((onePersonCropDist / twoPersonCropDist) * 100) + gradientBlurTransition).toFixed(1);
-        stopPoint2Percent = stopPoint2Percent + '%';
-        stopPoint3Percent = stopPoint3Percent + '%';
-        let stopPoint4Percent = 100 + '%';
-
-        // farthestParticipantBlurStart = (farthestParticipantPercent - gradientBlur);
-
-        // farthestParticipantBlurEnd = (farthestParticipantPercent + gradientBlur);
-
-        let defsGradient = document.createElementNS(svgns, "defs");
-        defsGradient.setAttribute('id', 'defs-gradient-optimal');
-
-        let radialGradient = document.createElementNS(svgns, "radialGradient");
-        radialGradient.setAttribute('id', 'radial-gradient-optimal');
-        radialGradient.setAttribute('gradientUnits', 'userSpaceOnUse')
-        radialGradient.setAttribute('cx', Number(startX));
-        radialGradient.setAttribute('cy', Number(startY));
-        radialGradient.setAttribute('r', Number(twoPersonCropDist * scale));
-        defsGradient.append(radialGradient);
-
-        let stop1 = document.createElementNS(svgns, "stop");
-        stop1.setAttribute('offset', stopPoint1Percent);
-        stop1.setAttribute('style', 'stop-color:' + onePersonCropColor + ';stop-opacity:' + stopPoint1Opacity);
-        stop1.setAttribute('id', 'radial-gradient-optimal-stop1');
-        radialGradient.append(stop1);
-
-        let stop2 = document.createElementNS(svgns, "stop");
-        //                stop2.setAttribute('offset', farthestParticipantBlurStart.toFixed(2) + '%');
-        stop2.setAttribute('offset', stopPoint2Percent);
-        stop2.setAttribute('style', 'stop-color:' + onePersonCropColor + ';stop-opacity:' + stopPoint2Opacity);
-        stop2.setAttribute('id', 'radial-gradient-optimal-stop2');
-        radialGradient.append(stop2);
-
-        let stop3 = document.createElementNS(svgns, "stop");
-        // stop3.setAttribute('offset', farthestParticipantBlurEnd.toFixed(2) + '%');
-        stop3.setAttribute('offset', stopPoint3Percent);
-        stop3.setAttribute('style', 'stop-color:' + twoPersonCropColor + ';stop-opacity:' + stopPoint3Opacity);
-        stop3.setAttribute('id', 'radial-gradient-optimal-stop3');
-        radialGradient.append(stop3);
-
-        let stop4 = document.createElementNS(svgns, "stop");
-        // stop4.setAttribute('offset', endPointPercent.toFixed(1) + '%');
-        stop4.setAttribute('offset', stopPoint4Percent);
-        stop4.setAttribute('style', 'stop-color:' + twoPersonCropColor + ';stop-opacity:' + stopPoint4Opacity);
-        stop4.setAttribute('id', 'radial-gradient-optimal-stop4');
-        radialGradient.append(stop4);
-
-        svg.insertBefore(defsGradient, svg.firstChild);
-        shape.setAttribute('fill', "url(#radial-gradient-optimal)");
-
-    }
-
-    function drawTv() {
-        let displayWidthTv = ((0.88 * tvDiag * drpTvNum) / 12).toFixed(3);
-        let displayDepthTv = 0.25;
-
-        if (unit === 'meters') {
-            displayWidthTv = (displayWidthTv / 3.281);
-            displayDepthTv = (displayDepthTv / 3.281);
-        }
-        displayWidthTv = Number(displayWidthTv);
-
-        // Create a <rect> element for the TV
-        const rectTv = document.createElementNS(svgns, "rect");
-
-        // Set the position and size of the <rect> element
-
-        let xRectTv = (((roomWidth / 2 - displayWidthTv / 2) * scale) + pxOffset);
-
-        let yRectTv = (((frntWallToTv - displayDepthTv) * scale) + pxOffset);
-        rectTv.setAttribute("x", xRectTv);
-        rectTv.setAttribute("y", yRectTv);
-        rectTv.setAttribute("width", (displayWidthTv * scale).toFixed(3));
-        rectTv.setAttribute("height", (displayDepthTv * scale).toFixed(3));
-        rectTv.setAttribute("style", "fill:black;stroke:black;stroke-width: 1;")
-        rectTv.setAttribute("id", "rectTv");
-
-        svg.appendChild(rectTv);
-
-        let displayClosestParticipant = tvDiag * 1;
-        let displayFarthestParticipant;
-
-        if (unit == 'meters') {
-            displayClosestParticipant = (tvDiag / 12) / 3.28084;
-        } else {
-            displayClosestParticipant = tvDiag / 12 * 1;
-        }
-
-        displayFarthestParticipant = displayClosestParticipant * 4;
-
-        let yOneTimesFromDisplay = yRectTv + (displayDepthTv * scale) + (displayClosestParticipant * scale);
-
-        let yThreeTimesFromDisplay = yRectTv + (displayDepthTv * scale) + (displayClosestParticipant * 3 * scale)
-
-        let yFourTimeFromDisplay = yRectTv + (displayDepthTv * scale) + (displayFarthestParticipant * scale)
-
-        let lineOneTimesFromeDisplay = drawLine({ x1: pxOffset, y1: yOneTimesFromDisplay, x2: pxOffset + (roomWidth * scale), y2: yOneTimesFromDisplay, id: 'line-1X-from-display', stroke: 'orchid', clipPath: 'clipPathBorder', dashArray: "6 4", strokeWidth: "2" });
-        svg.appendChild(lineOneTimesFromeDisplay);
-
-        let txtOneTimeFromDisplay = addCenteredText("Closest Person to Display: " + displayClosestParticipant.toFixed(1) + ' ' + unit, xRectTv, yOneTimesFromDisplay - 3, (xRectTv + (displayWidthTv * scale)), yOneTimesFromDisplay - 3, 'none', 'lable-1x-from-display');
-        txtOneTimeFromDisplay.setAttribute("clip-path", "url(#clipPathBorder)");
-
-        svg.appendChild(txtOneTimeFromDisplay);
-
-        let lineThreeTimesFromeDisplay = drawLine({ x1: pxOffset, y1: yThreeTimesFromDisplay, x2: pxOffset + (roomWidth * scale), y2: yThreeTimesFromDisplay, id: 'line-3X-from-display', stroke: 'green', clipPath: 'clipPathBorder', dashArray: "6", strokeWidth: "2" });
-        svg.appendChild(lineThreeTimesFromeDisplay);
-
-        let txtThreeTimesFromDisplay = addCenteredText("Optimal Farthest Person: " + (3 * displayClosestParticipant).toFixed(1) + ' ' + unit, xRectTv, yThreeTimesFromDisplay - 3, (xRectTv + (displayWidthTv * scale)), yThreeTimesFromDisplay - 3, 'none', 'lable-3x-from-display');
-        txtThreeTimesFromDisplay.setAttribute("clip-path", "url(#clipPathBorder)");
-        svg.appendChild(txtThreeTimesFromDisplay);
-
-        let lineFourTimesFromeDisplay = drawLine({ x1: pxOffset, y1: yFourTimeFromDisplay, x2: pxOffset + (roomWidth * scale), y2: yFourTimeFromDisplay, id: 'line-4X-from-display', stroke: 'red', clipPath: 'clipPathBorder', dashArray: "6 4", strokeWidth: "2" });
-        svg.appendChild(lineFourTimesFromeDisplay);
-
-        let txtFourTimesFromDisplay = addCenteredText("Max Viewing Dist: " + displayFarthestParticipant.toFixed(1) + ' ' + unit, xRectTv, yFourTimeFromDisplay - 3, (xRectTv + (displayWidthTv * scale)), yFourTimeFromDisplay - 3, 'none', 'lable-4x-from-display');
-        txtFourTimesFromDisplay.setAttribute("clip-path", "url(#clipPathBorder)");
-
-        svg.appendChild(txtFourTimesFromDisplay);
-        // update labels in they key
-        document.getElementById('displayClosestParticipant').innerHTML = round(displayClosestParticipant, -1);
-
-        document.getElementById('displayOptimalFarthestParticipant').innerHTML = round(displayClosestParticipant * 3, -1);
-
-        document.getElementById('displayFarthestParticipant').innerHTML = round(displayFarthestParticipant, -1);
-
-    }
-
-    // Add text
-    let teleFarthestParticipant = ((teleSecondY - pxOffset - frntWallToTv * scale) / scale).toFixed(1);
-
-    // Append the <svg> element to the document
-
-    document.getElementById('svgDiv').append(svg);
-
-    // Create a <circle> element for the cameraCircle
-    const cameraCircle = document.createElementNS(svgns, "circle");
-
-    // Set the position and size of the <rect> element
-
-    cameraCircle.setAttribute("cx", (viewBoxWidth * scale / 2).toFixed(2));
-    cameraCircle.setAttribute("cy", (pxOffset + frntWallToTv * scale).toFixed(2));
-    cameraCircle.setAttribute("r", 10);
-    cameraCircle.setAttribute("style", "fill:white;stroke:black;stroke-width: 5;");
-    cameraCircle.setAttribute("id", "cameraCircle");
-
-    let farthestParticipant = distDisplayToTable + tableLength + frntWallToTv;
-
-    let closestParticipant = (farthestParticipant / 4);
-    let screenSize = 55;
-    if (unit === 'feet') {
-        screenSize = (closestParticipant * 12);
-    } else {
-        screenSize = (closestParticipant * 3.2808 * 12);
-    }
-
-    document.getElementById('lblDisplayToFarthest').innerHTML = farthestParticipant.toFixed(1);
-
-    document.getElementById("lblRecommendedDisplay").innerHTML = (screenSize * 4 / 3).toFixed(0);
-
-    document.getElementById('lblFarthestTwoPersonCrop').innerHTML = teleFarthestParticipant;
-
-    document.getElementById('lblFarthestOnePersonCrop').innerHTML = zoomedOnePersonDistForTriangle.toFixed(1);
-
-    document.getElementById('lblOnePersonCrop').innerHTML = onePersonCrop.toFixed(1);
-
-    document.getElementById('lblTwoPersonCrop').innerHTML = twoPersonCrop.toFixed(1);
-
-    // let strUrlQuery = '?ver=' + version + '&drpMetersFeet=' + unit + '&roomWidth=' + roomWidth + '&roomLength=' + roomLength + '&tableWidth=' + tableWidth + '&tableLength=' + tableLength + '&distDisplayToTable=' + distDisplayToTable + '&frntWallToTv=' + frntWallToTv + '&tvDiag=' + tvDiag + '&drpTvNum=' + drpTvNum + '&drpVideoDevice=' + drpVideoDevice.value + '&wideFOV=' + wideFOV + '&teleFOV=' + teleFOV + '&onePersonZoom=' + onePersonZoom + '&twoPersonZoom=' + twoPersonZoom + '&onePersonCrop=' + onePersonCrop + '&twoPersonCrop=' + twoPersonCrop + '&roomName=' + encodeURIComponent(roomName);
-
-
-    let txtRoomName = createTextElement({ text: roomName, style: 'font-size: 24px; font-family: Arial, Helvetica, sans-serif;', x: (pxOffset + 10), y: (pxLastGridLineY + 50) });
-    let selectedDevice = document.getElementById('drpVideoDevice');
-    let deviceName = selectedDevice.options[selectedDevice.selectedIndex].text;
-    let txtDeviceType = createTextElement({ text: ("Device: " + deviceName), style: 'font-size: 16px; font-family: Arial, Helvetica, sans-serif;', x: (pxOffset + 10), y: (pxLastGridLineY + 20) });
-
-    svg.appendChild(wideCameraViewSVG);
-
-    svg.appendChild(twoPersonCropPieSlice);
-
-    // svg.appendChild(twoPersonCameraViewTriangle);
-
-    // svg.appendChild(onePerCameraViewTriangle);
-
-    svg.appendChild(grid);
-
-    svg.appendChild(table);
-
-    svg.appendChild(outerWall);
-
-    let txtOneCropFarthest = addCenteredText(zoomedOnePersonDistForTriangle.toFixed(1) + " " + unit + " from the camera.", teleOnePersonSecondX, teleOnePersonSecondY - 5, teleOnePersonThirdX, teleOnePersonThirdY - 5);
-    txtOneCropFarthest.setAttribute("clip-path", "url(#clipPathBorder)");
-
-    let txtTwoCropFarthest = addCenteredText(teleFarthestParticipant + " " + unit + " from the camera.", teleSecondX, teleSecondY - 5, teleThirdX, teleThirdY - 5);
-    txtTwoCropFarthest.setAttribute("clip-path", "url(#clipPathBorder)");
-
-
-    // drawTv();
-
-    // svg.appendChild(cameraCircle);
-
-    // svg.appendChild(txtRoomName);
-
-    // svg.appendChild(txtDeviceType);
-
     updateLabelUnits();
-
-    // svg.appendChild(onePersonCropPieSlice);
-
-    // resizePage();
-
-
 
     stageAddLayers();
 
@@ -3080,55 +2851,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
 }
 
-function drawLine(settings) {
-    // {x1: x1, y1, y2, id: id, style: style, idSvg: idSvg,  clipPath: clipPath, opacity: opacity; stroke-dasharray; stroke: stroke }
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-
-    line.setAttributeNS(null, 'x1', settings.x1);
-    line.setAttributeNS(null, 'x2', settings.x2);
-    line.setAttributeNS(null, 'y1', settings.y1);
-    line.setAttributeNS(null, 'y2', settings.y2);
-
-    if ('strokeWidth' in settings) {
-        line.setAttributeNS(null, 'stroke-width', settings.strokeWidth);
-    }
-
-    if ('id' in settings) {
-        line.setAttributeNS(null, 'id', settings.id);
-    }
-
-    if ('stroke' in settings) {
-        line.setAttributeNS(null, 'stroke', settings.stroke);
-    }
-
-    if ('dashArray' in settings) {
-        line.setAttributeNS(null, 'stroke-dasharray', settings.dashArray);
-    }
-
-    if ("opacity" in settings) {
-        line.setAttributeNS(null, 'opacity', settings.opacity);
-    }
-
-    if ('style' in settings) {
-        line.setAttribute('style', settings.style);
-    }
-
-    if ('clipPath' in settings) {
-        line.setAttribute('clip-path', settings.clipPath);
-    }
-
-    if ("idSvg" in settings) {
-
-        document.getElementById(settings.idSvg).appendChild(line);
-    }
-
-    if ("clipPath" in settings) {
-        line.setAttributeNS(null, "clip-path", "url(#" + settings.clipPath + ")");
-    }
-
-    return line;
-
-}
 
 function creatArrayKeysTypes() {
     eachCategory(videoDevices, 'videoDevices');
@@ -3148,12 +2870,31 @@ function creatArrayKeysTypes() {
 }
 
 function createShareableLink() {
+
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
     strUrlQuery2 += `${roomObj.version}`;
     strUrlQuery2 += `b${expand(roomObj.room.roomWidth)}c${expand(roomObj.room.roomLength)}`;
+
+    if (roomObj.software === 'webex') {
+        strUrlQuery2 += `e0`;
+    }
+    else if (roomObj.software === 'mtr') {
+        strUrlQuery2 += 'e1';
+    }
+
+
+    if (!(roomObj.room.roomHeight == 0 || roomObj.room.roomHeight == '')) {
+        strUrlQuery2 += 'f' + round(roomObj.room.roomHeight) * 100;
+    }
+
     strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name).replaceAll('%20', '+') + '~'}`;
+
+
     strUrlQuery2 += createShareableLinkItemShading();
+
+    strUrlQuery2 += `${roomObj.authorVersion == '' ? '' : 'C~' + encodeURIComponent(roomObj.authorVersion).replaceAll('%20', '+') + '~'}`;
+
 
     let items = roomObj.items;
     let i = 0;
@@ -3209,8 +2950,6 @@ function expand(num) {
     return Math.round(num * 100);
 }
 
-
-
 function createShareableLinkItem(item) {
     let strItem = '';
     strItem += idKeyObj[item.data_deviceid];
@@ -3223,9 +2962,9 @@ function createShareableLinkItem(item) {
         strItem += 'a' + Math.round(round(item.y) * 100);
     }
 
-    if ('data_zHeight' in item) {
-        if (item.data_zHeight != "") {
-            strItem += 'b' + Math.round(round(item.data_zHeight) * 100);
+    if ('data_zPosition' in item) {
+        if (item.data_zPosition != "") {
+            strItem += 'b' + Math.round(round(item.data_zPosition) * 100);
         }
     }
 
@@ -3251,6 +2990,21 @@ function createShareableLinkItem(item) {
     if ('data_diagonalInches' in item) {
         strItem += 'g' + item.data_diagonalInches;
     }
+
+    if ('tblRectRadius' in item) {
+        strItem += 'h' + Math.round(round(item.tblRectRadius) * 100);
+    }
+
+    if ('tblRectRadiusRight' in item) {
+        strItem += 'i' + Math.round(round(item.tblRectRadiusRight) * 100);
+    }
+
+    if ('data_vHeight' in item) {
+        if (item.data_vHeight != "") {
+            strItem += 'j' + Math.round(round(item.data_vHeight) * 100);
+        }
+    }
+
 
     return strItem;
 }
@@ -3283,95 +3037,6 @@ function createShareableLinkItemShading() {
 
     return 'B' + shadeArray.join('');
 
-}
-
-
-
-function drawPieSlice(settings) {
-
-    if (!("rotateAngleDegrees" in settings)) {
-        settings.rotateAngleDegrees = 0;
-    }
-
-    if (!("angleDegrees" in settings)) {
-        settings.angleDegrees = 90;
-    }
-
-    if (!("opacity" in settings)) {
-        settings.opacity = 1.0;
-    }
-
-    if (!("fillColor" in settings)) {
-        settings.fillColor = 'none'; // light blue
-    }
-
-    if (!("strokeColor" in settings)) {
-        settings.strokeColor = 'none'
-    }
-
-    let d = "";
-
-    let flags = "0,1";
-    if (360 > settings.angleDegrees && settings.angleDegrees > 180) {
-        flags = "1,1";
-    }
-    else if (settings.angleDegrees == 360) {
-        settings.angleDegrees = 359.99;
-        flags = "1,1";
-    }
-    else if (settings.angleDegrees > 360) {
-        flags = "1,0";
-    }
-
-    let startAngleRadians = (((180 - settings.angleDegrees) / 2 + settings.rotateAngleDegrees) / 180) * Math.PI;
-
-    let sweepAngleRadians = (Math.PI * (settings.angleDegrees / 180));
-
-    const firstCircumferenceX = settings.centerX + settings.radius * Math.cos(startAngleRadians);
-    const firstCircumferenceY = settings.centerY + settings.radius * Math.sin(startAngleRadians);
-    const secondCircumferenceX = settings.centerX + settings.radius * Math.cos(startAngleRadians + sweepAngleRadians);
-    const secondCircumferenceY = settings.centerY + settings.radius * Math.sin(startAngleRadians + sweepAngleRadians);
-
-    // move to center
-    d += "M" + settings.centerX + "," + settings.centerY + " ";
-    // line to first edge
-    d += "L" + firstCircumferenceX + "," + firstCircumferenceY + " ";
-    // arc
-    // Radius X, Radius Y, X Axis Rotation, Large Arc Flag, Sweep Flag, End X, End Y
-    d += "A" + settings.radius + "," + settings.radius + " 0 " + flags + " " + secondCircumferenceX + "," + secondCircumferenceY + " ";
-    // close path
-    d += "Z";
-
-    const arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    arc.setAttributeNS(null, "d", d);
-    arc.setAttributeNS(null, "fill", settings.fillColor);
-    arc.setAttribute('opacity', settings.opacity);
-    arc.setAttributeNS(null, "style", "stroke:" + settings.strokeColor);
-
-    if ("id" in settings) {
-        arc.setAttributeNS(null, "id", settings.id);
-    }
-
-    if ("clipPath" in settings) {
-        arc.setAttributeNS(null, "clip-path", "url(#" + settings.clipPath + ")");
-    }
-
-    if ("strokeWidth" in settings) {
-        arc.setAttributeNS(null, "stroke-width", settings.strokeWidth);
-    }
-
-    arc.setAttribute("rotateAngleDegrees", settings.rotateAngleDegrees);
-    arc.setAttribute("angleDegrees", settings.angleDegrees);
-    arc.setAttribute("centerX", settings.centerX);
-    arc.setAttribute("centerY", settings.centerY);
-    arc.setAttribute("radius", settings.radius);
-
-    if ("idSvg" in settings) {
-
-        document.getElementById(settings.idSvg).appendChild(arc);
-    }
-
-    return arc;
 }
 
 /* download a transparent image */
@@ -3517,6 +3182,29 @@ function openSubTab(evt, tabName) {
 
 }
 
+function openSubTab2(evt, tabName) {
+    /* Declare all variables */
+    let i, tabcontent, tablinks;
+
+    /* Get all elements with class="tabcontent" and hide them */
+    tabcontent = document.getElementsByClassName("subtabcontent2");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+
+    /* Get all elements with class="tablinks" and remove the class "active" */
+    tablinks = document.getElementsByClassName("subtablinks2");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+
+    /* Show the current tab, and add an "active" class to the button that opened the tab */
+    document.getElementById(tabName).style.display = "block";
+
+    evt.currentTarget.className += " active";
+
+}
+
 // Get the element with id="defaultOpen" and click on it
 
 function toggleButton(button) {
@@ -3610,9 +3298,24 @@ function copyItems() {
             newAttr.data_diagonalInches = node.data_diagonalInches;
         }
 
-        if ('data_zHeight' in node) {
-            newAttr.data_zHeight = node.data_zHeight;
+        if ('data_zPosition' in node) {
+            newAttr.data_zPosition = node.data_zPosition;
         }
+
+        if ('data_vHeight' in node) {
+            newAttr.data_vHeight = node.data_vHeight;
+        }
+
+        if ('cornerRadius' in node.attrs) {
+            if (node.attrs.cornerRadius.length > 1) {
+                newAttr.tblRectRadius = node.attrs.cornerRadius[2] / scale;
+            }
+
+            if (node.attrs.cornerRadius[0] != node.attrs.cornerRadius[2]) {
+                newAttr.tblRectRadiusRight = node.attrs.cornerRadius[0] / scale;
+            }
+        }
+
 
         insertShapeItem(deviceId, node.getParent().name(), newAttr, uuid);
 
@@ -3648,8 +3351,8 @@ function stageAddLayers() {
     stage.add(layerGrid);
 
     layerTransform.add(grShadingCamera);
-    layerTransform.add(groupChairs);
     layerTransform.add(groupTables);
+    layerTransform.add(groupChairs);
 
     layerTransform.add(groupShapes);
 
@@ -4010,7 +3713,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-            insertShapeItem(device.data_deviceid, 'videoDevices', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
+            insertShapeItem(device.data_deviceid, 'videoDevices', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
 
         }
     }
@@ -4018,7 +3721,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
+            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
 
         }
     }
@@ -4026,7 +3729,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
+            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
 
         }
     }
@@ -4034,7 +3737,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
 
-            insertShapeItem(device.data_deviceid, 'displays', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight, data_diagonalInches: device.data_diagonalInches }, device.id);
+            insertShapeItem(device.data_deviceid, 'displays', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition, data_diagonalInches: device.data_diagonalInches }, device.id);
 
         }
     }
@@ -4042,7 +3745,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
 
-            insertShapeItem(device.data_deviceid, 'chairs', { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }, device.id);
+            insertShapeItem(device.data_deviceid, 'chairs', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
 
         }
     }
@@ -4050,7 +3753,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
 
-            let attrObj = { x: device.x, y: device.y, rotation: device.rotation, data_zHeight: device.data_zHeight }
+            let attrObj = { x: device.x, y: device.y, rotation: device.rotation  }
 
             if ('height' in device) {
                 attrObj.height = device.height;
@@ -4058,6 +3761,22 @@ function roomObjToCanvas(roomObjItems) {
 
             if ('width' in device) {
                 attrObj.width = device.width;
+            }
+
+            if ('tblRectRadius' in device) {
+                attrObj.tblRectRadius = device.tblRectRadius;
+            }
+
+            if ('tblRectRadiusRight' in device) {
+                attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
+            }
+
+            if ('data_vHeight' in device){
+                attrObj.data_vHeight = device.data_vHeight;
+            }
+
+            if ('data_zPosition' in device){
+                attrObj.data_zPosition = device.data_zPosition;
             }
 
             insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
@@ -4068,6 +3787,9 @@ function roomObjToCanvas(roomObjItems) {
 }
 
 function canvasToJson() {
+
+    if (!addressBarUpdate) return;
+
     let transformGroups = layerTransform.getChildren();
 
     transformGroups.forEach((group) => {
@@ -4127,15 +3849,32 @@ function canvasToJson() {
                 name: element.attrs.name,
             }
 
+            if ('cornerRadius' in attrs) {
+                if (attrs.cornerRadius.length > 1) {
+
+
+                    itemAttr.tblRectRadius = round(attrs.cornerRadius[2] / scale);
+                    if (attrs.cornerRadius[0] != attrs.cornerRadius[2]) {
+                        itemAttr.tblRectRadiusRight = round(attrs.cornerRadius[0] / scale);
+                    }
+                }
+            }
+
 
             if ('data_diagonalInches' in element) {
                 itemAttr.data_diagonalInches = element.data_diagonalInches;
             }
 
-            if ('data_zHeight' in element) {
-                itemAttr.data_zHeight = element.data_zHeight;
+            if ('data_zPosition' in element) {
+                itemAttr.data_zPosition = element.data_zPosition;
             } else {
-                itemAttr.data_zHeight = "";
+                itemAttr.data_zPosition = "";
+            }
+
+            if ('data_vHeight' in element) {
+                itemAttr.data_vHeight = element.data_vHeight;
+            } else {
+                itemAttr.data_vHeight = "";
             }
 
             if (groupName === 'tables') {
@@ -4148,7 +3887,7 @@ function canvasToJson() {
 
     }
 
-    // console.log(JSON.stringify(roomObj, null, 5));
+    console.log(JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(() => {
@@ -4208,28 +3947,52 @@ function saveToUndoArray() {
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
-    let table, data_zHeight;
+    let table, data_zPosition, data_vHeight;
     let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
     let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
     let pixelX = scale * attrs.x + pxOffset;
     let pixelY = scale * attrs.y + pyOffset;
     let opacity = 0.8;
-    let wallWidth = 0.10 * scale;
-    let defautlWallHeight = 2.5;
+    let wallWidth = 0.1 * scale; // 0.1 to 0.166
+    let uShapeWidth = 0.85 * scale;
+    let defaultWallHeight = 2.5;
+    let unitScale;
+    let radius = [];
 
     let fillColor = 'brown'; /* default color */
     let strokeColor = 'black'; /* default width */
 
+    /* default width of columns 1 ft x 1 ft */
     if (insertDevice.id.startsWith('column')) {
         width = 0.305 * scale;
         height = 0.305 * scale;
+    } else if (insertDevice.id === 'tblShapeU') {
+        width = 2.5 * scale;
+        height = 3.4 * scale;
     }
 
     if (unit === 'feet') {
         width = width * 3.28084;
         wallWidth = wallWidth * 3.28084;
         height = height * 3.28084;
-        defautlWallHeight = round(defautlWallHeight * 3.2804);
+        uShapeWidth = uShapeWidth * 3.2804;
+        defaultWallHeight = round(defaultWallHeight * 3.2804);
+        unitScale = scale * 3.2804;
+    } else {
+        unitScale = scale;
+    }
+
+    if ('tblRectRadius' in attrs) {
+        let tblRectRadius = attrs.tblRectRadius * scale;
+        radius[0] = tblRectRadius;
+        radius[1] = tblRectRadius;
+        radius[2] = tblRectRadius;
+        radius[3] = tblRectRadius;
+    }
+
+    if ('tblRectRadiusRight' in attrs) {
+        radius[0] = attrs.tblRectRadiusRight * scale;
+        radius[1] = attrs.tblRectRadiusRight * scale;
     }
 
     if ('width' in attrs) {
@@ -4246,16 +4009,22 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         rotation = 0;
     }
 
-    if ('data_zHeight' in attrs) {
-        data_zHeight = attrs.data_zHeight;
+    if ('data_zPosition' in attrs) {
+        data_zPosition = attrs.data_zPosition;
 
     } else {
-        data_zHeight = "";
+        data_zPosition = "";
+    }
+
+    if ('data_vHeight' in attrs) {
+        data_vHeight = attrs.data_vHeight;
+    } else {
+        data_vHeight = "";
     }
 
     if (insertDevice.id.startsWith('wall') || insertDevice.id.startsWith('column')) {
-        if (data_zHeight == 0 || data_zHeight == "") {
-            data_zHeight = defautlWallHeight;
+        if (data_vHeight == 0 || data_vHeight == "") {
+            data_vHeight = defaultWallHeight;
         }
     }
 
@@ -4270,9 +4039,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             stroke: strokeColor,
             strokeWidth: 1,
             id: uuid,
+            cornerRadius: radius,
             draggable: true,
             opacity: opacity,
         });
+
 
     }
 
@@ -4338,6 +4109,50 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
 
+    if (insertDevice.id === 'tblShapeU') {
+        table = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+            sceneFunc: (ctx, shape) => {
+                ctx.beginPath();
+                let width = shape.width();
+                let height = shape.height();
+
+                if (width < unitScale * 1.85) {
+                    width = 1.85 * unitScale;
+                    shape.width(width);
+                }
+
+                if (height < unitScale * 1.65) {
+                    height = 1.65 * unitScale;
+                    shape.height(height);
+                }
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(uShapeWidth, 0);
+                ctx.lineTo(uShapeWidth, height - uShapeWidth);
+                ctx.lineTo(width - uShapeWidth, height - uShapeWidth);
+                ctx.lineTo(width - uShapeWidth, 0);
+                ctx.lineTo(width, 0);
+                ctx.lineTo(width, height);
+                ctx.lineTo(0, height);
+                ctx.lineTo(0, 0);
+                ctx.closePath(0, 0);
+                ctx.fillStrokeShape(shape);
+            }
+        });
+    }
+
+
     if (insertDevice.id === 'wallStd') {
         table = new Konva.Shape({
             x: pixelX,
@@ -4378,7 +4193,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: 1,
             id: uuid,
             draggable: true,
-            opacity: 0.5,
+            opacity: 0.8,
             sceneFunc: (ctx, shape) => {
                 ctx.beginPath();
                 let height = shape.height();
@@ -4415,7 +4230,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     table.data_deviceid = insertDevice.id;
 
-    table.data_zHeight = data_zHeight;
+    table.data_zPosition = data_zPosition;
+
+    table.data_vHeight = data_vHeight;
 
     table.perfectDrawEnabled(perfectDrawEnabled);
 
@@ -4473,40 +4290,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     });
 
-}
+    table.on('transformend', function (e) {
+        console.log('transformend');
+        if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML */
 
-/*
-    insertOffsetCount() not used at the moment due to drag and drop.  Might use the code gain.
-*/
-function insertOffsetCount() {
-    insertCountXOffset += 1;
+    });
 
-    insertCountYOffset += 1;
-
-    if (insertCountYOffset > 7) {
-        insertCountXOffset = insertCountXOffset - 0.1;
-        insertCountYOffset = 0;
-
-    }
-
-    if (stage.width() / 2.5 < stage.width() * 0.03 * insertCountXOffset) {
-        insertCountXOffset = 0;
-    }
 }
 
 function findUpperLeftXY(shape) {
-
-    // return {
-
-    //     x:
-    //         shape.x()
-    //         + (shape.width() / 2) * Math.cos(Math.PI / 180 * shape.rotation())
-    //         + (shape.height() / 2) * Math.sin(Math.PI / 180 * (-shape.rotation())),
-    //     y:
-    //         shape.y() +
-    //         (shape.height() / 2) * Math.cos(Math.PI / 180 * shape.rotation()) +
-    //         (shape.width() / 2) * Math.sin(Math.PI / 180 * shape.rotation())
-    // };
 
     return {
         x:
@@ -4538,10 +4330,6 @@ function updateShapesBasedOnNewScale() {
         oldPyOffset = layerTransform.data_pyOffset;
 
         updateNodeScale(layerTransform);
-        // updateNodeScale(grShadingMicrophone);
-        // updateNodeScale(grShadingCamera);
-        // updateNodeScale(grShadingSpeaker);
-        // updateNodeScale(grDisplayDistance);
 
         function updateNodeScale(layer) {
 
@@ -4606,6 +4394,8 @@ function updateShapesBasedOnNewScale() {
 
 }
 
+
+
 /* Item is updated after clicking Update item on web page from Details tab */
 function updateItem() {
     let width = document.getElementById('itemWidth').value;
@@ -4616,11 +4406,16 @@ function updateItem() {
 
     let rotation = document.getElementById('itemRotation').value;
 
-    let data_zHeight = Number(document.getElementById('itemZheight').value);
+    let data_zPosition = Number(document.getElementById('itemZposition').value);
+
+    let data_vHeight = Number(document.getElementById('itemVheight').value);
 
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
+    let tblRectRadius = document.getElementById('tblRectRadius').value;
+
+    let tblRectRadiusRight = document.getElementById('tblRectRadiusRight').value;
 
     /* Make the button disabled for a short time.  Pushing the button too fast too many times creates an issue where Canvas data is lost */
     document.getElementById("btnUpdateItemId").disabled = true;
@@ -4660,25 +4455,31 @@ function updateItem() {
                 item.data_diagonalInches = data_diagonalInches;
             }
 
-            item.data_zHeight = data_zHeight;
+            if (item.data_deviceid === 'tblRect') {
+                if (tblRectRadius != '') {
+                    item.tblRectRadius = tblRectRadius;
+                }
 
-            item.rotation = rotation;
-
-            /* come back to updating name later as it will take more coding to transfer to copy link URL */
-            /*  item.name or item.data_name
-
-            if ('name' in item){
-                item.name = name;
+                if (tblRectRadiusRight != '') {
+                    item.tblRectRadiusRight = tblRectRadiusRight;
+                    if (tblRectRadius === '') {
+                        item.tblRectRadius = 0;
+                    }
+                }
             }
 
-            */
+            item.data_zPosition = data_zPosition;
+
+            item.data_vHeight = data_vHeight;
+
+            item.rotation = rotation;
 
             if (document.getElementById('isPrimaryCheckBox').disabled === false && document.getElementById('isPrimaryCheckBox').checked === true) {
                 arrayMove(roomObj.items[parentGroup], index, 0);
             }
 
             /*
-            right now I destroy the node and rebuild.  It was just easier to quickly code with guidance shadings
+            right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values instead for efficiency.
             */
 
             let node = stage.find('#' + id)[0];
@@ -4816,7 +4617,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     let insertDevice = {};
     let group;
-    let width, height, rotation, data_zHeight;
+    let width, height, rotation, data_zPosition, data_vHeight;
     let abbrUnit = 'm';  /* abbreviated unit - will be m for meters, f for feet. Inserted in the shape rendering. */
 
     if (unit === 'feet') {
@@ -4918,9 +4719,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
          */
     }
 
-
     tr.resizeEnabled(false);
-    // convert mm to meters * sclae
+    // convert mm to meters * scale
     width = insertDevice.width / 1000 * scale;
 
     height = insertDevice.depth / 1000 * scale;
@@ -4948,10 +4748,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         attrs.data_diagonalInches = data_diagonalInches;
     }
 
-    if ('data_zHeight' in attrs) {
-        data_zHeight = attrs.data_zHeight;
+    if ('data_zPosition' in attrs) {
+        data_zPosition = attrs.data_zPosition;
     } else {
-        data_zHeight = "";
+        data_zPosition = "";
+    }
+
+    if ('data_vHeight' in attrs) {
+        data_vHeight = attrs.data_vHeight;
+    } else {
+        data_vHeight = "";
     }
 
     /*
@@ -4987,20 +4793,26 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         Items that are displays and table items should not be scaled.
     */
 
-    /*
-    let scaleMin = 20;
-    let scaleMinFactor = 1;
-    if (unit === 'meters'){
-        scaleMin = scaleMin * 3.28084;
-    }
-    if (scale < scaleMin) {
-    if (!('data_diagonalInches' in attrs)){
-            scaleMinFactor = scaleMin / scale;
-            width = width * scaleMinFactor;
-            height = height * scaleMinFactor;
-        }
-    }
-    */
+    /* */
+
+    // if (groupName === 'videoDevices' || groupName === 'microphones') {
+
+
+    //     let scaleMin = 60;
+    //     let scaleMinFactor = 1;
+    //     if (unit === 'meters') {
+    //         scaleMin = scaleMin * 3.28084;
+    //     }
+    //     if (scale < scaleMin) {
+
+    //         if (!('data_diagonalInches' in attrs)) {
+    //             scaleMinFactor = scaleMin / scale;
+    //             width = width * scaleMinFactor;
+    //             height = height * scaleMinFactor;
+    //         }
+    //     }
+    // }
+    /* */
 
 
     //convert to upper left pixel position before conversion
@@ -5024,6 +4836,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.data_deviceid = deviceId;
 
+        /* on a refresh of the page, make sure person is over the chair */
+        if (imageItem.data_deviceid.startsWith('person')) {
+            imageItem.zIndex(groupChairs.getChildren().length - 1);
+        }
+
+        if (imageItem.data_deviceid.startsWith('chair')) {
+            imageItem.zIndex(0);
+        }
+
+
         if ('scaleX' in attrs) {
             imageItem.scaleX = attrs.scaleX;
         };
@@ -5036,8 +4858,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.data_diagonalInches = data_diagonalInches;
         }
 
-        if ('data_zHeight' in attrs) {
-            imageItem.data_zHeight = data_zHeight;
+        if ('data_zPosition' in attrs) {
+            imageItem.data_zPosition = data_zPosition;
+        }
+
+        if ('data_vHeight' in attrs) {
+            imageItem.data_vHeight = data_vHeight;
         }
 
         if ('name' in insertDevice) {
@@ -5049,6 +4875,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         imageItem.on('dragend', function () {
+
             canvasToJson();
         });
 
@@ -5295,8 +5122,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
 
-
-
         let txtAudio = new Konva.Text({
             x: -1000,
             y: micRadius - 10,
@@ -5324,8 +5149,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: 0,
             name: 'shading_group',
         })
-
-
 
         /* closest distance line */
         let widthRatio = 1 * displayNumber;
@@ -5409,59 +5232,61 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         grDisplayDistance.add(groupItemDisplayDistance);
     }
 
-    function updateShading(imageItem) {
+}
 
-        let fovShading = stage.find(`#fov~${uuid}`);
-        let audioShading = stage.find(`#audio~${uuid}`);
-        let dispDistShading = stage.find(`#dispDist~${uuid}`)
 
-        if (fovShading.length === 1) {
-            moveShading(imageItem, fovShading[0]);
+function updateShading(imageItem) {
+    let uuid = imageItem.id();
+    let fovShading = stage.find(`#fov~${uuid}`);
+    let audioShading = stage.find(`#audio~${uuid}`);
+    let dispDistShading = stage.find(`#dispDist~${uuid}`)
+
+    if (fovShading.length === 1) {
+        moveShading(imageItem, fovShading[0]);
+    }
+
+    if (audioShading.length === 1) {
+        moveShading(imageItem, audioShading[0]);
+    }
+
+    if (dispDistShading.length === 1) {
+        moveShading(imageItem, dispDistShading[0]);
+    }
+
+
+    function moveShading(imageItem, shadingItem) {
+
+        let center = getShapeCenter(imageItem);
+        let centerY = center.y;
+        let centerX = center.x;
+
+        if (imageItem.data_deviceid === 'ceilingMic') {
+            centerX = (imageItem.height() / 2) * (Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
+            centerY = (imageItem.height() / 2) * -(Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
         }
 
-        if (audioShading.length === 1) {
-            moveShading(imageItem, audioShading[0]);
-        }
+        if ('data_cameraShadeOffSet' in imageItem) {
 
-        if (dispDistShading.length === 1) {
-            moveShading(imageItem, dispDistShading[0]);
-        }
+            let cameraShadeOffset = imageItem.data_cameraShadeOffSet / 1000 * scale;
 
-
-        function moveShading(imageItem, shadingItem) {
-
-            let center = getShapeCenter(imageItem);
-            let centerY = center.y;
-            let centerX = center.x;
-
-            if (insertDevice.id === 'ceilingMic') {
-                centerX = (imageItem.height() / 2) * (Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
-                centerY = (imageItem.height() / 2) * -(Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
+            if (unit === 'feet') {
+                cameraShadeOffset = cameraShadeOffset * 3.28084;
             }
 
-            if ('cameraShadeOffSet' in insertDevice) {
 
-                let cameraShadeOffset = insertDevice.cameraShadeOffSet / 1000 * scale;
-
-                if (unit === 'feet') {
-                    cameraShadeOffset = cameraShadeOffset * 3.28084;
-                }
-
-
-                centerX = ((imageItem.height() / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
-                centerY = ((imageItem.height() / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
-            }
-
-            shadingItem.rotation(imageItem.rotation());
-
-            shadingItem.x(centerX);
-            shadingItem.y(centerY);
-
+            centerX = ((imageItem.height() / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
+            centerY = ((imageItem.height() / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
         }
+
+        shadingItem.rotation(imageItem.rotation());
+
+        shadingItem.x(centerX);
+        shadingItem.y(centerY);
 
     }
 
 }
+
 
 /* Get center of a shape from upper left x, upper right y cooridnate. A shape comes from Canvas / Konva.js */
 function getShapeCenter(shape) {
@@ -5532,6 +5357,29 @@ function round(inNumber, place = -2) {
     return Math.round(inNumber * factor) / factor;
 }
 
+function updateRoomDetails() {
+    let roomHeight = document.getElementById('roomHeight').value;
+    let authorVersion = document.getElementById('authorVersion').value;
+    let drpSoftware = document.getElementById('drpSoftware').value;
+
+    if (roomHeight != 0 || roomHeight != '') {
+        roomObj.room.roomHeight = Number(roomHeight);
+        defaultWallHeight = roomObj.room.roomHeight;
+    }
+
+
+    if (authorVersion != '') {
+        roomObj.authorVersion = authorVersion;
+    }
+
+    if (drpSoftware != 'select') {
+        roomObj.software = drpSoftware;
+    } else {
+        roomObj.software = '';
+    }
+    canvasToJson();
+}
+
 function updateQuickSetupItems() {
     let primaryVideoDevice = roomObj.items.videoDevices[0];
     let primaryTable = roomObj.items.tables[0];
@@ -5575,17 +5423,21 @@ function updateQuickSetupItems() {
                 } else {
                     primaryDeviceIsAllInOne = false;
 
-                    document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches;
+                    if (primaryDisplay) {
 
-                    if (primaryDisplay.data_deviceid === 'displaySngl') {
-                        document.getElementById('drpTvNum').value = '1';
-                    }
-                    else if (primaryDisplay.data_deviceid === 'displayDbl') {
-                        document.getElementById('drpTvNum').value = '2';
 
-                    }
-                    else if (primaryDisplay.data_deviceid === 'displayDbl') {
-                        document.getElementById('drpTvNum').value = '3';
+                        document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches;
+
+                        if (primaryDisplay.data_deviceid === 'displaySngl') {
+                            document.getElementById('drpTvNum').value = '1';
+                        }
+                        else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                            document.getElementById('drpTvNum').value = '2';
+
+                        }
+                        else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                            document.getElementById('drpTvNum').value = '3';
+                        }
                     }
 
                 }
@@ -5597,7 +5449,7 @@ function updateQuickSetupItems() {
 
 function updateFormatDetails(eventOrShapeId) {
 
-    let shape; // shape is direct from canvans, item is in JSON.
+    let shape; /* 'shape' is direct from canvans, 'item' is in roomObj JSON. */
 
     if (typeof eventOrShapeId === 'string') {
         shape = stage.find('#' + eventOrShapeId)[0];
@@ -5605,8 +5457,6 @@ function updateFormatDetails(eventOrShapeId) {
     } else {
         shape = eventOrShapeId.target;
     }
-
-    console.trace('shape', shape);
 
     let id = shape.attrs.id;
     let parentGroup = shape.getParent().name();
@@ -5642,7 +5492,7 @@ function updateFormatDetails(eventOrShapeId) {
             }
 
             if (parentGroup === 'displays') {
-                document.getElementById('itemDiagnoalTvDiv').style.display = 'initial';
+                document.getElementById('itemDiagnoalTvDiv').style.display = '';
                 document.getElementById('itemDiagnoalTv').value = shape.data_diagonalInches;
             } else {
                 document.getElementById('itemDiagnoalTvDiv').style.display = 'none';
@@ -5665,6 +5515,20 @@ function updateFormatDetails(eventOrShapeId) {
                 else if (parentGroup === 'tables' && shape.data_deviceid === 'tblRect') {
                     isPrimaryLabel.innerText = 'Is primary table?';
                 }
+            }
+
+            if (shape.data_deviceid === 'tblRect') {
+                document.getElementById('tblRectRadiusDiv').style.display = '';
+                document.getElementById('tblRectRadiusRightDiv').style.display = '';
+            } else {
+                document.getElementById('tblRectRadiusDiv').style.display = 'none';
+                document.getElementById('tblRectRadiusRightDiv').style.display = 'none';
+            }
+
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')){
+                document.getElementById('itemVheightDiv').style.display = '';
+            } else {
+                document.getElementById('itemVheightDiv').style.display = 'none';
             }
 
             document.getElementById('itemX').value = round((x - pxOffset) / scale);
@@ -5696,16 +5560,38 @@ function updateFormatDetails(eventOrShapeId) {
             }
 
             if ('rotation' in shape.attrs) {
-
                 document.getElementById('itemRotation').value = round(shape.rotation(), -1);
             }
 
-            if ('data_zHeight' in item) {  // data_zHeight should never be rendered.
-                document.getElementById('itemZheight').value = item.data_zHeight;
+            if ('data_zPosition' in item) {  // data_zPosition should never be rendered.
+                document.getElementById('itemZposition').value = item.data_zPosition;
             } else {
-                document.getElementById('itemZheight').value = "";
+                document.getElementById('itemZposition').value = "";
             }
 
+
+            if ('data_vHeight' in item) {
+                document.getElementById('itemVheight').value = item.data_vHeight;
+            } else {
+                document.getElementById('itemZposition').value = "";
+            }
+
+            if ('cornerRadius' in shape.attrs) {
+
+                if (shape.cornerRadius().length > 0) {
+
+                    document.getElementById('tblRectRadius').value = round(shape.attrs.cornerRadius[2] / scale);
+
+                    if (shape.attrs.cornerRadius[2] === shape.attrs.cornerRadius[0]) {
+                        document.getElementById('tblRectRadiusRight').value = '';
+                    } else {
+                        document.getElementById('tblRectRadiusRight').value = round(shape.attrs.cornerRadius[0] / scale);
+                    }
+                } else {
+                    document.getElementById('tblRectRadius').value = '';
+                    document.getElementById('tblRectRadiusRight').value = '';
+                }
+            }
 
             return;
         }
@@ -5750,6 +5636,7 @@ function addListeners(stage) {
             countConsectiveTouches();
         }
         document.getElementById("tabItem").click();
+        document.getElementById("subTabItemDetails").click();
 
     });
 
@@ -6022,7 +5909,7 @@ function dragEnd(event) {
 
     let deviceIdGroupName = event.target.id.split('-');
 
-    if (canvasPixelX < 10 || canvasPixelY < 10) return; // break out funciton and do not insert image if the X or Y coordinate is negative
+    if (canvasPixelX < 10 || canvasPixelY < 10) return; /* break out funciton and do not insert image if the X or Y coordinate is negative with slight buffer */
 
     let attrs = { x: unitX, y: unitY };
 
@@ -6110,11 +5997,13 @@ let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic']
 
 let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
-let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap'];
+let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
+
+let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
 
 let wallsMenu = ['wallStd', 'wallGlass', 'columnRect'];
 
-let chairsMenu = ['chair', 'personStanding'];
+let chairsMenu = ['chair', 'personStanding', 'doorRight', 'doorLeft', 'doorDouble'];
 
 createItemsOnMenu('cameraMenuContainer', videoDevicesMenu, 'videoDevices', videoDevices);
 
@@ -6129,6 +6018,8 @@ createItemsOnMenu('cameraLegacyMenuContainer', legacyVideoDevicesMenu, 'videoDev
 createItemsOnMenu('microphoneMenuContainer', microphonesMenu, 'microphones', microphones);
 
 createItemsOnMenu('displaysMenuContainer', displaysMenu, 'displays', displays);
+
+createItemsOnMenu('navigatorsMenuContainer', navigatorsMenu, 'microphones', microphones);
 
 createItemsOnMenu('tablesMenuContainer', tablesMenu, 'tables', tables);
 
@@ -6201,7 +6092,7 @@ function addItemListeners(itemArray) {
         box.addEventListener('touchstart', function (e) {
 
             e.preventDefault();
-            // create a new node to drag, then delete it on touchend
+            /* create a new node to drag, then delete it on touchend */
             newInsertItem = e.target.children[0].cloneNode(true);
             newInsertItem.style.zIndex = 1;
             document.body.appendChild(newInsertItem);
@@ -6546,6 +6437,7 @@ function loadTemplate(x) {
 
 const fileInput = document.getElementById('fileInput');
 
+/* change the anchors / handles depending on the selected node. Tables are resizable. Walls are resizable in 2 directions */
 function resizeTableOrWall() {
 
     let nodes = tr.nodes();
@@ -6563,8 +6455,82 @@ function resizeTableOrWall() {
 
     }
 
+}
+
+/* key commands */
+function onKeyDown(e) {
+    const { key, target } = e;
+    const { tagName } = target;
+    const DELTA = 1; /* change in key movement in Canvas pixel */
+    let isShortCutKeyUsed = false;
+
+    if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(tagName)) return;
+
+    if (key === 'Backspace') {
+        deleteTrNodes();
+        isShortCutKeyUsed = true;
+    }
+    else if (e.ctrlKey || e.metaKey) {
+
+        if (key === 'y' || key === 'z' ) {
+            e.preventDefault();
+        }
+
+        if (key === 'y' & redoArray.length > 0) {
+
+            btnRedoClicked();
+            isShortCutKeyUsed = true;
+        }
+        else if (key === 'z' && undoArray.length > 1) {
+
+            btnUndoClicked();
+            isShortCutKeyUsed = true;
+        }
+        else if (key === 'd' && tr.nodes().length > 0) {
+            e.preventDefault();
+            copyItems();
+            isShortCutKeyUsed = true;
+        }
+    }
+
+    if (tr.nodes().length === 1) {
+        let shape = tr.nodes()[0];
+
+        if (e.keyCode === 37) {
+            shape.x(shape.x() - DELTA);
+            isShortCutKeyUsed = true;
+        } else if (e.keyCode === 38) {
+            shape.y(shape.y() - DELTA);
+            isShortCutKeyUsed = true;
+        } else if (e.keyCode === 39) {
+            shape.x(shape.x() + DELTA);
+            isShortCutKeyUsed = true;
+        } else if (e.keyCode === 40) {
+            shape.y(shape.y() + DELTA);
+            isShortCutKeyUsed = true;
+        }
+
+        if (isShortCutKeyUsed) {
+            e.preventDefault();
+            updateShading(shape);
+            updateFormatDetails(shape.id());
+            lastKeyDownMovement = true;
+        }
+
+    }
 
 }
+
+function onKeyUp(e) {
+    if (lastKeyDownMovement) canvasToJson();
+    lastKeyDownMovement = false;
+}
+
+let lastKeyDownMovement = false;  /* keeps track if the last key command a keyDown on the canvas to capture keyUp */
+
+document.addEventListener('keydown', onKeyDown);
+
+document.addEventListener('keyup', onKeyUp);
 
 fileInput.addEventListener('change', function (e) {
     if (e.target.files && e.target.files[0]) {
@@ -6637,46 +6603,77 @@ fileConfig.addEventListener('change', function (e) {
 
 /* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
 function downloadFileWorkspace() {
+
+    let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
+
     if (unit === 'feet') {
-        document.getElementById('drpMetersFeet').value = 'meters';
-        convertMetersFeet();
-        convertRoomObjToWorkspace(roomObj);
-        setTimeout(() => {
-            btnUndoClicked(); /* Use a btnUndoClicked() to set the room back to feet. This keeps rounding errors from happening */
-        }, 1000);
-    } else {
-        convertRoomObjToWorkspace(roomObj);
+
+        roomObj2 = convertToMeters(roomObj2);
+
     }
+
+    convertRoomObjToWorkspace(roomObj2);
 }
 
 
-function convertRoomObjToWorkspace(roomObj) {
+function convertRoomObjToWorkspace(roomObj2) {
 
     let workspaceObj = {};
+    workspaceObj.title = '';
     workspaceObj.roomShape = {};
     workspaceObj.roomShape.manual = "true";
-    workspaceObj.roomShape.width = roomObj.room.roomWidth;
-    workspaceObj.roomShape.length = roomObj.room.roomLength;
-    workspaceObj.roomShape.height = 2.5;
-    workspaceObj.customObjects = [];
-    workspaceObj.title = '';
+    workspaceObj.roomShape.width = roomObj2.room.roomWidth;
+    workspaceObj.roomShape.length = roomObj2.room.roomLength;
 
-    if (roomObj.name == null || roomObj.name == '') {
+    if ('roomHeight' in roomObj2.room){
+        if((roomObj2.room.roomHeight == 0 || roomObj2.room.roomHeight == '' )){
+            workspaceObj.roomShape.height = 2.5;
+        } else {
+            workspaceObj.roomShape.height = roomObj2.room.roomHeight;
+        }
+    }
+
+    workspaceObj.customObjects = [];
+
+    workspaceObj.peripherals = [];
+    workspaceObj.peripherals.navigator = true;
+    workspaceObj.peripherals.scheduler = true;
+
+
+    if(document.getElementById('removeDefaultWallsCheckBox').checked === true){
+        delete workspaceObj.roomShape;
+
+        let floor = {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "data_deviceid": "floor",
+            "id": "primaryFloor",
+            "data_zPosition": -0.1,
+            "data_vHeight": 0.1,
+            "width": roomObj2.room.roomWidth,
+            "height": roomObj2.room.roomLength
+        };
+
+        workspaceObjWallPush(floor);
+    }
+
+    if (roomObj2.name == null || roomObj2.name == '') {
         workspaceObj.title = 'Created in Video Room Calculator';
     } else {
-        workspaceObj.title = roomObj.name;
+        workspaceObj.title = roomObj2.name;
     }
 
 
-    roomObj.items.chairs.forEach((item) => {
+    roomObj2.items.chairs.forEach((item) => {
         workspaceObjItemPush(item);
     });
 
-    roomObj.items.microphones.forEach((item) => {
+    roomObj2.items.microphones.forEach((item) => {
         workspaceObjItemPush(item);
     });
 
-    roomObj.items.tables.forEach((item) => {
+    roomObj2.items.tables.forEach((item) => {
         if (item.data_deviceid.startsWith('tbl')) {
             workspaceObjTablePush(item);
         } else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column')) {
@@ -6685,11 +6682,11 @@ function convertRoomObjToWorkspace(roomObj) {
 
     });
 
-    roomObj.items.videoDevices.forEach((item) => {
+    roomObj2.items.videoDevices.forEach((item) => {
         workspaceObjItemPush(item);
     });
 
-    roomObj.items.displays.forEach((display) => {
+    roomObj2.items.displays.forEach((display) => {
         workspaceObjDisplayPush(display);
     })
 
@@ -6700,12 +6697,12 @@ function convertRoomObjToWorkspace(roomObj) {
 
         let attr = workSpaceKey[item.data_deviceid];
 
-        if ('data_zHeight' in item) {
-            if (item.data_zHeight != "") z = item.data_zHeight;
+        if ('data_zPosition' in item) {
+            if (item.data_zPosition != "") z = item.data_zPosition;
         }
 
-        x = (item.x - (roomObj.room.roomWidth - 0.10) / 2);
-        y = (item.y - (roomObj.room.roomLength - 0.10) / 2);
+        x = (item.x - (roomObj2.room.roomWidth - 0.10) / 2);
+        y = (item.y - (roomObj2.room.roomLength - 0.10) / 2);
 
         if (item.data_deviceid === 'roomKitEqx') {
             //   x = x + 0.020;  // need to do a trig transform.
@@ -6739,14 +6736,15 @@ function convertRoomObjToWorkspace(roomObj) {
 
         z = z * displayScale / 2;
 
-        if ('data_zHeight' in display) {
-            if (display.data_zHeight != "") {
-                z = display.data_zHeight + z;
+        if ('data_zPosition' in display) {
+            if (display.data_zPosition != "") {
+                z = display.data_zPosition + z;
             };
         }
 
-        x = (display.x - (roomObj.room.roomWidth - 0.10) / 2);
-        y = (display.y - (roomObj.room.roomLength - 0.10) / 2);
+
+        x = (display.x - (roomObj2.room.roomWidth - 0.10) / 2);
+        y = (display.y - (roomObj2.room.roomLength - 0.10) / 2);
 
         let workspaceItem = {
             id: display.id,
@@ -6774,27 +6772,36 @@ function convertRoomObjToWorkspace(roomObj) {
 
     function workspaceObjTablePush(table) {
 
-        let x, y, z, workspaceItem;
+        let x, y, z, vh, workspaceItem;
+        z = 0;
+        vh = 0;
 
         let xy = getItemCenter(table);
 
         let attr = workSpaceKey[table.data_deviceid];
 
-        x = (xy.x - roomObj.room.roomWidth / 2);
-        y = (xy.y - roomObj.room.roomLength / 2);
+        x = (xy.x - roomObj2.room.roomWidth / 2);
+        y = (xy.y - roomObj2.room.roomLength / 2);
 
-        if ('data_zHeight' in table) {
-            if (table.data_zHeight != "") z = table.data_zHeight;
+        if ('data_zPosition' in table) {
+            if (table.data_zPosition != "") z = table.data_zPosition;
         } else {
             z = 0;
         }
 
+        if ('data_vHeight' in table) {
+            if (table.data_vHeight != "")  {
+               vh = table.data_vHeight + vh;
+            } else {
+                vh = null;
+            }
+        }
 
         workspaceItem = {
             id: table.id,
             "position": [
                 x,
-                0,
+                z,
                 y
             ],
             "rotation": [
@@ -6803,10 +6810,25 @@ function convertRoomObjToWorkspace(roomObj) {
                 0
             ],
             "width": table.width,
-            "height": z,
             "length": table.height
         }
 
+        if (vh){
+            workspaceItem.height = vh;
+        }
+
+        if ('tblRectRadius' in table) {
+            workspaceItem.radius = table.tblRectRadius;
+        }
+
+        if ('tblRectRadiusRight' in table) {
+            workspaceItem.radiusRight = table.tblRectRadiusRight;
+        }
+
+        if (table.data_deviceid === 'tblTrap') {
+            workspaceItem.width = 0.8;
+            workspaceItem.taper = table.width - 0.8;
+        }
 
         workspaceItem = { ...workspaceItem, ...attr };
 
@@ -6814,28 +6836,45 @@ function convertRoomObjToWorkspace(roomObj) {
     }
 
     function workspaceObjWallPush(wall) {
+        console.log('wall....', JSON.stringify(wall, null, 5));
 
-        let x, y, z, workspaceItem;
+        let x, y, z, verticalHeight, workspaceItem;
 
         let xy = getItemCenter(wall);
 
         let attr = workSpaceKey[wall.data_deviceid];
 
-        x = (xy.x - roomObj.room.roomWidth / 2);
-        y = (xy.y - roomObj.room.roomLength / 2);
+        x = (xy.x - roomObj2.room.roomWidth / 2);
+        y = (xy.y - roomObj2.room.roomLength / 2);
 
-        if ('data_zHeight' in wall) {
-            if (wall.data_zHeight != "") z = wall.data_zHeight;
+
+        if ('data_vHeight' in wall) {
+            if (wall.data_vHeight != "") {
+                verticalHeight = wall.data_vHeight;
+            } else {
+                verticalHeight = defaultWallHeight;
+            }
         } else {
-            z = 2.5; /* if no height set it to 2.5 m */
+            verticalHeight = defaultWallHeight; /* if no height set it to 2.5 m */
         }
 
+
+        if ('data_zPosition' in wall) {
+            if (wall.data_zPosition != "") {
+                z = wall.data_zPosition + (verticalHeight / 2);
+            } else {
+                z = (verticalHeight / 2);
+            }
+
+        } else {
+            z = (verticalHeight / 2);
+        }
 
         workspaceItem = {
             id: wall.id,
             "position": [
                 x,
-                (z / 2),
+                z,
                 y
             ],
             "rotation": [
@@ -6845,7 +6884,7 @@ function convertRoomObjToWorkspace(roomObj) {
             ],
             "scale": [
                 wall.width,
-                z,
+                verticalHeight,
                 wall.height],
         }
 
@@ -6877,11 +6916,11 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 workSpaceKey = {};
 workSpaceKey.roomBar = { objectType: 'videoDevice', deviceType: 'Room Bar', color: 'Light' };
 workSpaceKey.roomBarPro = { objectType: 'videoDevice', deviceType: 'Room Bar Pro', color: 'Light' };
-workSpaceKey.roomKitEqx = { objectType: 'videoDevice', deviceType: 'EQX', color: 'Light', mount: 'wall', screens: { size: 75, count: 2 } };
+workSpaceKey.roomKitEqx = { objectType: 'videoDevice', deviceType: 'EQX', mount: 'wall' };
 workSpaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit EQ', color: 'Light' };
-workSpaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.roomKitEqPtz4k = { objectType: 'videoDevice', deviceType: 'crossview' };
-workSpaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', deviceType: 'Room Kit EQ' };
+workSpaceKey.roomKitEqPtz4k = { objectType: 'ptzcam', deviceType: 'crossview' };
+workSpaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', deviceType: 'Room Kit EQ' };
 workSpaceKey.roomKitProQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit Pro', color: 'Light' };
 workSpaceKey.boardPro55 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 55 };
 workSpaceKey.boardPro75 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 75 };
@@ -6893,24 +6932,36 @@ workSpaceKey.webexDeskMini = { objectType: 'videoDevice', deviceType: '' };
 workSpaceKey.room55 = { objectType: 'videoDevice', deviceType: '' };
 workSpaceKey.rmKitMini = { objectType: 'videoDevice', deviceType: '' };
 workSpaceKey.roomKit = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.roomKitEqxFS = { objectType: 'videoDevice', deviceType: 'EQX', color: 'Light', mount: 'floor', screen: 75 };
+workSpaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', deviceType: 'Room Bar Pro' };
+workSpaceKey.roomKitEqxFS = { objectType: 'videoDevice', deviceType: 'EQX', mount: 'floor' };
 workSpaceKey.cameraP60 = { objectType: 'videoDevice', deviceType: '' };
 workSpaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach' };
-workSpaceKey.quadCam = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.quadCamExt = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.quadPtz4kExt = { objectType: 'videoDevice', deviceType: '' };
+workSpaceKey.quadCam = { objectType: 'quadcam' };
+workSpaceKey.quadCamExt = { objectType: 'quadcam' };
+workSpaceKey.quadPtz4kExt = { objectType: 'quadcam' };
 
 workSpaceKey.chair = { objectType: 'chair' };
+
 workSpaceKey.tblRect = { objectType: 'table', tableType: 'regular' };
+workSpaceKey.tblShapeU = { objectType: 'table', tableType: 'ushape' };
+workSpaceKey.tblTrap = { objectType: 'table', tableType: 'tapered' };
 
 workSpaceKey.ceilingMicPro = { objectType: 'Ceiling Mic Pro', kind: 'mic', range: 4 };
+workSpaceKey.tableMicPro = { objectType: 'Table Mic Pro', kind: 'mic', range: 1.5 };
+workSpaceKey.tableMic = { objectType: 'Table Mic', kind: 'mic', range: 1 };
+workSpaceKey.ceilingMic = { objectType: 'Ceiling Mic', kind: 'mic', range: 4.2 };
+
 workSpaceKey.displaySngl = { objectType: 'screen' };
 
 workSpaceKey.wallStd = { objectType: 'wall' };
-workSpaceKey.wallGlass = { objectType: 'glass', };
+workSpaceKey.wallGlass = { objectType: 'glass' };
+workSpaceKey.floor = { objectType: 'floor'};
 workSpaceKey.columnRect = { objectType: 'wall', color: '#808080' };
 workSpaceKey.personStanding = { objectType: 'custom', customUrl: "./3dmodels/persons/woman-standing.glb" };
+
+workSpaceKey.navigatorTable = { objectType: 'navigator' };
+
+workSpaceKey.navigatorWall = { objectType: 'navigator', kind:'wall'};
 
 /*
     Attribution:
