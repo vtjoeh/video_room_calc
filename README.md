@@ -4,6 +4,26 @@ https://collabexperience.com
 
 ### Release Notes:
 
+**v0.1.506**
+- Added Table Navigator & Wall Navigator. 
+- Added field Item Height to Tables, Walls and Columns.  
+- Added tool tips/info bubbles. Hover over underlined text. 
+- Fixed a major bug.  On first load, if a Video Room Calculator URL was refreshed 2x without doing any changes, there was a chance objects would delete. 
+- Cleaned up some old code, mostly related to SVG which is no longer used in favor of Konva.js & canvas. 
+
+** v0.1.505 (not published)**
+- Added new sub-tabs under Details —> Items, Room, Settings
+- Added new fields: **Room Height**, **Software Experience** and **Version / Author** on the **Details —> Room** tab.  These fields are informational and don't change the Video Room Calc drawing. 
+- Added Door Left, Door Right, Double Door objects. 
+- Added Corner Radius / Corner Radius Front Half for Rectangle Tables. 
+- Added Position Z (to base of object)
+** Shortcut keys: **
+- ctrl-d / cmd-d = duplicate 
+- ctrl-z / cmd-z = undo
+- ctrl-y / cmd-y = redo 
+- Delete / Backspace = delete items
+- up, down, left, right arrows = moves a **single** item (does not move multiple selected items). 
+
 **v0.1.504**
 - Added Walls, Glass Walls, Column rectangle, Standing Person objects. 
 - Added Height to each item. Height does not show up on the canvas rendering but is used for reference.  The assumption is that height is the bottom of most items to the ground (e.g. Quad Camera). For Walls, Glass Walls and Columns, it is assumed the item is touching the ground when height is measured.
