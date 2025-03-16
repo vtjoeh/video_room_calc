@@ -10,7 +10,7 @@ https://collabexperience.com
 - Fixed bugs.  
 
 **v0.1.509** 
-- Added support for experimental [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html) **Custom Rooms** cross-launch.
+- **Experimental Feature: Custom Rooms** Added support for experimental [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html) **Custom Rooms** cross-launch.
   - Steps:
     - Requires Cisco network/VPN to reach Workspace Designer internal test site. 
     - Draw your room in the Video Room Calc.
@@ -43,7 +43,7 @@ https://collabexperience.com
       - Rotation is in radians.
       - Overrides the Degree field.
   - Example with JSON in the **Details** --> **Item:** **Label** field: [Video Room Calc Labels with custom JSON](https://collabexperience.com/?x=A1v0.1.510b1000c1000~Video+Room+Calc+Label+JSON+example~B000101AG632a333b623~%7B%22scale%22%3A%5B1%2C-1%2C1%5D%7D~WA125a52c33e864~%7B%22color%22%3A%22red%22%2C+%22opacity%22%3A%220.5%22%7D~WD522a626b70c200e200j200~%7B%22color%22%3A%22blue%22%2C+%22rotation%22%3A%5B0.785%2C0%2C0.785%5D%7D~)
-  - **Caution:**  Labels are powerful but can create undesired results.
+  - **Caution**  Labels are powerful but can create undesired results.
 - Not published to GitHub.
 - Fixed some bugs, added some bugs. 
 
