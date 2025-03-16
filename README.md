@@ -4,6 +4,68 @@ https://collabexperience.com
 
 ### Release Notes:
 
+**v0.1.510**
+- Added more obvious help button directing users to the new [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) . 
+- Fixed bugs.  
+- Optimized for use on Cisco Desk Pro and Board Pro as a web app by adding in timers/delays. 
+- Published to GitHub.
+
+
+**v0.1.509** 
+- Added support for experimental [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html) **Custom Rooms** cross-launch.
+  - Steps:
+    - Requires Cisco network/VPN to reach Workspace Designer test site. 
+    - Draw your room in the Video Room Calc.
+    - Click on cube in upper right corner cube icon.
+    - prototypes.cisco.com opens in a pop-up tab.
+  - https://collabexperience.com checks to see if the prototypes site is accessible before opening: 
+      - If not accessible, VPN required is label is shown in red. 
+      - If not accessible, the cube icon will be grayed ou but still enabled.
+      - All buttons work regardless of messages since the user could make a VPN connection at any moment without the browser knowing. 
+  - Not all devices in the Video Room Calc are supported by the Work Space Designer. 
+- Color and Role added to **Details** --> **Items** 
+  - Color changes the color in the Workspace Designer only and not the Video Room Calc.
+  - Role changes the screen role or camera role value on the Workspace Designer.
+  - For the PTZ 4K camera roles include Cross-view, Extended Reach or Presenter track roles. The FOV on the canvas will change with these roles. 
+    - **Caution: **  It is possible to create combinations of **roles** for the display or cameras that are not supported by the actual video devices.
+- Added Board Pro G2 55 & 70 model Floor Stand models.
+- Added field for the Room Kit EQX and Room Kit EQX Floor Stand model to change display width between 65" to 85".  Please be aware that not all 85" displays will fit in the Room Kit EQX.  75" is a safer size if displays are untested. 
+- Removed device type _Room Kit EQ: Quad Cam + PTZ 4K Extended_. The Room Kit EQ: Quad Cam and the PTZ 4K camera can be added separately and work better if used with Workspace Designer. 
+- New objects: Laptop, Plant, Wheelchair, accessibility block, accessibility wheelchair 
+- Created a [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) 
+- Label field with JSON is inserted direct into the Workspace Designer: 
+  - Anything not in curly brackets ({}) is ignored.
+  - Examples: 
+    - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
+    - To flip a PTZ 4K camera: {"scale":[1,-1,1]}
+    - To change a person model use {"model":"man-standing-pen"}.  Default person is {"model":"woman-standing"}. 
+    - To changed the x, y, z rotation of any object: {"rotation":[0, 3.14, 0]}
+      - Rotation is in radians.
+      - Overrides the Degree field.
+  - Example with JSON in the **Details** --> **Item:** **Label** field: [Video Room Calc Labels with custom JSON](https://collabexperience.com/?x=A1v0.1.510b1000c1000~Video+Room+Calc+Label+JSON+example~B000101AG632a333b623~%7B%22scale%22%3A%5B1%2C-1%2C1%5D%7D~WA125a52c33e864~%7B%22color%22%3A%22red%22%2C+%22opacity%22%3A%220.5%22%7D~WD522a626b70c200e200j200~%7B%22color%22%3A%22blue%22%2C+%22rotation%22%3A%5B0.785%2C0%2C0.785%5D%7D~)
+  - **Caution:**  Labels are powerful but can create undesired results.
+- Not published to GitHub.
+- Fixed some bugs, added some bugs. 
+
+
+**0.1.508**
+- Not published on GitHub. 
+- Major improvements to **Details** --> **Settings:** **Background Image** 
+- Added informational tabs: **Legend, Templates, Resources** and **Disclaimer**. Coding work done by Mark Baker. 
+
+
+**v0.1.507**
+- Not published on GitHub. 
+- If you load a Shareable Link, the Video Room Calculator will automatically convert it to your last unit used, meters or feet.  To turn off go to **Details** --> **Settings:**
+- Added support for **Details** --> **Settings:** **Snap to Objects**. 
+- Added support for **Details** --> **Settings:** **Snap Center to Increment**.
+- Added support for **Details** --> **Settings:** **Background Image**
+- Added a Box object. 
+- Added a Label field to **Details** --> **Item**
+  - Label field will be used for future label feature.
+- Narrow width field added to tapered/trapezoid tables.
+
+
 **v0.1.506**
 - Added Table Navigator & Wall Navigator. 
 - Added field Item Height to Tables, Walls and Columns.  
@@ -73,16 +135,10 @@ Huge update:
 - kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator 
 
 ### Roadmap / ideas
-First 12 items listed are what I would like to do next. There is no warranty or guarantee the below features will ever be added. 
-- Major code cleanup and documentation. 
-- Create an intro video.
-- Add Navigator/Touch Panel and corresponding layers. 
-- Add ability to make shading invisible per a device.
-- Add height (z value) for room.
-- Add height (z value) per a device.
+There is no warranty or guarantee the below features will ever be added. 
+
+- Add ability to make FOV, audio and displa shading invisible per a device.
 - Export configuration to JSON file / Import JSON file. 
-- Upload background floorplan to draw over. JSON file to include background image.
-- Other tables. Rectangle U-Table. Tapered table that is resizable on both heads of the table.
 - Add labels.
 - Add draggable/resizable walls.
 - Add windows & doors.
@@ -113,11 +169,13 @@ First 12 items listed are what I would like to do next. There is no warranty or 
 This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks. 
 
 ### Special thanks to those who have tested, gave feedback or were just really patient.
-- Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mark, Mike & Mike. 
-- Bobby McGonigle. 
+- Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mike 
 - Win.
 - Alexis B. 
-- Julie, Anna, Paul & Joshua.
+- Bobby McGonigle. 
+- Mark Baker 
+- Julie, Anna, Paul & Joshua
+- Those who wish to remain anonymous
 - The Famous One
 - *Thank you to everybody who gave feedback or said thank you.*
 
