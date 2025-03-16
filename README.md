@@ -5,35 +5,35 @@ https://collabexperience.com
 ### Release Notes:
 
 **v0.1.510**
-- Added more obvious help button directing users to the new [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) . 
-- Fixed bugs.  
+- Added help button directing users to the new [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) . 
 - Optimized for use on Cisco Desk Pro and Board Pro as a web app by adding in timers/delays. 
-- Published to GitHub.
-
+- Fixed bugs.  
 
 **v0.1.509** 
 - Added support for experimental [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html) **Custom Rooms** cross-launch.
   - Steps:
-    - Requires Cisco network/VPN to reach Workspace Designer test site. 
+    - Requires Cisco network/VPN to reach Workspace Designer internal test site. 
     - Draw your room in the Video Room Calc.
-    - Click on cube in upper right corner cube icon.
-    - prototypes.cisco.com opens in a pop-up tab.
-  - https://collabexperience.com checks to see if the prototypes site is accessible before opening: 
-      - If not accessible, VPN required is label is shown in red. 
-      - If not accessible, the cube icon will be grayed ou but still enabled.
+    - Click on the upper right corner cube icon.
+    - Internal Workspace Designer opens in a pop-up tab.
+  - https://collabexperience.com checks to see if the internal Cisco site is accessible before opening: 
+      - If not accessible, ** **Requires a Cisco network connection.** ** label is shown in red. 
+      - If not accessible, the cube icon will be grayed out but still enabled.
       - All buttons work regardless of messages since the user could make a VPN connection at any moment without the browser knowing. 
   - Not all devices in the Video Room Calc are supported by the Work Space Designer. 
 - Color and Role added to **Details** --> **Items** 
+  - Feature mostly applicable to experimental **Custom Rooms** feature. 
   - Color changes the color in the Workspace Designer only and not the Video Room Calc.
   - Role changes the screen role or camera role value on the Workspace Designer.
-  - For the PTZ 4K camera roles include Cross-view, Extended Reach or Presenter track roles. The FOV on the canvas will change with these roles. 
-    - **Caution: **  It is possible to create combinations of **roles** for the display or cameras that are not supported by the actual video devices.
+  - PTZ 4K camera roles include Cross-view, Extended Reach or PresenterTrack. The FOV on the VRC canvas will change based on these roles. 
+    - **Caution: **  It is possible to create combinations of **roles** for the display and/or cameras that are not supported by the actual video devices.
 - Added Board Pro G2 55 & 70 model Floor Stand models.
-- Added field for the Room Kit EQX and Room Kit EQX Floor Stand model to change display width between 65" to 85".  Please be aware that not all 85" displays will fit in the Room Kit EQX.  75" is a safer size if displays are untested. 
+- Change display width between 65" to 85" for the Room Kit EQX and Room Kit EQX Floor Stand Model  
+    - Please be aware that not all 85" displays will fit in the Room Kit EQX.  75" is a safer size if displays are untested. 
 - Removed device type _Room Kit EQ: Quad Cam + PTZ 4K Extended_. The Room Kit EQ: Quad Cam and the PTZ 4K camera can be added separately and work better if used with Workspace Designer. 
 - New objects: Laptop, Plant, Wheelchair, accessibility block, accessibility wheelchair 
 - Created a [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) 
-- Label field with JSON is inserted direct into the Workspace Designer: 
+- In support of the **Custom Rooms**, the Label field with JSON is inserted direct into the Workspace Designer: 
   - Anything not in curly brackets ({}) is ignored.
   - Examples: 
     - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
@@ -47,15 +47,12 @@ https://collabexperience.com
 - Not published to GitHub.
 - Fixed some bugs, added some bugs. 
 
-
 **0.1.508**
-- Not published on GitHub. 
 - Major improvements to **Details** --> **Settings:** **Background Image** 
 - Added informational tabs: **Legend, Templates, Resources** and **Disclaimer**. Coding work done by Mark Baker. 
-
+- Not published on GitHub. 
 
 **v0.1.507**
-- Not published on GitHub. 
 - If you load a Shareable Link, the Video Room Calculator will automatically convert it to your last unit used, meters or feet.  To turn off go to **Details** --> **Settings:**
 - Added support for **Details** --> **Settings:** **Snap to Objects**. 
 - Added support for **Details** --> **Settings:** **Snap Center to Increment**.
@@ -64,6 +61,7 @@ https://collabexperience.com
 - Added a Label field to **Details** --> **Item**
   - Label field will be used for future label feature.
 - Narrow width field added to tapered/trapezoid tables.
+- Not published on GitHub. 
 
 
 **v0.1.506**
@@ -138,33 +136,21 @@ Huge update:
 There is no warranty or guarantee the below features will ever be added. 
 
 - Add ability to make FOV, audio and displa shading invisible per a device.
-- Export configuration to JSON file / Import JSON file. 
-- Add labels.
-- Add draggable/resizable walls.
-- Add windows & doors.
-- Work on major UI update. Right click options on canvas. Use more of the canvas real-estate.
-- Add warnings and info for possible design flaws, recommendations or general info.
-- Add tooltip with help next to items.
-- Add keyboard commands. Arrow keys to move objects. CTRL+C. CTRL+V.
+- Outerwalls to snap better. 
 - Further shorten URL when an item repeats itself. Decode of this already works, so only the encoding needs to be one. 
-- Ability to add custom generic devices.  Camera, microphones and displays. 
+- Export configuration to JSON file / Import JSON file. 
+- Add label fields that show up on the canvas. 
+- Add arrow commands that move more than 1 object. 
 - Add other room objects. Add a ceiling layer that can be toggled off/on. Requires additional group/layer. 
-- MTR only devices to be labeled or selectable. 
-- Print out parts list, summary and picture. Format TBD. Options include: HTML to print/PDF. Direct to PowerPoint. Direct to PDF. 
-- Snap to grid. Snap to other objects.
+- MTR only devices to be labeled or selectable.  
 - Remove dependency on Google Icon/Fonts to shorten download time. 
 - Remove dependency on DOMPurify and maintain security.
 - Ability to change colors for accessibility purposes. 
-- Add Cross-view cross sectional view to determine camera height. 
-- Add view of the front of room. Important when the camera is above and below displays.  Sometimes next to display is better than below or above. 
 - Simulated view from camera (simple 2d view of single person zoom and 2 person zoom).
 - Add a PoE calculator for the mics, Navigator and PoE cameras. Include different Cisco switches. 
-- Add lobes to the microphones. 
-- Create a landing page that points to all things Cisco video device related that is scattered across internet. I own the domain "videoroomcalculator.com" and "collabexperience.com".  For example: Github macros, CE Deploy, roomos.cisco.com, hep.webex.com. 
-- See number of video inputs/outputs per a device (HDMI, 3.5 mm audio, Audio Over IP, HDCP support). 
-- Links per a device to relevant information. E.g. datasheets.
-- Explore options and cost for backend database to save projects and supporting background files. At the moment nothing of value is stored in the cloud except anonymous stats.  Backend database would cost more, need redundancy and security.
+- Add lobes to the digital microphones. 
 - Have smaller devices like microphones auto-scale up in size for large rooms. 
+- Ability to add custom generic devices.  Speakers, microphones and displays. 
 
 This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks. 
 
