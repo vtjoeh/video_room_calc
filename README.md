@@ -53,7 +53,7 @@ https://collabexperience.com
 - Not published on GitHub. 
 
 **v0.1.507**
-- If you load a Shareable Link, the Video Room Calculator will automatically convert it to your last unit used, meters or feet.  To turn off go to **Details** --> **Settings:**
+- **Maintain unit feet/meters** If you load a Shareable Link, the Video Room Calculator will automatically convert it to your last unit used, meters or feet.  To turn off go to **Details** --> **Settings:**
 - Added support for **Details** --> **Settings:** **Snap to Objects**. 
 - Added support for **Details** --> **Settings:** **Snap Center to Increment**.
 - Added support for **Details** --> **Settings:** **Background Image**
