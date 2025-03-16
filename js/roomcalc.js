@@ -1,8 +1,8 @@
-const version = "v0.1.505";  // format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link  ver 0.1 and ver 0.2 are not compabile.
+const version = "v0.1.510";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
-let perfectDrawEnabled = false;
+let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
-let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let timerQRcodeOn;
 const svgns = "http://www.w3.org/2000/svg";  // variable for the namespace
 const videoRoomCalcSVG = "videoRoomCalcSVG";
@@ -18,6 +18,13 @@ let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height 
 let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
 let roomName = '';
+let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
+let workspaceWindow; /* window representing the workspace designer window being open */
+
+let isLoadingTemplate = false;  /* used to keep track if a template is loading */
+let loadTemplateTime = 500; /* in milliseconds, the time to wait before attempting to load another template. This number is increased for RoomOS */
+
+const GUIDELINE_OFFSET = 5;
 
 let pageLoadTimeBeforeAddresBarUpdate = 3000; /* ms: time to allow the page to fully update before writing to the address bar.  If too early, Konva/canvas is not fully loaded and provides incorrect information */
 let addressBarUpdate = false;  /* keep track if the address bar querystring has been updated. Used for onload. */
@@ -38,12 +45,17 @@ let stage = new Konva.Stage({ container: 'canvasDiv', name: 'theCanvas', id: 'th
 let layerGrid = new Konva.Layer({
     name: 'layerGrid',
 });
+
+let layerBackgroundImageFloor = new Konva.Layer({
+    name: 'layerBackgroundImageFloor'
+})
 const sessionId = createUuid(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */
 const startTime = new Date(Date.now()); /* startTime is for statistics */
 const clientTimeStamp = startTime.toUTCString();
 let videoDevice;
 let videoDeviceKey;
 let fullShareLink;
+let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
 let lastAction = "load";
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
 let primaryDeviceIsAllInOne = false; /* keep track if the primary device is all in one */
@@ -61,6 +73,7 @@ roomObj.software = ''; /* mtr or webex. RoomOS = webex */
 roomObj.authorVersion = ''; /* field for the author to change version numbers */
 roomObj.items = {}; /* all devices in the room will be stored here.  Video devices, displays, tables, etc. */
 roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
+roomObj.workspace = {}; /* settings used for exporting to the Workspace Designer */
 roomObj.layersVisible = {};
 roomObj.layersVisible.grShadingCamera = true;  /* true or false */
 roomObj.layersVisible.grDisplayDistance = true; /* true or false */
@@ -76,6 +89,9 @@ roomObj.items.displays = [];
 roomObj.items.speakers = [];
 roomObj.items.microphones = [];
 roomObj.items.touchPanels = [];
+
+roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
+roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
 
 let unit = roomObj.unit;
 
@@ -95,9 +111,14 @@ let undoArrayTimeDelta = 500; /* ms between saves to undoArray after changes to 
 let touchConsecutiveCount = 0; /* Holds consecutive tapping to zoom out on mobile devices when stuck on the canvas.  Needed if user zooms web page on canvas. Ignored on RoomOS and non-touch devices. */
 let touchConsectiveCoutTimer; /* timer to hold consective taps */
 
+let vpnTestTimer; /* time to see if the VPN is working */
+
 let stageOriginalWidth;
 let stageOriginalLength;
 let stageOriginalset = false;
+
+let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
+let testProduction = false; /* For forcing to test production crosslaunch */
 
 let zoomScaleX = 1;  /* zoomScaleX zoomScaleY used clicking the + or - button to zoom. */
 
@@ -112,6 +133,10 @@ let dx = 0; /* dx & dy change based on scrolling when zoomed */
 let dy = 0;
 
 let panScrollableOn = false; /* Keeps state if the canvas is scrollable */
+
+let selectingTwoPoints = false; /* Keeps state if selecting 2 points to scale background image */
+
+let movingBackgroundImage = false; /* Keeps state if moving background image */
 
 let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -129,6 +154,97 @@ let nodeNumber = 1;  /* used for testing */
 
 let insertCountXOffset = 0;  /* Not used at the moment. Was used counters used when inserting a node for the first time */
 let insertCountYOffset = 0;
+
+let canvasPixel = {};
+canvasPixel.x = 0;
+canvasPixel.y = 0;
+
+
+/**** Workspace keys *****/
+
+workspaceKey = {};
+workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', yOffset: 0.032 };
+workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', yOffset: 0.045 };
+workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', yOffset: 0.076 };
+
+workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
+workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
+workspaceKey.roomKitEqPtz4k = { objectType: 'ptzcam', role: 'crossview', yOffset: 0.205 };
+workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit EQ' };
+workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', color: 'light' };
+
+workspaceKey.boardPro55 = { objectType: 'VRC Custom', model: 'Board Pro 55 G1', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
+workspaceKey.boardPro75 = { objectType: 'VRC Custom', model: 'Board Pro 75 G2', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+workspaceKey.brdPro55G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
+workspaceKey.brdPro55G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro75G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+workspaceKey.brdPro75G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 75, role: 'firstScreen', yOffset: 0.475 };
+
+workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88] };
+workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro' };
+workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12 };
+workspaceKey.room55 = { objectType: 'VRC Custom', model: 'room55' };
+workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
+workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
+workspaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', model: 'Room Bar Pro', yOffset: 0.045 };
+workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'floor', yOffset: 0.44 };
+
+workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
+workspaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
+workspaceKey.quadCam = { objectType: 'quadcam', role:'crossview', yOffset: 0.076 };
+workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
+workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
+
+workspaceKey.chair = { objectType: 'chair' };
+workspaceKey.plant = { objectType: 'plant' };
+
+workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
+workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
+workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
+workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
+workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
+workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+
+workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
+workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
+workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
+workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
+
+workspaceKey.displaySngl = { objectType: 'screen', role: 'firstScreen', yOffset: 0.045 };
+
+
+workspaceKey.wallStd = { objectType: 'wall' };
+workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', width: 0.03, opacity: '0.3' };
+workspaceKey.wallWindow = { objectType: 'wall', model: 'window' };
+workspaceKey.ceiling = { objectType: 'ceiling'};
+workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
+
+
+workspaceKey.box = { objectType: 'box' }
+
+workspaceKey.doorRight = { objectType: 'door', yOffset: -0.4 }
+workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
+workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] }
+
+workspaceKey.floor = { objectType: 'floor' };
+
+workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
+
+workspaceKey.wheelchair = { objectType: 'person', model: 'woman-sitting-wheelchair' };
+
+workspaceKey.wheelchairTurnCycle = { objectType: 'person', model: 'woman-sitting-wheelchair' };
+
+workspaceKey.circulationSpace = { objectType: 'box', opacity: '0.5', color: '#8FDBCE', height: 0.02, length: 1.2, width: 1.2 };
+
+workspaceKey.navigatorTable = { objectType: 'navigator', role: 'navigator', yOffset: 0.0400 };
+
+workspaceKey.navigatorWall = { objectType: 'scheduler', role: 'scheduler', yOffset: 0.0575 };
+
+workspaceKey.laptop = { objectType: 'laptop', role: 'laptop', yOffset: 0.12 };
+
+workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
+
+/* end of defining workSpaceKey */
 
 let layerSelectionBox = new Konva.Layer({
     name: 'layerSelectionBox'
@@ -217,6 +333,40 @@ let txtAttribution = new Konva.Text(
     }
 )
 
+/* create a background image floorplan  to load */
+let backgroundImageFloor = new Image();
+
+
+
+function createKonvaBackgroundImageFloor(x = pxOffset - 5, y = pyOffset - 5, height = stage.height() * 1.05, opacity = 0.5) {
+
+    /* remove previous instances of the background image */
+    let tempKonvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (tempKonvaBackgroundImageFloor) {
+        tempKonvaBackgroundImageFloor.destroy();
+    }
+
+    let konvaBackgroundImageFloor = new Konva.Image({
+        image: backgroundImageFloor,
+        x: x,
+        y: y,
+        height: height,
+        opacity: opacity,
+        id: 'konvaBackgroundImageFloor',
+        listening: false
+    });
+
+    konvaBackgroundImageFloor.data_deviceid = 'backgroundImageFloor';
+
+    konvaBackgroundImageFloor.on('dragend', function () {
+        canvasToJson();
+    });
+
+    return konvaBackgroundImageFloor;
+}
+
+
 /* tr is the Transformer that does the selection and rotation magic for Konva.  It is exists in its own group. */
 let tr = new Konva.Transformer({
     resizeEnabled: false,
@@ -259,6 +409,13 @@ let groupBackground = new Konva.Group(
     }
 )
 
+let select2PointsRect = new Konva.Rect({
+    x: 0,
+    y: 0,
+    fill: 'purple',
+    opacity: 0.1,
+})
+
 /* panRectangle is the highest level shape used to make panning work. It is hidden until pan is enabled. Opacity always = 0 */
 let panRectangle = new Konva.Rect({
     x: 0,
@@ -272,16 +429,81 @@ let panX = 0;
 let panY = 0;
 let panMove = false;
 
+/* circleStart is used when drawing the line to scale the background floor image */
+let circleStart = new Konva.Circle({
+    radius: 3,
+    fill: 'green',
+    stroke: 'black',
+    strokeWidth: 1,
+});
+
+layerSelectionBox.add(circleStart);
+
+circleStart.hide();
+
+/* circleEnd is used when drawing the line to scale the background floor image */
+let circleEnd = new Konva.Circle({
+    x: 20,
+    y: 29,
+    radius: 3,
+    fill: 'red',
+    stroke: 'black',
+    strokeWidth: 1,
+});
+
+layerSelectionBox.add(circleEnd);
+
+circleEnd.hide();
+
+/* distanceLine is used when drawing the line to scale the background floor image */
+var distanceLine = new Konva.Line({
+    points: [0, 0, 0, 0],
+    stroke: 'red',
+    strokeWidth: 1,
+    lineCap: 'round',
+    lineJoin: 'round',
+});
+
+layerSelectionBox.add(distanceLine);
+
+distanceLine.hide();
+
+select2PointsRect.on('click', (event) => {
+
+});
+
 panRectangle.on('click', (event) => {
 
-})
+});
+
+select2PointsRect.on('mousedown', (mouse) => {
+    distanceLine.hide();
+    circleStart.show();
+    circleEnd.hide();
+    circleStart.x(canvasPixel.x);
+    circleStart.y(canvasPixel.y);
+});
+
+select2PointsRect.on('mousemove', (mouse) => {
+    if (circleStart.isVisible() && !(circleEnd.isVisible())) {
+        distanceLine.show();
+        distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
+    }
+});
+
+select2PointsRect.on('mouseup', (mouse) => {
+    circleEnd.show();
+    circleEnd.x(canvasPixel.x);
+    circleEnd.y(canvasPixel.y);
+    document.getElementById('btnUpdateImageScale').disabled = false;
+});
 
 panRectangle.on('mousedown', (mouse) => {
     panX = mouse.evt.clientX;
     panY = mouse.evt.clientY;
     panMove = true;
     document.getElementById("canvasDiv").style.cursor = "grabbing";
-})
+});
 
 panRectangle.on('mousemove', (mouse) => {
 
@@ -298,51 +520,67 @@ panRectangle.on('mousemove', (mouse) => {
 
 })
 
+
 panRectangle.on('mouseup', (event) => {
     panMove = false;
     document.getElementById("canvasDiv").style.cursor = "grab";
 })
 
+select2PointsRect.hide();
+
 panRectangle.hide(); /* use .hide() for panRectangle to hide, but .show() to pan on the canvas.  */
+
 layerSelectionBox.add(panRectangle);
+layerSelectionBox.add(select2PointsRect);
+
 
 /************************************************************************** */
 
 document.getElementById('lblVersion').innerHTML = version;
 
+
+
+
+
+
 /* videoDevices key starts with A or B */
 let videoDevices = [
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20 },
-    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100 },
-    { name: 'Room Kit EQX: 75"_displays', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75 },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: 'Room Kit EQX', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 0, defaultVert: 681, colors: null },
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
     { name: "Room Kit EQ: Quad Camera Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
     { name: "Room Kit EQ: PTZ 4K Camera", key: 'AG', id: 'roomKitEqPtz4k', cameraParent: 'ptz4k' },
-    { name: "Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png' },
+    { name: "Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
     { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam" },
-    { name: "Board Pro 55", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55 },
-    { name: "Board Pro 75", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75 },
-    { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'brdPro75G2', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100 },
-    { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100 },
-    { name: "Desk", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24 },
-    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40 },
-    { name: "Desk Mini", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30 },
+    { name: "Board Pro 55", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 923 },
+    { name: "Board Pro 75", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 763 },
+    { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'brdPro75G2', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
+    { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+    { name: "Desk", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710 },
+    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710 },
+    { name: "Desk Mini", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710 },
     { name: "Room 55", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
-    { name: "Room Kit Mini", id: 'rmKitMini', key: 'AR', wideHorizontalFOV: 112, teleHorizontalFOV: 112, onePersonZoom: 2.04, twoPersonZoom: 3.41, topImage: 'rmKitMini-top.png', frontImage: 'rmKitMini-front.png', width: 500, depth: 77, height: 80 },
-    { name: "Room Kit", id: 'roomKit', key: 'AS', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'roomKit-top.png', frontImage: 'roomKit-front.png', width: 700, depth: 88, height: 106 },
-    { name: "Virtual Lens (Beta) Bar Pro/Brd Pro G2", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5 },
-    { name: 'Room Kit EQX: 75"_displays Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450 },
+    { name: "Room Kit Mini", id: 'rmKitMini', key: 'AR', wideHorizontalFOV: 112, teleHorizontalFOV: 112, onePersonZoom: 2.04, twoPersonZoom: 3.41, topImage: 'rmKitMini-top.png', frontImage: 'rmKitMini-front.png', width: 500, depth: 77, height: 80, defaultVert: 710 },
+    { name: "Room Kit", id: 'roomKit', key: 'AS', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'roomKit-top.png', frontImage: 'roomKit-front.png', width: 700, depth: 88, height: 106, defaultVert: 1200 },
+    { name: "Virtual Lens (Beta) Bar Pro/Brd Pro G2", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5, defaultVert: 1200 },
+    { name: 'Room Kit EQX: Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null },
+    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'brdPro75G2', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 ]
 
 
 /* camera key starts with C */
 let cameras = [
-    { name: "Precision 60 Camera", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35 },
-    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 69, onePersonZoom: 24, twoPersonZoom: 36, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60 },
-    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120 },
-    { name: "Quad Camera Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120 },
-    { name: "Quad Cam + PTZ 4K Extended", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60 },
+    { name: "Precision 60 Camera", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
+    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 24, twoPersonZoom: 36, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Camera Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Cam + PTZ 4K Extended", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 ]
+
+/* used for ptz4kNarrowFov crossview and extended_reach */
+let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 4.4, twoPersonZoom: 3.2 };
 
 /* Microphone & Navigators - starts with M */
 let microphones = [
@@ -357,6 +595,7 @@ let microphones = [
         width: 63.9,
         depth: 63.9,
         height: 10.9,
+        defaultVert: 710,
 
     },
     {
@@ -370,6 +609,8 @@ let microphones = [
         width: 98,
         depth: 98,
         height: 29,
+        defaultVert: 710,
+        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
     },
     {
         name: "Cisco Ceiling Microphone",
@@ -382,6 +623,7 @@ let microphones = [
         width: 750,
         depth: 550,
         height: 270,
+        defaultVert: 2500,
     },
     {
         name: "Cisco Ceiling Microphone Pro",
@@ -394,6 +636,8 @@ let microphones = [
         width: 420,
         depth: 420,
         height: 48,
+        defaultVert: 2500,
+        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
     },
     {
         name: "Table Navigator",
@@ -404,6 +648,9 @@ let microphones = [
         width: 242,
         depth: 163,
         height: 96,
+        defaultVert: 710,
+        roles: [{ navigator: 'Navigator' }, { scheduler: 'Scheduler' }],
+        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
 
     },
     {
@@ -415,13 +662,28 @@ let microphones = [
         width: 242,
         depth: 115,
         height: 164,
+        defaultVert: 710,
+        roles: [{ scheduler: 'Scheduler' }, { navigator: 'Navigator' }],
+        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
+
+    },
+    {
+        name: "Laptop",
+        id: "laptop",
+        key: "MG",
+        topImage: 'laptop-top.png',
+        frontImage: 'laptop-menu.png',
+        width: 340,
+        depth: 260,
+        height: 164,
+        defaultVert: 710,
 
     },
 ]
 
 /* Tables & Walls. Table keys starts with T, Wall keys start with W */
 let tables = [{
-    name: 'Table Rectangle',
+    name: 'Table Rectangle (round corners)',
     id: 'tblRect',
     key: 'TA',
     frontImage: 'tblRect-front.png',
@@ -433,7 +695,7 @@ let tables = [{
     frontImage: 'tblEllip-front.png',
 },
 {
-    name: 'Table Trapezoid ',
+    name: 'Table Tapered (trapezoid)',
     id: 'tblTrap',
     key: 'TC',
     frontImage: 'tblTrap-front.png',
@@ -445,12 +707,24 @@ let tables = [{
     frontImage: 'tblShapeU-menu.png',
 },
 {
+    name: 'Desk',
+    id: 'tblSchoolDesk',
+    key: 'TE',
+    depth: 590,
+    frontImage: 'tblSchoolDesk-menu.png',
+},
+{
+    name: 'Podium, round',
+    id: 'tblPodium',
+    key: 'TF',
+    frontImage: 'tblPodium-menu.png',
+},
+{
     name: 'Wall Standard (10 cm / 3.9")',
     id: 'wallStd',
     key: 'WA',
     frontImage: 'wallStd-front.png',
 },
-
 {
     name: 'Glass Wall (10 cm / 3.9")',
     id: 'wallGlass',
@@ -465,6 +739,19 @@ let tables = [{
     frontImage: 'columnRect-front.png',
 },
 
+{
+    name: 'Box',
+    id: 'box',
+    key: 'WD',
+    frontImage: 'box-front.png',
+},
+{
+    name: 'Wall with Windows',
+    id: 'wallWindow',
+    key: 'WE',
+    frontImage: 'wallWindow-front.png',
+    topImage: 'wallWindow-top.png'
+}
 
 
 ]
@@ -490,6 +777,7 @@ let chairs = [
         width: 640,
         depth: 640,
         opacity: 1,
+        models: ['woman-standing', 'man-standing-pen', 'woman-sitting-wheelchair'],
     },
     {
         name: "Door (right)",
@@ -521,6 +809,48 @@ let chairs = [
         depth: 1004,
         opacity: 1,
     },
+    {
+        name: "Plant",
+        id: "plant",
+        key: "SF",
+        topImage: 'plant.png',
+        frontImage: 'plant.png',
+        width: 640,
+        depth: 640,
+        opacity: 1,
+    },
+    {
+        name: "Wheelchair",
+        id: "wheelchair",
+        key: "SG",
+        topImage: 'wheelchair-top.png',
+        frontImage: 'wheelchair-menu.png',
+        width: 665,
+        depth: 1050,
+        opacity: 0.6,
+    },
+    {
+        name: 'Wheelchair turn cycle (150cm/60")',
+        id: 'wheelchairTurnCycle',
+        key: "SH",
+        topImage: 'wheelchairTurnCycle-top.png',
+        frontImage: 'wheelchairTurnCycle-menu.png',
+        width: 1500,
+        depth: 1500,
+        opacity: 0.65,
+    },
+    {
+        name: "Ciruculation space (120cm/4')",
+        id: 'circulationSpace',
+        key: "SI",
+        topImage: 'circulationSpace-top.png',
+        frontImage: 'circulationSpace-menu.png',
+        width: 1200,
+        depth: 1200,
+        opacity: 0.8,
+    },
+
+
 
 ]
 
@@ -536,7 +866,8 @@ let displays = [
         depth: displayDepth,
         height: displayHeight,
         diagonalInches: diagonalInches,
-
+        defaultVert: 1320,
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
     },
     {
         name: 'Dual Displays',
@@ -548,6 +879,7 @@ let displays = [
         depth: displayDepth,
         height: displayHeight,
         diagonalInches: diagonalInches,
+        defaultVert: 1320,
     },
     {
         name: 'Triple Displays',
@@ -559,6 +891,7 @@ let displays = [
         depth: displayDepth,
         height: displayHeight,
         diagonalInches: diagonalInches,
+        defaultVert: 1320,
 
     }
 ]
@@ -673,20 +1006,23 @@ function convertToUnit(input) {
     return Math.round(measurement * 100) / 100;
 }
 
+
 function addOnBlurUnitInputListener() {
     let inputs = document.querySelectorAll(".unitInput");
 
     for (var i = 0; i < inputs.length; i++) {
 
         inputs[i].addEventListener("input", (event) => {
-
             event.target.value = event.target.value.replace(/[^0-9.inmcft"'-\s\u2018\u2019\u201C\u201D]/i, '');  /* allow the characters in the Regex */
-
         })
 
         inputs[i].addEventListener("blur", (event) => {
 
-            event.target.value = convertToUnit(event.target.value);
+            /* allow for blank inputs for class allowBlank by not applying convertToUnit */
+            if (!(event.target.classList.contains('allowBlank') && event.target.value === '')) {
+                event.target.value = convertToUnit(event.target.value);
+            }
+
             if (event.target.classList.contains('updateDrawRoom')) {
                 if (event.target.id === 'roomWidth') {
                     roomObj.room.roomWidth = event.target.value;
@@ -696,7 +1032,6 @@ function addOnBlurUnitInputListener() {
                     roomObj.room.roomLength = event.target.value;
                 }
 
-                // drawRoom(true);
             }
 
         })
@@ -712,7 +1047,6 @@ makeButtonsVisible();
 function updateWidthOfDisplay(inches) {
     if (!isNaN(inches)) {
         let itemWidth = document.getElementById('itemWidth');
-        // let itemHeight = document.getElementById('itemLength');
         let data_deviceid = document.getElementById('itemType').innerText;
         let displayNumber, width, height;
         let unitRatio = 1;
@@ -754,7 +1088,6 @@ function addOnNumberInputListener() {
         })
 
         inputs[i].addEventListener("blur", () => {
-            //   updateItem();
         })
     }
 
@@ -766,7 +1099,7 @@ function addOnNumberInputListener() {
         })
 
         degreeInputs[i].addEventListener("blur", () => {
-            //   updateItem();
+
         })
     }
 
@@ -774,17 +1107,23 @@ function addOnNumberInputListener() {
 
     for (var i = 0; i < txtInputs.length; i++) {
         txtInputs[i].addEventListener("input", (event) => {
-            event.target.value = event.target.value.replace(/[<]/i, '\uFF1C');  // don't allow scripting tags be typed.
-            event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  // don't allow scripting tags be typed.
-            event.target.value = event.target.value.replace(/[~]/i, '\u301C');
+            event.target.value = event.target.value.replace(/[<]/i, '\uFF1C');  /* don't allow scripting tags be typed, replace with similar unicode. */
+            event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  /* don't allow scripting tags be typed, replace with similar unicode. */
+            event.target.value = event.target.value.replace(/[~]/i, '\u301C'); /* tilde ~ is a control character in the URL and is replaced with a similar unicode character */
             if (event.target.id === 'roomName') {
-                roomObj.name = event.target.value;
+                roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
             }
         })
 
         txtInputs[i].addEventListener("blur", (event) => {
+            event.target.value = event.target.value.replace(/^[\s_]+|[\s_]+$/g, '');  /* trim spaces or _ */
+
+            event.target.value = event.target.value.replace(/[<]/gi, '\uFF1C');  /* don't allow scripting tags be typed, replace with similar unicode. */
+            event.target.value = event.target.value.replace(/[>]/gi, '\uFF1E');  /* don't allow scripting tags be typed, replace with similar unicode. */
+            event.target.value = event.target.value.replace(/[~]/gi, '\u301C'); /* tilde ~ is a control character in the URL and is replaced with a similar unicode character */
+
             if (event.target.id === 'roomName') {
-                roomObj.name = event.target.value;
+                roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
             }
 
         })
@@ -800,7 +1139,7 @@ function determineMobileDevice() {
         || navigator.userAgent.match(/iPad/i)
         || navigator.userAgent.match(/iPod/i)) {
         mobileDevice = 'iOS';
-        Konva.pixelRatio = 1; // improve performance with Konva on mobile devices
+        Konva.pixelRatio = 1; /* improve performance with Konva on mobile devices */
     }
     else if (navigator.userAgent.match(/Mac/i) && navigator.maxTouchPoints > 1) {
         mobileDevice = 'iOS';
@@ -817,50 +1156,56 @@ function determineMobileDevice() {
     userAgent = navigator.userAgent;
 
 }
-/* come back to this */
 
-// function setMouseEventListeners() {
-//     document.addEventListener('mousemove', (event) => {
-//         logMouseMovements(event);
-//     });
+setMouseEventListeners();
 
-//     document.addEventListener('scroll', (event) => {
-//         logMouseMovements(event);
-//     });
-// }
+function setMouseEventListeners() {
+    document.addEventListener('mousemove', (event) => {
+        logMouseMovements(event);
+    });
 
-/*      Come back to later
+    document.addEventListener('click', (event) => {
+        logMouseMovements(event);
+    })
+}
+
+let mouse = {}; /* mouse.x .y position pixels */
+mouse.x = 0;
+mouse.y = 0;
+
+let mouseUnit = {}; /* mouseUnit.x .y are the position on the canvas in feet or meters, properly updated for scale and zoom */
+mouseUnit.x = 0;
+mouseUnit.y = 0;
+
+/* log last mouse movement for Copy / Cut / Paste */
+
+
 function logMouseMovements(event) {
 
+    let canvas = document.getElementById('canvasDiv');
+    let canvasDivBound = canvas.getBoundingClientRect();
+
+    dx = scrollContainer.scrollLeft;
+    dy = scrollContainer.scrollTop;
+
+    if (event.clientX) {
+        mouse.x = event.clientX;
+        mouse.y = event.clientY;
+    }
 
 
-        let svg = document.getElementById('videoRoomCalcSVG');
-        let svgBound = svg.getBoundingClientRect();
+    canvasPixel.x = (mouse.x - canvasDivBound.x + dx) / zoomScaleX;
+    canvasPixel.y = (mouse.y - canvasDivBound.y + dy) / zoomScaleY;
 
-        let svgPixelX = event.clientX - svgBound.x;
-        let svgPixelY = event.clientY - svgBound.y;
+    let unitX = (canvasPixel.x - pxOffset) / scale;
+    let unitY = (canvasPixel.y - pxOffset) / scale;
 
-        let unitX = (svgPixelX - pxOffset) / scale;
-        let unitY = (svgPixelY - pxOffset) / scale;
+    mouseUnit.x = round(unitX);
 
-        if (event.clientX > svgBound.x && event.clientX < svgBound.right && event.clientY > svgBound.y && (event.clientY + 50) < svgBound.bottom) {
-            let style = 'display: block; position: fixed; top: ' + (event.clientY + -15) + 'px; left: ' + (event.clientX + 15) + "px; ";
-            let styleCursorPoint = 'display: block; position: fixed; top: ' + (event.clientY - 176) + 'px; left: ' + (event.clientX - 27) + "px; font-size: 100px; font-family: Arial, Helvetica, sans-serif; opacity: 0.5'";
-
-            document.getElementById('divCoordXy').setAttribute('style', style);
-            document.getElementById('lblCoordXy').innerHTML = "x:" + unitX.toFixed(1) + ", y:" + unitY.toFixed(1);
-
-            document.getElementById('divCursorPoint').setAttribute('style', styleCursorPoint);
-        }
-        else {
-            document.getElementById('divCursorPoint').setAttribute('style', 'display: none;');
-            document.getElementById('divCoordXy').setAttribute('style', 'display: none;');
-
-        }
-
+    mouseUnit.y = round(unitY);
 };
 
-            */
+
 
 windowResizeEvent();
 
@@ -995,7 +1340,6 @@ function convertToMeters(roomObj2) {
 
     let ratio = 1 / 3.2808;
 
-    //     roomObj.unit = 'meters';
     roomObj2.room.roomWidth = roomObj2.room.roomWidth * ratio;
     roomObj2.room.roomLength = roomObj2.room.roomLength * ratio;
     roomObj2.room.tableWidth = roomObj2.room.tableWidth * ratio;
@@ -1004,6 +1348,12 @@ function convertToMeters(roomObj2) {
     roomObj2.room.distDisplayToTable = roomObj2.room.distDisplayToTable * ratio;
     roomObj2.room.onePersonCrop = roomObj2.room.onePersonCrop * ratio;
     roomObj2.room.twoPersonCrop = roomObj2.room.twoPersonCrop * ratio;
+
+    if (roomObj2.room.roomHeight) {
+        roomObj2.room.roomHeight = roomObj2.room.roomHeight * ratio;
+    } else {
+        roomObj2.room.roomHeight = 2.5;
+    }
 
     for (const category in roomObj2.items) {
         for (const i in roomObj2.items[category]) {
@@ -1041,6 +1391,10 @@ function convertToMeters(roomObj2) {
                 nodes.tblRectRadius = round(nodes.tblRectRadius * ratio);
             }
 
+            if ('data_trapNarrowWidth' in nodes) {
+                nodes.data_trapNarrowWidth = round(nodes.data_trapNarrowWidth * ratio);
+            }
+
             if ('tblRectRadiusRight' in nodes) {
                 nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
             }
@@ -1052,13 +1406,17 @@ function convertToMeters(roomObj2) {
 
 }
 
-function convertMetersFeet() {
-    let unitValue = document.getElementById('drpMetersFeet').value;
-    unit = unitValue;
-    roomObj.unit = unit;
-    let ratio = 3.2808 /* Feet / meter */
-    if (unit === 'feet') {
-        // feet is default
+function convertMetersFeet(isDrawRoom) {
+    roomObj.unit = document.getElementById('drpMetersFeet').value;
+
+    let defaultUnit = localStorage.getItem('defaultUnit');
+    if (!(defaultUnit === 'none')) {
+        localStorage.setItem('defaultUnit', roomObj.unit);
+    }
+
+    let ratio = 3.28084 /* Feet / meter */
+    if (roomObj.unit === 'feet') {
+        /*  feet is default */
     } else {
         ratio = 1 / ratio;
     };
@@ -1068,24 +1426,17 @@ function convertMetersFeet() {
 
     }
 
-    // updateTextBox('roomWidth');
-    // updateTextBox('roomLength');
     updateTextBox('tableWidth');
     updateTextBox('frntWallToTv');
     updateTextBox('tableLength');
     updateTextBox('distDisplayToTable');
     updateTextBox('onePersonCrop');
     updateTextBox('twoPersonCrop');
-    // updateTextBox('roomHeight');
 
-    defaultWallHeight = defaultWallHeight * ratio;
-    console.log('defaultWallHeight line 1082', defaultWallHeight);
     roomObj.room.roomWidth = roomObj.room.roomWidth * ratio;
     roomObj.room.roomLength = roomObj.room.roomLength * ratio;
     if ('roomHeight' in roomObj.room) {
         roomObj.room.roomHeight = roomObj.room.roomHeight * ratio;
-        defaultWallHeight = roomObj.room.roomHeight;
-        console.log('defaultWallHeight line 1087', defaultWallHeight);
     }
     roomObj.room.tableWidth = roomObj.room.tableWidth * ratio;
     roomObj.room.frntWallToTv = roomObj.room.frntWallToTv * ratio;
@@ -1122,23 +1473,34 @@ function convertMetersFeet() {
                 nodes.data_zPosition = round(nodes.data_zPosition * ratio);
             }
 
-
             if ('data_vHeight' in nodes) {
                 nodes.data_vHeight = round(nodes.data_vHeight * ratio);
+            }
+
+            if ('data_trapNarrowWidth' in nodes) {
+                nodes.data_trapNarrowWidth = round(nodes.data_trapNarrowWidth * ratio);
+            }
+
+            if ('tblRectRadiusRight' in nodes) {
+                nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
             }
 
             if ('tblRectRadius' in nodes) {
                 nodes.tblRectRadius = round(nodes.tblRectRadius * ratio);
             }
 
-            if ('tblRectRadiusRight' in nodes) {
-                nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
-            }
+
+
         }
 
     }
 
-    drawRoom(true);
+    if (isDrawRoom != 'noDraw') {
+        drawRoom(true);
+    }
+
+
+
 
 }
 
@@ -1153,6 +1515,9 @@ function getQueryString() {
         let x = urlParams.get('x');
         document.getElementById('quickSetupItems').style.display = 'none';
         parseShortenedXYUrl(x);
+
+        keepDefaultUnit();
+
         drawRoom(true, true, true);
 
     }
@@ -1167,8 +1532,6 @@ function getQueryString() {
         if (!(versionQueryString == version)) {
             versionQueryString = DOMPurify.sanitize(versionQueryString);
             lastAction = "redirect to " + versionQueryString;
-            //  responseRedirect(versionQueryString);
-
         }
     }
 
@@ -1181,22 +1544,41 @@ function getQueryString() {
         window.location.href = redirectLink;
     }
 
-    if (urlParams.has('ver') || urlParams.has('x')) {
-        if (urlParams.get('ver') !== version) {
-            let message = "Your Shareable Link was created in version " + version + ".  There were changes made but it should be comptabile with the current version. ";
-
-        }
-    }
-
     if (urlParams.has('qr')) {
         qrCodeButtonsVisible = true;
-
         makeButtonsVisible();
     }
 
-    if (urlParams.has('test')) {
-        console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
-        document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    // if (urlParams.has('test')) {
+    //     let testValue = urlParams.get('test');
+    //     if (testValue === '' || testValue == 1 || testValue == 'on') {
+    //         console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
+    //         document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    //         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
+    //         document.getElementById('testB').style.display = '';
+    //         localStorage.setItem('test', 'true');
+    //     }
+    //     else if (testValue == '0' || testValue === 'off') {
+    //         console.info('"test" fields are turned off and the setting is removed from local storage');
+    //         document.getElementById('testB').style.display = 'none';
+    //         localStorage.removeItem('test');
+    //     }
+
+    // } else if (localStorage.getItem('test') === 'true') {
+    console.info('Local storage.  "test" is on.  Test fields are highly experimental and unstable.');
+    document.getElementById('test').setAttribute('style', 'visibility: visible;');
+
+    /* RoomOS does not support the Workspace Designer cross-launch */
+    if(mobileDevice != 'RoomOS'){
+        document.getElementById('testA').setAttribute('style', 'visibility: visible;');
+        document.getElementById('testB').style.display = '';
+    }
+
+    //   }
+
+
+    if (urlParams.has('testProduction')) {
+        testProduction = true;
     }
 
     if (urlParams.has('test2')) {
@@ -1282,7 +1664,7 @@ function getQueryString() {
         drawRoom(true, true);
     }
 
-    setTimeout(()=>{
+    setTimeout(() => {
         canvasToJson();
     }, 1000)
 
@@ -1330,19 +1712,19 @@ function parseShortenedXYUrl(parameters) {
 
     while (i < parameters.length) {
         let char = parameters[i];
-
-        if (char === '_' && lastCharType != charType.BetweenTilde) {  /* represents a repeat of the last Capital Letter used. */
-
+        if (char === '_' && (lastCharType != charType.BetweenTilde)) {  /* represents a repeat of the last Capital Letter used. */
             output.push(structuredClone(output[objCount]));
             objCount += 1;
             lastCharType = charType.CapLetter;
         }
+        /* a space or + could be used as another control character, need to work out decode */
+        /*
         else if (char === ' ' && lastCharType != charType.BetweenTilde) {
-
-            output.push(JSON.parse(JSON.stringify(output[objCount])));
+            output.push(structuredClone(output[objCount]));
             objCount += 1;
             lastCharType = charType.CapLetter;
         }
+        */
         else if (lastCharType === charType.Start) {
             if (isUpperCaseLetter(char)) {
                 output.push({ "sid": char });
@@ -1383,7 +1765,7 @@ function parseShortenedXYUrl(parameters) {
             output[objCount][lowerCaseLetters] += char;
             lastCharType = charType.LowNum;
         }
-        // New below
+        /*  New below */
         else if (char === '~' && lastCharType === charType.LowLetter) {
             lastCharType = charType.OpenLowLetterTilde;
 
@@ -1392,7 +1774,7 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.OpenTilde;
 
         }
-        // new below
+        /*  new below */
         else if (lastCharType === charType.OpenLowLetterTilde && char != '~') {
             lowerCaseLetters = strBldrLowerCase;
             strBldrLowerCase = '';
@@ -1400,25 +1782,23 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.BetweenLowLetterTilde;
 
         }
-        //
         else if (lastCharType === charType.OpenTilde && char != '~') {
             output[objCount].text = char;
             lastCharType = charType.BetweenTilde;
 
         }
-        // new below
+        /* new below */
         else if (lastCharType === charType.BetweenLowLetterTilde && char != '~') {
             output[objCount][lowerCaseLetters] += char;
             lastCharType = charType.BetweenLowLetterTilde;
 
         }
-        //
         else if (lastCharType === charType.BetweenTilde && char != '~') {
             output[objCount].text += char;
             lastCharType = charType.BetweenTilde;
 
         }
-        // new below ***
+        /* new below */
         else if ((lastCharType === charType.OpenLowLetterTilde || lastCharType === charType.OpenTilde) && char === '~') {
             output[objCount].text = "";
             lastCharType = charType.EndTilde;
@@ -1478,7 +1858,6 @@ function parseShortenedXYUrl(parameters) {
 
             if ('f' in item) {
                 roomObj.room.roomHeight = round(item.f / 100);
-                defaultWallHeight = roomObj.roomHeight;
             }
 
             if ('e' in item) {
@@ -1519,6 +1898,20 @@ function parseShortenedXYUrl(parameters) {
                 } else {
                     roomObj.layersVisible.gridLines = false;
                 }
+
+                if (shadeArray[4] == '1') {
+                    roomObj.workspace.addCeiling = true;
+                } else {
+                    roomObj.workspace.addCeiling = false;
+                }
+
+                if (shadeArray[5] == '1') {
+                    roomObj.workspace.removeDefaultWalls = true;
+                    updateRemoveDefaultWallsCheckBox();
+                } else {
+                    roomObj.workspace.removeDefaultWalls = false;
+                    updateRemoveDefaultWallsCheckBox();
+                }
             }
 
         } else if (item.sid === "C") { /* authorVersion */
@@ -1554,7 +1947,6 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('a' in item) {
-                // newItem.y = item.a / 100;
                 roomObj.items[groupName][groupLength].y = item.a / 100;
             }
 
@@ -1595,10 +1987,29 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('j' in item) {
-                console.log('j = ', )
                 newItem.data_vHeight = item.j / 100;
             } else {
                 newItem.data_vHeight = "";
+            }
+
+            if ('k' in item) {
+                newItem.data_trapNarrowWidth = item.k / 100;
+            }
+
+            if ('l' in item) {
+                populateRoleFromUrl(newItem, item.l);
+            } else {
+                populateRoleFromUrl(newItem);
+            }
+
+            if ('m' in item) {
+                populateColorFromUrl(newItem, item.m);
+            } else {
+                populateColorFromUrl(newItem);
+            }
+
+            if ('text' in item) {
+                newItem.data_labelField = DOMPurify.sanitize(item.text);
             }
 
             newItem.id = createUuid();
@@ -1615,9 +2026,6 @@ function parseShortenedXYUrl(parameters) {
 
 function resetRoomObj() {
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
-    // roomObj.unit = 'feet'; /* meters or feet*/
-    // roomObj.room.roomWidth = 20; /* roomWidth default value in feet */
-    // roomObj.room.roomLength = 26; /* roomLength default value in feet */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
     roomObj.layersVisible.grDisplayDistance = true; /* true or false */
@@ -1662,6 +2070,12 @@ function resetRoomObj() {
     document.getElementById('drpTvNum').value = '1';
 
     document.getElementById('drpVideoDevice').value = 'roomBarPro';
+
+    document.getElementById('roomHeight').value = '';
+
+    document.getElementById('drpSoftware').value = 'select';
+
+    document.getElementById('authorVersion').value = '';
 }
 
 
@@ -1725,21 +2139,45 @@ onLoad();
 
 
 function onLoad() {
+    undoArray = JSON.parse(localStorage.getItem('undoArray'));
+    if (!Array.isArray(undoArray)) undoArray = [];  /* for first run, if local storage not set */
     updateSelectVideoDeviceOptions();
     getQueryString();
     saveToUndoArray();
     postHeartbeat();
-    setTimeout(()=>{
+    setTimeout(() => {
         addressBarUpdate = true;
         canvasToJson();
     }, pageLoadTimeBeforeAddresBarUpdate);
+
+    if (localStorage.getItem('snapGuidelinesCheckBox') === 'true') {
+        document.getElementById('snapGuidelinesCheckBox').checked = true;
+    } else {
+        document.getElementById('snapGuidelinesCheckBox').checked = false;
+    }
+
+    if (localStorage.getItem('useDefaultUnitCheckBox') === 'true') {
+        document.getElementById('useDefaultUnitCheckBox').checked = true;
+    } else {
+        document.getElementById('useDefaultUnitCheckBox').checked = false;
+    }
+
+    if (localStorage.getItem('snapIncrementCheckBox') === 'true') {
+        document.getElementById('snapIncrementCheckBox').checked = true;
+    } else {
+        document.getElementById('snapIncrementCheckBox').checked = false;
+    }
+
+    if (localStorage.getItem('snapToIncrement')) {
+        document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
+    }
 }
+
 
 function updateSelectVideoDeviceOptions() {
 
     let drpVideoDevice = document.getElementById('drpVideoDevice');
     videoDevices.forEach((device) => {
-        // let name = device.name + ' - Wide:' + device.wideHorizontalFOV + '\u00b0 Tele:' + device.teleHorizontalFOV + '\u00b0 ' + device.onePersonZoom + 'x ' + device.twoPersonZoom + 'x';
 
         let name = device.name;
 
@@ -1831,18 +2269,22 @@ function isQuickSetupEnabled() {
         quickSetupState = 'disabled';
     }
 
-    let quickSetupEnabledText = 'Quick Setup (optional)';
+    let quickSetupIconTooltip = `<span class="tooltipIcon"><span class="material-symbols-outlined" style="font-size: medium">info</span><span
+                                class="tooltiptextIcon">Quick Setup will add displays, a video device, and a table centered in the room, along with updating the length and width of the room. The Quick Setup menu will disappear if there are additional items or if an item is moved. To reset the Quick Setup menu when disabled, try resetting the room under Save -> Reset Room.</span>
+                             </span>`
+
+    let quickSetupEnabledText = 'Quick Setup (optional) ' + quickSetupIconTooltip;
     if (quickSetupState === 'insert') {
-        quickSetup.innerText = quickSetupEnabledText;
+        quickSetup.innerHTML = quickSetupEnabledText;
         quickSetupItems.style.display = 'initial';
     }
     else if (quickSetupState === 'update') {
-        quickSetup.innerText = quickSetupEnabledText;
+        quickSetup.innerHTML = quickSetupEnabledText;
         quickSetupItems.style.display = 'initial';
 
     }
     else if (quickSetupState === 'disabled') {
-        quickSetup.innerText = 'Quick Setup is disabled';
+        quickSetup.innerHTML = `Quick Setup is disabled ` + quickSetupIconTooltip;
         quickSetupItems.style.display = 'none';
         /* disable buttons */
     }
@@ -1928,7 +2370,6 @@ function quickSetupInsert() {
     let videoDeviceUuid = createUuid();
     let videoAttr = {};
     videoAttr.x = roomWidth / 2;
-    // videoAttr.y = frntWallToTv;
     videoAttr.rotation = 0;
 
     /* only insert a display if the video device does not have diagonalInches */
@@ -2040,24 +2481,18 @@ function drpVideoDeviceChange(firstRun = false) {
 
         unit = document.getElementById('drpMetersFeet').value;
 
-        // do all calculations
         if (unit === 'feet') {
             roomLength = roomLength / 3.35;
         }
 
         if (roomLength <= 3.05) {
-            // select room bar
             drpVideoDevice.value = 'roomBar';
         }
         else if (roomLength <= 6.05) {
-            // select room par pro
-
             drpVideoDevice.value = 'roomBarPro';
         } else if (roomLength <= 9.05) {
-            // select room kit eq quad cam
             drpVideoDevice.value = 'roomKitEqQuadCam';
         } else {
-            // select room kit eq quad cam + 4K PTZ
             drpVideoDevice.value = 'roomKitEqQuadPtz4k';
         }
     }
@@ -2100,10 +2535,10 @@ function makeButtonsVisible() {
 }
 
 function addText(text, x, y, size, color = 'black') {
-    // Create a <text> element for the text
+    /* Create a <text> element for the text */
     const textSVG = document.createElementNS(svgns, "text");
 
-    // Set the position and size of the <text> element
+    /* Set the position and size of the <text> element */
     textSVG.setAttribute("x", x);
     textSVG.setAttribute("y", y);
     textSVG.textContent = text;
@@ -2118,13 +2553,13 @@ function addCenteredText(text, x1, y1, x2, y2, groups = '', id = '') {
     let x = x1 + (x2 - x1) / 2
     let y = y1 + (y2 - y1) / 2
 
-    // Create a <text> element for the text
+    /* Create a <text> element for the text */
     const centeredTextSVG = document.createElementNS(svgns, "text");
 
-    // Set the position and size of the <text> element
+    /* Set the position and size of the <text> element */
     centeredTextSVG.setAttribute("x", x);
     centeredTextSVG.setAttribute("y", y);
-    // centeredTextSVG.setAttribute('dominant-baseline', 'middle');
+    /* centeredTextSVG.setAttribute('dominant-baseline', 'middle'); */
     centeredTextSVG.setAttribute('text-anchor', 'middle');
     centeredTextSVG.setAttribute('style', 'font-size: 14px; font-family: Arial, Helvetica, sans-serif; opacity: 0.5')
     centeredTextSVG.textContent = text;
@@ -2172,14 +2607,14 @@ function kAddCenteredText(text, x1, y1, x2, y2, groups = '') {
 
 function createTextElement(settings) {
 
-    // Create a <text> element for the text
+    /* Create a <text> element for the text */
     let textSVG = document.createElementNS(svgns, "text");
 
-    // Set the position and size of the <text> element
+    /* Set the position and size of the <text> element */
     textSVG.setAttribute("x", settings.x);
     textSVG.setAttribute("y", settings.y);
-    // centeredTextSVG.setAttribute('dominant-baseline', 'middle');
-    // centeredTextSVG.setAttribute('text-anchor', 'middle');
+    /* centeredTextSVG.setAttribute('dominant-baseline', 'middle'); */
+    /* centeredTextSVG.setAttribute('text-anchor', 'middle'); */
     if (!('style' in settings)) {
         settings.style = 'font-size: 14px; font-family: Arial, Helvetica, sans-serif;';
     }
@@ -2210,20 +2645,20 @@ function getDistanceB(degreeB, distanceA) {
     return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
 }
 
-//svgStart
+/* svgStart */
 function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'stroke:#808080;stroke-width:2;opacity:0.3;') {
-    // scale
+    /* scale */
 
     let solidStyle = style;
 
     let lightStyle = 'stroke:#808080;stroke-width:0.6;opacity:0.4;'
 
-    // Create a <g> group element for the grid
+    /* Create a <g> group element for the grid */
     const groupLines = document.createElementNS(svgns, "g");
 
     groupLines.setAttribute('id', 'grid-increment-' + increment.toFixed(2));
 
-    // draw horizontal lines
+    /* draw horizontal lines */
 
     let measurementY = 0;
     let pxMeasurementY = 0;
@@ -2278,7 +2713,7 @@ function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'str
 
     } while (pxMeasurementY <= (endY - increment * scale));
 
-    // draw vertical lines
+    /* draw vertical lines */
 
     let measurementX = 0;
     let pxMeasurementX = 0;
@@ -2304,12 +2739,12 @@ function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'str
 
     } while (pxMeasurementX <= (endX - increment * scale));
 
-    // append to SVG
+    /* append to SVG */
 
     return groupLines;
 
 }
-//svgEnd
+/* svgEnd */
 
 function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
@@ -2423,25 +2858,23 @@ function updatePersonCropUnit() {
 
     if (isNaN(onePersonCrop)) {
         if (unit == 'feet') {
-            // feet
             onePersonCrop = Math.round(defaultOnePersonCrop * 3.2808 * 100) / 100;
 
         } else {
-            // meters
+            /* meters */
             onePersonCrop = defaultOnePersonCrop;
 
         };
-        // document.getElementById('onePersonCrop').setAttribute('value', onePersonCrop.toFixed(2));
         document.getElementById('onePersonCrop').value = onePersonCrop.toFixed(2);
     }
 
     if (isNaN(twoPersonCrop)) {
         if (unit == 'feet') {
-            // feet
+            /* feet */
             twoPersonCrop = Math.round(defaultTwoPersonCrop * 3.2808 * 100) / 100;
 
         } else {
-            // meters
+            /* meters */
             twoPersonCrop = 3.2;
         };
         document.getElementById('twoPersonCrop').value = twoPersonCrop.toFixed(2);
@@ -2457,7 +2890,7 @@ function updateDefaultsPersonCropUnit() {
         twoPersonCrop = Math.round(defaultTwoPersonCrop * 3.2808 * 100) / 100;
 
     } else {
-        // meters
+        /* meters */
         onePersonCrop = defaultOnePersonCrop;
         twoPersonCrop = defaultTwoPersonCrop;
 
@@ -2604,6 +3037,11 @@ function drawTitleGroup() {
     return groupTitle;
 }
 
+function getKonvaBackgroundImageFloor() {
+    let konvaBackgroundImageFloor = stage.find('#konvaBackgroundImageFloor')[0];
+    return konvaBackgroundImageFloor;
+}
+
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
 function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false) {
 
@@ -2621,8 +3059,10 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     document.getElementById('roomWidth').value = round(roomObj.room.roomWidth);
     document.getElementById('roomLength').value = round(roomObj.room.roomLength);
     document.getElementById('roomName').value = roomObj.name;
-    document.getElementById('roomHeight').value = round(roomObj.room.roomHeight);
-    defaultWallHeight = round(roomObj.room.roomHeight);
+    if (roomObj.room.roomHeight) {
+        document.getElementById('roomHeight').value = round(roomObj.room.roomHeight);
+    }
+
     document.getElementById('authorVersion').value = roomObj.authorVersion;
 
     if ('software' in roomObj) {
@@ -2753,6 +3193,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         height: stage.height(),
     });
 
+    select2PointsRect.setAttrs({
+        width: stage.width(),
+        height: stage.height(),
+    })
+
     groupBackground.add(backGroundImage);
 
     layerGrid.add(groupBackground);
@@ -2765,7 +3210,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         height: roomLength * scale,
         stroke: '#74a6f7',
         strokeWidth: 3,
-        id: 'kOuterWall',
+        id: 'cOuterWall',
         listening: false,
         preventDefault: false,
     });
@@ -2815,10 +3260,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         trNodesFromUuids(roomObj.trNodes, false);
 
+        insertKonvaBackgroundImageFloor();
+
         setTimeout(() => {
             deleteNegativeShapes();
-            // roomObjToCanvas(roomObj.items);
-            // trNodesFromUuids(roomObj.trNodes, false);
+
         }, 250);
 
         if (!dontSaveUndo) {
@@ -2829,8 +3275,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
             }, 100);
         }
 
-
     } else {
+
         updateShapesBasedOnNewScale();
     }
 
@@ -2849,8 +3295,144 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         scrollContainer.scrollTop = dy - 0.01;
     }
 
+    if (workspaceWindow) {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }
+
 }
 
+function changeTransparency(value) {
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+    if (!konvaBackgroundImageFloor) return;
+
+    document.getElementById('transparencyOutput').innerText = value;
+    konvaBackgroundImageFloor.opacity(value / 100);
+}
+
+function select2Points() {
+    resetBackgroundImageFloorSettings();
+    document.getElementById("canvasDiv").style.cursor = "crosshair";
+    tr.nodes([]);
+    selectingTwoPoints = true;
+    select2PointsRect.show();
+}
+
+function insertKonvaBackgroundImageFloor() {
+
+    let tempKonvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (tempKonvaBackgroundImageFloor) {
+        tempKonvaBackgroundImageFloor.destroy();
+    }
+
+    if ('backgroundImage' in roomObj) {
+
+        let pixelX = scale * roomObj.backgroundImage.x + pxOffset;
+        let pixelY = scale * roomObj.backgroundImage.y + pyOffset;
+        let heightPixel = scale * roomObj.backgroundImage.height;
+        let widthPixel = scale * roomObj.backgroundImage.width;
+
+        let konvaBackgroundImageFloor = new Konva.Image({
+            image: backgroundImageFloor,
+            x: pixelX,
+            y: pixelY,
+            height: heightPixel,
+            width: widthPixel,
+            rotation: roomObj.backgroundImage.rotation,
+            opacity: Number(roomObj.backgroundImage.opacity / 100),
+            id: 'konvaBackgroundImageFloor',
+            listening: false,
+            name: roomObj.backgroundImage.name,
+        });
+
+        konvaBackgroundImageFloor.data_deviceid = 'backgroundImageFloor';
+
+        layerBackgroundImageFloor.add(konvaBackgroundImageFloor);
+
+        konvaBackgroundImageFloor.on('dragend', function () {
+            canvasToJson();
+        });
+
+
+    }
+
+}
+
+function changeLayerBackgroundImageFl() {
+    let checkBox = document.getElementById('resizeBackgroundImageCheckBox');
+
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (!konvaBackgroundImageFloor) return;
+
+    if (checkBox.checked) {
+        document.getElementById("canvasDiv").style.cursor = "auto";
+        konvaBackgroundImageFloor.listening(true);
+        konvaBackgroundImageFloor.moveTo(layerSelectionBox);
+        konvaBackgroundImageFloor.draggable(true);
+        tr.nodes([]);
+        movingBackgroundImage = true;
+    } else {
+        document.getElementById("canvasDiv").style.cursor = "auto";
+        konvaBackgroundImageFloor.moveTo(layerBackgroundImageFloor);
+        konvaBackgroundImageFloor.draggable(false);
+        konvaBackgroundImageFloor.listening(false);
+        movingBackgroundImage = false;
+    }
+
+    hideSelect2PointsShapes();
+}
+
+function updateBackgroundImageScale() {
+    let measurement = document.getElementById('backgroundImageMeasurement').value;
+
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (!konvaBackgroundImageFloor) return;
+
+    if (isNaN(measurement) || measurement < 0.1) {
+        alert('Please enter a number larger than 0.1');
+        return;
+    } else {
+        let points = distanceLine.points();
+        let x1 = points[0];
+        let y1 = points[1];
+        let x2 = points[2];
+        let y2 = points[3];
+
+        let pixelDistance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+        let imageHeight = konvaBackgroundImageFloor.height();
+
+        let imageWidth = konvaBackgroundImageFloor.width();
+
+        let pointsActualDistance = pixelDistance / scale;
+
+        konvaBackgroundImageFloor.height(imageHeight * measurement / pointsActualDistance);
+
+        konvaBackgroundImageFloor.width(imageWidth * measurement / pointsActualDistance);
+
+        document.getElementById('btnUpdateImageScale').disabled = true;
+
+        hideSelect2PointsShapes();
+
+    }
+}
+
+function hideSelect2PointsShapes() {
+    select2PointsRect.hide();
+    circleEnd.hide();
+    circleStart.hide();
+    distanceLine.hide();
+    selectingTwoPoints = false;
+}
+
+function resetBackgroundImageFloorSettings() {
+    hideSelect2PointsShapes();
+    document.getElementById('resizeBackgroundImageCheckBox').checked = false;
+    changeLayerBackgroundImageFl();
+    document.getElementById("canvasDiv").style.cursor = "auto";
+}
 
 function creatArrayKeysTypes() {
     eachCategory(videoDevices, 'videoDevices');
@@ -2888,7 +3470,7 @@ function createShareableLink() {
         strUrlQuery2 += 'f' + round(roomObj.room.roomHeight) * 100;
     }
 
-    strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name).replaceAll('%20', '+') + '~'}`;
+    strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g,'')).replaceAll('%20', '+') + '~'}`;
 
 
     strUrlQuery2 += createShareableLinkItemShading();
@@ -2899,6 +3481,7 @@ function createShareableLink() {
     let items = roomObj.items;
     let i = 0;
     for (const category in items) {
+        let previousItem = null;
         items[category].forEach((item) => {
             strUrlQuery2 += createShareableLinkItem(item);
             i += 1;
@@ -2908,6 +3491,7 @@ function createShareableLink() {
     fullShareLink = location.origin + location.pathname + '?x=' + strUrlQuery2;
     fullShareLink = DOMPurify.sanitize(fullShareLink);
     fullShareLink = fullShareLink.replaceAll(' ', '+');
+    fullShareLinkCollabExpBase = 'https://collabexperience.com/' + fullShareLink.match(/\?x=.*/);
 
     document.getElementById('shareLink').setAttribute('href', fullShareLink);
 
@@ -2927,6 +3511,11 @@ function createShareableLink() {
     let queryParams = new URLSearchParams(window.location.search);
     queryParams.set("x", strUrlQuery2);
     history.replaceState(null, null, fullShareLink);
+
+    /* resend workspace postmessage with the updated URL */
+    if (workspaceWindow) {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }
 
     /* only create QR Code if RoomOS only every 2 seconds for performance */
     if (qrCodeAlwaysOn) {
@@ -2976,7 +3565,7 @@ function createShareableLinkItem(item) {
         strItem += 'd' + Math.round(round(item.length) * 100);
     }
 
-    if ('height' in item) {
+    if ('height' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
         strItem += 'e' + Math.round(round(item.height) * 100);
     }
 
@@ -2991,20 +3580,49 @@ function createShareableLinkItem(item) {
         strItem += 'g' + item.data_diagonalInches;
     }
 
-    if ('tblRectRadius' in item) {
+    if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
         strItem += 'h' + Math.round(round(item.tblRectRadius) * 100);
     }
 
-    if ('tblRectRadiusRight' in item) {
+    if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk') {
         strItem += 'i' + Math.round(round(item.tblRectRadiusRight) * 100);
     }
 
     if ('data_vHeight' in item) {
-        if (item.data_vHeight != "") {
+        if (item.data_vHeight) {
             strItem += 'j' + Math.round(round(item.data_vHeight) * 100);
         }
     }
 
+    if ('data_trapNarrowWidth' in item) {
+        if (item.data_trapNarrowWidth) {
+            strItem += 'k' + Math.round(round(item.data_trapNarrowWidth) * 100);
+        }
+    }
+
+    /* don't store data_role index if the value is 0 - this will be the default value */
+    if ('data_role' in item && item.data_role) {
+        let place = item.data_role.index - 1;
+        if (place > -1) {
+            strItem += 'l' + place;
+        }
+    }
+
+    /* don't store data_color index if the value is 0 - this will be the default value */
+    if ('data_color' in item && item.data_color) {
+        let place = item.data_color.index - 1;
+        if (place > -1) {
+            strItem += 'm' + place;
+        }
+    }
+
+
+    if ('data_labelField' in item) {
+        if (item.data_labelField) {
+            /* Trim all starting/trailing spaces or _underscores, then encode, then replace all spaces (%20) with + */
+            strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g,'')).replaceAll('%20', '+') + '~';
+        }
+    }
 
     return strItem;
 }
@@ -3033,6 +3651,19 @@ function createShareableLinkItemShading() {
         shadeArray[3] = 1;
     } else {
         shadeArray[3] = 0;
+    }
+
+    if (roomObj.workspace.addCeiling) {
+        shadeArray[4] = 1;
+    } else {
+        shadeArray[4] = 0;
+    }
+
+
+    if (roomObj.workspace.removeDefaultWalls) {
+        shadeArray[5] = 1;
+    } else {
+        shadeArray[5] = 0;
     }
 
     return 'B' + shadeArray.join('');
@@ -3157,6 +3788,8 @@ function openTab(evt, tabName) {
     document.getElementById(tabName).style.display = "block";
 
     evt.currentTarget.className += " active";
+
+    resetBackgroundImageFloorSettings();
 }
 
 function openSubTab(evt, tabName) {
@@ -3203,10 +3836,31 @@ function openSubTab2(evt, tabName) {
 
     evt.currentTarget.className += " active";
 
+    resetBackgroundImageFloorSettings();
+
 }
 
-// Get the element with id="defaultOpen" and click on it
+function openTabBottom(evt, tabName) {
+    var i, tabcontent, tablinks;
+    /* Get all elements with class="tabcontent" and hide them */
+    tabcontent = document.getElementsByClassName("tabcontent2");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
 
+    /* Get all elements with class="tablinks" and remove the class "active" */
+    tablinks = document.getElementsByClassName("tablinks2");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+
+    /* Show the current tab, and add an "active" class to the button that opened the tab */
+    document.getElementById(tabName).style.display = "block";
+
+    evt.currentTarget.className += " active";
+}
+
+/* Get the element with id="defaultOpen" and click on it */
 function toggleButton(button) {
     if (button.style['color'] === 'black') {
         button.style["color"] = 'grey'
@@ -3215,9 +3869,28 @@ function toggleButton(button) {
     };
 }
 
+/* shows an undo dialog and adds a delay on undo / redo on RoomOS devices */
+function showUndoRedoRoomOs(){
+    if (mobileDevice === 'RoomOS'){
+        document.getElementById('dialogUndoRedo').showModal();
+        setTimeout(()=>{
+            document.getElementById('dialogUndoRedo').close();
+        }, 500);
+     }
+}
+
+function openQuestionDialog(){
+    document.getElementById('dialogQuestions').showModal();
+}
+
+function closeDialogQuestions(){
+    document.getElementById('dialogQuestions').close();
+}
 
 function btnUndoClicked() {
+    showUndoRedoRoomOs();
     zoomInOut('reset');
+
     clearTimeout(undoArrayTimer);
     if (undoArray.length > 0) {
         redoArray.push(undoArray.pop());
@@ -3228,12 +3901,13 @@ function btnUndoClicked() {
         setTimeout(() => {
             isQuickSetupEnabled();
             updateQuickSetupItems();
-        }, 500);
+        }, 750);
 
     }
 }
 
 function btnRedoClicked() {
+    showUndoRedoRoomOs()
     zoomInOut('reset');
     if (redoArray.length > 0) {
         undoArray.push(redoArray.pop())
@@ -3260,12 +3934,21 @@ function enableBtnUndoRedo() {
     }
 }
 
-function copyItems() {
-    let items = tr.nodes();
+let canvasClipBoard = {};
+
+function copyToCanvasClipBoard(items) {
+    let itemsObj = { unit: roomObj.unit }
+
+    if (!items) items = tr.nodes();
+
     let uuids = [];
 
-    items.forEach(node => {
+    let clipBoardArray = [];
 
+    let canvas = document.getElementById('canvasDiv');
+
+    items.forEach(node => {
+        let x2Offset, y2Offset, x2, y2; /* new x and new y */
         let attrs = node.attrs;
 
         let uuid = createUuid();
@@ -3286,8 +3969,12 @@ function copyItems() {
             center = getShapeCenter(node);
         }
 
-        let x2 = ((center.x - pxOffset) / scale) + (stage.width() * 0.04) / scale;
-        let y2 = ((center.y - pyOffset) / scale) + (stage.height() * 0.04) / scale;
+        x2Offset = 0;
+        y2Offset = 0;
+
+        x2 = ((center.x - pxOffset) / scale) + x2Offset / scale;
+        y2 = ((center.y - pyOffset) / scale) + y2Offset / scale;
+
 
         let width = attrs.width / scale;
         let height = attrs.height / scale;
@@ -3316,15 +4003,122 @@ function copyItems() {
             }
         }
 
+        if ('data_labelField' in node) {
+            newAttr.data_labelField = node.data_labelField;
+        }
 
-        insertShapeItem(deviceId, node.getParent().name(), newAttr, uuid);
+        if ('data_role' in node) {
+            newAttr.data_role = node.data_role;
+        }
+
+        if ('data_color' in node) {
+            newAttr.data_color = node.data_color;
+        }
+
+        if ('data_trapNarrowWidth' in node) {
+            newAttr.data_trapNarrowWidth = node.data_trapNarrowWidth;
+        }
 
 
+        clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
 
-    trNodesFromUuids(uuids, true);
+    itemsObj.items = clipBoardArray;
+    canvasClipBoard.items = clipBoardArray;
 
+
+    /* get transform (tr) upper left hand corner in pixels and adjust for zoom, pan and scale.  */
+    let canvasPixelX = (tr.x() + dx) / zoomScaleX;
+    let canvasPixelY = (tr.y() + dy) / zoomScaleY;
+
+    let unitX = (canvasPixelX - pxOffset) / scale;
+    let unitY = (canvasPixelY - pxOffset) / scale;
+
+    canvasClipBoard.upperLeft = { x: unitX, y: unitY };
+
+    canvasClipBoard.sessionId = sessionId;
+    canvasClipBoard.unit = roomObj.unit;
+    localStorage.setItem('copyItemsObj', JSON.stringify(canvasClipBoard));
+
+
+}
+
+/* allow copying items between tabs / windows of the same browsers */
+window.addEventListener("storage", () => {
+    canvasClipBoard = JSON.parse(localStorage.getItem('copyItemsObj'));
+});
+
+/* when the ctrl+C / cmd+C shortcut is used */
+function copyItems() {
+    copyToCanvasClipBoard();
+}
+
+/* when the ctrl+X / cmd+X shortcut is used */
+function cutItems() {
+    copyToCanvasClipBoard();
+    deleteTrNodes();
+}
+
+loadLastCopyItem();
+
+/* when copying items between tabs/windows, allows for a newly opened tab/window to have a copy of the Canvas Clipboard */
+function loadLastCopyItem() {
+    let newCanvasClipBoard = JSON.parse(localStorage.getItem('copyItemsObj'));
+    if (newCanvasClipBoard) {
+        canvasClipBoard = newCanvasClipBoard;
+    }
+}
+
+/* paste item in canvasClipBoard to canvas.  if duplicate = true, offset from current object. If duplicate = false, paste at the mouse arrow location */
+function pasteItems(duplicate = true) {
+    let itemsObj = structuredClone(canvasClipBoard);
+    let xOffset = 0, yOffset = 0;
+    if (itemsObj.unit) {
+        if (roomObj.unit != itemsObj.unit) {
+            alert('Copy from canvas clipboard unit mismatch. Items in clipboard are ' + itemsObj.unit + '. Current canvas is ' + unit + '. Change either source or destination units.');
+            return;
+        }
+    } else {
+        return;
+    }
+    let uuids = [];
+
+    if (duplicate) {
+        xOffset = (stage.width() * 0.04) / scale;
+        yOffset = (stage.height() * 0.04) / scale;
+    } else if (mouseUnit.x < (unit === 'feet' ? -1.5 : -0.45) || mouseUnit.y < (unit === 'feet' ? -1.5 : -0.45) || mouseUnit.x > (roomObj.room.roomWidth * 1.04) || mouseUnit.y > (roomObj.room.roomLength * 1.04)) {
+        /* if the mouse is off the canvas, don't paste */
+        return;
+    } else {
+        /* adjust paste offset based on tr captured location compared to the current mouse location. */
+        xOffset = mouseUnit.x - itemsObj.upperLeft.x;
+        yOffset = mouseUnit.y - itemsObj.upperLeft.y;
+    }
+
+    itemsObj.items.forEach(item => {
+
+        let uuid = createUuid();
+        uuids.push(uuid);
+        item.newAttr.x = item.newAttr.x + xOffset;
+        item.newAttr.y = item.newAttr.y + yOffset;
+
+        insertShapeItem(item.deviceId, item.parent, item.newAttr, uuid);
+
+    })
+
+    trNodesFromUuids(uuids, true);  /* select the newly pasted items */
+
+
+
+}
+
+
+
+
+function duplicateItems() {
+    copyToCanvasClipBoard();
+    pasteItems(true);
 }
 
 /* enter an array of UUIDs and select as part of trnodes */
@@ -3335,6 +4129,7 @@ function trNodesFromUuids(uuids, save = true) {
         uuids.forEach((uuid) => {
             trNodes.push(stage.find('#' + uuid)[0]);
         });
+
         tr.nodes(trNodes);
         enableCopyDelBtn();
         if (save) {
@@ -3344,11 +4139,18 @@ function trNodesFromUuids(uuids, save = true) {
         if (uuids.length === 1) {
             updateFormatDetails(uuids[0]);
         }
+
+        if (uuids.length === 1) {
+            snapCenterToIncrement(tr.nodes()[0]);
+        }
+
     }, 100);
 }
 
 function stageAddLayers() {
     stage.add(layerGrid);
+
+    stage.add(layerBackgroundImageFloor);
 
     layerTransform.add(grShadingCamera);
     layerTransform.add(groupTables);
@@ -3617,7 +4419,6 @@ function updateInsertVideoDeviceOptions() {
 
     let drpInsertVideoDevice = document.getElementById('drpInsertVideoDevice');
     videoDevices.forEach((device) => {
-        // let name = device.name + ' - Wide:' + device.wideHorizontalFOV + '\u00b0 Tele:' + device.teleHorizontalFOV + '\u00b0 ' + device.onePersonZoom + 'x ' + device.twoPersonZoom + 'x';
 
         let name = device.name;
 
@@ -3626,39 +4427,16 @@ function updateInsertVideoDeviceOptions() {
         drpInsertVideoDevice.add(drpOption, undefined);
     })
 
-    // drpInsertVideoDevice.value = 'ptz4k'; // Set the Room Bar Pro as the default device.
-
 }
 
-// updateInsertVideoDeviceOptions();
-
-// var camera = new Konva.Shape({
-//     x: 80,
-//     y: 120,
-//     fill: '#00D2FF',
-//     width: 100,
-//     height: 50,
-//     draggable: true,
-//     name: 'camera',
-//     id: 'camera-' + cameraNumber,
-//     sceneFunc: function (ctx, shape) {
-//         ctx.beginPath();
-//         // don't need to set position of rect, Konva will handle it
-//         ctx.rect(0, 0, shape.getAttr('width'), shape.getAttr('height'));
-//         // (!) Konva specific method, it is very important
-//         // it will apply are required styles
-//         ctx.fillStrokeShape(shape);
-//     }
-// });
 
 function sceneFuncPtz4k(ctx, shape) {
     ctx.beginPath();
     let width = shape.getAttr('width');
     let height = shape.getAttr('height');
-    // don't need to set position of rect, Konva will handle it
+    /* don't need to set position of rect, Konva will handle it */
     ctx.rect(0, 0, width, height * 0.65);
-    // (!) Konva specific method, it is very important
-    // it will apply are required styles
+    /* (!) Konva specific method, it is very important it will apply are required styles */
 
     ctx.fillStrokeShape(shape);
     ctx.moveTo(width * 0.3, height * 0.65);
@@ -3675,11 +4453,9 @@ function sceneFuncQuadCam(ctx, shape) {
     ctx.beginPath();
     let width = shape.getAttr('width');
     let height = shape.getAttr('height');
-    // don't need to set position of rect, Konva will handle it
+    /*  don't need to set position of rect, Konva will handle it */
     ctx.rect(0, 0, width, height * 0.65);
-    // (!) Konva specific method, it is very important
-    // it will apply are required styles
-
+    /* (!) Konva specific method, it is very important it will apply are required styles */
     ctx.fillStrokeShape(shape);
     ctx.moveTo(width * 0.4, height * 0.65);
     ctx.lineTo(width * 0.6, height * 0.65);
@@ -3704,24 +4480,78 @@ let camera = new Konva.Shape({
 
 camera.data_type = 'videoDevice';
 
+
+function getAttributes(device){
+    let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
+
+    if ('height' in device) {
+        attrObj.height = device.height;
+    }
+
+    if ('width' in device) {
+        attrObj.width = device.width;
+    }
+
+    if ('tblRectRadius' in device) {
+        attrObj.tblRectRadius = device.tblRectRadius;
+    }
+
+    if ('tblRectRadiusRight' in device) {
+        attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
+    }
+
+    if ('data_vHeight' in device && device.data_vHeight != '') {
+        attrObj.data_vHeight = device.data_vHeight;
+    }
+
+    if ('data_zPosition' in device && device.data_zPosition != '') {
+        attrObj.data_zPosition = device.data_zPosition;
+    }
+
+    if ('data_labelField' in device) {
+        attrObj.data_labelField = device.data_labelField;
+    }
+
+    if ('data_trapNarrowWidth' in device) {
+        attrObj.data_trapNarrowWidth = device.data_trapNarrowWidth;
+    }
+
+    if ('data_role' in device) {
+        attrObj.data_role = device.data_role;
+    }
+
+    if ('data_color' in device) {
+        attrObj.data_color = device.data_color;
+    }
+
+    if('data_diagonalInches' in device && device.data_diagonalInches){
+        attrObj.data_diagonalInches = device.data_diagonalInches;
+    }
+
+    return attrObj;
+
+}
+
 function roomObjToCanvas(roomObjItems) {
 
     layerTransform.data_scale = scale;
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
 
+
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-            insertShapeItem(device.data_deviceid, 'videoDevices', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
-
+           let attrObj = getAttributes(device);
+           insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
         }
     }
 
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'microphones', attrObj, device.id);
 
         }
     }
@@ -3729,7 +4559,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
 
-            insertShapeItem(device.data_deviceid, 'microphones', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
 
         }
     }
@@ -3737,7 +4568,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
 
-            insertShapeItem(device.data_deviceid, 'displays', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition, data_diagonalInches: device.data_diagonalInches }, device.id);
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
 
         }
     }
@@ -3745,7 +4577,9 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
 
-            insertShapeItem(device.data_deviceid, 'chairs', { x: device.x, y: device.y, rotation: device.rotation, data_zPosition: device.data_zPosition }, device.id);
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
+
 
         }
     }
@@ -3753,32 +4587,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
 
-            let attrObj = { x: device.x, y: device.y, rotation: device.rotation  }
-
-            if ('height' in device) {
-                attrObj.height = device.height;
-            }
-
-            if ('width' in device) {
-                attrObj.width = device.width;
-            }
-
-            if ('tblRectRadius' in device) {
-                attrObj.tblRectRadius = device.tblRectRadius;
-            }
-
-            if ('tblRectRadiusRight' in device) {
-                attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
-            }
-
-            if ('data_vHeight' in device){
-                attrObj.data_vHeight = device.data_vHeight;
-            }
-
-            if ('data_zPosition' in device){
-                attrObj.data_zPosition = device.data_zPosition;
-            }
-
+            let attrObj = getAttributes(device);
             insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
 
         }
@@ -3794,14 +4603,29 @@ function canvasToJson() {
 
     transformGroups.forEach((group) => {
         let groupName = group.name();
-        /* ignore the shading and the temporary groups */
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+        /* ignore the shading and the temporary groups - and the guide-line if not destroyed yet */
+        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker' || groupName === 'guide-line')) {
             getNodesJson(group);
         }
 
     })
-    trNodesUuidToRoomObj();
 
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (konvaBackgroundImageFloor && konvaBackgroundImageFloor.attrs.name) {
+        roomObj.backgroundImage = {};
+        roomObj.backgroundImage.name = konvaBackgroundImageFloor.attrs.name;
+        roomObj.backgroundImage.x = ((konvaBackgroundImageFloor.attrs.x - pxOffset) / scale);
+
+        roomObj.backgroundImage.y = ((konvaBackgroundImageFloor.attrs.y - pyOffset) / scale);
+        roomObj.backgroundImage.width = konvaBackgroundImageFloor.width() / scale;
+        roomObj.backgroundImage.height = konvaBackgroundImageFloor.height() / scale;
+        roomObj.backgroundImage.id = konvaBackgroundImageFloor.attrs.id;
+        roomObj.backgroundImage.opacity = document.getElementById('transparencySlider').value;
+        roomObj.backgroundImage.rotation = konvaBackgroundImageFloor.rotation();
+    }
+
+    trNodesUuidToRoomObj();
 
     setTimeout(() => {
         isQuickSetupEnabled();
@@ -3825,8 +4649,6 @@ function canvasToJson() {
                 element.rotation(0);
             }
 
-
-
             let rotation = attrs.rotation;
 
             if (groupName === 'tables') {
@@ -3837,7 +4659,6 @@ function canvasToJson() {
                 x = center.x;
                 y = center.y;
             }
-
 
             itemAttr = {
                 x: ((x - pxOffset) / scale),
@@ -3851,8 +4672,6 @@ function canvasToJson() {
 
             if ('cornerRadius' in attrs) {
                 if (attrs.cornerRadius.length > 1) {
-
-
                     itemAttr.tblRectRadius = round(attrs.cornerRadius[2] / scale);
                     if (attrs.cornerRadius[0] != attrs.cornerRadius[2]) {
                         itemAttr.tblRectRadiusRight = round(attrs.cornerRadius[0] / scale);
@@ -3867,34 +4686,57 @@ function canvasToJson() {
 
             if ('data_zPosition' in element) {
                 itemAttr.data_zPosition = element.data_zPosition;
-            } else {
-                itemAttr.data_zPosition = "";
             }
 
             if ('data_vHeight' in element) {
                 itemAttr.data_vHeight = element.data_vHeight;
-            } else {
-                itemAttr.data_vHeight = "";
             }
 
             if (groupName === 'tables') {
                 itemAttr.width = (attrs.width / scale);
                 itemAttr.height = (attrs.height / scale);
             }
+
+            if ('name' in attrs) {
+                itemAttr.name = attrs.name;
+            }
+
+            if ('data_labelField' in element) {
+                if (element.data_labelField != '') {
+                    itemAttr.data_labelField = element.data_labelField;
+                }
+            }
+
+            if ('data_trapNarrowWidth' in element) {
+                if (element.data_trapNarrowWidth != '') {
+                    itemAttr.data_trapNarrowWidth = element.data_trapNarrowWidth;
+                } else {
+                    itemAttr.data_trapNarrowWidth = 0;
+                }
+            }
+
+            if ('data_role' in element) {
+                itemAttr.data_role = element.data_role;
+            }
+
+            if ('data_color' in element) {
+                itemAttr.data_color = element.data_color;
+            }
+
             roomObj.items[groupName].push(itemAttr);
 
         });
 
     }
 
-    console.log(JSON.stringify(roomObj, null, 5));
+    // console.log('canvasToJson() roomObj', roomObj);
+    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(() => {
         saveToUndoArray();
         createShareableLink();
     }, undoArrayTimeDelta)
-
 
 }
 
@@ -3943,11 +4785,19 @@ function saveToUndoArray() {
         undoArray.shift();
     }
 
+    localStorage.setItem('undoArray', JSON.stringify(undoArray));
+
+
+    if (workspaceWindow) {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }
+
+
 }
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
-    let table, data_zPosition, data_vHeight;
+    let table, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
     let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
     let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
     let pixelX = scale * attrs.x + pxOffset;
@@ -3955,8 +4805,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     let opacity = 0.8;
     let wallWidth = 0.1 * scale; // 0.1 to 0.166
     let uShapeWidth = 0.85 * scale;
-    let defaultWallHeight = 2.5;
     let unitScale;
+    let tblSchoolDeskRadius = 0.122;
     let radius = [];
 
     let fillColor = 'brown'; /* default color */
@@ -3970,14 +4820,39 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2.5 * scale;
         height = 3.4 * scale;
     }
+    else if (insertDevice.id.startsWith('box')) {
+        width = 1 * scale;
+        height = 1 * scale;
+    }
+    else if (insertDevice.id.startsWith('tblSchoolDesk')) {
+        width = 1.4 * scale;
+        height = 0.59 * scale;
+    }
+    else if (insertDevice.id.startsWith('tblPodium')) {
+        width = 0.9 * scale;
+        height = 0.9 * scale;
+    }
+
+    if ('data_vHeight' in attrs) {
+        data_vHeight = attrs.data_vHeight;
+    }
+
+    if (insertDevice.id.startsWith('box') && !data_vHeight) {
+
+        if (unit === 'feet') {
+            data_vHeight = 3.28;
+        } else {
+            data_vHeight = 1;
+        }
+    }
 
     if (unit === 'feet') {
         width = width * 3.28084;
         wallWidth = wallWidth * 3.28084;
         height = height * 3.28084;
-        uShapeWidth = uShapeWidth * 3.2804;
-        defaultWallHeight = round(defaultWallHeight * 3.2804);
-        unitScale = scale * 3.2804;
+        uShapeWidth = uShapeWidth * 3.28084;
+        unitScale = scale * 3.28084;
+        tblSchoolDeskRadius = tblSchoolDeskRadius * 3.28084;
     } else {
         unitScale = scale;
     }
@@ -3995,9 +4870,36 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         radius[1] = attrs.tblRectRadiusRight * scale;
     }
 
+    if (insertDevice.id === 'tblSchoolDesk') {
+        radius[0] = 0;
+        radius[1] = 0;
+        radius[2] = tblSchoolDeskRadius * scale;
+        radius[3] = tblSchoolDeskRadius * scale;
+    }
+
     if ('width' in attrs) {
         width = attrs.width * scale;
     }
+
+    if (insertDevice.id === 'tblTrap') {
+        if ('data_trapNarrowWidth' in attrs) {
+            width2 = attrs.data_trapNarrowWidth * scale;
+        } else {
+            data_trapNarrowWidth = 0.8; /* default width2 in meters */
+            if (unit === 'feet') {
+                data_trapNarrowWidth = round(data_trapNarrowWidth * 3.2804);
+            }
+
+            attrs.data_trapNarrowWidth = data_trapNarrowWidth;
+
+            width2 = data_trapNarrowWidth * scale;
+        }
+
+        if (width2 > width) {
+            width2 = width;
+        }
+    }
+
 
     if ('height' in attrs) {
         height = attrs.height * scale;
@@ -4013,19 +4915,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         data_zPosition = attrs.data_zPosition;
 
     } else {
-        data_zPosition = "";
-    }
-
-    if ('data_vHeight' in attrs) {
-        data_vHeight = attrs.data_vHeight;
-    } else {
-        data_vHeight = "";
-    }
-
-    if (insertDevice.id.startsWith('wall') || insertDevice.id.startsWith('column')) {
-        if (data_vHeight == 0 || data_vHeight == "") {
-            data_vHeight = defaultWallHeight;
-        }
+        data_zPosition = '';
     }
 
     if (insertDevice.id === 'tblRect') {
@@ -4043,8 +4933,40 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
         });
+    }
 
+    if (insertDevice.id === 'tblSchoolDesk') {
+        table = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            opacity: opacity,
+        });
+    }
 
+    if (insertDevice.id === 'tblRect') {
+        table = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            opacity: opacity,
+        });
     }
 
     if (insertDevice.id === 'tblEllip') {
@@ -4068,14 +4990,32 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.fillStrokeShape(shape);
             }
         });
-
     }
 
-    let width2 = 0.8; /* in meters */
-    if (unit === 'feet') {
-        width2 = 3.28 * width2;
+    /* a podium in s just an ellipse with a set width & height (length) */
+    if (insertDevice.id === 'tblPodium') {
+        table = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+            sceneFunc: (context, shape) => {
+                context.beginPath();
+                /* don't need to set position of ellipse, Konva will handle it */
+                context.ellipse(shape.getAttr('width') / 2, shape.getAttr('height') / 2, shape.getAttr('width') / 2, shape.getAttr('height') / 2, 0, 0, 2 * Math.PI);
+                /* (!) Konva specific method, it is very important - it will apply are required styles */
+                context.fillStrokeShape(shape);
+            }
+        });
     }
-    width2 = width2 * scale;
+
 
     if (insertDevice.id === 'tblTrap') {
         table = new Konva.Shape({
@@ -4097,9 +5037,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(width, 0);
-                // ctx.lineTo(width * 0.7, height);
-                // ctx.lineTo(width * 0.3, height);
-
                 ctx.lineTo((width / 2) + (width2 / 2), height);
                 ctx.lineTo((width / 2) - (width2 / 2), height);
                 ctx.closePath(0, 0);
@@ -4152,6 +5089,22 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+    if (insertDevice.id === 'box') {
+        table = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#FFFFFF99',
+            stroke: 'black',
+            strokeWidth: 2,
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            dash: [7, 5]
+        });
+    }
 
     if (insertDevice.id === 'wallStd') {
         table = new Konva.Shape({
@@ -4211,6 +5164,45 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
 
+    if (insertDevice.id === 'wallWindow') {
+        table = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: wallWidth,
+            height: height,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: 0.8,
+            sceneFunc: (ctx, shape) => {
+                ctx.beginPath();
+                let height = shape.height();
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(wallWidth, 0);
+
+                ctx.lineTo(wallWidth, height);
+                ctx.lineTo(0, height);
+                ctx.closePath(0, 0);
+                ctx.fillStrokeShape(shape);
+            }
+        });
+
+        const windowBackgroundObj = new Image();
+
+        windowBackgroundObj.onload = () => {
+            table.fillPatternImage(windowBackgroundObj);
+            table.fillPatternRepeat('repeat');
+            table.fillPatternOffset({ x: 8, y: 0 });
+        };
+        windowBackgroundObj.src = './assets/wallWindowBackground.png';
+
+    }
+
+
+
     if (insertDevice.id === 'columnRect') {
         table = new Konva.Rect({
             x: pixelX,
@@ -4234,7 +5226,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     table.data_vHeight = data_vHeight;
 
+    table.data_labelField = attrs.data_labelField;
+
+    table.data_trapNarrowWidth = attrs.data_trapNarrowWidth;
+
     table.perfectDrawEnabled(perfectDrawEnabled);
+
+    if ('data_role' in attrs) {
+        table.data_role = attrs.data_role;
+    }
+
+    if ('data_color' in attrs) {
+        table.data_color = attrs.data_color;
+    }
 
     if ('scaleX' in attrs) {
         table.scaleX = attrs.scaleX;
@@ -4256,26 +5260,28 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (selectTrNode) {
-        // tr.resizeEnabled(true);
-        // resizeTableOrWall();
         tr.nodes([table]);
         enableCopyDelBtn();
         /* add delay before updateFormatDetails to give time for object to be inserted and roomObj JSON to be updated */
         setTimeout(() => {
             resizeTableOrWall();
-            // tr.nodes([table]);
             updateFormatDetails(uuid)
         }, 250);
     }
 
     table.on('dragmove', function (e) {
 
+        snapToGuideLines(e);
+
+        snapCenterToIncrement(table);
+
+
+
         if (!tr.nodes().includes(e.target)) {
             tr.nodes([e.target]);
             enableCopyDelBtn();
             /* tables and other objects maybe resizable. */
             if (e.target.getParent() === groupTables) {
-                // tr.resizeEnabled(true);
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -4290,10 +5296,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     });
 
-    table.on('transformend', function (e) {
-        console.log('transformend');
-        if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML */
+    table.on('dragend', function (e) {
+        layerTransform.find('.guide-line').forEach((l) => l.destroy());
+    });
 
+    table.on('transformend', function (e) {
+        if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
 }
@@ -4312,6 +5320,42 @@ function findUpperLeftXY(shape) {
     };
 }
 
+function findNewTransformationCoordinate(shape, deltaX, deltaY) {
+    return {
+        x:
+            shape.x
+            - (deltaX) * Math.cos(Math.PI / 180 * shape.rotation)
+            - (deltaY) * Math.sin(Math.PI / 180 * (-shape.rotation)),
+        y:
+            shape.y -
+            (deltaY) * Math.cos(Math.PI / 180 * shape.rotation) -
+            (deltaX) * Math.sin(Math.PI / 180 * shape.rotation)
+    };
+}
+
+function updateKonvaBackgroundImageFloor() {
+
+
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (!konvaBackgroundImageFloor) {
+        return;
+    }
+
+    let oldScale, oldPxOffset, oldPyOffset;
+    oldScale = layerTransform.data_scale;
+    oldPxOffset = layerTransform.data_pxOffset;
+    oldPyOffset = layerTransform.data_pyOffset;
+
+    konvaBackgroundImageFloor.x(pxOffset + ((scale / oldScale) * (konvaBackgroundImageFloor.x() - oldPxOffset)));
+
+    konvaBackgroundImageFloor.y(pxOffset + ((scale / oldScale) * (konvaBackgroundImageFloor.y() - oldPyOffset)));
+
+    konvaBackgroundImageFloor.height(scale / oldScale * konvaBackgroundImageFloor.height());
+
+    konvaBackgroundImageFloor.width(scale / oldScale * konvaBackgroundImageFloor.width());
+}
+
 /*
     Take an item and insert into proper layerTransform group.
     deviceId e.g. roomBar found in devices.
@@ -4324,12 +5368,15 @@ function updateShapesBasedOnNewScale() {
     nodeNumber += 1;
     let oldScale, oldPxOffset, oldPyOffset;
     /* data_scale keeps track of the scale of the stage related to units of metric/feet */
+
     if (!('data_scale' in stage)) {
         oldScale = layerTransform.data_scale;
         oldPxOffset = layerTransform.data_pxOffset;
         oldPyOffset = layerTransform.data_pyOffset;
 
         updateNodeScale(layerTransform);
+
+        updateKonvaBackgroundImageFloor();
 
         function updateNodeScale(layer) {
 
@@ -4399,8 +5446,8 @@ function updateShapesBasedOnNewScale() {
 /* Item is updated after clicking Update item on web page from Details tab */
 function updateItem() {
     let width = document.getElementById('itemWidth').value;
-    let heigth = document.getElementById('itemLength').value;
-    let data_diagonalInches = document.getElementById('itemDiagnoalTv').value;
+    let height = document.getElementById('itemLength').value;
+    let data_diagonalInches = document.getElementById('itemDiagonalTv').value;
     let x = document.getElementById('itemX').value;
     let y = document.getElementById('itemY').value;
 
@@ -4417,6 +5464,10 @@ function updateItem() {
 
     let tblRectRadiusRight = document.getElementById('tblRectRadiusRight').value;
 
+    let data_labelField = document.getElementById('labelField').value;
+
+    let data_trapNarrowWidth = document.getElementById('trapNarrowWidth').value;
+
     /* Make the button disabled for a short time.  Pushing the button too fast too many times creates an issue where Canvas data is lost */
     document.getElementById("btnUpdateItemId").disabled = true;
 
@@ -4426,7 +5477,7 @@ function updateItem() {
     }, 700);
 
     /* take the item.id from the web page and find it in the RoomObj json. The Canvas shape
-        gets deleted and rebuilt versus updated */
+        really gets deleted and rebuilt versus updated */
     roomObj.items[parentGroup].forEach((item, index) => {
 
 
@@ -4444,7 +5495,7 @@ function updateItem() {
             }
 
             if ('height' in item) {
-                item.height = heigth;
+                item.height = height;
             }
 
             if (parentGroup === 'displays') {
@@ -4452,12 +5503,38 @@ function updateItem() {
             };
 
             if ('data_diagonalInches' in item) {
+
                 item.data_diagonalInches = data_diagonalInches;
+
+                if(data_diagonalInches === '' || data_diagonalInches < 5){
+                    item.data_diagonalInches = 75
+                }
+
+                if(item.data_deviceid.startsWith('roomKitEqx') && ((Number(data_diagonalInches) > 85) || Number(data_diagonalInches) < 65 )){
+                   item.data_diagonalInches = 75;
+                }
+            }
+
+            if (document.getElementById('drpRole').options.length > 0) {
+
+                item.data_role = {};
+                item.data_role.value = document.getElementById('drpRole').value;
+                item.data_role.index = document.getElementById('drpRole').selectedIndex;
+            }
+
+            if (document.getElementById('drpColor').options.length > 0) {
+
+                item.data_color = {};
+                item.data_color.value = document.getElementById('drpColor').value;
+                item.data_color.index = document.getElementById('drpColor').selectedIndex;
             }
 
             if (item.data_deviceid === 'tblRect') {
                 if (tblRectRadius != '') {
                     item.tblRectRadius = tblRectRadius;
+                }
+                else if ('tblRectRadius' in item) {
+                    delete item.tblRectRadius;
                 }
 
                 if (tblRectRadiusRight != '') {
@@ -4466,11 +5543,47 @@ function updateItem() {
                         item.tblRectRadius = 0;
                     }
                 }
+                else if ('tblRectRadiusRight' in item) {
+                    delete item.tblRectRadiusRight;
+                }
             }
 
-            item.data_zPosition = data_zPosition;
+            if (data_labelField) {
+                item.data_labelField = data_labelField;
+            } else if ('data_labelField' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
+                delete item.data_labelField;
+            }
 
-            item.data_vHeight = data_vHeight;
+            if (item.data_deviceid === 'tblTrap') {
+
+
+                if (data_trapNarrowWidth) {
+                    item.data_trapNarrowWidth = data_trapNarrowWidth;
+                    if (data_trapNarrowWidth == 0) {
+                        data_trapNarrowWidth = 0.01;
+                        item.data_trapNarrowWidth = data_trapNarrowWidth;
+                    }
+                } else {
+                    data_trapNarrowWidth = 0.01;
+                    item.data_trapNarrowWidth = data_trapNarrowWidth;
+                }
+            }
+
+
+            if (data_zPosition) {
+                item.data_zPosition = data_zPosition;
+            }
+            else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
+                delete item.data_zPosition;
+            }
+
+            if (data_vHeight) {
+                item.data_vHeight = data_vHeight;
+            }
+            else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+                delete item.data_vHeight;
+            }
+
 
             item.rotation = rotation;
 
@@ -4568,15 +5681,15 @@ function deleteNegativeShapes() {
 
             let corners = [];
 
-            // Now get the 4 corner points
+            /* Now get the 4 corner points */
             corners[0] = { x: 0, y: 0 }; // top left
             corners[1] = { x: width, y: 0 }; // top right
             corners[2] = { x: width, y: height }; // bottom right
             corners[3] = { x: 0, y: height }; // bottom left
 
-            // And rotate the corners using the same transform as the rect.
+            /* And rotate the corners using the same transform as the rect. */
             for (let i = 0; i < 4; i++) {
-                // Here be the magic
+                /* Here be the magic */
                 corners[i] = node.getAbsoluteTransform().point(corners[i]); // top left
 
             }
@@ -4604,7 +5717,7 @@ function deleteNegativeShapes() {
 
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
 
-    let hitStrokeWidth = 15; /* px:  always the user to be close within X pixels to click on shape */
+    let hitStrokeWidth = 15; /* px:  allows the user to be close within X pixels to click on shape */
 
     /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
     if (uuid === '') {
@@ -4720,7 +5833,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     }
 
     tr.resizeEnabled(false);
-    // convert mm to meters * scale
+    /* convert mm to meters * scale */
     width = insertDevice.width / 1000 * scale;
 
     height = insertDevice.depth / 1000 * scale;
@@ -4736,7 +5849,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         rotation = 0;
     }
 
-    // need to move Display calculations here:
+    /* should move Display calculations here */
     let data_diagonalInches = 0;
 
 
@@ -4751,7 +5864,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     if ('data_zPosition' in attrs) {
         data_zPosition = attrs.data_zPosition;
     } else {
-        data_zPosition = "";
+        if ('defaultVert' in insertDevice) {
+            data_zPosition = insertDevice.defaultVert / 1000;
+            if (unit === 'feet') {
+                data_zPosition = data_zPosition * 3.28084;
+            }
+            data_zPosition = round(data_zPosition);
+            attrs.data_zPosition = data_zPosition;
+        } else {
+            data_zPosition = "";
+        }
     }
 
     if ('data_vHeight' in attrs) {
@@ -4759,17 +5881,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     } else {
         data_vHeight = "";
     }
-
     /*
         Calculate width of displays based on Diagonal inches.
     */
     let displayNumber = 1;
-    if (groupName === 'displays') {
+    if (groupName === 'displays' || deviceId.startsWith('roomKitEqx')) {
 
         if (deviceId === 'displaySngl') {
             displayNumber = 1;
         }
-        else if (deviceId === 'displayDbl') {
+        else if (deviceId === 'displayDbl' || deviceId.startsWith('roomKitEqx')) {
             displayNumber = 2;
         }
         else if (deviceId === 'displayTrpl') {
@@ -4778,12 +5899,16 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
 
-        height = displayDepth / 1000 * scale;  /* height is displayDepth, which is constant regardless of diagnol inches */
+
+        if (!deviceId.startsWith('roomKitEqx')){
+            height = displayDepth / 1000 * scale;  /* height is displayDepth, which is constant regardless of diagnol inches. roomKitEqx width is set in the videoDevices object */
+        }
 
         if (unit === 'feet') {
             width = width * 3.28084;
-            height = height * 3.28084;
+            if(!deviceId.startsWith('roomKitEqx')) height = height * 3.28084;
         }
+
 
     }
 
@@ -4793,29 +5918,30 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         Items that are displays and table items should not be scaled.
     */
 
-    /* */
+    /*
 
-    // if (groupName === 'videoDevices' || groupName === 'microphones') {
-
-
-    //     let scaleMin = 60;
-    //     let scaleMinFactor = 1;
-    //     if (unit === 'meters') {
-    //         scaleMin = scaleMin * 3.28084;
-    //     }
-    //     if (scale < scaleMin) {
-
-    //         if (!('data_diagonalInches' in attrs)) {
-    //             scaleMinFactor = scaleMin / scale;
-    //             width = width * scaleMinFactor;
-    //             height = height * scaleMinFactor;
-    //         }
-    //     }
-    // }
-    /* */
+    if (groupName === 'videoDevices' || groupName === 'microphones') {
 
 
-    //convert to upper left pixel position before conversion
+        let scaleMin = 60;
+        let scaleMinFactor = 1;
+        if (unit === 'meters') {
+            scaleMin = scaleMin * 3.28084;
+        }
+        if (scale < scaleMin) {
+
+            if (!('data_diagonalInches' in attrs)) {
+                scaleMinFactor = scaleMin / scale;
+                width = width * scaleMinFactor;
+                height = height * scaleMinFactor;
+            }
+        }
+    }
+
+    */
+
+
+    /* convert to upper left pixel position before conversion */
     let cornerXY = findUpperLeftXY({ x: pixelX, y: pixelY, rotation: rotation, width: width, height: height });
 
 
@@ -4832,17 +5958,17 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: rotation,
         });
 
-        imageItem.hitStrokeWidth(hitStrokeWidth); // don't need to be close to the image to be selected
+        imageItem.hitStrokeWidth(hitStrokeWidth); /* don't need to be close to the image to be selected */
 
         imageItem.data_deviceid = deviceId;
 
-        /* on a refresh of the page, make sure person is over the chair */
+        /* on a refresh of the page, make sure person is over the chair.  This isn't working, need to figure out why. */
         if (imageItem.data_deviceid.startsWith('person')) {
-            imageItem.zIndex(groupChairs.getChildren().length - 1);
+           imageItem.zIndex(groupChairs.getChildren().length - 1);
         }
 
-        if (imageItem.data_deviceid.startsWith('chair')) {
-            imageItem.zIndex(0);
+        if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door')) {
+           imageItem.zIndex(0);
         }
 
 
@@ -4858,13 +5984,26 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.data_diagonalInches = data_diagonalInches;
         }
 
-        if ('data_zPosition' in attrs) {
+        if ('data_zPosition' in attrs && attrs.data_zPosition != '') {
             imageItem.data_zPosition = data_zPosition;
         }
 
-        if ('data_vHeight' in attrs) {
+        if ('data_vHeight' in attrs && attrs.data_vHeight != '') {
             imageItem.data_vHeight = data_vHeight;
         }
+
+        if ('data_labelField' in attrs) {
+            imageItem.data_labelField = attrs.data_labelField;
+        }
+
+        if ('data_role' in attrs) {
+            imageItem.data_role = attrs.data_role; /* data_role.value & data_role.index */
+        }
+
+        if ('data_color' in attrs) {
+            imageItem.data_color = attrs.data_color; /* data_color.value & data_color.index */
+        }
+
 
         if ('name' in insertDevice) {
             imageItem.name(insertDevice.name);
@@ -4876,6 +6015,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('dragend', function () {
 
+            layerTransform.find('.guide-line').forEach((l) => l.destroy());
             canvasToJson();
         });
 
@@ -4884,7 +6024,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
         imageItem.on('dragmove', function (e) {
+
+            snapCenterToIncrement(imageItem);
+
+            snapToGuideLines(e);
+
             updateShading(imageItem);
+
 
             /* in case the dragged item is not the tr.node, make it the tr.node */
 
@@ -4893,7 +6039,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 enableCopyDelBtn();
                 /* tables and other objects maybe resizable. */
                 if (e.target.getParent() === groupTables) {
-                    // tr.resizeEnabled(true);
                     resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
@@ -4910,7 +6055,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('mousedown touchstart', function (e) {
 
-            if (panScrollableOn) {
+            if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
                 e.evt.preventDefault();
                 return;
             }
@@ -4931,7 +6076,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
-        // add the shape to the layer
+        /* add the shape to the layer */
         group.add(imageItem);
         updateShading(imageItem);
 
@@ -4967,6 +6112,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             teleAngle = insertDevice.wideHorizontalFOV;
         } else {
             teleAngle = insertDevice.teleHorizontalFOV;
+        }
+
+        /* Show narrow field of FOV based on field view for the ptz 4k camera when  */
+        if ('data_role' in attrs && attrs.data_role && (attrs.data_role.value === 'extended_reach' || attrs.data_role.value === 'presentertrack')) {
+            insertDevice = { ...insertDevice, ...ptz4kNarrowFov }
+            teleAngle = ptz4kNarrowFov.teleHorizontalFOV;
         }
 
         let onePersonCrop = defaultOnePersonCrop;
@@ -5235,6 +6386,342 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 }
 
 
+
+/* snap the center of the node to the increment. */
+function snapCenterToIncrement(node) {
+    if (tr.nodes().length === 1) {
+
+        let snapIncrement = Number(document.getElementById('snapToIncrement').value);
+        let snapIncrementCheckBox = document.getElementById('snapIncrementCheckBox');
+
+        if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
+            snapIncrement = 0.25;
+            document.getElementById('snapToIncrement').value = snapIncrement;
+        }
+
+        if (snapIncrementCheckBox.checked) {
+
+            /* get the center of the node in pixels */
+            let pixelXY = getShapeCenter(node);
+
+            /* convert pixels to feet/meters */
+            let x = (pixelXY.x - pxOffset) / scale;
+            let y = (pixelXY.y - pyOffset) / scale;
+
+            /* round to increment */
+            let newX = Math.round(x / snapIncrement) * snapIncrement;
+            let newY = Math.round(y / snapIncrement) * snapIncrement;
+
+            /* get delta of new position - old position */
+            let deltaX = newX - x;
+            let deltaY = newY - y;
+
+            /* convert the delta back to pixels */
+            let deltaPixelX = ((deltaX) * scale);
+            let deltaPixelY = ((deltaY) * scale);
+
+            /* add the delta back to the original node */
+            node.x(node.x() + deltaPixelX);
+            node.y(node.y() + deltaPixelY);
+
+        }
+    }
+}
+
+
+/* snap to object start */
+
+/* were can we snap our objects? */
+function getLineGuideStops(skipShape) {
+    /* we can snap to stage borders and the center of the stage */
+
+    let outerWall = stage.find("#cOuterWall")[0];
+    let outerBox = outerWall.getClientRect();
+    let vertical = [outerBox.x, outerBox.x + outerBox.width / 2, outerBox.x + outerBox.width];
+    let horizontal = [outerBox.y, outerBox.y + outerBox.height / 2, outerBox.y + outerBox.height];
+
+    /* Go through objects on the primary layer.  Only return draggable() items.  and we snap over edges and center of each object on the canvas */
+    layerTransform.find(
+        node => {
+            let groupName = node.getParent().name();
+            /* ignore the shading and the temporary groups */
+            if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+                return node.draggable();
+            }
+
+        }
+    ).forEach((guideItem) => {
+        if (guideItem === skipShape) {
+            return;
+        }
+        let box = guideItem.getClientRect();
+        /* and we can snap to all edges of shapes */
+        vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
+        horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
+    });
+
+
+    return {
+        vertical: vertical.flat(),
+        horizontal: horizontal.flat(),
+    };
+}
+
+
+
+/* what points of the object will trigger to snapping?
+ it can be just center of the object but we will enable all edges and center */
+function getObjectSnappingEdges(node) {
+    let box = node.getClientRect();
+    let absPos = node.absolutePosition();
+
+    return {
+        vertical: [
+            {
+                guide: Math.round(box.x),
+                offset: Math.round(absPos.x - box.x),
+                snap: 'start',
+            },
+            {
+                guide: Math.round(box.x + box.width / 2),
+                offset: Math.round(absPos.x - box.x - box.width / 2),
+                snap: 'center',
+            },
+            {
+                guide: Math.round(box.x + box.width),
+                offset: Math.round(absPos.x - box.x - box.width),
+                snap: 'end',
+            },
+        ],
+        horizontal: [
+            {
+                guide: Math.round(box.y),
+                offset: Math.round(absPos.y - box.y),
+                snap: 'start',
+            },
+            {
+                guide: Math.round(box.y + box.height / 2),
+                offset: Math.round(absPos.y - box.y - box.height / 2),
+                snap: 'center',
+            },
+            {
+                guide: Math.round(box.y + box.height),
+                offset: Math.round(absPos.y - box.y - box.height),
+                snap: 'end',
+            },
+        ],
+    };
+}
+
+/* find all snapping possibilities */
+function getGuides(lineGuideStops, itemBounds) {
+    let resultV = [];
+    let resultH = [];
+
+    lineGuideStops.vertical.forEach((lineGuide) => {
+        itemBounds.vertical.forEach((itemBound) => {
+            let diff = Math.abs(lineGuide - itemBound.guide);
+            /* if the distance between guild line and object snap point is close we can consider this for snapping */
+            if (diff < GUIDELINE_OFFSET) {
+                resultV.push({
+                    lineGuide: lineGuide,
+                    diff: diff,
+                    snap: itemBound.snap,
+                    offset: itemBound.offset,
+                });
+            }
+        });
+    });
+
+    lineGuideStops.horizontal.forEach((lineGuide) => {
+        itemBounds.horizontal.forEach((itemBound) => {
+            let diff = Math.abs(lineGuide - itemBound.guide);
+            if (diff < GUIDELINE_OFFSET) {
+                resultH.push({
+                    lineGuide: lineGuide,
+                    diff: diff,
+                    snap: itemBound.snap,
+                    offset: itemBound.offset,
+                });
+            }
+        });
+    });
+
+    let guides = [];
+
+    /* find closest snap */
+    let minV = resultV.sort((a, b) => a.diff - b.diff)[0];
+    let minH = resultH.sort((a, b) => a.diff - b.diff)[0];
+    if (minV) {
+        guides.push({
+            lineGuide: minV.lineGuide,
+            offset: minV.offset,
+            orientation: 'V',
+            snap: minV.snap,
+        });
+    }
+    if (minH) {
+        guides.push({
+            lineGuide: minH.lineGuide,
+            offset: minH.offset,
+            orientation: 'H',
+            snap: minH.snap,
+        });
+    }
+    return guides;
+}
+
+
+function snapToGuideLines(e) {
+
+    if (!document.getElementById('snapGuidelinesCheckBox').checked) return; /* bail out if snap to guidelines not turned on */
+
+    if (tr.nodes().length != 1) return;  /* only work if one node */
+
+    layerTransform.find('.guide-line').forEach((l) => l.destroy());
+
+    /* find possible snapping lines */
+    let lineGuideStops = getLineGuideStops(e.target);
+    /* find snapping points of current object */
+    let itemBounds = getObjectSnappingEdges(e.target);
+
+    /* now find where can we snap current object */
+    let guides = getGuides(lineGuideStops, itemBounds);
+
+    /* do nothing of no snapping */
+    if (!guides.length) {
+        return;
+    }
+
+    drawSnapGuides(guides);
+
+    let absPos = e.target.absolutePosition();
+    /* now force object position */
+    guides.forEach((lg) => {
+        switch (lg.orientation) {
+            case 'V': {
+                absPos.x = lg.lineGuide + lg.offset;
+                break;
+            }
+            case 'H': {
+                absPos.y = lg.lineGuide + lg.offset;
+                break;
+            }
+        }
+    });
+    e.target.absolutePosition(absPos);
+}
+
+function drawSnapGuides(guides) {
+    guides.forEach((lg) => {
+        if (lg.orientation === 'H') {
+            let line = new Konva.Line({
+                points: [-6000, 0, 6000, 0],
+                stroke: 'rgb(247, 0, 255)',
+                strokeWidth: 1,
+                name: 'guide-line',
+                dash: [4, 6],
+            });
+            layerTransform.add(line);
+            line.absolutePosition({
+                x: 0,
+                y: lg.lineGuide,
+            });
+        } else if (lg.orientation === 'V') {
+            let line = new Konva.Line({
+                points: [0, -6000, 0, 6000],
+                stroke: 'rgb(247, 0, 255)',
+                strokeWidth: 1,
+                name: 'guide-line',
+                dash: [4, 6],
+            });
+            layerTransform.add(line);
+            line.absolutePosition({
+                x: lg.lineGuide,
+                y: 0,
+            });
+        }
+    });
+}
+
+function defaultUnitChange(e) {
+    if (e.srcElement.checked) {
+        localStorage.setItem('useDefaultUnitCheckBox', 'true');
+    } else {
+        localStorage.setItem('useDefaultUnitCheckBox', 'false');
+    }
+    saveToUndoArray();
+}
+
+function updateRemoveDefaultWallsCheckBox() {
+    document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
+    document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
+}
+
+function removeDefaultWallsChange(e) {
+    if (e.srcElement.checked) {
+        roomObj.workspace.removeDefaultWalls = true;
+    } else {
+        roomObj.workspace.removeDefaultWalls = false;
+    }
+    saveToUndoArray();
+}
+
+addCeilingChange
+
+function addCeilingChange(e) {
+    if (e.srcElement.checked) {
+        roomObj.workspace.addCeiling = true;
+    } else {
+        roomObj.workspace.addCeiling = false;
+    }
+    saveToUndoArray();
+}
+
+function snapChange(e) {
+
+    if (e.srcElement.id === 'snapGuidelinesCheckBox' && e.srcElement.checked) {
+        document.getElementById('snapIncrementCheckBox').checked = false;
+        localStorage.setItem('snapGuidelinesCheckBox', 'true');
+    }
+
+    if (e.srcElement.id === 'snapIncrementCheckBox' && e.srcElement.checked) {
+        document.getElementById('snapGuidelinesCheckBox').checked = false;
+
+    }
+
+    if (document.getElementById('snapIncrementCheckBox').checked) {
+        document.getElementById('snapToIncrement').disabled = false;
+        localStorage.setItem('snapIncrementCheckBox', 'true');
+    } else {
+        document.getElementById('snapToIncrement').disabled = true;
+        localStorage.setItem('snapIncrementCheckBox', 'false');
+    }
+
+    if (document.getElementById('snapGuidelinesCheckBox').checked) {
+        localStorage.setItem('snapGuidelinesCheckBox', 'true');
+    } else {
+        localStorage.setItem('snapGuidelinesCheckBox', 'false');
+    }
+
+    localStorage.setItem('snapToIncrement', document.getElementById('snapToIncrement').value)
+
+}
+
+function updateSnapToIncrement() {
+    let snapIncrement = document.getElementById('snapToIncrement').value;
+    if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
+        snapIncrement = 0.25;
+    }
+    localStorage.setItem('snapToIncrement', snapIncrement);
+}
+
+
+
+/* Snap to object end */
+
+
+
 function updateShading(imageItem) {
     let uuid = imageItem.id();
     let fovShading = stage.find(`#fov~${uuid}`);
@@ -5328,12 +6815,12 @@ function enableCopyDelBtn(e) {
     let txtItemsDetailNote = document.getElementById('txtItemsDetailNote');
 
     if (tr.nodes().length > 0) {
-        document.getElementById('btnCopy').disabled = false;
+        document.getElementById('btnDuplicate').disabled = false;
         document.getElementById('btnDelete').disabled = false;
 
     }
     else {
-        document.getElementById('btnCopy').disabled = true;
+        document.getElementById('btnDuplicate').disabled = true;
         document.getElementById('btnDelete').disabled = true;
 
     }
@@ -5447,7 +6934,147 @@ function updateQuickSetupItems() {
     }
 }
 
+function populateColorFromUrl(newItem, place = -1) {
+    let index = Number(place) + 1; /* by default index = 0 is the default, */
+
+    videoDevices.forEach(indexToColor);
+    chairs.forEach(indexToColor);
+    displays.forEach(indexToColor);
+    microphones.forEach(indexToColor);
+
+    function indexToColor(device) {
+        if (newItem.data_deviceid === device.id) {
+            if ('colors' in device && device.colors) {
+                let color = device.colors[index];
+                newItem.data_color = {};
+
+                /* determine if the object is a string or an object.  */
+                if (typeof (color) === 'string') {
+                    newItem.data_color.value = color;
+
+                } else {
+                    for (const [key, value] of Object.entries(color)) {
+                        newItem.data_color.value = key;
+                    }
+                }
+                newItem.data_color.index = index;
+            }
+        }
+    }
+}
+
+function populateRoleFromUrl(newItem, place = -1) {
+    let index = Number(place) + 1; /* by default index = 0 is the default, */
+
+    videoDevices.forEach(indexToRole);
+    chairs.forEach(indexToRole);
+    displays.forEach(indexToRole);
+    microphones.forEach(indexToRole);
+
+    function indexToRole(device) {
+        if (newItem.data_deviceid === device.id) {
+            if ('roles' in device && device.roles) {
+                let role = device.roles[index];
+
+                newItem.data_role = {};
+
+                /* determine if the object is a string or an object.  */
+                if (typeof (role) === 'string') {
+                    newItem.data_role.value = role;
+
+                } else {
+                    for (const [key, value] of Object.entries(role)) {
+                        newItem.data_role.value = key;
+                    }
+                }
+                newItem.data_role.index = index;
+            }
+        }
+    }
+}
+
+/* Populate the drpColor drop menu if there are Colors for the item.  Colors are for the Workspace Designer */
+function populateDrpColor(item) {
+
+    document.getElementById('drpColor').options.length = 0; /* clear out all previous options */
+
+    document.getElementById('colorDiv').style.display = 'none';
+
+    videoDevices.forEach(populate);
+
+    microphones.forEach(populate);
+
+    chairs.forEach(populate);
+
+    displays.forEach(populate);
+
+    function populate(device) {
+        if (item.data_deviceid === device.id) {
+            if ('colors' in device && device.colors) {
+                document.getElementById('colorDiv').style.display = '';
+
+                device.colors.forEach(color => {
+                    let drpOption = new Option();
+
+                    /* determine if the object is a string or an object.  */
+                    if (typeof (color) === 'string') {
+                        drpOption.text = color;
+                        drpOption.value = color;
+                    } else {
+                        for (const [key, value] of Object.entries(color)) {
+                            drpOption.text = value;
+                            drpOption.value = key;
+                        }
+                    }
+                    document.getElementById('drpColor').add(drpOption, undefined);
+                })
+            }
+        }
+    }
+}
+
+
+/* Populate the drpRole drop menu if there are Roles for the item.  Roles are for the Workspace Designer */
+function populateDrpRole(item) {
+
+    document.getElementById('drpRole').options.length = 0; /* clear out all previous options */
+
+    document.getElementById('roleDiv').style.display = 'none';
+
+    videoDevices.forEach(populate);
+
+    microphones.forEach(populate);
+
+    chairs.forEach(populate);
+
+    displays.forEach(populate);
+
+    function populate(device) {
+        if (item.data_deviceid === device.id) {
+            if ('roles' in device) {
+                document.getElementById('roleDiv').style.display = '';
+
+                device.roles.forEach(role => {
+                    let drpOption = new Option();
+                    /* determine if the object is a string or an object.  */
+                    if (typeof (role) === 'string') {
+                        drpOption.text = role;
+                        drpOption.value = role;
+                    } else {
+                        for (const [key, value] of Object.entries(role)) {
+                            drpOption.text = value;
+                            drpOption.value = key;
+                        }
+                    }
+                    document.getElementById('drpRole').add(drpOption, undefined);
+                })
+            }
+        }
+    }
+}
+
 function updateFormatDetails(eventOrShapeId) {
+
 
     let shape; /* 'shape' is direct from canvans, 'item' is in roomObj JSON. */
 
@@ -5458,7 +7085,10 @@ function updateFormatDetails(eventOrShapeId) {
         shape = eventOrShapeId.target;
     }
 
+    if (shape.data_deviceid === 'backgroundImageFloor') return; /* background image is not editable in the format details pane */
+
     let id = shape.attrs.id;
+
     let parentGroup = shape.getParent().name();
 
     if (parentGroup === 'tables') {
@@ -5469,12 +7099,27 @@ function updateFormatDetails(eventOrShapeId) {
         document.getElementById('itemLength').disabled = true;
     }
 
+    /* make execptions for certain tables where only width or length can be changed */
+    if (shape.data_deviceid.startsWith('wall')) {
+        document.getElementById('itemWidth').disabled = true;
+        document.getElementById('itemLength').disabled = false;
+    }
+
+    if (shape.data_deviceid.startsWith('tblSchoolDesk')) {
+        document.getElementById('itemWidth').disabled = false;
+        document.getElementById('itemLength').disabled = true;
+    }
+
+    if (shape.data_deviceid.startsWith('tblPodium')) {
+        document.getElementById('itemWidth').disabled = false;
+        document.getElementById('itemLength').disabled = true;
+    }
+
     roomObj.items[parentGroup].forEach((item, index) => {
         if (item.id === id) {
             let x, y;
 
             let isPrimaryDiv = document.getElementById('isPrimaryDiv');
-            let isPrimaryLabel = document.getElementById('isPrimaryLabel');
             let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
 
             isPrimaryCheckBox.disabled = true;
@@ -5491,30 +7136,11 @@ function updateFormatDetails(eventOrShapeId) {
                 y = xy.y;
             }
 
-            if (parentGroup === 'displays') {
-                document.getElementById('itemDiagnoalTvDiv').style.display = '';
-                document.getElementById('itemDiagnoalTv').value = shape.data_diagonalInches;
+            if('data_diagonalInches' in item){
+                document.getElementById('itemDiagonalTvDiv').style.display = '';
+                document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
             } else {
-                document.getElementById('itemDiagnoalTvDiv').style.display = 'none';
-            }
-
-            if (parentGroup === 'videoDevices' || parentGroup === 'displays' || shape.data_deviceid === 'tblRect') {
-                isPrimaryDiv.style.display = 'initial';
-                if (index === 0) {
-                    isPrimaryCheckBox.checked = true;
-                } else {
-                    isPrimaryCheckBox.disabled = false;
-                }
-
-                if (parentGroup === 'videoDevices') {
-                    isPrimaryLabel.innerText = 'Is primary video device?';
-                }
-                else if (parentGroup === 'displays') {
-                    isPrimaryLabel.innerText = 'Is primary display?';
-                }
-                else if (parentGroup === 'tables' && shape.data_deviceid === 'tblRect') {
-                    isPrimaryLabel.innerText = 'Is primary table?';
-                }
+                document.getElementById('itemDiagonalTvDiv').style.display = 'none';
             }
 
             if (shape.data_deviceid === 'tblRect') {
@@ -5525,10 +7151,39 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('tblRectRadiusRightDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')){
+            if (shape.data_deviceid === 'tblTrap') {
+                document.getElementById('trapNarrowWidthDiv').style.display = '';
+            } else {
+                document.getElementById('trapNarrowWidthDiv').style.display = 'none';
+            }
+
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables') {
                 document.getElementById('itemVheightDiv').style.display = '';
             } else {
                 document.getElementById('itemVheightDiv').style.display = 'none';
+            }
+
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') ){
+                let itemVheight = document.getElementById('itemVheight');
+                let defaultHeight = defaultWallHeight;
+
+
+                if(unit === 'feet'){
+                    defaultHeight = round(defaultHeight * 3.28084);
+                } else {
+                    defaultHeight = round(defaultHeight);
+                }
+
+                if (document.getElementById('roomHeight').value){
+                    defaultHeight = document.getElementById('roomHeight').value;
+                }
+
+                itemVheight.placeholder = round(defaultHeight);
+
+            } else {
+                let itemVheight = document.getElementById('itemVheight');
+                itemVheight.placeholder = '';
+
             }
 
             document.getElementById('itemX').value = round((x - pxOffset) / scale);
@@ -5540,6 +7195,19 @@ function updateFormatDetails(eventOrShapeId) {
             document.getElementById('itemType').innerText = item.data_deviceid;
 
             document.getElementById('itemGroup').innerText = parentGroup;
+
+            populateDrpRole(item);
+
+            populateDrpColor(item);
+
+            if ('data_role' in item && item.data_role) {
+                document.getElementById('drpRole').value = item.data_role.value;
+            }
+
+
+            if ('data_color' in item && item.data_color) {
+                document.getElementById('drpColor').value = item.data_color.value;
+            }
 
             if ('name' in item) {
                 document.getElementById('itemName').value = shape.attrs.name;
@@ -5569,14 +7237,27 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemZposition').value = "";
             }
 
-
-            if ('data_vHeight' in item) {
-                document.getElementById('itemVheight').value = item.data_vHeight;
+            if ('data_labelField' in item && item.data_labelField) {
+                document.getElementById('labelField').value = item.data_labelField;
             } else {
-                document.getElementById('itemZposition').value = "";
+                document.getElementById('labelField').value = "";
             }
 
+            if ('data_trapNarrowWidth' in item && (item.data_trapNarrowWidth === 0 || item.data_trapNarrowWidth)) {
+                document.getElementById('trapNarrowWidth').value = item.data_trapNarrowWidth;
+            } else {
+                document.getElementById('trapNarrowWidth').value = "?";
+            }
+
+            if ('data_vHeight' in item && item.data_vHeight) {
+                document.getElementById('itemVheight').value = item.data_vHeight;
+            } else {
+                document.getElementById('itemVheight').value = "";
+            }
+
+
             if ('cornerRadius' in shape.attrs) {
+
 
                 if (shape.cornerRadius().length > 0) {
 
@@ -5635,6 +7316,10 @@ function addListeners(stage) {
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS')) {
             countConsectiveTouches();
         }
+
+
+        if (document.getElementById('resizeBackgroundImageCheckBox').checked) return; /* exit out if resizing the background image */
+
         document.getElementById("tabItem").click();
         document.getElementById("subTabItemDetails").click();
 
@@ -5646,7 +7331,7 @@ function addListeners(stage) {
             return;
         }
 
-        if (panScrollableOn) {
+        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
             return;
         }
 
@@ -5669,12 +7354,17 @@ function addListeners(stage) {
             return;
         }
 
-        if (panScrollableOn) {
+        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
             return;
         }
 
         e.evt.preventDefault();
-        tr.resizeEnabled(false);
+
+        if (!(tr.nodes().length === 1 && tr.nodes()[0].id().startsWith('backgroundImageFloor'))) {
+
+            tr.resizeEnabled(false);
+        }
+
         x2 = stage.getPointerPosition().x / zoomScaleX;
         y2 = stage.getPointerPosition().y / zoomScaleY;
 
@@ -5726,13 +7416,12 @@ function addListeners(stage) {
 
         if (selected.length === 1 && selected[0].getParent().name() === 'tables') {
             /* if there is a single table, make it resizable */
-            // tr.resizeEnabled(true);
             resizeTableOrWall();
         }
         enableCopyDelBtn();
     });
 
-    // clicks should select/deselect shapes
+    /* clicks should select/deselect shapes */
     stage.on('click tap', function (e) {
 
         if (e.target.attrs.id) {
@@ -5752,14 +7441,13 @@ function addListeners(stage) {
         }
 
         if (!e.target.draggable()) {
-
             tr.resizeEnabled(false);
             tr.nodes([]);
             enableCopyDelBtn();
             return;
         }
 
-        // do we pressed shift or ctrl?
+        /* do we pressed shift or ctrl? */
         const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
         const isSelected = tr.nodes().indexOf(e.target) >= 0;
 
@@ -5769,7 +7457,6 @@ function addListeners(stage) {
 
             /* tables and other objects maybe resizable. */
             if (e.target.getParent() === groupTables) {
-                // tr.resizeEnabled(true);
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -5983,13 +7670,17 @@ function createItemsOnMenu(divMenuContainerId, menuItems, groupName, jsonGroup) 
 }
 
 
-let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitEqQuadPtz4k', 'roomKitProQuadCam'];
+// let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitEqQuadPtz4k', 'roomKitProQuadCam'];
 
-let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro75G2'];
+let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitProQuadCam'];
+
+let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
 
 let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
-let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
+// let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
+
+let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
 let legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
 
@@ -5997,13 +7688,15 @@ let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic']
 
 let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
-let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
+let navigatorsMenu = ['navigatorTable', 'navigatorWall', 'laptop'];
 
-let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
+let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium'];
 
-let wallsMenu = ['wallStd', 'wallGlass', 'columnRect'];
+let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
 
-let chairsMenu = ['chair', 'personStanding', 'doorRight', 'doorLeft', 'doorDouble'];
+let chairsMenu = ['chair', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble'];
+
+let accessibilityMenu = ['wheelchair', 'wheelchairTurnCycle', 'circulationSpace'];
 
 createItemsOnMenu('cameraMenuContainer', videoDevicesMenu, 'videoDevices', videoDevices);
 
@@ -6026,6 +7719,8 @@ createItemsOnMenu('tablesMenuContainer', tablesMenu, 'tables', tables);
 createItemsOnMenu('wallsMenuContainer', wallsMenu, 'tables', tables);
 
 createItemsOnMenu('chairsMenuContainer', chairsMenu, 'chairs', chairs);
+
+createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu, 'chairs', chairs);
 
 function touchStart(e) {
 
@@ -6262,19 +7957,19 @@ function type(value) {
         return "null";
     }
     const baseType = typeof value;
-    // Primitive types
+    /* Primitive types */
     if (!["object", "function"].includes(baseType)) {
         return baseType;
     }
 
-    // Symbol.toStringTag often specifies the "display name" of the
-    // object's class. It's used in Object.prototype.toString().
+    /* Symbol.toStringTag often specifies the "display name" of the
+     object's class. It's used in Object.prototype.toString(). */
     const tag = value[Symbol.toStringTag];
     if (typeof tag === "string") {
         return tag;
     }
 
-    // If it's a function whose source code starts with the "class" keyword
+    /* If it's a function whose source code starts with the "class" keyword */
     if (
         baseType === "function" &&
         Function.prototype.toString.call(value).startsWith("class")
@@ -6282,15 +7977,13 @@ function type(value) {
         return "class";
     }
 
-    // The name of the constructor; for example `Array`, `GeneratorFunction`,
-    // `Number`, `String`, `Boolean` or `MyCustomClass`
+    /* The name of the constructor; for example `Array`, `GeneratorFunction`, `Number`, `String`, `Boolean` or `MyCustomClass` */
     const className = value.constructor.name;
     if (typeof className === "string" && className !== "") {
         return className;
     }
 
-    // At this point there's no robust way to get the type of value,
-    // so we use the base implementation.
+    /*  At this point there's no robust way to get the type of value, so we use the base implementation. */
     return baseType;
 }
 
@@ -6369,17 +8062,11 @@ async function loadQRCodeScript() {
 
         createQrCode();
 
-
-
         createShareableLink();
     }
 }
 
 function createQrCode() {
-
-
-
-    // let link = document.getElementById('shareLink').getAttribute('href');
 
     let typeNumber = 0;
     let errorCorrectionLevel = 'L';
@@ -6401,12 +8088,8 @@ function createQrCode() {
 
     qrImage.style.filter = '';
 
-    // let containerInputs = document.getElementById('ContainerInputs').;
-
 }
 
-
-// clearUrlQueryString();
 
 /* shorten the visible url */
 
@@ -6415,38 +8098,83 @@ function clearUrlQueryString() {
     history.replaceState(null, null, baseUrl);
 }
 
+/* keep the unit as the last selected value of the end user */
+function keepDefaultUnit() {
+
+    if (localStorage.getItem('useDefaultUnitCheckBox') === 'true') return;  /* exit if 'useDefaultUnitCheckBox' was selected */
+
+    let defaultUnit = localStorage.getItem('defaultUnit');
+
+    if (!(defaultUnit === 'none')) {
+        if (defaultUnit === 'feet' && roomObj.unit === 'meters') {
+            document.getElementById('drpMetersFeet').value = 'feet';
+            convertMetersFeet('noDraw');
+
+        }
+        else if (defaultUnit === 'meters' && roomObj.unit === 'feet') {
+            document.getElementById('drpMetersFeet').value = 'meters';
+            convertMetersFeet('noDraw');
+        }
+    }
+}
+
 
 function loadTemplate(x) {
+    if (isLoadingTemplate) return;
+
+    isLoadingTemplate = true;
+
+    document.getElementById('dialogLoadingTemplate').showModal();
+
+    if (mobileDevice === 'RoomOS'){
+
+        loadTemplateTime = 1500;
+    }
+
     resetRoomObj();
+    x = x.replaceAll('+', ' ');
+    x = x.replace(/(.*\d)v[0-9.]+(.*)/, `$1v${version}$2`); /* regardless of original template verion update to latest version in URL */
+    x = decodeURIComponent(x);
     parseShortenedXYUrl(x);
+
+    keepDefaultUnit();
+
     drawRoom(true, true);
-    const baseUrl = location.origin + location.pathname;
     document.getElementById("defaultOpenTab").click();
     setTimeout(() => {
-        // history.replaceState(null, null, baseUrl);
+        zoomInOut('reset');
         drawRoom();
         canvasToJson();
-        let simpleTimeoput = setTimeout(() => {
+        setTimeout(() => {
             createShareableLink();
+            zoomInOut('reset');
         }, 500);
 
 
     }, 500);
 
+    setTimeout(()=>{
+        isLoadingTemplate = false;
+        document.getElementById('dialogLoadingTemplate').close();
+    }, loadTemplateTime)
+
 }
 
-const fileInput = document.getElementById('fileInput');
+const fileInputImage = document.getElementById('fileInputImage');
 
 /* change the anchors / handles depending on the selected node. Tables are resizable. Walls are resizable in 2 directions */
 function resizeTableOrWall() {
-
     let nodes = tr.nodes();
     if (nodes.length === 1) {
 
-        if (nodes[0].data_deviceid.startsWith('wall')) {
-            tr.enabledAnchors(['top-center', 'bottom-center',]);
+        if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
+            tr.enabledAnchors(['top-center', 'bottom-center']);
             tr.resizeEnabled(true);
-        } else if (nodes[0].data_deviceid.startsWith('tbl')) {
+        } else if (nodes[0].data_deviceid.startsWith('tblSchoolDesk') || nodes[0].data_deviceid.startsWith('tblPodium')) {
+            tr.enabledAnchors(['middle-right', 'middle-left']);
+            tr.resizeEnabled(true);
+        }
+        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box')) {
             tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
             tr.resizeEnabled(true);
         } else {
@@ -6464,15 +8192,20 @@ function onKeyDown(e) {
     const DELTA = 1; /* change in key movement in Canvas pixel */
     let isShortCutKeyUsed = false;
 
+    if (key === 'e' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        downloadFileWorkspace();
+    }
+
     if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(tagName)) return;
 
-    if (key === 'Backspace') {
+    if (key === 'Backspace' || key === 'Delete') {
         deleteTrNodes();
         isShortCutKeyUsed = true;
     }
     else if (e.ctrlKey || e.metaKey) {
 
-        if (key === 'y' || key === 'z' ) {
+        if (key === 'y' || key === 'z') {
             e.preventDefault();
         }
 
@@ -6488,9 +8221,20 @@ function onKeyDown(e) {
         }
         else if (key === 'd' && tr.nodes().length > 0) {
             e.preventDefault();
+            duplicateItems();
+            isShortCutKeyUsed = true;
+        } else if (key === 'c') {
             copyItems();
             isShortCutKeyUsed = true;
+        } else if (key === 'v') {
+            pasteItems(false);
+            isShortCutKeyUsed = true;
+        } else if (key === 'x') {
+            cutItems();
+            isShortCutKeyUsed = true;
         }
+
+
     }
 
     if (tr.nodes().length === 1) {
@@ -6532,101 +8276,283 @@ document.addEventListener('keydown', onKeyDown);
 
 document.addEventListener('keyup', onKeyUp);
 
-fileInput.addEventListener('change', function (e) {
+function turnOnBackgroundImageButtons() {
+    document.getElementById('resizeBackgroundImageCheckBox').disabled = false;
+    document.getElementById('transparencySlider').disabled = false;
+    document.getElementById('btnSelect2Points').disabled = false;
+
+}
+
+fileInputImage.addEventListener('change', function (e) {
     if (e.target.files && e.target.files[0]) {
+
         const reader = new FileReader();
+
+        turnOnBackgroundImageButtons();
+
         reader.onload = function (e) {
 
+            backgroundImageFloor.onload = function () {
 
-            const image = new Image();
-            image.onload = function () {
-                const konvaImage = new Konva.Image({
-                    image: image,
-                    x: pxOffset,
-                    y: pyOffset,
-                    height: stage.height(),
-                    opacity: 0.5,
-                    draggable: true,
-                });
-                groupTables.add(konvaImage);
+                let konvaBackgroundImageFloor = createKonvaBackgroundImageFloor();
 
-                let roomScaleWidth = (scale * roomObj.room.roomWidth);
-                let roomScaleLength = (scale * roomObj.room.roomLength);
+                layerBackgroundImageFloor.add(konvaBackgroundImageFloor);
 
-                let ratioRoomToImageWidth = image.width / roomScaleWidth;
-                let ratioRoomToImageLength = image.height / roomScaleLength;
+                let roomPixelWidth = (scale * roomObj.room.roomWidth); // scale - pixels / roomwidth
+                let roomPixelLength = (scale * roomObj.room.roomLength);
+
+                let ratioRoomToImageWidth = backgroundImageFloor.width / roomPixelWidth;
+                let ratioRoomToImageLength = backgroundImageFloor.height / roomPixelLength;
 
 
                 let scaleImage = 1;
 
                 if (ratioRoomToImageWidth > ratioRoomToImageLength) {
-                    console.log('roomScale width is larger, use roomScaleLength');
-                    scaleImage = ratioRoomToImageLength;
-                } else {
-                    console.log('roomScaleLength is larger, use roomScaleWidth')
-
-
+                    console.debug('roomScale width is larger, use roomScaleLength');
                     scaleImage = ratioRoomToImageWidth;
+                } else {
+                    console.debug('roomScaleLength is larger, use roomScaleWidth')
+
+                    scaleImage = ratioRoomToImageLength;
 
                 }
 
-                console.log('scaleImage', scaleImage);
+                console.debug('scaleImage', scaleImage);
 
-                konvaImage.width(image.width * scaleImage);
+                konvaBackgroundImageFloor.width(backgroundImageFloor.width / scaleImage);
 
-                konvaImage.height(image.height * scaleImage);
+                konvaBackgroundImageFloor.height(backgroundImageFloor.height / scaleImage);
 
-                document.getElementById('scaleImageId').value = scaleImage;
+                konvaBackgroundImageFloor.name(fileInputImage.value.replace(/C:\\fakepath\\/gm, ''));
+
+                setTimeout(() => {
+                    canvasToJson();
+                }, 2000);
+
+
             };
-            image.src = e.target.result;
+            backgroundImageFloor.src = e.target.result;
+
+
+            ;
         };
         reader.readAsDataURL(e.target.files[0]);
-        // document.getElementById("canvasDiv").style.cursor = "crosshair";
         drawScaledLineMode = true;
     }
 });
 
-const fileConfig = document.getElementById('fileConfig');
+const fileJsonUpload = document.getElementById('fileUpload');
 
-fileConfig.addEventListener('change', function (e) {
+fileJsonUpload.addEventListener('change', function (e) {
+
     if (e.target.files && e.target.files[0]) {
-        const reader = new FileReader();
+        let reader = new FileReader();
+        reader.readAsText(e.target.files[0]);
         reader.onload = function (e) {
+            let jsonFile = JSON.parse(reader.result);
 
-            let jsonFile = reader.readAsText(e.target.result, "UTF-8");
+
+            backgroundImageFloor.src = structuredClone(jsonFile.backgroundImageSrc);
+
+            delete jsonFile.backgroundImageSrc;
+
+            roomObj = structuredClone(jsonFile);
+
+            drawRoom(true);
         };
-        // reader.readAsDataURL(e.target.files[0]);
-        let jsonFile = reader.readAsText(e.target.files[0], "UTF-8");
-        console.log('jsonFile', jsonFile);
     }
 });
 
 /* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
+
+function downloadJsonFile() {
+    let downloadRoomName;
+    let roomObj2 = structuredClone(roomObj);
+    if (konvaBackgroundImageFloor.name() != '') {
+        roomObj2.backgroundImageSrc = backgroundImageFloor.src;
+    }
+    const link = document.createElement("a");
+    const content = JSON.stringify(roomObj2, null, 5);
+    const file = new Blob([content], { type: 'text/plain' });
+
+    downloadRoomName = roomObj.name;
+
+    if (downloadRoomName == '') {
+        downloadRoomName = 'Video Room Calc';
+    }
+    link.href = URL.createObjectURL(file);
+    downloadRoomName = downloadRoomName.replace(/[/\\?%*:|"<>]/g, '-');
+    downloadRoomName = downloadRoomName.trim() + '.json';
+    link.download = downloadRoomName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
 function downloadFileWorkspace() {
+
+    let workspaceObj = convertRoomObjToWorkspace(roomObj);
+
+    downloadJsonWorkpaceFile(workspaceObj);
+}
+
+
+function workspaceView(isNewTab = 'false') {
+    let urlWorkspaceView = './assets/workspacedesignerview.html';
+    let workspaceObj = convertRoomObjToWorkspace(roomObj);
+    let localStorageObj = {};
+    localStorageObj.sessionId = sessionId;
+    localStorageObj.workspace = workspaceObj;
+    localStorage.setItem('workspace', JSON.stringify(localStorageObj, null, 5));
+
+    urlWorkspaceView += '?session=' + sessionId;
+
+    if (isNewTab === 'newTab') {
+        urlWorkspaceView += '&tab';
+        window.open(urlWorkspaceView);
+    } else {
+        window.open(urlWorkspaceView, "_self");
+    }
+}
+
+function openWorkspaceWindow() {
+
+
+    let newTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
+
+    let btnWorkspace = document.getElementById('btnWorkspace');
+
+
+    if (btnWorkspace.children[0].textContent === 'deployed_code_alert') {
+        reloadWorkspaceIcon();
+    }
+
+    /* VPN and querystring ?testProduction needed to test against production */
+    if (testProduction && btnWorkspace.children[0].textContent === 'deployed_code') {
+        newTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/boardroom/1";
+    }
+
+    // newTab = 'http://127.0.0.1:5001/assets/receiver.html';   // used for testing.
+
+    workspaceWindow = window.open(newTab, sessionId);
+
+    /* send initial post message 2 times in case page is opening slow */
+    setTimeout(() => {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }, 1000);
+
+    setTimeout(() => {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }, 5000);
+
+}
+
+function openModalWorkspace(){
+    reloadWorkspaceIcon();
+    document.getElementById('modalWorkspace').showModal();
+}
+
+function closeModalWorkspace(){
+    document.getElementById('modalWorkspace').close();
+}
+
+function openDetailsRoomTab(){
+    document.getElementById('modalWorkspace').close();
+    document.getElementById("tabItem").click();
+    document.getElementById("subTabRoomDetails").click();
+
+}
+
+
+function postMessageToWorkspace() {
+    if (workspaceWindow) {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }
+}
+
+window.addEventListener(
+    "message",
+    (event) => {
+        if (event.origin.startsWith('https://prototypes.cisco.com/') || event.origin.startsWith('https://www.webex.com/') || event.origin.startsWith('https://collabexperience.com/') || event.origin.startsWith('http://127.0.0.1:5001/')) {
+            console.info('received postMessage() back: ', event.data);
+        }
+    },
+    false,
+);
+
+/* addDefaultsToWorkspaceObj() - looks at workspaceKey and compares to videoDevices, chairs, displays and microphones and adds the first role, model or color to the workspaceKey - overwriting if it already exists */
+
+addDefaultsToWorkspaceObj();
+
+function returnStringOfDefaultRoleColor(keyValue) {
+    let defaultRole;
+
+    if (typeof (keyValue[0]) === 'string') {
+        defaultRole = keyValue[0];
+
+    } else {
+        for (const [key, value] of Object.entries(keyValue[0])) {
+            defaultRole = key;
+        }
+    }
+
+    return defaultRole;
+}
+
+function addDefaultsToWorkspaceObj() {
+    compareAdd(videoDevices);
+    compareAdd(microphones);
+    compareAdd(displays);
+    compareAdd(chairs);
+
+    function compareAdd(items) {
+        let workspaceKeyArray = Object.keys(workspaceKey)
+        workspaceKeyArray.forEach(key => {
+            items.forEach((item) => {
+                if (item.id === key) {
+                    if ('roles' in item && item.roles) {
+                        workspaceKey[key].role = returnStringOfDefaultRoleColor(item.roles);
+                    }
+
+                    if ('colors' in item && item.colors) {
+                        workspaceKey[key].color = returnStringOfDefaultRoleColor(item.colors);
+                    }
+
+                    if ('models' in item && item.models) {
+                        workspaceKey[key].model = returnStringOfDefaultRoleColor(item.models);
+                    }
+                }
+            })
+        })
+    }
+
+}
+
+
+function convertRoomObjToWorkspace() {
+
+    let swapXY = true;
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
 
     if (unit === 'feet') {
-
         roomObj2 = convertToMeters(roomObj2);
-
     }
-
-    convertRoomObjToWorkspace(roomObj2);
-}
-
-
-function convertRoomObjToWorkspace(roomObj2) {
 
     let workspaceObj = {};
     workspaceObj.title = '';
     workspaceObj.roomShape = {};
     workspaceObj.roomShape.manual = "true";
-    workspaceObj.roomShape.width = roomObj2.room.roomWidth;
-    workspaceObj.roomShape.length = roomObj2.room.roomLength;
+    if (swapXY) {
+        workspaceObj.roomShape.width = roomObj2.room.roomWidth;
+        workspaceObj.roomShape.length = roomObj2.room.roomLength;
+    } else {
+        workspaceObj.roomShape.width = roomObj2.room.roomLength;
+        workspaceObj.roomShape.length = roomObj2.room.roomWidth;
+    }
 
-    if ('roomHeight' in roomObj2.room){
-        if((roomObj2.room.roomHeight == 0 || roomObj2.room.roomHeight == '' )){
+
+    if ('roomHeight' in roomObj2.room) {
+        if ((roomObj2.room.roomHeight == 0 || roomObj2.room.roomHeight == '')) {
             workspaceObj.roomShape.height = 2.5;
         } else {
             workspaceObj.roomShape.height = roomObj2.room.roomHeight;
@@ -6635,38 +8561,89 @@ function convertRoomObjToWorkspace(roomObj2) {
 
     workspaceObj.customObjects = [];
 
-    workspaceObj.peripherals = [];
+    workspaceObj.peripherals = {};
     workspaceObj.peripherals.navigator = true;
     workspaceObj.peripherals.scheduler = true;
 
+    workspaceObj.source = {};
+    workspaceObj.source.name = 'vrc';
+    workspaceObj.source.url = fullShareLinkCollabExpBase;
+    workspaceObj.source.version = version;
 
-    if(document.getElementById('removeDefaultWallsCheckBox').checked === true){
+
+    if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
-
+        let wallWidth = 0.10 + 0.02; /* Add in the floor width to include the outer wall */
         let floor = {
-            "x": 0,
-            "y": 0,
+            "x": 0 - wallWidth,
+            "y": 0 - wallWidth,
             "rotation": 0,
-            "data_deviceid": "floor",
+            "data_deviceid": "wall",
             "id": "primaryFloor",
             "data_zPosition": -0.1,
             "data_vHeight": 0.1,
-            "width": roomObj2.room.roomWidth,
-            "height": roomObj2.room.roomLength
+            "width": roomObj2.room.roomWidth + (wallWidth * 2),
+            "height": roomObj2.room.roomLength + (wallWidth * 2)
         };
+
+        if (!swapXY) {
+            floor.width = roomObj2.room.roomLength;
+            floor.height = roomObj2.room.roomWidth;
+        }
 
         workspaceObjWallPush(floor);
     }
 
+    if (roomObj.workspace.addCeiling === true) {
+        let wallWidth = 0;
+        let ceiling = {
+            "x": 0 - wallWidth,
+            "y": 0 - wallWidth,
+            "rotation": 0,
+            "data_deviceid": "ceiling",
+            "id": "primaryCeiling",
+            "data_zPosition": roomObj2.room.roomHeight || defaultWallHeight,
+            "data_vHeight": 0.01,
+            "width": roomObj2.room.roomWidth + (wallWidth * 2),
+            "height": roomObj2.room.roomLength + (wallWidth * 2)
+        };
+
+        if (!swapXY) {
+            ceiling.width = roomObj2.room.roomLength;
+            ceiling.height = roomObj2.room.roomWidth;
+        }
+
+        workspaceObjWallPush(ceiling);
+    }
+
+
+
+
+
     if (roomObj2.name == null || roomObj2.name == '') {
-        workspaceObj.title = 'Created in Video Room Calculator';
+        workspaceObj.title = 'Custom Room';
     } else {
         workspaceObj.title = roomObj2.name;
     }
 
 
     roomObj2.items.chairs.forEach((item) => {
+
+
+        if (item.data_deviceid === 'wheelchairTurnCycle') {
+            let newItem = structuredClone(item);
+            newItem.width = 1.5;
+            newItem.height = 1.5;
+            let xy = findUpperLeftXY(newItem);
+            let fakeTable = { data_deviceid: 'tblEllip', id: 'wheelChairRound-' + item.id, rotation: item.rotation, data_zPosition: -0.07, data_vHeight: 0.1, width: 1.5, height: 1.5, x: xy.x, y: xy.y };
+
+            workspaceObjTablePush(fakeTable);
+
+        }
+
         workspaceObjItemPush(item);
+
+
     });
 
     roomObj2.items.microphones.forEach((item) => {
@@ -6674,10 +8651,12 @@ function convertRoomObjToWorkspace(roomObj2) {
     });
 
     roomObj2.items.tables.forEach((item) => {
-        if (item.data_deviceid.startsWith('tbl')) {
-            workspaceObjTablePush(item);
-        } else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column')) {
-            workspaceObjWallPush(item);
+        if (item.data_deviceid) {
+            if (item.data_deviceid.startsWith('tbl')) {
+                workspaceObjTablePush(item);
+            } else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
+                workspaceObjWallPush(item);
+            }
         }
 
     });
@@ -6686,34 +8665,142 @@ function convertRoomObjToWorkspace(roomObj2) {
         workspaceObjItemPush(item);
     });
 
-    roomObj2.items.displays.forEach((display) => {
-        workspaceObjDisplayPush(display);
+    roomObj2.items.displays.forEach((item) => {
+        let displayRatio = 1.02;
+        if (item.data_deviceid === 'displayDbl' || item.data_deviceid === 'displayTrpl') {
+            let leftDisplay = structuredClone(item);
+            let rightDisplay = structuredClone(item);
+            let centerDisplay = structuredClone(item);
+            let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
+            if (item.data_deviceid === 'displayTrpl') {
+                deltaX = deltaX * 1.98;
+                centerDisplay.data_deviceid = 'displaySngl';
+                centerDisplay.id = 'centerScreen-' + centerDisplay.id;
+                centerDisplay.role = 'firstScreen';
+                workspaceObjDisplayPush(centerDisplay);
+
+            }
+            let deltaY = 0;
+
+            let leftDisplayXY = findNewTransformationCoordinate(item, -deltaX, deltaY);
+            let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
+
+            leftDisplay.data_deviceid = 'displaySngl';
+            leftDisplay.id = 'secondScreen-L-' + leftDisplay.id;
+            leftDisplay.x = leftDisplayXY.x;
+            leftDisplay.y = leftDisplayXY.y;
+            leftDisplay.role = 'secondScreen';
+            workspaceObjDisplayPush(leftDisplay);
+
+            rightDisplay.data_deviceid = 'displaySngl';
+            rightDisplay.id = 'firstScreen-R-' + rightDisplay.id;
+
+            rightDisplay.x = rightDisplayXY.x;
+            rightDisplay.y = rightDisplayXY.y;
+            rightDisplay.role = 'firstScreen';
+
+            workspaceObjDisplayPush(rightDisplay);
+
+        } else {
+            item.role = 'firstScreen';
+            workspaceObjDisplayPush(item);
+        }
     })
 
-    function workspaceObjItemPush(item) {
 
-        let x, y;
+    function workspaceObjItemPush(newItem) {
+
+        let x, y, attr;
         let z = 0;
+        let item = structuredClone(newItem);
 
-        let attr = workSpaceKey[item.data_deviceid];
+        if ((item.data_deviceid in workspaceKey)) {
+            attr = workspaceKey[item.data_deviceid];
+        } else {
+            /* need to write to log and on screen for end user */
+            console.info('Item not in workSpaceKey', item.data_deviceid);
+            attr = workspaceKey.customVRC;
+            attr.model = item.data_deviceid;
+        }
+
+        if(item.data_deviceid.startsWith('roomKitEqx')){
+
+            let newData_zPosition, deltaY;
+            let leftDisplay = structuredClone(item);
+            let rightDisplay = structuredClone(item);
+            let displayRatio = 1.02;
+
+            /* if the data_zPosition (height) is blank or null, set to 0 */
+            if(!item.data_zPosition){
+                item.data_zPosition = 0;
+            }
+
+            let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
+
+            let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
+
+            if(item.data_deviceid === 'roomKitEqxFS') {
+                newData_zPosition = 1.80 + Number(item.data_zPosition) - newDisplayHeight;
+                deltaY = -0.07;
+            }
+            else {
+               newData_zPosition = 1.121 + Number(item.data_zPosition) - newDisplayHeight;
+                deltaY = -0.12;
+            }
+
+            let leftDisplayXY = findNewTransformationCoordinate(item, -deltaX, deltaY);
+            let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
+
+            leftDisplay.data_deviceid = 'displaySngl';
+            leftDisplay.id = 'secondScreen-L-' + item.data_deviceid + '-' + leftDisplay.id;
+            leftDisplay.x = leftDisplayXY.x;
+            leftDisplay.y = leftDisplayXY.y;
+            leftDisplay.data_zPosition = newData_zPosition;
+            leftDisplay.role = 'secondScreen';
+            workspaceObjDisplayPush(leftDisplay);
+
+            rightDisplay.data_deviceid = 'displaySngl';
+            rightDisplay.id = 'firstScreen-R-' + item.data_deviceid + '-' + rightDisplay.id;
+
+            rightDisplay.x = rightDisplayXY.x;
+            rightDisplay.y = rightDisplayXY.y;
+            rightDisplay.data_zPosition = newData_zPosition;
+            rightDisplay.role = 'firstScreen';
+
+            workspaceObjDisplayPush(rightDisplay);
+
+        }
+
+
 
         if ('data_zPosition' in item) {
             if (item.data_zPosition != "") z = item.data_zPosition;
         }
 
-        x = (item.x - (roomObj2.room.roomWidth - 0.10) / 2);
-        y = (item.y - (roomObj2.room.roomLength - 0.10) / 2);
 
-        if (item.data_deviceid === 'roomKitEqx') {
-            //   x = x + 0.020;  // need to do a trig transform.
+        if ('yOffset' in attr || 'xOffset' in attr) {
+            let yOffset = 0;
+            let xOffset = 0;
+            if ('yOffset' in attr) yOffset = attr.yOffset;
+            if ('xOffset' in attr) xOffset = attr.xOffset;
+            let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
+            item.y = newXY.y;
+            item.x = newXY.x;
+        }
+
+        x = (item.x - (roomObj2.room.roomWidth) / 2);
+        y = (item.y - (roomObj2.room.roomLength) / 2);
+
+        if ('vertOffset' in attr) {
+            z = z + attr.vertOffset;
         }
 
         let workspaceItem = {
             id: item.id,
             "position": [
-                x,
+                (swapXY ? x : y),
                 z,
-                y
+                (swapXY ? y : x)
             ],
             "rotation": [
                 0,
@@ -6724,144 +8811,245 @@ function convertRoomObjToWorkspace(roomObj2) {
 
         workspaceItem = { ...workspaceItem, ...attr };
 
+        if ('data_role' in item && item.data_role) {
+            workspaceItem.role = item.data_role.value;
+        }
+
+        if ('data_color' in item && item.data_color) {
+            workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_labelField' in item) {
+            let jsonPart = /{.*?}/.exec(item.data_labelField);
+            if (jsonPart) {
+                try {
+                    let newKeyValues = JSON.parse(jsonPart[0]);
+                    workspaceItem = { ...workspaceItem, ...newKeyValues }
+                } catch {
+                    console.info('Error parsing JSON ', jsonPart);
+                }
+            }
+        }
+
+        if ('vertOffset' in workspaceItem) {
+            delete workspaceItem.vertOffset;
+        }
+
+        if ('yOffset' in workspaceItem) {
+            delete workspaceItem.yOffset;
+        }
+
+        if ('xOffset' in workspaceItem) {
+            delete workspaceItem.xOffset;
+        }
+
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-    function workspaceObjDisplayPush(display) {
+    function workspaceObjDisplayPush(item) {
 
         let x, y;
         let z = displayHeight / 1000;
-        let displayScale = display.data_diagonalInches / 55;
-        let attr = workSpaceKey[display.data_deviceid];
+        let displayScale = item.data_diagonalInches / 55;
+        let attr = workspaceKey[item.data_deviceid];
 
         z = z * displayScale / 2;
 
-        if ('data_zPosition' in display) {
-            if (display.data_zPosition != "") {
-                z = display.data_zPosition + z;
+        if ('data_zPosition' in item) {
+            if (item.data_zPosition != "") {
+                z = item.data_zPosition + z;
             };
         }
+        if ('yOffset' in attr || 'xOffset' in attr) {
+            let yOffset = 0;
+            let xOffset = 0;
+            if ('yOffset' in attr) yOffset = attr.yOffset;
+            if ('xOffset' in attr) xOffset = attr.xOffset;
+            let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
+            item.y = newXY.y;
+            item.x = newXY.x;
+        }
 
-
-        x = (display.x - (roomObj2.room.roomWidth - 0.10) / 2);
-        y = (display.y - (roomObj2.room.roomLength - 0.10) / 2);
+        x = (item.x - (roomObj2.room.roomWidth) / 2);
+        y = (item.y - (roomObj2.room.roomLength) / 2);
 
         let workspaceItem = {
-            id: display.id,
+            id: item.id,
             "position": [
-                x,
+                (swapXY ? x : y),
                 z,
-                y
+                (swapXY ? y : x)
             ],
             "rotation": [
                 0,
-                (display.rotation * -(Math.PI / 180)),
+                (item.rotation * -(Math.PI / 180)),
                 0
             ],
-            "scale": [
-                displayScale,
-                displayScale,
-                displayScale
-            ]
+            size: item.data_diagonalInches,
+            "role": item.role
         }
 
-        workspaceItem = { ...workspaceItem, ...attr };
+        workspaceItem = { ...attr, ...workspaceItem };
+
+        if ('data_role' in item && item.data_role) {
+            workspaceItem.role = item.data_role.value;
+        }
+
+        if ('data_color' in item && item.data_color) {
+            workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_labelField' in item) {
+            let jsonPart = /{.*?}/.exec(item.data_labelField);
+            if (jsonPart) {
+                try {
+                    let newKeyValues = JSON.parse(jsonPart[0]);
+                    workspaceItem = { ...workspaceItem, ...newKeyValues }
+                } catch {
+                     console.info('Error parsing JSON ', jsonPart);
+                }
+            }
+        }
+
+        if ('yOffset' in workspaceItem) {
+            delete workspaceItem.yOffset;
+        }
+
+        if ('xOffset' in workspaceItem) {
+            delete workspaceItem.xOffset;
+        }
 
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-    function workspaceObjTablePush(table) {
+    function workspaceObjTablePush(item) {
 
         let x, y, z, vh, workspaceItem;
         z = 0;
         vh = 0;
 
-        let xy = getItemCenter(table);
+        let xy = getItemCenter(item);
 
-        let attr = workSpaceKey[table.data_deviceid];
+        let attr = workspaceKey[item.data_deviceid];
 
         x = (xy.x - roomObj2.room.roomWidth / 2);
         y = (xy.y - roomObj2.room.roomLength / 2);
 
-        if ('data_zPosition' in table) {
-            if (table.data_zPosition != "") z = table.data_zPosition;
+        if ('data_zPosition' in item) {
+            if (item.data_zPosition != "") z = item.data_zPosition;
         } else {
             z = 0;
         }
 
-        if ('data_vHeight' in table) {
-            if (table.data_vHeight != "")  {
-               vh = table.data_vHeight + vh;
+        if ('data_vHeight' in item) {
+            if (item.data_vHeight != "") {
+                vh = item.data_vHeight + vh;
             } else {
                 vh = null;
             }
         }
 
         workspaceItem = {
-            id: table.id,
+            id: item.id,
             "position": [
-                x,
+                (swapXY ? x : y),
                 z,
-                y
+                (swapXY ? y : x)
             ],
             "rotation": [
                 0,
-                (table.rotation * -(Math.PI / 180)),
+                (item.rotation * -(Math.PI / 180)),
                 0
             ],
-            "width": table.width,
-            "length": table.height
+            "width": item.width,
+            "length": item.height
         }
 
-        if (vh){
+        if (vh) {
             workspaceItem.height = vh;
         }
 
-        if ('tblRectRadius' in table) {
-            workspaceItem.radius = table.tblRectRadius;
+        /* tblSchoolDesk does not support radius or radiusRight in the Workspace Designer, remove if present */
+        if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') {
+            workspaceItem.radius = item.tblRectRadius;
         }
 
-        if ('tblRectRadiusRight' in table) {
-            workspaceItem.radiusRight = table.tblRectRadiusRight;
+        if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk') {
+            workspaceItem.radiusRight = item.tblRectRadiusRight;
         }
 
-        if (table.data_deviceid === 'tblTrap') {
-            workspaceItem.width = 0.8;
-            workspaceItem.taper = table.width - 0.8;
+        /* flip school desks around when converting from the VRC to the Designer.  This way the desk is facing forward when rendered */
+        if (item.data_deviceid === 'tblSchoolDesk') {
+            workspaceItem.rotation = [0, ((item.rotation - 180) * -(Math.PI / 180)), 0];
+        }
+
+        /* The Workspace handles trapezoid/tappered tables differently than the VRC.  Make the conversion */
+        if (item.data_deviceid === 'tblTrap') {
+            if (item.data_trapNarrowWidth < item.width) {
+                workspaceItem.width = Number(item.data_trapNarrowWidth);
+                workspaceItem.taper = item.width - item.data_trapNarrowWidth;
+            }
+            else {
+                workspaceItem.width = Number(item.width); /* if data_trapNarrowWidth > table.width, just use the table.width */
+                workspaceItem.taper = 0;
+            }
         }
 
         workspaceItem = { ...workspaceItem, ...attr };
 
+        if ('data_role' in item && item.data_role) {
+            workspaceItem.role = item.data_role.value;
+        }
+
+        if ('data_color' in item && item.data_color) {
+            workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_labelField' in item) {
+
+            let jsonPart = /{.*?}/.exec(item.data_labelField);
+            if (jsonPart) {
+                try {
+                    let newKeyValues = JSON.parse(jsonPart[0]);
+                    workspaceItem = { ...workspaceItem, ...newKeyValues }
+                } catch {
+                     console.info('Error parsing JSON ', jsonPart);
+                }
+            }
+
+        }
+
+
+
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-    function workspaceObjWallPush(wall) {
-        console.log('wall....', JSON.stringify(wall, null, 5));
+    function workspaceObjWallPush(item) {
 
         let x, y, z, verticalHeight, workspaceItem;
 
-        let xy = getItemCenter(wall);
+        let xy = getItemCenter(item);
 
-        let attr = workSpaceKey[wall.data_deviceid];
+        let attr = workspaceKey[item.data_deviceid];
 
         x = (xy.x - roomObj2.room.roomWidth / 2);
         y = (xy.y - roomObj2.room.roomLength / 2);
 
+        verticalHeight = defaultWallHeight;
 
-        if ('data_vHeight' in wall) {
-            if (wall.data_vHeight != "") {
-                verticalHeight = wall.data_vHeight;
-            } else {
-                verticalHeight = defaultWallHeight;
-            }
+        if ('data_vHeight' in item && item.data_vHeight){
+            verticalHeight = item.data_vHeight;
         } else {
-            verticalHeight = defaultWallHeight; /* if no height set it to 2.5 m */
+            verticalHeight = roomObj2.room.roomHeight || defaultWallHeight;
         }
 
+        if (isNaN(verticalHeight)){
+            verticalHeight = Number(defaultWallHeight);
+        }
 
-        if ('data_zPosition' in wall) {
-            if (wall.data_zPosition != "") {
-                z = wall.data_zPosition + (verticalHeight / 2);
+        if ('data_zPosition' in item) {
+            if (item.data_zPosition != "") {
+                z = item.data_zPosition + (verticalHeight / 2);
             } else {
                 z = (verticalHeight / 2);
             }
@@ -6871,31 +9059,60 @@ function convertRoomObjToWorkspace(roomObj2) {
         }
 
         workspaceItem = {
-            id: wall.id,
+            "objectType": "wall",
+            id: item.id,
             "position": [
-                x,
+                (swapXY ? x : y),
                 z,
-                y
+                (swapXY ? y : x)
             ],
             "rotation": [
                 0,
-                (wall.rotation * -(Math.PI / 180)),
+                ((item.rotation - 90) * -(Math.PI / 180)),
                 0
             ],
-            "scale": [
-                wall.width,
-                verticalHeight,
-                wall.height],
+            "height": verticalHeight,
+            "length": item.height,
+            "width": item.width
+        }
+
+        if (item.id === 'primaryCeiling') {
+            workspaceItem.scale = [item.height, verticalHeight, item.width];
+            workspaceItem.objectType = 'ceiling';
+            delete workspaceItem.height;
+            delete workspaceItem.length;
+            delete workspaceItem.width;
         }
 
 
+
         workspaceItem = { ...workspaceItem, ...attr };
+
+        if ('data_role' in item && item.data_role) {
+            workspaceItem.role = item.data_role.value;
+        }
+
+        if ('data_color' in item && item.data_color) {
+            workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_labelField' in item) {
+            let jsonPart = /{.*?}/.exec(item.data_labelField);
+            if (jsonPart) {
+                try {
+                    let newKeyValues = JSON.parse(jsonPart[0]);
+                    workspaceItem = { ...workspaceItem, ...newKeyValues }
+                } catch {
+                    console.info('Error parsing JSON ', jsonPart);
+                }
+            }
+        }
 
         workspaceObj.customObjects.push(workspaceItem);
     }
 
 
-    downloadJsonWorkpaceFile(workspaceObj);
+    return workspaceObj;
 
 }
 
@@ -6913,55 +9130,43 @@ function downloadJsonWorkpaceFile(workspaceObj) {
     URL.revokeObjectURL(link.href);
 }
 
-workSpaceKey = {};
-workSpaceKey.roomBar = { objectType: 'videoDevice', deviceType: 'Room Bar', color: 'Light' };
-workSpaceKey.roomBarPro = { objectType: 'videoDevice', deviceType: 'Room Bar Pro', color: 'Light' };
-workSpaceKey.roomKitEqx = { objectType: 'videoDevice', deviceType: 'EQX', mount: 'wall' };
-workSpaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit EQ', color: 'Light' };
-workSpaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', deviceType: 'Room Kit EQ' };
-workSpaceKey.roomKitEqPtz4k = { objectType: 'ptzcam', deviceType: 'crossview' };
-workSpaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', deviceType: 'Room Kit EQ' };
-workSpaceKey.roomKitProQuadCam = { objectType: 'videoDevice', deviceType: 'Room Kit Pro', color: 'Light' };
-workSpaceKey.boardPro55 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 55 };
-workSpaceKey.boardPro75 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 75 };
-workSpaceKey.brdPro55G2 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 55 };
-workSpaceKey.brdPro75G2 = { objectType: 'videoDevice', deviceType: 'Board Pro', mount: 'wall', size: 75 };
-workSpaceKey.webexDesk = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.webexDeskPro = { objectType: 'videoDevice', deviceType: 'Desk Pro' };
-workSpaceKey.webexDeskMini = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.room55 = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.rmKitMini = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.roomKit = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', deviceType: 'Room Bar Pro' };
-workSpaceKey.roomKitEqxFS = { objectType: 'videoDevice', deviceType: 'EQX', mount: 'floor' };
-workSpaceKey.cameraP60 = { objectType: 'videoDevice', deviceType: '' };
-workSpaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach' };
-workSpaceKey.quadCam = { objectType: 'quadcam' };
-workSpaceKey.quadCamExt = { objectType: 'quadcam' };
-workSpaceKey.quadPtz4kExt = { objectType: 'quadcam' };
+/* if on Cisco VPN, this icon loads and lets the user know that the Workspace is available */
+function workspaceIconLoad() {
+        clearTimeout(vpnTestTimer);
+        toggleWorkspace(true);
+}
 
-workSpaceKey.chair = { objectType: 'chair' };
+function toggleWorkspace(isOn = true) {
+    let button = document.getElementById('btnWorkspace');
+    if (isOn) {
+        button.children[0].textContent = 'deployed_code';
+        button.children[0].style.color = '';
+        document.getElementById('workspaceIcon').style.display = '';
+        document.getElementById('vpnRequiredLabel').classList.remove('highlightRed');
 
-workSpaceKey.tblRect = { objectType: 'table', tableType: 'regular' };
-workSpaceKey.tblShapeU = { objectType: 'table', tableType: 'ushape' };
-workSpaceKey.tblTrap = { objectType: 'table', tableType: 'tapered' };
+    } else {
 
-workSpaceKey.ceilingMicPro = { objectType: 'Ceiling Mic Pro', kind: 'mic', range: 4 };
-workSpaceKey.tableMicPro = { objectType: 'Table Mic Pro', kind: 'mic', range: 1.5 };
-workSpaceKey.tableMic = { objectType: 'Table Mic', kind: 'mic', range: 1 };
-workSpaceKey.ceilingMic = { objectType: 'Ceiling Mic', kind: 'mic', range: 4.2 };
+        button.children[0].textContent = 'deployed_code_alert';
+        button.children[0].style.color = 'lightgray';
+        document.getElementById('workspaceIcon').style.display = 'none';
+        document.getElementById('vpnRequiredLabel').classList.add('highlightRed');
 
-workSpaceKey.displaySngl = { objectType: 'screen' };
+    }
+}
 
-workSpaceKey.wallStd = { objectType: 'wall' };
-workSpaceKey.wallGlass = { objectType: 'glass' };
-workSpaceKey.floor = { objectType: 'floor'};
-workSpaceKey.columnRect = { objectType: 'wall', color: '#808080' };
-workSpaceKey.personStanding = { objectType: 'custom', customUrl: "./3dmodels/persons/woman-standing.glb" };
+toggleWorkspace(false);
 
-workSpaceKey.navigatorTable = { objectType: 'navigator' };
 
-workSpaceKey.navigatorWall = { objectType: 'navigator', kind:'wall'};
+function reloadWorkspaceIcon() {
+    let workspaceIcon = document.getElementById('workspaceIcon');
+    let source = 'https://prototypes.cisco.com/roomdesigner2/static/media/three-d-object.ae67ecdf63afcfe4d196.svg'
+    workspaceIcon.src = source + "?" + new Date().getTime();
+
+    vpnTestTimer = setTimeout(()=>{  /* if the workspaceIcon does not load in x milliseconds, timer will change the label to red */
+        toggleWorkspace(false)
+    }, 1000);
+}
+
 
 /*
     Attribution:
