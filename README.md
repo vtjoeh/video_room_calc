@@ -1,5 +1,5 @@
 # video_room_calc 
-Video Room Calculator for Cisco video devices by Joe Hughes (beta)
+**Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com 
 
 Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md). 
