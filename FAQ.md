@@ -5,13 +5,13 @@ This site relates to the [Video Room Calculator](https://collabexperience.com).
 Is your question not listed below? Join the [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1). 
 
 ###  How long does the shareable link last?  
-Indefintely. The shareable link contains the full configuration of your design, except for a background image.  There is no cloud information saved about your room, it is full client side solution. 
+Indefinitely. The shareable link contains the full configuration of your design, except for a background image.  There is no cloud information saved about your room, it is full client side solution. 
 
 ###  How to get started? 
 There are two ways to start the room: 
-1) **Quick Setup** - works well when you are in a room doing meausurements. 
+1) **Quick Setup** - works well when you are in a room doing measurements. 
 2) **Drag and Drop** - Just go to the **Equipment tab** select devices and drag and drop.
-Double click on any oject on the canvas to get details and to edit. 
+Double click on any object on the canvas to get details and to edit. 
 
 ### What are the short cut keys? 
 - ctrl-c / cmd-c = copy
@@ -24,13 +24,13 @@ Double click on any oject on the canvas to get details and to edit.
 - shift+click to select/deselect multiple items 
 
 ### When I zoom in and click undo/redo buttons, it zooms out. 
-Yes, this is how the program works.  If the applicaiton did not zoom out, devices would get deleted because canvas in Javascript is not fully synchronous.  Zoom of a canvas takes more memory and resources.   
+Yes, this is how the program works and is based on a limit of Javascript and canvas.     
 
 ### Why does the Quick Setup settings disappear? 
 Once you start moving objects and customizing, you have moved beyond the Quick Setup. To get back to the Quick Setup, click on the **Save** tab --> **Reset Room**. 
 
 ## Pro Tips:
-- **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _Hyperlink_instead of using the URL from the address bar.
+- **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
 - **Undo is your friend** Undo is persistent. If you accidently close the browser, just re-open and click undo. Private/Incognito mode may disrupt this.
 - **Snap to Objects:** Use **Snap to Objects** under **Details** --> **Settings** to help align objects better.  
 - **Copy between tabs** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab. 
@@ -44,6 +44,7 @@ Once you start moving objects and customizing, you have moved beyond the Quick S
 1) Be on the Cisco network or VPN.
 2) Draw your room or use a template to get started.
 3) Click on the cube icon in the upper right corner. 
+![image](https://github.com/user-attachments/assets/dd2250c3-7711-42c3-91d8-15c05491da14)
 - An items _Role_ and _Color_ are settings that change the object in the Workspace Designer. 
 - _Color_ does not change the color of the Video Room Calc device, only in the Workspace Designer. 
 **Caution:** It is possible to create unsupported video device Role combinations of displays and cameras.
@@ -60,7 +61,7 @@ Once you start moving objects and customizing, you have moved beyond the Quick S
       - Rotation is in radians.
       - Overrides the Degree field.
 - No error is given if the JSON does not parse properly. 
-- Use Label fields sparingly as they increase the length of the URL. Avoid unnessary spaces. 
+- Use Label fields sparingly as they increase the length of the URL. Avoid unnecessary spaces. 
 - The Workspace Designer's full JSON schema will be published at a later date. 
 - **Caution**  Labels are powerful but can create undesired results in the Workspace Designer. 
 
