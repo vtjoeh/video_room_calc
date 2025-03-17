@@ -23,11 +23,27 @@ Double click on any object on the canvas to get details and to edit.
 - up, down, left, right arrows = moves a single item (does not move multiple selected items)
 - shift+click to select/deselect multiple items 
 
+## What browsers does the Video Room Calculator work in? 
+- Windows/Mac: Chrome, Edge, Firefox and Safari (Mac)
+- iOS: Safari 
+- Android: Not tested (but Chrome should work)
+- RoomOS: Cisco Board Pro and Desk Pro web app
+If you see any issue with any of the above let me know. 
+
 ### When I zoom in and click undo/redo buttons, it zooms out. 
 Yes, this is how the program works and is based on a limit of Javascript and canvas.     
 
 ### Why does the Quick Setup settings disappear? 
 Once you start moving objects and customizing, you have moved beyond the Quick Setup. To get back to the Quick Setup, click on the **Save** tab --> **Reset Room**. 
+
+### What about privacy and security? What information is tracked? 
+The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud. 
+**Google Fonts:** There is currently a dependency on Google Fonts for icons that will be removed in a future date.  
+**Third party javascript**: DomPurify by Mozilla Foundation distributed by Cloudfare CDN is used to help protect against XSS attacks, which means 3rd party. 
+**Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookies are used. 
+**Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies. 
+
+_**Note:** The above could change at a later date based on new features._
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
