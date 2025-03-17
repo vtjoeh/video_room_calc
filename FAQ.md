@@ -24,17 +24,22 @@ Double click on any object on the canvas to get details and to edit.
 - shift+click to select/deselect multiple items 
 
 ## What browsers does the Video Room Calculator work in? 
+The goal is to support the following: 
 - Windows/Mac: Chrome, Edge, Firefox and Safari (Mac)
 - iOS: Safari 
 - Android: Not tested (but Chrome should work)
-- RoomOS: Cisco Board Pro and Desk Pro web app
-If you see any issue with any of the above let me know. 
+- RoomOS: Cisco Board Pro and Desk Pro web app 
 
-### When I zoom in and click undo/redo buttons, it zooms out. 
-Yes, this is how the program works and is based on a limit of Javascript and canvas.     
+If you see any issue with any of the above please let me know. 
+
+### When I zoom in and click the undo/redo buttons, it zooms out. 
+Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas and how HTML canvas + Javascript is not truly synchronous. This could be optimized at a later date. 
 
 ### Why does the Quick Setup settings disappear? 
 Once you start moving objects and customizing, you have moved beyond the Quick Setup. To get back to the Quick Setup, click on the **Save** tab --> **Reset Room**. 
+
+### What is the maximum file size? 
+The size of the URL can be up to 8190 characters, which is about 500 simbple objects. The use of Labels will greatly decrease this number. 
 
 ### What about privacy and security? What information is tracked? 
 The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud. 
