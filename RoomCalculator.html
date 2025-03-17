@@ -239,7 +239,7 @@
             padding-top: 7px;
         }
 
-        .highlightRed{
+        .highlightRed {
             background-color: rgb(232, 197, 197);
             border-style: solid;
             border-color: #000000;
@@ -733,11 +733,11 @@
 <body>
     <div id="ContainerHeader" class="ContainerHeader">
         <!-- <div style="display: inline-block; width: 90%; "> -->
-            <label style="display: inline;" id="lblHeaderTitle">Video Room Calculator</label>&nbsp;<label id="lblSubtitle">
+        <label style="display: inline;" id="lblHeaderTitle">Video Room Calculator</label>&nbsp;<label id="lblSubtitle">
             for Cisco devices by Joe Hughes <i>(Beta)
             </i></label>
         <!-- </div> -->
-                <!-- <img style="position: absolute; top: 6px; right: 25px; cursor: pointer;" onclick="openQuestionDialog()" width="28px"src="assets/q-a-regular-white.svg"> -->
+        <!-- <img style="position: absolute; top: 6px; right: 25px; cursor: pointer;" onclick="openQuestionDialog()" width="28px"src="assets/q-a-regular-white.svg"> -->
     </div>
 
     <div id="Container1" class="floatColumns">
@@ -748,7 +748,8 @@
                 <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
                 <button class="tablinks" onclick="openTab(event, 'Save')">Save</button>
 
-                <img style="position: relative; top: 9px; right: 0px; cursor: pointer;" onclick="openQuestionDialog()" width="23px"src="assets/q-a-regular.svg">
+                <img style="position: relative; top: 9px; right: 0px; cursor: pointer;" onclick="openQuestionDialog()"
+                    width="23px" src="assets/q-a-regular.svg">
 
             </div>
             <div id="Room" class="tabcontent" style="display: block;" ;>
@@ -1045,7 +1046,8 @@
                 <div class="tab">
                     <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
                         id="subTabItemDetails">Items</button>
-                    <button class="subtablinks2" onclick="openSubTab2(event, 'RoomDetails')" id="subTabRoomDetails">Room</button>
+                    <button class="subtablinks2" onclick="openSubTab2(event, 'RoomDetails')"
+                        id="subTabRoomDetails">Room</button>
                     <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
                         Image</button>
                     <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
@@ -1087,8 +1089,8 @@
                         </div>
                         <div class="inputRow" id="itemZpositionDiv">
                             <div class="inputCellLeft2">
-                                <label class="tooltipBottom">Base Elevation: <span
-                                        class="tooltiptextBottom">[Optional] The vertical measurement from the floor to
+                                <label class="tooltipBottom">Base Elevation: <span class="tooltiptextBottom">[Optional]
+                                        The vertical measurement from the floor to
                                         the base of the object. Not shown on the drawing of the Video Room
                                         Calculator.</span></label>
                             </div>
@@ -1132,7 +1134,8 @@
                                         Height field if it is set.</span></label>
                             </div>
                             <div class="inputCellRight">
-                                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank" placeholder="test">
+                                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
+                                    placeholder="test">
                                 <label class="unitFeetMeters">ft</label>
                             </div>
                         </div>
@@ -1897,8 +1900,10 @@
                     results. Audio is more important than video and can change with room dynamics, so make sure to do
                     proper mic placement.
 
-                    The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes (joehughe@cisco.com).
-                    Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
+                    The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes
+                    (joehughe@cisco.com).
+                    Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
+                        Calculator discussion (Webex
                         Space)</a>.
                     <br>
                     <br>
@@ -1920,9 +1925,9 @@
         <div class="inputRow" style="font-weight:600;">
 
 
-                <img id="workspaceIcon" onload="workspaceIconLoad()" width="16px"
-                    src="https://prototypes.cisco.com/roomdesigner2/static/media/three-d-object.ae67ecdf63afcfe4d196.svg"></img>
-                Workspace Designer Custom Rooms (beta)
+            <img id="workspaceIcon" onload="workspaceIconLoad()" width="16px"
+                src="https://prototypes.cisco.com/roomdesigner2/static/media/three-d-object.ae67ecdf63afcfe4d196.svg"></img>
+            Workspace Designer Custom Rooms (beta)
 
 
         </div>
@@ -1939,7 +1944,9 @@
 
         </div>
         <div class="inputRow">
-            To change the default room height go to <span style="text-decoration: underline; cursor: pointer; color:darkblue;" onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
+            To change the default room height go to <span
+                style="text-decoration: underline; cursor: pointer; color:darkblue;"
+                onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
         </div>
         <div class="inputRow">
             <span class="highlightRed" id="vpnRequiredLabel"> **Requires a Cisco network connection.** </span>
@@ -1983,23 +1990,29 @@
     </dialog>
 
     <dialog id="dialogUndoRedo">
-        <img width="40px"
-        src="/assets/recurring-light.svg"></img>
+        <img width="40px" src="/assets/recurring-light.svg"></img>
     </dialog>
 
-    <dialog id="dialogQuestions">
+    <dialog id="dialogQuestions" style="max-width: 500px;">
         <div style="position: absolute; top: 4px; right: 6px; cursor: pointer; font-size: larger;"
-        onclick="closeDialogQuestions()">&#x2715;</div>
-        <div style="padding: 10px" >
+            onclick="closeDialogQuestions()">&#x2715;</div>
+        <div style="padding: 10px">
 
-        <b>Have a question, comment or feedback? </b><br><br>
-        Please join the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; ">Video Room Calculator discussion
-        </a> <img src="assets/pop-out-bold.svg" width="14px"> Webex space.
+            <b>Have a question, comment or feedback? </b><br><br>
+            <div>See the <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md" target="_blank"
+                    style="outline: none; ">FAQ on GitHub.</a> <img src="assets/pop-out-bold.svg" width="14px">
+            </div>
+            <br>
+            <div>For other questions or feature requests, please join the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; ">Video Room
+                    Calculator discussion
+                </a> <img src="assets/pop-out-bold.svg" width="14px"> Webex space.
+            </div>
         </div>
     </dialog>
 
     <div id="ContainerFooter" class="HeaderFooter">
-        <div>Version: <label id="lblVersion">vx.x</label> - For more information please contact joehughe@cisco.com</div>
+        <div>Version: <label id="lblVersion">vx.x</label> - For more information please please use the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; color: white; text-decoration: underline;">Video Room
+            Calculator discussion</a> Webex space or contact joehughe@cisco.com</div>
     </div>
 
 
