@@ -52,7 +52,7 @@ _**Note:** The above could change at a later date based on new features._
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
-- **Undo is your friend:** Undo is persistent. If you accidently close the browser, just re-open and click undo. Private/Incognito mode may disrupt this.
+- **Undo is your friend:** Undo is persistent. If you accidently close the browser, just re-open and click undo 1x or 2x. Private/Incognito mode may disrupt this.
 - **Snap to Objects:** Use **Snap to Objects** under **Details** --> **Settings** to help align objects better.  
 - **Copy between tabs:** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab. 
 - **Unit Conversion:** - Number fields allows you to enter one type of unit and it converts to another. For example: 12 in => 1ft, 12' 3" => 12.25ft, 1 m => 3.28 ft, 100 cm => 0.33 ft.
