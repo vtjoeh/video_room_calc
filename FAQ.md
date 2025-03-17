@@ -15,7 +15,7 @@ Double click on any object on the canvas to get details and to edit.
 
 ### What are the short cut keys? 
 - ctrl-c / cmd-c = copy
-- ctrl-v / cmd-v = paste (at location of arrow)
+- ctrl-v / cmd-v = paste (at location of arrow click)
 - ctrl-d / cmd-d = duplicate
 - ctrl-z / cmd-z = undo
 - ctrl-y / cmd-y = redo
@@ -52,10 +52,10 @@ _**Note:** The above could change at a later date based on new features._
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
-- **Undo is your friend** Undo is persistent. If you accidently close the browser, just re-open and click undo. Private/Incognito mode may disrupt this.
+- **Undo is your friend:** Undo is persistent. If you accidently close the browser, just re-open and click undo. Private/Incognito mode may disrupt this.
 - **Snap to Objects:** Use **Snap to Objects** under **Details** --> **Settings** to help align objects better.  
-- **Copy between tabs** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab. 
-- **Unit Conversion** - Number fields allows you to enter one type of unit and it converts to another. For example: 12 in => 1ft, 12' 3" => 12.25ft, 1 m => 3.28 ft, 100 cm => 0.33 ft.
+- **Copy between tabs:** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab. 
+- **Unit Conversion:** - Number fields allows you to enter one type of unit and it converts to another. For example: 12 in => 1ft, 12' 3" => 12.25ft, 1 m => 3.28 ft, 100 cm => 0.33 ft.
 - **Board Pro / Desk Pro** - Video Room Calc works on a Board Pro or Desk Pro as a web app. Uses a QR code to get the URL. The Workspace Designer Custom Rooms is not supported on the Desk Pro or Board Pro. 
   - The QR code is limited to 2950 characters. 
   - To see the QR code on a PC add 'qr' to the querystring parameter, **Save** tab --> **Load QR Code Script** button. For example: https://collabexperience.com/?qr  
