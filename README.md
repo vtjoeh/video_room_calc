@@ -33,17 +33,7 @@ https://collabexperience.com
 - Removed device type _Room Kit EQ: Quad Cam + PTZ 4K Extended_. The Room Kit EQ: Quad Cam and the PTZ 4K camera can be added separately and work better if used with Workspace Designer. 
 - New objects: Laptop, Plant, Wheelchair, accessibility block, accessibility wheelchair 
 - Created a [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) 
-- In support of the **Custom Rooms**, the Label field with JSON is inserted direct into the Workspace Designer: 
-  - Anything not in curly brackets ({}) is ignored.
-  - Examples: 
-    - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
-    - To flip a PTZ 4K camera: {"scale":[1,-1,1]}
-    - To change a person model use {"model":"man-standing-pen"}.  Default person is {"model":"woman-standing"}. 
-    - To changed the x, y, z rotation of any object: {"rotation":[0, 3.14, 0]}
-      - Rotation is in radians.
-      - Overrides the Degree field.
-  - Example with JSON in the **Details** --> **Item:** **Label** field: [Video Room Calc Labels with custom JSON](https://collabexperience.com/?x=A1v0.1.510b1000c1000~Video+Room+Calc+Label+JSON+example~B000101AG632a333b623~%7B%22scale%22%3A%5B1%2C-1%2C1%5D%7D~WA125a52c33e864~%7B%22color%22%3A%22red%22%2C+%22opacity%22%3A%220.5%22%7D~WD522a626b70c200e200j200~%7B%22color%22%3A%22blue%22%2C+%22rotation%22%3A%5B0.785%2C0%2C0.785%5D%7D~)
-  - **Caution**  Labels are powerful but can create undesired results.
+- In support of the **Custom Rooms**, the Label field with JSON is inserted direct into the Workspace Designer.  See the FAQ for more info.
 - Not published to GitHub.
 - Fixed some bugs, added some bugs. 
 
@@ -152,18 +142,17 @@ There is no warranty or guarantee the below features will ever be added.
 - Have smaller devices like microphones auto-scale up in size for large rooms. 
 - Ability to add custom generic devices.  Speakers, microphones and displays. 
 
-This is a side project. Work is done nights, weekends and holidays.  As of Sept 15, 2024 I'm taking break for a few weeks. 
+This is a side project. Work is done mostly nights, weekends and holidays.  
 
 ### Special thanks to those who have tested, gave feedback or were just really patient.
-- Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mike 
-- Win.
-- Alexis B. 
-- Bobby McGonigle. 
-- Mark Baker 
-- Julie, Anna, Paul & Joshua
-- Those who wish to remain anonymous
-- The Famous One
-- *Thank you to everybody who gave feedback or said thank you.*
+<sub>* Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mike </sub> \
+<sub>* Win.</sub> \
+<sub>* Alexis B. </sub> \
+<sub>*  Bobby McGonigle. </sub> \
+<sub>*  **Mark Baker** </sub> \
+<sub>* Julie, Anna, Paul & Joshua</sub> \
+<sub>*  Those who wish to be uncredited</sub> \
+<sub>* The Famous One</sub> 
 
 _Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._ 
 
