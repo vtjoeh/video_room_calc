@@ -1993,7 +1993,7 @@
         <img width="40px" src="/assets/recurring-light.svg"></img>
     </dialog>
 
-    <dialog id="dialogQuestions" style="max-width: 500px;">
+    <dialog id="dialogQuestions" style="max-width: 450px; padding: 5px;">
         <div style="position: absolute; top: 4px; right: 6px; cursor: pointer; font-size: larger;"
             onclick="closeDialogQuestions()">&#x2715;</div>
         <div style="padding: 10px">
@@ -2003,17 +2003,33 @@
                     style="outline: none; ">FAQ on GitHub.</a> <img src="assets/pop-out-bold.svg" width="14px">
             </div>
             <br>
-            <div>For other questions or feature requests, please join the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; ">Video Room
-                    Calculator discussion
+            <div>For other questions or feature requests, please join the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; ">
+                <br>Video Room Calculator discussion
                 </a> <img src="assets/pop-out-bold.svg" width="14px"> Webex space.
             </div>
         </div>
+    </dialog>
+
+    <dialog id="characterLimitWarning" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ">
+        !!! Warning !!! You have exceded the limit of the number of characters for the URL of 8190.  <br><br><br>
+        <b>Please click the 'undo' button or delete some objects until this message no longer occurs. </b><br><br>
+        <b> You will lose your configuration if you click the browser refresh button. </b>
+        <br><br>
+        Congratulations on being one of the few who will see this message! Please let joehughe@cisco.com know the limit should be extended.
+        <br><br>
+        <form method="dialog">
+
+                <input type="submit" value="OK"
+                    class="button" id="btnModalWorkspace">
+
+        </form>
     </dialog>
 
     <div id="ContainerFooter" class="HeaderFooter">
         <div>Version: <label id="lblVersion">vx.x</label> - For more information please please use the <a href="https://eurl.io/#4d-kKP6l1" target="_blank" style="outline: none; color: white; text-decoration: underline;">Video Room
             Calculator discussion</a> Webex space or contact joehughe@cisco.com</div>
     </div>
+
 
 
     <script src="./js/konva.min.js"></script>
