@@ -14,6 +14,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - Added help button directing users to the new [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) . 
 - Optimized for use on Cisco Desk Pro and Board Pro as a web app by adding in timers/delays. 
 - Fixed bugs.  
+- Increased URL size from 4094 characters to 8190.  To date only one person has reported hitting the limit of 4094 characters. 
 
 **v0.1.509** 
 - **Experimental Feature: Custom Rooms** Added support for experimental [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html) **Custom Rooms** cross-launch.
