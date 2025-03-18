@@ -38,8 +38,8 @@ Yes, this is how the program works and is based on some limits of how zoom is im
 ### Why does the Quick Setup settings disappear? 
 Once you start moving objects and customizing, you have moved beyond the Quick Setup. To get back to the Quick Setup, click on the **Save** tab --> **Reset Room**. 
 
-### What is the maximum file size? 
-The size of the URL can be up to 8190 characters, which is about 500 simbple objects. The use of Labels will greatly decrease this number. 
+### What is the maximum URL size or number of items in a design? 
+The size of the URL can be up to 8190 characters, which is about 500 objects. The use of text fields like the Name or Label fields contributes to the URL size. 
 
 ### What about privacy and security? What information is tracked? 
 The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud. 
