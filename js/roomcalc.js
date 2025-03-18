@@ -1,4 +1,4 @@
-const version = "v0.1.510";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.511";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -20,6 +20,7 @@ let pxLastGridLineY;
 let roomName = '';
 let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 let workspaceWindow; /* window representing the workspace designer window being open */
+let firstLoad = true; /* set to false after onLoad is run the first time */
 
 let isLoadingTemplate = false;  /* used to keep track if a template is loading */
 let loadTemplateTime = 500; /* in milliseconds, the time to wait before attempting to load another template. This number is increased for RoomOS */
@@ -191,7 +192,7 @@ workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'f
 
 workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
 workspaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
-workspaceKey.quadCam = { objectType: 'quadcam', role:'crossview', yOffset: 0.076 };
+workspaceKey.quadCam = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 
@@ -216,7 +217,7 @@ workspaceKey.displaySngl = { objectType: 'screen', role: 'firstScreen', yOffset:
 workspaceKey.wallStd = { objectType: 'wall' };
 workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', width: 0.03, opacity: '0.3' };
 workspaceKey.wallWindow = { objectType: 'wall', model: 'window' };
-workspaceKey.ceiling = { objectType: 'ceiling'};
+workspaceKey.ceiling = { objectType: 'ceiling' };
 workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
 
 
@@ -536,7 +537,7 @@ layerSelectionBox.add(select2PointsRect);
 
 /************************************************************************** */
 
-document.getElementById('lblVersion').innerHTML = version;
+document.getElementById('lblVersion').innerText = version;
 
 
 
@@ -1331,7 +1332,7 @@ function updateLabelUnits() {
         else if (unit == 'meters') {
             abbUnit = 'm'
         }
-        lblUnit.innerHTML = abbUnit;
+        lblUnit.innerText = abbUnit;
     });
 }
 
@@ -1411,7 +1412,7 @@ function convertMetersFeet(isDrawRoom) {
 
     let defaultUnit = localStorage.getItem('defaultUnit');
     if (!(defaultUnit === 'none')) {
-        localStorage.setItem('defaultUnit', roomObj.unit);
+        setItemForLocalStorage('defaultUnit', roomObj.unit);
     }
 
     let ratio = 3.28084 /* Feet / meter */
@@ -1524,7 +1525,7 @@ function getQueryString() {
 
     if (urlParams.has('ver')) {
         if (urlParams.has('ver')) versionQueryString = DOMPurify.sanitize(urlParams.get('ver'));
-        if (urlParams.has('ver')) versionQueryString = urlParams.get('ver');
+      //  if (urlParams.has('ver')) versionQueryString = urlParams.get('ver');
 
         lastAction = 'load from querystring';
 
@@ -1556,7 +1557,7 @@ function getQueryString() {
     //         document.getElementById('test').setAttribute('style', 'visibility: visible;');
     //         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
     //         document.getElementById('testB').style.display = '';
-    //         localStorage.setItem('test', 'true');
+    //         setItemForLocalStorage('test', 'true');
     //     }
     //     else if (testValue == '0' || testValue === 'off') {
     //         console.info('"test" fields are turned off and the setting is removed from local storage');
@@ -1569,7 +1570,7 @@ function getQueryString() {
     document.getElementById('test').setAttribute('style', 'visibility: visible;');
 
     /* RoomOS does not support the Workspace Designer cross-launch */
-    if(mobileDevice != 'RoomOS'){
+    if (mobileDevice != 'RoomOS') {
         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
         document.getElementById('testB').style.display = '';
     }
@@ -1672,6 +1673,7 @@ function getQueryString() {
 }
 
 function parseShortenedXYUrl(parameters) {
+
     let output = []; /* parameter object - an intermedidate step to create a param */
 
     function isUpperCaseLetter(character) {
@@ -2171,6 +2173,8 @@ function onLoad() {
     if (localStorage.getItem('snapToIncrement')) {
         document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
     }
+
+    firstLoad = false;
 }
 
 
@@ -2275,16 +2279,16 @@ function isQuickSetupEnabled() {
 
     let quickSetupEnabledText = 'Quick Setup (optional) ' + quickSetupIconTooltip;
     if (quickSetupState === 'insert') {
-        quickSetup.innerHTML = quickSetupEnabledText;
+        quickSetup.innerHTML = quickSetupEnabledText;  /* This should be innerHTML, no data is passed from QR String */
         quickSetupItems.style.display = 'initial';
     }
     else if (quickSetupState === 'update') {
-        quickSetup.innerHTML = quickSetupEnabledText;
+        quickSetup.innerHTML = quickSetupEnabledText; /* This should be innerHTML, no data is passed from QR String */
         quickSetupItems.style.display = 'initial';
 
     }
     else if (quickSetupState === 'disabled') {
-        quickSetup.innerHTML = `Quick Setup is disabled ` + quickSetupIconTooltip;
+        quickSetup.innerHTML = `Quick Setup is disabled ` + quickSetupIconTooltip; /* This should be innerHTML, no data is passed from QR String */
         quickSetupItems.style.display = 'none';
         /* disable buttons */
     }
@@ -2477,7 +2481,7 @@ function drpVideoDeviceChange(firstRun = false) {
     let drpVideoDeviceValue = drpVideoDevice.value;
 
     if (drpVideoDeviceValue === 'autoselect') {
-        let roomLength = document.getElementById('roomLength').value;
+        let roomLength = Number(document.getElementById('roomLength').value);
 
         unit = document.getElementById('drpMetersFeet').value;
 
@@ -3153,7 +3157,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     let drpTvNum = getNumberValue('drpTvNum');
     roomObj.room.drpTvNum = drpTvNum;
 
-    document.getElementById('lblvDiag').innerHTML = tvDiag;
+    document.getElementById('lblvDiag').innerText = tvDiag;
 
     updatePersonCropUnit();
 
@@ -3470,7 +3474,7 @@ function createShareableLink() {
         strUrlQuery2 += 'f' + round(roomObj.room.roomHeight) * 100;
     }
 
-    strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g,'')).replaceAll('%20', '+') + '~'}`;
+    strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
 
 
     strUrlQuery2 += createShareableLinkItemShading();
@@ -3489,7 +3493,7 @@ function createShareableLink() {
     }
 
     fullShareLink = location.origin + location.pathname + '?x=' + strUrlQuery2;
-    fullShareLink = DOMPurify.sanitize(fullShareLink);
+    // fullShareLink = DOMPurify.sanitize(fullShareLink);
     fullShareLink = fullShareLink.replaceAll(' ', '+');
     fullShareLinkCollabExpBase = 'https://collabexperience.com/' + fullShareLink.match(/\?x=.*/);
 
@@ -3497,6 +3501,11 @@ function createShareableLink() {
 
     document.getElementById('qrCodeLinkText').value = 'QR Code Character Length: ' + fullShareLink.length + ' / 2950 max';
 
+    if (fullShareLink.length > 8190 && !firstLoad) {
+        document.getElementById('characterLimitWarning').show();
+    } else {
+        document.getElementById('characterLimitWarning').close();
+    }
 
     if (fullShareLink.length > 2500) {
         document.getElementById('qrCodeLinkText').style.backgroundColor = '#ffffc5';
@@ -3517,7 +3526,7 @@ function createShareableLink() {
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
     }
 
-    /* only create QR Code if RoomOS only every 2 seconds for performance */
+    /* only create QR Code if RoomOS and only every 2 seconds for performance */
     if (qrCodeAlwaysOn) {
         let qrImage = document.getElementById('qrCode').firstChild;
         clearTimeout(timerQRcodeOn);
@@ -3620,7 +3629,7 @@ function createShareableLinkItem(item) {
     if ('data_labelField' in item) {
         if (item.data_labelField) {
             /* Trim all starting/trailing spaces or _underscores, then encode, then replace all spaces (%20) with + */
-            strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g,'')).replaceAll('%20', '+') + '~';
+            strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
         }
     }
 
@@ -3693,7 +3702,7 @@ function downloadCanvasPNG2(isSolidBackground = true) {
     enableCopyDelBtn(false);
     try {
 
-        let roomName = document.getElementById('roomName').value;
+        let roomName = DOMPurify.sanitize(document.getElementById('roomName').value);
 
         let downloadRoomName;
 
@@ -3870,20 +3879,20 @@ function toggleButton(button) {
 }
 
 /* shows an undo dialog and adds a delay on undo / redo on RoomOS devices */
-function showUndoRedoRoomOs(){
-    if (mobileDevice === 'RoomOS'){
+function showUndoRedoRoomOs() {
+    if (mobileDevice === 'RoomOS') {
         document.getElementById('dialogUndoRedo').showModal();
-        setTimeout(()=>{
+        setTimeout(() => {
             document.getElementById('dialogUndoRedo').close();
         }, 500);
-     }
+    }
 }
 
-function openQuestionDialog(){
+function openQuestionDialog() {
     document.getElementById('dialogQuestions').showModal();
 }
 
-function closeDialogQuestions(){
+function closeDialogQuestions() {
     document.getElementById('dialogQuestions').close();
 }
 
@@ -4039,7 +4048,7 @@ function copyToCanvasClipBoard(items) {
 
     canvasClipBoard.sessionId = sessionId;
     canvasClipBoard.unit = roomObj.unit;
-    localStorage.setItem('copyItemsObj', JSON.stringify(canvasClipBoard));
+    setItemForLocalStorage('copyItemsObj', JSON.stringify(canvasClipBoard));
 
 
 }
@@ -4481,7 +4490,7 @@ let camera = new Konva.Shape({
 camera.data_type = 'videoDevice';
 
 
-function getAttributes(device){
+function getAttributes(device) {
     let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
 
     if ('height' in device) {
@@ -4524,7 +4533,7 @@ function getAttributes(device){
         attrObj.data_color = device.data_color;
     }
 
-    if('data_diagonalInches' in device && device.data_diagonalInches){
+    if ('data_diagonalInches' in device && device.data_diagonalInches) {
         attrObj.data_diagonalInches = device.data_diagonalInches;
     }
 
@@ -4542,8 +4551,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-           let attrObj = getAttributes(device);
-           insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
         }
     }
 
@@ -4756,6 +4765,16 @@ function trNodesUuidToRoomObj() {
     roomObj.trNodes = trNodesIdArray;
 }
 
+
+/* Try and catch wrapper for setting local storage */
+function setItemForLocalStorage(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.error('Unable to set local storage.  Either local storage is turned off or the item is too big');
+    }
+}
+
 function saveToUndoArray() {
     let strUndoArrayLastItem;
 
@@ -4785,13 +4804,11 @@ function saveToUndoArray() {
         undoArray.shift();
     }
 
-    localStorage.setItem('undoArray', JSON.stringify(undoArray));
-
+    setItemForLocalStorage('undoArray', JSON.stringify(undoArray.slice(-30)));  /* only store the last 30 items to local storage to save on space */
 
     if (workspaceWindow) {
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
     }
-
 
 }
 
@@ -5464,7 +5481,7 @@ function updateItem() {
 
     let tblRectRadiusRight = document.getElementById('tblRectRadiusRight').value;
 
-    let data_labelField = document.getElementById('labelField').value;
+    let data_labelField = DOMPurify.sanitize(document.getElementById('labelField').value);
 
     let data_trapNarrowWidth = document.getElementById('trapNarrowWidth').value;
 
@@ -5506,12 +5523,12 @@ function updateItem() {
 
                 item.data_diagonalInches = data_diagonalInches;
 
-                if(data_diagonalInches === '' || data_diagonalInches < 5){
+                if (data_diagonalInches === '' || data_diagonalInches < 5) {
                     item.data_diagonalInches = 75
                 }
 
-                if(item.data_deviceid.startsWith('roomKitEqx') && ((Number(data_diagonalInches) > 85) || Number(data_diagonalInches) < 65 )){
-                   item.data_diagonalInches = 75;
+                if (item.data_deviceid.startsWith('roomKitEqx') && ((Number(data_diagonalInches) > 85) || Number(data_diagonalInches) < 65)) {
+                    item.data_diagonalInches = 75;
                 }
             }
 
@@ -5900,13 +5917,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
 
 
-        if (!deviceId.startsWith('roomKitEqx')){
+        if (!deviceId.startsWith('roomKitEqx')) {
             height = displayDepth / 1000 * scale;  /* height is displayDepth, which is constant regardless of diagnol inches. roomKitEqx width is set in the videoDevices object */
         }
 
         if (unit === 'feet') {
             width = width * 3.28084;
-            if(!deviceId.startsWith('roomKitEqx')) height = height * 3.28084;
+            if (!deviceId.startsWith('roomKitEqx')) height = height * 3.28084;
         }
 
 
@@ -5964,11 +5981,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         /* on a refresh of the page, make sure person is over the chair.  This isn't working, need to figure out why. */
         if (imageItem.data_deviceid.startsWith('person')) {
-           imageItem.zIndex(groupChairs.getChildren().length - 1);
+            imageItem.zIndex(groupChairs.getChildren().length - 1);
         }
 
         if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door')) {
-           imageItem.zIndex(0);
+            imageItem.zIndex(0);
         }
 
 
@@ -6646,9 +6663,9 @@ function drawSnapGuides(guides) {
 
 function defaultUnitChange(e) {
     if (e.srcElement.checked) {
-        localStorage.setItem('useDefaultUnitCheckBox', 'true');
+        setItemForLocalStorage('useDefaultUnitCheckBox', 'true');
     } else {
-        localStorage.setItem('useDefaultUnitCheckBox', 'false');
+        setItemForLocalStorage('useDefaultUnitCheckBox', 'false');
     }
     saveToUndoArray();
 }
@@ -6682,7 +6699,7 @@ function snapChange(e) {
 
     if (e.srcElement.id === 'snapGuidelinesCheckBox' && e.srcElement.checked) {
         document.getElementById('snapIncrementCheckBox').checked = false;
-        localStorage.setItem('snapGuidelinesCheckBox', 'true');
+        setItemForLocalStorage('snapGuidelinesCheckBox', 'true');
     }
 
     if (e.srcElement.id === 'snapIncrementCheckBox' && e.srcElement.checked) {
@@ -6692,19 +6709,19 @@ function snapChange(e) {
 
     if (document.getElementById('snapIncrementCheckBox').checked) {
         document.getElementById('snapToIncrement').disabled = false;
-        localStorage.setItem('snapIncrementCheckBox', 'true');
+        setItemForLocalStorage('snapIncrementCheckBox', 'true');
     } else {
         document.getElementById('snapToIncrement').disabled = true;
-        localStorage.setItem('snapIncrementCheckBox', 'false');
+        setItemForLocalStorage('snapIncrementCheckBox', 'false');
     }
 
     if (document.getElementById('snapGuidelinesCheckBox').checked) {
-        localStorage.setItem('snapGuidelinesCheckBox', 'true');
+        setItemForLocalStorage('snapGuidelinesCheckBox', 'true');
     } else {
-        localStorage.setItem('snapGuidelinesCheckBox', 'false');
+        setItemForLocalStorage('snapGuidelinesCheckBox', 'false');
     }
 
-    localStorage.setItem('snapToIncrement', document.getElementById('snapToIncrement').value)
+    setItemForLocalStorage('snapToIncrement', document.getElementById('snapToIncrement').value)
 
 }
 
@@ -6713,7 +6730,7 @@ function updateSnapToIncrement() {
     if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
         snapIncrement = 0.25;
     }
-    localStorage.setItem('snapToIncrement', snapIncrement);
+    setItemForLocalStorage('snapToIncrement', snapIncrement);
 }
 
 
@@ -6846,7 +6863,7 @@ function round(inNumber, place = -2) {
 
 function updateRoomDetails() {
     let roomHeight = document.getElementById('roomHeight').value;
-    let authorVersion = document.getElementById('authorVersion').value;
+    let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value);
     let drpSoftware = document.getElementById('drpSoftware').value;
 
     if (roomHeight != 0 || roomHeight != '') {
@@ -7136,7 +7153,7 @@ function updateFormatDetails(eventOrShapeId) {
                 y = xy.y;
             }
 
-            if('data_diagonalInches' in item){
+            if ('data_diagonalInches' in item) {
                 document.getElementById('itemDiagonalTvDiv').style.display = '';
                 document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
             } else {
@@ -7163,18 +7180,18 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemVheightDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') ){
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')) {
                 let itemVheight = document.getElementById('itemVheight');
                 let defaultHeight = defaultWallHeight;
 
 
-                if(unit === 'feet'){
+                if (unit === 'feet') {
                     defaultHeight = round(defaultHeight * 3.28084);
                 } else {
                     defaultHeight = round(defaultHeight);
                 }
 
-                if (document.getElementById('roomHeight').value){
+                if (document.getElementById('roomHeight').value) {
                     defaultHeight = document.getElementById('roomHeight').value;
                 }
 
@@ -8074,7 +8091,7 @@ function createQrCode() {
     qr.addData(fullShareLink);
     qr.make();
 
-    document.getElementById('qrCode').innerHTML = qr.createImgTag();
+    document.getElementById('qrCode').innerHTML = qr.createImgTag(); /* This should be innerHTML, no raw qurey string or raw input data is passed*/
 
     /*
         QR code library creates an img tag with width & height that changes with QR code.
@@ -8126,7 +8143,7 @@ function loadTemplate(x) {
 
     document.getElementById('dialogLoadingTemplate').showModal();
 
-    if (mobileDevice === 'RoomOS'){
+    if (mobileDevice === 'RoomOS') {
 
         loadTemplateTime = 1500;
     }
@@ -8153,7 +8170,7 @@ function loadTemplate(x) {
 
     }, 500);
 
-    setTimeout(()=>{
+    setTimeout(() => {
         isLoadingTemplate = false;
         document.getElementById('dialogLoadingTemplate').close();
     }, loadTemplateTime)
@@ -8402,7 +8419,7 @@ function workspaceView(isNewTab = 'false') {
     let localStorageObj = {};
     localStorageObj.sessionId = sessionId;
     localStorageObj.workspace = workspaceObj;
-    localStorage.setItem('workspace', JSON.stringify(localStorageObj, null, 5));
+    setItemForLocalStorage('workspace', JSON.stringify(localStorageObj, null, 5));
 
     urlWorkspaceView += '?session=' + sessionId;
 
@@ -8446,16 +8463,16 @@ function openWorkspaceWindow() {
 
 }
 
-function openModalWorkspace(){
+function openModalWorkspace() {
     reloadWorkspaceIcon();
     document.getElementById('modalWorkspace').showModal();
 }
 
-function closeModalWorkspace(){
+function closeModalWorkspace() {
     document.getElementById('modalWorkspace').close();
 }
 
-function openDetailsRoomTab(){
+function openDetailsRoomTab() {
     document.getElementById('modalWorkspace').close();
     document.getElementById("tabItem").click();
     document.getElementById("subTabRoomDetails").click();
@@ -8723,7 +8740,7 @@ function convertRoomObjToWorkspace() {
             attr.model = item.data_deviceid;
         }
 
-        if(item.data_deviceid.startsWith('roomKitEqx')){
+        if (item.data_deviceid.startsWith('roomKitEqx')) {
 
             let newData_zPosition, deltaY;
             let leftDisplay = structuredClone(item);
@@ -8731,7 +8748,7 @@ function convertRoomObjToWorkspace() {
             let displayRatio = 1.02;
 
             /* if the data_zPosition (height) is blank or null, set to 0 */
-            if(!item.data_zPosition){
+            if (!item.data_zPosition) {
                 item.data_zPosition = 0;
             }
 
@@ -8739,12 +8756,12 @@ function convertRoomObjToWorkspace() {
 
             let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
 
-            if(item.data_deviceid === 'roomKitEqxFS') {
+            if (item.data_deviceid === 'roomKitEqxFS') {
                 newData_zPosition = 1.80 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.07;
             }
             else {
-               newData_zPosition = 1.121 + Number(item.data_zPosition) - newDisplayHeight;
+                newData_zPosition = 1.121 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.12;
             }
 
@@ -8906,7 +8923,7 @@ function convertRoomObjToWorkspace() {
                     let newKeyValues = JSON.parse(jsonPart[0]);
                     workspaceItem = { ...workspaceItem, ...newKeyValues }
                 } catch {
-                     console.info('Error parsing JSON ', jsonPart);
+                    console.info('Error parsing JSON ', jsonPart);
                 }
             }
         }
@@ -9013,7 +9030,7 @@ function convertRoomObjToWorkspace() {
                     let newKeyValues = JSON.parse(jsonPart[0]);
                     workspaceItem = { ...workspaceItem, ...newKeyValues }
                 } catch {
-                     console.info('Error parsing JSON ', jsonPart);
+                    console.info('Error parsing JSON ', jsonPart);
                 }
             }
 
@@ -9037,13 +9054,13 @@ function convertRoomObjToWorkspace() {
 
         verticalHeight = defaultWallHeight;
 
-        if ('data_vHeight' in item && item.data_vHeight){
+        if ('data_vHeight' in item && item.data_vHeight) {
             verticalHeight = item.data_vHeight;
         } else {
             verticalHeight = roomObj2.room.roomHeight || defaultWallHeight;
         }
 
-        if (isNaN(verticalHeight)){
+        if (isNaN(verticalHeight)) {
             verticalHeight = Number(defaultWallHeight);
         }
 
@@ -9132,8 +9149,8 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 
 /* if on Cisco VPN, this icon loads and lets the user know that the Workspace is available */
 function workspaceIconLoad() {
-        clearTimeout(vpnTestTimer);
-        toggleWorkspace(true);
+    clearTimeout(vpnTestTimer);
+    toggleWorkspace(true);
 }
 
 function toggleWorkspace(isOn = true) {
@@ -9162,7 +9179,7 @@ function reloadWorkspaceIcon() {
     let source = 'https://prototypes.cisco.com/roomdesigner2/static/media/three-d-object.ae67ecdf63afcfe4d196.svg'
     workspaceIcon.src = source + "?" + new Date().getTime();
 
-    vpnTestTimer = setTimeout(()=>{  /* if the workspaceIcon does not load in x milliseconds, timer will change the label to red */
+    vpnTestTimer = setTimeout(() => {  /* if the workspaceIcon does not load in x milliseconds, timer will change the label to red */
         toggleWorkspace(false)
     }, 1000);
 }
