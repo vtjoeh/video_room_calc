@@ -6,6 +6,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.511**
+- Provide user warning if the URL file size exceeds 8190 characters, which is about 500 objects on the canvas. 
+- Fixed some bugs related to local storage. 
+
 **v0.1.510**
 - Added help button directing users to the new [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1) . 
 - Optimized for use on Cisco Desk Pro and Board Pro as a web app by adding in timers/delays. 
