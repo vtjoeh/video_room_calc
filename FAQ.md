@@ -48,7 +48,15 @@ The configuration and data is client side only. The Video Room Calculator does n
 **Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookies are used. 
 **Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies. 
 
-_**Note:** The above could change at a later date based on new features._
+### I see a descrpency between the Video Room Room Calcutor and the Workspace Designer, what should I do? 
+The Workspace Designer is the official tool from Cisco and should take precedent over the Video Room Calculator. The Video Room Calculator only takes a top down view, where as the Workspace Designer allows for a side view. For example, the Video Room Calculator uses 11.5 feet for the reach of the Cisco Ceiling Microphone Pro.  The Workspace Designer uses a slightly larger value, but allows height to be seen. 
+
+### Why does the Room Bar Pro and Board Pro G2 have a setting for an external microphone? 
+_(feature coming sooon to VRC with version v0.1.512 or later_  For the Room Bar Pro or Board Pro 55/75 G2, when an eternal microphone is attached the internal microphone pickup is reduced.  See the example below. 
+![image](https://github.com/user-attachments/assets/06f47f0e-3e2b-4d44-b8da-9311c040d002)
+**Example from the Workspace Designer and Room Bar Pro with and without an external microphone.**
+
+_**Note:** The above informationcould change at a later date based on new features._
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
