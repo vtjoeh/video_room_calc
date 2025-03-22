@@ -105,6 +105,7 @@ _**Note:** The above information could change at a later date based on new featu
   - Examples: 
     - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
     - To flip a PTZ 4K camera: {"scale":[1,-1,1]}
+    - Hide an object when exported to the Workspace Designer, great for a wall: {"hidden":"true"}
     - To change a person's model use {"model":"man-standing-pen"}.  The default person is {"model":"woman-standing"}. 
     - To change the x, y, z rotation of any object: {"rotation":[0, 3.14, 0]}
       - Rotation is in radians.
