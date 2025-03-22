@@ -49,14 +49,34 @@ The configuration and data is client side only. The Video Room Calculator does n
 **Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies. 
 
 ### I see a descrpency between the Video Room Room Calcutor and the Workspace Designer, what should I do? 
-The Workspace Designer is the official tool from Cisco and should take precedent over the Video Room Calculator. The Video Room Calculator only takes a top down view, where as the Workspace Designer allows for a side view. For example, the Video Room Calculator uses 11.5 feet for the reach of the Cisco Ceiling Microphone Pro.  The Workspace Designer uses a slightly larger value, but allows height to be seen. 
+The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down view, whereas the Workspace Designer allows for a side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
 
-### Why does the Room Bar Pro and Board Pro G2 have a setting for an external microphone? 
-_(feature coming sooon to VRC with version v0.1.512 or later)_  For the Room Bar Pro or Board Pro 55/75 G2, when an eternal microphone is attached the internal microphone pickup is reduced.  See the example below. 
+### Why does the Room Bar Pro and Board Pro G2 with an external mic pickup range look different in the Workspace Designer than the Video Room Calculator? 
+This is a configurable setting and works differntly depending on products and configurations, so it is hard to say what the correct default pickup range should be in the Video Room Calculator. There is an important setting: 
+Configuration--> Audio--> BeamMix--> Inputs: **Auto** or **BeamsAndExtMics**
+
+According to page 141 of the [RoomOS Administrative](https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/roomos-1124/desk-room-board-administration-guide-roomos-1124.pdf#page=141) guide, dated Feb 2025: 
+>When connecting an analog or digital (Ethernet) microphone to the device, the internal microphone array's three beams are automatically disabled. Whether the near talker zone is enabled depends on the product:
+>- Board Pro, Board Pro G2: The near talker zone is activated when someone is inside this zone; hence, it picks up audio from people standing by the device.
+>- Room Bar Pro: The near talker zone is disabled.
+>
+>If you want to enable the three beams when using external microphones, you must set the following:
+>Audio > Microphones > BeamMix > Inputs: BeamsAndExtMics
+>_NOTE: When using Ceiling Microphone Pro, we recommend using the Auto setting as it provides a smarter audio mixer, taking into account the placement of the Ceiling Microphone Pro_
+![image](https://github.com/user-attachments/assets/663bda79-f2bc-40bb-8619-cacce4cf2c50)
+
+According to the [December 2024](https://help.webex.com/en-us/article/6ger7db/Release-notes-for-RoomOS-software#sx10_r_whats_new_2024)(Release notes for RoomOS software): 
+>**Room Bar Pro, Board Pro, and Board Pro G2 external and internal microphones**
+>We've made changes to the Audio Microphones BeamMix Inputs setting for Room Bar Pro, Board Pro, and Board Pro G2. For these devices, the new options for this setting are:
+>  - **Auto (new behaviour):**  If a Ceiling Microphone Pro is connected and the Ceiling Microphone Pro voice tracking wizard has been run, the new smart audio mixer uses both internal beams and > the Ceiling Mic Pro.
+  For other external microphones, the internal beams are disabled.
+>  -  **BeamsAndExtMics:** The audio mixer uses internal beams and external microphones for voice pickup at all times. When using Ceiling Microphone Pro, we recommend using the Auto setting as it provides a smarter audio mixer, taking into account the placement of the Ceiling Microphone Pro.
+>  - **OnlyExtMixs (New):** Uses only external microphones for voice pickup and falls back to internal beams if no external microphones are connected.
+
+The Workspace Designer gives the following view when a Cisco Table Microphone Pro is used with a Room Bar Pro:  
 ![image](https://github.com/user-attachments/assets/06f47f0e-3e2b-4d44-b8da-9311c040d002)
-**Example from the Workspace Designer and Room Bar Pro with and without an external microphone.**
 
-_**Note:** The above informationcould change at a later date based on new features._
+_**Note:** The above information could change at a later date based on new features._
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
