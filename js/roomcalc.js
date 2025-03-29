@@ -1,4 +1,4 @@
-const version = "v0.1.511";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.513";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -53,8 +53,6 @@ let layerBackgroundImageFloor = new Konva.Layer({
 const sessionId = createUuid(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */
 const startTime = new Date(Date.now()); /* startTime is for statistics */
 const clientTimeStamp = startTime.toUTCString();
-let videoDevice;
-let videoDeviceKey;
 let fullShareLink;
 let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
 let lastAction = "load";
@@ -62,6 +60,7 @@ let quickSetupState = 'disabled'; /* QuickSetupState states are changed by progr
 let primaryDeviceIsAllInOne = false; /* keep track if the primary device is all in one */
 let idKeyObj = {}; /* keep the vavlue pair { 'id' : 'key' } of the different categories in 1 object */
 let keyIdObj = {}; /* keep the vavlue pair { 'key' : 'id' } of the different categories in 1 object */
+let allDeviceTypes = {}; /* a list of all device types merged using the id/data_deviceType as the key */
 let roomObj = {}; /* used to store the room data in JSON format.  redraw(true) rebuilds the entire room from the roomObj JSON */
 roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
 roomObj.version = version; /* version of Video Room Calculator */
@@ -85,6 +84,7 @@ roomObj.layersVisible.grShadingSpeaker = true;  /* true or false */
 roomObj.items.videoDevices = [];
 roomObj.items.chairs = [];
 roomObj.items.tables = [];
+roomObj.items.stageFloors = [];
 roomObj.items.shapes = [];
 roomObj.items.displays = [];
 roomObj.items.speakers = [];
@@ -143,11 +143,11 @@ let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 let scrollContainer = document.getElementById('scroll-container');
 
-/* displayDepth, DisplayHeight, displayWidth, diagonalInches are used as a ratio to determine size of display based on diagonal inches */
+/* mm - displayDepth, DisplayHeight, displayWidth, diagonalInches are used as a ratio to determine size of display based on diagonal inches */
 let displayDepth = 90;
-let displayHeight = 750;
-let displayWidth = 1230;
-let diagonalInches = 55;
+let displayHeight = 695;
+let displayWidth = 1223;
+let diagonalInches = 55; /* inches */
 
 /*************************************************/
 
@@ -161,7 +161,20 @@ canvasPixel.x = 0;
 canvasPixel.y = 0;
 
 
-/**** Workspace keys *****/
+/** Workspace Designer keys: workspaceKeys
+ *
+ *  The Workspace Desinger and Video Room Calc have different coordinate systems
+ *  VRC x = Designer x
+ *  VRC y = Designer z
+ *  VRC data_zPosition = Designer y
+ *  Rotation: VRC degrees = Designer -1*(radians)
+ *
+ *  In the below workspaceKeys
+ *  vertOffset: In meters, VRC data_zPosition value added when exporting to the Workspace Designer
+ *  yOffset: In meters, refers to the VRC y difference between the VRC & Desinger per an object before
+ *
+ *  role: below is the default role, but can be overridden.
+ *  **/
 
 workspaceKey = {};
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', yOffset: 0.032 };
@@ -228,6 +241,8 @@ workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
 workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] }
 
 workspaceKey.floor = { objectType: 'floor' };
+
+workspaceKey.stageFloor = { objectType: 'box' };
 
 workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
 
@@ -303,6 +318,10 @@ let groupTables = new Konva.Group({
     name: 'tables',
 })
 
+let groupStageFloors = new Konva.Group({
+    name: 'stageFloors',
+})
+
 let groupDisplays = new Konva.Group({
     name: 'displays',
 })
@@ -360,7 +379,7 @@ function createKonvaBackgroundImageFloor(x = pxOffset - 5, y = pyOffset - 5, hei
 
     konvaBackgroundImageFloor.data_deviceid = 'backgroundImageFloor';
 
-    konvaBackgroundImageFloor.on('dragend', function () {
+    konvaBackgroundImageFloor.on('dragend', function konvaBackgroundImageFloorOnDragend() {
         canvasToJson();
     });
 
@@ -381,7 +400,7 @@ let tr = new Konva.Transformer({
 /* Customize the rotation / rotator anchor */
 const rotateImageObj = new Image();
 
-rotateImageObj.onload = () => {
+rotateImageObj.onload = function rotateImageObjOnload() {
 
     tr.anchorStyleFunc((anchor) => {
         if (anchor.attrs.name.startsWith('rotater')) {
@@ -469,15 +488,15 @@ layerSelectionBox.add(distanceLine);
 
 distanceLine.hide();
 
-select2PointsRect.on('click', (event) => {
+select2PointsRect.on('click', function select2PointsRectOnClick(event) {
 
 });
 
-panRectangle.on('click', (event) => {
+panRectangle.on('click', function panRectangleOnClick(event) {
 
 });
 
-select2PointsRect.on('mousedown', (mouse) => {
+select2PointsRect.on('mousedown', function select2PointsRectOnMousedown(mouse) {
     distanceLine.hide();
     circleStart.show();
     circleEnd.hide();
@@ -485,28 +504,28 @@ select2PointsRect.on('mousedown', (mouse) => {
     circleStart.y(canvasPixel.y);
 });
 
-select2PointsRect.on('mousemove', (mouse) => {
+select2PointsRect.on('mousemove', function select2PointsRectOnMousemove(mouse) {
     if (circleStart.isVisible() && !(circleEnd.isVisible())) {
         distanceLine.show();
         distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
     }
 });
 
-select2PointsRect.on('mouseup', (mouse) => {
+select2PointsRect.on('mouseup', function select2PointsRectOnMouseup(mouse) {
     circleEnd.show();
     circleEnd.x(canvasPixel.x);
     circleEnd.y(canvasPixel.y);
     document.getElementById('btnUpdateImageScale').disabled = false;
 });
 
-panRectangle.on('mousedown', (mouse) => {
+panRectangle.on('mousedown', function panRectangleOnMousedown(mouse) {
     panX = mouse.evt.clientX;
     panY = mouse.evt.clientY;
     panMove = true;
     document.getElementById("canvasDiv").style.cursor = "grabbing";
 });
 
-panRectangle.on('mousemove', (mouse) => {
+panRectangle.on('mousemove', function panRectangleOnMousemove(mouse) {
 
     if (!panMove) return;
 
@@ -522,7 +541,7 @@ panRectangle.on('mousemove', (mouse) => {
 })
 
 
-panRectangle.on('mouseup', (event) => {
+panRectangle.on('mouseup', function panRectangleOnMouseup(event) {
     panMove = false;
     document.getElementById("canvasDiv").style.cursor = "grab";
 })
@@ -546,7 +565,7 @@ document.getElementById('lblVersion').innerText = version;
 
 /* videoDevices key starts with A or B */
 let videoDevices = [
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 1230, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: 'Room Kit EQX', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 0, defaultVert: 681, colors: null },
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
@@ -575,15 +594,15 @@ let videoDevices = [
 let cameras = [
     { name: "Precision 60 Camera", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
     { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 24, twoPersonZoom: 36, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
-    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
-    { name: "Quad Camera Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1200, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1190, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Camera Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 1190, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Quad Cam + PTZ 4K Extended", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
 let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 4.4, twoPersonZoom: 3.2 };
 
-/* Microphone & Navigators - starts with M */
+/* Microphone & Navigators - key starts with M */
 let microphones = [
     {
         name: "Cisco Table Microphone",
@@ -895,6 +914,16 @@ let displays = [
         defaultVert: 1320,
 
     }
+]
+
+/* Floor keys start with */
+let stageFloors = [
+    {
+        name: 'Stage Floor',
+        id: 'stageFloor',
+        key: 'FA',
+        frontImage: 'box-front.png',
+    },
 ]
 
 
@@ -1336,10 +1365,16 @@ function updateLabelUnits() {
     });
 }
 
-/* converts the roomObj2, used for exporting to meters for 3d Workspace file. */
+/* converts the roomObj2, used for exporting to meters for 3d Workspace file.  If the
+roomObj is already in meters, it  */
 function convertToMeters(roomObj2) {
+    let itemsOffStageId = listItemsOffStage();
 
-    let ratio = 1 / 3.2808;
+    let ratio = 1;
+
+    if (roomObj2.unit === 'feet') {
+        ratio = 1 / 3.28084;
+    }
 
     roomObj2.room.roomWidth = roomObj2.room.roomWidth * ratio;
     roomObj2.room.roomLength = roomObj2.room.roomLength * ratio;
@@ -1358,46 +1393,51 @@ function convertToMeters(roomObj2) {
 
     for (const category in roomObj2.items) {
         for (const i in roomObj2.items[category]) {
-            let nodes = roomObj2.items[category][i];
 
-            if ('x' in nodes) {
-                nodes.x = nodes.x * ratio;
+            let node = roomObj2.items[category][i];
+
+            if (itemsOffStageId.includes(node.id)) {
+                node.data_hiddenInDesigner = true;
             }
 
-            if ('y' in nodes) {
-                nodes.y = nodes.y * ratio;
+            if ('x' in node) {
+                node.x = node.x * ratio;
             }
 
-            if ('width' in nodes) {
-                nodes.width = nodes.width * ratio;
+            if ('y' in node) {
+                node.y = node.y * ratio;
             }
 
-            if ('height' in nodes) {
-                nodes.height = nodes.height * ratio;
+            if ('width' in node) {
+                node.width = node.width * ratio;
             }
 
-            if ('radius' in nodes) {
-                nodes.radius = nodes.radius * ratio;
+            if ('height' in node) {
+                node.height = node.height * ratio;
             }
 
-            if ('data_zPosition' in nodes) {
-                nodes.data_zPosition = round(nodes.data_zPosition * ratio);
+            if ('radius' in node) {
+                node.radius = node.radius * ratio;
             }
 
-            if ('data_vHeight' in nodes) {
-                nodes.data_vHeight = round(nodes.data_vHeight * ratio);
+            if ('data_zPosition' in node) {
+                node.data_zPosition = round(node.data_zPosition * ratio);
             }
 
-            if ('tblRectRadius' in nodes) {
-                nodes.tblRectRadius = round(nodes.tblRectRadius * ratio);
+            if ('data_vHeight' in node) {
+                node.data_vHeight = round(node.data_vHeight * ratio);
             }
 
-            if ('data_trapNarrowWidth' in nodes) {
-                nodes.data_trapNarrowWidth = round(nodes.data_trapNarrowWidth * ratio);
+            if ('tblRectRadius' in node) {
+                node.tblRectRadius = round(node.tblRectRadius * ratio);
             }
 
-            if ('tblRectRadiusRight' in nodes) {
-                nodes.tblRectRadiusRight = round(nodes.tblRectRadiusRight * ratio);
+            if ('data_trapNarrowWidth' in node) {
+                node.data_trapNarrowWidth = round(node.data_trapNarrowWidth * ratio);
+            }
+
+            if ('tblRectRadiusRight' in node) {
+                node.tblRectRadiusRight = round(node.tblRectRadiusRight * ratio);
             }
         }
 
@@ -1445,6 +1485,13 @@ function convertMetersFeet(isDrawRoom) {
     roomObj.room.distDisplayToTable = roomObj.room.distDisplayToTable * ratio;
     roomObj.room.onePersonCrop = roomObj.room.onePersonCrop * ratio;
     roomObj.room.twoPersonCrop = roomObj.room.twoPersonCrop * ratio;
+
+    if('backgroundImage' in roomObj){
+        roomObj.backgroundImage.x = roomObj.backgroundImage.x * ratio;
+        roomObj.backgroundImage.y = roomObj.backgroundImage.y * ratio;
+        roomObj.backgroundImage.width = roomObj.backgroundImage.width * ratio;
+        roomObj.backgroundImage.height = roomObj.backgroundImage.height * ratio;
+    }
 
     for (const category in roomObj.items) {
         for (const i in roomObj.items[category]) {
@@ -1525,7 +1572,7 @@ function getQueryString() {
 
     if (urlParams.has('ver')) {
         if (urlParams.has('ver')) versionQueryString = DOMPurify.sanitize(urlParams.get('ver'));
-      //  if (urlParams.has('ver')) versionQueryString = urlParams.get('ver');
+        //  if (urlParams.has('ver')) versionQueryString = urlParams.get('ver');
 
         lastAction = 'load from querystring';
 
@@ -1566,7 +1613,7 @@ function getQueryString() {
     //     }
 
     // } else if (localStorage.getItem('test') === 'true') {
-    console.info('Local storage.  "test" is on.  Test fields are highly experimental and unstable.');
+
     document.getElementById('test').setAttribute('style', 'visibility: visible;');
 
     /* RoomOS does not support the Workspace Designer cross-launch */
@@ -1715,6 +1762,8 @@ function parseShortenedXYUrl(parameters) {
     while (i < parameters.length) {
         let char = parameters[i];
         if (char === '_' && (lastCharType != charType.BetweenTilde)) {  /* represents a repeat of the last Capital Letter used. */
+            deleteBlankDotKeys(output[objCount]);
+            repeateStringItem = true;
             output.push(structuredClone(output[objCount]));
             objCount += 1;
             lastCharType = charType.CapLetter;
@@ -1827,6 +1876,29 @@ function parseShortenedXYUrl(parameters) {
 
         i += 1;
 
+
+    }
+
+    /* delete the last object that has values '.' */
+    deleteBlankDotKeys(output[objCount]);
+
+    /* if the valuve is a '.'  (as in a dot) then delete the key.  If it is 't.', then delete the text key too. */
+    function deleteBlankDotKeys(outputObj) {
+
+        /* t. represents not repeating the previous object */
+        if (outputObj.t) {
+            if (outputObj.t = '.') {
+                delete outputObj.t;
+                delete outputObj.text;
+            }
+        }
+
+        for (const [key, value] of Object.entries(outputObj)) {
+            if (value === '.') {
+                delete outputObj[key];
+
+            }
+        }
     }
 
     /* create a new rmObj and then copy to the roomObj */
@@ -1844,10 +1916,6 @@ function parseShortenedXYUrl(parameters) {
                 else if (item.value === '0') {
                     roomObj.unit = 'meters'
                 }
-            }
-
-            if ('v' in item) {
-                roomObj.version = 'v' + item.v;
             }
 
             if ('b' in item) {
@@ -1937,13 +2005,15 @@ function parseShortenedXYUrl(parameters) {
             newItem.width = keyIdObj[item.sid].width / 1000;
             newItem.height = keyIdObj[item.sid].height / 1000;
 
+
+            roomObj.items[groupName][groupLength] = newItem;
+
             if (roomObj.unit === 'feet') {
                 newItem.width = newItem.width * 3.28084;
                 newItem.height = newItem.height * 3.28084;
             }
 
             if ('value' in item) {
-                roomObj.items[groupName][groupLength] = newItem;
                 newItem.x = item.value / 100;
 
             }
@@ -1954,8 +2024,6 @@ function parseShortenedXYUrl(parameters) {
 
             if ('b' in item) {
                 newItem.data_zPosition = item.b / 100;
-            } else {
-                newItem.data_zPosition = "";
             }
 
             if ('c' in item) {
@@ -2010,6 +2078,10 @@ function parseShortenedXYUrl(parameters) {
                 populateColorFromUrl(newItem);
             }
 
+            if ('n' in item) {
+                parseShadingDecimalToBinary(newItem, item.n);
+            }
+
             if ('text' in item) {
                 newItem.data_labelField = DOMPurify.sanitize(item.text);
             }
@@ -2038,6 +2110,7 @@ function resetRoomObj() {
     roomObj.items.videoDevices = [];
     roomObj.items.chairs = [];
     roomObj.items.tables = [];
+    roomObj.items.stageFloors = [];
     roomObj.items.shapes = [];
     roomObj.items.displays = [];
     roomObj.items.speakers = [];
@@ -2343,6 +2416,8 @@ function quickSetupUpdate() {
     roomObj.items.chairs = [];
     roomObj.items.displays = [];
     roomObj.items.videoDevices = [];
+    roomObj.items.microphones = [];
+    roomObj.items.stageFloors = [];
 
     drawRoom(true, true, true);
     setTimeout(() => { quickSetupInsert() }, 100);
@@ -2504,7 +2579,7 @@ function drpVideoDeviceChange(firstRun = false) {
     videoDevices.forEach((device) => {
         if (device.id === drpVideoDevice.value) {
 
-            videoDeviceKey = device.key;
+            // videoDeviceKey = device.key;
 
             document.getElementById('wideFOV').value = device.wideHorizontalFOV;
             document.getElementById('teleFOV').value = device.teleHorizontalFOV;
@@ -3353,7 +3428,7 @@ function insertKonvaBackgroundImageFloor() {
 
         layerBackgroundImageFloor.add(konvaBackgroundImageFloor);
 
-        konvaBackgroundImageFloor.on('dragend', function () {
+        konvaBackgroundImageFloor.on('dragend', function konvaBackgroundImageFloorOnDragEnd() {
             canvasToJson();
         });
 
@@ -3438,17 +3513,23 @@ function resetBackgroundImageFloorSettings() {
     document.getElementById("canvasDiv").style.cursor = "auto";
 }
 
+
+
 function creatArrayKeysTypes() {
     eachCategory(videoDevices, 'videoDevices');
     eachCategory(microphones, 'microphones');
     eachCategory(chairs, 'chairs');
     eachCategory(tables, 'tables');
     eachCategory(displays, 'displays');
+    eachCategory(stageFloors, 'stageFloors')
 
     function eachCategory(category, groupName) {
         category.forEach((item) => {
 
             idKeyObj[item.id] = item.key;
+
+            allDeviceTypes[item.id] = item;
+            allDeviceTypes[item.id].parentGroup = groupName;
 
             keyIdObj[item.key] = { 'groupName': groupName, 'data_deviceid': item.id, name: item.name, 'width': item.width, 'height': item.depth, 'name': item.name };
         });
@@ -3485,10 +3566,11 @@ function createShareableLink() {
     let items = roomObj.items;
     let i = 0;
     for (const category in items) {
-        let previousItem = null;
+
         items[category].forEach((item) => {
             strUrlQuery2 += createShareableLinkItem(item);
             i += 1;
+            previousItem = item;
         })
     }
 
@@ -3501,7 +3583,7 @@ function createShareableLink() {
 
     document.getElementById('qrCodeLinkText').value = 'QR Code Character Length: ' + fullShareLink.length + ' / 2950 max';
 
-    if (fullShareLink.length > 8190 && !firstLoad) {
+    if (fullShareLink.length > 8189 && !firstLoad) {
         document.getElementById('characterLimitWarning').show();
     } else {
         document.getElementById('characterLimitWarning').close();
@@ -3625,6 +3707,10 @@ function createShareableLinkItem(item) {
         }
     }
 
+    let hiddenShading = createLinkSingleItemShadingDecimal(item);
+    if (hiddenShading != 0) {
+        strItem += 'n' + hiddenShading;
+    }
 
     if ('data_labelField' in item) {
         if (item.data_labelField) {
@@ -3634,6 +3720,16 @@ function createShareableLinkItem(item) {
     }
 
     return strItem;
+}
+
+/* This field is stored as a decimal then converted to binary on the decode */
+function createLinkSingleItemShadingDecimal(item) {
+    let totalDecimal = 0;
+    if (item.data_fovHidden) totalDecimal += 1;
+    if (item.data_audioHidden) totalDecimal += 2;
+    if (item.data_dispDistHidden) totalDecimal += 4;
+
+    return totalDecimal;
 }
 
 function createShareableLinkItemShading() {
@@ -3971,7 +4067,7 @@ function copyToCanvasClipBoard(items) {
         let rotation = attrs.rotation;
         let center = {};
 
-        if (node.getParent().name() === 'tables') {
+        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors') {
             center.x = node.x();
             center.y = node.y();
         } else {
@@ -4014,6 +4110,14 @@ function copyToCanvasClipBoard(items) {
 
         if ('data_labelField' in node) {
             newAttr.data_labelField = node.data_labelField;
+        }
+
+        if ('data_fovHidden' in node) {
+            newAttr.data_fovHidden = node.data_fovHidden;
+        }
+
+        if ('item.data_audioHidden' in node) {
+            newAttr.data_audioHidden = node.data_audioHidden
         }
 
         if ('data_role' in node) {
@@ -4160,7 +4264,7 @@ function stageAddLayers() {
     stage.add(layerGrid);
 
     stage.add(layerBackgroundImageFloor);
-
+    layerTransform.add(groupStageFloors);
     layerTransform.add(grShadingCamera);
     layerTransform.add(groupTables);
     layerTransform.add(groupChairs);
@@ -4220,6 +4324,8 @@ function displayDistanceVisible(state = 'buttonPress') {
         roomObj.layersVisible.grDisplayDistance = false;
     }
 
+    updateFormatDetailsUpdate();
+
     if (saveToUndo) saveToUndoArray();
 }
 
@@ -4261,6 +4367,8 @@ function gridLinesVisible(state = 'buttonPress') {
         roomObj.layersVisible.gridLines = false;
     }
 
+
+
     if (saveToUndo) saveToUndoArray();
 }
 
@@ -4291,6 +4399,8 @@ function shadingCameraVisible(state = 'buttonPress') {
         roomObj.layersVisible.grShadingCamera = false;
     }
 
+    updateFormatDetailsUpdate();
+
     if (saveToUndo) saveToUndoArray();
 }
 
@@ -4318,6 +4428,8 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
         grShadingMicrophone.visible(false);
         roomObj.layersVisible.grShadingMicrophone = false;
     }
+
+    updateFormatDetailsUpdate();
 
     if (saveToUndo) saveToUndoArray();
 }
@@ -4521,6 +4633,19 @@ function getAttributes(device) {
         attrObj.data_labelField = device.data_labelField;
     }
 
+    if ('data_fovHidden' in device) {
+        attrObj.data_fovHidden = device.data_fovHidden;
+    }
+
+    if ('data_audioHidden' in device) {
+        attrObj.data_audioHidden = device.data_audioHidden;
+    }
+
+    if ('data_dispDistHidden' in device) {
+        attrObj.data_dispDistHidden = device.data_dispDistHidden;
+    }
+
+
     if ('data_trapNarrowWidth' in device) {
         attrObj.data_trapNarrowWidth = device.data_trapNarrowWidth;
     }
@@ -4602,6 +4727,15 @@ function roomObjToCanvas(roomObjItems) {
         }
     }
 
+    if ('stageFloors' in roomObjItems) {
+        for (const device of roomObjItems.stageFloors) {
+
+            let attrObj = getAttributes(device);
+            insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
+
+        }
+    }
+
 }
 
 function canvasToJson() {
@@ -4660,7 +4794,7 @@ function canvasToJson() {
 
             let rotation = attrs.rotation;
 
-            if (groupName === 'tables') {
+            if (groupName === 'tables' || groupName === 'stageFloors') {
                 x = attrs.x;
                 y = attrs.y;
             } else {
@@ -4701,7 +4835,7 @@ function canvasToJson() {
                 itemAttr.data_vHeight = element.data_vHeight;
             }
 
-            if (groupName === 'tables') {
+            if (groupName === 'tables' || groupName === 'stageFloors') {
                 itemAttr.width = (attrs.width / scale);
                 itemAttr.height = (attrs.height / scale);
             }
@@ -4714,6 +4848,18 @@ function canvasToJson() {
                 if (element.data_labelField != '') {
                     itemAttr.data_labelField = element.data_labelField;
                 }
+            }
+
+            if (element.data_fovHidden) {
+                itemAttr.data_fovHidden = element.data_fovHidden;
+            }
+
+            if (element.data_audioHidden) {
+                itemAttr.data_audioHidden = element.data_audioHidden;
+            }
+
+            if (element.data_dispDistHidden) {
+                itemAttr.data_dispDistHidden = element.data_dispDistHidden;
             }
 
             if ('data_trapNarrowWidth' in element) {
@@ -4742,7 +4888,7 @@ function canvasToJson() {
     // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
-    undoArrayTimer = setTimeout(() => {
+    undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
         saveToUndoArray();
         createShareableLink();
     }, undoArrayTimeDelta)
@@ -4814,7 +4960,7 @@ function saveToUndoArray() {
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
-    let table, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
+    let tblWallFlr, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
     let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
     let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
     let pixelX = scale * attrs.x + pxOffset;
@@ -4837,7 +4983,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2.5 * scale;
         height = 3.4 * scale;
     }
-    else if (insertDevice.id.startsWith('box')) {
+    else if (insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor')) {
         width = 1 * scale;
         height = 1 * scale;
     }
@@ -4854,7 +5000,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         data_vHeight = attrs.data_vHeight;
     }
 
-    if (insertDevice.id.startsWith('box') && !data_vHeight) {
+    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor')) && !data_vHeight) {
 
         if (unit === 'feet') {
             data_vHeight = 3.28;
@@ -4936,7 +5082,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'tblRect') {
-        table = new Konva.Rect({
+        tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -4953,7 +5099,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'tblSchoolDesk') {
-        table = new Konva.Rect({
+        tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -4970,7 +5116,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'tblRect') {
-        table = new Konva.Rect({
+        tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -4987,7 +5133,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'tblEllip') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5011,7 +5157,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     /* a podium in s just an ellipse with a set width & height (length) */
     if (insertDevice.id === 'tblPodium') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5035,7 +5181,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     if (insertDevice.id === 'tblTrap') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5064,7 +5210,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     if (insertDevice.id === 'tblShapeU') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5107,7 +5253,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'box') {
-        table = new Konva.Rect({
+        tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5123,8 +5269,25 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+    if (insertDevice.id === 'stageFloor') {
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#FFFFFF99',
+            stroke: 'grey',
+            strokeWidth: 4,
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            dash: [4, 8]
+        });
+    }
+
     if (insertDevice.id === 'wallStd') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5152,7 +5315,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'wallGlass') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5182,7 +5345,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     if (insertDevice.id === 'wallWindow') {
-        table = new Konva.Shape({
+        tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5209,10 +5372,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         const windowBackgroundObj = new Image();
 
-        windowBackgroundObj.onload = () => {
-            table.fillPatternImage(windowBackgroundObj);
-            table.fillPatternRepeat('repeat');
-            table.fillPatternOffset({ x: 8, y: 0 });
+        windowBackgroundObj.onload = function windowBackgroundObjOnload() {
+            tblWallFlr.fillPatternImage(windowBackgroundObj);
+            tblWallFlr.fillPatternRepeat('repeat');
+            tblWallFlr.fillPatternOffset({ x: 8, y: 0 });
         };
         windowBackgroundObj.src = './assets/wallWindowBackground.png';
 
@@ -5221,7 +5384,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     if (insertDevice.id === 'columnRect') {
-        table = new Konva.Rect({
+        tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
@@ -5237,47 +5400,52 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     }
 
-    table.data_deviceid = insertDevice.id;
+    tblWallFlr.data_deviceid = insertDevice.id;
 
-    table.data_zPosition = data_zPosition;
+    tblWallFlr.data_zPosition = data_zPosition;
 
-    table.data_vHeight = data_vHeight;
+    tblWallFlr.data_vHeight = data_vHeight;
 
-    table.data_labelField = attrs.data_labelField;
+    tblWallFlr.data_labelField = attrs.data_labelField;
 
-    table.data_trapNarrowWidth = attrs.data_trapNarrowWidth;
+    tblWallFlr.data_trapNarrowWidth = attrs.data_trapNarrowWidth;
 
-    table.perfectDrawEnabled(perfectDrawEnabled);
+    tblWallFlr.perfectDrawEnabled(perfectDrawEnabled);
 
     if ('data_role' in attrs) {
-        table.data_role = attrs.data_role;
+        tblWallFlr.data_role = attrs.data_role;
     }
 
     if ('data_color' in attrs) {
-        table.data_color = attrs.data_color;
+        tblWallFlr.data_color = attrs.data_color;
     }
 
     if ('scaleX' in attrs) {
-        table.scaleX = attrs.scaleX;
+        tblWallFlr.scaleX = attrs.scaleX;
     };
 
     if ('scaleY' in attrs) {
-        table.scaleX = attrs.scaleX;
+        tblWallFlr.scaleX = attrs.scaleX;
     };
 
     if ('name' in attrs) {
-        table.name(attrs.name);
+        tblWallFlr.name(attrs.name);
     } else {
-        table.name(insertDevice.name);
+        tblWallFlr.name(insertDevice.name);
     }
 
     /* if statement to add incase in future */
     if (groupName === 'tables') {
-        groupTables.add(table);
+        groupTables.add(tblWallFlr);
+    }
+    else if (groupName === 'stageFloors') {
+        groupStageFloors.add(tblWallFlr);
     }
 
+
+
     if (selectTrNode) {
-        tr.nodes([table]);
+        tr.nodes([tblWallFlr]);
         enableCopyDelBtn();
         /* add delay before updateFormatDetails to give time for object to be inserted and roomObj JSON to be updated */
         setTimeout(() => {
@@ -5286,11 +5454,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }, 250);
     }
 
-    table.on('dragmove', function (e) {
+    tblWallFlr.on('dragmove', function tableOnDragMove(e) {
 
         snapToGuideLines(e);
 
-        snapCenterToIncrement(table);
+        snapCenterToIncrement(tblWallFlr);
 
 
 
@@ -5298,7 +5466,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             tr.nodes([e.target]);
             enableCopyDelBtn();
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -5313,11 +5481,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     });
 
-    table.on('dragend', function (e) {
+    tblWallFlr.on('dragend', function tableOnDragEnd(e) {
         layerTransform.find('.guide-line').forEach((l) => l.destroy());
     });
 
-    table.on('transformend', function (e) {
+    tblWallFlr.on('transformend', function tableOnTransformed(e) {
         if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
@@ -5573,7 +5741,6 @@ function updateItem() {
 
             if (item.data_deviceid === 'tblTrap') {
 
-
                 if (data_trapNarrowWidth) {
                     item.data_trapNarrowWidth = data_trapNarrowWidth;
                     if (data_trapNarrowWidth == 0) {
@@ -5586,8 +5753,7 @@ function updateItem() {
                 }
             }
 
-
-            if (data_zPosition) {
+            if (!(data_zPosition === '')) {
                 item.data_zPosition = data_zPosition;
             }
             else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
@@ -5609,7 +5775,7 @@ function updateItem() {
             }
 
             /*
-            right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values instead for efficiency.
+            right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
             */
 
             let node = stage.find('#' + id)[0];
@@ -5649,6 +5815,102 @@ function updateItem() {
 
 }
 
+function toggleMicShadingSingleItem() {
+    let id = document.getElementById('itemId').innerText;
+    let parentGroup = document.getElementById('itemGroup').innerText;
+
+    /* this function should note be called if grShadingMicrophone === false, but in case it is, give the user feedback */
+    if (roomObj.layersVisible.grShadingMicrophone === false) {
+        document.getElementById('dialogSingleItemToggles').showModal();
+        return;
+    }
+
+    roomObj.items[parentGroup].forEach((item, index) => {
+        if (item.id === id) {
+            let node = stage.find('#' + id)[0];
+            if ('data_audioHidden' in item && item.data_audioHidden === true) {
+                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
+                stage.find('#audio~' + id)[0].visible(true);
+                delete node.data_audioHidden;
+                delete item.data_audioHidden;
+            } else {
+                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
+                stage.find('#audio~' + id)[0].visible(false);
+                node.data_audioHidden = true;
+                item.data_audioHidden = true;
+            }
+
+        }
+    });
+    canvasToJson();
+
+}
+
+function toggleCamShadeSingleItem() {
+    let id = document.getElementById('itemId').innerText;
+    let parentGroup = document.getElementById('itemGroup').innerText;
+
+    if (roomObj.layersVisible.grShadingCamera === false) {
+        document.getElementById('dialogSingleItemToggles').showModal();
+        return;
+    }
+
+    roomObj.items[parentGroup].forEach((item, index) => {
+
+        if (item.id === id) {
+            let node = stage.find('#' + id)[0];
+            if ('data_fovHidden' in item && item.data_fovHidden === true) {
+                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
+                stage.find('#fov~' + id)[0].visible(true);
+                /* insert value direct to canvas */
+                delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
+                delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
+            } else {
+                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
+                stage.find('#fov~' + id)[0].visible(false);
+                node.data_fovHidden = true;
+                item.data_fovHidden = true;
+            }
+
+        }
+    });
+
+    canvasToJson();
+}
+//
+function toggleDisplayDistanceSingleItem() {
+    let id = document.getElementById('itemId').innerText;
+    let parentGroup = document.getElementById('itemGroup').innerText;
+
+    if (roomObj.layersVisible.grDisplayDistance === false) {
+        document.getElementById('dialogSingleItemToggles').showModal();
+        return;
+    }
+
+
+    roomObj.items[parentGroup].forEach((item, index) => {
+        if (item.id === id) {
+            let node = stage.find('#' + id)[0];
+            if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
+                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
+                stage.find('#dispDist~' + id)[0].visible(true);
+                delete item.data_dispDistHidden;
+                delete node.data_dispDistHidden;
+            } else {
+                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
+                stage.find('#dispDist~' + id)[0].visible(false);
+                item.data_dispDistHidden = true;
+                node.data_dispDistHidden = true;
+            }
+
+        }
+    });
+
+    canvasToJson();
+
+}
+
+
 /*
    Moves an object from one part of the array to another.
    Code from https://stackoverflow.com/questions/5306680/move-an-array-element-from-one-array-position-to-another
@@ -5679,7 +5941,7 @@ function deleteNegativeShapes() {
     })
 
 
-    function deleteNegShapeGroups(parentGroup) {
+    function deleteNegShapeGroups(parentGroup, xBound = 1, yBound = 1) {
         let theObjects = parentGroup.getChildren();
 
         theObjects.forEach(node => {
@@ -5711,8 +5973,8 @@ function deleteNegativeShapes() {
 
             }
 
-            if ((corners[0].x < 1 && corners[1].x < 1 && corners[2].x < 1 && corners[3].x < 1)
-                || (corners[0].y < 1 && corners[1].y < 1 && corners[2].y < 1 && corners[3].y < 1)) {
+            if ((corners[0].x < xBound && corners[1].x < xBound && corners[2].x < xBound && corners[3].x < xBound)
+                || (corners[0].y < yBound && corners[1].y < yBound && corners[2].y < yBound && corners[3].y < yBound)) {
 
                 let audioShading = stage.find('#audio~' + node.id())[0];
                 let videoShading = stage.find('#fov~' + node.id())[0];
@@ -5730,6 +5992,76 @@ function deleteNegativeShapes() {
 
         });
     }
+}
+
+
+function listItemsOffStage() {
+
+    let transformGroups = layerTransform.getChildren();
+    let offStageItemsId = [];
+
+    transformGroups.forEach((group) => {
+        let groupName = group.name();
+        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+
+            getOffStageItems(group);
+        }
+    })
+
+
+    function getOffStageItems(parentGroup) {
+        let theObjects = parentGroup.getChildren();
+
+        xBound = stage.width();
+        yBound = stage.height();
+
+        theObjects.forEach(node => {
+
+            let attrs = node.attrs;
+            let height = 0;
+            let width = 0;
+
+            if ('height' in attrs) {
+                height = attrs.height;
+            }
+
+            if ('width' in attrs) {
+                width = attrs.width;
+            }
+
+            let corners = [];
+
+            /* Now get the 4 corner points */
+            corners[0] = { x: 0, y: 0 }; // top left
+            corners[1] = { x: width, y: 0 }; // top right
+            corners[2] = { x: width, y: height }; // bottom right
+            corners[3] = { x: 0, y: height }; // bottom left
+
+            /* And rotate the corners using the same transform as the rect. */
+            for (let i = 0; i < 4; i++) {
+                /* Here be the magic */
+                corners[i] = node.getAbsoluteTransform().point(corners[i]); // top left
+
+            }
+
+            /* check if it is out of view, but could be shown if the room is resized */
+            if ((corners[0].x > xBound && corners[1].x > xBound && corners[2].x > xBound && corners[3].x > xBound)
+                || (corners[0].y > yBound && corners[1].y > yBound && corners[2].y > yBound && corners[3].y > yBound)) {
+
+                offStageItemsId.push(node.id());
+            }
+
+            /* check if it is zero or a negative value.  These are items that will be deleted from the VRC shareable link */
+            if ((corners[0].x < 1 && corners[1].x < 1 && corners[2].x < 1 && corners[3].x < 1)
+                || (corners[0].y < 1 && corners[1].y < 1 && corners[2].y < 1 && corners[3].y < 1)) {
+
+                offStageItemsId.push(node.id());
+            }
+
+        });
+    }
+
+    return offStageItemsId;
 }
 
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
@@ -5755,14 +6087,22 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     }
 
     /*
-        Check if deviceId is in group tables
-        if a table, break out of this and go to insertTable
+        Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
+        if in tables/stageFloors break out of this and go to insertTable.
     */
-    if (groupName === 'tables') {
+    if (groupName === 'tables' || groupName === 'stageFloors') {
         for (const device of tables) {
             if (device.id === deviceId) {
                 insertDevice = device;
                 group = groupTables;
+                break;
+            }
+        }
+
+        for (const device of stageFloors) {
+            if (device.id === deviceId) {
+                insertDevice = device;
+                group = groupStageFloors;
                 break;
             }
         }
@@ -5963,7 +6303,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
     let imageObj = new Image();
-    imageObj.onload = function () {
+    imageObj.onload = function imageObjOnLoad() {
         let imageItem = new Konva.Image({
             x: cornerXY.x,
             y: cornerXY.y,
@@ -6001,7 +6341,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.data_diagonalInches = data_diagonalInches;
         }
 
-        if ('data_zPosition' in attrs && attrs.data_zPosition != '') {
+        if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
             imageItem.data_zPosition = data_zPosition;
         }
 
@@ -6011,6 +6351,18 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         if ('data_labelField' in attrs) {
             imageItem.data_labelField = attrs.data_labelField;
+        }
+
+        if (attrs.data_fovHidden) {
+            imageItem.data_fovHidden = attrs.data_fovHidden;
+        }
+
+        if (attrs.data_audioHidden) {
+            imageItem.data_audioHidden = attrs.data_audioHidden;
+        }
+
+        if (attrs.data_dispDistHidden) {
+            imageItem.data_dispDistHidden = attrs.data_dispDistHidden;
         }
 
         if ('data_role' in attrs) {
@@ -6030,17 +6382,17 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.opacity(insertDevice.opacity);
         }
 
-        imageItem.on('dragend', function () {
+        imageItem.on('dragend', function imageItemOnDragEnd() {
 
             layerTransform.find('.guide-line').forEach((l) => l.destroy());
             canvasToJson();
         });
 
-        imageItem.on('transformstart', function () {
+        imageItem.on('transformstart', function imageItemOnTransformStart() {
 
         });
 
-        imageItem.on('dragmove', function (e) {
+        imageItem.on('dragmove', function imageItemOnDragMove(e) {
 
             snapCenterToIncrement(imageItem);
 
@@ -6055,7 +6407,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 tr.nodes([e.target]);
                 enableCopyDelBtn();
                 /* tables and other objects maybe resizable. */
-                if (e.target.getParent() === groupTables) {
+                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
                     resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
@@ -6070,7 +6422,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
-        imageItem.on('mousedown touchstart', function (e) {
+        imageItem.on('mousedown touchstart', function imageItemOnMouseDownTouchstart(e) {
 
             if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
                 e.evt.preventDefault();
@@ -6081,15 +6433,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
-        imageItem.on('transform', function () {
+        imageItem.on('transform', function imageItemOnTrasform() {
             updateShading(imageItem);
         });
 
-        imageItem.on('transformend', function () {
+        imageItem.on('transformend', function imageItemOnTransformed() {
 
         });
 
-        imageItem.on('mousemove touchmove', (e) => {
+        imageItem.on('mousemove touchmove', function imageItemOnMousemoveTouchmove(e) {
 
         });
 
@@ -6122,6 +6474,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
         })
 
+        if (attrs.data_fovHidden) {
+            groupFov.visible(false);
+        } else {
+            groupFov.visible(true);
+        }
 
         let teleAngle;
         /* teleFullWidth is for multi-lense devices like the Quad Camera were the combined teleAngle equals the wide FOV. */
@@ -6258,6 +6615,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
         })
 
+        if (attrs.data_audioHidden) {
+            groupAudioShading.visible(false);
+        } else {
+            groupAudioShading.visible(true);
+        }
+
         let micRadius = insertDevice.micRadius / 1000 * scale;
 
         let lblMicRadius = insertDevice.micRadius / 1000;
@@ -6317,6 +6680,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: 0,
             name: 'shading_group',
         })
+
+        if (attrs.data_dispDistHidden) {
+            groupItemDisplayDistance.visible(false);
+        } else {
+            groupItemDisplayDistance.visible(true);
+        }
 
         /* closest distance line */
         let widthRatio = 1 * displayNumber;
@@ -6951,6 +7320,24 @@ function updateQuickSetupItems() {
     }
 }
 
+
+function parseShadingDecimalToBinary(newItem, decimalInput) {
+    let binaryValue = Number(decimalInput).toString(2).split("").reverse();
+
+    if (binaryValue[0] == 1) {
+        newItem.data_fovHidden = true;
+    }
+
+    if (binaryValue[1] == 1) {
+        newItem.data_audioHidden = true;
+    }
+
+    if (binaryValue[2] == 1) {
+        newItem.data_dispDistHidden = true;
+    }
+
+}
+
 function populateColorFromUrl(newItem, place = -1) {
     let index = Number(place) + 1; /* by default index = 0 is the default, */
 
@@ -7090,10 +7477,36 @@ function populateDrpRole(item) {
     }
 }
 
+/* used to updateFormateDetailsTab based on the id shown on the webpage */
+function updateFormatDetailsUpdate() {
+    if (!document.getElementById('itemId').innerText.startsWith('Unknown')) {
+        updateFormatDetails(document.getElementById('itemId').innerText);
+    }
+
+}
+
+/* Estimates the top elevation of a display and populates the itemTopElevation text box */
+function fillInTopElevationDisplay(item){
+    let zHeightOfDisplay, topElevation, zPosition;
+    let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
+    if (roomObj.unit === 'feet'){
+        defaultDisplayHeight = defaultDisplayHeight * 3.28084;
+    }
+
+    zPosition = item.data_zPosition || 0;
+
+    zHeightOfDisplay = defaultDisplayHeight * (item.data_diagonalInches/diagonalInches ) ;
+    topElevation = zPosition + zHeightOfDisplay;
+    document.getElementById("itemTopElevation").value = round(topElevation);
+}
+
 function updateFormatDetails(eventOrShapeId) {
 
-
     let shape; /* 'shape' is direct from canvans, 'item' is in roomObj JSON. */
+
+    let itemTopElevationDiv = document.getElementById('itemTopElevationDiv');
+
+    itemTopElevationDiv.style.display = 'none'; /* make this div invisible, only show for video devices or TV displays */
 
     if (typeof eventOrShapeId === 'string') {
         shape = stage.find('#' + eventOrShapeId)[0];
@@ -7102,13 +7515,15 @@ function updateFormatDetails(eventOrShapeId) {
         shape = eventOrShapeId.target;
     }
 
+    if (!shape) return /* escape out of function in case the specific shape or detail does not exist, usually this happens with a new template load */
+
     if (shape.data_deviceid === 'backgroundImageFloor') return; /* background image is not editable in the format details pane */
 
     let id = shape.attrs.id;
 
     let parentGroup = shape.getParent().name();
 
-    if (parentGroup === 'tables') {
+    if (parentGroup === 'tables' || parentGroup === 'stageFloors') {
         document.getElementById('itemWidth').disabled = false;
         document.getElementById('itemLength').disabled = false;
     } else {
@@ -7138,12 +7553,15 @@ function updateFormatDetails(eventOrShapeId) {
 
             let isPrimaryDiv = document.getElementById('isPrimaryDiv');
             let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
+            let singleShadingDiv = document.getElementById('singleShadingDiv');
+
+            singleShadingDiv.style.visibility = 'hidden'; /* start as hidden, but make visible if item supports shading guidances */
 
             isPrimaryCheckBox.disabled = true;
             isPrimaryCheckBox.checked = false;
             isPrimaryDiv.style.display = 'none';
 
-            if (parentGroup === 'tables') {
+            if (parentGroup === 'tables' || parentGroup === 'stageFloors') {
                 x = shape.x();
                 y = shape.y();
 
@@ -7156,9 +7574,90 @@ function updateFormatDetails(eventOrShapeId) {
             if ('data_diagonalInches' in item) {
                 document.getElementById('itemDiagonalTvDiv').style.display = '';
                 document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
+                itemTopElevationDiv.style.display = '';
+                if(parentGroup === 'displays'){
+                    fillInTopElevationDisplay(item);
+                }
+
             } else {
                 document.getElementById('itemDiagonalTvDiv').style.display = 'none';
+
             }
+
+            if ('data_diagonalInches' in item) {
+                singleShadingDiv.style.visibility = 'visible';
+
+                if (roomObj.layersVisible.grDisplayDistance) {
+                    document.getElementById('btnDisplayDistanceSingleItem').disabled = false;
+                } else {
+                    document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
+                }
+
+                if (item.data_dispDistHidden) {
+                    document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
+                } else {
+                    document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
+                }
+            } else {
+                document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
+                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'do_not_disturb_on';
+            }
+
+
+
+            if ('wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
+                singleShadingDiv.style.visibility = 'visible';
+                itemTopElevationDiv.style.display = '';
+
+                let deviceVertHeight = allDeviceTypes[item.data_deviceid].height/1000; /* device height in meters */
+
+                if (roomObj.unit === 'feet'){
+                    deviceVertHeight = deviceVertHeight * 3.28084;
+                }
+
+                document.getElementById('itemTopElevation').value = round(item.data_zPosition + deviceVertHeight);
+
+                if (roomObj.layersVisible.grShadingCamera) {
+                    document.getElementById('btnCamShadeToggleSingleItem').disabled = false;
+                } else {
+                    document.getElementById('btnCamShadeToggleSingleItem').disabled = true;
+                }
+
+                if (item.data_fovHidden) {
+                    document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
+                } else {
+                    document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
+                }
+            } else {
+                document.getElementById('btnCamShadeToggleSingleItem').disabled = true;
+                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
+            }
+
+
+
+
+
+            if ('micRadius' in allDeviceTypes[item.data_deviceid]) {
+                singleShadingDiv.style.visibility = 'visible';
+
+                if (roomObj.layersVisible.grShadingMicrophone) {
+                    document.getElementById('btnMicShadeToggleSingleItem').disabled = false;
+                } else {
+                    document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
+                }
+
+                if (item.data_audioHidden) {
+                    document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
+                } else {
+                    document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
+                }
+
+            } else {
+                document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
+                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
+            }
+
+
 
             if (shape.data_deviceid === 'tblRect') {
                 document.getElementById('tblRectRadiusDiv').style.display = '';
@@ -7174,7 +7673,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables') {
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors') {
                 document.getElementById('itemVheightDiv').style.display = '';
             } else {
                 document.getElementById('itemVheightDiv').style.display = 'none';
@@ -7298,6 +7797,8 @@ function updateFormatDetails(eventOrShapeId) {
 }
 
 
+
+
 /*
     On touch devices if the browser is zoomed and the user is inselect mode on the canvas, it is possible
     to get stuck on the canvas and now way to scroll, touchmove or zoom out.  Clicking 4-6 times quickly on an iOS device
@@ -7328,7 +7829,7 @@ function addListeners(stage) {
     let x1, y1, x2, y2;
     let selecting = false;
 
-    stage.on('dblclick dbltap', (e) => {
+    stage.on('dblclick dbltap', function stageOnDblclickDbltap(e) {
 
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS')) {
             countConsectiveTouches();
@@ -7342,7 +7843,7 @@ function addListeners(stage) {
 
     });
 
-    stage.on('mousedown touchstart', (e) => {
+    stage.on('mousedown touchstart', function stageOnMousedownTouchstart(e) {
 
         if (e.target.findAncestor('.layerTransform')) {
             return;
@@ -7365,7 +7866,7 @@ function addListeners(stage) {
 
     });
 
-    stage.on('mousemove touchmove', (e) => {
+    stage.on('mousemove touchmove', function stageOnMousemoveTouchmove(e) {
 
         if (!selecting) {
             return;
@@ -7394,7 +7895,7 @@ function addListeners(stage) {
         });
     });
 
-    stage.on('mouseup touchend', (e) => {
+    stage.on('mouseup touchend', function stageOnMouseupTouchend(e) {
 
         canvasToJson();
 
@@ -7410,6 +7911,8 @@ function addListeners(stage) {
         }, 1);
 
         let shapes = groupVideoDevices.getChildren();
+
+        shapes = shapes.concat(groupStageFloors.getChildren());
 
         shapes = shapes.concat(groupDisplays.getChildren());
 
@@ -7431,7 +7934,7 @@ function addListeners(stage) {
 
         tr.nodes(selected);
 
-        if (selected.length === 1 && selected[0].getParent().name() === 'tables') {
+        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors')) {
             /* if there is a single table, make it resizable */
             resizeTableOrWall();
         }
@@ -7439,7 +7942,7 @@ function addListeners(stage) {
     });
 
     /* clicks should select/deselect shapes */
-    stage.on('click tap', function (e) {
+    stage.on('click tap', function stageOnClickTap(e) {
 
         if (e.target.attrs.id) {
             if (tr.nodes().length === 1) {
@@ -7473,7 +7976,7 @@ function addListeners(stage) {
             tr.nodes([e.target]);
 
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -7488,19 +7991,24 @@ function addListeners(stage) {
             nodes.splice(nodes.indexOf(e.target), 1);
             tr.nodes(nodes);
             enableCopyDelBtn();
-
         } else if (metaPressed && !isSelected) {
             /* add the node into selection */
 
             const nodes = tr.nodes().concat([e.target]);
             tr.nodes(nodes);
             enableCopyDelBtn();
+            // /*v0.1.513 fixed issue with shift multiple select allowing the TR Node to be resizeable if table object was selected first */
+            if (tr.nodes().length > 1) {
+                tr.resizeEnabled(false);
+            }
+
+
         }
 
         enableCopyDelBtn();
     });
 
-    tr.on('transform', (e) => {
+    tr.on('transform', function onTransform(e) {
 
         let scaleX = e.target.scaleX();
         let scaleY = e.target.scaleY();
@@ -7713,6 +8221,8 @@ let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
 
 let chairsMenu = ['chair', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble'];
 
+let stageFloorMenu = ['stageFloor'];
+
 let accessibilityMenu = ['wheelchair', 'wheelchairTurnCycle', 'circulationSpace'];
 
 createItemsOnMenu('cameraMenuContainer', videoDevicesMenu, 'videoDevices', videoDevices);
@@ -7738,6 +8248,8 @@ createItemsOnMenu('wallsMenuContainer', wallsMenu, 'tables', tables);
 createItemsOnMenu('chairsMenuContainer', chairsMenu, 'chairs', chairs);
 
 createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu, 'chairs', chairs);
+
+createItemsOnMenu('stageFloorMenuContainer', stageFloorMenu, 'stageFloors', stageFloors);
 
 function touchStart(e) {
 
@@ -8018,7 +8530,7 @@ function preLoadTopImages(list) {
             groupBackground.add();
 
             let imageObj = new Image();
-            imageObj.onload = function () {
+            imageObj.onload = function imageObjOnloadPreLoad() {
                 var img = new Konva.Image({
                     x: 1,
                     y: 1,
@@ -8191,7 +8703,7 @@ function resizeTableOrWall() {
             tr.enabledAnchors(['middle-right', 'middle-left']);
             tr.resizeEnabled(true);
         }
-        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box')) {
+        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor')) {
             tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
             tr.resizeEnabled(true);
         } else {
@@ -8431,6 +8943,7 @@ function workspaceView(isNewTab = 'false') {
     }
 }
 
+/* Opens the Workspace Designer  */
 function openWorkspaceWindow() {
 
 
@@ -8438,10 +8951,16 @@ function openWorkspaceWindow() {
 
     let btnWorkspace = document.getElementById('btnWorkspace');
 
+    lastAction = "btnClick open Workspace Designer";
 
     if (btnWorkspace.children[0].textContent === 'deployed_code_alert') {
         reloadWorkspaceIcon();
+        lastAction = "btnClick Workspace Designer No VPN";
+    } else {
+        lastAction = "btnClick Workspace Designer";
     }
+
+    postHeartbeat();
 
     /* VPN and querystring ?testProduction needed to test against production */
     if (testProduction && btnWorkspace.children[0].textContent === 'deployed_code') {
@@ -8452,10 +8971,14 @@ function openWorkspaceWindow() {
 
     workspaceWindow = window.open(newTab, sessionId);
 
-    /* send initial post message 2 times in case page is opening slow */
+    /* send initial post message 3 times in case page is opening slow */
     setTimeout(() => {
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
     }, 1000);
+
+    setTimeout(() => {
+        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+    }, 3000);
 
     setTimeout(() => {
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
@@ -8551,9 +9074,7 @@ function convertRoomObjToWorkspace() {
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
 
-    if (unit === 'feet') {
-        roomObj2 = convertToMeters(roomObj2);
-    }
+    roomObj2 = convertToMeters(roomObj2); /* convertToMeters() changes feet to meters and marks anything not on the canvas as data_hiddenInDesigner = true;  */
 
     let workspaceObj = {};
     workspaceObj.title = '';
@@ -8576,17 +9097,21 @@ function convertRoomObjToWorkspace() {
         }
     }
 
-    workspaceObj.customObjects = [];
+
+    if (roomObj.software) {
+        workspaceObj.meetingPlatform = roomObj.software;
+    }
 
     workspaceObj.peripherals = {};
     workspaceObj.peripherals.navigator = true;
     workspaceObj.peripherals.scheduler = true;
 
+    workspaceObj.customObjects = [];
+
     workspaceObj.source = {};
     workspaceObj.source.name = 'vrc';
     workspaceObj.source.url = fullShareLinkCollabExpBase;
     workspaceObj.source.version = version;
-
 
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
@@ -8634,17 +9159,14 @@ function convertRoomObjToWorkspace() {
     }
 
 
-
-
-
     if (roomObj2.name == null || roomObj2.name == '') {
         workspaceObj.title = 'Custom Room';
     } else {
         workspaceObj.title = roomObj2.name;
     }
 
-
     roomObj2.items.chairs.forEach((item) => {
+
 
 
         if (item.data_deviceid === 'wheelchairTurnCycle') {
@@ -8675,7 +9197,15 @@ function convertRoomObjToWorkspace() {
                 workspaceObjWallPush(item);
             }
         }
+    });
 
+    roomObj2.items.stageFloors.forEach((item) => {
+        if (item.data_deviceid) {
+            item.id = 'stageFloor~' + item.id;
+            if (item.data_deviceid.startsWith('stageFloor')) {
+                workspaceObjWallPush(item);
+            }
+        }
     });
 
     roomObj2.items.videoDevices.forEach((item) => {
@@ -8692,7 +9222,7 @@ function convertRoomObjToWorkspace() {
             if (item.data_deviceid === 'displayTrpl') {
                 deltaX = deltaX * 1.98;
                 centerDisplay.data_deviceid = 'displaySngl';
-                centerDisplay.id = 'centerScreen-' + centerDisplay.id;
+                centerDisplay.id = 'centerScreen~' + centerDisplay.id;
                 centerDisplay.role = 'firstScreen';
                 workspaceObjDisplayPush(centerDisplay);
 
@@ -8703,14 +9233,14 @@ function convertRoomObjToWorkspace() {
             let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
 
             leftDisplay.data_deviceid = 'displaySngl';
-            leftDisplay.id = 'secondScreen-L-' + leftDisplay.id;
+            leftDisplay.id = 'secondScreen-L~' + leftDisplay.id;
             leftDisplay.x = leftDisplayXY.x;
             leftDisplay.y = leftDisplayXY.y;
             leftDisplay.role = 'secondScreen';
             workspaceObjDisplayPush(leftDisplay);
 
             rightDisplay.data_deviceid = 'displaySngl';
-            rightDisplay.id = 'firstScreen-R-' + rightDisplay.id;
+            rightDisplay.id = 'firstScreen-R~' + rightDisplay.id;
 
             rightDisplay.x = rightDisplayXY.x;
             rightDisplay.y = rightDisplayXY.y;
@@ -8757,11 +9287,12 @@ function convertRoomObjToWorkspace() {
             let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
 
             if (item.data_deviceid === 'roomKitEqxFS') {
-                newData_zPosition = 1.80 + Number(item.data_zPosition) - newDisplayHeight;
+                // newData_zPosition = 1.8 + Number(item.data_zPosition) - newDisplayHeight;
+                newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.07;
             }
             else {
-                newData_zPosition = 1.121 + Number(item.data_zPosition) - newDisplayHeight;
+                newData_zPosition = 1.081 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.12;
             }
 
@@ -8769,7 +9300,7 @@ function convertRoomObjToWorkspace() {
             let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
 
             leftDisplay.data_deviceid = 'displaySngl';
-            leftDisplay.id = 'secondScreen-L-' + item.data_deviceid + '-' + leftDisplay.id;
+            leftDisplay.id = 'secondScreen-L~' + item.data_deviceid + '-' + leftDisplay.id;
             leftDisplay.x = leftDisplayXY.x;
             leftDisplay.y = leftDisplayXY.y;
             leftDisplay.data_zPosition = newData_zPosition;
@@ -8777,7 +9308,7 @@ function convertRoomObjToWorkspace() {
             workspaceObjDisplayPush(leftDisplay);
 
             rightDisplay.data_deviceid = 'displaySngl';
-            rightDisplay.id = 'firstScreen-R-' + item.data_deviceid + '-' + rightDisplay.id;
+            rightDisplay.id = 'firstScreen-R~' + item.data_deviceid + '-' + rightDisplay.id;
 
             rightDisplay.x = rightDisplayXY.x;
             rightDisplay.y = rightDisplayXY.y;
@@ -8836,16 +9367,14 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if (item.data_hiddenInDesigner) {
+            workspaceItem.hidden = true;
+        }
+
+
+
         if ('data_labelField' in item) {
-            let jsonPart = /{.*?}/.exec(item.data_labelField);
-            if (jsonPart) {
-                try {
-                    let newKeyValues = JSON.parse(jsonPart[0]);
-                    workspaceItem = { ...workspaceItem, ...newKeyValues }
-                } catch {
-                    console.info('Error parsing JSON ', jsonPart);
-                }
-            }
+            workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
         if ('vertOffset' in workspaceItem) {
@@ -8870,7 +9399,7 @@ function convertRoomObjToWorkspace() {
         let displayScale = item.data_diagonalInches / 55;
         let attr = workspaceKey[item.data_deviceid];
 
-        z = z * displayScale / 2;
+        z = z * displayScale / 2; /* center of display */
 
         if ('data_zPosition' in item) {
             if (item.data_zPosition != "") {
@@ -8916,16 +9445,13 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if (item.data_hiddenInDesigner) {
+            workspaceItem.hidden = true;
+        }
+
+
         if ('data_labelField' in item) {
-            let jsonPart = /{.*?}/.exec(item.data_labelField);
-            if (jsonPart) {
-                try {
-                    let newKeyValues = JSON.parse(jsonPart[0]);
-                    workspaceItem = { ...workspaceItem, ...newKeyValues }
-                } catch {
-                    console.info('Error parsing JSON ', jsonPart);
-                }
-            }
+            workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
         if ('yOffset' in workspaceItem) {
@@ -9022,18 +9548,13 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if (item.data_hiddenInDesigner) {
+            workspaceItem.hidden = true;
+        }
+
+
         if ('data_labelField' in item) {
-
-            let jsonPart = /{.*?}/.exec(item.data_labelField);
-            if (jsonPart) {
-                try {
-                    let newKeyValues = JSON.parse(jsonPart[0]);
-                    workspaceItem = { ...workspaceItem, ...newKeyValues }
-                } catch {
-                    console.info('Error parsing JSON ', jsonPart);
-                }
-            }
-
+            workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
 
@@ -9113,16 +9634,13 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if (item.data_hiddenInDesigner) {
+            workspaceItem.hidden = true;
+        }
+
+
         if ('data_labelField' in item) {
-            let jsonPart = /{.*?}/.exec(item.data_labelField);
-            if (jsonPart) {
-                try {
-                    let newKeyValues = JSON.parse(jsonPart[0]);
-                    workspaceItem = { ...workspaceItem, ...newKeyValues }
-                } catch {
-                    console.info('Error parsing JSON ', jsonPart);
-                }
-            }
+            workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
         workspaceObj.customObjects.push(workspaceItem);
@@ -9132,6 +9650,64 @@ function convertRoomObjToWorkspace() {
     return workspaceObj;
 
 }
+
+function parseDataLabelFieldJson(item, workspaceItem){
+    let jsonPart = /{.*?}/.exec(item.data_labelField);
+    if (jsonPart) {
+        try {
+            let newKeyValues = JSON.parse(jsonPart[0]);
+            workspaceItem = { ...workspaceItem, ...newKeyValues }
+        } catch {
+            console.info('Error parsing JSON ', jsonPart);
+        }
+    }
+
+    return workspaceItem;
+}
+// function parseDataLabelFieldJson(item, workspaceItem) {
+//     let jsonLabelString = /{(.*?)}/.exec(item.data_labelField);
+
+//     jsonLabelString = jsonLabelString.replace()
+
+//         try {
+//             let newKeyValues = JSON.parse('{' + newParts.join() + '}');
+//             workspaceItem = { ...workspaceItem, ...newKeyValues }
+//         } catch {
+//             console.info('Error parsing JSON ', jsonParts);
+//         }
+//     }
+
+//     return workspaceItem;
+// }
+
+/* original thought on parseDataLavelFieldJson to parse based on commas, then keep very short wild cards.  However, a 2nd level nested object or array with commas would break this solution.  It is work coming back to */
+// function parseDataLabelFieldJson(item, workspaceItem) {
+//     let jsonParts = /{(.*?)}/.exec(item.data_labelField);
+//     let newParts = [];
+
+//     if (jsonParts && jsonParts[1]) {
+//         let jsonPartsArray = jsonParts[1].split(/,(?=(?:(?:[^"[\]{}]*["[\]{}]){2})*[^"[\]{}]*$)/);  /* split string ignoring quotes source: https://stackoverflow.com/questions/11456850/ */
+
+//         jsonPartsArray.forEach((jsonPart, index)=>{
+//             let newPart;
+//             jsonPart = jsonPart.trim();
+//             // newPart = jsonPart.replace(/[Oo]\s*([\d.]+)/,'\"opacity\":\"$1\"')
+//             newPart = jsonPart.replace(/hide/i, `"hidden":true`);
+//             newParts.push(newPart)
+//         })
+
+
+
+//         try {
+//             let newKeyValues = JSON.parse('{' + newParts.join() + '}');
+//             workspaceItem = { ...workspaceItem, ...newKeyValues }
+//         } catch {
+//             console.info('Error parsing JSON ', jsonParts);
+//         }
+//     }
+
+//     return workspaceItem;
+// }
 
 function downloadJsonWorkpaceFile(workspaceObj) {
 
