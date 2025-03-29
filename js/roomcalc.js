@@ -1369,7 +1369,16 @@ function updateLabelUnits() {
 roomObj is already in meters, it  */
 function convertToMeters(roomObj2) {
     let itemsOffStageId = listItemsOffStage();
+    // [start] added post v0.1.513 initial post
+    /* orphaned items are not to be removed if zoom is greated than 100%, otherwise non-orphaned items appear orphaned */
+    let zoomValue = document.getElementById('zoomValue').textContent;
+    zoomValue = zoomValue.replace(/%/, '');
+    zoomValue = Number(zoomValue);
 
+    if(zoomValue > 100 ){
+        itemsOffStageId = [];
+    }
+    // [start] added post v0.1.513 initial post
     let ratio = 1;
 
     if (roomObj2.unit === 'feet') {
@@ -8428,6 +8437,15 @@ function zoomInOut(zoomChange) {
         panScrollableOn = false;
         panRectangle.hide();
 
+
+
+
+    }
+
+    // minor update post v0.1.513 update
+    /* resend message to Workspace Designer as orphaned objects can appear if you are zoomed in, so remove zoomed in */
+    if (zoomValue < 102 ){
+        setTimeout(()=>{postMessageToWorkspace();}, 250);
     }
 
     zoomScaleX = zoomValue / 100;
