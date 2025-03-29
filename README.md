@@ -8,6 +8,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.513**
 - It is now possible to disable the camera FOV, audio reach, or display reach for a single object. Simply double-click on the object on the Video Room Calc canvas and three new buttons will appear next to the Update Item button.
+<img width="312" alt="image" src="https://github.com/user-attachments/assets/4ddda88d-891b-4873-bb88-0fbc38581ae1" />
 - **Stage Floor:** A new object called Stage Floor has been added. It can be found under **Equipment** -> **Furniture** -> **Stage Floor.** The Stage Floor is similar to the Box object, but stage floor always remains at the lowest level on the room canvas. This is useful when creating a custom room with a stage, as Box objects are typically on the same level as Tables and Walls.
 - The **Software Experience: MTR or Webex** is now supported for Workspace Designer Custom Rooms. Under **Details** -> **Room** -> **Software Experience:** **MTR** or **Webex**.
 - Orphaned objects that are not on the VRC canvas will not be visible in the Workspace Designer export. They will be marked as {"hidden": true} in the JSON.
