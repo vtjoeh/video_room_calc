@@ -6,6 +6,18 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.513**
+- It is now possible to disable the camera FOV, audio reach, or display reach for a single object. Simply double-click on the object on the Video Room Calc canvas and three new buttons will appear next to the Update Item button.
+- **Stage Floor:** A new object called Stage Floor has been added. It can be found under **Equipment** -> **Furniture** -> **Stage Floor.** The Stage Floor is similar to the Box object, but stage floor always remains at the lowest level on the room canvas. This is useful when creating a custom room with a stage, as Box objects are typically on the same level as Tables and Walls.
+- The **Software Experience: MTR or Webex** is now supported for Workspace Designer Custom Rooms. Under **Details** -> **Room** -> **Software Experience:** **MTR** or **Webex**.
+- Orphaned objects that are not on the VRC canvas will not be visible in the Workspace Designer export. They will be marked as {"hidden": true} in the JSON.
+- The Displays and Cameras now have a read-only **Top Elevation field** making it easier to determine what the base elevation of a camera sitting on top of display should be when working with the Workspace Designer Custom Rooms. Double-click on the object to see this information in the **Details** -> **Item** menu.
+- An issue has been fixed where the displays base elevation on export to the Workspace Designer Custom Rooms were too high.  Displays will now be accurately placed. Existing Video Room Calculator designs will need displays's base elevation updated to work properly with the Workspace Designer.
+- Bug fixes. 
+
+**v0.1.512 (not published)**
+- Bug fixes. 
+
 **v0.1.511**
 - Provide user warning if the URL file size exceeds 8190 characters, which is about 500 objects on the canvas. 
 - Fixed some bugs related to local storage. 
