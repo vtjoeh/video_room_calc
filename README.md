@@ -7,11 +7,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.514**
-![image](https://github.com/user-attachments/assets/def64fdf-e553-482f-92b9-5452e5444cbc)
-
-- Added warning when a 2nd video device (not camera) is added to the room canvas.  The **PTZ 4K** camera on the above picture is actually a **Room Kit EQ: PTZ 4K Camera**
+- Added warning when a 2nd video device (not camera) is added to the room canvas.  The **PTZ 4K** camera on the below picture is actually a **Room Kit EQ: PTZ 4K Camera**
 - Reduced Quick Setup items in the video devices menu.
 - Bug fixes. 
+<img width="275" alt="image" src="https://github.com/user-attachments/assets/def64fdf-e553-482f-92b9-5452e5444cbc" />
 
 **v0.1.513**
 - It is now possible to disable the camera FOV, audio reach, or display reach for a single object. Simply double-click on the object on the Video Room Calc canvas and three new buttons will appear next to the Update Item button.
