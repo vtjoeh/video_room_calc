@@ -1,4 +1,4 @@
-const version = "v0.1.513";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.514";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -585,10 +585,12 @@ let videoDevices = [
     { name: "Room Kit", id: 'roomKit', key: 'AS', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'roomKit-top.png', frontImage: 'roomKit-front.png', width: 700, depth: 88, height: 106, defaultVert: 1200 },
     { name: "Virtual Lens (Beta) Bar Pro/Brd Pro G2", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5, defaultVert: 1200 },
     { name: 'Room Kit EQX: Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null },
-    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'brdPro75G2', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
-    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'brdPro75G2', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 ]
 
+
+let videoDevicesNoCameras = structuredClone(videoDevices);
 
 /* camera key starts with C */
 let cameras = [
@@ -969,6 +971,17 @@ function expandVideoDeviceArray() {
             });
         }
     })
+
+    /* Add camera only devices with camerOnly = true; */
+    videoDevices.forEach((primaryDevice, index) => {
+        cameras.forEach((camera) => {
+            if (camera.id === primaryDevice.id) {
+                videoDevices[index].cameraOnly = true;
+            }
+        })
+    });
+
+    console.log('videoDevices', JSON.stringify(videoDevices, null, 5));
 
 }
 
@@ -1375,7 +1388,7 @@ function convertToMeters(roomObj2) {
     zoomValue = zoomValue.replace(/%/, '');
     zoomValue = Number(zoomValue);
 
-    if(zoomValue > 100 ){
+    if (zoomValue > 100) {
         itemsOffStageId = [];
     }
     // [start] added post v0.1.513 initial post
@@ -1495,7 +1508,7 @@ function convertMetersFeet(isDrawRoom) {
     roomObj.room.onePersonCrop = roomObj.room.onePersonCrop * ratio;
     roomObj.room.twoPersonCrop = roomObj.room.twoPersonCrop * ratio;
 
-    if('backgroundImage' in roomObj){
+    if ('backgroundImage' in roomObj) {
         roomObj.backgroundImage.x = roomObj.backgroundImage.x * ratio;
         roomObj.backgroundImage.y = roomObj.backgroundImage.y * ratio;
         roomObj.backgroundImage.width = roomObj.backgroundImage.width * ratio;
@@ -2267,9 +2280,10 @@ function updateSelectVideoDeviceOptions() {
 
         let name = device.name;
 
-        let drpOption = new Option(name, device.id);
-
-        drpVideoDevice.add(drpOption, undefined);
+        if (device.id.match(/^(roomBar|roomBarPro|roomKitEqx(FS)?|roomKitEqQuadCam|brdPro\d\dG2(FS)?)$/)) {
+            let drpOption = new Option(name, device.id);
+            drpVideoDevice.add(drpOption, undefined);
+        }
     })
 
     drpVideoDevice.value = 'roomBarPro'; // Set the Room Bar Pro as the default device.
@@ -2460,6 +2474,15 @@ function quickSetupInsert() {
     videoAttr.x = roomWidth / 2;
     videoAttr.rotation = 0;
 
+    /* determine if defaultVert is available for device and use if available */
+    if ('defaultVert' in allDeviceTypes[videoDeviceId]) {
+        let defaultVert = allDeviceTypes[videoDeviceId].defaultVert / 1000;
+        if (roomObj.unit === 'feet') {
+            defaultVert = round(defaultVert * 3.28084)
+        }
+        videoAttr.data_zPosition = defaultVert;
+    }
+
     /* only insert a display if the video device does not have diagonalInches */
     videoDevices.forEach((item) => {
         if (videoDeviceId === item.id) {
@@ -2502,6 +2525,15 @@ function quickSetupInsert() {
                 }
 
                 updateTxtPrimaryDeviceNameLabel(item.name);
+
+                /* get defaultVert if available */
+                if ('defaultVert' in allDeviceTypes[displayId]) {
+                    let defaultVert = allDeviceTypes[displayId].defaultVert / 1000;
+                    if (roomObj.unit === 'feet') {
+                        defaultVert = round(defaultVert * 3.28084)
+                    }
+                    displayAttr.data_zPosition = defaultVert;
+                }
 
                 insertShapeItem(displayId, 'displays', displayAttr, displayUuid, false);
             }
@@ -3543,6 +3575,7 @@ function creatArrayKeysTypes() {
             keyIdObj[item.key] = { 'groupName': groupName, 'data_deviceid': item.id, name: item.name, 'width': item.width, 'height': item.depth, 'name': item.name };
         });
     }
+
 }
 
 function createShareableLink() {
@@ -6227,19 +6260,25 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         attrs.data_diagonalInches = data_diagonalInches;
     }
 
+    // if ('data_zPosition' in attrs) {
+    //     data_zPosition = attrs.data_zPosition;
+    // } else {
+    //     if ('defaultVert' in insertDevice) {
+    //         data_zPosition = insertDevice.defaultVert / 1000;
+    //         if (unit === 'feet') {
+    //             data_zPosition = data_zPosition * 3.28084;
+    //         }
+    //         data_zPosition = round(data_zPosition);
+    //         attrs.data_zPosition = data_zPosition;
+    //     } else {
+    //         data_zPosition = "";
+    //     }
+    // }
+
     if ('data_zPosition' in attrs) {
         data_zPosition = attrs.data_zPosition;
     } else {
-        if ('defaultVert' in insertDevice) {
-            data_zPosition = insertDevice.defaultVert / 1000;
-            if (unit === 'feet') {
-                data_zPosition = data_zPosition * 3.28084;
-            }
-            data_zPosition = round(data_zPosition);
-            attrs.data_zPosition = data_zPosition;
-        } else {
-            data_zPosition = "";
-        }
+        data_zPosition = "";
     }
 
     if ('data_vHeight' in attrs) {
@@ -7495,16 +7534,16 @@ function updateFormatDetailsUpdate() {
 }
 
 /* Estimates the top elevation of a display and populates the itemTopElevation text box */
-function fillInTopElevationDisplay(item){
+function fillInTopElevationDisplay(item) {
     let zHeightOfDisplay, topElevation, zPosition;
     let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
-    if (roomObj.unit === 'feet'){
+    if (roomObj.unit === 'feet') {
         defaultDisplayHeight = defaultDisplayHeight * 3.28084;
     }
 
     zPosition = item.data_zPosition || 0;
 
-    zHeightOfDisplay = defaultDisplayHeight * (item.data_diagonalInches/diagonalInches ) ;
+    zHeightOfDisplay = defaultDisplayHeight * (item.data_diagonalInches / diagonalInches);
     topElevation = zPosition + zHeightOfDisplay;
     document.getElementById("itemTopElevation").value = round(topElevation);
 }
@@ -7564,6 +7603,7 @@ function updateFormatDetails(eventOrShapeId) {
             let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
             let singleShadingDiv = document.getElementById('singleShadingDiv');
 
+
             singleShadingDiv.style.visibility = 'hidden'; /* start as hidden, but make visible if item supports shading guidances */
 
             isPrimaryCheckBox.disabled = true;
@@ -7580,11 +7620,11 @@ function updateFormatDetails(eventOrShapeId) {
                 y = xy.y;
             }
 
-            if ('data_diagonalInches' in item) {
+            if ('data_diagonalInches' in item && !item.data_deviceid.match(/brdPro|boardPro|webexDesk/)) {
                 document.getElementById('itemDiagonalTvDiv').style.display = '';
                 document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
                 itemTopElevationDiv.style.display = '';
-                if(parentGroup === 'displays'){
+                if (parentGroup === 'displays') {
                     fillInTopElevationDisplay(item);
                 }
 
@@ -7618,13 +7658,13 @@ function updateFormatDetails(eventOrShapeId) {
                 singleShadingDiv.style.visibility = 'visible';
                 itemTopElevationDiv.style.display = '';
 
-                let deviceVertHeight = allDeviceTypes[item.data_deviceid].height/1000; /* device height in meters */
+                let deviceVertHeight = allDeviceTypes[item.data_deviceid].height / 1000; /* device height in meters */
 
-                if (roomObj.unit === 'feet'){
+                if (roomObj.unit === 'feet') {
                     deviceVertHeight = deviceVertHeight * 3.28084;
                 }
 
-                document.getElementById('itemTopElevation').value = round(item.data_zPosition + deviceVertHeight);
+                document.getElementById('itemTopElevation').value = round((item.data_zPosition || 0) + deviceVertHeight);
 
                 if (roomObj.layersVisible.grShadingCamera) {
                     document.getElementById('btnCamShadeToggleSingleItem').disabled = false;
@@ -8132,14 +8172,57 @@ function dragEnd(event) {
 
     if (canvasPixelX < 10 || canvasPixelY < 10) return; /* break out funciton and do not insert image if the X or Y coordinate is negative with slight buffer */
 
+
     let attrs = { x: unitX, y: unitY };
+
+    /* on drag end insert the default height */
+    if ('defaultVert' in allDeviceTypes[deviceIdGroupName[1]]) {
+        let defaultVert = allDeviceTypes[deviceIdGroupName[1]].defaultVert / 1000;
+        if (roomObj.unit === 'feet') {
+            defaultVert = round(defaultVert * 3.28084)
+        }
+        attrs.data_zPosition = defaultVert;
+    }
 
     insertShapeItem(deviceIdGroupName[1], deviceIdGroupName[0], attrs, uuid = '', true);
 
     dragClientX = 0;
     dragClientY = 0;
     setTimeout(() => { canvasToJson() }, 100);
+
+
+    checkForMultipleCodecs(deviceIdGroupName[1]);
 }
+
+/* Checks to see if the last item dropped is also a codec.
+takes a string of the droppedItem id/data_deviceid */
+function checkForMultipleCodecs(droppedItem) {
+
+    setTimeout(() => {
+       //  console.log('dropped', droppedItem, allDeviceTypes[droppedItem].parentGroup);
+      //   console.log('dropped item camera only', allDeviceTypes[droppedItem].cameraOnly);
+
+
+        /* verify the device is in the videoDevices group && not a camera  */
+        if (allDeviceTypes[droppedItem].parentGroup && allDeviceTypes[droppedItem].parentGroup === 'videoDevices' && !allDeviceTypes[droppedItem].cameraOnly) {
+            console.log('** dropped item is a video device');
+            /* count up all the roomObj.items.videoDevices that are not cameras only. */
+            let videoDeviceCount = 0;
+
+            roomObj.items.videoDevices.forEach((item) => {
+                if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
+                    videoDeviceCount++;
+                }
+            })
+            console.log('videoDeviceCount', videoDeviceCount);
+            if (videoDeviceCount === 2) {
+                alert('\u26A0 Multiple Video Device Alert\u26A0\r\n\r\nThere are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.')
+            }
+
+        }
+    }, 1000);
+}
+
 
 /* Prevent default value on canvas */
 function allowDrop(event) {
@@ -8206,7 +8289,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems, groupName, jsonGroup) 
 
 // let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitEqQuadPtz4k', 'roomKitProQuadCam'];
 
-let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitProQuadCam'];
+let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
 
 let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
 
@@ -8214,7 +8297,7 @@ let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
 // let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
-let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
+let cameraDevicesMenu = ['ptz4k', 'quadCam', 'roomKitEqPtz4k', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
 let legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
 
@@ -8444,8 +8527,8 @@ function zoomInOut(zoomChange) {
 
     // minor update post v0.1.513 update
     /* resend message to Workspace Designer as orphaned objects can appear if you are zoomed in, so remove zoomed in */
-    if (zoomValue < 102 ){
-        setTimeout(()=>{postMessageToWorkspace();}, 250);
+    if (zoomValue < 102) {
+        setTimeout(() => { postMessageToWorkspace(); }, 250);
     }
 
     zoomScaleX = zoomValue / 100;
@@ -8668,7 +8751,7 @@ function keepDefaultUnit() {
 
 function loadTemplate(x) {
     if (isLoadingTemplate) return;
-
+    zoomInOut('reset');
     isLoadingTemplate = true;
 
     document.getElementById('dialogLoadingTemplate').showModal();
@@ -9669,7 +9752,7 @@ function convertRoomObjToWorkspace() {
 
 }
 
-function parseDataLabelFieldJson(item, workspaceItem){
+function parseDataLabelFieldJson(item, workspaceItem) {
     let jsonPart = /{.*?}/.exec(item.data_labelField);
     if (jsonPart) {
         try {
