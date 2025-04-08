@@ -6,6 +6,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.515, v0.1.516**
+- Code optimization.  
+
 **v0.1.514**
 - Added warning when a 2nd video device (not camera) is added to the room canvas.  The **PTZ 4K** camera on the below picture is actually a **Room Kit EQ: PTZ 4K Camera**
 - Reduced Quick Setup items in the video devices menu.
