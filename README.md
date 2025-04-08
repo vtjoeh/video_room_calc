@@ -7,7 +7,8 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.515, v0.1.516**
-- Code optimization.  
+- Items off stage no longer show up in the URL, Shareable Link or Workspace Designer Custom Room. Items off stage are still there during multi-item drag & drop or room resizes. 
+- Code optimization.
 
 **v0.1.514**
 - Added warning when a 2nd video device (not camera) is added to the room canvas.  The **PTZ 4K** camera on the below picture is actually a **Room Kit EQ: PTZ 4K Camera**
