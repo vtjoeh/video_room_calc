@@ -1,4 +1,4 @@
-const version = "v0.1.514";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.516";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -105,7 +105,9 @@ let undoArray = [];
 
 let redoArray = [];
 
-let maxUndoArrayLength = 100;
+let itemsOffStageId; /* represents the ID of devices that are not on the stage and not visible to the user. They will not show up in the URL and will be hidden:true in the Workspace Designer.  They are kept during a session in case a room is being resized */
+
+let maxUndoArrayLength = 100; /* Undo amount in active memory.  Local storage will be less. */
 
 let undoArrayTimer; /* timer pepare for saving to the undoArray so that undoArray entries are limited */
 let undoArrayTimeDelta = 500; /* ms between saves to undoArray after changes to roomObj */
@@ -981,8 +983,6 @@ function expandVideoDeviceArray() {
         })
     });
 
-    console.log('videoDevices', JSON.stringify(videoDevices, null, 5));
-
 }
 
 
@@ -1381,91 +1381,87 @@ function updateLabelUnits() {
 /* converts the roomObj2, used for exporting to meters for 3d Workspace file.  If the
 roomObj is already in meters, it  */
 function convertToMeters(roomObj2) {
-    let itemsOffStageId = listItemsOffStage();
-    // [start] added post v0.1.513 initial post
-    /* orphaned items are not to be removed if zoom is greated than 100%, otherwise non-orphaned items appear orphaned */
-    let zoomValue = document.getElementById('zoomValue').textContent;
-    zoomValue = zoomValue.replace(/%/, '');
-    zoomValue = Number(zoomValue);
 
-    if (zoomValue > 100) {
-        itemsOffStageId = [];
-    }
-    // [start] added post v0.1.513 initial post
+    let roomObjTemp = {};
+    roomObjTemp.room = {};
+    roomObjTemp.items = {};
+
+    Object.keys(roomObj2.items).forEach(key => {
+        roomObjTemp.items[key] = [];
+    });
+
     let ratio = 1;
 
     if (roomObj2.unit === 'feet') {
         ratio = 1 / 3.28084;
     }
 
-    roomObj2.room.roomWidth = roomObj2.room.roomWidth * ratio;
-    roomObj2.room.roomLength = roomObj2.room.roomLength * ratio;
-    roomObj2.room.tableWidth = roomObj2.room.tableWidth * ratio;
-    roomObj2.room.frntWallToTv = roomObj2.room.frntWallToTv * ratio;
-    roomObj2.room.tableLength = roomObj2.room.tableLength * ratio;
-    roomObj2.room.distDisplayToTable = roomObj2.room.distDisplayToTable * ratio;
-    roomObj2.room.onePersonCrop = roomObj2.room.onePersonCrop * ratio;
-    roomObj2.room.twoPersonCrop = roomObj2.room.twoPersonCrop * ratio;
+    roomObjTemp.room.roomWidth = roomObj2.room.roomWidth * ratio;
+    roomObjTemp.room.roomLength = roomObj2.room.roomLength * ratio;
 
     if (roomObj2.room.roomHeight) {
-        roomObj2.room.roomHeight = roomObj2.room.roomHeight * ratio;
+        roomObjTemp.room.roomHeight = roomObj2.room.roomHeight * ratio;
     } else {
-        roomObj2.room.roomHeight = 2.5;
+        roomObjTemp.room.roomHeight = 2.5;
     }
 
     for (const category in roomObj2.items) {
+        roomObjTemp.items[category] = [];
         for (const i in roomObj2.items[category]) {
 
-            let node = roomObj2.items[category][i];
 
-            if (itemsOffStageId.includes(node.id)) {
-                node.data_hiddenInDesigner = true;
-            }
 
-            if ('x' in node) {
-                node.x = node.x * ratio;
-            }
+            if (!itemsOffStageId.includes(roomObj2.items[category][i].id)) {    /* only add the node if it is onstage */
 
-            if ('y' in node) {
-                node.y = node.y * ratio;
-            }
+                let node = roomObj2.items[category][i];
 
-            if ('width' in node) {
-                node.width = node.width * ratio;
-            }
+                if ('x' in node) {
+                    node.x = node.x * ratio;
+                }
 
-            if ('height' in node) {
-                node.height = node.height * ratio;
-            }
+                if ('y' in node) {
+                    node.y = node.y * ratio;
+                }
 
-            if ('radius' in node) {
-                node.radius = node.radius * ratio;
-            }
+                if ('width' in node) {
+                    node.width = node.width * ratio;
+                }
 
-            if ('data_zPosition' in node) {
-                node.data_zPosition = round(node.data_zPosition * ratio);
-            }
+                if ('height' in node) {
+                    node.height = node.height * ratio;
+                }
 
-            if ('data_vHeight' in node) {
-                node.data_vHeight = round(node.data_vHeight * ratio);
-            }
+                if ('radius' in node) {
+                    node.radius = node.radius * ratio;
+                }
 
-            if ('tblRectRadius' in node) {
-                node.tblRectRadius = round(node.tblRectRadius * ratio);
-            }
+                if ('data_zPosition' in node) {
+                    node.data_zPosition = round(node.data_zPosition * ratio);
+                }
 
-            if ('data_trapNarrowWidth' in node) {
-                node.data_trapNarrowWidth = round(node.data_trapNarrowWidth * ratio);
-            }
+                if ('data_vHeight' in node) {
+                    node.data_vHeight = round(node.data_vHeight * ratio);
+                }
 
-            if ('tblRectRadiusRight' in node) {
-                node.tblRectRadiusRight = round(node.tblRectRadiusRight * ratio);
+                if ('tblRectRadius' in node) {
+                    node.tblRectRadius = round(node.tblRectRadius * ratio);
+                }
+
+                if ('data_trapNarrowWidth' in node) {
+                    node.data_trapNarrowWidth = round(node.data_trapNarrowWidth * ratio);
+                }
+
+                if ('tblRectRadiusRight' in node) {
+                    node.tblRectRadiusRight = round(node.tblRectRadiusRight * ratio);
+                }
+
+                roomObjTemp.items[category].push(node);
             }
         }
 
     }
 
-    return roomObj2;
+    return roomObjTemp;
 
 }
 
@@ -3579,7 +3575,7 @@ function creatArrayKeysTypes() {
 }
 
 function createShareableLink() {
-
+    listItemsOffStage();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
     strUrlQuery2 += `${roomObj.version}`;
@@ -3674,6 +3670,11 @@ function expand(num) {
 
 function createShareableLinkItem(item) {
     let strItem = '';
+
+    if (itemsOffStageId.includes(item.id)) {
+        return '';
+    }
+
     strItem += idKeyObj[item.data_deviceid];
 
     if ('x' in item) {
@@ -4092,7 +4093,6 @@ function copyToCanvasClipBoard(items) {
 
     let clipBoardArray = [];
 
-    let canvas = document.getElementById('canvasDiv');
 
     items.forEach(node => {
         let x2Offset, y2Offset, x2, y2; /* new x and new y */
@@ -5547,16 +5547,50 @@ function findUpperLeftXY(shape) {
     };
 }
 
-function findNewTransformationCoordinate(shape, deltaX, deltaY) {
+/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.  All other objects uese center for x,y */
+function findFourCorners(item) {
+
+    let shapeCorners = [];
+    let width, height;
+
+    if ('width' in item) {
+        width = item.width;
+        height = item.height;
+
+        shapeCorners[0] = { x: item.x, y: item.y };
+        shapeCorners[1] = findNewTransformationCoordinate(item, -width, 0);
+        shapeCorners[2] = findNewTransformationCoordinate(item, -width, -height);
+        shapeCorners[3] = findNewTransformationCoordinate(item, 0, -height);
+
+    } else {
+        width = allDeviceTypes[item.data_deviceid].width / 1000;
+        height = allDeviceTypes[item.data_deviceid].depth / 1000;
+
+        if (roomObj.unit === 'feet') {
+            width = width * 3.28084;
+            height = height * 3.28084;
+        }
+
+        shapeCorners[0] = findNewTransformationCoordinate(item, width / 2, height / 2);
+        shapeCorners[1] = findNewTransformationCoordinate(item, -width / 2, height / 2);
+        shapeCorners[2] = findNewTransformationCoordinate(item, - width / 2, - height / 2);
+        shapeCorners[3] = findNewTransformationCoordinate(item, width / 2, - height / 2);
+
+    }
+
+    return shapeCorners;
+}
+
+function findNewTransformationCoordinate(item, deltaX, deltaY) {
     return {
         x:
-            shape.x
-            - (deltaX) * Math.cos(Math.PI / 180 * shape.rotation)
-            - (deltaY) * Math.sin(Math.PI / 180 * (-shape.rotation)),
+            item.x
+            - (deltaX) * Math.cos(Math.PI / 180 * item.rotation)
+            - (deltaY) * Math.sin(Math.PI / 180 * (-item.rotation)),
         y:
-            shape.y -
-            (deltaY) * Math.cos(Math.PI / 180 * shape.rotation) -
-            (deltaX) * Math.sin(Math.PI / 180 * shape.rotation)
+            item.y -
+            (deltaY) * Math.cos(Math.PI / 180 * item.rotation) -
+            (deltaX) * Math.sin(Math.PI / 180 * item.rotation)
     };
 }
 
@@ -6037,73 +6071,88 @@ function deleteNegativeShapes() {
 }
 
 
-function listItemsOffStage() {
+/**
+ * Helper function to determine whether there is an intersection between the two polygons described
+ * by the lists of vertices. Uses the Separating Axis Theorem.
+ *
+ * @param {Array} a - An array of connected points [{x:, y:}, {x:, y:},...] that form a closed polygon
+ * @param {Array} b - An array of connected points [{x:, y:}, {x:, y:},...] that form a closed polygon
+ * @return {boolean} - True if there is any intersection between the 2 polygons, false otherwise
+ */
+function doPolygonsIntersect(a, b) {
+    const polygons = [a, b];
+    let minA, maxA, projected, minB, maxB;
 
-    let transformGroups = layerTransform.getChildren();
-    let offStageItemsId = [];
+    for (let i = 0; i < polygons.length; i++) {
+        const polygon = polygons[i];
 
-    transformGroups.forEach((group) => {
-        let groupName = group.name();
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+        for (let i1 = 0; i1 < polygon.length; i1++) {
+            const i2 = (i1 + 1) % polygon.length;
+            const p1 = polygon[i1];
+            const p2 = polygon[i2];
 
-            getOffStageItems(group);
+            const normal = { x: p2.y - p1.y, y: p1.x - p2.x };
+
+            minA = maxA = undefined;
+            for (let j = 0; j < a.length; j++) {
+                projected = normal.x * a[j].x + normal.y * a[j].y;
+                if (typeof minA === 'undefined' || projected < minA) {
+                    minA = projected;
+                }
+                if (typeof maxA === 'undefined' || projected > maxA) {
+                    maxA = projected;
+                }
+            }
+
+            minB = maxB = undefined;
+            for (let j = 0; j < b.length; j++) {
+                projected = normal.x * b[j].x + normal.y * b[j].y;
+                if (typeof minB === 'undefined' || projected < minB) {
+                    minB = projected;
+                }
+                if (typeof maxB === 'undefined' || projected > maxB) {
+                    maxB = projected;
+                }
+            }
+
+            if (maxA < minB || maxB < minA) {
+                return false;
+            }
         }
-    })
+    }
+    return true;
+}
 
+/* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
+function listItemsOffStage() {
+    itemsOffStageId = [];
 
-    function getOffStageItems(parentGroup) {
-        let theObjects = parentGroup.getChildren();
+    /* get the bounds in scale (feet/meters) */
+    let xBoundMin = -pxOffset / scale;
+    let yBoundMin = -pyOffset / scale;
+    let xBoundMax = roomObj.room.roomWidth + pxOffset / scale;
+    let yBoundMax = roomObj.room.roomLength + (pyOffset + 30) / scale;
 
-        xBound = stage.width();
-        yBound = stage.height();
+    let border = [];
+    border[0] = { x: xBoundMin, y: yBoundMin };
+    border[1] = { x: xBoundMax, y: yBoundMin };
+    border[2] = { x: xBoundMax, y: yBoundMax };
+    border[3] = { x: xBoundMin, y: yBoundMax };
 
-        theObjects.forEach(node => {
+    for (const category in roomObj.items) {
+        for (const i in roomObj.items[category]) {
+            let item = structuredClone(roomObj.items[category][i]);
+            if (!(xBoundMin < item.x && item.x < xBoundMax && yBoundMin < item.y && item.y < yBoundMax)) {  /* check first if the main point is in the border, as this is simpler than the SAT poly check methord */
+                let fourCorners = findFourCorners(item);
+                if (!doPolygonsIntersect(fourCorners, border)) {
+                    itemsOffStageId.push(item.id);
 
-            let attrs = node.attrs;
-            let height = 0;
-            let width = 0;
-
-            if ('height' in attrs) {
-                height = attrs.height;
+                };
             }
 
-            if ('width' in attrs) {
-                width = attrs.width;
-            }
-
-            let corners = [];
-
-            /* Now get the 4 corner points */
-            corners[0] = { x: 0, y: 0 }; // top left
-            corners[1] = { x: width, y: 0 }; // top right
-            corners[2] = { x: width, y: height }; // bottom right
-            corners[3] = { x: 0, y: height }; // bottom left
-
-            /* And rotate the corners using the same transform as the rect. */
-            for (let i = 0; i < 4; i++) {
-                /* Here be the magic */
-                corners[i] = node.getAbsoluteTransform().point(corners[i]); // top left
-
-            }
-
-            /* check if it is out of view, but could be shown if the room is resized */
-            if ((corners[0].x > xBound && corners[1].x > xBound && corners[2].x > xBound && corners[3].x > xBound)
-                || (corners[0].y > yBound && corners[1].y > yBound && corners[2].y > yBound && corners[3].y > yBound)) {
-
-                offStageItemsId.push(node.id());
-            }
-
-            /* check if it is zero or a negative value.  These are items that will be deleted from the VRC shareable link */
-            if ((corners[0].x < 1 && corners[1].x < 1 && corners[2].x < 1 && corners[3].x < 1)
-                || (corners[0].y < 1 && corners[1].y < 1 && corners[2].y < 1 && corners[3].y < 1)) {
-
-                offStageItemsId.push(node.id());
-            }
-
-        });
+        }
     }
 
-    return offStageItemsId;
 }
 
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
@@ -6260,21 +6309,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         attrs.data_diagonalInches = data_diagonalInches;
     }
 
-    // if ('data_zPosition' in attrs) {
-    //     data_zPosition = attrs.data_zPosition;
-    // } else {
-    //     if ('defaultVert' in insertDevice) {
-    //         data_zPosition = insertDevice.defaultVert / 1000;
-    //         if (unit === 'feet') {
-    //             data_zPosition = data_zPosition * 3.28084;
-    //         }
-    //         data_zPosition = round(data_zPosition);
-    //         attrs.data_zPosition = data_zPosition;
-    //     } else {
-    //         data_zPosition = "";
-    //     }
-    // }
-
     if ('data_zPosition' in attrs) {
         data_zPosition = attrs.data_zPosition;
     } else {
@@ -6286,6 +6320,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     } else {
         data_vHeight = "";
     }
+
     /*
         Calculate width of displays based on Diagonal inches.
     */
@@ -8199,13 +8234,10 @@ takes a string of the droppedItem id/data_deviceid */
 function checkForMultipleCodecs(droppedItem) {
 
     setTimeout(() => {
-       //  console.log('dropped', droppedItem, allDeviceTypes[droppedItem].parentGroup);
-      //   console.log('dropped item camera only', allDeviceTypes[droppedItem].cameraOnly);
-
 
         /* verify the device is in the videoDevices group && not a camera  */
         if (allDeviceTypes[droppedItem].parentGroup && allDeviceTypes[droppedItem].parentGroup === 'videoDevices' && !allDeviceTypes[droppedItem].cameraOnly) {
-            console.log('** dropped item is a video device');
+
             /* count up all the roomObj.items.videoDevices that are not cameras only. */
             let videoDeviceCount = 0;
 
@@ -8214,8 +8246,9 @@ function checkForMultipleCodecs(droppedItem) {
                     videoDeviceCount++;
                 }
             })
-            console.log('videoDeviceCount', videoDeviceCount);
+
             if (videoDeviceCount === 2) {
+                /* update this later with a pretty modal and a "Don't show this message again" toggle */
                 alert('\u26A0 Multiple Video Device Alert\u26A0\r\n\r\nThere are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.')
             }
 
@@ -8297,7 +8330,9 @@ let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
 // let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
-let cameraDevicesMenu = ['ptz4k', 'quadCam', 'roomKitEqPtz4k', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
+// let cameraDevicesMenu = ['ptz4k', 'quadCam', 'roomKitEqPtz4k', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
+
+let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
 let legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
 
@@ -8520,7 +8555,7 @@ function zoomInOut(zoomChange) {
         panScrollableOn = false;
         panRectangle.hide();
 
-
+        listItemsOffStage();
 
 
     }
@@ -8900,7 +8935,7 @@ function onKeyUp(e) {
     lastKeyDownMovement = false;
 }
 
-let lastKeyDownMovement = false;  /* keeps track if the last key command a keyDown on the canvas to capture keyUp */
+let lastKeyDownMovement = false;  /* keeps track if the last key command was a keyDown on the canvas to capture keyUp */
 
 document.addEventListener('keydown', onKeyDown);
 
@@ -9180,7 +9215,7 @@ function convertRoomObjToWorkspace() {
     let workspaceObj = {};
     workspaceObj.title = '';
     workspaceObj.roomShape = {};
-    workspaceObj.roomShape.manual = "true";
+    workspaceObj.roomShape.manual = true;
     if (swapXY) {
         workspaceObj.roomShape.width = roomObj2.room.roomWidth;
         workspaceObj.roomShape.length = roomObj2.room.roomLength;
@@ -9203,9 +9238,9 @@ function convertRoomObjToWorkspace() {
         workspaceObj.meetingPlatform = roomObj.software;
     }
 
-    workspaceObj.peripherals = {};
-    workspaceObj.peripherals.navigator = true;
-    workspaceObj.peripherals.scheduler = true;
+    // workspaceObj.peripherals = {};
+    // workspaceObj.peripherals.navigator = true;
+    // workspaceObj.peripherals.scheduler = true;
 
     workspaceObj.customObjects = [];
 
@@ -9216,6 +9251,7 @@ function convertRoomObjToWorkspace() {
 
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
+
         let wallWidth = 0.10 + 0.02; /* Add in the floor width to include the outer wall */
         let floor = {
             "x": 0 - wallWidth,
@@ -9853,13 +9889,14 @@ toggleWorkspace(false);
 
 function reloadWorkspaceIcon() {
     let workspaceIcon = document.getElementById('workspaceIcon');
-    let source = 'https://prototypes.cisco.com/roomdesigner2/static/media/three-d-object.ae67ecdf63afcfe4d196.svg'
+    let source = 'https://prototypes.cisco.com/roomdesigner2/images/appicon.png'
     workspaceIcon.src = source + "?" + new Date().getTime();
 
     vpnTestTimer = setTimeout(() => {  /* if the workspaceIcon does not load in x milliseconds, timer will change the label to red */
         toggleWorkspace(false)
     }, 1000);
 }
+
 
 
 /*
