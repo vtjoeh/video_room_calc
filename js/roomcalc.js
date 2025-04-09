@@ -422,7 +422,7 @@ rotateImageObj.onload = function rotateImageObjOnload() {
     })
 };
 
-rotateImageObj.src = './assets/rotateRight.png';
+rotateImageObj.src = './assets/images/rotateRight.png';
 
 
 let groupBackground = new Konva.Group(
@@ -5419,7 +5419,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             tblWallFlr.fillPatternRepeat('repeat');
             tblWallFlr.fillPatternOffset({ x: 8, y: 0 });
         };
-        windowBackgroundObj.src = './assets/wallWindowBackground.png';
+        windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
 
     }
 
@@ -6543,7 +6543,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
     };
-    imageObj.src = './assets/' + insertDevice.topImage;
+    imageObj.src = './assets/images/' + insertDevice.topImage;
 
     /* add shading for cameras */
     if ('wideHorizontalFOV' in insertDevice) {
@@ -8299,7 +8299,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems, groupName, jsonGroup) 
         flexItemImage.classList.add('flexSubItemImage');
         flexItemImage.id = `${groupName}-${menuItem}-img`;
         flexItemImage.draggable = 'true';
-        flexItemImage.src = `./assets/${frontImage}`;
+        flexItemImage.src = `./assets/images/${frontImage}`;
         flexItemDiv.appendChild(flexItemImage);
 
         let labelDiv = document.createElement("div");
@@ -8661,7 +8661,7 @@ function type(value) {
 function preLoadTopImages(list) {
     list.forEach((item) => {
         if ('topImage' in item) {
-            let imageLocation = './assets/' + item.topImage;
+            let imageLocation = './assets/images/' + item.topImage;
 
             groupBackground.add();
 

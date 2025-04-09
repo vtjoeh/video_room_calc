@@ -1,7 +1,55 @@
+/** WHILE REVAMPING UI: HIDE ELEMENTS */
+
+#ContainerRoomSvg,
+#Container2,
+#ContainerFooter {
+  display: none !important;
+}
+
+
+
+
+
+
+
+
+@font-face {
+  font-family: Inter;
+  src: url('./assets/Inter-VariableFont.ttf');
+}
+
+@font-face {
+  font-family: MomentumFontIcon;
+  src: url('./assets/MomentumFontIcon.woff2');
+}
+
 * {
   box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Inter;
+}
+
+/* find icons on https://kyberheimen.com/iconbrowser/ */
+.icon {
+  background-size: contain;
+  color: inherit;
+  display: inline-block;
+  font-family: MomentumFontIcon;
+  font-style: normal;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+}
 
 a {
   color: rgb(70, 70, 219);
@@ -24,7 +72,7 @@ a:active {
 }
 
 div {
-  font-family: Arial, Helvetica, sans-serif;
+  /* font-family: Arial, Helvetica, sans-serif; */
 }
 
 
@@ -92,13 +140,35 @@ img {
 }
 
 .ContainerHeader {
-  display: block;
-  border: 5px solid rgb(12, 6, 30);
-  outline: #000000 solid 8px;
-  padding-left: 5px;
-  background-color: rgb(0, 0, 0);
-  color: rgb(255, 255, 255);
-  margin-bottom: 7px;
+  background-color: black;
+  color: white;
+  height: 47px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0 20px;
+  font-size: 20px;
+  gap: 16px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.ContainerHeader button {
+  border: 0;
+  background-color: transparent;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: 10px;
+}
+
+.ContainerHeader button:hover {
+  background-color: #222;
 }
 
 #ContainerFooter {
@@ -112,15 +182,14 @@ img {
 }
 
 #lblHeaderTitle {
-  font-family: Arial, Helvetica, sans-serif;
   font-size: 1.2rem;
   display: block;
 }
 
 #lblSubtitle {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.8rem;
-  display: inline-block;
+  font-size: 16px;
+  color: #64bffa;
+  margin: 0 9px;
 }
 
 .inputWrap {
@@ -660,6 +729,25 @@ input:checked+.slider:before {
 
 /* toggle CSS switch end */
 
+
+@media screen and (max-width: 600px) {
+  .ContainerHeader {
+    gap: 2px;
+  }
+
+  #lblHeaderTitle {
+    font-size: 16px;
+  }
+
+  .ContainerHeader #lblSubtitle {
+    display: none;
+  }
+
+  .ContainerHeader button span {
+    display: none; /* only show icons in header buttons */
+  }
+}
+
 /* On screens that are 992px wide or less, go from four columns to two columns */
 @media screen and (max-width: 1180px) {
   #ContainerRoomSvg {
@@ -682,7 +770,9 @@ input:checked+.slider:before {
       margin-right: 0px;
       margin-bottom: 10px;
       margin-left: 0px;
+      border: 1px solid purple;
   }
+
 
   #Container2 {
       width: 100%;

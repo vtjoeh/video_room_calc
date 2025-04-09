@@ -11,6 +11,7 @@
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./assets/momentum-icons.css" />
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=check_box_outline_blank,content_copy,delete,deployed_code,deployed_code_alert,do_not_disturb_on,grid_on,info,label,label_off,mic,mic_off,open_in_new,pan_tool,redo,restart_alt,select,tv,tv_off,undo,videocam,videocam_off,view_in_ar,zoom_in,zoom_out" />
 </head>
@@ -18,9 +19,23 @@
 <body>
     <div id="ContainerHeader" class="ContainerHeader">
         <!-- <div style="display: inline-block; width: 90%; "> -->
-        <label style="display: inline;" id="lblHeaderTitle">Video Room Calculator</label>&nbsp;<label id="lblSubtitle">
-            for Cisco devices by Joe Hughes <i>(Beta)
-            </i></label>
+        <label style="display: inline;" id="lblHeaderTitle">Video Room Calculator
+          <label id="lblSubtitle">Beta</label>
+        </label>
+
+
+        <button>
+          <i class="icon icon-save-regular"></i>
+          <span>Save</span>
+        </button>
+        <button>
+          <i class="icon icon-undo-regular"></i>
+          <span>Undo</span>
+        </button>
+        <button>
+          <i class="icon icon-redo-regular"></i>
+          <span>Redo</span>
+        </button>
         <!-- </div> -->
         <!-- <img style="position: absolute; top: 6px; right: 25px; cursor: pointer;" onclick="openQuestionDialog()" width="28px"src="assets/q-a-regular-white.svg"> -->
     </div>
@@ -34,7 +49,7 @@
                 <button class="tablinks" onclick="openTab(event, 'Save')">Save</button>
 
                 <img style="position: relative; top: 9px; right: 0px; cursor: pointer;" onclick="openQuestionDialog()"
-                    width="23px" src="assets/q-a-regular.svg">
+                    width="23px" src="assets/images/q-a-regular.svg">
 
             </div>
             <div id="Room" class="tabcontent" style="display: block;" ;>
@@ -1034,10 +1049,10 @@
                     measurement of the display. The farthest participant should be no farther than 4x. See <a
                         href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
                         target="_blank">Cisco's Best Practices: Creating Effective Video-enabled Workspaces</a> <img
-                        src="assets/pop-out-bold.svg" width="14px">. Other industry guidelines ranges will be slightly
+                        src="assets/images/pop-out-bold.svg" width="14px">. Other industry guidelines ranges will be slightly
                     different. See <a href="https://www.avixa.org/standards/discas-calculators/discas" target="_blank">
                         AVIXA's
-                        Display Image Calculators</a> <img src="assets/pop-out-bold.svg" width="14px">.
+                        Display Image Calculators</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
                 </div>
             </div>
 
@@ -1146,15 +1161,15 @@
                 <br>
                 <div>
                     <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#faq-for-the-video-room-calculator"
-                        target="_blank">Video Room Calculator FAQ</a> <img src="assets/pop-out-bold.svg" width="14px">
+                        target="_blank">Video Room Calculator FAQ</a> <img src="assets/images/pop-out-bold.svg" width="14px">
                 </div>
                 <div>
                     <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
-                        Space)</a> <img src="assets/pop-out-bold.svg" width="14px">
+                        Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">
                 </div>
                 <br>
 
-                <div class="underlineHeader">Essential Links<img src="assets/pop-out-bold.svg" width="14px"></div>
+                <div class="underlineHeader">Essential Links<img src="assets/images/pop-out-bold.svg" width="14px"></div>
 
                 <div>
                     &#x2022&nbsp;<a href="https://www.webex.com/us/en/workspaces/workspace-designer.html"
@@ -1199,7 +1214,7 @@
 
                 <br>
 
-                <div class="underlineHeader">Other useful tools & links<img src="assets/pop-out-bold.svg" width="14px">
+                <div class="underlineHeader">Other useful tools & links<img src="assets/images/pop-out-bold.svg" width="14px">
                 </div>
                 &#x2022&nbsp;<a href="https://eurl.io/#ejV0ptTs8" target="_blank">Workspace Designer Feedback (Webex
                     Space)</a>
@@ -1262,13 +1277,13 @@
 
                 <b>Quad Camera Extended (720p)</b> uses <a
                     href="https://roomos.cisco.com/xapi/Configuration.Cameras.SpeakerTrack.ZoomRange.MaxZoomFactor/?search=Cameras%20SpeakerTrack%20ZoomRange"
-                    target="_blank">Cameras SpeakerTrack ZoomRange MaxZoomFactor</a> <img src="assets/pop-out-bold.svg"
+                    target="_blank">Cameras SpeakerTrack ZoomRange MaxZoomFactor</a> <img src="assets/images/pop-out-bold.svg"
                     width="14px">
                 setting. Reduces image resolution for a tighter zoom. Lighting can be important.
                 <br>
                 <br>
                 <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <img
-                        src="assets/pop-out-bold.svg" width="14px"></a> for this project.
+                        src="assets/images/pop-out-bold.svg" width="14px"></a> for this project.
             </div>
             <div id="versionDifference" style="display: none; ">
             </div>
@@ -1289,15 +1304,15 @@
                     (joehughe@cisco.com).
                     Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
                         Calculator discussion (Webex
-                        Space)</a> <img src="assets/pop-out-bold.svg" width="14px">.
+                        Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
                     <br>
                     <br>
                     <div> For more info on proper room design see the document <a
                             href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
                             target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
                         </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
-                                src="assets/pop-out-bold.svg" width="14px"> Webex
-                            Workspaces</a> <img src="assets/pop-out-bold.svg" width="14px">site.</div>
+                                src="assets/images/pop-out-bold.svg" width="14px"> Webex
+                            Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
                 </div>
             </div>
         </div>
@@ -1376,7 +1391,7 @@
     </dialog>
 
     <dialog id="dialogUndoRedo">
-        <img width="40px" src="/assets/recurring-light.svg"></img>
+        <img width="40px" src="/assets/images/recurring-light.svg"></img>
     </dialog>
 
     <dialog id="dialogQuestions" style="max-width: 450px; padding: 5px;">
@@ -1386,13 +1401,13 @@
 
             <b>Have a question, comment or feedback? </b><br><br>
             <div>See the <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md" target="_blank"
-                    style="outline: none; ">FAQ on GitHub.</a> <img src="assets/pop-out-bold.svg" width="14px">
+                    style="outline: none; ">FAQ on GitHub.</a> <img src="assets/images/pop-out-bold.svg" width="14px">
             </div>
             <br>
             <div>For other questions or feature requests, please join the <a href="https://eurl.io/#4d-kKP6l1"
                     target="_blank" style="outline: none; ">
                     <br>Video Room Calculator discussion
-                </a> <img src="assets/pop-out-bold.svg" width="14px"> Webex space.
+                </a> <img src="assets/images/pop-out-bold.svg" width="14px"> Webex space.
             </div>
         </div>
     </dialog>
