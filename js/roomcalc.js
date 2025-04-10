@@ -3890,7 +3890,7 @@ function shareableLinkClicked() {
 }
 
 async function postHeartbeat() {
-
+    if (location.hostname === 'localhost') return
     setTimeout(() => {
 
         let path = location.origin + "/heartbeat";
@@ -3915,6 +3915,7 @@ async function postHeartbeat() {
             }
         })
             .then((response) => response.json())
+            .catch(() => console.log('heart beat failed'))
 
     }, 1000);
 }
