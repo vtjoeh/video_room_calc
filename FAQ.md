@@ -5,7 +5,7 @@ This site relates to the [Video Room Calculator](https://collabexperience.com).
 Is your question not listed below? Join the [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1). 
 
 ###  How long does the shareable link last?  
-Indefinitely. The shareable link contains the full configuration of your design, except for a background image.  There is no cloud information saved about your room, it is full client side solution. 
+Indefinitely. The shareable link contains the full configuration of your design, except for a background image.  There is no cloud information saved about your room, it is a client side solution. 
 
 ###  How to get started? 
 There are two ways to start the room: 
