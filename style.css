@@ -213,16 +213,25 @@ button {
   margin-top: 30px;
 }
 
+.inputRow:first-of-type {
+  margin-top: 0;
+}
+
 .inputRow label {
   font-size: 14px;
 }
 
 input,
+textarea,
 select {
   background-color: white;
   border: 2px solid #888;
   border-radius: 6px;
   padding: 6px;
+}
+
+textarea {
+  resize: vertical;
 }
 
 input:focus,
@@ -232,7 +241,8 @@ select:focus {
 }
 
 .unitFeetMeters,
-.unitInches {
+.unitInches,
+.classDegree {
   position: absolute;
   top: 2.5em;
   right: 1em;
@@ -297,6 +307,7 @@ select:focus {
   width: fit-content;
   touch-action: manipulation;
   cursor: pointer;
+  align-self: center;
 }
 
 .button:hover {
@@ -356,14 +367,14 @@ select:focus {
   margin-bottom: 2em;
 }
 
-.tablinks, .subtablinks {
+.tablinks, .subtablinks, .subtablinks2 {
   border: 0;
   background: transparent;
   color: inherit;
   padding-bottom: 10px;
 }
 
-.tablinks.active, .subtablinks.active {
+.tablinks.active, .subtablinks.active, .subtablinks2.active {
   border-bottom: 3px solid black;
 }
 
@@ -379,10 +390,6 @@ select:focus {
   overflow-x: hidden;
   overflow-y: auto;
   max-height: 500px;
-}
-
-.subtabcontent2a {
-  padding: 6px 12px;
 }
 
 .subtabcontent {
@@ -743,6 +750,11 @@ input:checked+.slider:before {
     display: none;
     /* only show icons in header buttons */
   }
+}
+
+/** keep in DOM but hide for users */
+.debug-info {
+  display: none;
 }
 
 /* On screens that are 992px wide or less, go from four columns to two columns */

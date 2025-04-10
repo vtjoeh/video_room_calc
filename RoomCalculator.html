@@ -93,49 +93,49 @@
             <label class="unitFeetMeters">ft</label>
           </div>
           <div class="inputRow">
-              <label for="frntWallToTv" class="tooltip">Front Wall to Display:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-                  to
-                  Display + Table Length. <br /><br />This assumes that the front of the display is
-                  aligned with the front of the video device.</span></label>
-              <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
-                class="unitInput">
-              <label class="unitFeetMeters">ft</label>
+            <label for="frntWallToTv" class="tooltip">Front Wall to Display:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+                to
+                Display + Table Length. <br /><br />This assumes that the front of the display is
+                aligned with the front of the video device.</span></label>
+            <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
+              class="unitInput">
+            <label class="unitFeetMeters">ft</label>
           </div>
           <div class="inputRow">
-              <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-                  to
-                  Display + Table Length. <br /> <br />This assumes that the front of the display is
-                  aligned with the front of the video device.</span></label>
-              <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
-                class="unitInput">
-              <label class="unitFeetMeters">ft</label>
+            <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+                to
+                Display + Table Length. <br /> <br />This assumes that the front of the display is
+                aligned with the front of the video device.</span></label>
+            <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
+              class="unitInput">
+            <label class="unitFeetMeters">ft</label>
           </div>
           <div class="inputRow">
-              <label for="tvDiag" class="tooltip">Display Diagonal Inches:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptext">The
-                  width & length of the display is calculated automatically based on the display
-                  diagonal
-                  inches.</span></label>
+            <label for="tvDiag" class="tooltip">Display Diagonal Inches:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptext">The
+                width & length of the display is calculated automatically based on the display
+                diagonal
+                inches.</span></label>
 
-              <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
-                class="numberInput updateWidthOfDisplay">
-              <label class="unitInches">in</label>
+            <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
+              class="numberInput updateWidthOfDisplay">
+            <label class="unitInches">in</label>
           </div>
           <div class="inputRow">
-              <label for="drpTvNum" class="tooltip">Number of Displays:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptext">The number of displays placed side-by-side. Width of total
-                  displays is automatically calculated based on diagonal inches.</span></label>
-              <select name="drpTvNum" id="drpTvNum">
-                <option value="1" selected="selected">One </option>
-                <option value="2">Two </option>
-                <option value="3">Three </option>
-              </select>
+            <label for="drpTvNum" class="tooltip">Number of Displays:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptext">The number of displays placed side-by-side. Width of total
+                displays is automatically calculated based on diagonal inches.</span></label>
+            <select name="drpTvNum" id="drpTvNum">
+              <option value="1" selected="selected">One </option>
+              <option value="2">Two </option>
+              <option value="3">Three </option>
+            </select>
           </div>
           <div class="inputRow">
             <label for="drpVideoDevice">Video Device:</label>
@@ -266,6 +266,9 @@
             <b>Tip:</b>
             &nbsp;Drag and drop to room canvas
           </div>
+          <div class="menuDivider">
+            Cisco Microphones
+          </div>
           <div id="microphoneMenuContainer" class="containerItems">
             <!-- Menu will be inserted -->
           </div>
@@ -339,7 +342,6 @@
           <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
             Image</button>
           <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
-
         </div>
 
         <div id="ItemDetails" class="subtabcontent2 subtabcontent2a" style="display: block;">
@@ -353,523 +355,426 @@
               <label class="tooltipBottom">Item Name: <span class="tooltiptextBottom">Item Name is
                   readonly. Label is a customized field. Keep labels short because it makes the URL
                   longer.</span></label>
-              <br><input disabled type="text" id="itemName" size="45" class="">
-
+              <input disabled type="text" id="itemName" size="45" class="">
             </div>
-
             <div class="inputRow">
+              <label>Item label</label>
               <input type="text" id="labelField" size="45" class="textInput" placeholder="Label">
             </div>
             <div class="inputRow" id="itemXY">
-              <div class="inputCellLeft1">
-                <label class="tooltipBottom">Position X:<span class="tooltiptextBottom">Coordinates X &
-                    Y are the upper left hand corner of tables and walls but are the center of all
-                    other objects.</span></label>
-                &nbsp;&nbsp;&nbsp;
-                <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
-              </div>
-              <div class="inputCellRight">
-                <label> Y:</label>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
+              <label class="tooltipBottom">Position X:<span class="tooltiptextBottom">Coordinates X &
+                  Y are the upper left hand corner of tables and walls but are the center of all
+                  other objects.</span></label>
+              <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
+            </div>
+            <div class="inputRow">
+              <label>Position Y:</label>
+              <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
+              <label class="unitFeetMeters">ft</label>
             </div>
             <div class="inputRow" id="itemZpositionDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltipBottom">Base Elevation: <span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptextBottom">[Optional]
-                    The vertical measurement from the floor to
-                    the base of the object. Not shown on the drawing of the Video Room
-                    Calculator.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
-                <label class="unitFeetMeters">ft</label>
-              </div>
+              <label class="tooltipBottom">Base Elevation: <span class="material-symbols-outlined"
+                  style="font-size: medium">info</span>
+                <span class="tooltiptextBottom">[Optional]
+                  The vertical measurement from the floor to
+                  the base of the object. Not shown on the drawing of the Video Room
+                  Calculator.</span></label>
+              <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
+              <label class="unitFeetMeters">ft</label>
             </div>
-
             <div class="inputRow" id="itemTopElevationDiv">
-              <div class="inputCellLeft2">
-
-                <label class="tooltipBottom">Top Elevation: <span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptextBottom">
-                    [Read-only] The measurement to the top of the object or display. For displays,
-                    this is an approximate value derived for the diagonal inches. Not shown on the
-                    drawing of the Video Room
-                    Calculator.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="itemTopElevation" maxlength="6" size="5" class="unitInput allowBlank" value="123"
-                  disabled>
-                <label class="unitFeetMeters">ft</label>
-              </div>
+              <label class="tooltipBottom">Top Elevation: <span class="material-symbols-outlined"
+                  style="font-size: medium">info</span>
+                <span class="tooltiptextBottom">
+                  [Read-only] The measurement to the top of the object or display. For displays,
+                  this is an approximate value derived for the diagonal inches. Not shown on the
+                  drawing of the Video Room
+                  Calculator.</span></label>
+              <input type="text" id="itemTopElevation" maxlength="6" size="5" class="unitInput allowBlank" value="123"
+                disabled>
+              <label class="unitFeetMeters">ft</label>
             </div>
 
             <div class="inputRow" id="itemWidthLength">
-              <div class="inputCellLeft1">
-                <label class="tooltipBottom">Item Width:<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptextBottom">Only tables,
-                    walls, and columns have adjustable widths and lengths. All other objects are
-                    fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
-                  </span></label>&nbsp;&nbsp;
-                <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
-              </div>
-              <div class="inputCellRight">
-                <label> Length:</label>
-                <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
+              <label class="tooltipBottom">Item Width:<span class="material-symbols-outlined"
+                  style="font-size: medium">info</span>
+                <span class="tooltiptextBottom">Only tables,
+                  walls, and columns have adjustable widths and lengths. All other objects are
+                  fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
+                </span></label>
+              <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
+            </div>
+            <div class="inputRow">
+              <label> Length:</label>
+              <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
+              <label class="unitFeetMeters">ft</label>
             </div>
 
             <div class="inputRow" id="trapNarrowWidthDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Narrow Width:<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptext">For tappered/trapezoid
-                    shape tables, the narrow width at the head of the table.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
+              <label class="tooltip">Narrow Width:<span class="material-symbols-outlined"
+                  style="font-size: medium">info</span>
+                <span class="tooltiptext">For tappered/trapezoid
+                  shape tables, the narrow width at the head of the table.</span></label>
+              <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput">
+              <label class="unitFeetMeters">ft</label>
             </div>
 
             <div class="inputRow" id="itemVheightDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Item Height:<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptext">[Optional] Vertical height
-                    of the object. This information is not displayed on the drawing of the Video
-                    Room Calculator. For walls and columns, the default value will be the Room
-                    Height field if it is set.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
-                  placeholder="test">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-            </div>
-
-            <div class="inputRow" id="itemRotationDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Item Rotation:<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptext">Rotation in degrees from
-                    0 to 360. Positive or negative values.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
-                <label class="classDegree">&deg;</label>
-              </div>
-            </div>
-
-            <div class="inputRow" id="tblRectRadiusDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
-                    corners unless the Corner Radius Front Half has a value, in which case it is
-                    only two corners. The value should be no more than 1/2 of the length or width,
-                    whichever is smaller.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="tblRectRadius" maxlength="12" size="5" class="unitInput allowBlank">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-            </div>
-
-            <div class="inputRow" id="tblRectRadiusRightDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Corner Radius Front Half<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span><span class="tooltiptext">Radius of the
-                    front 2 table corners. If blank, the Corner Radius above is used for all 4
-                    corners. The value should be no more than 1/2 of the length or width, whichever
-                    is smaller.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="tblRectRadiusRight" maxlength="12" size="5" class="unitInput allowBlank">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-            </div>
-
-            <div class="inputRow" id="itemDiagonalTvDiv">
-              <div class="inputCellLeft2">
-                <label class="tooltip">Display Diagonal Inches:<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span><span class="tooltiptext">The
-                    width & length of the display is calculated automatically based on the display
-                    diagonal
-                    inches.</span></label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
-                in
-              </div>
-            </div>
-            <div id="testB" style="display: none;">
-
-
-
-
-              <div class="inputRow" style="width: 90%;" id="roleDiv">
-                <div class="inputCellLeftShort">
-                  <label for="drpRole" class="tooltip">Role:
-                    <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                    <span class="tooltiptext">Role is used in the Workspace Designer export and may
-                      not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
-                      camera FOV angle will change based on the Role.</span>
-
-                  </label>
-                </div>
-
-                <div class="inputCellRightWide">
-                  <select name="drpRole" id="drpRole" class="selectRole">
-
-                  </select>
-                </div>
-              </div>
-
-              <div class="inputRow" style="width: 90%;" id="colorDiv">
-                <div class="inputCellLeftShort">
-                  <label for="drpColor" class="tooltip">Color:
-                    <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                    <span class="tooltiptext">Color is used in the Workspace Designer export and may
-                      not reflect any changes in the Video Room Calculator canvas objects. </span>
-                  </label>
-                </div>
-
-                <div class="inputCellRightWide">
-                  <select name="drpColor" id="drpColor" class="selectRole">
-                  </select>
-                </div>
-
-              </div>
-
-
-            </div>
-            <div class="inputRow" id="isPrimaryDiv">
-              <div>
-                <label id="isPrimaryLabel" class="tooltip">Is primary?<span class="material-symbols-outlined"
-                    style="font-size: medium">info</span>
-                  <span class="tooltiptext">Primary
-                    devices are used in determining if Quick Setup is enabled and this field may be
-                    used for future features.</span></label> <input type="checkbox" id="isPrimaryCheckBox" disabled>
-
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft1">
-                <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
-              </div>
-              <div class="inputCellRight" id="singleShadingDiv">
-                <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
-                  title="Toggle Camera Shading"><span class="material-symbols-outlined"
-                    style="font-size:medium;">videocam</span>
-                  <!-- <span class="holdIndicator">&#9698</span> -->
-                </button>
-                <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem"><span
-                    class="material-symbols-outlined" title="Toggle Microphone Shading"
-                    style="font-size:medium;">mic</span></button>
-                <button class="btn" onclick="toggleDisplayDistanceSingleItem()" id="btnDisplayDistanceSingleItem"
-                  title="Toggle Display Reach">
-                  <span class="material-symbols-outlined" style="font-size:medium;">tv</span></button>
-
-              </div>
-            </div>
-
-            <div class="inputRow" style="font-size: x-small;">
-              <label>UUID: </label>
-              <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
-              <br />
-              <label>Type: </label>
-              <label id="itemType"></label>
-              <label>- Group: </label>
-              <label id="itemGroup"></label>
-            </div>
-          </div>
-
-        </div>
-
-
-        <div id="RoomDetails" class="subtabcontent2 subtabcontent2a">
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Room Height:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Room Height is not
-                  rendered in the room canvas but is for informational purposes.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
+              <label class="tooltip">Item Height:<span class="material-symbols-outlined"
+                  style="font-size: medium">info</span>
+                <span class="tooltiptext">[Optional] Vertical height
+                  of the object. This information is not displayed on the drawing of the Video
+                  Room Calculator. For walls and columns, the default value will be the Room
+                  Height field if it is set.</span></label>
+              <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
+                placeholder="test">
               <label class="unitFeetMeters">ft</label>
             </div>
           </div>
-          <div class="inputRow" style="width: 90%;">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Software Experience:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
-                  Software Experience setting does not verify if the video device supports
-                  MTR.</span></label>
-            </div>
-            <select id="drpSoftware">
-              <option value="select">-</option>
-              <option value="webex">RoomOS Cisco Rooms</option>
-              <option value="mtr">Microsoft Teams Rooms</option>
-            </select>
+
+          <div class="inputRow" id="itemRotationDiv">
+            <label class="tooltip">Item Rotation:<span class="material-symbols-outlined"
+                style="font-size: medium">info</span>
+              <span class="tooltiptext">Rotation in degrees from
+                0 to 360. Positive or negative values.</span></label>
+            <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
+            <label class="classDegree">&deg;</label>
           </div>
+
+          <div class="inputRow" id="tblRectRadiusDiv">
+            <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
+                corners unless the Corner Radius Front Half has a value, in which case it is
+                only two corners. The value should be no more than 1/2 of the length or width,
+                whichever is smaller.</span></label>
+            <input type="text" id="tblRectRadius" maxlength="12" size="5" class="unitInput allowBlank">
+            <label class="unitFeetMeters">ft</label>
+          </div>
+
+          <div class="inputRow" id="tblRectRadiusRightDiv">
+            <label class="tooltip">Corner Radius Front Half<span class="material-symbols-outlined"
+                style="font-size: medium">info</span><span class="tooltiptext">Radius of the
+                front 2 table corners. If blank, the Corner Radius above is used for all 4
+                corners. The value should be no more than 1/2 of the length or width, whichever
+                is smaller.</span></label>
+            <input type="text" id="tblRectRadiusRight" maxlength="12" size="5" class="unitInput allowBlank">
+            <label class="unitFeetMeters">ft</label>
+          </div>
+
+          <div class="inputRow" id="itemDiagonalTvDiv">
+            <label class="tooltip">Display Diagonal Inches:<span class="material-symbols-outlined"
+                style="font-size: medium">info</span><span class="tooltiptext">The
+                width & length of the display is calculated automatically based on the display
+                diagonal
+                inches.</span></label>
+            <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
+            <label class="unitInches">in</label>
+          </div>
+          <div id="testB" style="display: none;">
+
+            <div class="inputRow" id="roleDiv">
+              <label for="drpRole" class="tooltip">Role:
+                <span class="material-symbols-outlined" style="font-size: medium">info</span>
+                <span class="tooltiptext">Role is used in the Workspace Designer export and may
+                  not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
+                  camera FOV angle will change based on the Role.</span>
+              </label>
+              <select name="drpRole" id="drpRole" class="selectRole">
+              </select>
+            </div>
+
+            <div class="inputRow" id="colorDiv">
+              <label for="drpColor" class="tooltip">Color:
+                <span class="material-symbols-outlined" style="font-size: medium">info</span>
+                <span class="tooltiptext">Color is used in the Workspace Designer export and may
+                  not reflect any changes in the Video Room Calculator canvas objects. </span>
+              </label>
+              <select name="drpColor" id="drpColor" class="selectRole">
+              </select>
+            </div>
+          </div>
+          <div class="inputRow" id="isPrimaryDiv">
+            <label id="isPrimaryLabel" class="tooltip">Is primary?<span class="material-symbols-outlined"
+                style="font-size: medium">info</span>
+              <span class="tooltiptext">Primary
+                devices are used in determining if Quick Setup is enabled and this field may be
+                used for future features.</span></label> <input type="checkbox" id="isPrimaryCheckBox" disabled>
+          </div>
+          <div class="inputRow">
+            <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
+            <div class="inputCellRight" id="singleShadingDiv">
+              <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
+                title="Toggle Camera Shading"><span class="material-symbols-outlined"
+                  style="font-size:medium;">videocam</span>
+                <!-- <span class="holdIndicator">&#9698</span> -->
+              </button>
+              <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem"><span
+                  class="material-symbols-outlined" title="Toggle Microphone Shading"
+                  style="font-size:medium;">mic</span></button>
+              <button class="btn" onclick="toggleDisplayDistanceSingleItem()" id="btnDisplayDistanceSingleItem"
+                title="Toggle Display Reach">
+                <span class="material-symbols-outlined" style="font-size:medium;">tv</span></button>
+
+            </div>
+          </div>
+
+          <div class="inputRow debug-info">
+            <label>UUID: </label>
+            <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
+            <br />
+            <label>Type: </label>
+            <label id="itemType"></label>
+            <label>- Group: </label>
+            <label id="itemGroup"></label>
+          </div>
+        </div>
+
+      </div>
+
+
+      <div id="RoomDetails" class="subtabcontent2 subtabcontent2a">
+        <div class="inputRow">
+          <label class="tooltipBottom">Room Height:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptextBottom">Room Height is not
+              rendered in the room canvas but is for informational purposes.</span></label>
+          <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
+          <label class="unitFeetMeters">ft</label>
+        </div>
+        <div class="inputRow">
+          <label class="tooltipBottom">Software Experience:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
+              Software Experience setting does not verify if the video device supports
+              MTR.</span></label>
+          <select id="drpSoftware">
+            <option value="select">-</option>
+            <option value="webex">RoomOS Cisco Rooms</option>
+            <option value="mtr">Microsoft Teams Rooms</option>
+          </select>
+        </div>
+        <div class="inputRow">
           <label class="tooltipBottom">Version / Author:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptextBottom">Field to keep track of Version and/or Author. This field can be
               any length but will add to the total URL length.</span></label>
-          <div class="inputRow">
-            <textarea id="authorVersion" style="width: 90%; resize: vertical;" class="textInput"></textarea>
-          </div>
-
-          <div class="inputRow">
-            <div id="divUpdateRoomDetailsButton" class="inputCellRight">
-              <input type="submit" value="Update Room Details" onclick="updateRoomDetails()" class="button"
-                id="updateRoomDetailsBtn">
-            </div>
-          </div>
-
+          <textarea id="authorVersion" class="textInput"></textarea>
         </div>
 
-        <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
-          <div class="menuDivider">
-            *** Experimental ***
-          </div>
-
-          <div class="inputRow" style="padding: 0.2rem">
-            <label class="tooltipBottom"><i style="font-size: small;">Note: Background images are
-                temporary and not saved in the URL by design. Undo button does not work properly after
-                multiple images are loaded. </i>
-              <br><br>1) First set the room width and length, then choose the background image file
-              upload:
-              <span class="material-symbols-outlined" style="font-size: medium">info</span>
-              <span class="tooltiptextBottom">Background image formats: JPEG, GIF or PNG</span></label>
-
-
-          </div>
-          <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
-          <br>
-          <br>
-          <div class="inputRow"> 2) Create a scale by selecting 2 points that have a known distance between
-            them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.
-            <br><input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points" disabled>
-          </div>
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">3) Distance between 2 points:
-                <!-- <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
-            </div>
-            <div class="inputCellRight">
-              <input type="text" id="backgroundImageMeasurement" value="" maxlength="12" size="5" class="unitInput">
-              <label class="unitFeetMeters">ft</label>
-
-            </div>
-            <br>
-            <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
-              onclick="updateBackgroundImageScale()" disabled>
-          </div>
-
-
-          <div class="inputRow" style="padding: 0.2rem">4) Transparency:</div>
-          <div class="inputRow">
-            <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
-              oninput="changeTransparency(this.value)" disabled> <span id="transparencyOutput">50</span>
-          </div>
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">5) Move background image:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Brings the background image to the front and allows
-                  moving of the background image.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <label class="switch">
-                <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
-                  disabled>
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
+        <div class="inputRow">
+          <input type="submit" value="Update Room Details" onclick="updateRoomDetails()" class="button"
+            id="updateRoomDetailsBtn">
         </div>
 
-        <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
-
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Load in original unit (m/f):
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
-                  will use the unit (meters/feet) that it was created in.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <label class="switch">
-                <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Snap to Objects:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
-                  objects or the room. Only one item can be selected. Does not work with Snap Center
-                  to Increment.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <label class="switch">
-                <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Snap Center to Increment:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
-                  This is similar to the idea of snapping to the grid, except it focuses on the center
-                  of the object. It does not work with Snap to Object.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <label class="switch">
-                <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="inputRow">
-            <div class="inputCellLeft2">
-              <label class="tooltipBottom">Snap center to increment:
-                <span class="material-symbols-outlined" style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Incremental value for Snap Center to Increment. This is
-                  similar to the idea of snapping to the grid, except it focuses on the center of the
-                  object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
-            </div>
-            <div class="inputCellRight">
-              <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
-                onChange="updateSnapToIncrement()">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div id="Save" class="tabcontent">
+      <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
+        <div class="menuDivider">
+          *** Experimental ***
+        </div>
+
+        <div class="inputRow" style="padding: 0.2rem">
+          <label class="tooltipBottom"><i style="font-size: small;">Note: Background images are
+              temporary and not saved in the URL by design. Undo button does not work properly after
+              multiple images are loaded. </i>
+            <br><br>1) First set the room width and length, then choose the background image file
+            upload:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptextBottom">Background image formats: JPEG, GIF or PNG</span></label>
+
+
+        </div>
+        <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
         <br>
-        <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
-          <input type="submit" value="Download .png" id="downloadPNG" class="button">
-          <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button">
-          <br>
-          <a href="javascript:void(0)">
-            <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
-              onclick="copyLinkToClipboard()">
-              <span style style="white-space: nowrap;">Shareable Link to Clipboard
-                <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
-                  <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
-                    style="background-size: 10px 10px">
-                    <title id="copyBoxId">Copy Share Link</title>
-                    <rect x="2" y="4" rx="3" ry="3" width="15" height="24"
-                      style="fill:rgb(47, 66, 189);stroke:royalblue;stroke-width:1;opacity:0.5" />
-                    <rect x="6" y="8" rx="3" ry="3" width="13" height="22"
-                      style="fill:white;stroke:blue;stroke-width:1;opacity:1.0" />
-                  </svg>
-                </div>
-              </span>
-            </div>
-          </a>
-          <br>
-          <br>
-          <div class="menuDivider" style="text-align: left; font-size: smaller;">
-            <b>Note:</b> <i>The Shareable Link is a copy of your current room. Changes made to
-              the Shareable Link do not affect the original. </i>
-          </div>
+        <br>
+        <div class="inputRow"> 2) Create a scale by selecting 2 points that have a known distance between
+          them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.
+          <br><input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points" disabled>
+        </div>
 
-          <br>
-          <br>
+        <div class="inputRow">
+            <label class="tooltipBottom">3) Distance between 2 points:
+              <!-- <span class="material-symbols-outlined" style="font-size: medium">info</span>
+                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
+            <input type="text" id="backgroundImageMeasurement" value="" maxlength="12" size="5" class="unitInput">
+            <label class="unitFeetMeters">ft</label>
+        </div>
+        <div class="inputRow">
+          <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
+            onclick="updateBackgroundImageScale()" disabled>
         </div>
 
 
-        <a href="#ContainerRoomSvg">
-          <div class='templateLinks' onclick="loadTemplate('A1v0.1.508b2600c2000B1111')">Reset room</div>
+        <div class="inputRow" style="padding: 0.2rem">4) Transparency:</div>
+        <div class="inputRow">
+          <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
+            oninput="changeTransparency(this.value)" disabled> <span id="transparencyOutput">50</span>
+        </div>
+
+        <div class="inputRow">
+            <label class="tooltipBottom">5) Move background image:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptextBottom">Brings the background image to the front and allows
+                moving of the background image.</span></label>
+            <label class="switch">
+              <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
+                disabled>
+              <span class="slider round"></span>
+            </label>
+        </div>
+      </div>
+
+      <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
+        <div class="inputRow">
+            <label class="tooltipBottom">Load in original unit (m/f):
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
+                will use the unit (meters/feet) that it was created in.</span></label>
+            <label class="switch">
+              <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
+              <span class="slider round"></span>
+            </label>
+        </div>
+
+        <div class="inputRow">
+            <label class="tooltipBottom">Snap to Objects:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
+                objects or the room. Only one item can be selected. Does not work with Snap Center
+                to Increment.</span></label>
+            <label class="switch">
+              <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
+              <span class="slider round"></span>
+            </label>
+        </div>
+
+        <div class="inputRow">
+            <label class="tooltipBottom">Snap Center to Increment:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
+                This is similar to the idea of snapping to the grid, except it focuses on the center
+                of the object. It does not work with Snap to Object.</span></label>
+            <label class="switch">
+              <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
+              <span class="slider round"></span>
+            </label>
+        </div>
+
+        <div class="inputRow">
+            <label class="tooltipBottom">Snap center to increment:
+              <span class="material-symbols-outlined" style="font-size: medium">info</span>
+              <span class="tooltiptextBottom">Incremental value for Snap Center to Increment. This is
+                similar to the idea of snapping to the grid, except it focuses on the center of the
+                object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
+            <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
+              onChange="updateSnapToIncrement()">
+            <label class="unitFeetMeters">ft</label>
+        </div>
+      </div>
+    </div>
+
+    <div id="Save" class="tabcontent">
+      <br>
+      <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
+        <input type="submit" value="Download .png" id="downloadPNG" class="button">
+        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button">
+        <br>
+        <a href="javascript:void(0)">
+          <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
+            onclick="copyLinkToClipboard()">
+            <span style style="white-space: nowrap;">Shareable Link to Clipboard
+              <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
+                <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
+                  style="background-size: 10px 10px">
+                  <title id="copyBoxId">Copy Share Link</title>
+                  <rect x="2" y="4" rx="3" ry="3" width="15" height="24"
+                    style="fill:rgb(47, 66, 189);stroke:royalblue;stroke-width:1;opacity:0.5" />
+                  <rect x="6" y="8" rx="3" ry="3" width="13" height="22"
+                    style="fill:white;stroke:blue;stroke-width:1;opacity:1.0" />
+                </svg>
+              </div>
+            </span>
+          </div>
         </a>
-        <p></p>
-        <div id="RoomOSmessage" style="visibility: hidden;">
-          The RoomOS browser does not support downloading PNG files or copying a link to the
-          clickboard.
-          <br>
-          <br>
-          Try the experimental QR Code solution. Total QR Code length is limited to 2950 characters.
-
-          <br>
-
-          <br>
-          <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
-            Code Script</button>
-
-          <div id="qrCode"></div>
-          <br>
-          <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled></input>
-          <br>
-
+        <br>
+        <br>
+        <div class="menuDivider" style="text-align: left; font-size: smaller;">
+          <b>Note:</b> <i>The Shareable Link is a copy of your current room. Changes made to
+            the Shareable Link do not affect the original. </i>
         </div>
 
-
-        <div id="test" style="visibility: hidden;">
-
-
-          <br>
+        <br>
+        <br>
+      </div>
 
 
-        </div>
+      <a href="#ContainerRoomSvg">
+        <div class='templateLinks' onclick="loadTemplate('A1v0.1.508b2600c2000B1111')">Reset room</div>
+      </a>
+      <p></p>
+      <div id="RoomOSmessage" style="visibility: hidden;">
+        The RoomOS browser does not support downloading PNG files or copying a link to the
+        clickboard.
+        <br>
+        <br>
+        Try the experimental QR Code solution. Total QR Code length is limited to 2950 characters.
 
+        <br>
 
-        <div id="test2" style="visibility: hidden;">
-          Experimental JSON File Download:
+        <br>
+        <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
+          Code Script</button>
 
-          <div class="inputRow">
-
-            <br>
-            <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
-              style="width: 300px">
-
-
-          </div>
-
-
-          <div class="inputRow">
-
-            <br>
-            <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()"
-              class="button" style="width: 300px">
-
-
-          </div>
-          <br>
-          Experimental JSON File Upload:
-          <br>
-          <input type="file" id="fileUpload" accept=".json">
-          <br>
-
-        </div>
+        <div id="qrCode"></div>
+        <br>
+        <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled></input>
+        <br>
 
       </div>
 
 
+      <div id="test" style="visibility: hidden;">
+
+
+        <br>
+
+
+      </div>
+
+
+      <div id="test2" style="visibility: hidden;">
+        Experimental JSON File Download:
+
+        <div class="inputRow">
+
+          <br>
+          <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
+            style="width: 300px">
+
+
+        </div>
+
+
+        <div class="inputRow">
+
+          <br>
+          <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
+            style="width: 300px">
+
+
+        </div>
+        <br>
+        Experimental JSON File Upload:
+        <br>
+        <input type="file" id="fileUpload" accept=".json">
+        <br>
+
+      </div>
 
     </div>
+
+
+
+  </div>
   </div>
   <div>
     <div id="ContainerRoomSvg" class="floatColumns">
