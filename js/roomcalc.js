@@ -609,7 +609,7 @@ let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZo
 /* Microphone & Navigators - key starts with M */
 let microphones = [
     {
-        name: "Cisco Table Microphone",
+        name: "Table Microphone",
         id: "tableMic",
         key: "MB",
         micRadius: 1000,
@@ -623,7 +623,7 @@ let microphones = [
 
     },
     {
-        name: "Cisco Table Microphone Pro",
+        name: "Table Microphone Pro",
         id: "tableMicPro",
         key: "MC",
         micRadius: 1500,
@@ -637,7 +637,7 @@ let microphones = [
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
     },
     {
-        name: "Cisco Ceiling Microphone",
+        name: "Ceiling Microphone",
         id: "ceilingMic",
         key: "MD",
         micRadius: 4200,
@@ -650,7 +650,7 @@ let microphones = [
         defaultVert: 2500,
     },
     {
-        name: "Cisco Ceiling Microphone Pro",
+        name: "Ceiling Microphone Pro",
         id: "ceilingMicPro",
         key: "MA",
         micRadius: 3500,
