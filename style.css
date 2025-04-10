@@ -2,15 +2,20 @@
 
 #ContainerRoomSvg,
 #Container2,
-#ContainerFooter {
-  display: none !important;
+#ContainerFooter,
+#quickSetup,
+#quickSetupItems {
+  /* display: none !important; */
+}
+
+#ContainerFeedback {
+  display: none;
 }
 
 
-
-
-
-
+:root {
+  --active: #64bffa;
+}
 
 
 @font-face {
@@ -27,9 +32,11 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 
 body {
@@ -43,7 +50,6 @@ body {
   display: inline-block;
   font-family: MomentumFontIcon;
   font-style: normal;
-  margin: 0 auto;
   overflow: hidden;
   padding: 0;
   width: 20px;
@@ -52,7 +58,7 @@ body {
 }
 
 a {
-  color: rgb(70, 70, 219);
+  color: #64bffa;
 }
 
 a:link {
@@ -80,14 +86,16 @@ div {
 
 #ContainerRoomSvg {
   float: left;
-  width: 70%;
+  width: 60%;
   padding: 20px;
 }
 
-#Container1 {
+#sidebar {
   float: left;
-  width: 30%;
-  padding: 3px;
+  width: 40%;
+  max-width: 400px;
+  padding: 20px 30px;
+  max-height: 100%;
 }
 
 #Container2 {
@@ -129,7 +137,6 @@ img {
 
 .ContainerInputsFeedback {
   display: inline-block;
-  border: 1px solid rgb(12, 6, 30);
   padding: 0rem;
   vertical-align: top;
   width: 100%;
@@ -188,7 +195,7 @@ button {
 
 #lblSubtitle {
   font-size: 16px;
-  color: #64bffa;
+  color: var(--active);
   margin: 0 9px;
 }
 
@@ -198,22 +205,46 @@ button {
 }
 
 .inputRow {
-  display: block;
-  padding-bottom: 1rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 30px;
 }
 
-.unitInput {
-  width: 65px;
+.inputRow label {
+  font-size: 14px;
 }
 
-input {
-  padding: 6px 10px;
-  margin: 0px 0;
-  box-sizing: border-box;
+input,
+select {
+  background-color: white;
+  border: 2px solid #888;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+input:focus,
+select:focus {
+  border-color: #64bffa;
+  outline: 1px solid #64bffa;
+}
+
+.unitFeetMeters,
+.unitInches {
+  position: absolute;
+  top: 2.5em;
+  right: 1em;
 }
 
 #roomName {
   width: 100%;
+  border: 0;
+  border-bottom: 1px solid black;
+  font-size: 20px;
+  border-radius: 0;
+  margin-bottom: 1em;
 }
 
 .inputCellLeft1 {
@@ -252,35 +283,28 @@ input {
   margin-bottom: 10px;
 }
 
-select {
-  padding: 5px 35px 5px 5px;
-  width: 100%;
-  font-size: 16px;
-  border: 1px solid #CCC;
-  height: 34px;
-  background: #EEE;
-}
-
 .selectRole {
   width: 100%
 }
 
 .button {
+  border: 0;
   border-radius: 12px;
   font-size: 0.8rem;
-  background-color: #e7e7e7;
-  color: black;
-  border: 1px solid black;
+  padding: 8px 24px;
+  background-color: black;
+  color: white;
+  width: fit-content;
   touch-action: manipulation;
+  cursor: pointer;
 }
 
 .button:hover {
-  background-color: #dcdcdc;
+  background-color: #222;
 }
 
 .button:active {
   box-shadow: 0 1px #777;
-  transform: translateY(4px);
 }
 
 .holdIndicator {
@@ -312,70 +336,49 @@ select {
   border-width: 1px;
 }
 
+.tip {
+  font-size: 12px;
+  background-color: #eee;
+  border-radius: 1.5em;
+  padding: 0.3em 1.5em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  text-align: center;
+  margin: 0 auto;
+}
 
-/* Style the tab */
 .tab {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-  touch-action: manipulation;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1em;
+  color: #545454;
+  margin-bottom: 2em;
 }
 
-/* Style the buttons that are used to open the tab content */
-.tab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px;
-  padding-left: 12px;
-  padding-right: 10px;
-  color: black;
+.tablinks, .subtablinks {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding-bottom: 10px;
 }
 
-/* Change background color of buttons on hover */
-.tab button:hover {
-  background-color: #ddd;
-}
-
-/* Create an active/current tablink class */
-.tab button.active {
-  background-color: #ccc;
+.tablinks.active, .subtablinks.active {
+  border-bottom: 3px solid black;
 }
 
 /* Style the tab content */
 .tabcontent,
 .tabcontent2 {
   display: none;
-  padding: 6px 12px;
-  border: 1px solid #ccc;
-  border-top: none;
-  min-height: 500px;
-}
-
-.tablinks,
-.tablinks2 {
-  width: 22%;
-}
-
-.subtablinks,
-.subtablinks2 {
-  width: 25%;
-  height: 60px;
 }
 
 .subtabcontent,
 .subtabcontent2 {
   display: none;
-  padding: 6px 30px;
-  border: 1px solid #ccc;
-  border-top: none;
-  min-height: 500px;
-  max-height: 100px;
   overflow-x: hidden;
   overflow-y: auto;
-  scroll-padding-right: 100px;
+  max-height: 500px;
 }
 
 .subtabcontent2a {
@@ -438,26 +441,20 @@ select {
 .material-symbols-outlined {
   font-size: x-large;
   font-variation-settings:
-      'FILL' 0,
-      'wght' 400,
-      'GRAD' 0,
-      'opsz' 20
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20
 }
 
 /* Following items control the Flex box */
 .containerItems {
-  margin: 0;
-  -ms-box-orient: horizontal;
-  display: -webkit-box;
-  display: -moz-box;
-  display: -ms-flexbox;
-  display: -moz-flex;
-  display: -webkit-flex;
+  margin-left: 20px;
   display: flex;
-  -webkit-flex-wrap: wrap;
   flex-wrap: wrap;
-  justify-content: center;
-  padding-bottom: 10px;
+  justify-content: flex-start;
+  gap: 20px;
+  cursor: move;
 }
 
 .flexItemsTemp {
@@ -473,15 +470,15 @@ select {
 }
 
 .flexItems {
-  padding: 10px;
-  margin: auto;
-  margin-right: 4px;
-  margin-left: 4px;
-  margin-bottom: 5px;
   list-style: none;
-  border: 1px solid silver;
-  align-content: center;
-  height: 160px;
+  width: 80px;
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 1em;
+  /* border: 1px solid purple; */
 }
 
 .flexItems:hover {
@@ -491,30 +488,29 @@ select {
 
 .flexSubItemImage {
   margin: auto;
-  width: 100px;
+  width: 100%;
+  height: 60px;
+  object-fit: contain;
   position: relative;
   pointer-events: none;
 }
 
 .flexSubItemLabel {
-  word-wrap: normal;
-  width: 100px;
-  height: 4em;
-  margin: auto;
-  font-size: 0.7em;
+  width: 100%;
+  font-size: 11px;
   margin-top: 0px;
-  padding: 2px;
-  padding-top: 0px;
+  height: 2.5em;
+  font-weight: 500;
+  overflow-y: hidden;
   text-align: center;
-  pointer-events: none;
 }
 
 .menuDivider {
-  margin-bottom: 5px;
   width: 100%;
-  text-align: center;
-  vertical-align: middle;
-  background-color: #f1f1f1;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  font-size: 14px;
+  color: #444;
 }
 
 .templatelinks:hover {
@@ -744,69 +740,64 @@ input:checked+.slider:before {
   }
 
   .ContainerHeader button span {
-    display: none; /* only show icons in header buttons */
+    display: none;
+    /* only show icons in header buttons */
   }
 }
 
 /* On screens that are 992px wide or less, go from four columns to two columns */
 @media screen and (max-width: 1180px) {
   #ContainerRoomSvg {
-      width: 97.5%;
-      padding: 0px;
-      border-color: #000000;
-      display: inline-block;
-      border: 1px solid rgb(12, 6, 30);
-      vertical-align: top;
-      margin-top: 0px;
-      margin-right: 0px;
-      margin-bottom: 10px;
-      margin-left: 0px;
+    width: 97.5%;
+    padding: 0px;
+    border-color: #000000;
+    display: inline-block;
+    border: 1px solid rgb(12, 6, 30);
+    vertical-align: top;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 10px;
+    margin-left: 0px;
   }
 
-  #Container1 {
-      width: 100%;
-      padding: 0px;
-      margin-top: 5px;
-      margin-right: 0px;
-      margin-bottom: 10px;
-      margin-left: 0px;
-      border: 1px solid purple;
+  #sidebar {
+    width: 100%;
+    padding: 40px;
   }
 
 
   #Container2 {
-      width: 100%;
-      padding: 0px;
-      padding-bottom: 10px;
-      margin: 0px;
+    width: 100%;
+    padding: 0px;
+    padding-bottom: 10px;
+    margin: 0px;
   }
 
   .ContainerInputsFeedback {
-      width: 97.5%;
+    width: 97.5%;
   }
 
   #ContainerInputs {
-      margin-top: 10px;
-      margin-right: -30px;
-      margin-bottom: 10px;
-      margin-left: -5xpx;
+    margin-top: 10px;
+    margin-right: -30px;
+    margin-bottom: 10px;
+    margin-left: -5xpx;
   }
 
   #scroll-container {
-      background-color: #f1f1f1;
+    background-color: #f1f1f1;
   }
 
   .inputCellLeft2 {
-      width: 14rem;
+    width: 14rem;
   }
 
   .inputCellLeft1 {
-      width: 10.5rem;
+    width: 10.5rem;
   }
 
   .button:hover {
-      box-shadow: 0 1px #777;
-      transform: translateY(4px);
+    box-shadow: 0 1px #777;
   }
 
 

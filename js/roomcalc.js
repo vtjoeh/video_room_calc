@@ -1291,7 +1291,7 @@ function resizePage() {
     /* determines if ContainerFeedback is moved */
     if (scrollContainer.getBoundingClientRect().x > 40) {
 
-        let Container1 = document.getElementById('Container1');
+        let Container1 = document.getElementById('sidebar');
 
         let ContainerFeedback = document.getElementById('ContainerFeedback');
 
