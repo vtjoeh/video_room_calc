@@ -169,7 +169,7 @@ button {
   color: white;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   padding: 5px 10px;
   border-radius: 10px;
 }
@@ -730,8 +730,38 @@ input:checked+.slider:before {
   text-decoration: underline;
 }
 
-/* toggle CSS switch end */
+#quickSetup {
+  display: none;
+}
 
+.close-button {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  border: 0;
+  background: transparent;
+}
+
+dialog {
+  border-radius: 20px;
+  padding: 0;
+  background-color: white;
+}
+
+dialog header {
+  background-color: black;
+  color: white;
+  padding: 2em;
+  text-align: center;
+}
+
+dialog main {
+  padding: 2em;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* toggle CSS switch end */
 
 @media screen and (max-width: 600px) {
   .ContainerHeader {

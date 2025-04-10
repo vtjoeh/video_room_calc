@@ -23,7 +23,11 @@
       <label id="lblSubtitle">Beta</label>
     </label>
 
-
+    <button onclick="openNewRoomDialog()">
+      <i class="icon icon-plus-regular"></i>
+      <span>New</span>
+    </button>
+<!--
     <button>
       <i class="icon icon-save-regular"></i>
       <span>Save</span>
@@ -35,7 +39,8 @@
     <button>
       <i class="icon icon-redo-regular"></i>
       <span>Redo</span>
-    </button>
+    </button> -->
+
     <!-- </div> -->
     <!-- <img style="position: absolute; top: 6px; right: 25px; cursor: pointer;" onclick="openQuestionDialog()" width="28px"src="assets/q-a-regular-white.svg"> -->
   </div>
@@ -82,132 +87,7 @@
         <div id="quickSetup" class="menuDivider">
           Quick Setup (optional)
         </div>
-        <div id="quickSetupItems">
-          <div class="inputRow">
-            <label for="tableWidth">Table Width:&nbsp;</label>
-            <input type="text" id="tableWidth" name="tableWidth" value="4" maxlength="12" size="4" class="unitInput">
-          </div>
-          <div class="inputRow">
-            <label for="tableLength"> Length:</label>
-            <input type="text" id="tableLength" name="tableLength" value="10" maxlength="12" size="5" class="unitInput">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputRow">
-            <label for="frntWallToTv" class="tooltip">Front Wall to Display:
-              <span class="material-symbols-outlined" style="font-size: medium">info</span>
-              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-                to
-                Display + Table Length. <br /><br />This assumes that the front of the display is
-                aligned with the front of the video device.</span></label>
-            <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
-              class="unitInput">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputRow">
-            <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
-              <span class="material-symbols-outlined" style="font-size: medium">info</span>
-              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-                to
-                Display + Table Length. <br /> <br />This assumes that the front of the display is
-                aligned with the front of the video device.</span></label>
-            <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
-              class="unitInput">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputRow">
-            <label for="tvDiag" class="tooltip">Display Diagonal Inches:
-              <span class="material-symbols-outlined" style="font-size: medium">info</span>
-              <span class="tooltiptext">The
-                width & length of the display is calculated automatically based on the display
-                diagonal
-                inches.</span></label>
 
-            <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
-              class="numberInput updateWidthOfDisplay">
-            <label class="unitInches">in</label>
-          </div>
-          <div class="inputRow">
-            <label for="drpTvNum" class="tooltip">Number of Displays:
-              <span class="material-symbols-outlined" style="font-size: medium">info</span>
-              <span class="tooltiptext">The number of displays placed side-by-side. Width of total
-                displays is automatically calculated based on diagonal inches.</span></label>
-            <select name="drpTvNum" id="drpTvNum">
-              <option value="1" selected="selected">One </option>
-              <option value="2">Two </option>
-              <option value="3">Three </option>
-            </select>
-          </div>
-          <div class="inputRow">
-            <label for="drpVideoDevice">Video Device:</label>
-            <select name="drpVideoDevice" id="drpVideoDevice">
-            </select>
-          </div>
-          <div id="customSettings" style="display: none;" class="classCustomSettings">
-            <!-- everthing in customSettings becomes visible/invisible-->
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="wideFOV">Wide HFOV&deg;:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="wideFOV" name="wideFOV" value="112" maxlength="5" size="5"
-                  class="numberInput"><label class="classDegree">&deg;</label>
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="teleFOV">Tele HFOV&deg;:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="teleFOV" name="teleFOV" value="70" maxlength="5" size="5"
-                  class="numberInput"><label class="classDegree">&deg;</label>
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="onePersonZoom">Single Person Zoom:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="onePersonZoom" name="onePersonZoom" value="5" maxlength="5" size="5"
-                  class="numberInput"> x
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="onePersonCrop">Single Person Crop width:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="onePersonCrop" name="onePersonCrop" value="" maxlength="5" size="5"
-                  class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="twoPersonZoom">Two Person Zoom:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="twoPersonZoom" name="twoPersonZoom" value="5" maxlength="5" size="5"
-                  class="numberInput"> x
-              </div>
-            </div>
-            <div class="inputRow">
-              <div class="inputCellLeft2">
-                <label for="twoPersonCrop">Two Person Crop width:</label>
-              </div>
-              <div class="inputCellRight">
-                <input type="text" id="twoPersonCrop" name="twoPersonCrop" value="" maxlength="5" size="5"
-                  class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-            </div>
-          </div>
-          <div class="inputRow">
-            <div id="divUpdateButton" class="inputCellRight">
-              <input type="submit" value="Update Quick Setup" onclick="quickUpdateButton()" class="button"
-                id="quickUpdateButtonId">
-            </div>
-          </div>
-        </div>
 
       </div>
 
@@ -1186,7 +1066,139 @@
     </div>
   </div>
 
+  <dialog id="newRoomDialog" onclick="onDialogClick(event)">
+    <header>
+      New room: Quick setup
+    </header>
+    <main>
+      <div id="quickSetupItems">
+        <div class="inputRow">
+          <label for="tableWidth">Table Width:&nbsp;</label>
+          <input type="text" id="tableWidth" name="tableWidth" value="4" maxlength="12" size="4" class="unitInput">
+        </div>
+        <div class="inputRow">
+          <label for="tableLength"> Length:</label>
+          <input type="text" id="tableLength" name="tableLength" value="10" maxlength="12" size="5" class="unitInput">
+          <label class="unitFeetMeters">ft</label>
+        </div>
+        <div class="inputRow">
+          <label for="frntWallToTv" class="tooltip">Front Wall to Display:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+              to
+              Display + Table Length. <br /><br />This assumes that the front of the display is
+              aligned with the front of the video device.</span></label>
+          <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
+            class="unitInput">
+          <label class="unitFeetMeters">ft</label>
+        </div>
+        <div class="inputRow">
+          <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+              to
+              Display + Table Length. <br /> <br />This assumes that the front of the display is
+              aligned with the front of the video device.</span></label>
+          <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
+            class="unitInput">
+          <label class="unitFeetMeters">ft</label>
+        </div>
+        <div class="inputRow">
+          <label for="tvDiag" class="tooltip">Display Diagonal Inches:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptext">The
+              width & length of the display is calculated automatically based on the display
+              diagonal
+              inches.</span></label>
 
+          <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
+            class="numberInput updateWidthOfDisplay">
+          <label class="unitInches">in</label>
+        </div>
+        <div class="inputRow">
+          <label for="drpTvNum" class="tooltip">Number of Displays:
+            <span class="material-symbols-outlined" style="font-size: medium">info</span>
+            <span class="tooltiptext">The number of displays placed side-by-side. Width of total
+              displays is automatically calculated based on diagonal inches.</span></label>
+          <select name="drpTvNum" id="drpTvNum">
+            <option value="1" selected="selected">One </option>
+            <option value="2">Two </option>
+            <option value="3">Three </option>
+          </select>
+        </div>
+        <div class="inputRow">
+          <label for="drpVideoDevice">Video Device:</label>
+          <select name="drpVideoDevice" id="drpVideoDevice">
+          </select>
+        </div>
+        <div id="customSettings" style="display: none;" class="classCustomSettings">
+          <!-- everthing in customSettings becomes visible/invisible-->
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="wideFOV">Wide HFOV&deg;:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="wideFOV" name="wideFOV" value="112" maxlength="5" size="5"
+                class="numberInput"><label class="classDegree">&deg;</label>
+            </div>
+          </div>
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="teleFOV">Tele HFOV&deg;:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="teleFOV" name="teleFOV" value="70" maxlength="5" size="5"
+                class="numberInput"><label class="classDegree">&deg;</label>
+            </div>
+          </div>
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="onePersonZoom">Single Person Zoom:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="onePersonZoom" name="onePersonZoom" value="5" maxlength="5" size="5"
+                class="numberInput"> x
+            </div>
+          </div>
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="onePersonCrop">Single Person Crop width:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="onePersonCrop" name="onePersonCrop" value="" maxlength="5" size="5"
+                class="unitInput">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+          </div>
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="twoPersonZoom">Two Person Zoom:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="twoPersonZoom" name="twoPersonZoom" value="5" maxlength="5" size="5"
+                class="numberInput"> x
+            </div>
+          </div>
+          <div class="inputRow">
+            <div class="inputCellLeft2">
+              <label for="twoPersonCrop">Two Person Crop width:</label>
+            </div>
+            <div class="inputCellRight">
+              <input type="text" id="twoPersonCrop" name="twoPersonCrop" value="" maxlength="5" size="5"
+                class="unitInput">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+          </div>
+        </div>
+        <div class="inputRow">
+          <div id="divUpdateButton" class="inputCellRight">
+            <input type="submit" value="Update Quick Setup" onclick="quickUpdateButton()" class="button"
+              id="quickUpdateButtonId">
+          </div>
+        </div>
+      </div>
+    </main>
+  </dialog>
 
   <dialog id="modalWorkspace">
     <div style="position: absolute; top: 4px; right: 6px; cursor: pointer; font-size: larger;"
@@ -1261,12 +1273,11 @@
     <img width="40px" src="/assets/images/recurring-light.svg"></img>
   </dialog>
 
-  <dialog id="dialogQuestions" style="max-width: 450px; padding: 5px;">
-    <div style="position: absolute; top: 4px; right: 6px; cursor: pointer; font-size: larger;"
-      onclick="closeDialogQuestions()">&#x2715;</div>
-    <div style="padding: 10px">
-
-      <b>Have a question, comment or feedback? </b><br><br>
+  <dialog id="dialogQuestions" onclick="onDialogClick(event)">
+    <header>
+      Have a question, comment or feedback?
+    </header>
+    <main>
       <div>See the <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md" target="_blank"
           style="outline: none; ">FAQ on GitHub.</a> <img src="assets/images/pop-out-bold.svg" width="14px">
       </div>
@@ -1276,7 +1287,7 @@
           <br>Video Room Calculator discussion
         </a> <img src="assets/images/pop-out-bold.svg" width="14px"> Webex space.
       </div>
-    </div>
+    </main>
   </dialog>
 
   <dialog id="dialogSingleItemToggles" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ">

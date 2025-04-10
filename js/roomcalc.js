@@ -2550,7 +2550,6 @@ function updateTxtPrimaryDeviceNameLabel(primaryDevieName) {
 
 }
 
-
 function quickUpdateButton() {
     /* enable and disable updateButton in case it is pushed too quicly and overwhelms the canvas */
     zoomInOut('reset');
@@ -2571,7 +2570,9 @@ function quickUpdateButton() {
     setTimeout(() => {
         document.getElementById('quickUpdateButtonId').disabled = false;
     }, 2000)
-}
+
+    closeNewRoomDialog()
+  }
 
 function updateButtonRoomDimensions() {
     zoomInOut('reset');
@@ -4025,6 +4026,22 @@ function showUndoRedoRoomOs() {
             document.getElementById('dialogUndoRedo').close();
         }, 500);
     }
+}
+
+function onDialogClick(e) {
+  const clickedOutside = e.target.tagName === 'DIALOG'
+  if (clickedOutside) {
+    e.target.close()
+  }
+}
+
+
+function openNewRoomDialog() {
+  document.getElementById('newRoomDialog').showModal();
+}
+
+function closeNewRoomDialog() {
+  document.getElementById('newRoomDialog').close();
 }
 
 function openQuestionDialog() {
