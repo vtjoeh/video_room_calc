@@ -4028,13 +4028,18 @@ function showUndoRedoRoomOs() {
     }
 }
 
+function showNewRoomSection(sectionId) {
+  const showTemplates = sectionId === 'room-templates';
+  document.querySelector('#room-templates').style.display = showTemplates ? 'block' : 'none'
+  document.querySelector('#quick-setup').style.display = !showTemplates ? 'block' : 'none'
+}
+
 function onDialogClick(e) {
   const clickedOutside = e.target.tagName === 'DIALOG'
   if (clickedOutside) {
     e.target.close()
   }
 }
-
 
 function openNewRoomDialog() {
   document.getElementById('newRoomDialog').showModal();
