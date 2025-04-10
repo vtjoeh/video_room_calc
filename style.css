@@ -15,6 +15,7 @@
 
 :root {
   --active: #64bffa;
+  --link: #0352a6;
 }
 
 
@@ -58,7 +59,7 @@ body {
 }
 
 a {
-  color: #64bffa;
+  color: var(--link);
 }
 
 a:link {
