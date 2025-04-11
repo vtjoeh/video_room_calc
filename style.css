@@ -379,6 +379,10 @@ select:focus {
   border-bottom: 3px solid black;
 }
 
+.subtablinks, .subtablinks2 {
+  font-size: 0.8em;
+}
+
 /* Style the tab content */
 .tabcontent,
 .tabcontent2 {
