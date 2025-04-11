@@ -1632,7 +1632,7 @@ function getQueryString() {
 
     // } else if (localStorage.getItem('test') === 'true') {
 
-    document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    // document.getElementById('test').setAttribute('style', 'visibility: visible;');
 
     /* RoomOS does not support the Workspace Designer cross-launch */
     if (mobileDevice != 'RoomOS') {
@@ -4040,6 +4040,10 @@ function onDialogClick(e) {
   if (clickedOutside) {
     e.target.close()
   }
+}
+
+function openSaveDialog() {
+  document.getElementById('dialogSave').showModal()
 }
 
 function openNewRoomDialog() {

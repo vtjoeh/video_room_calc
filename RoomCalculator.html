@@ -27,11 +27,11 @@
       <i class="icon icon-plus-regular"></i>
       <span>New</span>
     </button>
-<!--
-    <button>
+    <button onclick="openSaveDialog()">
       <i class="icon icon-save-regular"></i>
       <span>Save</span>
     </button>
+<!--
     <button>
       <i class="icon icon-undo-regular"></i>
       <span>Undo</span>
@@ -52,7 +52,6 @@
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
-        <button class="tablinks" onclick="openTab(event, 'Save')">Save</button>
 
         <img style="position: relative; top: 9px; right: 0px; cursor: pointer;" onclick="openQuestionDialog()"
           width="23px" src="assets/images/q-a-regular.svg">
@@ -551,105 +550,6 @@
       </div>
     </div>
 
-    <div id="Save" class="tabcontent">
-      <br>
-      <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
-        <input type="submit" value="Download .png" id="downloadPNG" class="button">
-        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button">
-        <br>
-        <a href="javascript:void(0)">
-          <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
-            onclick="copyLinkToClipboard()">
-            <span style style="white-space: nowrap;">Shareable Link to Clipboard
-              <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
-                <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
-                  style="background-size: 10px 10px">
-                  <title id="copyBoxId">Copy Share Link</title>
-                  <rect x="2" y="4" rx="3" ry="3" width="15" height="24"
-                    style="fill:rgb(47, 66, 189);stroke:royalblue;stroke-width:1;opacity:0.5" />
-                  <rect x="6" y="8" rx="3" ry="3" width="13" height="22"
-                    style="fill:white;stroke:blue;stroke-width:1;opacity:1.0" />
-                </svg>
-              </div>
-            </span>
-          </div>
-        </a>
-        <br>
-        <br>
-        <div class="menuDivider" style="text-align: left; font-size: smaller;">
-          <b>Note:</b> <i>The Shareable Link is a copy of your current room. Changes made to
-            the Shareable Link do not affect the original. </i>
-        </div>
-
-        <br>
-        <br>
-      </div>
-
-
-      <p></p>
-      <div id="RoomOSmessage" style="visibility: hidden;">
-        The RoomOS browser does not support downloading PNG files or copying a link to the
-        clickboard.
-        <br>
-        <br>
-        Try the experimental QR Code solution. Total QR Code length is limited to 2950 characters.
-
-        <br>
-
-        <br>
-        <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
-          Code Script</button>
-
-        <div id="qrCode"></div>
-        <br>
-        <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled></input>
-        <br>
-
-      </div>
-
-
-      <div id="test" style="visibility: hidden;">
-
-
-        <br>
-
-
-      </div>
-
-
-      <div id="test2" style="visibility: hidden;">
-        Experimental JSON File Download:
-
-        <div class="inputRow">
-
-          <br>
-          <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
-            style="width: 300px">
-
-
-        </div>
-
-
-        <div class="inputRow">
-
-          <br>
-          <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
-            style="width: 300px">
-
-
-        </div>
-        <br>
-        Experimental JSON File Upload:
-        <br>
-        <input type="file" id="fileUpload" accept=".json">
-        <br>
-
-      </div>
-
-    </div>
-
-
-
   </div>
   </div>
   <div>
@@ -979,6 +879,76 @@
       </div>
     </div>
   </div>
+
+  <dialog id="dialogSave" onClick="onDialogClick(event)">
+    <header>
+      Save your project
+    </header>
+    <main>
+      <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
+        <input type="submit" value="Download .png" id="downloadPNG" class="button">
+        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button">
+        <br>
+        <a href="javascript:void(0)">
+          <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
+            onclick="copyLinkToClipboard()">
+            <span style style="white-space: nowrap;">Shareable Link to Clipboard
+              <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
+                <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
+                  style="background-size: 10px 10px">
+                  <title id="copyBoxId">Copy Share Link</title>
+                  <rect x="2" y="4" rx="3" ry="3" width="15" height="24"
+                    style="fill:rgb(47, 66, 189);stroke:royalblue;stroke-width:1;opacity:0.5" />
+                  <rect x="6" y="8" rx="3" ry="3" width="13" height="22"
+                    style="fill:white;stroke:blue;stroke-width:1;opacity:1.0" />
+                </svg>
+              </div>
+            </span>
+          </div>
+        </a>
+
+        <div class="menuDivider" style="text-align: left; font-size: smaller;">
+          <b>Note:</b> <i>The Shareable Link is a copy of your current room. Changes made to
+            the Shareable Link do not affect the original. </i>
+        </div>
+
+      </div>
+
+      <div id="RoomOSmessage" style="visibility: hidden;">
+        The RoomOS browser does not support downloading PNG files or copying a link to the
+        clickboard.
+        <br>
+        Try the experimental QR Code solution. Total QR Code length is limited to 2950 characters.
+
+        <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
+          Code Script</button>
+
+        <div id="qrCode"></div>
+        <br>
+        <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled></input>
+        <br>
+
+      </div>
+
+      <div id="test2" style="visibility: hidden;">
+        Experimental JSON File Download:
+
+        <div class="inputRow">
+          <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
+            style="width: 300px">
+        </div>
+
+
+        <div class="inputRow">
+          <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
+            style="width: 300px">
+        </div>
+        Experimental JSON File Upload:
+        <input type="file" id="fileUpload" accept=".json">
+
+      </div>
+    </main>
+  </dialog>
 
   <dialog id="newRoomDialog" onclick="onDialogClick(event)">
     <header>
