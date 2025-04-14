@@ -1,21 +1,15 @@
 /** WHILE REVAMPING UI: HIDE ELEMENTS */
 
-#ContainerRoomSvg,
-#Container2,
-#ContainerFooter,
-#quickSetup,
-#quickSetupItems {
-  /* display: none !important; */
-}
-
-#ContainerFeedback {
-  display: none;
+#ContainerFeedback,
+#controlButtonsOld,
+#ContainerFooter
+{
+  display: none !important;
 }
 
 
 :root {
-  --active: #64bffa;
-  --link: #0352a6;
+  --active: #0352a6;
 }
 
 
@@ -58,8 +52,12 @@ body {
   line-height: 20px;
 }
 
+.icon.wd {
+  background-image: url('./assets/images/wd.svg');
+}
+
 a {
-  color: var(--link);
+  color: var(--active);
 }
 
 a:link {
@@ -123,9 +121,6 @@ img {
   -webkit-touch-callout: none;
 }
 
-.btn {
-  touch-action: manipulation;
-}
 
 .micButtons {
   padding: 5px;
@@ -160,7 +155,7 @@ img {
   gap: 16px;
 }
 
-button {
+button:not(:disabled) {
   cursor: pointer;
 }
 
@@ -175,8 +170,24 @@ button {
   border-radius: 10px;
 }
 
-.ContainerHeader button:hover {
+.ContainerHeader button.primary {
+  background-color: white;
+  color: black;
+  border-radius: 30px;
+  padding: 7px 15px;
+  gap: 10px;
+}
+
+.ContainerHeader button:hover:not(:disabled) {
   background-color: #222;
+}
+
+.ContainerHeader button.primary:hover {
+  background-color: #ddd;
+}
+
+.ContainerHeader button:disabled {
+  opacity: 0.6;
 }
 
 #ContainerFooter {
@@ -196,7 +207,7 @@ button {
 
 #lblSubtitle {
   font-size: 16px;
-  color: var(--active);
+  color: #64bffa;
   margin: 0 9px;
 }
 
@@ -448,6 +459,42 @@ select:focus {
 
 #controlButtons {
   position: relative;
+  display: flex;
+  gap: 10px;
+}
+
+.button-group {
+  display: flex;
+  background-color: #eee;
+  border-radius: 30px;
+  align-items: center;
+  font-size: 12px;
+  padding: 0 6px;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  border: 0;
+}
+
+.btn.active {
+  color: var(--active);
+}
+
+#controlButtons button  {
+  width: 30px;
+  height: 30px;
+}
+
+#controlButtons button label {
+  display: none;
 }
 
 .material-symbols-outlined {

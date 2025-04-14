@@ -4381,15 +4381,17 @@ function displayDistanceVisible(state = 'buttonPress') {
     }
 
     if (state === true) {
-        button.style["color"] = toggleButtonOnColor;
+        button.classList.toggle('active', true);
+        // button.style["color"] = toggleButtonOnColor;
         grDisplayDistance.visible(true);
-        button.children[0].textContent = 'tv';
+        // button.children[0].textContent = 'tv';
         roomObj.layersVisible.grDisplayDistance = true;
 
     } else {
-        button.style["color"] = toggleButtonOffColor;
+        button.classList.toggle('active', false);
+        // button.style["color"] = toggleButtonOffColor;
         grDisplayDistance.visible(false);
-        button.children[0].textContent = 'tv_off';
+        // button.children[0].textContent = 'tv_off';
         roomObj.layersVisible.grDisplayDistance = false;
     }
 
@@ -4420,18 +4422,20 @@ function gridLinesVisible(state = 'buttonPress') {
         grShadingCamera.clip(clipShadingBorder);
         grShadingMicrophone.clip(clipShadingBorder);
         kGroupLines.visible(true);
-        button.style["color"] = toggleButtonOnColor;
-        document.getElementById("spanGridOn").textContent = 'grid_on';
+        button.classList.toggle('active', true);
+        // button.style["color"] = toggleButtonOnColor;
+        // document.getElementById("spanGridOn").textContent = 'grid_on';
         roomObj.layersVisible.gridLines = true;
     }
     else {
-        button.style["color"] = toggleButtonOnColor;
+        button.classList.toggle('active', false);
+        // button.style["color"] = toggleButtonOnColor;
         layerGrid.visible(true);
         kGroupLines.visible(false);
         titleGroup.visible(false);
         grShadingCamera.clip(clipShadingBorder);
         grShadingMicrophone.clip(clipShadingBorder);
-        document.getElementById("spanGridOn").textContent = 'check_box_outline_blank';
+        // document.getElementById("spanGridOn").textContent = 'check_box_outline_blank';
         gridToggleState = 'off';
         roomObj.layersVisible.gridLines = false;
     }
@@ -4457,13 +4461,15 @@ function shadingCameraVisible(state = 'buttonPress') {
     }
 
     if (state) {
-        button.style["color"] = toggleButtonOnColor;
-        button.children[0].textContent = 'videocam';
+        // button.style["color"] = toggleButtonOnColor;
+        // button.children[0].textContent = 'videocam';
+        button.classList.toggle('active', true);
         grShadingCamera.visible(true);
         roomObj.layersVisible.grShadingCamera = true;
     } else {
-        button.style["color"] = toggleButtonOffColor;
-        button.children[0].textContent = 'videocam_off';
+        // button.style["color"] = toggleButtonOffColor;
+        // button.children[0].textContent = 'videocam_off';
+        button.classList.toggle('active', false);
         grShadingCamera.visible(false);
         roomObj.layersVisible.grShadingCamera = false;
     }
@@ -4488,12 +4494,14 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
 
     if (state === true) {
         grShadingMicrophone.visible(true);
-        button.children[0].textContent = 'mic';
-        button.style["color"] = toggleButtonOnColor;
+        // button.children[0].textContent = 'mic';
+        // button.style["color"] = toggleButtonOnColor;
+        button.classList.toggle('active', true);
         roomObj.layersVisible.grShadingMicrophone = true;
     } else {
-        button.style["color"] = toggleButtonOffColor;
-        button.children[0].textContent = 'mic_off';
+        // button.style["color"] = toggleButtonOffColor;
+        // button.children[0].textContent = 'mic_off';
+        button.classList.toggle('active', false);
         grShadingMicrophone.visible(false);
         roomObj.layersVisible.grShadingMicrophone = false;
     }
@@ -4506,9 +4514,9 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
 
 function toggleSelectPan() {
     let button = document.getElementById('btnSelectPan');
-    if (button.children[0].textContent === 'select') {
-        button.children[0].textContent = 'pan_tool';
-        button.children[0].style.color = '';
+    if (button.children[0].dataset.type === 'select') {
+        button.children[0].dataset.type = 'pan_tool';
+        button.style.color = '';
         document.getElementById("canvasDiv").style.cursor = "auto";
 
         panScrollableOn = false;
@@ -4516,7 +4524,8 @@ function toggleSelectPan() {
 
     } else {
 
-        button.children[0].textContent = 'select';
+        button.children[0].dataset.type = 'select';
+        button.style.color = 'var(--active)'
 
         document.getElementById("canvasDiv").style.cursor = "grab";
 
@@ -5932,12 +5941,12 @@ function toggleMicShadingSingleItem() {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
             if ('data_audioHidden' in item && item.data_audioHidden === true) {
-                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
+                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
                 stage.find('#audio~' + id)[0].visible(true);
                 delete node.data_audioHidden;
                 delete item.data_audioHidden;
             } else {
-                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
+                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
                 stage.find('#audio~' + id)[0].visible(false);
                 node.data_audioHidden = true;
                 item.data_audioHidden = true;
@@ -5963,13 +5972,13 @@ function toggleCamShadeSingleItem() {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
             if ('data_fovHidden' in item && item.data_fovHidden === true) {
-                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
+                // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
                 stage.find('#fov~' + id)[0].visible(true);
                 /* insert value direct to canvas */
                 delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
                 delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
             } else {
-                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
+                // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
                 stage.find('#fov~' + id)[0].visible(false);
                 node.data_fovHidden = true;
                 item.data_fovHidden = true;
@@ -5995,12 +6004,12 @@ function toggleDisplayDistanceSingleItem() {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
             if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
-                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
+                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
                 stage.find('#dispDist~' + id)[0].visible(true);
                 delete item.data_dispDistHidden;
                 delete node.data_dispDistHidden;
             } else {
-                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
+                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
                 stage.find('#dispDist~' + id)[0].visible(false);
                 item.data_dispDistHidden = true;
                 node.data_dispDistHidden = true;
@@ -7705,13 +7714,13 @@ function updateFormatDetails(eventOrShapeId) {
                 }
 
                 if (item.data_dispDistHidden) {
-                    document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
+                    // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
                 } else {
-                    document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
+                    // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
                 }
             } else {
                 document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
-                document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'do_not_disturb_on';
+                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'do_not_disturb_on';
             }
 
 
@@ -7735,9 +7744,9 @@ function updateFormatDetails(eventOrShapeId) {
                 }
 
                 if (item.data_fovHidden) {
-                    document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
+                    // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
                 } else {
-                    document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
+                    // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
                 }
             } else {
                 document.getElementById('btnCamShadeToggleSingleItem').disabled = true;
@@ -7758,14 +7767,14 @@ function updateFormatDetails(eventOrShapeId) {
                 }
 
                 if (item.data_audioHidden) {
-                    document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
+                    // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
                 } else {
-                    document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
+                    // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
                 }
 
             } else {
                 document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
-                document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
+                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
             }
 
 
@@ -8575,7 +8584,7 @@ function zoomInOut(zoomChange) {
         document.getElementById('btnSelectPan').disabled = false;
     } else {
         document.getElementById('btnSelectPan').disabled = true;
-        document.getElementById('btnSelectPan').children[0].textContent = 'pan_tool';
+        document.getElementById('btnSelectPan').children[0].dataset.type = 'pan_tool';
         document.getElementById('btnSelectPan').children[0].style.color = '';
         document.getElementById("canvasDiv").style.cursor = "auto";
 

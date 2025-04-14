@@ -31,18 +31,25 @@
       <i class="icon icon-save-regular"></i>
       <span>Save</span>
     </button>
-<!--
-    <button>
+
+    <button id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo [Ctrl-Z]">
       <i class="icon icon-undo-regular"></i>
       <span>Undo</span>
     </button>
-    <button>
+    <button id="btnRedo" onclick="btnRedoClicked()" disabled title="Redo [Ctrl-Y]">
       <i class="icon icon-redo-regular"></i>
       <span>Redo</span>
-    </button> -->
+    </button>
+    <button id="btnHelp" onclick="openQuestionDialog()" title="Help">
+      <i class="icon icon-help-circle-regular"></i>
+      <span>Help</span>
+    </button>
+    <span class="spacer"></span>
+    <button class="primary" onclick="openModalWorkspace()">
+      <i class="icon wd"></i>
+      Preview
+    </button>
 
-    <!-- </div> -->
-    <!-- <img style="position: absolute; top: 6px; right: 25px; cursor: pointer;" onclick="openQuestionDialog()" width="28px"src="assets/q-a-regular-white.svg"> -->
   </div>
 
   <div id="sidebar" class="floatColumns">
@@ -52,10 +59,6 @@
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
-
-        <img style="position: relative; top: 9px; right: 0px; cursor: pointer;" onclick="openQuestionDialog()"
-          width="23px" src="assets/images/q-a-regular.svg">
-
       </div>
       <div id="Room" class="tabcontent" style="display: block;" ;>
         <div class="inputRow">
@@ -554,38 +557,56 @@
   </div>
   <div>
     <div id="ContainerRoomSvg" class="floatColumns">
-      <div id="controlButtons" style="font-size: xx-small;">
-        <button class="btn" onclick="shadingCameraVisible()" id="btnCamShadeToggle" title="Toggle Camera Shading"><span
-            class="material-symbols-outlined">videocam</span>
-          <!-- <span class="holdIndicator">&#9698</span> -->
-        </button>
-        <button class="btn" onclick="shadingMicrophoneVisible()" id="btnMicShadeToggle"><span
-            class="material-symbols-outlined" title="Toggle Microphone Shading">mic</span></button>
-        <button class="btn" onclick="displayDistanceVisible()" id="btnDisplayDistance"
-          title="Toggle Display Reach"><span class="material-symbols-outlined">tv</span></button>
+      <div id="controlButtons">
+        <div class="button-group">
+          <button class="btn" onclick="shadingCameraVisible()" id="btnCamShadeToggle" title="Toggle camera coverage">
+            <i class="icon icon-camera-regular"></i>
+          </button>
+          <button class="btn" onclick="shadingMicrophoneVisible()" id="btnMicShadeToggle" title="Toggle microphone coverage">
+            <i class="icon icon-microphone-regular"></i>
+          </button>
+          <button class="btn" onclick="displayDistanceVisible()" id="btnDisplayDistance"
+          title="Toggle display coverage">
+            <i class="icon icon-display-regular"></i>
+          </button>
+          <button class="btn" onclick="gridLinesVisible()" id="btnGridToggle" title="Toggle grid">
+            <i class="icon icon-table-regular"></i>
+          </button>
+        </div>
+        <div class="spacer"></div>
+        <div class="button-group">
+          <button class="btn" id="btnDuplicate" onclick="duplicateItems()" disabled title="Duplicate [Ctrl-D]">
+            <i class="icon icon-copy-regular"></i>
+          </button>
+          <button class="btn" id="btnDelete" onclick="deleteTrNodes()" disabled title="Delete [Backspace]">
+            <i class="icon icon-delete-regular"></i>
+          </button>
+        </div>
+        <div class="spacer"></div>
+        <div class="button-group">
+          <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan">
+            <i class="icon icon-raise-hand-regular"></i>
+          </button>
+        </div>
+        <div class="button-group">
+          <button class="btn" onclick="zoomInOut('out')" title="Zoom In">
+            <i class="icon icon-minus-regular"></i>
+          </button>
+          <label type="text" id="zoomValue" value="100" size="4" maxlength="4">100</label>
+          <button class="btn" onclick="zoomInOut('in')" title="Zoom In">
+            <i class="icon icon-plus-regular"></i>
+          </button>
+        </div>
+      </div>
+      <div id="controlButtonsOld">
 
-        <button class="btn" onclick="gridLinesVisible()" id="btnGridToggle" title="Toggle Grid"><span
-            class="material-symbols-outlined" id="spanGridOn">grid_on</span></button>
         <button class="btn" onclick="toggleLabels()" id="btnLabelToggle" title="Toggle Labels"><span
             class="material-symbols-outlined">label_off</span></button>
         <span style="font-size: x-large; opacity: 0.3;">|</span>
-        <button class="btn" id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo [Ctrl-Z]"><span
-            class="material-symbols-outlined">undo</span></button>
-        <button class="btn" id="btnRedo" onclick="btnRedoClicked()" disabled title="Redo [Ctrl-Y]"><span
-            class="material-symbols-outlined">redo</span></button>
-        <button class="btn" id="btnDuplicate" onclick="duplicateItems()" disabled title="Duplicate [Ctrl-D]"><span
-            class="material-symbols-outlined">content_copy</span></button>
-        <button class="btn" id="btnDelete" onclick="deleteTrNodes()" disabled title="Delete [Backspace]"><span
-            class="material-symbols-outlined">delete</span></button>
-        <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan"><span
-            class="material-symbols-outlined">pan_tool</span></button>
-        <div style="display: inline-block;"><button class="btn" onclick="zoomInOut('in')" title="Zoom In"><span
-              class="material-symbols-outlined">zoom_in</span></button>
-          <button class="btn" onclick="zoomInOut('out')" title="Zoom In"><span
-              class="material-symbols-outlined">zoom_out</span></button>
+
+        <div style="display: inline-block;">
           <div style="display: inline-block; text-align: center;">
-            <label type="text" id="zoomValue" value="100" size="4" maxlength="4" height="3px"
-              style="font-size: small; ">100</label>
+
             <button class="btn" onclick="zoomInOut('reset')" style="font-size: xx-small; display: block;"
               title="Reset Zoom to 100%" />Reset</button>
           </div>
@@ -1175,69 +1196,56 @@
     </main>
   </dialog>
 
-  <dialog id="modalWorkspace">
-    <div style="position: absolute; top: 4px; right: 6px; cursor: pointer; font-size: larger;"
-      onclick="closeModalWorkspace()">&#x2715;</div>
-    <div class="inputRow" style="font-weight:600;">
+  <dialog id="modalWorkspace" onclick="onDialogClick(event)">
+      <header>Preview in Cisco Workspace Designer</header>
+      <main>
+        <img id="workspaceIcon" onload="workspaceIconLoad()" width="16px"
+          src="https://prototypes.cisco.com/roomdesigner2/images/appicon.png"></img>
+        Workspace Designer Custom Rooms (beta)
 
-
-      <img id="workspaceIcon" onload="workspaceIconLoad()" width="16px"
-        src="https://prototypes.cisco.com/roomdesigner2/images/appicon.png"></img>
-      Workspace Designer Custom Rooms (beta)
-
-
-    </div>
-
-    <div class="inputRow">
-      Opens a new tab in the Workspace Designer. Use the Video Room Calculator to update the open tab.
-    </div>
-    <div>
-      The following devices are not fully supported:
-    </div>
-    </div>
-    <div class="inputRow">
-      Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2), Desk, Desk Mini
-
-    </div>
-    <div class="inputRow">
-      To change the default room height go to <span style="text-decoration: underline; cursor: pointer; color:darkblue;"
-        onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
-    </div>
-    <div class="inputRow">
-      <span class="highlightRed" id="vpnRequiredLabel"> **Requires a Cisco network connection.** </span>
-    </div>
-
-
-    <div class="inputRow">
-      <label class="switch">
-        <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
-        <span class="slider round"></span>
-      </label>
-
-      <label>&nbsp; Remove Default Walls</label>
-
-    </div>
-
-
-    <div class="inputRow">
-
-      <label class="switch">
-        <input id="addCeilingCheckBox" type="checkbox" onclick="addCeilingChange(event)">
-        <span class="slider round"></span>
-      </label>
-
-      <label>&nbsp; Add Ceiling</label>
-
-    </div>
-
-    <br>
-    <form method="dialog">
       <div class="inputRow">
-        <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
-        <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow()" class="button"
-          id="btnModalWorkspace">
+        Opens a new tab in the Workspace Designer. Use the Video Room Calculator to update the open tab.
       </div>
-    </form>
+      <div>
+        The following devices are not fully supported:
+      </div>
+      <div class="inputRow">
+        Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2), Desk, Desk Mini
+      </div>
+      <div class="inputRow">
+        To change the default room height go to <span style="text-decoration: underline; cursor: pointer; color:darkblue;"
+          onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
+      </div>
+      <div class="inputRow">
+        <span class="highlightRed" id="vpnRequiredLabel"> **Requires a Cisco network connection.** </span>
+      </div>
+
+
+      <div class="inputRow">
+        <label class="switch">
+          <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
+          <span class="slider round"></span>
+        </label>
+        <label>&nbsp; Remove Default Walls</label>
+      </div>
+
+
+      <div class="inputRow">
+        <label class="switch">
+          <input id="addCeilingCheckBox" type="checkbox" onclick="addCeilingChange(event)">
+          <span class="slider round"></span>
+        </label>
+        <label>&nbsp; Add Ceiling</label>
+      </div>
+
+      <form method="dialog">
+        <div class="inputRow">
+          <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
+          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow()" class="button"
+            id="btnModalWorkspace">
+        </div>
+      </form>
+    </main>
   </dialog>
 
   <dialog id="dialogLoadingTemplate">
