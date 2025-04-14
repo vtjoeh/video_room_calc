@@ -61,7 +61,7 @@
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
       </div>
       <div id="Room" class="tabcontent" style="display: block;" ;>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="drpMetersFeet">Unit (meters/feet):</label>
           <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()">
             <option value="feet">Feet</option>
@@ -69,19 +69,21 @@
           </select>
         </div>
         <div class="inputRow">
-          <label for="roomWidth">Room Width:</label>
-          <input type="text" id="roomWidth" name="roomWidth" value="20" maxlength="12" size="4"
-            class="unitInput updateDrawRoom">
-          <label class="unitFeetMeters">ft</label>
+          <div class="inputField">
+            <label for="roomWidth">Width:</label>
+            <input type="text" id="roomWidth" name="roomWidth" value="20" maxlength="12" size="4"
+              class="unitInput updateDrawRoom">
+            <label class="unitFeetMeters">ft</label>
+          </div>
+          <div class="inputField">
+            <label for="roomLength"> Length:</label>
+            <input type="text" id="roomLength" name="roomLength" class="unitInput updateDrawRoom" value="20"
+              maxlength="12" size="5">
+            <label class="unitFeetMeters">ft</label>
+          </div>
+        </div>
 
-        </div>
-        <div class="inputRow">
-          <label for="roomLength"> Length:</label>
-          <input type="text" id="roomLength" name="roomLength" class="unitInput updateDrawRoom" value="20"
-            maxlength="12" size="5">
-          <label class="unitFeetMeters">ft</label>
-        </div>
-        <div class="inputRow">
+        <div class="inputField">
           <input type="submit" value="Update Room Dimensions" onclick="updateButtonRoomDimensions()" class="button"
             id="updateButtonId">
         </div>
@@ -233,38 +235,42 @@
             </div>
           </div>
           <div id="itemDetailsVisible" style="display: none;">
-            <div class="inputRow">
+            <div class="inputField">
               <label class="tooltipBottom">Item Name: <span class="tooltiptextBottom">Item Name is
                   readonly. Label is a customized field. Keep labels short because it makes the URL
                   longer.</span></label>
               <input disabled type="text" id="itemName" size="45" class="">
             </div>
-            <div class="inputRow">
+            <div class="inputField">
               <label>Item label</label>
               <input type="text" id="labelField" size="45" class="textInput" placeholder="Label">
             </div>
-            <div class="inputRow" id="itemXY">
-              <label class="tooltipBottom">Position X:<span class="tooltiptextBottom">Coordinates X &
-                  Y are the upper left hand corner of tables and walls but are the center of all
-                  other objects.</span></label>
-              <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
-            </div>
             <div class="inputRow">
-              <label>Position Y:</label>
-              <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
-              <label class="unitFeetMeters">ft</label>
+              <div class="inputField" id="itemXY">
+                <label class="tooltipBottom">X:<span class="tooltiptextBottom">Coordinates X &
+                    Y are the upper left hand corner of tables and walls but are the center of all
+                    other objects.</span></label>
+                <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+              <div class="inputField">
+                <label>Y:</label>
+                <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+              <div class="inputField" id="itemZpositionDiv">
+                <label class="tooltipBottom">Z: <span class="material-symbols-outlined"
+                    style="font-size: medium">info</span>
+                  <span class="tooltiptextBottom">[Optional]
+                    The vertical measurement from the floor to
+                    the base of the object. Not shown on the drawing of the Video Room
+                    Calculator.</span></label>
+                <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
+                <label class="unitFeetMeters">ft</label>
+              </div>
             </div>
-            <div class="inputRow" id="itemZpositionDiv">
-              <label class="tooltipBottom">Base Elevation: <span class="material-symbols-outlined"
-                  style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">[Optional]
-                  The vertical measurement from the floor to
-                  the base of the object. Not shown on the drawing of the Video Room
-                  Calculator.</span></label>
-              <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-            <div class="inputRow" id="itemTopElevationDiv">
+
+            <div class="inputField" id="itemTopElevationDiv">
               <label class="tooltipBottom">Top Elevation: <span class="material-symbols-outlined"
                   style="font-size: medium">info</span>
                 <span class="tooltiptextBottom">
@@ -277,22 +283,37 @@
               <label class="unitFeetMeters">ft</label>
             </div>
 
-            <div class="inputRow" id="itemWidthLength">
-              <label class="tooltipBottom">Item Width:<span class="material-symbols-outlined"
-                  style="font-size: medium">info</span>
-                <span class="tooltiptextBottom">Only tables,
-                  walls, and columns have adjustable widths and lengths. All other objects are
-                  fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
-                </span></label>
-              <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
-            </div>
             <div class="inputRow">
-              <label> Length:</label>
-              <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
-              <label class="unitFeetMeters">ft</label>
+             <div class="inputField" id="itemWidthLength">
+                <label class="tooltipBottom">Width:<span class="material-symbols-outlined"
+                    style="font-size: medium">info</span>
+                  <span class="tooltiptextBottom">Only tables,
+                    walls, and columns have adjustable widths and lengths. All other objects are
+                    fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
+                  </span></label>
+                <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+              <div class="inputField">
+                <label> Length:</label>
+                <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+
+              <div class="inputField" id="itemVheightDiv">
+                <label class="tooltip">Height:<span class="material-symbols-outlined"
+                    style="font-size: medium">info</span>
+                  <span class="tooltiptext">[Optional] Vertical height
+                    of the object. This information is not displayed on the drawing of the Video
+                    Room Calculator. For walls and columns, the default value will be the Room
+                    Height field if it is set.</span></label>
+                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
+                  placeholder="test">
+                <label class="unitFeetMeters">ft</label>
+              </div>
             </div>
 
-            <div class="inputRow" id="trapNarrowWidthDiv">
+            <div class="inputField" id="trapNarrowWidthDiv">
               <label class="tooltip">Narrow Width:<span class="material-symbols-outlined"
                   style="font-size: medium">info</span>
                 <span class="tooltiptext">For tappered/trapezoid
@@ -301,19 +322,8 @@
               <label class="unitFeetMeters">ft</label>
             </div>
 
-            <div class="inputRow" id="itemVheightDiv">
-              <label class="tooltip">Item Height:<span class="material-symbols-outlined"
-                  style="font-size: medium">info</span>
-                <span class="tooltiptext">[Optional] Vertical height
-                  of the object. This information is not displayed on the drawing of the Video
-                  Room Calculator. For walls and columns, the default value will be the Room
-                  Height field if it is set.</span></label>
-              <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
-                placeholder="test">
-              <label class="unitFeetMeters">ft</label>
-          </div>
 
-          <div class="inputRow" id="itemRotationDiv">
+          <div class="inputField" id="itemRotationDiv">
             <label class="tooltip">Item Rotation:<span class="material-symbols-outlined"
                 style="font-size: medium">info</span>
               <span class="tooltiptext">Rotation in degrees from
@@ -322,7 +332,7 @@
             <label class="classDegree">&deg;</label>
           </div>
 
-          <div class="inputRow" id="tblRectRadiusDiv">
+          <div class="inputField" id="tblRectRadiusDiv">
             <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
                 corners unless the Corner Radius Front Half has a value, in which case it is
                 only two corners. The value should be no more than 1/2 of the length or width,
@@ -331,7 +341,7 @@
             <label class="unitFeetMeters">ft</label>
           </div>
 
-          <div class="inputRow" id="tblRectRadiusRightDiv">
+          <div class="inputField" id="tblRectRadiusRightDiv">
             <label class="tooltip">Corner Radius Front Half<span class="material-symbols-outlined"
                 style="font-size: medium">info</span><span class="tooltiptext">Radius of the
                 front 2 table corners. If blank, the Corner Radius above is used for all 4
@@ -341,7 +351,7 @@
             <label class="unitFeetMeters">ft</label>
           </div>
 
-          <div class="inputRow" id="itemDiagonalTvDiv">
+          <div class="inputField" id="itemDiagonalTvDiv">
             <label class="tooltip">Display Diagonal Inches:<span class="material-symbols-outlined"
                 style="font-size: medium">info</span><span class="tooltiptext">The
                 width & length of the display is calculated automatically based on the display
@@ -352,7 +362,7 @@
           </div>
           <div id="testB" style="display: none;">
 
-            <div class="inputRow" id="roleDiv">
+            <div class="inputField" id="roleDiv">
               <label for="drpRole" class="tooltip">Role:
                 <span class="material-symbols-outlined" style="font-size: medium">info</span>
                 <span class="tooltiptext">Role is used in the Workspace Designer export and may
@@ -363,7 +373,7 @@
               </select>
             </div>
 
-            <div class="inputRow" id="colorDiv">
+            <div class="inputField" id="colorDiv">
               <label for="drpColor" class="tooltip">Color:
                 <span class="material-symbols-outlined" style="font-size: medium">info</span>
                 <span class="tooltiptext">Color is used in the Workspace Designer export and may
@@ -373,14 +383,14 @@
               </select>
             </div>
           </div>
-          <div class="inputRow" id="isPrimaryDiv">
+          <div class="inputField" id="isPrimaryDiv">
             <label id="isPrimaryLabel" class="tooltip">Is primary?<span class="material-symbols-outlined"
                 style="font-size: medium">info</span>
               <span class="tooltiptext">Primary
                 devices are used in determining if Quick Setup is enabled and this field may be
                 used for future features.</span></label> <input type="checkbox" id="isPrimaryCheckBox" disabled>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
             <div class="inputCellRight" id="singleShadingDiv">
               <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
@@ -398,7 +408,7 @@
             </div>
           </div>
 
-          <div class="inputRow debug-info">
+          <div class="inputField debug-info">
             <label>UUID: </label>
             <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
             <br />
@@ -413,7 +423,7 @@
 
 
       <div id="RoomDetails" class="subtabcontent2 subtabcontent2a">
-        <div class="inputRow">
+        <div class="inputField">
           <label class="tooltipBottom">Room Height:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptextBottom">Room Height is not
@@ -421,7 +431,7 @@
           <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
           <label class="unitFeetMeters">ft</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label class="tooltipBottom">Software Experience:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
@@ -433,7 +443,7 @@
             <option value="mtr">Microsoft Teams Rooms</option>
           </select>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label class="tooltipBottom">Version / Author:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptextBottom">Field to keep track of Version and/or Author. This field can be
@@ -441,7 +451,7 @@
           <textarea id="authorVersion" class="textInput"></textarea>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
           <input type="submit" value="Update Room Details" onclick="updateRoomDetails()" class="button"
             id="updateRoomDetailsBtn">
         </div>
@@ -453,7 +463,7 @@
           *** Experimental ***
         </div>
 
-        <div class="inputRow" style="padding: 0.2rem">
+        <div class="inputField" style="padding: 0.2rem">
           <label class="tooltipBottom"><i style="font-size: small;">Note: Background images are
               temporary and not saved in the URL by design. Undo button does not work properly after
               multiple images are loaded. </i>
@@ -467,31 +477,31 @@
         <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
         <br>
         <br>
-        <div class="inputRow"> 2) Create a scale by selecting 2 points that have a known distance between
+        <div class="inputField"> 2) Create a scale by selecting 2 points that have a known distance between
           them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.
           <br><input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points" disabled>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">3) Distance between 2 points:
               <!-- <span class="material-symbols-outlined" style="font-size: medium">info</span>
                                 <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
             <input type="text" id="backgroundImageMeasurement" value="" maxlength="12" size="5" class="unitInput">
             <label class="unitFeetMeters">ft</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
             onclick="updateBackgroundImageScale()" disabled>
         </div>
 
 
-        <div class="inputRow" style="padding: 0.2rem">4) Transparency:</div>
-        <div class="inputRow">
+        <div class="inputField" style="padding: 0.2rem">4) Transparency:</div>
+        <div class="inputField">
           <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
             oninput="changeTransparency(this.value)" disabled> <span id="transparencyOutput">50</span>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">5) Move background image:
               <span class="material-symbols-outlined" style="font-size: medium">info</span>
               <span class="tooltiptextBottom">Brings the background image to the front and allows
@@ -505,7 +515,7 @@
       </div>
 
       <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">Load in original unit (m/f):
               <span class="material-symbols-outlined" style="font-size: medium">info</span>
               <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
@@ -516,7 +526,7 @@
             </label>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">Snap to Objects:
               <span class="material-symbols-outlined" style="font-size: medium">info</span>
               <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
@@ -528,7 +538,7 @@
             </label>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">Snap Center to Increment:
               <span class="material-symbols-outlined" style="font-size: medium">info</span>
               <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
@@ -540,7 +550,7 @@
             </label>
         </div>
 
-        <div class="inputRow">
+        <div class="inputField">
             <label class="tooltipBottom">Snap center to increment:
               <span class="material-symbols-outlined" style="font-size: medium">info</span>
               <span class="tooltiptextBottom">Incremental value for Snap Center to Increment. This is
@@ -954,13 +964,13 @@
       <div id="test2" style="visibility: hidden;">
         Experimental JSON File Download:
 
-        <div class="inputRow">
+        <div class="inputField">
           <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
             style="width: 300px">
         </div>
 
 
-        <div class="inputRow">
+        <div class="inputField">
           <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
             style="width: 300px">
         </div>
@@ -1068,16 +1078,16 @@
     </main>
     <main id="quick-setup">
       <div id="quickSetupItems">
-        <div class="inputRow">
+        <div class="inputField">
           <label for="tableWidth">Table Width:&nbsp;</label>
           <input type="text" id="tableWidth" name="tableWidth" value="4" maxlength="12" size="4" class="unitInput">
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="tableLength"> Length:</label>
           <input type="text" id="tableLength" name="tableLength" value="10" maxlength="12" size="5" class="unitInput">
           <label class="unitFeetMeters">ft</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="frntWallToTv" class="tooltip">Front Wall to Display:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
@@ -1088,7 +1098,7 @@
             class="unitInput">
           <label class="unitFeetMeters">ft</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
@@ -1099,7 +1109,7 @@
             class="unitInput">
           <label class="unitFeetMeters">ft</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="tvDiag" class="tooltip">Display Diagonal Inches:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptext">The
@@ -1111,7 +1121,7 @@
             class="numberInput updateWidthOfDisplay">
           <label class="unitInches">in</label>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="drpTvNum" class="tooltip">Number of Displays:
             <span class="material-symbols-outlined" style="font-size: medium">info</span>
             <span class="tooltiptext">The number of displays placed side-by-side. Width of total
@@ -1122,14 +1132,14 @@
             <option value="3">Three </option>
           </select>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <label for="drpVideoDevice">Video Device:</label>
           <select name="drpVideoDevice" id="drpVideoDevice">
           </select>
         </div>
         <div id="customSettings" style="display: none;" class="classCustomSettings">
           <!-- everthing in customSettings becomes visible/invisible-->
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="wideFOV">Wide HFOV&deg;:</label>
             </div>
@@ -1138,7 +1148,7 @@
                 class="numberInput"><label class="classDegree">&deg;</label>
             </div>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="teleFOV">Tele HFOV&deg;:</label>
             </div>
@@ -1147,7 +1157,7 @@
                 class="numberInput"><label class="classDegree">&deg;</label>
             </div>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="onePersonZoom">Single Person Zoom:</label>
             </div>
@@ -1156,7 +1166,7 @@
                 class="numberInput"> x
             </div>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="onePersonCrop">Single Person Crop width:</label>
             </div>
@@ -1166,7 +1176,7 @@
               <label class="unitFeetMeters">ft</label>
             </div>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="twoPersonZoom">Two Person Zoom:</label>
             </div>
@@ -1175,7 +1185,7 @@
                 class="numberInput"> x
             </div>
           </div>
-          <div class="inputRow">
+          <div class="inputField">
             <div class="inputCellLeft2">
               <label for="twoPersonCrop">Two Person Crop width:</label>
             </div>
@@ -1186,7 +1196,7 @@
             </div>
           </div>
         </div>
-        <div class="inputRow">
+        <div class="inputField">
           <div id="divUpdateButton" class="inputCellRight">
             <input type="submit" value="Update Quick Setup" onclick="quickUpdateButton()" class="button"
               id="quickUpdateButtonId">
@@ -1203,25 +1213,25 @@
           src="https://prototypes.cisco.com/roomdesigner2/images/appicon.png"></img>
         Workspace Designer Custom Rooms (beta)
 
-      <div class="inputRow">
+      <div class="inputField">
         Opens a new tab in the Workspace Designer. Use the Video Room Calculator to update the open tab.
       </div>
       <div>
         The following devices are not fully supported:
       </div>
-      <div class="inputRow">
+      <div class="inputField">
         Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2), Desk, Desk Mini
       </div>
-      <div class="inputRow">
+      <div class="inputField">
         To change the default room height go to <span style="text-decoration: underline; cursor: pointer; color:darkblue;"
           onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
       </div>
-      <div class="inputRow">
+      <div class="inputField">
         <span class="highlightRed" id="vpnRequiredLabel"> **Requires a Cisco network connection.** </span>
       </div>
 
 
-      <div class="inputRow">
+      <div class="inputField">
         <label class="switch">
           <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
           <span class="slider round"></span>
@@ -1230,7 +1240,7 @@
       </div>
 
 
-      <div class="inputRow">
+      <div class="inputField">
         <label class="switch">
           <input id="addCeilingCheckBox" type="checkbox" onclick="addCeilingChange(event)">
           <span class="slider round"></span>
@@ -1239,7 +1249,7 @@
       </div>
 
       <form method="dialog">
-        <div class="inputRow">
+        <div class="inputField">
           <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
           <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow()" class="button"
             id="btnModalWorkspace">
@@ -1274,7 +1284,7 @@
   </dialog>
 
   <dialog id="dialogSingleItemToggles" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ">
-    <div class="inputRow">
+    <div class="inputField">
       To toggle this button, first toggle on the parent mics, cameras or display button found above the canvas
       drawing.
     </div>

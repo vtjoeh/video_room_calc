@@ -214,19 +214,22 @@ button:not(:disabled) {
 }
 
 .inputRow {
+  display: flex;
+  gap: 20px;
+}
+
+.inputField {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-grow: 1;
   align-items: stretch;
-  margin-top: 30px;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
-.inputRow:first-of-type {
-  margin-top: 0;
-}
-
-.inputRow label {
+.inputField label {
   font-size: 14px;
 }
 
@@ -374,7 +377,7 @@ select:focus {
   border-bottom: 1px solid #ddd;
   margin-bottom: 1em;
   color: #545454;
-  margin-bottom: 2em;
+  margin-bottom: 1em;
 }
 
 .tablinks, .subtablinks, .subtablinks2 {
