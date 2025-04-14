@@ -461,6 +461,7 @@ select:focus {
   position: relative;
   display: flex;
   gap: 10px;
+  margin: 1em 0;
 }
 
 .button-group {
