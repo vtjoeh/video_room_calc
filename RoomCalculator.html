@@ -53,14 +53,18 @@
   </div>
 
   <div id="sidebar" class="floatColumns">
-    <input type="text" id="roomName" name="roomName" size="45" class="textInput" placeholder="Room Name">
     <div id="ContainerInputs" class="ContainerInputsFeedback">
       <div class="tab">
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
       </div>
-      <div id="Room" class="tabcontent" style="display: block;" ;>
+      <div id="Room" class="tabcontent" style="display: block;">
+        <div class="inputField">
+          <label>Room name:</label>
+          <input type="text" id="roomName" name="roomName" class="textInput" placeholder="Room Name">
+        </div>
+
         <div class="inputField">
           <label for="drpMetersFeet">Unit (meters/feet):</label>
           <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()">
