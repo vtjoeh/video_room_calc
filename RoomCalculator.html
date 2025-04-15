@@ -643,92 +643,6 @@
         <button class="tablinks2" onclick="openTabBottom(event, 'Disclaimer')" id="lowerTabItem">Disclaimer</button>
       </div>
       <div id="Legend" class="tabcontent2" style="display: block;" ;>
-        <div><label class="underlineHeader">Field of View (FOV)</label></div>
-        <div class="keyFOVitem">
-          <span style="border-style: solid; border-color: lightgray; border-width: 1px; "><span id="keyWideZoom">&nbsp;
-              &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span></span> <b>Wide Horizontal
-            FOV</b> - All things in
-          camera view <br>
-        </div>
-        <div class="keyFOVitem">
-          <span id="keyOnePersonCrop">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Single Person
-            Zoom</b> -
-          distance to frame one person on video.
-          <div style="display: none"> Max distance to see 1 person is
-            <label id="lblFarthestOnePersonCrop" class="dynamicText">??</label> <label
-              class="unitFeetMeters">ft</label>. The primary camera will capture a horizontal width of
-            <label id="lblOnePersonCrop" class="dynamicText">??</label> <label class="unitFeetMeters">ft</label> at
-            this
-            distance <br>
-          </div>
-        </div>
-        <div class="keyFOVitem">
-          <span id="keyTwoPersonCrop">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Two-Person Zoom</b>
-          -
-          distance to frame two or more people on video.
-          <div style="display: none">
-            Max distance to see 2-3 people is
-            <label id="lblFarthestTwoPersonCrop" class="dynamicText">??</label>
-            <label class="unitFeetMeters">ft</label>. The primary camera will capture a horizontal width of
-            <label id="lblTwoPersonCrop" class="dynamicText">xx</label> <label class="unitFeetMeters">ft</label>
-            at
-            this distance
-            <br>
-          </div>
-        </div>
-
-        <div class="keyFOVitem">
-          <span id="keyTable">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Table</b> <br>
-        </div>
-        <br>
-        <div><label class="underlineHeader">Audio Pickup Area</label></div>
-        <div class="keyFOVitem">
-          <span style="border-style: solid; border-color: rgb(203, 126, 200); border-width: 1px; "><span
-              id="keyWideZoom" style="background-color: rgb(202, 140, 200);"> &nbsp; &nbsp;&nbsp; &nbsp;
-              &nbsp;</span></span> <b>Audio pickup </b> area of the microphone <br>
-        </div>
-        <br>
-        <div><label class="underlineHeader">Display Size Viewing</label></div>
-        <div>
-          <div style="display: none;">
-            <div>The following values are based on the diagonal display of <label id="lblvDiag"
-                class="dynamicText">55</label>"</div>
-          </div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke:orchid;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Closest Person to Display - 1x diagonal display
-          <div style="display: none;"><label id="displayClosestParticipant" class="dynamicText">xx</label>
-            <label class="unitFeetMeters">ft</label>
-          </div>
-        </div>
-        <div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke: green;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Optimal Farthest Dist - 3x diagonal display <div style="display: none;"><label
-              id="displayOptimalFarthestParticipant" class="dynamicText">xx</label>
-            <label class="unitFeetMeters">ft</label>
-          </div>
-        </div>
-        <div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke: red;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Max Viewing Distance - 4x diagonal display <div style="display: none;"><label id="displayFarthestParticipant"
-              class="dynamicText">xx</label> <label class="unitFeetMeters">ft</label></div>
-        </div>
-        <br>
-        <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance of the display is 1x-3x
-          the diagonal
-          measurement of the display. The farthest participant should be no farther than 4x. See <a
-            href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
-            target="_blank">Cisco's Best Practices: Creating Effective Video-enabled Workspaces</a> <img
-            src="assets/images/pop-out-bold.svg" width="14px">. Other industry guidelines ranges will be slightly
-          different. See <a href="https://www.avixa.org/standards/discas-calculators/discas" target="_blank">
-            AVIXA's
-            Display Image Calculators</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
-        </div>
       </div>
 
       <div id="Templates" class="tabcontent2">
@@ -751,129 +665,6 @@
       </div>
       <div id="Resources" class="tabcontent2">
 
-        <br>
-        <div>
-          <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#faq-for-the-video-room-calculator"
-            target="_blank">Video Room Calculator FAQ</a> <img src="assets/images/pop-out-bold.svg" width="14px">
-        </div>
-        <div>
-          <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
-            Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">
-        </div>
-        <br>
-
-        <div class="underlineHeader">Essential Links<img src="assets/images/pop-out-bold.svg" width="14px"></div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://www.webex.com/us/en/workspaces/workspace-designer.html" target="_blank">Cisco
-            Workspace Designer</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://roomos.cisco.com/" target="_blank">Cisco RoomOS for Collaboration
-            Devices</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://roomos.cisco.com/doc/MTR" target="_blank">Cisco Docs: Microsoft Teams
-            Rooms</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://learn.microsoft.com/en-us/microsoftteams/rooms/rooms-deploy"
-            target="_blank">Microsoft Teams
-            Rooms deployment</a>
-        </div>
-
-        <div>&#x2022&nbsp;<a
-            href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
-            target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
-          </a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://eurl.io/#ywxvh25AA" target="_blank">AV Integrators Discussion with
-            Cisco (Webex
-            Space)</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a
-            href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/misc/audio/extra-loudspeakers-local-reinforcement-guide-ce96.pdf"
-            target="_blank">Codec Pro: Using Extra Loudspeakers
-            and Sound Reinforcement</a>
-        </div>
-
-        <br>
-
-        <div class="underlineHeader">Other useful tools & links<img src="assets/images/pop-out-bold.svg" width="14px">
-        </div>
-        &#x2022&nbsp;<a href="https://eurl.io/#ejV0ptTs8" target="_blank">Workspace Designer Feedback (Webex
-          Space)</a>
-        <div>
-          &#x2022&nbsp;<a href="https://github.com/voipnorm/CE-Deploy/releases" target="_blank">CE Deploy
-            download</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://eurl.io/#SJWfk6qUV" target="_blank">CE-Deploy Feedback & Support
-            (Webex Space) </a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://ctg-tme.github.io/Advanced-Presenter-Track-Zoning/" target="_blank">Advanced
-            Presenter Track Zone Builder</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://marklula.github.io/Advanced-Exclusion-Zone-Builder" target="_blank">Advanced
-            Exclusion Zone Builder</a>
-
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://cs.co/divisibleworkspaceblueprint" target="_blank">Divisible Workspace
-            Blueprint</a>
-
-        </div>
-
-
-        <div>
-          &#x2022&nbsp;<a href="https://www.webex.com/us/en/devices/collab-demos.html" target="_blank">Demos
-            of video features</a>
-
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://help.webex.com/en-us/article/n1av2t9/" target="_blank">Cross-view and
-            Extended speaker view: setup and guidelines.</a>
-        </div>
-        <div>
-          &#x2022&nbsp;<a href="https://cs.co/CC-Guide" target="_blank">Components and Cables for
-            Collaboration Devices</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://collabwebinars.com" target="_blank">Collab Webinars with Joe &
-            Troy</a>
-        </div>
-
-        <div>
-          &#x2022&nbsp;<a href="https://www.linkedin.com/in/vtjoeh" target="_blank">LinkedIn: Joe Hughes</a>
-        </div>
-
-        <br>
-        <div class="underlineHeader">Room Kit EQ extended options</div>
-
-        <b>Quad Camera Extended (720p)</b> uses <a
-          href="https://roomos.cisco.com/xapi/Configuration.Cameras.SpeakerTrack.ZoomRange.MaxZoomFactor/?search=Cameras%20SpeakerTrack%20ZoomRange"
-          target="_blank">Cameras SpeakerTrack ZoomRange MaxZoomFactor</a> <img src="assets/images/pop-out-bold.svg"
-          width="14px">
-        setting. Reduces image resolution for a tighter zoom. Lighting can be important.
-        <br>
-        <br>
-        <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <img
-            src="assets/images/pop-out-bold.svg" width="14px"></a> for this project.
       </div>
       <div id="versionDifference" style="display: none; ">
       </div>
@@ -881,29 +672,7 @@
         <label id="inputFeedback"></label>
       </div>
       <div id="Disclaimer" class="tabcontent2">
-        <div style="font-size: small;">
-          <div class="underlineHeader">Disclaimer:</div>
-          There is no warranty expressed or implied for the results obtained. The camera values provided are
-          extrapolated from field tests, but they may not accurately represent the real-world results in your
-          specific room. It is important to note that audio is more crucial than video and can be influenced
-          by the dynamics of the room. Therefore, it is essential to conduct proper audio room assessments and
-          carefully consider the placement of speakers and microphones. For larger or more complex rooms, it
-          is advisable to seek guidance from a qualified AV expert.
 
-          The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes
-          (joehughe@cisco.com).
-          Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
-            Calculator discussion (Webex
-            Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
-          <br>
-          <br>
-          <div> For more info on proper room design see the document <a
-              href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
-              target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
-            </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
-                src="assets/images/pop-out-bold.svg" width="14px"> Webex
-              Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
-        </div>
       </div>
     </div>
   </div>
@@ -1273,6 +1042,250 @@
           <br>Video Room Calculator discussion
         </a> <img src="assets/images/pop-out-bold.svg" width="14px"> Webex space.
       </div>
+
+      <hr/>
+
+      <div><label class="underlineHeader">Field of View (FOV)</label></div>
+      <div class="keyFOVitem">
+        <span style="border-style: solid; border-color: lightgray; border-width: 1px; "><span id="keyWideZoom">&nbsp;
+            &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span></span> <b>Wide Horizontal
+          FOV</b> - All things in
+        camera view <br>
+      </div>
+      <div class="keyFOVitem">
+        <span id="keyOnePersonCrop">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Single Person
+          Zoom</b> -
+        distance to frame one person on video.
+        <div style="display: none"> Max distance to see 1 person is
+          <label id="lblFarthestOnePersonCrop" class="dynamicText">??</label> <label
+            class="unitFeetMeters">ft</label>. The primary camera will capture a horizontal width of
+          <label id="lblOnePersonCrop" class="dynamicText">??</label> <label class="unitFeetMeters">ft</label> at
+          this
+          distance <br>
+        </div>
+      </div>
+      <div class="keyFOVitem">
+        <span id="keyTwoPersonCrop">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Two-Person Zoom</b>
+        -
+        distance to frame two or more people on video.
+        <div style="display: none">
+          Max distance to see 2-3 people is
+          <label id="lblFarthestTwoPersonCrop" class="dynamicText">??</label>
+          <label class="unitFeetMeters">ft</label>. The primary camera will capture a horizontal width of
+          <label id="lblTwoPersonCrop" class="dynamicText">xx</label> <label class="unitFeetMeters">ft</label>
+          at
+          this distance
+          <br>
+        </div>
+      </div>
+
+      <div class="keyFOVitem" style="display: none">
+        <span id="keyTable">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span> <b>Table</b> <br>
+      </div>
+      <br>
+      <div><label class="underlineHeader">Audio Pickup Area</label></div>
+      <div class="keyFOVitem">
+        <span style="border-style: solid; border-color: rgb(203, 126, 200); border-width: 1px; "><span
+            id="keyWideZoom" style="background-color: rgb(202, 140, 200);"> &nbsp; &nbsp;&nbsp; &nbsp;
+            &nbsp;</span></span> <b>Audio pickup </b> area of the microphone <br>
+      </div>
+      <br>
+      <div><label class="underlineHeader">Display Size Viewing</label></div>
+      <div>
+        <div style="display: none;">
+          <div>The following values are based on the diagonal display of <label id="lblvDiag"
+              class="dynamicText">55</label>"</div>
+        </div>
+        <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
+          <line x1="0" y1="10" x2="40" y2="10" style="stroke:orchid;stroke-width:2" stroke-dasharray="6 4" />
+        </svg>
+        Closest Person to Display - 1x diagonal display
+        <div style="display: none;"><label id="displayClosestParticipant" class="dynamicText">xx</label>
+          <label class="unitFeetMeters">ft</label>
+        </div>
+      </div>
+      <div>
+        <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
+          <line x1="0" y1="10" x2="40" y2="10" style="stroke: green;stroke-width:2" stroke-dasharray="6 4" />
+        </svg>
+        Optimal Farthest Dist - 3x diagonal display <div style="display: none;"><label
+            id="displayOptimalFarthestParticipant" class="dynamicText">xx</label>
+          <label class="unitFeetMeters">ft</label>
+        </div>
+      </div>
+      <div>
+        <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
+          <line x1="0" y1="10" x2="40" y2="10" style="stroke: red;stroke-width:2" stroke-dasharray="6 4" />
+        </svg>
+        Max Viewing Distance - 4x diagonal display <div style="display: none;"><label id="displayFarthestParticipant"
+            class="dynamicText">xx</label> <label class="unitFeetMeters">ft</label></div>
+      </div>
+      <br>
+      <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance of the display is 1x-3x
+        the diagonal
+        measurement of the display. The farthest participant should be no farther than 4x. See <a
+          href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
+          target="_blank">Cisco's Best Practices: Creating Effective Video-enabled Workspaces</a> <img
+          src="assets/images/pop-out-bold.svg" width="14px">. Other industry guidelines ranges will be slightly
+        different. See <a href="https://www.avixa.org/standards/discas-calculators/discas" target="_blank">
+          AVIXA's
+          Display Image Calculators</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
+      </div>
+
+
+      <hr/>
+
+      <div>
+        <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#faq-for-the-video-room-calculator"
+          target="_blank">Video Room Calculator FAQ</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+      </div>
+      <div>
+        <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
+          Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+      </div>
+      <br>
+
+      <div class="underlineHeader">Essential Links<img src="assets/images/pop-out-bold.svg" width="14px"></div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://www.webex.com/us/en/workspaces/workspace-designer.html" target="_blank">Cisco
+          Workspace Designer</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://roomos.cisco.com/" target="_blank">Cisco RoomOS for Collaboration
+          Devices</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://roomos.cisco.com/doc/MTR" target="_blank">Cisco Docs: Microsoft Teams
+          Rooms</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://learn.microsoft.com/en-us/microsoftteams/rooms/rooms-deploy"
+          target="_blank">Microsoft Teams
+          Rooms deployment</a>
+      </div>
+
+      <div>&#x2022&nbsp;<a
+          href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
+          target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
+        </a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://eurl.io/#ywxvh25AA" target="_blank">AV Integrators Discussion with
+          Cisco (Webex
+          Space)</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a
+          href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/misc/audio/extra-loudspeakers-local-reinforcement-guide-ce96.pdf"
+          target="_blank">Codec Pro: Using Extra Loudspeakers
+          and Sound Reinforcement</a>
+      </div>
+
+      <br>
+
+      <div class="underlineHeader">Other useful tools & links<img src="assets/images/pop-out-bold.svg" width="14px">
+      </div>
+      &#x2022&nbsp;<a href="https://eurl.io/#ejV0ptTs8" target="_blank">Workspace Designer Feedback (Webex
+        Space)</a>
+      <div>
+        &#x2022&nbsp;<a href="https://github.com/voipnorm/CE-Deploy/releases" target="_blank">CE Deploy
+          download</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://eurl.io/#SJWfk6qUV" target="_blank">CE-Deploy Feedback & Support
+          (Webex Space) </a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://ctg-tme.github.io/Advanced-Presenter-Track-Zoning/" target="_blank">Advanced
+          Presenter Track Zone Builder</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://marklula.github.io/Advanced-Exclusion-Zone-Builder" target="_blank">Advanced
+          Exclusion Zone Builder</a>
+
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://cs.co/divisibleworkspaceblueprint" target="_blank">Divisible Workspace
+          Blueprint</a>
+
+      </div>
+
+
+      <div>
+        &#x2022&nbsp;<a href="https://www.webex.com/us/en/devices/collab-demos.html" target="_blank">Demos
+          of video features</a>
+
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://help.webex.com/en-us/article/n1av2t9/" target="_blank">Cross-view and
+          Extended speaker view: setup and guidelines.</a>
+      </div>
+      <div>
+        &#x2022&nbsp;<a href="https://cs.co/CC-Guide" target="_blank">Components and Cables for
+          Collaboration Devices</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://collabwebinars.com" target="_blank">Collab Webinars with Joe &
+          Troy</a>
+      </div>
+
+      <div>
+        &#x2022&nbsp;<a href="https://www.linkedin.com/in/vtjoeh" target="_blank">LinkedIn: Joe Hughes</a>
+      </div>
+
+      <br>
+      <div class="underlineHeader">Room Kit EQ extended options</div>
+
+      <b>Quad Camera Extended (720p)</b> uses <a
+        href="https://roomos.cisco.com/xapi/Configuration.Cameras.SpeakerTrack.ZoomRange.MaxZoomFactor/?search=Cameras%20SpeakerTrack%20ZoomRange"
+        target="_blank">Cameras SpeakerTrack ZoomRange MaxZoomFactor</a> <img src="assets/images/pop-out-bold.svg"
+        width="14px">
+      setting. Reduces image resolution for a tighter zoom. Lighting can be important.
+      <br>
+      <br>
+      <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <img
+          src="assets/images/pop-out-bold.svg" width="14px"></a> for this project.
+
+
+      <hr/>
+
+      <div style="font-size: small;">
+        <div class="underlineHeader">Disclaimer:</div>
+        There is no warranty expressed or implied for the results obtained. The camera values provided are
+        extrapolated from field tests, but they may not accurately represent the real-world results in your
+        specific room. It is important to note that audio is more crucial than video and can be influenced
+        by the dynamics of the room. Therefore, it is essential to conduct proper audio room assessments and
+        carefully consider the placement of speakers and microphones. For larger or more complex rooms, it
+        is advisable to seek guidance from a qualified AV expert.
+
+        The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes
+        (joehughe@cisco.com).
+        Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
+          Calculator discussion (Webex
+          Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
+        <br>
+        <br>
+        <div> For more info on proper room design see the document <a
+            href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
+            target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
+          </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
+              src="assets/images/pop-out-bold.svg" width="14px"> Webex
+            Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
+      </div>
+
+
     </main>
   </dialog>
 

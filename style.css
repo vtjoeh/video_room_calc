@@ -795,6 +795,11 @@ dialog {
   padding: 0;
   background-color: white;
   min-width: 400px;
+  max-width: 700px;
+}
+
+dialog hr {
+  margin: 2em 0;
 }
 
 dialog header {
