@@ -2297,9 +2297,15 @@ function updateSelectVideoDeviceOptions() {
 function update() {
     roomObj.room.roomWidth = getNumberValue('roomWidth');
     roomObj.room.roomLength = getNumberValue('roomLength');
+
+    let roomHeight = document.getElementById('roomHeight').value;
+    if (roomHeight != 0 || roomHeight != '') {
+      roomObj.room.roomHeight = Number(roomHeight);
+      defaultWallHeight = roomObj.room.roomHeight;
+    }
+
     drawRoom(true);
     makeButtonsVisible();
-
 }
 
 /*
@@ -7356,14 +7362,9 @@ function round(inNumber, place = -2) {
 }
 
 function updateRoomDetails() {
-    let roomHeight = document.getElementById('roomHeight').value;
     let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value);
     let drpSoftware = document.getElementById('drpSoftware').value;
 
-    if (roomHeight != 0 || roomHeight != '') {
-        roomObj.room.roomHeight = Number(roomHeight);
-        defaultWallHeight = roomObj.room.roomHeight;
-    }
 
 
     if (authorVersion != '') {
@@ -9125,8 +9126,8 @@ function workspaceView(isNewTab = 'false') {
 function openWorkspaceWindow() {
 
 
+    // let newTab = "http://localhost:3000/#/room/custom"
     let newTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
-
     let btnWorkspace = document.getElementById('btnWorkspace');
 
     lastAction = "btnClick open Workspace Designer";

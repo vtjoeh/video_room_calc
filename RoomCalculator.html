@@ -85,6 +85,15 @@
               maxlength="12" size="5">
             <label class="unitFeetMeters">ft</label>
           </div>
+          <div class="inputField">
+            <label class="tooltipBottom">Height:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptextBottom">Room Height is not
+                rendered in the room canvas but is for informational purposes.</span>
+            </label>
+            <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
+            <label class="unitFeetMeters">ft</label>
+          </div>
         </div>
 
         <div class="inputField">
@@ -429,14 +438,6 @@
 
 
       <div id="RoomDetails" class="subtabcontent2 subtabcontent2a">
-        <div class="inputField">
-          <label class="tooltipBottom">Room Height:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptextBottom">Room Height is not
-              rendered in the room canvas but is for informational purposes.</span></label>
-          <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
-          <label class="unitFeetMeters">ft</label>
-        </div>
         <div class="inputField">
           <label class="tooltipBottom">Software Experience:
             <i class="icon icon-info-circle-bold"></i>
@@ -1227,10 +1228,6 @@
       </div>
       <div class="inputField">
         Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2), Desk, Desk Mini
-      </div>
-      <div class="inputField">
-        To change the default room height go to <span style="text-decoration: underline; cursor: pointer; color:darkblue;"
-          onclick="openDetailsRoomTab()">Details &#10132; Room</span>.
       </div>
       <div class="inputField">
         <span class="highlightRed" id="vpnRequiredLabel"> **Requires a Cisco network connection.** </span>
