@@ -5050,7 +5050,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     let tblSchoolDeskRadius = 0.122;
     let radius = [];
 
-    let fillColor = 'brown'; /* default color */
+    let fillColor = 'white'; /* default color */
     let strokeColor = 'black'; /* default width */
 
     /* default width of columns 1 ft x 1 ft */
