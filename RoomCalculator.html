@@ -95,6 +95,26 @@
             <label class="unitFeetMeters">ft</label>
           </div>
         </div>
+        <div class="inputField">
+          <label class="tooltipBottom">Software Experience:
+            <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
+              Software Experience setting does not verify if the video device supports
+              MTR.</span></label>
+          <select id="drpSoftware">
+            <option value="select">-</option>
+            <option value="webex">RoomOS Cisco Rooms</option>
+            <option value="mtr">Microsoft Teams Rooms</option>
+          </select>
+        </div>
+        <div class="inputField">
+          <label class="tooltipBottom">Version / Author:
+            <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptextBottom">Field to keep track of Version and/or Author. This field can be
+              any length but will add to the total URL length.</span></label>
+          <textarea id="authorVersion" class="textInput"></textarea>
+        </div>
+
 
         <div class="inputField">
           <input type="submit" value="Update Room Dimensions" onclick="updateButtonRoomDimensions()" class="button"
@@ -235,7 +255,6 @@
         <div class="tab">
           <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
             id="subTabItemDetails">Items</button>
-          <button class="subtablinks2" onclick="openSubTab2(event, 'RoomDetails')" id="subTabRoomDetails">Room</button>
           <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
             Image</button>
           <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
@@ -432,35 +451,6 @@
             <label>- Group: </label>
             <label id="itemGroup"></label>
           </div>
-        </div>
-
-      </div>
-
-
-      <div id="RoomDetails" class="subtabcontent2 subtabcontent2a">
-        <div class="inputField">
-          <label class="tooltipBottom">Software Experience:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
-              Software Experience setting does not verify if the video device supports
-              MTR.</span></label>
-          <select id="drpSoftware">
-            <option value="select">-</option>
-            <option value="webex">RoomOS Cisco Rooms</option>
-            <option value="mtr">Microsoft Teams Rooms</option>
-          </select>
-        </div>
-        <div class="inputField">
-          <label class="tooltipBottom">Version / Author:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptextBottom">Field to keep track of Version and/or Author. This field can be
-              any length but will add to the total URL length.</span></label>
-          <textarea id="authorVersion" class="textInput"></textarea>
-        </div>
-
-        <div class="inputField">
-          <input type="submit" value="Update Room Details" onclick="updateRoomDetails()" class="button"
-            id="updateRoomDetailsBtn">
         </div>
 
       </div>

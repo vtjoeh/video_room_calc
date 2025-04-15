@@ -2304,6 +2304,7 @@ function update() {
       defaultWallHeight = roomObj.room.roomHeight;
     }
 
+    updateRoomDetails();
     drawRoom(true);
     makeButtonsVisible();
 }
@@ -7365,8 +7366,6 @@ function updateRoomDetails() {
     let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value);
     let drpSoftware = document.getElementById('drpSoftware').value;
 
-
-
     if (authorVersion != '') {
         roomObj.authorVersion = authorVersion;
     }
@@ -7376,6 +7375,7 @@ function updateRoomDetails() {
     } else {
         roomObj.software = '';
     }
+
     canvasToJson();
 }
 
