@@ -2,7 +2,8 @@
 
 #ContainerFeedback,
 #controlButtonsOld,
-#ContainerFooter
+#ContainerFooter,
+#singleShadingDiv
 {
   display: none !important;
 }
