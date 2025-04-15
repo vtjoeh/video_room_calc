@@ -2232,6 +2232,12 @@ onLoad();
 
 
 function onLoad() {
+    // if no room specified, show "New room" dialog
+    const params = location.search;
+    if (!params) {
+      openNewRoomDialog();
+    }
+
     undoArray = JSON.parse(localStorage.getItem('undoArray'));
     if (!Array.isArray(undoArray)) undoArray = [];  /* for first run, if local storage not set */
     updateSelectVideoDeviceOptions();
