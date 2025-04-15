@@ -116,7 +116,6 @@ div {
   height: calc(100vh + 15px);
   overflow: auto;
   margin: 0px;
-  border: 1px solid black;
 }
 
 img {
@@ -241,6 +240,10 @@ select {
   border: 2px solid #888;
   border-radius: 6px;
   padding: 6px;
+}
+
+input:disabled, textarea:disabled {
+  color: #999;
 }
 
 textarea {
@@ -887,7 +890,6 @@ dialog #quick-setup {
   }
 
   #scroll-container {
-    background-color: #f1f1f1;
   }
 
   .inputCellLeft2 {

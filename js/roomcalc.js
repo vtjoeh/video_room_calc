@@ -864,7 +864,7 @@ let chairs = [
         opacity: 0.65,
     },
     {
-        name: "Ciruculation space (120cm/4')",
+        name: "Circulation space (120cm/4')",
         id: 'circulationSpace',
         key: "SI",
         topImage: 'circulationSpace-top.png',
