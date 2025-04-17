@@ -7956,7 +7956,7 @@ function addListeners(stage) {
     let x1, y1, x2, y2;
     let selecting = false;
 
-    stage.on('dblclick dbltap', function stageOnDblclickDbltap(e) {
+    stage.on('click tap', function stageOnDblclickDbltap(e) {
 
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS')) {
             countConsectiveTouches();
