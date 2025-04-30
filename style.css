@@ -920,6 +920,7 @@ dialog main {
 
 dialog #quick-setup {
   display: none;
+  justify-content: center;
 }
 
 /* toggle CSS switch end */
