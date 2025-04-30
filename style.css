@@ -607,10 +607,34 @@ select:focus {
   color: #444;
 }
 
+#room-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: center;
+}
+
+.room-template {
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 16px;
+}
+
+.room-template img {
+  height: 120px;
+  max-width: 100%;
+  border: 1px solid var(--active);
+  object-fit: contain;
+}
+
 .templateLinks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   border: 0;
-  color: var(--active);
-  font-size: 1.1em;
+  gap: 10px;
   background-color: transparent;
 }
 
@@ -852,6 +876,7 @@ dialog {
   background-color: white;
   min-width: 400px;
   max-width: 700px;
+  max-height: 600px;
 }
 
 dialog hr {
@@ -867,6 +892,7 @@ dialog header {
 
 dialog header .buttons {
   display: flex;
+  justify-content: center;
   gap: 10px;
   margin-top: 2em;
 }
@@ -874,9 +900,16 @@ dialog header .buttons {
 dialog header button {
   background-color: #222;
   color: white;
-  border-radius: 2em;
-  padding: 0.3em 1em;
+  border-radius: 1em;
+  padding: 1em 2em;
   border: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+dialog header button:hover {
+  background-color: #444;
 }
 
 dialog main {

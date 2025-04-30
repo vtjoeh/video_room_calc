@@ -2277,13 +2277,21 @@ function onLoad() {
 }
 
 function createTemplateButton(template) {
-    const { name, url, note, noteUrl } = template;
+    const { name, url, note, noteUrl, image } = template;
     const box = document.createElement('div');
+    box.className = 'room-template';
     const button = document.createElement('button');
-    button.innerText = name;
+    const label = document.createElement('span');
+    label.innerText = name;
     button.className = 'templateLinks';
     button.onclick = () => loadTemplate(url);
     box.appendChild(button);
+
+    const img = document.createElement('img');
+    img.src = `./assets/images/templates/${image}`;
+    button.appendChild(img);
+
+    button.appendChild(label);
 
     if (note) {
         const a = document.createElement('a');
@@ -4073,8 +4081,8 @@ function showUndoRedoRoomOs() {
 
 function showNewRoomSection(sectionId) {
   const showTemplates = sectionId === 'room-templates';
-  document.querySelector('#room-templates').style.display = showTemplates ? 'block' : 'none'
-  document.querySelector('#quick-setup').style.display = !showTemplates ? 'block' : 'none'
+  document.querySelector('#room-templates').style.display = showTemplates ? 'flex' : 'none'
+  document.querySelector('#quick-setup').style.display = !showTemplates ? 'flex' : 'none'
 }
 
 function onDialogClick(e) {
