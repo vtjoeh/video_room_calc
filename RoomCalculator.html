@@ -417,27 +417,29 @@
               </select>
             </div>
           </div>
-          <div class="inputField" id="isPrimaryDiv">
+          <div class="inputRow" id="isPrimaryDiv">
+            <input type="checkbox" id="isPrimaryCheckBox" disabled>
             <label id="isPrimaryLabel" class="tooltip">Is primary?
               <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">Primary
                 devices are used in determining if Quick Setup is enabled and this field may be
-                used for future features.</span></label> <input type="checkbox" id="isPrimaryCheckBox" disabled>
+                used for future features.</span>
+            </label>
           </div>
-          <div class="inputField">
+          <div class="inputRow" style="margin-top: 1.5em;">
             <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
-            <div class="inputCellRight" id="singleShadingDiv">
+            <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
               <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
-                title="Toggle Camera Shading"><span class="material-symbols-outlined"
-                  style="font-size:medium;">videocam</span>
-                <!-- <span class="holdIndicator">&#9698</span> -->
+                title="Toggle Camera Shading">
+                <i class="icon icon-camera-bold"></i>
               </button>
-              <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem"><span
-                  class="material-symbols-outlined" title="Toggle Microphone Shading"
-                  style="font-size:medium;">mic</span></button>
+              <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem">
+                <i class="icon icon-microphone-bold"></i>
+              </button>
               <button class="btn" onclick="toggleDisplayDistanceSingleItem()" id="btnDisplayDistanceSingleItem"
                 title="Toggle Display Reach">
-                <span class="material-symbols-outlined" style="font-size:medium;">tv</span></button>
+                <i class="icon icon-display-bold"></i>
+              </button>
 
             </div>
           </div>
