@@ -870,7 +870,7 @@ dialog #quick-setup {
   }
 
   #lblHeaderTitle {
-    font-size: 16px;
+    display: none;
   }
 
   .ContainerHeader #lblSubtitle {
@@ -895,7 +895,6 @@ dialog #quick-setup {
     padding: 0px;
     border-color: #000000;
     display: inline-block;
-    border: 1px solid rgb(12, 6, 30);
     vertical-align: top;
     margin-top: 0px;
     margin-right: 0px;
@@ -905,9 +904,17 @@ dialog #quick-setup {
 
   #sidebar {
     width: 100%;
-    padding: 40px;
+    padding: 0px;
+    max-width: unset;
   }
 
+  #controlButtons {
+    gap: 5px;
+  }
+
+  #controlButtons .spacer {
+    display: none;
+  }
 
   #Container2 {
     width: 100%;
