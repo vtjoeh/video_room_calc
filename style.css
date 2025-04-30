@@ -607,6 +607,17 @@ select:focus {
   color: #444;
 }
 
+.templateLinks {
+  border: 0;
+  color: var(--active);
+  font-size: 1.1em;
+  background-color: transparent;
+}
+
+.templateLinks:hover {
+  text-decoration: underline;
+}
+
 .templatelinks:hover {
   background-color: #ADD8E6;
 }

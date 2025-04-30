@@ -2271,9 +2271,38 @@ function onLoad() {
         document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
     }
 
+    populateTemplates();
+
     firstLoad = false;
 }
 
+function createTemplateButton(template) {
+    const { name, url, note, noteUrl } = template;
+    const box = document.createElement('div');
+    const button = document.createElement('button');
+    button.innerText = name;
+    button.className = 'templateLinks';
+    button.onclick = () => loadTemplate(url);
+    box.appendChild(button);
+
+    if (note) {
+        const a = document.createElement('a');
+        a.innerText = note;
+        a.href = noteUrl;
+        a.target = '_blank';
+        a.className = 'infoText';
+        box.appendChild(a);
+    }
+
+    return box;
+}
+
+function populateTemplates() {
+    const parent = document.querySelector('#room-templates');
+    templates.forEach(template => {
+        parent.appendChild(createTemplateButton(template));
+    })
+}
 
 function updateSelectVideoDeviceOptions() {
 
