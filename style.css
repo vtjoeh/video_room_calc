@@ -59,6 +59,12 @@ body {
   background-image: url('./assets/images/wd.svg');
 }
 
+h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 12px 0;
+}
+
 h3 {
   text-transform: uppercase;
   font-weight: 300;
@@ -165,6 +171,16 @@ img {
   padding: 0 20px;
   font-size: 20px;
   gap: 16px;
+}
+
+.beta {
+  color: #64bffa;
+  font-size: 14px;
+}
+
+dialog .subtle {
+  color: #ccc;
+  font-size: 14px;
 }
 
 button:not(:disabled) {
@@ -841,7 +857,7 @@ dialog header {
 dialog header .buttons {
   display: flex;
   gap: 10px;
-  margin: 1em;
+  margin-top: 2em;
 }
 
 dialog header button {
