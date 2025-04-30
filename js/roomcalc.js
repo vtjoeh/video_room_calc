@@ -5976,7 +5976,8 @@ function toggleCamShadeSingleItem() {
     let parentGroup = document.getElementById('itemGroup').innerText;
 
     if (roomObj.layersVisible.grShadingCamera === false) {
-        document.getElementById('dialogSingleItemToggles').showModal();
+        alert('To toggle this button, first toggle on the parent mics, cameras or display button found above the canvas drawing.');
+        // document.getElementById('dialogSingleItemToggles').showModal();
         return;
     }
 

@@ -574,6 +574,9 @@ select:focus {
   background-color: #ADD8E6;
 }
 
+#singleShadingDiv button:hover {
+  background-color: #eee;
+}
 
 /* based on tool tip example from https://www.w3schools.com/css/css_tooltip.asp */
 .tooltip {
