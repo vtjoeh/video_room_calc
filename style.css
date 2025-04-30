@@ -37,6 +37,7 @@ body {
 
 body {
   font-family: Inter;
+  padding-top: 30px;
 }
 
 /* find icons on https://kyberheimen.com/iconbrowser/ */
@@ -141,6 +142,11 @@ img {
 }
 
 .ContainerHeader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 99;
   background-color: black;
   color: white;
   height: 47px;
