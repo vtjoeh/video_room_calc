@@ -510,6 +510,10 @@ select:focus {
     'opsz' 20
 }
 
+.downloadButtons {
+  text-align: center;
+}
+
 /* Following items control the Flex box */
 .containerItems {
   margin-left: 20px;
