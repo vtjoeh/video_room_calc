@@ -118,6 +118,7 @@ div {
   width: 3000px;
   height: 3000px;
   overflow: hidden;
+  border-radius: 10px;
 }
 
 #scroll-container {
@@ -415,7 +416,7 @@ select:focus {
   display: none;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: 500px;
+  max-height: calc(100vh - 210px);
 }
 
 .subtabcontent {
