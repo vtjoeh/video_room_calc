@@ -851,59 +851,68 @@
     </main>
     <main id="quick-setup">
       <div id="quickSetupItems">
-        <div class="inputField">
-          <label for="tableWidth">Table Width:&nbsp;</label>
-          <input type="text" id="tableWidth" name="tableWidth" value="4" maxlength="12" size="4" class="unitInput">
+        <h3>Table</h3>
+        <div class="inputRow">
+          <div class="inputField">
+            <label for="tableWidth">Width:&nbsp;</label>
+            <input type="text" id="tableWidth" name="tableWidth" value="4" maxlength="12" size="4" class="unitInput">
+          </div>
+          <div class="inputField">
+            <label for="tableLength"> Length:</label>
+            <input type="text" id="tableLength" name="tableLength" value="10" maxlength="12" size="5" class="unitInput">
+            <label class="unitFeetMeters">ft</label>
+          </div>
         </div>
-        <div class="inputField">
-          <label for="tableLength"> Length:</label>
-          <input type="text" id="tableLength" name="tableLength" value="10" maxlength="12" size="5" class="unitInput">
-          <label class="unitFeetMeters">ft</label>
+        <h3>Distance to display</h3>
+        <div class="inputRow">
+          <div class="inputField">
+            <label for="frntWallToTv" class="tooltip">Front Wall:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+                to
+                Display + Table Length. <br /><br />This assumes that the front of the display is
+                aligned with the front of the video device.</span></label>
+            <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
+              class="unitInput">
+            <label class="unitFeetMeters">ft</label>
+          </div>
+          <div class="inputField">
+            <label for="distDisplayToTable" class="tooltip">Table:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+                to
+                Display + Table Length. <br /> <br />This assumes that the front of the display is
+                aligned with the front of the video device.</span></label>
+            <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
+              class="unitInput">
+            <label class="unitFeetMeters">ft</label>
+          </div>
         </div>
-        <div class="inputField">
-          <label for="frntWallToTv" class="tooltip">Front Wall to Display:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-              to
-              Display + Table Length. <br /><br />This assumes that the front of the display is
-              aligned with the front of the video device.</span></label>
-          <input type="text" id="frntWallToTv" name="frntWallToTv" value="0.5" maxlength="12" size="5"
-            class="unitInput">
-          <label class="unitFeetMeters">ft</label>
-        </div>
-        <div class="inputField">
-          <label for="distDisplayToTable" class="tooltip">Distance Table to Display:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-              to
-              Display + Table Length. <br /> <br />This assumes that the front of the display is
-              aligned with the front of the video device.</span></label>
-          <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
-            class="unitInput">
-          <label class="unitFeetMeters">ft</label>
-        </div>
-        <div class="inputField">
-          <label for="tvDiag" class="tooltip">Display Diagonal Inches:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">The
-              width & length of the display is calculated automatically based on the display
-              diagonal
-              inches.</span></label>
+        <h3>Display</h3>
+        <div class="inputRow">
+          <div class="inputField">
+            <label for="tvDiag" class="tooltip">Diagonal Inches:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">The
+                width & length of the display is calculated automatically based on the display
+                diagonal
+                inches.</span></label>
 
-          <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
-            class="numberInput updateWidthOfDisplay">
-          <label class="unitInches">in</label>
-        </div>
-        <div class="inputField">
-          <label for="drpTvNum" class="tooltip">Number of Displays:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">The number of displays placed side-by-side. Width of total
-              displays is automatically calculated based on diagonal inches.</span></label>
-          <select name="drpTvNum" id="drpTvNum">
-            <option value="1" selected="selected">One </option>
-            <option value="2">Two </option>
-            <option value="3">Three </option>
-          </select>
+            <input type="text" id="tvDiag" name="tvDiag" value="65" maxlength="12" size="5"
+              class="numberInput updateWidthOfDisplay">
+            <label class="unitInches">in</label>
+          </div>
+          <div class="inputField">
+            <label for="drpTvNum" class="tooltip">Number:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">The number of displays placed side-by-side. Width of total
+                displays is automatically calculated based on diagonal inches.</span></label>
+            <select name="drpTvNum" id="drpTvNum">
+              <option value="1" selected="selected">One </option>
+              <option value="2">Two </option>
+              <option value="3">Three </option>
+            </select>
+          </div>
         </div>
         <div class="inputField">
           <label for="drpVideoDevice">Video Device:</label>
@@ -971,7 +980,7 @@
         </div>
         <div class="inputField">
           <div id="divUpdateButton" class="inputCellRight">
-            <input type="submit" value="Update Quick Setup" onclick="quickUpdateButton()" class="button"
+            <input type="submit" value="Create room" onclick="quickUpdateButton()" class="button"
               id="quickUpdateButtonId">
           </div>
         </div>

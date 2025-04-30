@@ -59,6 +59,13 @@ body {
   background-image: url('./assets/images/wd.svg');
 }
 
+h3 {
+  text-transform: uppercase;
+  font-weight: 300;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
 a {
   color: var(--active);
 }

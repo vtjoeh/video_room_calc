@@ -8867,6 +8867,7 @@ function loadTemplate(x) {
         document.getElementById('dialogLoadingTemplate').close();
     }, loadTemplateTime)
 
+    closeNewRoomDialog();
 }
 
 const fileInputImage = document.getElementById('fileInputImage');
