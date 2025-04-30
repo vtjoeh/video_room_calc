@@ -247,6 +247,9 @@ button:not(:disabled) {
 
 .inputField label {
   font-size: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 input,
