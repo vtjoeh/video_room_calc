@@ -14,14 +14,16 @@ There are two ways to start the room:
 Double click on any object on the canvas to get details and to edit. 
 
 ### What are the short cut keys? 
-- ctrl-c / cmd-c = copy
-- ctrl-v / cmd-v = paste (at location of arrow click)
-- ctrl-d / cmd-d = duplicate
-- ctrl-z / cmd-z = undo
-- ctrl-y / cmd-y = redo
-- Delete / Backspace = delete items
-- up, down, left, right arrows = moves a single item (does not move multiple selected items)
-- shift+click to select/deselect multiple items 
+The following list is also found under the help menu: 
+ctrl-c / cmd-c = copy
+ctrl-v / cmd-v = paste (at location of arrow click)
+ctrl-d / cmd-d = duplicate
+ctrl-z / cmd-z = undo
+ctrl-y / cmd-y = redo
+ctrl-r / cmd-r = rotate 90 degrees
+esc = unselect items
+Delete / Backspace = delete items
+←,↑,→,↓ arrows = move selected items
 
 ## What browsers does the Video Room Calculator work in? 
 The goal is to support the following: 
