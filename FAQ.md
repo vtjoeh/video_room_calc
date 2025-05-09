@@ -35,21 +35,27 @@ If you see any issue with any of the above please let me know.
 ### When I zoom in and click the undo/redo buttons, it zooms out. 
 Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas and how HTML canvas + Javascript is not truly synchronous. This could be optimized at a later date. 
 
-### Why does the Quick Setup settings disappear? 
-Once you start moving objects and customizing, you have moved beyond the Quick Setup. To get back to the Quick Setup, click on the **Save** tab --> **Reset Room**. 
-
 ### What is the maximum URL size or number of items in a design? 
 The size of the URL can be up to 8190 characters, which is about 500 objects. The use of text fields like the Name or Label fields contributes to the URL size. 
 
 ### What about privacy and security? What information is tracked? 
-The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud. 
-**Google Fonts:** There is currently a dependency on Google Fonts for icons that will be removed in a future date.  
+The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud.  
 **Third party javascript**: DomPurify by Mozilla Foundation distributed by Cloudfare CDN is used to help protect against XSS attacks, which means 3rd party. 
 **Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookies are used. 
 **Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies. 
 
 ### I see a descrpency between the Video Room Room Calcutor and the Workspace Designer, what should I do? 
-The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down view, whereas the Workspace Designer allows for a side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
+The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down flat view, whereas the Workspace Designer allows for a 3D side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
+
+### How is the farthest and closest values for the display determined? 
+The Video Room Calculator assumes the optimum viewing distance of the display is 1x-3x the diagonal measurement of the display. The farthest participant should be no farther than 4x. According to [Cisco's Best Practices Creating Effective Video-enabled Workspaces](https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf) "the optimal viewing distance for video and normal content is one to four times the diagonal of the screen." To better represent smaller font options and better align with the AVIXA standard (assuming 3% elemental height), a 3x line is also shown. See more details below. 
+
+### How does the display coverage values compare to the AVIXA DISCAS standard?
+The Cisco Best practices formula above aligns with the AVIXA DISCAS standard when standard assumptions are applied. By utilizing the AVIXA DISCAS BDM calculator and assuming a 16:9 display ratio with a 3% elemental value (the height of a lower-case letter as a percentage of the display height), the recommended distance from the center of the display is approximately 3x the diagonal measurement of the display. If the elemental value percentage is adjusted to 4%, the maximum viewing distance will be 4x the diagonal measurement. The Cisco Best Practices formula is not applicable for 21:9 displays; therefore, the DISCAS calculation could be utilized in such cases. 
+
+For the nearest participant to the display, assuming they are seated front and center without the base of the display exceeding eye level, the AVIXA formula for a 16:9 display indicates that the individual should be seated no closer than approximately 0.86x the diagonal height of the display (after doing the math). However, it is often overlooked when applying this calculation that in a typical conference room, the closest participant is usually seated at the side of the conference table rather than directly in front of the display; thus, the 1x diagonal height of the display formula may yield similar results in a typical conference room. 
+
+The AVIXA DISCAS standard does not directly account for dual displays, the size of individuals on the displays, or the fact that in a videoconference setting, content is frequently scaled and resized when layouts are altered.
 
 ### Why does the Room Bar Pro and Board Pro G2 with an external mic pickup range look different in the Workspace Designer than the Video Room Calculator? 
 This is a configurable setting and works differntly depending on products and configurations, so it is hard to say what the correct default pickup range should be in the Video Room Calculator. There is an important setting: 
