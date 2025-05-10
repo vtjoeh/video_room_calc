@@ -25,7 +25,7 @@ esc = unselect items
 Delete / Backspace = delete items
 ←,↑,→,↓ arrows = move selected items
 
-## What browsers does the Video Room Calculator work in? 
+### What browsers does the Video Room Calculator work in? 
 The goal is to support the following: 
 - Windows/Mac: Chrome, Edge, Firefox and Safari (Mac)
 - iOS: Safari 
