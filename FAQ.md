@@ -55,7 +55,7 @@ The Video Room Calculator assumes the optimum viewing distance of the display is
 ### How does the display coverage values compare to the AVIXA DISCAS standard?
 The [AVIXA DISCAS](https://www.avixa.org/standards/discas-calculators/discas) formulas are not used directly. However, Cisco's Best Practices and the Video Room Calculator formula referenced above align with the AVIXA DISCAS standard when standard assumptions are applied. By utilizing the AVIXA DISCAS BDM calculator and assuming a 16:9 display ratio with a 3% elemental value (the height of a lower-case letter as a percentage of the display height), the recommended distance from the center of the display is approximately 3x the diagonal measurement of the display. Should the elemental value percentage be adjusted to 4%, the maximum viewing distance will be 4x the diagonal measurement. The Cisco Best Practices formula is not applicable for 21:9 displays; therefore, the DISCAS calculation may be employed in such instances.
 
-For the nearest participant to the display, assuming they are seated front and center without the base of the display exceeding eye level, the AVIXA formula for a 16:9 display indicates that the individual should be seated no closer than approximately 0.86x the diagonal height of the display. However, it is often overlooked that in a typical conference room, the closest participant is usually seated at the side of the conference table rather than directly in front of the display; thus, the 1x diagonal height of the display formula may yield similar results in such settings depending on the width of the table.
+For the nearest participant to the display, assuming they are seated front and center without the base of the display exceeding eye level, the AVIXA formula for a 16:9 display indicates that the individual should be seated no closer than approximately 0.86x the diagonal measurement of the display. However, it is often overlooked that in a typical conference room, the closest participant is usually seated at the side of the conference table rather than directly in front of the display; thus, the 1x diagonal measurement of the display formula may yield similar results in such settings depending on the width of the table.
 
 The AVIXA DISCAS standard does not directly account for dual displays, the size of individuals on the displays during a meeting, or the frequent scaling and resizing of content in a videoconference setting when layouts are altered.
 
@@ -88,6 +88,7 @@ _**Note:** The above information could change at a later date based on new featu
 
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
+- **Duplicate chairs** Use ctrl-d to copy a row of chairs evenly and quickly.
 - **Undo is your friend:** Undo is persistent. If you accidently close the browser, just re-open and click undo 1x or 2x. Private/Incognito mode may disrupt this.
 - **Snap to Objects:** Use **Snap to Objects** under **Details** --> **Settings** to help align objects better.
 - **Copy between tabs:** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab.
