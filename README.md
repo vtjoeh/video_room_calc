@@ -19,7 +19,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.600**
 New Features:
-- Major UI/reskin changes 🌟
+- Major UI/reskin changes 🌟🌟🌟
 - Moved templates and Quick Setup menu to New dialog window 🆕
 - Visiting https://collabexperience.com/ (no shareable link querystring parameters) automatically opens the New dialog window.
 - Added right-click menu for copy, paste, delete, etc. 📋✂️🗑️
