@@ -1571,12 +1571,12 @@ function toggleFeetMeters() {
 
 }
 
-function updateFeetMetersToggleBtn(){
+function updateFeetMetersToggleBtn() {
     let unitPartsFeet = document.querySelectorAll('.btnPartFoot');
     let unitPartsMeters = document.querySelectorAll('.btnPartMeters');
 
-    unitPartsFeet.forEach(unitPartFeet=>{
-        if(roomObj.unit === 'feet'){
+    unitPartsFeet.forEach(unitPartFeet => {
+        if (roomObj.unit === 'feet') {
             unitPartFeet.style.fontWeight = 'bold';
             unitPartFeet.style.color = 'black';
 
@@ -1586,8 +1586,8 @@ function updateFeetMetersToggleBtn(){
         }
     });
 
-    unitPartsMeters.forEach(unitPartMeter=>{
-        if(roomObj.unit === 'meters'){
+    unitPartsMeters.forEach(unitPartMeter => {
+        if (roomObj.unit === 'meters') {
             unitPartMeter.style.fontWeight = 'bold';
             unitPartMeter.style.color = 'black';
         } else {
@@ -1748,7 +1748,11 @@ function getQueryString() {
         openNewRoomDialog();
     }
 
-    if ((urlParams.has('roomWidth'))) {
+    /* Google search shows an old URL format, which then auto redirects to the v0.0 */
+    let googleWrongUrl = "https://collabexperience.com/?drpMetersFeet=feet&roomWidth=12&roomLength=20&tableWidth=4&tableLength=10&distDisplayToTable=5&frntWallToTv=0.5&tvDiag=65&drpTvNum=1&drpVideoDevice=roomBarPro&wideFOV=112&teleFOV=70&zoom=5&fieldOfViewDist=5&roomName=";
+
+    console.log('location', window.location.href);
+    if ((urlParams.has('roomWidth')) && window.location.href!= googleWrongUrl) {
         responseRedirect('rc/v0.1.599/RoomCalculator.html'); /* redirect version v0.1.599 is just to update querystring values and then redirect back to the current version */
     }
 
@@ -1782,7 +1786,7 @@ function getQueryString() {
     // document.getElementById('test').setAttribute('style', 'visibility: visible;');
 
     /* simulate RoomOS for testing only */
-    if (urlParams.has('RoomOS') || urlParams.has('roomos')){
+    if (urlParams.has('RoomOS') || urlParams.has('roomos')) {
         mobileDevice = 'RoomOS';
     }
 
@@ -3885,9 +3889,9 @@ function createShareableLink() {
     let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,6}$/;
     let queryParams = new URLSearchParams(window.location.search);
 
-    if(regex.test(strUrlQuery2)){
+    if (regex.test(strUrlQuery2)) {
         queryParams.delete("x", strUrlQuery2);
-        history.replaceState(null, null, location.origin + location.pathname );
+        history.replaceState(null, null, location.origin + location.pathname);
     } else {
         queryParams.set("x", strUrlQuery2);
         history.replaceState(null, null, fullShareLink);
@@ -4543,18 +4547,18 @@ function pasteItems(duplicate = true) {
     if (duplicate) {
 
 
-        if(itemsObj.items.length === 1 && itemsObj.items[0].deviceId === 'chair'){
+        if (itemsObj.items.length === 1 && itemsObj.items[0].deviceId === 'chair') {
             let itemAttr = itemsObj.items[0].newAttr;
             let offset = (roomObj.unit === 'feet') ? 2.35 : 2.35 / 3.28084;
             let rotation = itemAttr.rotation;
-            if (rotation === 180){
+            if (rotation === 180) {
                 offset = offset * -1;
             }
-            if(rotation < 0){
+            if (rotation < 0) {
                 offset = offset * -1;
             };
 
-            let newLocation = findNewTransformationCoordinate({x:itemAttr.x, y:itemAttr.y, rotation: rotation} , offset, 0);
+            let newLocation = findNewTransformationCoordinate({ x: itemAttr.x, y: itemAttr.y, rotation: rotation }, offset, 0);
             xOffset = itemAttr.x - newLocation.x;
             yOffset = itemAttr.y - newLocation.y;
             // let rotation = Math.abs(Math.round(itemsObj.items[0].newAttr.rotation));
@@ -6234,7 +6238,7 @@ function updateItem() {
 
     /* take the item.id from the web page and find it in the RoomObj json. The Canvas shape
         really gets deleted and rebuilt versus updated */
-        console.trace();
+    console.trace();
     roomObj.items[parentGroup].forEach((item, index) => {
 
 
@@ -9756,14 +9760,59 @@ function type(value) {
 }
 
 
+
+function createNewImages() {
+    microphones.forEach((item) => {
+        let minimumSize = 500;
+        if (item.width < minimumSize && item.depth < minimumSize) {
+            const stage = new Konva.Stage({
+                container: 'containerImageCreator',
+                width: 200,
+                height: 200,
+            });
+
+            const layer = new Konva.Layer();
+            stage.add(layer);
+            let imageObj = new Image();
+
+            imageObj.onload = function imageObjOnLoad() {
+                let imageItem = new Konva.Image({
+                    x: 50,
+                    y: 50,
+                    image: imageObj,
+                    width: 100,
+                    height: 100,
+                });
+                layer.add(imageItem);
+            }
+            console.log('line 9748');
+            imageObj.src = './assets/images/' + item.topImage;
+
+
+            const rect = new Konva.Rect({
+                x: 4,
+                y: 4,
+                width: 192,
+                height: 192,
+                // fill: 'blue',
+                stroke: 'purple',
+                strokeWidth: 4,
+                cornerRadius: [30, 30, 30, 30]
+            });
+
+            layer.add(rect);
+
+        }
+    });
+}
+
 /*
     Cache Images so if internet is lost, insert images to canvas still works.
     May try to determine a way so images don't need to be cached to reduce file downloads.
 */
 
-let imageLoadCounter = 1;
 
-function preLoadTopImages(list) {
+function preLoadTopImages(list, checkforlast = false) {
     let listLength = list.length;
     list.forEach((item, index) => {
         if ('topImage' in item) {
@@ -9784,9 +9833,9 @@ function preLoadTopImages(list) {
 
                 });
 
-
-                if(index === listLength - 1 ){
-                    console.log('*** everything is loaded!') ;
+                if (checkforlast && index === listLength - 1) {
+                   // console.log('*** everything is loaded!');
+                 //   createNewImages();
                 }
 
             };
