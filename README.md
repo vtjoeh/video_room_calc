@@ -7,6 +7,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.604**
+- Quick Fix: Google search occasionally displayed a legacy URL query string format that, when clicked, resulted in a redirect to version v0.0 of the Video Room Calculator. This issue occurred because, when the Video Room Calculator site is unable to parse a legacy version, it redirects users to a backup site to ensure that your data is not lost.
+
+**v0.1.604**
 - shift+ctrl+z/shift+cmd-z now works as an Undo shortcut. The previous shortcut of ctrl-y/cmd-y still works. ↪️
 - A blank default room size will no longer appear as a URL queryString parameter, as it is unnecessary.
 - Maximum width for control button group above the room canvas has been set to 850px for better support with wide displays.
