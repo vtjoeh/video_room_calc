@@ -6,7 +6,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.604**
+**v0.1.605**
 - Quick Fix: Google search occasionally displayed a legacy URL query string format that, when clicked, resulted in a redirect to version v0.0 of the Video Room Calculator. This issue occurred because, when the Video Room Calculator site is unable to parse a legacy version, it redirects users to a backup site to ensure that your data is not lost.
 
 **v0.1.604**
