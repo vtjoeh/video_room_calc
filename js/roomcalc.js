@@ -1748,10 +1748,9 @@ function getQueryString() {
         openNewRoomDialog();
     }
 
-    /* Google search shows an old URL format, which then auto redirects to the v0.0 */
+    /* Google search shows an old URL format, which then auto redirects to the v0.0. Block that redirect, but still support older formats */
     let googleWrongUrl = "https://collabexperience.com/?drpMetersFeet=feet&roomWidth=12&roomLength=20&tableWidth=4&tableLength=10&distDisplayToTable=5&frntWallToTv=0.5&tvDiag=65&drpTvNum=1&drpVideoDevice=roomBarPro&wideFOV=112&teleFOV=70&zoom=5&fieldOfViewDist=5&roomName=";
 
-    console.log('location', window.location.href);
     if ((urlParams.has('roomWidth')) && window.location.href!= googleWrongUrl) {
         responseRedirect('rc/v0.1.599/RoomCalculator.html'); /* redirect version v0.1.599 is just to update querystring values and then redirect back to the current version */
     }
