@@ -526,7 +526,8 @@ input:placeholder-shown {
   display: flex;
   gap: 10px;
   margin: 1em 0;
-  max-width: 850px;
+  /* max-width: 850px; */
+  max-width: 600px;
 }
 
 .button-group {
@@ -1201,6 +1202,36 @@ hr.rightClickHorizontalLine {
 
 .menuReachItem-checkbox {
   margin-right: 8px;
+}
+
+.menuMore {
+  position: absolute;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 5px;
+  padding: 5px 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  font-size: small;
+}
+
+.menuMoreInputField {
+  position: relative;
+  display: flex;
+  /* flex-direction: column; */
+  gap: 10px;
+  flex-grow: 1;
+  /* align-items: stretch; */
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.menuMoreInputField label {
+  font-size: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .scrollButton {

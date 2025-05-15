@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <title>Video Room Calculator by Joe Hughes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
   <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
-  <meta name="description" content="Room designer for Cisco video devices running Microsoft Teams Rooms or RoomOS. The Video Room Calculator is a community supported tool."/>
-  <meta name="keywords" content="Cisco Video Devices, Video Room Calculator, Meeting Room Design, Microsoft Teams Rooms">
+  <meta name="description"
+    content="Room designer for Cisco video devices running Microsoft Teams Rooms or RoomOS. The Video Room Calculator is a community supported tool." />
+  <meta name="keywords"
+    content="Cisco Video Devices, Video Room Calculator, Meeting Room Design, Microsoft Teams Rooms">
   <meta name="author" content="Joe Hughes">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
     integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
@@ -13,7 +16,7 @@
   <script src="./js/templates.js"></script>
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./assets/momentum-icons.css" />
-  </head>
+</head>
 
 <body>
   <div id="ContainerHeader" class="ContainerHeader">
@@ -285,7 +288,10 @@
               <input disabled type="text" id="itemName" size="45" class="">
             </div>
             <div class="inputField">
-              <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the URL. They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
+              <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
+                  class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the URL.
+                  They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
+                  inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
               <input type="text" id="labelField" size="45" class="textInput">
             </div>
             <div class="inputRow">
@@ -346,7 +352,9 @@
               <div class="inputField" id="itemVheightDiv">
                 <label class="tooltip">Height:
                   <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext tooltiptextLeft">[Optional] Vertical height of the object in the Workspace Designer. For walls and columns, the default value is the Room Height field if set, but can be overwritten in the below input field.</span></label>
+                  <span class="tooltiptext tooltiptextLeft">[Optional] Vertical height of the object in the Workspace
+                    Designer. For walls and columns, the default value is the Room Height field if set, but can be
+                    overwritten in the below input field.</span></label>
                 <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
                   placeholder="test">
                 <label class="unitFeetMeters">ft</label>
@@ -538,46 +546,13 @@
             </label>
           </div>
 
-          <div class="inputField">
-            <label class="tooltipBottom">Snap to Objects:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
-                objects or the room. Only one item can be selected. Does not work with Snap Center
-                to Increment.</span></label>
-            <label class="switch">
-              <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltipBottom">Snap Center to Increment:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
-                This is similar to the idea of snapping to the grid, except it focuses on the center
-                of the object. It does not work with Snap to Object.</span></label>
-            <label class="switch">
-              <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltip">Snap center to increment:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Incremental value for Snap Center to Increment. This is
-                similar to the idea of snapping to the grid, except it focuses on the center of the
-                object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
-            <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
-              onChange="updateSnapToIncrement()">
-            <label class="unitFeetMeters">ft</label>
-          </div>
 
           <div class="inputField">
             <label class="tooltip">Workspace Designer non-supported items*
               <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">Show devices that are not fully supported in the Workspace Designer. Items will
-                have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object. </span></label>
+                have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
+              </span></label>
             <label class="switch">
               <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
               <span class="slider round"></span>
@@ -592,28 +567,30 @@
     <div id="ContainerRoomSvg" class="floatColumns">
       <div id="controlButtons">
         <div class="button-group">
-          <span class="tooltipTitle"><button style="width: 35px;" class="btn" id="btnCamShadeToggle" title="Toggle camera coverage">
-            <i class="icon icon-camera-bold"></i><span class="holdIndicator"></span>
-          </button>
-          <span class="tooltiptextTitle">Display Coverage<br>(hold for mulit-select)</span>
-        </span>
-        <span class="tooltipTitle">
-          <button style="width: 35px;" class="btn" id="btnMicShadeToggle" title="Toggle microphone coverage">
-            <i class="icon icon-microphone-bold"></i><span class="holdIndicator"></span>
-          </button>
-          <span class="tooltiptextTitle" >Camera Coverage<br>(hold for mulit-select)</span>
-        </span>
-        <span class="tooltipTitle">
-          <button style="width: 35px;" class="btn" id="btnDisplayDistance" title="Toggle display coverage">
-            <i class="icon icon-display-bold"></i> <span class="holdIndicator"></span>
-          </button>
-          <span class="tooltiptextTitle" >Camera Coverage<br>(hold for mulit-select)</span>
+          <span class="tooltipTitle"><button style="width: 35px;" class="btn" id="btnCamShadeToggle"
+              title="Toggle camera coverage">
+              <i class="icon icon-camera-bold"></i><span class="holdIndicator"></span>
+            </button>
+            <span class="tooltiptextTitle">Display Coverage<br>(hold for mulit-select)</span>
+          </span>
+          <span class="tooltipTitle">
+            <button style="width: 35px;" class="btn" id="btnMicShadeToggle" title="Toggle microphone coverage">
+              <i class="icon icon-microphone-bold"></i><span class="holdIndicator"></span>
+            </button>
+            <span class="tooltiptextTitle">Camera Coverage<br>(hold for mulit-select)</span>
+          </span>
+          <span class="tooltipTitle">
+            <button style="width: 35px;" class="btn" id="btnDisplayDistance" title="Toggle display coverage">
+              <i class="icon icon-display-bold"></i> <span class="holdIndicator"></span>
+            </button>
+            <span class="tooltiptextTitle">Camera Coverage<br>(hold for mulit-select)</span>
         </div>
         <div class="button-group">
           <button class="btn" onclick="gridLinesVisible()" id="btnGridToggle" title="Toggle grid">
             <i class="icon icon-table-bold"></i>
           </button>
         </div>
+
         <div class="spacer"></div>
         <div class="button-group">
           <button class="btn" id="btnDuplicate" onclick="duplicateItems()" disabled title="Duplicate [Ctrl-D]">
@@ -625,24 +602,31 @@
         </div>
         <div class="spacer"></div>
         <div class="button-group">
-          <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan">
+          <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan" >
             <i class="icon icon-raise-hand-bold"></i>
           </button>
         </div>
         <div class="button-group">
-          <button class="btn" onclick="zoomInOut('reset')" title="Reset Zoom to 100%">
+          <button class="btn" id="btnZoomReset" onclick="zoomInOut('reset')" title="Reset Zoom to 100%" disabled>
             <i class="icon icon-center-bold"></i>
           </button>
         </div>
         <div class="button-group">
-          <button class="btn" onclick="zoomInOut('out')" title="Zoom In">
+          <button class="btn" id="btnZoomOut" onclick="zoomInOut('out')" title="Zoom Out" disabled>
             <i class="icon icon-minus-bold"></i>
           </button>
-          <label type="text" id="zoomValue" value="100" size="4" maxlength="4">100</label>
-          <button class="btn" onclick="zoomInOut('in')" title="Zoom In">
+          <label type="text" id="zoomValue" value="100" size="4" maxlength="4">100%</label>
+          <button class="btn" id="btnZoomIn" onclick="zoomInOut('in')" title="Zoom In">
             <i class="icon icon-plus-bold"></i>
           </button>
         </div>
+        <div>
+        <div class="button-group">
+          <button class="btn" onclick="toggleMoreMenu()" id="btnOutlineItemToggle" title="More...">
+             <i id='btnMoreMenu' class="icon icon-more-bold"></i>
+          </button>
+        </div>
+      </div>
       </div>
       <div id="controlButtonsOld">
 
@@ -714,6 +698,57 @@
 
       </div>
     </div>
+  </div>
+
+  <div id="menuMoreDiv" class="menuMore" style="display: none;">
+    <div style="padding: 10px; padding-bottom: 5px; ">
+    <div class="menuMoreInputField">
+      <label class="tooltipBottom">Highlight small devices:
+        <i class="icon icon-info-circle-bold"></i>
+        <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
+          objects or the room. Only one item can be selected. Does not work with Snap Center
+          to Increment.</span></label>
+      <label class="switch">
+        <input id="toggleOutlineItem" type="checkbox" onclick="toggleOutlineItem(event)">
+        <span class="slider round"></span>
+      </label>
+    </div>
+    <div class="menuMoreInputField">
+      <label class="tooltipBottom">Snap to Objects:
+        <i class="icon icon-info-circle-bold"></i>
+        <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
+          objects or the room. Only one item can be selected. Does not work with Snap Center
+          to Increment.</span></label>
+      <label class="switch">
+        <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
+        <span class="slider round"></span>
+      </label>
+    </div>
+    <div class="menuMoreInputField">
+      <label class="tooltipBottom">Snap Center to Increment:
+        <i class="icon icon-info-circle-bold"></i>
+        <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
+          This is similar to the idea of snapping to the grid, except it focuses on the center
+          of the object. It does not work with Snap to Object.</span></label>
+      <label class="switch">
+        <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="menuMoreInputField">
+      <label class="tooltip">Snap center to increment:
+        <i class="icon icon-info-circle-bold"></i>
+        <span class="tooltiptext">Incremental value for Snap Center to Increment. This is
+          similar to the idea of snapping to the grid, except it focuses on the center of the
+          object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
+      <div><input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput" style="width: 65px"
+        onChange="updateSnapToIncrement()">
+      <label style="top: 6px; right:7px; position: absolute; " class="unitFeetMeters">ft</label>
+    </div>
+    </div>
+  </div>
+
   </div>
 
   <dialog id="dialogSave" onClick="onDialogClick(event)">
@@ -814,10 +849,12 @@
     </main>
     <main id="quick-setup" style="max-height: none;">
       <div id="quickSetupItems">
-        <h3 style="margin-bottom: -10px;">Room <div class="inputField"><button id="btnToggleUnit" onclick="toggleFeetMeters()">
-            <span class='btnPartFoot'>ft</span><span style="color: grey;"> / </span><span class='btnPartMeters'>m</span>
-          </button>
-        </div>
+        <h3 style="margin-bottom: -10px;">Room <div class="inputField"><button id="btnToggleUnit"
+              onclick="toggleFeetMeters()">
+              <span class='btnPartFoot'>ft</span><span style="color: grey;"> / </span><span
+                class='btnPartMeters'>m</span>
+            </button>
+          </div>
         </h3>
         <div class="inputRow">
           <div class="inputField">
@@ -1138,10 +1175,11 @@
         <br>
         <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance shown is 1x-3x
           the diagonal
-          measurement of the display. The farthest participant should be no farther than 4x. Other industry guideline ranges will be somewhat different. See <a
+          measurement of the display. The farthest participant should be no farther than 4x. Other industry guideline
+          ranges will be somewhat different. See <a
             href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#how-is-the-display-coverage-for-the-closest-and-farthest-participants-determined"
-            target="_blank">FAQ: How is the display coverage for the closest and farthest participants determined?</a> <img
-            src="assets/images/pop-out-bold.svg" width="14px">.
+            target="_blank">FAQ: How is the display coverage for the closest and farthest participants determined?</a>
+          <img src="assets/images/pop-out-bold.svg" width="14px">.
         </div>
 
 
@@ -1296,10 +1334,10 @@
                 src="assets/images/pop-out-bold.svg" width="14px"> Webex
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
 
-              <hr>
-              <div>
-                Video Room Calculator version: <label id="lblVersion">vx.x</label>
-              </div>
+          <hr>
+          <div>
+            Video Room Calculator version: <label id="lblVersion">vx.x</label>
+          </div>
         </div>
         <br>
 
@@ -1323,9 +1361,6 @@
     </form>
   </dialog>
 
-  <div id="containerImageCreator">
-      test
-  </div>
   <div id="ContainerFooter" class="HeaderFooter">
     <div>Version: <label id="lblVersion">vx.x</label> - For more info join the <a href="https://eurl.io/#4d-kKP6l1"
         target="_blank" class="whiteUnderlinedLink" style="text-decoration: underline;">Video Room

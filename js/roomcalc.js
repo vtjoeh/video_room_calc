@@ -22,6 +22,8 @@ let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let firstLoad = true; /* set to false after onLoad is run the first time */
 let zoomValue = 100;
+let smallItemsOutline = false; /* keep track if small items have an outline */
+let sizeToAddOultine = 500; /* mm size to make small items outline */
 
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
 
@@ -1751,7 +1753,7 @@ function getQueryString() {
     /* Google search shows an old URL format, which then auto redirects to the v0.0. Block that redirect, but still support older formats */
     let googleWrongUrl = "https://collabexperience.com/?drpMetersFeet=feet&roomWidth=12&roomLength=20&tableWidth=4&tableLength=10&distDisplayToTable=5&frntWallToTv=0.5&tvDiag=65&drpTvNum=1&drpVideoDevice=roomBarPro&wideFOV=112&teleFOV=70&zoom=5&fieldOfViewDist=5&roomName=";
 
-    if ((urlParams.has('roomWidth')) && window.location.href!= googleWrongUrl) {
+    if ((urlParams.has('roomWidth')) && window.location.href != googleWrongUrl) {
         responseRedirect('rc/v0.1.599/RoomCalculator.html'); /* redirect version v0.1.599 is just to update querystring values and then redirect back to the current version */
     }
 
@@ -4560,20 +4562,6 @@ function pasteItems(duplicate = true) {
             let newLocation = findNewTransformationCoordinate({ x: itemAttr.x, y: itemAttr.y, rotation: rotation }, offset, 0);
             xOffset = itemAttr.x - newLocation.x;
             yOffset = itemAttr.y - newLocation.y;
-            // let rotation = Math.abs(Math.round(itemsObj.items[0].newAttr.rotation));
-
-            // yOffset = offset;
-            // xOffset = 0;
-            // console.log('rotation', rotation);
-            // if(rotation === 0 || rotation === 180){
-            //     yOffset = 0;
-            //     xOffset = offset;
-            // }
-            // else if(rotation === 90 || rotation === 270){
-            //     yOffset = offset;
-            //     xOffset = 0;
-            // }
-
 
 
         } else {
@@ -6500,7 +6488,11 @@ function closeAllMenus() {
         let menu = document.getElementById(`deviceMenu-${attributeType}`);
         if (menu) menu.remove();
     });
+
+    toggleMoreMenu('close');
 }
+
+
 
 function closeDeviceMenu(attributeType) {
     const menu = document.getElementById(`deviceMenu-${attributeType}`);
@@ -7224,8 +7216,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     tr.resizeEnabled(false);
     /* convert mm to meters * scale */
     width = insertDevice.width / 1000 * scale;
-
     height = insertDevice.depth / 1000 * scale;
+
+    let addOutline = false;
+
+    if (smallItemsOutline && insertDevice.width < sizeToAddOultine && insertDevice.depth < sizeToAddOultine) {
+        width = sizeToAddOultine / 1000 * scale;
+        height = sizeToAddOultine / 1000 * scale;
+        addOutline = true;
+    }
 
     if (unit === 'feet') {
         width = width * 3.28084;
@@ -7295,35 +7294,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
     }
-
-
-    /*
-        Testing scaling up the microphones and videodevices so they can be found
-        Items that are displays and table items should not be scaled.
-    */
-
-    /*
-
-    if (groupName === 'videoDevices' || groupName === 'microphones') {
-
-
-        let scaleMin = 60;
-        let scaleMinFactor = 1;
-        if (unit === 'meters') {
-            scaleMin = scaleMin * 3.28084;
-        }
-        if (scale < scaleMin) {
-
-            if (!('data_diagonalInches' in attrs)) {
-                scaleMinFactor = scaleMin / scale;
-                width = width * scaleMinFactor;
-                height = height * scaleMinFactor;
-            }
-        }
-    }
-
-    */
-
 
     /* convert to upper left pixel position before conversion */
     let cornerXY = findUpperLeftXY({ x: pixelX, y: pixelY, rotation: rotation, width: width, height: height });
@@ -7491,7 +7461,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
     };
-    imageObj.src = './assets/images/' + insertDevice.topImage;
+
+
+    if (addOutline) {
+
+        createOutlineImage(deviceId, imageObj);
+    } else {
+        imageObj.src = './assets/images/' + insertDevice.topImage;
+    }
 
     /* add shading for cameras */
     if ('wideHorizontalFOV' in insertDevice) {
@@ -7796,7 +7773,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         groupItemDisplayDistance.add(txt1xFromDisplay);
         groupItemDisplayDistance.add(txt3xFromDisplay);
         groupItemDisplayDistance.add(txt4xFromDisplay);
-        imageDataUrl = groupItemDisplayDistance.toDataURL();
+        //       imageDataUrl = groupItemDisplayDistance.toDataURL();
         grDisplayDistance.add(groupItemDisplayDistance);
     }
 
@@ -9536,28 +9513,37 @@ function zoomInOut(zoomChange) {
         zoomValue = zoomValue - zoomChange;
     }
 
-    if (zoomValue < 50) {
-        zoomValue = 50;
+    if (zoomValue < 100) {
+        zoomValue = 100;
     }
+
+    document.getElementById('btnZoomIn').disabled = false;
 
     if (zoomValue > 400) {
         zoomValue = 400;
+        document.getElementById('btnZoomIn').disabled = true;
     }
 
     if (zoomValue > 250 && mobileDevice != 'false') {
         zoomValue = 250;
+        document.getElementById('btnZoomIn').disabled = true;
     }
 
     if (zoomValue > 150 && mobileDevice === 'RoomOS') {
         zoomValue = 150;
+        document.getElementById('btnZoomIn').disabled = true;
     }
 
     if (zoomValue > 100) {
         document.getElementById('btnSelectPan').disabled = false;
+        document.getElementById('btnZoomOut').disabled = false;
+        document.getElementById('btnZoomReset').disabled = false;
     } else {
         document.getElementById('btnSelectPan').disabled = true;
-        document.getElementById('btnSelectPan').children[0].dataset.type = 'pan_tool';
-        document.getElementById('btnSelectPan').children[0].style.color = '';
+        document.getElementById('btnZoomOut').disabled = true;
+        document.getElementById('btnZoomReset').disabled = true;
+        // document.getElementById('btnSelectPan').children[0].dataset.type = 'pan_tool';
+        // document.getElementById('btnSelectPan').children[0].style.color = '';
         document.getElementById("canvasDiv").style.cursor = "auto";
 
         panScrollableOn = false;
@@ -9568,7 +9554,6 @@ function zoomInOut(zoomChange) {
 
     }
 
-    // minor update post v0.1.513 update
     /* resend message to Workspace Designer as orphaned objects can appear if you are zoomed in, so remove zoomed in */
     if (zoomValue < 102) {
         setTimeout(() => { postMessageToWorkspace(); }, 250);
@@ -9699,9 +9684,6 @@ function checkIfScrollable() {
             const isOverflowHidden = overflowYStyle.indexOf('hidden') !== -1;
             const insertDiv = document.querySelector('#Insert');
 
-            // console.log('scrollButton.offsetTop', scrollDiv.offsetTop);
-            // console.log('insertDiv.scrollTop', scrollDiv.scrollTop);
-            // console.log(scrollDiv.scrollHeight, scrollDiv.offsetHeight)
             scrollButton.style.display = '';
             if ((scrollDiv.scrollHeight > scrollDiv.offsetHeight)) {
                 scrollButton.style.visibility = "visible";
@@ -9758,16 +9740,304 @@ function type(value) {
     return baseType;
 }
 
+function toggleOutlineItem() {
+    tr.nodes(tr.nodes());
+    smallItemsOutline = !smallItemsOutline;
+    // drawRoom(true);
+    updateCreateOutlineImage()
+}
+
+
+function getListOfSmallDeviceTypes(minimumSize = 500) {
+    let smallDeviceTypeIdArray = [];
+
+    for (const deviceTypeId in allDeviceTypes) {
+        let type = allDeviceTypes[deviceTypeId];
+        if (type.width < minimumSize && type.depth < minimumSize) {
+            smallDeviceTypeIdArray.push(type.id);
+        }
+    }
+
+    return smallDeviceTypeIdArray;
+}
+
+function getListOfNodes(smallDeviceTypeIdArray) {
+    let arraySmallItems = [];
+    for (const category in roomObj.items) {
+        for (const i in roomObj.items[category]) {
+            let item = roomObj.items[category][i];
+            if (smallDeviceTypeIdArray.includes(item.data_deviceid)) {
+                arraySmallItems.push(item);
+
+            }
+        }
+    }
+
+    return arraySmallItems;
+}
+
+function updateCreateOutlineImage(minimumSize = 500) {
+    /* get all images great that */
+
+    let smallDeviceTypeIdArray = getListOfSmallDeviceTypes(minimumSize = 500)
+    let arraySmallItems = getListOfNodes(smallDeviceTypeIdArray);
+
+    arraySmallItems.forEach(item => {
+        let node = stage.findOne('#' + item.id);
+        if (smallItemsOutline) {
+            let width = sizeToAddOultine / 1000 * scale;
+            let height = sizeToAddOultine / 1000 * scale;
+
+            if (roomObj.unit === 'feet') {
+                width = width * 3.28084;
+                height = height * 3.28084;
+            }
+            let centerX = (item.x * scale) + pxOffset;
+            let centerY = (item.y * scale) + pxOffset;
+
+            let cornerXY = findUpperLeftXY({ x: centerX, y: centerY, rotation: item.rotation, width: width, height: height });
+
+            let newItemAttr = { x: cornerXY.x, y: cornerXY.y, width: width, height: height }
+
+            updateSingleOutlineImage(node, item, newItemAttr);
+
+
+        } else {
+            let newImageObj = new Image();
+            console.log('deviceType', JSON.stringify(allDeviceTypes[item.data_deviceid]));
+
+            let width = allDeviceTypes[item.data_deviceid].width / 1000 * scale;
+            let height = allDeviceTypes[item.data_deviceid].depth / 1000 * scale;
+
+            if (roomObj.unit === 'feet') {
+                width = width * 3.28084;
+                height = height * 3.28084;
+            }
+
+            let centerX = (item.x * scale) + pxOffset;
+            let centerY = (item.y * scale) + pxOffset;
+
+            let cornerXY = findUpperLeftXY({ x: centerX, y: centerY, rotation: item.rotation, width: width, height: height });
+
+            newImageObj.src = './assets/images/' + allDeviceTypes[item.data_deviceid].topImage;
+            newImageObj.onload = function () {
+                node.image(newImageObj);
+                node.x(cornerXY.x);
+                node.y(cornerXY.y);
+                node.width(width);
+                node.height(height);
+
+            }
+        }
+    });
+}
+
+let outlineImageItems = {};
+
+function updateSingleOutlineImage(node, item, newItemAttr) {
+    let imageSize = 200; /* pixels */
+    let picScale = imageSize / sizeToAddOultine;
+
+    let itemType = allDeviceTypes[item.data_deviceid];
+
+    /* create a temporary div for the stage, remove if it already exits */
+    let divContainerId = 'containerImageCreate';
+    let checkDiv = document.getElementById(divContainerId);
+    if (checkDiv) {
+        checkDiv.remove();
+    }
+
+    let divContainer = document.createElement('div');
+    divContainer.id = divContainerId;
+    //  divContainer.style.display = 'none';
+    document.body.appendChild(divContainer);
+
+
+    const stageForImageCreation = new Konva.Stage({
+        container: divContainerId,
+        width: imageSize,
+        height: imageSize,
+    });
+
+    const layer = new Konva.Layer();
+    stageForImageCreation.add(layer);
+
+    let imageObj = new Image();
+
+
+    imageObj.onload = function imageObjOnLoad() {
+        let imageItem = new Konva.Image({
+            x: (imageSize - (picScale * itemType.width)) / 2,
+            y: (imageSize - (picScale * itemType.depth)) / 2,
+            image: imageObj,
+            width: picScale * itemType.width,
+            height: picScale * itemType.depth,
+
+        });
+        layer.add(imageItem);
+
+        // let cardImage = node.image();
+
+        //    stageForImageCreation.toDataURL().then(src=>{
+        let cardImage = new Image();
+        cardImage.src = stageForImageCreation.toDataURL();
+
+
+        if (!(item.data_deviceid in outlineImageItems)) {
+            outlineImageItems[item.data_deviceid] = {};
+            outlineImageItems[item.data_deviceid].image = cardImage;
+            console.log('line 9861');
+            console.log(JSON.stringify(outlineImageItems, null, 5));
+        }
+
+        console.log(JSON.stringify(outlineImageItems, null, 5));
+        for (const type in outlineImageItems) {
+            console.log('type', type);
+            console.log('type.image', outlineImageItems[type].image);
+        }
+
+        cardImage.onload = function () {
+            node.image(cardImage);
+
+            node.width(newItemAttr.width);
+            node.height(newItemAttr.height);
+            node.x(newItemAttr.x);
+            node.y(newItemAttr.y);
+            console.log('node: ', node.width(), node.height())
+        };
+        //  })
+
+        // cardImage.src = stageForImageCreation.toDataURL();
+        // node.image(cardImage);
+
+    }
+
+    imageObj.src = './assets/images/' + itemType.topImage;
+
+    const rect = new Konva.Rect({
+        x: 4,
+        y: 4,
+        width: 192,
+        height: 192,
+        // fill: 'blue',
+        // stroke: 'grey',
+        stroke: '#DA70D6',
+        strokeWidth: 8,
+        cornerRadius: 100,
+        fill: '#C0C0C0AA',
+
+        // fill: '#F5F5F566',
+        // shadowColor: 'black',
+        // shadowBlur: 20,
+        // shadowOffset: { x: 10, y: 10 },
+        // shadowOpacity: 0.7,
+    });
+
+    layer.add(rect);
+}
+
+function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
+
+    let imageSize = 200; /* pixels */
+    let picScale = imageSize / minimumSize;
+
+    let itemType = allDeviceTypes[deviceId];
+
+
+    if (itemType.width < minimumSize && itemType.depth < minimumSize) {
+
+        //   let divContainerId = 'containerImageCreate-' + createUuid();
+
+        let divContainerId = 'containerImageCreate';
+        let checkDiv = document.getElementById(divContainerId);
+        if (checkDiv) {
+            checkDiv.remove();
+        }
+
+        let divContainer = document.createElement('div');
+        divContainer.id = divContainerId;
+        divContainer.style.display = 'none';
+        document.body.appendChild(divContainer);
+
+
+        const stageForImageCreation = new Konva.Stage({
+            container: divContainerId,
+            width: imageSize,
+            height: imageSize,
+        });
+
+        const layer = new Konva.Layer();
+        stageForImageCreation.add(layer);
+
+        let imageObj = new Image();
+
+        imageObj.onload = function imageObjOnLoad() {
+            let imageItem = new Konva.Image({
+                x: (imageSize - (picScale * itemType.width)) / 2,
+                y: (imageSize - (picScale * itemType.depth)) / 2,
+                image: imageObj,
+                width: picScale * itemType.width,
+                height: picScale * itemType.depth,
+
+
+            });
+            layer.add(imageItem);
+            stageForImageCreation.toDataURL();
+
+            imageObj2.src = stageForImageCreation.toDataURL();
+
+        }
+
+        imageObj.src = './assets/images/' + itemType.topImage;
+
+        const rect = new Konva.Rect({
+            x: 4,
+            y: 4,
+            width: 192,
+            height: 192,
+            // fill: 'blue',
+            // stroke: 'grey',
+            stroke: '#DA70D6',
+            strokeWidth: 8,
+            cornerRadius: 100,
+            // fill: '#C0C0C0AA',
+            fill: '#C0C00033',
+
+            // fill: '#F5F5F566',
+            // shadowColor: 'black',
+            // shadowBlur: 20,
+            // shadowOffset: { x: 10, y: 10 },
+            // shadowOpacity: 0.7,
+        });
+
+        layer.add(rect);
+
+
+    }
+}
+
 
 
 function createNewImages() {
-    microphones.forEach((item) => {
+    microphones.forEach((item, index) => {
         let minimumSize = 500;
+        let imageSize = 200;
+        let picScale = imageSize / minimumSize;
+
         if (item.width < minimumSize && item.depth < minimumSize) {
+
+            let divContainerId = 'conaterImageCreate' + index;
+
+
+            let divContainer = document.createElement('div');
+            divContainer.id = divContainerId;
+            document.body.appendChild(divContainer);
+
+
             const stage = new Konva.Stage({
-                container: 'containerImageCreator',
-                width: 200,
-                height: 200,
+                container: divContainerId,
+                width: imageSize,
+                height: imageSize,
             });
 
             const layer = new Konva.Layer();
@@ -9776,15 +10046,16 @@ function createNewImages() {
 
             imageObj.onload = function imageObjOnLoad() {
                 let imageItem = new Konva.Image({
-                    x: 50,
-                    y: 50,
+                    x: (imageSize - (picScale * item.width)) / 2,
+                    y: (imageSize - (picScale * item.depth)) / 2,
                     image: imageObj,
-                    width: 100,
-                    height: 100,
+                    width: picScale * item.width,
+                    height: picScale * item.depth,
                 });
                 layer.add(imageItem);
+
             }
-            console.log('line 9748');
+
             imageObj.src = './assets/images/' + item.topImage;
 
 
@@ -9801,55 +10072,70 @@ function createNewImages() {
 
             layer.add(rect);
 
+
+
         }
     });
 }
 
 /*
     Cache Images so if internet is lost, insert images to canvas still works.
-    May try to determine a way so images don't need to be cached to reduce file downloads.
+    Keep track of number of images cached. Once all cached, create outline images.
 */
 
+function preLoadTopImages() {
+    let preLoadTypes = [videoDevices, microphones, displays, chairs];
+    let totalDevices = 0;
+    let counter = 0;
 
-function preLoadTopImages(list, checkforlast = false) {
-    let listLength = list.length;
-    list.forEach((item, index) => {
-        if ('topImage' in item) {
-            let imageLocation = './assets/images/' + item.topImage;
+    /* count up total devices */
+    preLoadTypes.forEach(typeGroup => {
+        totalDevices = totalDevices + typeGroup.length;
+        console.log('typeGroup.length', typeGroup.length);
+    });
 
-            groupBackground.add();
-
-            let imageObj = new Image();
-            imageObj.onload = function imageObjOnloadPreLoad() {
-                var img = new Konva.Image({
-                    x: 1,
-                    y: 1,
-                    image: imageObj,
-                    width: 1,
-                    height: 1,
-                    visible: false,
+    console.log('counter total', totalDevices);
 
 
-                });
+    preLoadTypes.forEach(list => {
 
-                if (checkforlast && index === listLength - 1) {
-                   // console.log('*** everything is loaded!');
-                 //   createNewImages();
-                }
+        list.forEach((item) => {
+            if ('topImage' in item) {
+                let imageLocation = './assets/images/' + item.topImage;
 
-            };
+                groupBackground.add();
 
-            imageObj.src = imageLocation;
+                let imageObj = new Image();
 
-        }
-    })
+                imageObj.src = imageLocation;
+
+                imageObj.onload = function imageObjOnloadPreLoad() {
+                    var img = new Konva.Image({
+                        x: 1,
+                        y: 1,
+                        image: imageObj,
+                        width: 1,
+                        height: 1,
+                        visible: false,
+
+                    });
+
+                    counter++;
+
+                    /* last image is cached if totalDevices === counter **/
+                    if (totalDevices === counter) {
+                        console.log('** last item loaded **', item.id);
+                    }
+
+                };
+
+            }
+        });
+    });
 }
 
 if (isCacheImages) {
-    preLoadTopImages(videoDevices);
-    preLoadTopImages(microphones);
-    preLoadTopImages(displays);
-    preLoadTopImages(chairs, true);
+    preLoadTopImages();
 }
 
 /*
@@ -11534,6 +11820,34 @@ function closeAllDialogModals() {
     dialogs.forEach(dialog => {
         dialog.close();
     });
+}
+
+
+function toggleMoreMenu(action = '') {
+
+    const rect = document.getElementById('btnMoreMenu').getBoundingClientRect();
+    let menuMoreDiv = document.getElementById('menuMoreDiv')
+
+    let btnMoreMenu = document.getElementById('btnMoreMenu');
+
+    if (btnMoreMenu.classList.contains('icon-more-adr-bold') || action === 'close') {
+
+        btnMoreMenu.classList.remove('icon-more-adr-bold');
+        btnMoreMenu.classList.add('icon-more-bold');
+        menuMoreDiv.style = 'display: none';
+
+    } else {
+
+        btnMoreMenu.classList.remove('icon-more-bold');
+        btnMoreMenu.classList.add('icon-more-adr-bold');
+        menuMoreDiv.style = `
+        top: ${rect.bottom + window.scrollY + 10}px;
+        left: ${rect.left + window.scrollX - 270}px;
+        display: absolute;
+        `;
+
+    }
+
 }
 
 document.addEventListener('pointerdown', event => {
