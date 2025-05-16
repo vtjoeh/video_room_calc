@@ -156,6 +156,7 @@ img {
   width: 100%;
   background-color: white;
   border-radius: 10px;
+  min-height: 520px;
 }
 
 .ContainerHeader {
@@ -1179,14 +1180,15 @@ hr.rightClickHorizontalLine {
 
 .menuReach {
   position: absolute;
-  background-color: #333;
-  color: #fff;
-  border: 1px solid #555;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
   border-radius: 5px;
   padding: 5px 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   font-size: small;
+  min-width: 160px;
 }
 
 .menuReach-item {
@@ -1202,6 +1204,21 @@ hr.rightClickHorizontalLine {
 
 .menuReachItem-checkbox {
   margin-right: 8px;
+}
+
+.menuReachClearButton {
+  padding: 8px 12px;
+  cursor: pointer;
+  background-color:rgb(255, 255, 255);
+  color: #000;
+  width: 130px;
+  margin: 0px 5px;
+}
+
+.menuReachClearButton:hover {
+  background-color:#d6eaff;
+  border-radius: 25px;
+
 }
 
 .menuMore {
@@ -1233,6 +1250,8 @@ hr.rightClickHorizontalLine {
   gap: 10px;
   align-items: center;
 }
+
+
 
 .scrollButton {
   /* transform: translate(-50%, 100%); */

@@ -548,9 +548,9 @@
 
 
           <div class="inputField">
-            <label class="tooltip">Workspace Designer non-supported items*
+            <label class="tooltipBottom">Workspace Designer non-supported items*
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Show devices that are not fully supported in the Workspace Designer. Items will
+              <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer. Items will
                 have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
               </span></label>
             <label class="switch">
@@ -602,7 +602,7 @@
         </div>
         <div class="spacer"></div>
         <div class="button-group">
-          <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan" >
+          <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan">
             <i class="icon icon-raise-hand-bold"></i>
           </button>
         </div>
@@ -621,12 +621,12 @@
           </button>
         </div>
         <div>
-        <div class="button-group">
-          <button class="btn" onclick="toggleMoreMenu()" id="btnOutlineItemToggle" title="More...">
-             <i id='btnMoreMenu' class="icon icon-more-bold"></i>
-          </button>
+          <div class="button-group">
+            <button class="btn" onpointerdown="toggleMoreMenu()" id="btnMoreMenu" title="More...">
+              <i id='iconBtnMoreMenu' class="icon icon-more-bold"></i>
+            </button>
+          </div>
         </div>
-      </div>
       </div>
       <div id="controlButtonsOld">
 
@@ -702,52 +702,54 @@
 
   <div id="menuMoreDiv" class="menuMore" style="display: none;">
     <div style="padding: 10px; padding-bottom: 5px; ">
-    <div class="menuMoreInputField">
-      <label class="tooltipBottom">Highlight small devices:
-        <i class="icon icon-info-circle-bold"></i>
-        <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
-          objects or the room. Only one item can be selected. Does not work with Snap Center
-          to Increment.</span></label>
-      <label class="switch">
-        <input id="toggleOutlineItem" type="checkbox" onclick="toggleOutlineItem(event)">
-        <span class="slider round"></span>
-      </label>
-    </div>
-    <div class="menuMoreInputField">
-      <label class="tooltipBottom">Snap to Objects:
-        <i class="icon icon-info-circle-bold"></i>
-        <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
-          objects or the room. Only one item can be selected. Does not work with Snap Center
-          to Increment.</span></label>
-      <label class="switch">
-        <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
-        <span class="slider round"></span>
-      </label>
-    </div>
-    <div class="menuMoreInputField">
-      <label class="tooltipBottom">Snap Center to Increment:
-        <i class="icon icon-info-circle-bold"></i>
-        <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
-          This is similar to the idea of snapping to the grid, except it focuses on the center
-          of the object. It does not work with Snap to Object.</span></label>
-      <label class="switch">
-        <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
-        <span class="slider round"></span>
-      </label>
-    </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Highlight small devices:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the highlighted portion to be used for moving device. Does not affect resizeable objects.</span></label>
+        <label class="switch">
+          <input id="toggleOutlineItem" type="checkbox" onclick="toggleOutlineItem(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Snap to Objects:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
+            objects or the room. Only one item can be selected. Does not work with Snap Center
+            to Increment.</span></label>
+        <label class="switch">
+          <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Snap Center to Increment:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Snap the center of the object to an incremental value.
+            This is similar to the idea of snapping to the grid, except it focuses on the center
+            of the object. It does not work with Snap to Object.</span></label>
+        <label class="switch">
+          <input id="snapIncrementCheckBox" type="checkbox" onclick="snapChange(event)" on>
+          <span class="slider round"></span>
+        </label>
+      </div>
 
-    <div class="menuMoreInputField">
-      <label class="tooltip">Snap center to increment:
-        <i class="icon icon-info-circle-bold"></i>
-        <span class="tooltiptext">Incremental value for Snap Center to Increment. This is
-          similar to the idea of snapping to the grid, except it focuses on the center of the
-          object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
-      <div><input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput" style="width: 65px"
-        onChange="updateSnapToIncrement()">
-      <label style="top: 6px; right:7px; position: absolute; " class="unitFeetMeters">ft</label>
+      <div class="menuMoreInputField">
+        <label class="tooltip">Snap Center to Increment value:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Incremental value for Snap Center to Increment. This is
+            similar to the idea of snapping to the grid, except it focuses on the center of the
+            object. It does not work with Snap to Object. Minimum value 0.01.</span></label>
+
+      </div>
+      <div>
+        <div>
+          <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
+            style="width: 100%" onChange="updateSnapToIncrement()" disabled>
+          <div style="top: 160px; right:17px; position: absolute; " class="unitFeetMeters">ft</div>
+        </div>
+      </div>
     </div>
-    </div>
-  </div>
 
   </div>
 

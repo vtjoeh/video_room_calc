@@ -1334,10 +1334,15 @@ windowResizeEvent(); /* initialize first time */
 
 function windowResizeEventName() {
 
+    toggleMoreMenu('close');
+    closeAllMenus();
+    closeRightClickMenu();
+
     clearTimeout(resizeWindowTimer);
 
     resizeWindowTimer = setTimeout(function resizingCanvas() {
         drawRoom(false, false, true);
+
     }, 550);
 }
 
@@ -1609,6 +1614,7 @@ function convertMetersFeet(isDrawRoom, newUnit = null) {
 
     if (document.getElementById('snapIncrementCheckBox').checked = true) {  /* Snap center to increment feature messes with converting between meters, feet.  Turn it off. */
         document.getElementById('snapIncrementCheckBox').checked = false;
+        document.getElementById('snapToIncrement').disabled = true;
         setItemForLocalStorage('snapIncrementCheckBox', 'false');
     }
 
@@ -1802,6 +1808,22 @@ function getQueryString() {
 
     if (urlParams.has('testProduction')) {
         testProduction = true;
+    }
+
+    if (urlParams.has('wd')){
+        console.log('has wd')
+        let wd = urlParams.get('wd');
+        console.log('wd', wd);
+        if(wd == '0'){
+            console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
+            localStorage.removeItem('wd');
+        } else {
+            /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
+            let base = decodeURIComponent(wd);
+            let newTab = `${base}/#/room/custom`;
+            console.info('urlParams wd=', newTab, 'custom Workspace Designer tab is set.');
+            setItemForLocalStorage('wd', newTab);
+        }
     }
 
     if (urlParams.has('test2')) {
@@ -2423,8 +2445,10 @@ function onLoad() {
 
     if (localStorage.getItem('snapIncrementCheckBox') === 'true') {
         document.getElementById('snapIncrementCheckBox').checked = true;
+        document.getElementById('snapToIncrement').disabled = false;
     } else {
         document.getElementById('snapIncrementCheckBox').checked = false;
+        document.getElementById('snapToIncrement').disabled = true;
     }
 
     if (localStorage.getItem('snapToIncrement')) {
@@ -6489,7 +6513,6 @@ function closeAllMenus() {
         if (menu) menu.remove();
     });
 
-    toggleMoreMenu('close');
 }
 
 
@@ -6539,7 +6562,6 @@ function createDeviceMenu(parentButton, attributeType) {
     menuReach.style = `
             top: ${rect.bottom + window.scrollY}px;
             left: ${rect.left + window.scrollX}px;
-            min-width: ${rect.width}px;
         `;
 
 
@@ -6565,8 +6587,8 @@ function createDeviceMenu(parentButton, attributeType) {
 
     const devices = menuReachItemList(attributeType);
     if (devices.length < 1) menuReach.style.color = unavailableTextColor;
-    const options = [...defaultOptions, ...devices];
-
+   // const options = [...defaultOptions, ...devices];
+    const options = devices;
     options.forEach(opt => {
         const menuReachItem = document.createElement('div');
         menuReachItem.className = 'menuReach-item';
@@ -6600,10 +6622,16 @@ function createDeviceMenu(parentButton, attributeType) {
             previewCheckedDevices(opt, attributeType, false, checkbox);
         });
 
+        menuReachItem.style.marginLeft = '4px';
+        menuReachItem.style.marginRight = '4px';
         menuReachItem.addEventListener('mouseover', () => {
             if (devices.length < 1) return;
 
-            menuReachItem.style.backgroundColor = '#555';
+            // menuReachItem.style.backgroundColor = '#555';
+            menuReachItem.style.backgroundColor = '#d6eaff';
+            menuReachItem.style.borderRadius = '25px';
+
+
             hightlightOverlayForDevice(opt, attributeType, true, checkbox);
         });
 
@@ -6616,24 +6644,52 @@ function createDeviceMenu(parentButton, attributeType) {
     });
 
 
+    const firstRow = document.createElement('div');
+    menuReach.prepend(firstRow);
     const clearButton = document.createElement('div');
     clearButton.id = `clearButton-${attributeType}`;
-    clearButton.textContent = 'Uncheck All';
-    clearButton.style = "padding: 8px 12px; cursor: pointer; text-align: center; margin-top: 5px; background-color: #444; color: #fff;";
+    clearButton.textContent = (devices.length < 1) ? 'No items' : 'Uncheck All';
+
+    clearButton.classList.add('menuReachClearButton');
+
     if (devices.length < 1) clearButton.style.color = unavailableTextColor;
     clearButton.addEventListener('click', () => {
 
-        var checkedBoxes = document.querySelectorAll('input[name=menuReachItemCheckBox]:checked');
+        var checkedBoxes = document.querySelectorAll('input[name=menuReachItemCheckBox]');
+
+        if(clearButton.textContent === 'Uncheck All'){
+            clearButton.textContent ='Check All';
+            checkBoxchecked = false;
+        }
+        else if(clearButton.textContent === 'Check All')
+        {
+            clearButton.textContent = 'Uncheck All';
+            checkBoxchecked = true;
+        }
+
 
         checkedBoxes.forEach(checkBox => {
             let opt = {};
             opt.value = checkBox.getAttribute('data-device-id');
             previewCheckedDevices(opt, attributeType);
-            checkBox.checked = false;
+            checkBox.checked = checkBoxchecked;
         });
     });
 
-    menuReach.appendChild(clearButton);
+    firstRow.appendChild(clearButton);
+
+    const dragButton = document.createElement('i');
+    dragButton.id = menuReach.id + '-dragger';
+    dragButton.classList.add('icon');
+    dragButton.classList.add('icon-dragger-vertical-bold');
+    dragButton.style = "position: absolute; right: 3px; top: 5px; cursor: all-scroll;"
+
+    firstRow.appendChild(dragButton);
+
+
+
+
+
 
 
     // const applyButton = document.createElement('div');
@@ -6653,6 +6709,8 @@ function createDeviceMenu(parentButton, attributeType) {
 
     // menuReach.appendChild(applyButton);
     document.body.appendChild(menuReach);
+
+    dragElement(menuReach);
 }
 
 function menuReachItemList(attributeType) {
@@ -6919,6 +6977,67 @@ function toggleDisplayDistanceSingleItem() {
 
 }
 
+
+function dragElement(element) {
+    var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    let dragger = document.getElementById(element.id + "-dragger")
+
+    if (dragger) {
+      // if present, the header is where you move the DIV from:
+      dragger.onmousedown = dragMouseDown;
+
+
+    }
+    else {
+      // otherwise, move the DIV from anywhere inside the DIV:
+      element.onmousedown = dragMouseDown;
+    }
+
+    function dragMouseDown(e) {
+      e = e || window.event;
+      e.preventDefault();
+      // get the mouse cursor position at startup:
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      document.onmouseup = closeDragElement;
+      // call a function whenever the cursor moves:
+      document.onmousemove = elementDrag;
+      element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+
+
+    }
+
+    function elementDrag(e) {
+      e = e || window.event;
+      e.preventDefault();
+      // calculate the new cursor position:
+      pos1 = pos3 - e.clientX;
+      pos2 = pos4 - e.clientY;
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      // set the element's new position:
+      element.style.top = (element.offsetTop - pos2) + "px";
+      element.style.left = (element.offsetLeft - pos1) + "px";
+      element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+
+    }
+
+    function closeDragElement() {
+      // stop moving when mouse button is released:
+      document.onmouseup = null;
+      document.onmousemove = null;
+
+    }
+
+
+    element.addEventListener("mouseover", function() {
+       // element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+      });
+
+        element.addEventListener("mouseout", function() {
+       // element.style.boxShadow = "5px 5px 10px rgba(0, 0, 0, 0.5)";
+      });
+  }
 
 /*
    Moves an object from one part of the array to another.
@@ -9849,7 +9968,7 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
 
     let divContainer = document.createElement('div');
     divContainer.id = divContainerId;
-    //  divContainer.style.display = 'none';
+    divContainer.style.display = 'none';
     document.body.appendChild(divContainer);
 
 
@@ -9886,7 +10005,6 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
         if (!(item.data_deviceid in outlineImageItems)) {
             outlineImageItems[item.data_deviceid] = {};
             outlineImageItems[item.data_deviceid].image = cardImage;
-            console.log('line 9861');
             console.log(JSON.stringify(outlineImageItems, null, 5));
         }
 
@@ -9915,18 +10033,19 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
     imageObj.src = './assets/images/' + itemType.topImage;
 
     const rect = new Konva.Rect({
-        x: 4,
-        y: 4,
-        width: 192,
-        height: 192,
+        x: 8,
+        y: 8,
+        width: 184,
+        height: 184,
         // fill: 'blue',
         // stroke: 'grey',
-        stroke: '#DA70D6',
-        strokeWidth: 8,
+        // stroke: '#DA70D6',
+        stroke: '#FFA500',
+        strokeWidth: 16,
         cornerRadius: 100,
-        fill: '#C0C0C0AA',
+        // fill: 'white',
 
-        // fill: '#F5F5F566',
+        fill: '#0001',
         // shadowColor: 'black',
         // shadowBlur: 20,
         // shadowOffset: { x: 10, y: 10 },
@@ -9991,17 +10110,19 @@ function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
         imageObj.src = './assets/images/' + itemType.topImage;
 
         const rect = new Konva.Rect({
-            x: 4,
-            y: 4,
-            width: 192,
-            height: 192,
+            x: 8,
+            y: 8,
+            width: 184,
+            height: 184,
             // fill: 'blue',
             // stroke: 'grey',
-            stroke: '#DA70D6',
-            strokeWidth: 8,
+            // stroke: '#DA70D6',
+            stroke: '#FFA500DD',
+            strokeWidth: 16,
             cornerRadius: 100,
             // fill: '#C0C0C0AA',
-            fill: '#C0C00033',
+
+            fill: '#0001',
 
             // fill: '#F5F5F566',
             // shadowColor: 'black',
@@ -10065,9 +10186,10 @@ function createNewImages() {
                 width: 192,
                 height: 192,
                 // fill: 'blue',
-                stroke: 'purple',
+                // stroke: 'purple',
+                stroke: '#FFA500',
                 strokeWidth: 4,
-                cornerRadius: [30, 30, 30, 30]
+                cornerRadius: 30,
             });
 
             layer.add(rect);
@@ -10789,6 +10911,7 @@ function openWorkspaceWindow() {
     // let newTab = "http://localhost:3000/#/room/custom"
     let newTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
     let btnWorkspace = document.getElementById('btnWorkspace');
+    let workspaceDesignerCustomTab = localStorage.getItem('wd');
 
     lastAction = "btnClick open Workspace Designer";
 
@@ -10805,6 +10928,13 @@ function openWorkspaceWindow() {
     if (testProduction) {
         newTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
     }
+
+
+    if(workspaceDesignerCustomTab){
+        newTab = workspaceDesignerCustomTab;
+    }
+
+
 
     // newTab = 'http://127.0.0.1:5001/assets/receiver.html';   // used for testing.
 
@@ -11828,23 +11958,32 @@ function toggleMoreMenu(action = '') {
     const rect = document.getElementById('btnMoreMenu').getBoundingClientRect();
     let menuMoreDiv = document.getElementById('menuMoreDiv')
 
-    let btnMoreMenu = document.getElementById('btnMoreMenu');
+    let iconBtnMoreMenu = document.getElementById('iconBtnMoreMenu');
 
-    if (btnMoreMenu.classList.contains('icon-more-adr-bold') || action === 'close') {
+    if (iconBtnMoreMenu.classList.contains('icon-more-adr-bold') || action === 'close') {
 
-        btnMoreMenu.classList.remove('icon-more-adr-bold');
-        btnMoreMenu.classList.add('icon-more-bold');
+        iconBtnMoreMenu.classList.remove('icon-more-adr-bold');
+        iconBtnMoreMenu.classList.add('icon-more-bold');
         menuMoreDiv.style = 'display: none';
 
     } else {
 
-        btnMoreMenu.classList.remove('icon-more-bold');
-        btnMoreMenu.classList.add('icon-more-adr-bold');
+        iconBtnMoreMenu.classList.remove('icon-more-bold');
+        iconBtnMoreMenu.classList.add('icon-more-adr-bold');
         menuMoreDiv.style = `
-        top: ${rect.bottom + window.scrollY + 10}px;
-        left: ${rect.left + window.scrollX - 270}px;
+        top: ${rect.bottom + window.scrollY + 7}px;
+        left: ${rect.left + window.scrollX - 245}px;
+        width: 281px;
         display: absolute;
         `;
+
+        document.addEventListener('pointerdown', event => {
+
+            if (menuMoreDiv && !menuMoreDiv.contains(event.target) && !document.getElementById('btnMoreMenu').contains(event.target)) {
+                toggleMoreMenu('close');
+            }
+
+        });
 
     }
 
