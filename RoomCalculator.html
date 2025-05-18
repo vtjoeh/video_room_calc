@@ -57,12 +57,17 @@
 
   </div>
 
+  <div id="openSideBar"   class="button-group" style="display: none;">
+       <button  id="openSideBarBtn" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i style="font-size: 18px" class="icon icon-arrow-circle-right-bold"></i></button>
+  </div>
+
   <div id="sidebar" class="floatColumns">
     <div id="ContainerInputs" class="ContainerInputsFeedback">
       <div class="tab">
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
+        <button  id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i style="font-size: 18px" class="icon icon-arrow-circle-left-bold"></i></button>
       </div>
       <div id="Room" class="tabcontent" style="display: block;">
         <div class="inputField">
@@ -563,27 +568,27 @@
 
     </div>
   </div>
-  <div>
-    <div id="ContainerRoomSvg" class="floatColumns">
-      <div id="controlButtons">
+  <div id="ContainerForContainerRoom">
+    <div id="ContainerRoomSvg" class="floatColumns" style="width: 100%; ">
+      <div id="controlButtons" class="hideScroll" >
         <div class="button-group">
           <span class="tooltipTitle"><button style="width: 35px;" class="btn" id="btnCamShadeToggle"
               title="Toggle camera coverage">
               <i class="icon icon-camera-bold"></i><span class="holdIndicator"></span>
             </button>
-            <span class="tooltiptextTitle">Display Coverage<br>(hold for mulit-select)</span>
+            <span class="tooltiptextTitle" style="left: -15px;">Camera Coverage<br>(hold for mulit-select)</span>
           </span>
           <span class="tooltipTitle">
             <button style="width: 35px;" class="btn" id="btnMicShadeToggle" title="Toggle microphone coverage">
               <i class="icon icon-microphone-bold"></i><span class="holdIndicator"></span>
             </button>
-            <span class="tooltiptextTitle">Camera Coverage<br>(hold for mulit-select)</span>
+            <span class="tooltiptextTitle">Microphone Coverage<br>(hold for mulit-select)</span>
           </span>
           <span class="tooltipTitle">
             <button style="width: 35px;" class="btn" id="btnDisplayDistance" title="Toggle display coverage">
               <i class="icon icon-display-bold"></i> <span class="holdIndicator"></span>
             </button>
-            <span class="tooltiptextTitle">Camera Coverage<br>(hold for mulit-select)</span>
+            <span class="tooltiptextTitle">Display Coverage<br>(hold for mulit-select)</span>
         </div>
         <div class="button-group">
           <button class="btn" onclick="gridLinesVisible()" id="btnGridToggle" title="Toggle grid">
@@ -646,17 +651,16 @@
           </span>
         </div>
       </div>
-      <div id="svgDiv"></div>
-      <div id="scroll-container" onscroll="onScrollContainerScroll(this)">
-        <div id="large-container">
-          <div id="canvasDiv" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div id="scroll-container" onscroll="onScrollContainerScroll(this)" style="width: 100%; ">
+        <div id="large-container"  >
+          <div id="canvasDiv" ondrop="drop(event)" ondragover="allowDrop(event)" ></div>
         </div>
       </div>
 
     </div>
   </div>
 
-  <div id="Container2" class="floatColumns">
+  <div id="Container2" class="floatColumns" style="display: none;">
     <div id="ContainerFeedback" class="ContainerInputsFeedback">
       <div class="tab">
         <button class="tablinks2 active" onclick="openTabBottom(event, 'Legend')"

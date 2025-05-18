@@ -32,11 +32,13 @@ body {
   padding: 0;
   height: 100%;
   background-color: #F0F2F3;
+
 }
 
 body {
   font-family: Inter;
   padding-top: 30px;
+    /* overflow: hidden; */
 }
 
 body:has(dialog[open]) {
@@ -104,8 +106,15 @@ div {
 
 #ContainerRoomSvg {
   float: left;
-  width: 60%;
+  /* width: 60%; */
+  width: 100%;
   padding: 20px;
+  padding-bottom: 0px;
+}
+
+#ContainerForContainerRoom{
+    float: none;
+    overflow: hidden;
 }
 
 #sidebar {
@@ -115,8 +124,29 @@ div {
   padding: 15px;
   max-height: 100%;
   margin-top: 1.3rem;
+  transition: all 3s;
 }
 
+.sidebarNone{
+  width: 12px;
+}
+
+#openSideBar{
+  float: left;
+  padding-right: 2px;
+  margin-top: 2.3rem;
+  padding-left: 0px;
+  margin-left: 0px;
+  /* width: 40px; */
+  height: 40px;
+
+}
+#openSideBarBtn{
+  background-color: rgba(74, 74, 74, 0.532);
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  padding-left: 0px;
+}
 #Container2 {
   display: inline-block;
   padding: 1rem 1rem;
@@ -131,10 +161,12 @@ div {
 }
 
 #scroll-container {
-  width: calc(100% - 1px);
-  height: calc(100vh + 15px);
+  /* width: calc(100% - 1px);
+  height: calc(100vh + 15px); */
   overflow: auto;
   margin: 0px;
+  border-radius: 10px;
+
 }
 
 img {
@@ -529,6 +561,7 @@ input:placeholder-shown {
   margin: 1em 0;
   /* max-width: 850px; */
   max-width: 600px;
+  overflow-x: auto;
 }
 
 .button-group {
@@ -977,6 +1010,12 @@ input:checked+.slider:before {
   background: transparent;
 }
 
+.closeOpenButton {
+  float: right;
+
+}
+
+
 dialog {
   border-radius: 20px;
   padding: 0;
@@ -1390,6 +1429,7 @@ hr.rightClickHorizontalLine {
 
   body {
     height: max-content;
+    overflow: auto;
   }
 
   #ContainerRoomSvg {
@@ -1404,6 +1444,12 @@ hr.rightClickHorizontalLine {
     margin-left: 0px;
   }
 
+
+  #ContainerForContainerRoom{
+      float: unset;
+      overflow: unset;
+  }
+
   #sidebar {
     width: 100%;
     padding: 0px;
@@ -1412,6 +1458,7 @@ hr.rightClickHorizontalLine {
 
   #controlButtons {
     gap: 5px;
+    overflow-x: auto;
   }
 
   #controlButtons .spacer {

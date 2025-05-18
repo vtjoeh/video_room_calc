@@ -24,6 +24,7 @@ let firstLoad = true; /* set to false after onLoad is run the first time */
 let zoomValue = 100;
 let smallItemsOutline = false; /* keep track if small items have an outline */
 let sizeToAddOultine = 500; /* mm size to make small items outline */
+let workspaceDesignerTestUrl; /* used to store workspace designer URL when testing only */
 
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
 
@@ -1810,20 +1811,21 @@ function getQueryString() {
         testProduction = true;
     }
 
-    if (urlParams.has('wd')){
-        console.log('has wd')
+    if (urlParams.has('wd')) {
         let wd = urlParams.get('wd');
-        console.log('wd', wd);
-        if(wd == '0'){
+        if (wd == '0') {
             console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
             localStorage.removeItem('wd');
+            workspaceDesignerTestUrl = null;
         } else {
             /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
             let base = decodeURIComponent(wd);
-            let newTab = `${base}/#/room/custom`;
-            console.info('urlParams wd=', newTab, 'custom Workspace Designer tab is set.');
-            setItemForLocalStorage('wd', newTab);
+            workspaceDesignerTestUrl = `${base}/#/room/custom`;
+            console.info('urlParams wd=', workspaceDesignerTestUrl, 'custom Workspace Designer tab is set.');
+            setItemForLocalStorage('wd', workspaceDesignerTestUrl);
         }
+    } else {
+        workspaceDesignerTestUrl = localStorage.getItem('wd');
     }
 
     if (urlParams.has('test2')) {
@@ -3462,15 +3464,22 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let windowWidth = window.innerWidth;
 
-    let controlButtons = document.getElementById('controlButtons');
-    let ctrlBttnsBnd = controlButtons.getBoundingClientRect();
-    let canvasWindowHeight = window.innerHeight - ctrlBttnsBnd.height - 20;
 
+    let containerHeaderHeight = getFullHeightIncludingMargin(document.getElementById('ContainerHeader'));
+
+
+    let ctrlBtnsBndHeight = getFullHeightIncludingMargin(document.getElementById('controlButtons'));
+
+    console.log('containerHeaderHeight', containerHeaderHeight);
+    console.log('window.innerHeight', window.innerHeight);
+
+    let canvasWindowHeight = window.innerHeight - ctrlBtnsBndHeight - containerHeaderHeight - 20;
+    console.log('canvasWindowHeight', canvasWindowHeight);
     let minWindowWidth = 300;
     let minWindowHeight = 600;
-
+    /* getting full width */
     let rightBuffer = 82;
-    let bottomBuffer = 120;
+    let bottomBuffer = 180;
 
     if (windowWidth < minWindowWidth) {
         windowWidth = minWindowWidth;
@@ -3489,9 +3498,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
-    let xScale = (divRmContainerDOMRect.width - rightBuffer) / roomWidth;
+    let xScale = (divRmContainerDOMRect.width - pxOffset * 2) / roomWidth;
 
-    let yScale = (canvasWindowHeight - bottomBuffer) / roomLength;
+    let yScale = (canvasWindowHeight - pyOffset * 2 - 30) / roomLength;
 
     if (xScale < yScale) {
         scale = xScale;
@@ -3689,6 +3698,13 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
     }
 
+}
+
+function getFullHeightIncludingMargin(element) {
+    const style = window.getComputedStyle(element);
+    const marginTop = parseFloat(style.marginTop);
+    const marginBottom = parseFloat(style.marginBottom);
+    return element.offsetHeight + marginTop + marginBottom;
 }
 
 function changeTransparency(value) {
@@ -6522,6 +6538,24 @@ function closeDeviceMenu(attributeType) {
     if (menu) { menu.remove(); }
 }
 
+function closeOpenSidebar(){
+    let sideBar = document.getElementById('sidebar');
+    let openSidebarDiv = document.getElementById('openSideBar');
+    let containerRoomSvg = document.getElementById('ContainerRoomSvg');
+    if (sideBar.style.display === 'none'){
+        sideBar.style.display = '';
+        openSidebarDiv.style.display = 'none';
+        containerRoomSvg.style.paddingLeft = '';
+    } else {
+        sideBar.style.display = 'none';
+        openSidebarDiv.style.display = '';
+        containerRoomSvg.style.paddingLeft = '0px';
+    }
+
+    windowResizeEventName();
+
+}
+
 function checkForAllUnchecked() {
     let attributeTypeArray = ['hasMic', 'hasCamera', 'hasDisplay'];
     attributeTypeArray.forEach((attributeType) => {
@@ -6587,7 +6621,7 @@ function createDeviceMenu(parentButton, attributeType) {
 
     const devices = menuReachItemList(attributeType);
     if (devices.length < 1) menuReach.style.color = unavailableTextColor;
-   // const options = [...defaultOptions, ...devices];
+    // const options = [...defaultOptions, ...devices];
     const options = devices;
     options.forEach(opt => {
         const menuReachItem = document.createElement('div');
@@ -6657,12 +6691,11 @@ function createDeviceMenu(parentButton, attributeType) {
 
         var checkedBoxes = document.querySelectorAll('input[name=menuReachItemCheckBox]');
 
-        if(clearButton.textContent === 'Uncheck All'){
-            clearButton.textContent ='Check All';
+        if (clearButton.textContent === 'Uncheck All') {
+            clearButton.textContent = 'Check All';
             checkBoxchecked = false;
         }
-        else if(clearButton.textContent === 'Check All')
-        {
+        else if (clearButton.textContent === 'Check All') {
             clearButton.textContent = 'Uncheck All';
             checkBoxchecked = true;
         }
@@ -6983,61 +7016,61 @@ function dragElement(element) {
     let dragger = document.getElementById(element.id + "-dragger")
 
     if (dragger) {
-      // if present, the header is where you move the DIV from:
-      dragger.onmousedown = dragMouseDown;
+        // if present, the header is where you move the DIV from:
+        dragger.onmousedown = dragMouseDown;
 
 
     }
     else {
-      // otherwise, move the DIV from anywhere inside the DIV:
-      element.onmousedown = dragMouseDown;
+        // otherwise, move the DIV from anywhere inside the DIV:
+        element.onmousedown = dragMouseDown;
     }
 
     function dragMouseDown(e) {
-      e = e || window.event;
-      e.preventDefault();
-      // get the mouse cursor position at startup:
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      document.onmouseup = closeDragElement;
-      // call a function whenever the cursor moves:
-      document.onmousemove = elementDrag;
-      element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+        e = e || window.event;
+        e.preventDefault();
+        // get the mouse cursor position at startup:
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        // call a function whenever the cursor moves:
+        document.onmousemove = elementDrag;
+        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
 
 
     }
 
     function elementDrag(e) {
-      e = e || window.event;
-      e.preventDefault();
-      // calculate the new cursor position:
-      pos1 = pos3 - e.clientX;
-      pos2 = pos4 - e.clientY;
-      pos3 = e.clientX;
-      pos4 = e.clientY;
-      // set the element's new position:
-      element.style.top = (element.offsetTop - pos2) + "px";
-      element.style.left = (element.offsetLeft - pos1) + "px";
-      element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+        e = e || window.event;
+        e.preventDefault();
+        // calculate the new cursor position:
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        // set the element's new position:
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
 
     }
 
     function closeDragElement() {
-      // stop moving when mouse button is released:
-      document.onmouseup = null;
-      document.onmousemove = null;
+        // stop moving when mouse button is released:
+        document.onmouseup = null;
+        document.onmousemove = null;
 
     }
 
 
-    element.addEventListener("mouseover", function() {
-       // element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
-      });
+    element.addEventListener("mouseover", function () {
+        // element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+    });
 
-        element.addEventListener("mouseout", function() {
-       // element.style.boxShadow = "5px 5px 10px rgba(0, 0, 0, 0.5)";
-      });
-  }
+    element.addEventListener("mouseout", function () {
+        // element.style.boxShadow = "5px 5px 10px rgba(0, 0, 0, 0.5)";
+    });
+}
 
 /*
    Moves an object from one part of the array to another.
@@ -9923,7 +9956,6 @@ function updateCreateOutlineImage(minimumSize = 500) {
 
         } else {
             let newImageObj = new Image();
-            console.log('deviceType', JSON.stringify(allDeviceTypes[item.data_deviceid]));
 
             let width = allDeviceTypes[item.data_deviceid].width / 1000 * scale;
             let height = allDeviceTypes[item.data_deviceid].depth / 1000 * scale;
@@ -10005,10 +10037,9 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
         if (!(item.data_deviceid in outlineImageItems)) {
             outlineImageItems[item.data_deviceid] = {};
             outlineImageItems[item.data_deviceid].image = cardImage;
-            console.log(JSON.stringify(outlineImageItems, null, 5));
         }
 
-        console.log(JSON.stringify(outlineImageItems, null, 5));
+
         for (const type in outlineImageItems) {
             console.log('type', type);
             console.log('type.image', outlineImageItems[type].image);
@@ -10021,7 +10052,6 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
             node.height(newItemAttr.height);
             node.x(newItemAttr.x);
             node.y(newItemAttr.y);
-            console.log('node: ', node.width(), node.height())
         };
         //  })
 
@@ -10213,10 +10243,7 @@ function preLoadTopImages() {
     /* count up total devices */
     preLoadTypes.forEach(typeGroup => {
         totalDevices = totalDevices + typeGroup.length;
-        console.log('typeGroup.length', typeGroup.length);
     });
-
-    console.log('counter total', totalDevices);
 
 
     preLoadTypes.forEach(list => {
@@ -10911,7 +10938,7 @@ function openWorkspaceWindow() {
     // let newTab = "http://localhost:3000/#/room/custom"
     let newTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
     let btnWorkspace = document.getElementById('btnWorkspace');
-    let workspaceDesignerCustomTab = localStorage.getItem('wd');
+    let workspaceDesignerCustomTab;
 
     lastAction = "btnClick open Workspace Designer";
 
@@ -10929,9 +10956,8 @@ function openWorkspaceWindow() {
         newTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
     }
 
-
-    if(workspaceDesignerCustomTab){
-        newTab = workspaceDesignerCustomTab;
+    if (workspaceDesignerTestUrl) {
+        newTab = workspaceDesignerTestUrl;
     }
 
 
@@ -11740,7 +11766,7 @@ function workspaceIconLoad() {
 
 function toggleWorkspace(isOn = true) {
     let button = document.getElementById('btnWorkspace');
-    if (isOn || testProduction) {
+    if (isOn || testProduction || workspaceDesignerTestUrl) {
         button.children[0].textContent = 'deployed_code';
         button.children[0].style.color = '';
         document.getElementById('workspaceIcon').style.display = '';
