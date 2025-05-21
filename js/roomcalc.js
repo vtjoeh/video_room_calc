@@ -613,14 +613,14 @@ let videoDevicesNoCameras = structuredClone(videoDevices);
 /* camera key starts with C */
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
-    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 24, twoPersonZoom: 36, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 0, twoPersonZoom: 3.17, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
     { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
-let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 4.4, twoPersonZoom: 3.2 };
+let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 2.4, twoPersonZoom: 3.05 };
 
 /* Microphone & Navigators - key starts with M */
 let microphones = [
@@ -1342,6 +1342,7 @@ function windowResizeEventName() {
     clearTimeout(resizeWindowTimer);
 
     resizeWindowTimer = setTimeout(function resizingCanvas() {
+        zoomInOut('reset');
         drawRoom(false, false, true);
 
     }, 550);
@@ -3470,11 +3471,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let ctrlBtnsBndHeight = getFullHeightIncludingMargin(document.getElementById('controlButtons'));
 
-    console.log('containerHeaderHeight', containerHeaderHeight);
-    console.log('window.innerHeight', window.innerHeight);
-
     let canvasWindowHeight = window.innerHeight - ctrlBtnsBndHeight - containerHeaderHeight - 20;
-    console.log('canvasWindowHeight', canvasWindowHeight);
+
     let minWindowWidth = 300;
     let minWindowHeight = 600;
     /* getting full width */
@@ -6265,9 +6263,7 @@ function updateItem() {
 
     /* take the item.id from the web page and find it in the RoomObj json. The Canvas shape
         really gets deleted and rebuilt versus updated */
-    console.trace();
     roomObj.items[parentGroup].forEach((item, index) => {
-
 
         if (item.id === id) {
             if ('x' in item) {
@@ -6538,7 +6534,9 @@ function closeDeviceMenu(attributeType) {
     if (menu) { menu.remove(); }
 }
 
-function closeOpenSidebar(){
+function closeOpenSidebar(tabToOpen){
+
+
     let sideBar = document.getElementById('sidebar');
     let openSidebarDiv = document.getElementById('openSideBar');
     let containerRoomSvg = document.getElementById('ContainerRoomSvg');
@@ -6551,6 +6549,14 @@ function closeOpenSidebar(){
         openSidebarDiv.style.display = '';
         containerRoomSvg.style.paddingLeft = '0px';
     }
+
+    if(tabToOpen){
+
+            document.getElementById(tabToOpen).click();
+
+
+    }
+
 
     windowResizeEventName();
 
@@ -7622,7 +7628,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         imageObj.src = './assets/images/' + insertDevice.topImage;
     }
 
-    /* add shading for cameras */
+    /* add coverage for cameras */
     if ('wideHorizontalFOV' in insertDevice) {
 
         let groupFov = new Konva.Group({
@@ -7692,6 +7698,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             perfectDrawEnabled: perfectDrawEnabled,
         });
 
+
+
         let teleTwoPersonFOV = new Konva.Wedge({
             /* x and y should be tracked in the group only */
             opacity: 0.55,
@@ -7711,6 +7719,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             fillRadialGradientColorStops: [0, onePersonCropColor, gradientStop1, onePersonCropColor, gradientStop2, twoPersonCropColor, 1, twoPersonCropColor + '64'],
 
         });
+
+        /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
+        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0){
+            teleTwoPersonFOV.fillRadialGradientColorStops([0,onePersonCropColor,gradientStop2,onePersonCropColor, 1, onePersonCropColor + '64'])
+            wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
+        }
 
         let txtTwoPersonFov = new Konva.Text({
             x: -1000,
@@ -7747,17 +7761,21 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             align: 'center',
         });
 
-
+        if(!(deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0)){
+            groupFov.add(txtOnePersonFov);
+            groupFov.add(teleOnePersonFOV);
+            groupFov.add(txtTwoPersonFov);
+        }
         groupFov.add(wideFOV);
 
 
         groupFov.add(teleTwoPersonFOV);
 
-        groupFov.add(teleOnePersonFOV);
 
-        groupFov.add(txtOnePersonFov);
 
-        groupFov.add(txtTwoPersonFov);
+
+
+
 
         grShadingCamera.add(groupFov);
 
@@ -10027,9 +10045,6 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
         });
         layer.add(imageItem);
 
-        // let cardImage = node.image();
-
-        //    stageForImageCreation.toDataURL().then(src=>{
         let cardImage = new Image();
         cardImage.src = stageForImageCreation.toDataURL();
 
@@ -10037,12 +10052,6 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
         if (!(item.data_deviceid in outlineImageItems)) {
             outlineImageItems[item.data_deviceid] = {};
             outlineImageItems[item.data_deviceid].image = cardImage;
-        }
-
-
-        for (const type in outlineImageItems) {
-            console.log('type', type);
-            console.log('type.image', outlineImageItems[type].image);
         }
 
         cardImage.onload = function () {
@@ -10053,36 +10062,29 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
             node.x(newItemAttr.x);
             node.y(newItemAttr.y);
         };
-        //  })
-
-        // cardImage.src = stageForImageCreation.toDataURL();
-        // node.image(cardImage);
 
     }
 
     imageObj.src = './assets/images/' + itemType.topImage;
 
+
+
+    layer.add(createOutlineRect());
+}
+
+
+function createOutlineRect(){
     const rect = new Konva.Rect({
         x: 8,
         y: 8,
         width: 184,
         height: 184,
-        // fill: 'blue',
-        // stroke: 'grey',
-        // stroke: '#DA70D6',
         stroke: '#FFA500',
         strokeWidth: 16,
         cornerRadius: 100,
-        // fill: 'white',
-
         fill: '#0001',
-        // shadowColor: 'black',
-        // shadowBlur: 20,
-        // shadowOffset: { x: 10, y: 10 },
-        // shadowOpacity: 0.7,
     });
-
-    layer.add(rect);
+    return rect;
 }
 
 function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
@@ -10144,21 +10146,10 @@ function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
             y: 8,
             width: 184,
             height: 184,
-            // fill: 'blue',
-            // stroke: 'grey',
-            // stroke: '#DA70D6',
             stroke: '#FFA500DD',
             strokeWidth: 16,
             cornerRadius: 100,
-            // fill: '#C0C0C0AA',
-
             fill: '#0001',
-
-            // fill: '#F5F5F566',
-            // shadowColor: 'black',
-            // shadowBlur: 20,
-            // shadowOffset: { x: 10, y: 10 },
-            // shadowOpacity: 0.7,
         });
 
         layer.add(rect);
@@ -10167,68 +10158,6 @@ function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
     }
 }
 
-
-
-function createNewImages() {
-    microphones.forEach((item, index) => {
-        let minimumSize = 500;
-        let imageSize = 200;
-        let picScale = imageSize / minimumSize;
-
-        if (item.width < minimumSize && item.depth < minimumSize) {
-
-            let divContainerId = 'conaterImageCreate' + index;
-
-
-            let divContainer = document.createElement('div');
-            divContainer.id = divContainerId;
-            document.body.appendChild(divContainer);
-
-
-            const stage = new Konva.Stage({
-                container: divContainerId,
-                width: imageSize,
-                height: imageSize,
-            });
-
-            const layer = new Konva.Layer();
-            stage.add(layer);
-            let imageObj = new Image();
-
-            imageObj.onload = function imageObjOnLoad() {
-                let imageItem = new Konva.Image({
-                    x: (imageSize - (picScale * item.width)) / 2,
-                    y: (imageSize - (picScale * item.depth)) / 2,
-                    image: imageObj,
-                    width: picScale * item.width,
-                    height: picScale * item.depth,
-                });
-                layer.add(imageItem);
-
-            }
-
-            imageObj.src = './assets/images/' + item.topImage;
-
-
-            const rect = new Konva.Rect({
-                x: 4,
-                y: 4,
-                width: 192,
-                height: 192,
-                // fill: 'blue',
-                // stroke: 'purple',
-                stroke: '#FFA500',
-                strokeWidth: 4,
-                cornerRadius: 30,
-            });
-
-            layer.add(rect);
-
-
-
-        }
-    });
-}
 
 /*
     Cache Images so if internet is lost, insert images to canvas still works.

@@ -57,520 +57,536 @@
 
   </div>
 
-  <div id="openSideBar"   class="button-group" style="display: none;">
-       <button  id="openSideBarBtn" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i style="font-size: 18px" class="icon icon-arrow-circle-right-bold"></i></button>
+  <div id="openSideBar" class="button-group" style="display: none;">
+
+    <button id="1" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('defaultOpenTab')"
+      style="padding-left: 22px;">Room</button>
+    <button id="2" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabEquipment')">Equipment&nbsp;&nbsp;
+    </button>
+    <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button>
+    <button id="openSideBarBtn" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
+        style="font-size: 18px" class="icon icon-arrow-circle-right-bold"></i></button>
+    <div class="displayWhenLessThan900" id="0">
+    </div>
   </div>
 
   <div id="sidebar" class="floatColumns">
+
     <div id="ContainerInputs" class="ContainerInputsFeedback">
       <div class="tab">
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
-        <button class="tablinks" onclick="openTab(event, 'Insert')">Equipment&nbsp;&nbsp; </button>
+        <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
-        <button  id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i style="font-size: 18px" class="icon icon-arrow-circle-left-bold"></i></button>
+        <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
+            style="font-size: 18px" id="closeOpenIcon" class="icon icon-arrow-circle-left-bold"></i>
+        </button>
       </div>
-      <div id="Room" class="tabcontent" style="display: block;">
-        <div class="inputField">
-          <label>Room name:</label>
-          <input type="text" id="roomName" name="roomName" class="textInput">
-        </div>
+      <div id="containerInputTabContent">
+        <div id="Room" class="tabcontent" style="display: block;">
+          <div class="inputField">
+            <label>Room name:</label>
+            <input type="text" id="roomName" name="roomName" class="textInput">
+          </div>
 
-        <div class="inputField">
-          <label for="drpMetersFeet">Unit (meters/feet):</label>
-          <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()">
-            <option value="feet">Feet</option>
-            <option value="meters">Meters</option>
-          </select>
-        </div>
-        <div class="inputRow">
           <div class="inputField">
-            <label for="roomWidth">Width:</label>
-            <input type="text" id="roomWidth" name="roomWidth" value="20" maxlength="12" size="4"
-              class="unitInput updateDrawRoom">
-            <label class="unitFeetMeters">ft</label>
+            <label for="drpMetersFeet">Unit (meters/feet):</label>
+            <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()">
+              <option value="feet">Feet</option>
+              <option value="meters">Meters</option>
+            </select>
+          </div>
+          <div class="inputRow">
+            <div class="inputField">
+              <label for="roomWidth">Width:</label>
+              <input type="text" id="roomWidth" name="roomWidth" value="20" maxlength="12" size="4"
+                class="unitInput updateDrawRoom">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+            <div class="inputField">
+              <label for="roomLength"> Length:</label>
+              <input type="text" id="roomLength" name="roomLength" class="unitInput updateDrawRoom" value="20"
+                maxlength="12" size="5">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+            <div class="inputField">
+              <label class="tooltip">Height:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext tooltiptextLeft">[Optional] Room Height is not
+                  rendered in the room canvas but is in the Workspace Designer.</span>
+              </label>
+              <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
+              <label class="unitFeetMeters">ft</label>
+            </div>
           </div>
           <div class="inputField">
-            <label for="roomLength"> Length:</label>
-            <input type="text" id="roomLength" name="roomLength" class="unitInput updateDrawRoom" value="20"
-              maxlength="12" size="5">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputField">
-            <label class="tooltip">Height:
+            <label class="tooltipBottom">Software Experience:
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext tooltiptextLeft">[Optional] Room Height is not
-                rendered in the room canvas but is in the Workspace Designer.</span>
-            </label>
-            <input type="text" id="roomHeight" value="" maxlength="12" size="5" class="unitInput">
-            <label class="unitFeetMeters">ft</label>
+              <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
+                Software Experience setting does not verify if the video device supports
+                MTR.</span></label>
+            <select id="drpSoftware">
+              <option value="select">-</option>
+              <option value="webex">RoomOS Cisco Rooms</option>
+              <option value="mtr">Microsoft Teams Rooms</option>
+            </select>
           </div>
-        </div>
-        <div class="inputField">
-          <label class="tooltipBottom">Software Experience:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
-              Software Experience setting does not verify if the video device supports
-              MTR.</span></label>
-          <select id="drpSoftware">
-            <option value="select">-</option>
-            <option value="webex">RoomOS Cisco Rooms</option>
-            <option value="mtr">Microsoft Teams Rooms</option>
-          </select>
-        </div>
-        <div class="inputField">
-          <label class="tooltip">Version / Author:
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">Field to keep track of Version and/or Author. This field can be
-              any length but will add to the total URL length.</span></label>
-          <textarea id="authorVersion" class="textInput"></textarea>
-        </div>
+          <div class="inputField">
+            <label class="tooltip">Version / Author:
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">Field to keep track of Version and/or Author. This field can be
+                any length but will add to the total URL length.</span></label>
+            <textarea id="authorVersion" class="textInput"></textarea>
+          </div>
 
 
-        <div class="inputField">
-          <input type="submit" value="Update" onclick="updateButtonRoomDimensions()" class="button" id="updateButtonId">
+          <div class="inputField">
+            <input type="submit" value="Update" onclick="updateButtonRoomDimensions()" class="button"
+              id="updateButtonId">
+          </div>
+
+          <div id="quickSetup" class="menuDivider">
+            Quick Setup (optional)
+          </div>
+
+
         </div>
 
-        <div id="quickSetup" class="menuDivider">
-          Quick Setup (optional)
-        </div>
+        <!-- Equipment tab is below -->
+        <div id="Insert" class="tabcontent">
+          <div class="tab">
+            <button class="subtablinks active" onclick="openSubTab(event, 'Cameras')">Video Devices</button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Microphones&nbsp;&nbsp;</button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Panels </button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture</button>
+          </div>
+          <div id="Cameras" class="subtabcontent" style="display: block;">
 
-
-      </div>
-
-      <!-- Equipment tab is below -->
-      <div id="Insert" class="tabcontent">
-        <div class="tab">
-          <button class="subtablinks active" onclick="openSubTab(event, 'Cameras')">Video Devices</button>
-          <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Microphones&nbsp;&nbsp;</button>
-          <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Panels </button>
-          <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture</button>
-        </div>
-        <div id="Cameras" class="subtabcontent" style="display: block;">
-
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            <b>Tip:</b>
-            &nbsp;Drag and drop to room canvas
-          </div>
-          <div class="menuDivider">
-            Room Bar / Room Kit
-          </div>
-          <div id="cameraMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-
-          <div class="menuDivider">
-            All In One Devices
-          </div>
-          <div id="cameraMenuAllin1Container" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Personal Devices
-          </div>
-          <div id="personalDevicesMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Cameras / Misc
-          </div>
-          <div id="cameraDevicesMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider" id="legacyVideoDevicesMenuDivider" style="display:none; ">
-            Legacy Video Devices
-          </div>
-
-          <div id="cameraLegacyMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="hideScrollButton">
-
-          </div>
-        </div>
-        <div id="Microphones" class="subtabcontent">
-
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            <b>Tip:</b>
-            &nbsp;Drag and drop to room canvas
-          </div>
-          <div class="menuDivider">
-            Cisco Microphones
-          </div>
-          <div id="microphoneMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="hideScrollButton">
-
-          </div>
-        </div>
-
-        <div id="Tables" class="subtabcontent">
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            <b>Tip:</b>
-            &nbsp;Drag and drop to room canvas
-          </div>
-          <div class="menuDivider">
-            Tables
-          </div>
-          <div id="tablesMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Chairs / Doors / People
-          </div>
-          <div id="chairsMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Walls
-          </div>
-          <div id="wallsMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Accessibility
-          </div>
-          <div id="accessibilityMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Stage/Floors (lowest level items)
-          </div>
-          <div id="stageFloorMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="hideScrollButton">
-
-          </div>
-        </div>
-
-        <div id="Panels" class="subtabcontent">
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            <b>Tip:</b>
-            &nbsp;Drag and drop to room canvas
-          </div>
-          <div class="menuDivider">
-            Displays
-          </div>
-          <div id="displaysMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="menuDivider">
-            Navigator
-          </div>
-          <div id="navigatorsMenuContainer" class="containerItems">
-            <!-- Menu will be inserted -->
-          </div>
-          <div class="hideScrollButton">
-
-          </div>
-        </div>
-
-      </div>
-
-      <div id="Item" class="tabcontent">
-        <div class="tab">
-          <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
-            id="subTabItemDetails">Items</button>
-          <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
-            Image</button>
-          <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
-        </div>
-
-        <div id="ItemDetails" class="subtabcontent2 subtabcontent2a" style="display: block;">
-          <div id="txtItemsDetailNote">
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              <b>Tip:</b>
+              &nbsp;Drag and drop to room canvas
+            </div>
             <div class="menuDivider">
-              Double click item on the room canvas.
+              Room Bar / Room Kit
+            </div>
+            <div id="cameraMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+
+            <div class="menuDivider">
+              All In One Devices
+            </div>
+            <div id="cameraMenuAllin1Container" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Personal Devices
+            </div>
+            <div id="personalDevicesMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Cameras / Misc
+            </div>
+            <div id="cameraDevicesMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider" id="legacyVideoDevicesMenuDivider" style="display:none; ">
+              Legacy Video Devices
+            </div>
+
+            <div id="cameraLegacyMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="hideScrollButton">
+
             </div>
           </div>
-          <div id="itemDetailsVisible" style="display: none;">
-            <div class="inputField">
-              <label class="tooltipBottom">Item Type:</label>
-              <input disabled type="text" id="itemName" size="45" class="">
+          <div id="Microphones" class="subtabcontent">
+
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              <b>Tip:</b>
+              &nbsp;Drag and drop to room canvas
             </div>
-            <div class="inputField">
-              <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
-                  class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the URL.
-                  They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
-                  inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
-              <input type="text" id="labelField" size="45" class="textInput">
+            <div class="menuDivider">
+              Cisco Microphones
             </div>
-            <div class="inputRow">
-              <div class="inputField" id="itemXY">
-                <label class="tooltipBottom">X:<i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptextBottom">Coordinates X &
-                    Y are the upper left hand corner of tables and walls but are the center of all
-                    other objects.</span></label>
-                <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
+            <div id="microphoneMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="hideScrollButton">
+
+            </div>
+          </div>
+
+          <div id="Tables" class="subtabcontent">
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              <b>Tip:</b>
+              &nbsp;Drag and drop to room canvas
+            </div>
+            <div class="menuDivider">
+              Tables
+            </div>
+            <div id="tablesMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Chairs / Doors / People
+            </div>
+            <div id="chairsMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Walls
+            </div>
+            <div id="wallsMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Accessibility
+            </div>
+            <div id="accessibilityMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Stage/Floors (lowest level items)
+            </div>
+            <div id="stageFloorMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="hideScrollButton">
+
+            </div>
+          </div>
+
+          <div id="Panels" class="subtabcontent">
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              <b>Tip:</b>
+              &nbsp;Drag and drop to room canvas
+            </div>
+            <div class="menuDivider">
+              Displays
+            </div>
+            <div id="displaysMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="menuDivider">
+              Navigator
+            </div>
+            <div id="navigatorsMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+            <div class="hideScrollButton">
+
+            </div>
+          </div>
+
+        </div>
+
+        <div id="Item" class="tabcontent">
+          <div class="tab">
+            <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
+              id="subTabItemDetails">Items</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
+              Image</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
+          </div>
+
+          <div id="ItemDetails" class="subtabcontent2 subtabcontent2a" style="display: block;">
+            <div id="txtItemsDetailNote">
+              <div class="menuDivider">
+                Double click item on the room canvas.
+              </div>
+            </div>
+            <div id="itemDetailsVisible" style="display: none;">
+              <div class="inputField">
+                <label class="tooltipBottom">Item Type:</label>
+                <input disabled type="text" id="itemName" size="45" class="">
               </div>
               <div class="inputField">
-                <label>Y:</label>
-                <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
+                <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
+                    class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the
+                    URL.
+                    They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
+                    inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
+                <input type="text" id="labelField" size="45" class="textInput">
               </div>
-              <div class="inputField" id="itemZpositionDiv">
-                <label class="tooltipBottom">Z:
+              <div class="inputRow">
+                <div class="inputField" id="itemXY">
+                  <label class="tooltipBottom">X:<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom">Coordinates X &
+                      Y are the upper left hand corner of tables and walls but are the center of all
+                      other objects.</span></label>
+                  <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField">
+                  <label>Y:</label>
+                  <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField" id="itemZpositionDiv">
+                  <label class="tooltipBottom">Z:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom tooltiptextLeft">[Optional]
+                      Base elevation (Z) is the vertical measurement from the floor to
+                      the base of the object. Used in the Workspace Designer custom rooms.</span></label>
+                  <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+              </div>
+
+              <div class="inputField" id="itemTopElevationDiv">
+                <label class="tooltipBottom">Top Elevation:
                   <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptextBottom tooltiptextLeft">[Optional]
-                    Base elevation (Z) is the vertical measurement from the floor to
-                    the base of the object. Used in the Workspace Designer custom rooms.</span></label>
-                <input type="text" id="itemZposition" maxlength="6" size="5" class="unitInput allowBlank">
+                  <span class="tooltiptextBottom">
+                    [Read-only] The measurement to the top of the object or display. For displays,
+                    this is an approximate value derived for the diagonal inches. Not shown on the
+                    drawing of the Video Room
+                    Calculator.</span></label>
+                <input type="text" id="itemTopElevation" maxlength="6" size="5" class="unitInput allowBlank" value="123"
+                  disabled>
                 <label class="unitFeetMeters">ft</label>
               </div>
-            </div>
 
-            <div class="inputField" id="itemTopElevationDiv">
-              <label class="tooltipBottom">Top Elevation:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">
-                  [Read-only] The measurement to the top of the object or display. For displays,
-                  this is an approximate value derived for the diagonal inches. Not shown on the
-                  drawing of the Video Room
-                  Calculator.</span></label>
-              <input type="text" id="itemTopElevation" maxlength="6" size="5" class="unitInput allowBlank" value="123"
-                disabled>
-              <label class="unitFeetMeters">ft</label>
-            </div>
+              <div class="inputRow" id="itemWidthLengthDiv">
+                <div class="inputField" id="itemWidthLength">
+                  <label class="tooltip">Width:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Only tables,
+                      walls, and columns have adjustable widths and lengths. All other objects are
+                      fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
+                    </span></label>
+                  <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField">
+                  <label> Length:</label>
+                  <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
 
-            <div class="inputRow" id="itemWidthLengthDiv">
-              <div class="inputField" id="itemWidthLength">
-                <label class="tooltip">Width:
+                <div class="inputField" id="itemVheightDiv">
+                  <label class="tooltip">Height:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">[Optional] Vertical height of the object in the Workspace
+                      Designer. For walls and columns, the default value is the Room Height field if set, but can be
+                      overwritten in the below input field.</span></label>
+                  <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
+                    placeholder="test">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+              </div>
+
+              <div class="inputField" id="trapNarrowWidthDiv">
+                <label class="tooltip">Narrow Width:
                   <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Only tables,
-                    walls, and columns have adjustable widths and lengths. All other objects are
-                    fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
-                  </span></label>
-                <input type="text" id="itemWidth" maxlength="12" size="5" class="unitInput">
-                <label class="unitFeetMeters">ft</label>
-              </div>
-              <div class="inputField">
-                <label> Length:</label>
-                <input type="text" id="itemLength" maxlength="12" size="5" class="unitInput">
+                  <span class="tooltiptext">For tappered/trapezoid
+                    shape tables, the narrow width at the head of the table.</span></label>
+                <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput">
                 <label class="unitFeetMeters">ft</label>
               </div>
 
-              <div class="inputField" id="itemVheightDiv">
-                <label class="tooltip">Height:
+
+              <div class="inputField" id="itemRotationDiv">
+                <label class="tooltip">Item Rotation:
                   <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext tooltiptextLeft">[Optional] Vertical height of the object in the Workspace
-                    Designer. For walls and columns, the default value is the Room Height field if set, but can be
-                    overwritten in the below input field.</span></label>
-                <input type="text" id="itemVheight" maxlength="6" size="5" class="unitInput allowBlank"
-                  placeholder="test">
+                  <span class="tooltiptext">Rotation in degrees from
+                    0 to 360. Positive or negative values.</span></label>
+                <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
+                <label class="classDegree">&deg;</label>
+              </div>
+
+              <div class="inputField" id="tblRectRadiusDiv">
+                <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
+                    corners unless the Corner Radius Front Half has a value, in which case it is
+                    only two corners. The value should be no more than 1/2 of the length or width,
+                    whichever is smaller.</span></label>
+                <input type="text" id="tblRectRadius" maxlength="12" size="5" class="unitInput allowBlank">
                 <label class="unitFeetMeters">ft</label>
               </div>
-            </div>
 
-            <div class="inputField" id="trapNarrowWidthDiv">
-              <label class="tooltip">Narrow Width:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">For tappered/trapezoid
-                  shape tables, the narrow width at the head of the table.</span></label>
-              <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-
-
-            <div class="inputField" id="itemRotationDiv">
-              <label class="tooltip">Item Rotation:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Rotation in degrees from
-                  0 to 360. Positive or negative values.</span></label>
-              <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
-              <label class="classDegree">&deg;</label>
-            </div>
-
-            <div class="inputField" id="tblRectRadiusDiv">
-              <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
-                  corners unless the Corner Radius Front Half has a value, in which case it is
-                  only two corners. The value should be no more than 1/2 of the length or width,
-                  whichever is smaller.</span></label>
-              <input type="text" id="tblRectRadius" maxlength="12" size="5" class="unitInput allowBlank">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-
-            <div class="inputField" id="tblRectRadiusRightDiv">
-              <label class="tooltip">Corner Radius Front Half
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Radius of the
-                  front 2 table corners. If blank, the Corner Radius above is used for all 4
-                  corners. The value should be no more than 1/2 of the length or width, whichever
-                  is smaller.</span></label>
-              <input type="text" id="tblRectRadiusRight" maxlength="12" size="5" class="unitInput allowBlank">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-
-            <div class="inputField" id="itemDiagonalTvDiv">
-              <label class="tooltip">Display Diagonal Inches:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">The
-                  width & length of the display is calculated automatically based on the display
-                  diagonal
-                  inches.</span></label>
-              <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
-              <label class="unitInches">in</label>
-            </div>
-            <div id="testB" style="display: none;">
-
-              <div class="inputField" id="roleDiv">
-                <label for="drpRole" class="tooltip">Role:
+              <div class="inputField" id="tblRectRadiusRightDiv">
+                <label class="tooltip">Corner Radius Front Half
                   <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Role is used in the Workspace Designer export and may
-                    not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
-                    camera FOV angle will change based on the Role.</span>
+                  <span class="tooltiptext">Radius of the
+                    front 2 table corners. If blank, the Corner Radius above is used for all 4
+                    corners. The value should be no more than 1/2 of the length or width, whichever
+                    is smaller.</span></label>
+                <input type="text" id="tblRectRadiusRight" maxlength="12" size="5" class="unitInput allowBlank">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+
+              <div class="inputField" id="itemDiagonalTvDiv">
+                <label class="tooltip">Display Diagonal Inches:
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">The
+                    width & length of the display is calculated automatically based on the display
+                    diagonal
+                    inches.</span></label>
+                <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
+                <label class="unitInches">in</label>
+              </div>
+              <div id="testB" style="display: none;">
+
+                <div class="inputField" id="roleDiv">
+                  <label for="drpRole" class="tooltip">Role:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Role is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
+                      camera FOV angle will change based on the Role.</span>
+                  </label>
+                  <select name="drpRole" id="drpRole" class="selectRole">
+                  </select>
+                </div>
+
+                <div class="inputField" id="colorDiv">
+                  <label for="drpColor" class="tooltip">Color:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Color is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas objects. </span>
+                  </label>
+                  <select name="drpColor" id="drpColor" class="selectRole">
+                  </select>
+                </div>
+              </div>
+              <div class="inputRow" id="isPrimaryDiv" style="display: none;">
+                <input type="checkbox" id="isPrimaryCheckBox" disabled>
+                <label id="isPrimaryLabel" class="tooltip">Is primary?
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Primary
+                    devices are used in determining if Quick Setup is enabled and this field may be
+                    used for future features.</span>
                 </label>
-                <select name="drpRole" id="drpRole" class="selectRole">
-                </select>
+              </div>
+              <div class="inputRow" style="margin-top: 1.5em;">
+                <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
+                <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
+                  <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
+                    title="Toggle Camera Shading">
+                    <i class="icon icon-camera-bold"></i>
+                  </button>
+                  <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem">
+                    <i class="icon icon-microphone-bold"></i>
+                  </button>
+                  <button class="btn" onclick="toggleDisplayDistanceSingleItem()" id="btnDisplayDistanceSingleItem"
+                    title="Toggle Display Reach">
+                    <i class="icon icon-display-bold"></i>
+                  </button>
+
+                </div>
               </div>
 
-              <div class="inputField" id="colorDiv">
-                <label for="drpColor" class="tooltip">Color:
-                  <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Color is used in the Workspace Designer export and may
-                    not reflect any changes in the Video Room Calculator canvas objects. </span>
-                </label>
-                <select name="drpColor" id="drpColor" class="selectRole">
-                </select>
+              <div class="inputField debug-info">
+                <label>UUID: </label>
+                <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
+                <br />
+                <label>Type: </label>
+                <label id="itemType"></label>
+                <label>- Group: </label>
+                <label id="itemGroup"></label>
               </div>
             </div>
-            <div class="inputRow" id="isPrimaryDiv" style="display: none;">
-              <input type="checkbox" id="isPrimaryCheckBox" disabled>
-              <label id="isPrimaryLabel" class="tooltip">Is primary?
+
+          </div>
+
+          <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              Experimental
+            </div>
+
+            <div style="text-align: left; font-size:12px;">
+              <b>Note:</b> <i>Background images are
+                temporary and not saved in the URL by design. Undo button does not work properly after
+                multiple images are loaded. </i>
+            </div>
+            <br>
+            <div class="inputField">
+              <label class="tooltip">1) First set the room width and length, then choose the background image file
+                upload:
+                <!-- <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
+              </label>
+              <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
+            </div>
+
+            <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
+                distance between
+                them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
+              <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points"
+                class="button" disabled>
+            </div>
+
+            <div class="inputField">
+              <label class="tooltipBottom">3) Distance between 2 points:</label>
+              <!-- <i class="icon icon-info-circle-bold"></i>
+                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
+              <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+            <div class="inputField">
+              <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
+                onclick="updateBackgroundImageScale()" class="button" disabled>
+            </div>
+
+
+            <div class="inputField" style="padding: 0.2rem"><label>4) Transparency: <span
+                  id="transparencyOutput">50</span></label></div>
+            <div class="inputField">
+              <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
+                oninput="changeTransparency(this.value)" disabled>
+            </div>
+
+            <div class="inputField">
+              <label class="tooltip">5) Move background image:
                 <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Primary
-                  devices are used in determining if Quick Setup is enabled and this field may be
-                  used for future features.</span>
+                <span class="tooltiptext">Brings the background image temporarily to the front which allows
+                  moving of the background image.</span></label>
+              <label class="switch">
+                <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
+                  disabled>
+                <span class="slider round"></span>
               </label>
             </div>
-            <div class="inputRow" style="margin-top: 1.5em;">
-              <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
-              <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
-                <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
-                  title="Toggle Camera Shading">
-                  <i class="icon icon-camera-bold"></i>
-                </button>
-                <button class="btn" onclick="toggleMicShadingSingleItem()" id="btnMicShadeToggleSingleItem">
-                  <i class="icon icon-microphone-bold"></i>
-                </button>
-                <button class="btn" onclick="toggleDisplayDistanceSingleItem()" id="btnDisplayDistanceSingleItem"
-                  title="Toggle Display Reach">
-                  <i class="icon icon-display-bold"></i>
-                </button>
+          </div>
 
-              </div>
+          <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
+            <div class="inputField">
+              <label class="tooltipBottom">Load in original unit (m/f):
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
+                  will use the unit (meters/feet) that it was created in.</span></label>
+              <label class="switch">
+                <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
+                <span class="slider round"></span>
+              </label>
             </div>
 
-            <div class="inputField debug-info">
-              <label>UUID: </label>
-              <label id="itemId">Unknown. Click or double click on a device on the room canvas.</label>
-              <br />
-              <label>Type: </label>
-              <label id="itemType"></label>
-              <label>- Group: </label>
-              <label id="itemGroup"></label>
+
+            <div class="inputField">
+              <label class="tooltipBottom">Workspace Designer non-supported items*
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
+                  Items will
+                  have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
+                </span></label>
+              <label class="switch">
+                <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
+                <span class="slider round"></span>
+              </label>
             </div>
-          </div>
-
-        </div>
-
-        <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            Experimental
-          </div>
-
-          <div style="text-align: left; font-size:12px;">
-            <b>Note:</b> <i>Background images are
-              temporary and not saved in the URL by design. Undo button does not work properly after
-              multiple images are loaded. </i>
-          </div>
-          <br>
-          <div class="inputField">
-            <label class="tooltip">1) First set the room width and length, then choose the background image file
-              upload:
-              <!-- <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
-            </label>
-            <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
-          </div>
-
-          <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
-              distance between
-              them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
-            <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points" class="button"
-              disabled>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltipBottom">3) Distance between 2 points:</label>
-            <!-- <i class="icon icon-info-circle-bold"></i>
-                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
-            <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputField">
-            <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
-              onclick="updateBackgroundImageScale()" class="button" disabled>
-          </div>
-
-
-          <div class="inputField" style="padding: 0.2rem"><label>4) Transparency: <span
-                id="transparencyOutput">50</span></label></div>
-          <div class="inputField">
-            <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
-              oninput="changeTransparency(this.value)" disabled>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltip">5) Move background image:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Brings the background image temporarily to the front which allows
-                moving of the background image.</span></label>
-            <label class="switch">
-              <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
-                disabled>
-              <span class="slider round"></span>
-            </label>
-          </div>
-        </div>
-
-        <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
-          <div class="inputField">
-            <label class="tooltipBottom">Load in original unit (m/f):
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
-                will use the unit (meters/feet) that it was created in.</span></label>
-            <label class="switch">
-              <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-
-          <div class="inputField">
-            <label class="tooltipBottom">Workspace Designer non-supported items*
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer. Items will
-                have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
-              </span></label>
-            <label class="switch">
-              <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
-              <span class="slider round"></span>
-            </label>
           </div>
         </div>
       </div>
-
     </div>
   </div>
   <div id="ContainerForContainerRoom">
     <div id="ContainerRoomSvg" class="floatColumns" style="width: 100%; ">
-      <div id="controlButtons" class="hideScroll" >
+      <div id="controlButtons" class="hideScroll">
         <div class="button-group">
           <span class="tooltipTitle"><button style="width: 35px;" class="btn" id="btnCamShadeToggle"
               title="Toggle camera coverage">
@@ -652,8 +668,8 @@
         </div>
       </div>
       <div id="scroll-container" onscroll="onScrollContainerScroll(this)" style="width: 100%; ">
-        <div id="large-container"  >
-          <div id="canvasDiv" ondrop="drop(event)" ondragover="allowDrop(event)" ></div>
+        <div id="large-container">
+          <div id="canvasDiv" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         </div>
       </div>
 
@@ -709,7 +725,8 @@
       <div class="menuMoreInputField">
         <label class="tooltipBottom">Highlight small devices:
           <i class="icon icon-info-circle-bold"></i>
-          <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the highlighted portion to be used for moving device. Does not affect resizeable objects.</span></label>
+          <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the
+            highlighted portion to be used for moving device. Does not affect resizeable objects.</span></label>
         <label class="switch">
           <input id="toggleOutlineItem" type="checkbox" onclick="toggleOutlineItem(event)">
           <span class="slider round"></span>
