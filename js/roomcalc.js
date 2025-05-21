@@ -1,4 +1,4 @@
-const version = "v0.1.605";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.606";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -22,8 +22,8 @@ let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let firstLoad = true; /* set to false after onLoad is run the first time */
 let zoomValue = 100;
-let smallItemsOutline = false; /* keep track if small items have an outline */
-let sizeToAddOultine = 500; /* mm size to make small items outline */
+let smallItemsHighlight = false; /* keep track if small items have a highlight */
+let sizeToAddOultine = 500; /* mm size to make small items highlighted */
 let workspaceDesignerTestUrl; /* used to store workspace designer URL when testing only */
 
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
@@ -702,7 +702,7 @@ let microphones = [
         width: 242,
         depth: 115,
         height: 164,
-        defaultVert: 710,
+        defaultVert: 1100,
         roles: [{ scheduler: 'Scheduler' }, { navigator: 'Navigator' }],
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
 
@@ -4760,19 +4760,15 @@ function gridLinesVisible(state = 'buttonPress') {
         grShadingMicrophone.clip(clipShadingBorder);
         kGroupLines.visible(true);
         button.classList.toggle('active', true);
-        // button.style["color"] = toggleButtonOnColor;
-        // document.getElementById("spanGridOn").textContent = 'grid_on';
         roomObj.layersVisible.gridLines = true;
     }
     else {
         button.classList.toggle('active', false);
-        // button.style["color"] = toggleButtonOnColor;
         layerGrid.visible(true);
         kGroupLines.visible(false);
         titleGroup.visible(false);
         grShadingCamera.clip(clipShadingBorder);
         grShadingMicrophone.clip(clipShadingBorder);
-        // document.getElementById("spanGridOn").textContent = 'check_box_outline_blank';
         gridToggleState = 'off';
         roomObj.layersVisible.gridLines = false;
     }
@@ -5187,12 +5183,11 @@ function canvasToJson() {
         roomObj.items[groupName] = [];
         let itemAttr = {};
 
-        theObjects.forEach(element => {
+        theObjects.forEach(node => {
             let x, y;
-            let attrs = element.attrs;
-
+            let attrs = node.attrs;
             if (!('rotation' in attrs)) {
-                element.rotation(0);
+                node.rotation(0);
             }
 
             let rotation = attrs.rotation;
@@ -5201,7 +5196,7 @@ function canvasToJson() {
                 x = attrs.x;
                 y = attrs.y;
             } else {
-                let center = getShapeCenter(element);
+                let center = getShapeCenter(node);
                 x = center.x;
                 y = center.y;
             }
@@ -5210,10 +5205,10 @@ function canvasToJson() {
                 x: ((x - pxOffset) / scale),
                 y: ((y - pyOffset) / scale),
                 rotation: rotation,
-                type: element.data_type,
-                data_deviceid: element.data_deviceid,
-                id: element.attrs.id,
-                name: element.attrs.name,
+                type: node.data_type,
+                data_deviceid: node.data_deviceid,
+                id: node.attrs.id,
+                name: node.attrs.name,
             }
 
             if ('cornerRadius' in attrs) {
@@ -5226,16 +5221,16 @@ function canvasToJson() {
             }
 
 
-            if ('data_diagonalInches' in element) {
-                itemAttr.data_diagonalInches = element.data_diagonalInches;
+            if ('data_diagonalInches' in node) {
+                itemAttr.data_diagonalInches = node.data_diagonalInches;
             }
 
-            if ('data_zPosition' in element) {
-                itemAttr.data_zPosition = element.data_zPosition;
+            if ('data_zPosition' in node) {
+                itemAttr.data_zPosition = node.data_zPosition;
             }
 
-            if ('data_vHeight' in element) {
-                itemAttr.data_vHeight = element.data_vHeight;
+            if ('data_vHeight' in node) {
+                itemAttr.data_vHeight = node.data_vHeight;
             }
 
             if (groupName === 'tables' || groupName === 'stageFloors') {
@@ -5247,38 +5242,38 @@ function canvasToJson() {
                 itemAttr.name = attrs.name;
             }
 
-            if ('data_labelField' in element) {
-                if (element.data_labelField != '') {
-                    itemAttr.data_labelField = element.data_labelField;
+            if ('data_labelField' in node) {
+                if (node.data_labelField != '') {
+                    itemAttr.data_labelField = node.data_labelField;
                 }
             }
 
-            if (element.data_fovHidden) {
-                itemAttr.data_fovHidden = element.data_fovHidden;
+            if (node.data_fovHidden) {
+                itemAttr.data_fovHidden = node.data_fovHidden;
             }
 
-            if (element.data_audioHidden) {
-                itemAttr.data_audioHidden = element.data_audioHidden;
+            if (node.data_audioHidden) {
+                itemAttr.data_audioHidden = node.data_audioHidden;
             }
 
-            if (element.data_dispDistHidden) {
-                itemAttr.data_dispDistHidden = element.data_dispDistHidden;
+            if (node.data_dispDistHidden) {
+                itemAttr.data_dispDistHidden = node.data_dispDistHidden;
             }
 
-            if ('data_trapNarrowWidth' in element) {
-                if (element.data_trapNarrowWidth != '') {
-                    itemAttr.data_trapNarrowWidth = element.data_trapNarrowWidth;
+            if ('data_trapNarrowWidth' in node) {
+                if (node.data_trapNarrowWidth != '') {
+                    itemAttr.data_trapNarrowWidth = node.data_trapNarrowWidth;
                 } else {
                     itemAttr.data_trapNarrowWidth = 0;
                 }
             }
 
-            if ('data_role' in element) {
-                itemAttr.data_role = element.data_role;
+            if ('data_role' in node) {
+                itemAttr.data_role = node.data_role;
             }
 
-            if ('data_color' in element) {
-                itemAttr.data_color = element.data_color;
+            if ('data_color' in node) {
+                itemAttr.data_color = node.data_color;
             }
 
             roomObj.items[groupName].push(itemAttr);
@@ -6162,27 +6157,12 @@ function updateTrNodesShadingTimer() {
 }
 
 
-/* Show items as highlight / outlined and shadded when selected */
+/* Show items as outlined in blue and shadded when selected */
 function updateTrNodesShading() {
-
 
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
 
-    //  let allShapes = layerTransform.find('Shape');
-
     let trNodes = tr.nodes();
-
-    //  if (trNodes.length != 1 && trNodes.length === lastTrNodesWithShading.length) return;
-
-    // lastTrNodesWithShading.forEach(node => {
-    //     node.shadowEnabled(false);
-    //     if ('image' in node.attrs) {
-    //         node.strokeEnabled(false);
-    //         node.stroke();
-    //     }
-    // });
-
-    // lastTrNodesWithShading = [];
 
     removeShadingTrNodes();
 
@@ -6198,13 +6178,7 @@ function updateTrNodesShading() {
 
             }
         } else {
-
             node.stroke("rgb(0, 161, 255)");
-
-            // node.shadowColor('blue');
-            // node.shadowEnabled(true);
-            // node.shadowOpacity(0.6);
-            // node.shadowBlur(7);
         }
 
 
@@ -7376,12 +7350,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     width = insertDevice.width / 1000 * scale;
     height = insertDevice.depth / 1000 * scale;
 
-    let addOutline = false;
+    let addHighlight = false;
 
-    if (smallItemsOutline && insertDevice.width < sizeToAddOultine && insertDevice.depth < sizeToAddOultine) {
+    if (smallItemsHighlight && insertDevice.width < sizeToAddOultine && insertDevice.depth < sizeToAddOultine) {
         width = sizeToAddOultine / 1000 * scale;
         height = sizeToAddOultine / 1000 * scale;
-        addOutline = true;
+        addHighlight = true;
     }
 
     if (unit === 'feet') {
@@ -7621,9 +7595,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     };
 
 
-    if (addOutline) {
+    if (addHighlight) {
 
-        createOutlineImage(deviceId, imageObj);
+        createHighlightImage(deviceId, imageObj);
     } else {
         imageObj.src = './assets/images/' + insertDevice.topImage;
     }
@@ -9910,11 +9884,10 @@ function type(value) {
     return baseType;
 }
 
-function toggleOutlineItem() {
+function toggleHighlightItem() {
     tr.nodes(tr.nodes());
-    smallItemsOutline = !smallItemsOutline;
-    // drawRoom(true);
-    updateCreateOutlineImage()
+    smallItemsHighlight = !smallItemsHighlight;
+    updateCreateHighlightImage()
 }
 
 
@@ -9946,7 +9919,7 @@ function getListOfNodes(smallDeviceTypeIdArray) {
     return arraySmallItems;
 }
 
-function updateCreateOutlineImage(minimumSize = 500) {
+function updateCreateHighlightImage(minimumSize = 500) {
     /* get all images great that */
 
     let smallDeviceTypeIdArray = getListOfSmallDeviceTypes(minimumSize = 500)
@@ -9954,7 +9927,7 @@ function updateCreateOutlineImage(minimumSize = 500) {
 
     arraySmallItems.forEach(item => {
         let node = stage.findOne('#' + item.id);
-        if (smallItemsOutline) {
+        if (smallItemsHighlight) {
             let width = sizeToAddOultine / 1000 * scale;
             let height = sizeToAddOultine / 1000 * scale;
 
@@ -9969,7 +9942,7 @@ function updateCreateOutlineImage(minimumSize = 500) {
 
             let newItemAttr = { x: cornerXY.x, y: cornerXY.y, width: width, height: height }
 
-            updateSingleOutlineImage(node, item, newItemAttr);
+            updateSingleHighlightImage(node, item, newItemAttr);
 
 
         } else {
@@ -10001,9 +9974,9 @@ function updateCreateOutlineImage(minimumSize = 500) {
     });
 }
 
-let outlineImageItems = {};
+let hightlightImageItems = {};
 
-function updateSingleOutlineImage(node, item, newItemAttr) {
+function updateSingleHighlightImage(node, item, newItemAttr) {
     let imageSize = 200; /* pixels */
     let picScale = imageSize / sizeToAddOultine;
 
@@ -10049,9 +10022,9 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
         cardImage.src = stageForImageCreation.toDataURL();
 
 
-        if (!(item.data_deviceid in outlineImageItems)) {
-            outlineImageItems[item.data_deviceid] = {};
-            outlineImageItems[item.data_deviceid].image = cardImage;
+        if (!(item.data_deviceid in hightlightImageItems)) {
+            hightlightImageItems[item.data_deviceid] = {};
+            hightlightImageItems[item.data_deviceid].image = cardImage;
         }
 
         cardImage.onload = function () {
@@ -10069,11 +10042,11 @@ function updateSingleOutlineImage(node, item, newItemAttr) {
 
 
 
-    layer.add(createOutlineRect());
+    layer.add(createHighlightRect());
 }
 
 
-function createOutlineRect(){
+function createHighlightRect(){
     const rect = new Konva.Rect({
         x: 8,
         y: 8,
@@ -10087,7 +10060,7 @@ function createOutlineRect(){
     return rect;
 }
 
-function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
+function createHighlightImage(deviceId, imageObj2, minimumSize = 500) {
 
     let imageSize = 200; /* pixels */
     let picScale = imageSize / minimumSize;
@@ -10141,19 +10114,8 @@ function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
 
         imageObj.src = './assets/images/' + itemType.topImage;
 
-        const rect = new Konva.Rect({
-            x: 8,
-            y: 8,
-            width: 184,
-            height: 184,
-            stroke: '#FFA500DD',
-            strokeWidth: 16,
-            cornerRadius: 100,
-            fill: '#0001',
-        });
 
-        layer.add(rect);
-
+        layer.add(createHighlightRect());
 
     }
 }
@@ -10161,7 +10123,7 @@ function createOutlineImage(deviceId, imageObj2, minimumSize = 500) {
 
 /*
     Cache Images so if internet is lost, insert images to canvas still works.
-    Keep track of number of images cached. Once all cached, create outline images.
+    Keep track of number of images cached. Once all cached, create highlight images.
 */
 
 function preLoadTopImages() {

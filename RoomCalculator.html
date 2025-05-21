@@ -453,6 +453,25 @@
                   </select>
                 </div>
               </div>
+
+              <div class="inputRow" id="itemTiltRollDiv" style="display: none;">
+                <div class="inputField" id="itemTiltId">
+                  <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Tilt and Roll are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                  <input type="text" id="itemTilt" maxlength="12" size="5" class="unitInput">
+                  <label class="classDegree">&deg;</label>
+                </div>
+
+                <div class="inputField" id="itemRollId">
+                  <label class="tooltip">Roll:<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">Tilt and Roll are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                  <input type="text" id="itemRoll" maxlength="12" size="5" class="unitInput">
+                  <label class="classDegree">&deg;</label>
+                </div>
+              </div>
+
+
+
               <div class="inputRow" id="isPrimaryDiv" style="display: none;">
                 <input type="checkbox" id="isPrimaryCheckBox" disabled>
                 <label id="isPrimaryLabel" class="tooltip">Is primary?
@@ -726,9 +745,9 @@
         <label class="tooltipBottom">Highlight small devices:
           <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the
-            highlighted portion to be used for moving device. Does not affect resizeable objects.</span></label>
+            highlighted portion to be used for moving device. Does not affect resizeable objects. Not saved in shareable template link.</span></label>
         <label class="switch">
-          <input id="toggleOutlineItem" type="checkbox" onclick="toggleOutlineItem(event)">
+          <input id="toggleHighlightItem" type="checkbox" onclick="toggleHighlightItem(event)">
           <span class="slider round"></span>
         </label>
       </div>
