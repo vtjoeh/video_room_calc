@@ -6,6 +6,14 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.606**
+- 	**🟨Highlight Small Devices🟨** You can now highlight and move any device smaller than 0.5m/1.6ft! Resizable objects like walls remain unaffected. Please note that the highlight small device setting is not saved in the shareable link.
+- **Ellipsis Menu Added to Toolbar:** A new three-dot (…) ellipsis menu has been added to the toolbar. The drawing features Snap to Objects and Snap Center to Increment have been moved to this menu. Highlight Small Devices can now be found there. 🔵🔵🔵
+-	**🔽Minimize Menu🔼** You now have the ability to open and close the menu, which helps optimize screen real estate on both desktop and mobile. 📱💻
+- **Draggable Coverage Menu:** Mic, Display, and Camera coverage menus (activated by holding down the perspective button) can be dragged if needed to temporarily see more of the room canvas. 🖼️ 🎥🎤
+- Small bug fixes. 🐞
+- For an overview of features, see the Vidcast [Video Room Calc v0.1.606 feature overview](https://app.vidcast.io/share/619c0bd1-7b9e-487c-be5a-afd7c3454ad3)
+
 **v0.1.605**
 - Quick Fix: Google search occasionally displayed a legacy URL query string format that, when clicked, resulted in a redirect to version v0.0 of the Video Room Calculator. This issue occurred because, when the Video Room Calculator site is unable to parse a legacy version, it redirects users to a backup site to ensure that your data is not lost.
 

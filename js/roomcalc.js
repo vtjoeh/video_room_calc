@@ -10164,7 +10164,7 @@ function preLoadTopImages() {
 
                     /* last image is cached if totalDevices === counter **/
                     if (totalDevices === counter) {
-                        console.log('** last item loaded **', item.id);
+                        // console.info('** last item loaded **', item.id);
                     }
 
                 };
