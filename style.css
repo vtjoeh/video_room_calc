@@ -892,8 +892,13 @@ a.tooltipIcon a.tooltiptextIcon {
   /* border-bottom: 1px dotted black; */
 }
 
+.tooltiptextTitle {
+  display: none;
+}
+
+
 .tooltipTitle .tooltiptextTitle {
-  visibility: hidden;
+
   font-size: x-small;
   min-width: max-content;
   background-color: rgb(207, 207, 207);
@@ -906,17 +911,18 @@ a.tooltipIcon a.tooltiptextIcon {
   z-index: 100;
   left: -45px;
   margin-left: 0px;
-  opacity: 0;
+  opacity: 1;
   border: black;
   transition: opacity 200ms 2s;
+  min-height: fit-content;
   /* transition: opacity 2s 1s ease-in, visibility 3s 1s ease-in 2ms; */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 
 .tooltipTitle:hover .tooltiptextTitle {
-  visibility: visible;
-  opacity: 1;
+  /* visibility: visible;
+  opacity: 1; */
 
 }
 

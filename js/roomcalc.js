@@ -25,6 +25,7 @@ let zoomValue = 100;
 let smallItemsHighlight = false; /* keep track if small items have a highlight */
 let sizeToAddOultine = 500; /* mm size to make small items highlighted */
 let workspaceDesignerTestUrl; /* used to store workspace designer URL when testing only */
+let toolTipTextTimeout; /* timer used for toolTipText on coverage buttons */
 
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
 
@@ -1834,12 +1835,13 @@ function getQueryString() {
         }
     }
 
-    if(testNew){
-            workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.205 };
-            workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-            workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-            workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-            workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
+    if (testNew) {
+        workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.205 };
+        workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
+        workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+        workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+        workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+        workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
     }
 
     console.info('testNew is', testNew);
@@ -4735,6 +4737,7 @@ document.getElementById('btnLabelToggle').disabled = true;
 
 
 function displayDistanceVisible(state = 'buttonPress') {
+    closeTooltipTitleText();
 
     let button = document.getElementById('btnDisplayDistance');
     let saveToUndo = false;
@@ -4812,6 +4815,9 @@ function gridLinesVisible(state = 'buttonPress') {
 
 
 function shadingCameraVisible(state = 'buttonPress') {
+
+    closeTooltipTitleText();
+
     let button = document.getElementById('btnCamShadeToggle');
     let saveToUndo = false;
 
@@ -4846,6 +4852,8 @@ function shadingCameraVisible(state = 'buttonPress') {
 
 
 function shadingMicrophoneVisible(state = 'buttonPress') {
+    closeTooltipTitleText();
+
     let button = document.getElementById('btnMicShadeToggle');
     let saveToUndo = false;
     if (state === 'buttonPress') {
@@ -11575,8 +11583,8 @@ function convertRoomObjToWorkspace() {
         }
 
         if (testNew) {
-          workspaceItem.length = item.width;
-          workspaceItem.width = item.height;
+            workspaceItem.length = item.width;
+            workspaceItem.width = item.height;
         }
 
 
@@ -11693,6 +11701,58 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 function workspaceIconLoad() {
     clearTimeout(vpnTestTimer);
     toggleWorkspace(true);
+}
+
+
+tooltipTitleHover();
+
+function tooltipTitleHover() {
+    const tooltipTitles = document.querySelectorAll('.tooltipTitle');
+
+    tooltipTitles.forEach(tooltipTitle => {
+        tooltipTitle.addEventListener('mouseenter', function mouseover() {
+            console.log('mouseover');
+            console.log('mouseover', tooltipTitle);
+
+            const boundingRect = tooltipTitle.getBoundingClientRect();
+
+            const x = boundingRect.left;
+            const y = boundingRect.top;
+
+            let tip = tooltipTitle.querySelector('.tooltiptextTitle');
+            let tipLeft = x - 40;
+            let tipTop = y - 40;
+
+            if (tipLeft < 0) tipLeft = 0;
+            if (tipTop < 0) tipTop = 0;
+
+            tip.style.left = tipLeft + 'px';
+            tip.style.top = tipTop + 'px';
+            console.log('mouse', mouse);
+            toolTipTextTimeout = setTimeout(() => {
+                tip.style.position = 'fixed';
+
+                tip.style.display = 'inline';
+                console.log('tip showing', tip);
+            }
+            , 1000);
+        });
+    });
+
+    tooltipTitles.forEach(tooltipTitle => {
+        tooltipTitle.addEventListener('mouseleave', function mouseover() {
+            closeTooltipTitleText();
+        });
+    });
+}
+
+function closeTooltipTitleText() {
+    const tooltipTextTitles = document.querySelectorAll('.tooltiptextTitle');
+    clearTimeout(toolTipTextTimeout);
+
+    tooltipTextTitles.forEach(tip => {
+        tip.style.display = 'none';
+    })
 }
 
 function toggleWorkspace(isOn = true) {
