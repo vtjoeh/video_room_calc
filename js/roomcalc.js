@@ -129,6 +129,7 @@ let stageOriginalset = false;
 
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let testProduction = false; /* For forcing to test production crosslaunch */
+let testNew = false; /* used to toggle on new features */
 
 let zoomScaleX = 1;  /* zoomScaleX zoomScaleY used clicking the + or - button to zoom. */
 
@@ -1811,6 +1812,36 @@ function getQueryString() {
     if (urlParams.has('testProduction')) {
         testProduction = true;
     }
+
+    /* testNew parameters relate to the new orientation settings for the Workspace Designer */
+    if (urlParams.has('testNew')) {
+        let testNewQueryString = urlParams.get('testNew');
+        if (testNewQueryString == '0') {
+            console.info('urlParams testNew=0, new feature test is off');
+            testNew = false;
+            localStorage.removeItem('testNew');
+        }
+        else {
+
+            setItemForLocalStorage('testNew', 'true');
+            testNew = true;
+        }
+    } else {
+        if (localStorage.getItem('testNew') === 'true') {
+            testNew = true;
+        } else {
+            testNew = false;
+        }
+    }
+
+    if(testNew){
+            workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.205 };
+            workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+            workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+            workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+    }
+
+    console.info('testNew is', testNew);
 
     if (urlParams.has('wd')) {
         let wd = urlParams.get('wd');
@@ -6508,13 +6539,13 @@ function closeDeviceMenu(attributeType) {
     if (menu) { menu.remove(); }
 }
 
-function closeOpenSidebar(tabToOpen){
+function closeOpenSidebar(tabToOpen) {
 
 
     let sideBar = document.getElementById('sidebar');
     let openSidebarDiv = document.getElementById('openSideBar');
     let containerRoomSvg = document.getElementById('ContainerRoomSvg');
-    if (sideBar.style.display === 'none'){
+    if (sideBar.style.display === 'none') {
         sideBar.style.display = '';
         openSidebarDiv.style.display = 'none';
         containerRoomSvg.style.paddingLeft = '';
@@ -6524,9 +6555,9 @@ function closeOpenSidebar(tabToOpen){
         containerRoomSvg.style.paddingLeft = '0px';
     }
 
-    if(tabToOpen){
+    if (tabToOpen) {
 
-            document.getElementById(tabToOpen).click();
+        document.getElementById(tabToOpen).click();
 
 
     }
@@ -7695,8 +7726,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
         /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
-        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0){
-            teleTwoPersonFOV.fillRadialGradientColorStops([0,onePersonCropColor,gradientStop2,onePersonCropColor, 1, onePersonCropColor + '64'])
+        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0) {
+            teleTwoPersonFOV.fillRadialGradientColorStops([0, onePersonCropColor, gradientStop2, onePersonCropColor, 1, onePersonCropColor + '64'])
             wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
         }
 
@@ -7735,7 +7766,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             align: 'center',
         });
 
-        if(!(deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0)){
+        if (!(deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0)) {
             groupFov.add(txtOnePersonFov);
             groupFov.add(teleOnePersonFOV);
             groupFov.add(txtTwoPersonFov);
@@ -10046,7 +10077,7 @@ function updateSingleHighlightImage(node, item, newItemAttr) {
 }
 
 
-function createHighlightRect(){
+function createHighlightRect() {
     const rect = new Konva.Rect({
         x: 8,
         y: 8,
@@ -11490,6 +11521,8 @@ function convertRoomObjToWorkspace() {
 
     function workspaceObjWallPush(item) {
 
+        let swapXY = true;
+        if (testNew) { swapXY = true; }
         let x, y, z, verticalHeight, workspaceItem;
 
         let xy = getItemCenter(item);
@@ -11539,6 +11572,12 @@ function convertRoomObjToWorkspace() {
             "length": item.height,
             "width": item.width
         }
+
+        if (testNew) {
+          workspaceItem.length = item.width;
+          workspaceItem.width = item.height;
+        }
+
 
         if (item.id === 'primaryCeiling') {
             workspaceItem.scale = [item.height, verticalHeight, item.width];
