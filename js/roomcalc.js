@@ -3912,7 +3912,7 @@ function createShareableLink() {
 
 
     if (!(roomObj.room.roomHeight == 0 || roomObj.room.roomHeight == '')) {
-        strUrlQuery2 += 'f' + round(roomObj.room.roomHeight) * 100;
+        strUrlQuery2 += 'f' + Math.round(roomObj.room.roomHeight * 100);
     }
 
     strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
@@ -7678,10 +7678,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let twoPersonCrop = defaultTwoPersonCrop;
 
         if (unit == 'feet') {
-            /* feet  */
+            /*  feet  */
             twoPersonCrop = twoPersonCrop * 3.28084;
             onePersonCrop = onePersonCrop * 3.28084;
-
         }
 
 
@@ -7780,17 +7779,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             groupFov.add(teleOnePersonFOV);
             groupFov.add(txtTwoPersonFov);
         }
+
         groupFov.add(wideFOV);
-
-
         groupFov.add(teleTwoPersonFOV);
-
-
-
-
-
-
-
         grShadingCamera.add(groupFov);
 
     }
@@ -7822,12 +7813,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             lblMicRadius = lblMicRadius * 3.28084;
         }
 
-        let audioShading = new Konva.Wedge({
+        let audioShadingLine = new Konva.Wedge({
             /* x and y should be tracked in the group only */
             radius: micRadius,
             angle: insertDevice.micDeg,
-            stroke: 'black',
-            strokeWidth: 1,
             name: 'audio-' + deviceId + '-' + groupName,
             rotation: 90 - insertDevice.micDeg / 2,
             opacity: 0.3,
@@ -7836,12 +7825,30 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             opacity: 0.3,
             stroke: '#00000080',
             strokeWidth: 1,
-            radius: micRadius,
+            // fillRadialGradientStartPoint: { x: 0, y: 0 },
+            // fillRadialGradientStartRadius: 0,
+            // fillRadialGradientEndPoint: { x: 0, y: 0 },
+            // fillRadialGradientEndRadius: micRadius,
+            // fillRadialGradientColorStops: [0, 'purple', 0.8, '#800080', 1, '#80008000'],
+        });
+
+        let audioShadingShade = new Konva.Wedge({
+            /* x and y should be tracked in the group only */
+            radius: micRadius * 1.2,
+            angle: insertDevice.micDeg,
+            stroke: '',
+            strokeWidth: 3,
+            name: 'audio-' + deviceId + '-' + groupName,
+            rotation: 90 - insertDevice.micDeg / 2,
+            opacity: 0.3,
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.3,
             fillRadialGradientStartPoint: { x: 0, y: 0 },
             fillRadialGradientStartRadius: 0,
             fillRadialGradientEndPoint: { x: 0, y: 0 },
-            fillRadialGradientEndRadius: micRadius,
-            fillRadialGradientColorStops: [0, 'purple', 0.8, '#800080', 1, '#80008000'],
+            fillRadialGradientEndRadius: micRadius * 1.2,
+            fillRadialGradientColorStops: [0, 'purple', 0.6, '#800080EE', 0.8, '#80008088', 1, '#80008000'],
         });
 
 
@@ -7856,7 +7863,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             align: 'center',
         });
 
-        groupAudioShading.add(audioShading);
+        groupAudioShading.add(audioShadingLine);
+        groupAudioShading.add(audioShadingShade);
         groupAudioShading.add(txtAudio);
         grShadingMicrophone.add(groupAudioShading);
     }
@@ -8420,6 +8428,7 @@ function enableCopyDelBtn() {
         divItemDetailsVisible.style.display = 'none';
         txtItemsDetailNote.style.display = 'initial';
     }
+
 
     updateTrNodesShadingTimer();
 };
@@ -9155,6 +9164,10 @@ function addListeners(stage) {
             /* if there is a single table, make it resizable */
             resizeTableOrWall();
         }
+
+        /* need to set focus on stage in case multi-select was done and focus was not already on stage for shortcut keys to work */
+        stage.container().tabIndex = 1;
+        stage.container().focus();
         enableCopyDelBtn();
     });
 
@@ -9824,8 +9837,6 @@ function addScrollButton() {
     scrollButtonDiv.className = 'scrollButton';
     scrollButtonDiv.textContent = 'scroll down';
     scrollButtonContainer.appendChild(scrollButtonDiv);
-
-
 }
 
 
@@ -11704,6 +11715,8 @@ function workspaceIconLoad() {
 }
 
 
+
+/* tooltipTitleHover() simulates a tooltip, but places the tip above the item for Coverage buttons */
 tooltipTitleHover();
 
 function tooltipTitleHover() {
@@ -11711,9 +11724,6 @@ function tooltipTitleHover() {
 
     tooltipTitles.forEach(tooltipTitle => {
         tooltipTitle.addEventListener('mouseenter', function mouseover() {
-            console.log('mouseover');
-            console.log('mouseover', tooltipTitle);
-
             const boundingRect = tooltipTitle.getBoundingClientRect();
 
             const x = boundingRect.left;
@@ -11728,12 +11738,10 @@ function tooltipTitleHover() {
 
             tip.style.left = tipLeft + 'px';
             tip.style.top = tipTop + 'px';
-            console.log('mouse', mouse);
+
             toolTipTextTimeout = setTimeout(() => {
                 tip.style.position = 'fixed';
-
                 tip.style.display = 'inline';
-                console.log('tip showing', tip);
             }
             , 1000);
         });
