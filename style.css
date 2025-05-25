@@ -508,7 +508,7 @@ input:placeholder-shown {
   min-height: 400px;
 }
 
-.subtabcontent {
+.subtabcontent, .subtabcontent2, .button-group, .menuReach-item, .menuReach, .menuReachClearButton {
   -webkit-user-select: none;
   /* Safari */
   -ms-user-select: none;

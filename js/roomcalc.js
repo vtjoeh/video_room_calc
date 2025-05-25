@@ -132,6 +132,7 @@ let stageOriginalset = false;
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let testProduction = false; /* For forcing to test production crosslaunch */
 let testNew = false; /* used to toggle on new features */
+let testiFrame = false; /* testing iFrame settings */
 
 let zoomScaleX = 1;  /* zoomScaleX zoomScaleY used clicking the + or - button to zoom. */
 
@@ -1849,6 +1850,34 @@ function getQueryString() {
         } else {
             testNew = false;
         }
+    }
+
+    if (urlParams.has('testiFrame')) {
+        console.log('testing');
+        let testiFrameQueryString = urlParams.get('testiFrame');
+        if (testiFrameQueryString == '0') {
+            console.info('urlParams testNew=0, new feature test is off');
+            testiFrame = false;
+            localStorage.removeItem('testiFrame');
+        }
+        else {
+
+            setItemForLocalStorage('testiFrame', 'true');
+            testiFrame = true;
+        }
+    } else {
+        if (localStorage.getItem('testiFrame') === 'true') {
+            testiFrame = true;
+        } else {
+            testiFrame = false;
+        }
+    }
+
+    if (testiFrame) {
+        console.info('Testing iFrame is turned On. To turn off use ?testiFrame=0');
+
+    } else {
+        console.log('testiFrame off')
     }
 
     if (testNew) {
@@ -6544,12 +6573,12 @@ function addButtonListeners() {
         let attributeType = parentButtonAttribute[1];
         parentButton.title = '';
 
-        parentButton.addEventListener('mouseup', () => {
+        parentButton.addEventListener('pointerup', () => {
             clearTimeout(timerMenuHoverButton);
             buttonMouseUp(attributeType);
         });
 
-        parentButton.addEventListener('mousedown', (event) => {
+        parentButton.addEventListener('pointerdown', (event) => {
 
             buttonMouseDown(attributeType);
 
@@ -7129,66 +7158,72 @@ function toggleDisplayDistanceSingleItem() {
 
 dragElement(document.getElementById('floatingWorkspace'));
 
+/* Makes an html element draggable. If the element has an ID of {element.id}-dragger, use the that -dragger element as the part to drag, otherwise make the whole element draggable. Works on touch devices too. */
 function dragElement(element) {
-    var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    let dragger = document.getElementById(element.id + "-dragger")
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    const dragger = document.getElementById(element.id + "-dragger");
 
     if (dragger) {
-        // if present, the header is where you move the DIV from:
         dragger.onmousedown = dragMouseDown;
-
-
-    }
-    else {
-        // otherwise, move the DIV from anywhere inside the DIV:
+        dragger.ontouchstart = dragTouchStart;
+    } else {
         element.onmousedown = dragMouseDown;
+        element.ontouchstart = dragTouchStart;
     }
 
     function dragMouseDown(e) {
-        e = e || window.event;
         e.preventDefault();
-        // get the mouse cursor position at startup:
         pos3 = e.clientX;
         pos4 = e.clientY;
         document.onmouseup = closeDragElement;
-        // call a function whenever the cursor moves:
         document.onmousemove = elementDrag;
         element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+    }
 
-
+    function dragTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        pos3 = touch.clientX;
+        pos4 = touch.clientY;
+        document.ontouchend = closeDragElement;
+        document.ontouchmove = elementTouchDrag;
+        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
     }
 
     function elementDrag(e) {
-        e = e || window.event;
         e.preventDefault();
-        // calculate the new cursor position:
         pos1 = pos3 - e.clientX;
         pos2 = pos4 - e.clientY;
         pos3 = e.clientX;
         pos4 = e.clientY;
-        // set the element's new position:
+        moveElement();
+    }
+
+    function elementTouchDrag(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        pos1 = pos3 - touch.clientX;
+        pos2 = pos4 - touch.clientY;
+        pos3 = touch.clientX;
+        pos4 = touch.clientY;
+        moveElement();
+    }
+
+    function moveElement() {
         element.style.top = (element.offsetTop - pos2) + "px";
         element.style.left = (element.offsetLeft - pos1) + "px";
         element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
-
     }
 
     function closeDragElement() {
-        // stop moving when mouse button is released:
         document.onmouseup = null;
         document.onmousemove = null;
-
+        document.ontouchend = null;
+        document.ontouchmove = null;
     }
 
-
-    element.addEventListener("mouseover", function () {
-        // element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
-    });
-
-    element.addEventListener("mouseout", function () {
-        // element.style.boxShadow = "5px 5px 10px rgba(0, 0, 0, 0.5)";
-    });
 }
+
 
 /*
    Moves an object from one part of the array to another.
@@ -11014,7 +11049,7 @@ function openWorkspaceWindow() {
 
     workspaceWindow = window.open(newTab, sessionId);
 
-    if (testNew) {
+    if (testiFrame) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         iFrameWorkspaceWindow.src = newTab;
@@ -11025,15 +11060,15 @@ function openWorkspaceWindow() {
 
     /* send initial post message 3 times in case page is opening slow */
     setTimeout(() => {
-            postMessageToWorkspace();
+        postMessageToWorkspace();
     }, 1000);
 
     setTimeout(() => {
-           postMessageToWorkspace();
+        postMessageToWorkspace();
     }, 3000);
 
     setTimeout(() => {
-            postMessageToWorkspace();
+        postMessageToWorkspace();
     }, 5000);
 
 }
@@ -11062,8 +11097,8 @@ function postMessageToWorkspace() {
 
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
 
-        if (testNew) {
-              iFrameWorkspaceWindow.contentWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+        if (testiFrame) {
+            iFrameWorkspaceWindow.contentWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
         }
     }
 
@@ -11859,6 +11894,9 @@ function workspaceIconLoad() {
 tooltipTitleHover();
 
 function tooltipTitleHover() {
+
+    if (mobileDevice != 'false') return; /* do not use on mobile devices */
+
     const tooltipTitles = document.querySelectorAll('.tooltipTitle');
 
     tooltipTitles.forEach(tooltipTitle => {
