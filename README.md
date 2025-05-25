@@ -7,6 +7,11 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.606**
+- Added Row of Chairs shape that resizes and adds chairs.
+- Added curved table option for use with Campfire designs.
+- Minor bug fixes: Improved multi-select with shortcut keys.
+
+**v0.1.606**
 - 	**🟨Highlight Small Devices🟨** You can now highlight and move any device smaller than 0.5m/1.6ft! Resizable objects like walls remain unaffected. Please note that the highlight small device setting is not saved in the shareable link.
 - **Ellipsis Menu Added to Toolbar:** A new three-dot (…) ellipsis menu has been added to the toolbar. The drawing features Snap to Objects and Snap Center to Increment have been moved to this menu. Highlight Small Devices can now be found there. 🔵🔵🔵
 -	**🔽Minimize Menu🔼** You now have the ability to open and close the menu, which helps optimize screen real estate on both desktop and mobile. 📱💻

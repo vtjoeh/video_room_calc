@@ -1,4 +1,4 @@
-const version = "v0.1.606";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.607";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -20,6 +20,7 @@ let pxLastGridLineY;
 let roomName = '';
 let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 let workspaceWindow; /* window representing the workspace designer window being open */
+let iFrameWorkspaceWindow; /* Windwo reprsenting the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
 let zoomValue = 100;
 let smallItemsHighlight = false; /* keep track if small items have a highlight */
@@ -274,6 +275,8 @@ workspaceKey.navigatorTable = { objectType: 'navigator', role: 'navigator', yOff
 workspaceKey.navigatorWall = { objectType: 'scheduler', role: 'scheduler', yOffset: 0.0575 };
 
 workspaceKey.laptop = { objectType: 'laptop', role: 'laptop', yOffset: 0.12 };
+
+workspaceKey.pouf = { objectType: 'pouf' };
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
@@ -795,14 +798,18 @@ let tables = [{
     topImage: 'wallWindow-top.png'
 },
 {
-    name: 'DO NOT USE - Experimental Multiple Chairs',
+    name: 'Row of Chairs',
     id: 'wallChairs',
     key: 'WF',
     topImage: 'chair-top.png',
-    frontImage: 'chair-front.png'
+    frontImage: 'wallChairs-menu.png'
+},
+{
+    name: 'Table Curved (Campfire)',
+    id: 'tblCurved',
+    key: 'WG',
+    frontImage: 'tblCurved-menu.png'
 }
-
-
 ]
 
 /* Chair, doors and people. Key ID start with S */
@@ -898,6 +905,15 @@ let chairs = [
         depth: 1200,
         opacity: 0.8,
     },
+    {
+        name: "Pouf (round stool)",
+        id: 'pouf',
+        key: 'SJ',
+        width: 440,
+        depth: 440,
+        frontImage: 'tblPodium-menu.png',
+        topImage: 'pouf-top.png'
+    }
 
 
 
@@ -1336,7 +1352,7 @@ let resizeWindowTimer;
 windowResizeEvent(); /* initialize first time */
 
 function windowResizeEventName() {
-
+    trNodesUuidToRoomObj();
     toggleMoreMenu('close');
     closeAllMenus();
     closeRightClickMenu();
@@ -1346,7 +1362,7 @@ function windowResizeEventName() {
     resizeWindowTimer = setTimeout(function resizingCanvas() {
         zoomInOut('reset');
         drawRoom(false, false, true);
-
+        setTimeout(updatWallChairsOnResize, 100);
     }, 550);
 }
 
@@ -1842,9 +1858,11 @@ function getQueryString() {
         workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
         workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
         workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
+        workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.3 };
+        console.info('testNew is on: ', testNew);
     }
 
-    console.info('testNew is', testNew);
+
 
     if (urlParams.has('wd')) {
         let wd = urlParams.get('wd');
@@ -3062,106 +3080,106 @@ function getDistanceB(degreeB, distanceA) {
     return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
 }
 
-/* svgStart */
-function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'stroke:#808080;stroke-width:2;opacity:0.3;') {
-    /* scale */
+// /* svgStart */
+// function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'stroke:#808080;stroke-width:2;opacity:0.3;') {
+//     /* scale */
 
-    let solidStyle = style;
+//     let solidStyle = style;
 
-    let lightStyle = 'stroke:#808080;stroke-width:0.6;opacity:0.4;'
+//     let lightStyle = 'stroke:#808080;stroke-width:0.6;opacity:0.4;'
 
-    /* Create a <g> group element for the grid */
-    const groupLines = document.createElementNS(svgns, "g");
+//     /* Create a <g> group element for the grid */
+//     const groupLines = document.createElementNS(svgns, "g");
 
-    groupLines.setAttribute('id', 'grid-increment-' + increment.toFixed(2));
+//     groupLines.setAttribute('id', 'grid-increment-' + increment.toFixed(2));
 
-    /* draw horizontal lines */
+//     /* draw horizontal lines */
 
-    let measurementY = 0;
-    let pxMeasurementY = 0;
+//     let measurementY = 0;
+//     let pxMeasurementY = 0;
 
-    let increments = 30;
-    let toFixedValue = 0;
+//     let increments = 30;
+//     let toFixedValue = 0;
 
-    if (unit === 'feet' && scale < 19) {
-        increment = 2 * Math.round((increments / (increment * scale)) / 2);
-    }
+//     if (unit === 'feet' && scale < 19) {
+//         increment = 2 * Math.round((increments / (increment * scale)) / 2);
+//     }
 
-    if (unit === 'meters') {
-        if (scale < 30) {
-            increment = 2 * Math.round((increments / (increment * scale * 3.3) / 2));
-        }
-        else if (scale < 60) {
-            increment = 1;
-        }
+//     if (unit === 'meters') {
+//         if (scale < 30) {
+//             increment = 2 * Math.round((increments / (increment * scale * 3.3) / 2));
+//         }
+//         else if (scale < 60) {
+//             increment = 1;
+//         }
 
-        else if (scale < 134) {
-            increment = 0.5
-        }
-    }
+//         else if (scale < 134) {
+//             increment = 0.5
+//         }
+//     }
 
-    if (increment < 1) {
-        toFixedValue = 2;
-    }
+//     if (increment < 1) {
+//         toFixedValue = 2;
+//     }
 
-    if (increment === 0.5) {
-        toFixedValue = 1;
-    }
+//     if (increment === 0.5) {
+//         toFixedValue = 1;
+//     }
 
-    addCenteredText(unit, startX, startY, (pxOffset / 2 - 10), pxOffset / 2 - 10, groupLines, 'grid-unit' + unit);
+//     addCenteredText(unit, startX, startY, (pxOffset / 2 - 10), pxOffset / 2 - 10, groupLines, 'grid-unit' + unit);
 
-    do {
-        measurementY += increment;
-        if (measurementY % 1 != 0) {
-            style = lightStyle;
-        } else {
-            style = solidStyle;
-        }
-        pxMeasurementY = (measurementY * scale) + startY;
-        let lineHorizontal = document.createElementNS(svgns, 'line');
-        lineHorizontal.setAttribute('x1', startX.toFixed(2));
-        lineHorizontal.setAttribute('y1', pxMeasurementY.toFixed(2));
-        lineHorizontal.setAttribute('x2', endX.toFixed(2));
-        lineHorizontal.setAttribute('y2', pxMeasurementY.toFixed(2));
-        lineHorizontal.setAttribute('id', 'horiz-incr-' + increment + '-measurement-' + measurementY.toFixed(2));
-        lineHorizontal.setAttribute('style', style);
-        groupLines.appendChild(lineHorizontal);
-        addCenteredText(measurementY.toFixed(toFixedValue), 0, pxMeasurementY, startX, pxMeasurementY, groupLines);
+//     do {
+//         measurementY += increment;
+//         if (measurementY % 1 != 0) {
+//             style = lightStyle;
+//         } else {
+//             style = solidStyle;
+//         }
+//         pxMeasurementY = (measurementY * scale) + startY;
+//         let lineHorizontal = document.createElementNS(svgns, 'line');
+//         lineHorizontal.setAttribute('x1', startX.toFixed(2));
+//         lineHorizontal.setAttribute('y1', pxMeasurementY.toFixed(2));
+//         lineHorizontal.setAttribute('x2', endX.toFixed(2));
+//         lineHorizontal.setAttribute('y2', pxMeasurementY.toFixed(2));
+//         lineHorizontal.setAttribute('id', 'horiz-incr-' + increment + '-measurement-' + measurementY.toFixed(2));
+//         lineHorizontal.setAttribute('style', style);
+//         groupLines.appendChild(lineHorizontal);
+//         addCenteredText(measurementY.toFixed(toFixedValue), 0, pxMeasurementY, startX, pxMeasurementY, groupLines);
 
-    } while (pxMeasurementY <= (endY - increment * scale));
+//     } while (pxMeasurementY <= (endY - increment * scale));
 
-    /* draw vertical lines */
+//     /* draw vertical lines */
 
-    let measurementX = 0;
-    let pxMeasurementX = 0;
+//     let measurementX = 0;
+//     let pxMeasurementX = 0;
 
-    do {
+//     do {
 
-        measurementX += increment;
-        if (measurementX % 1 != 0) {
-            style = lightStyle;
-        } else {
-            style = solidStyle;
-        }
-        pxMeasurementX = (measurementX * scale) + startX;
-        let lineVertical = document.createElementNS(svgns, 'line');
-        lineVertical.setAttribute('y1', startY.toFixed(2));
-        lineVertical.setAttribute('x1', pxMeasurementX.toFixed(2));
-        lineVertical.setAttribute('y2', endY.toFixed(2));
-        lineVertical.setAttribute('x2', pxMeasurementX.toFixed(2));
-        lineVertical.setAttribute('id', 'vert-incr-' + increment + '-measurement-' + measurementX.toFixed(2));
-        lineVertical.setAttribute('style', style);
-        groupLines.appendChild(lineVertical);
-        addCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0, pxMeasurementX, startY + 20, groupLines);
+//         measurementX += increment;
+//         if (measurementX % 1 != 0) {
+//             style = lightStyle;
+//         } else {
+//             style = solidStyle;
+//         }
+//         pxMeasurementX = (measurementX * scale) + startX;
+//         let lineVertical = document.createElementNS(svgns, 'line');
+//         lineVertical.setAttribute('y1', startY.toFixed(2));
+//         lineVertical.setAttribute('x1', pxMeasurementX.toFixed(2));
+//         lineVertical.setAttribute('y2', endY.toFixed(2));
+//         lineVertical.setAttribute('x2', pxMeasurementX.toFixed(2));
+//         lineVertical.setAttribute('id', 'vert-incr-' + increment + '-measurement-' + measurementX.toFixed(2));
+//         lineVertical.setAttribute('style', style);
+//         groupLines.appendChild(lineVertical);
+//         addCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0, pxMeasurementX, startY + 20, groupLines);
 
-    } while (pxMeasurementX <= (endX - increment * scale));
+//     } while (pxMeasurementX <= (endX - increment * scale));
 
-    /* append to SVG */
+//     /* append to SVG */
 
-    return groupLines;
+//     return groupLines;
 
-}
-/* svgEnd */
+// }
+// /* svgEnd */
 
 function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
@@ -3726,9 +3744,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         scrollContainer.scrollTop = dy - 0.01;
     }
 
-    if (workspaceWindow) {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
-    }
+    postMessageToWorkspace();
 
 }
 
@@ -3973,9 +3989,7 @@ function createShareableLink() {
 
 
     /* resend workspace postmessage with the updated URL */
-    if (workspaceWindow) {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
-    }
+    postMessageToWorkspace();
 
     /* only create QR Code if RoomOS and only every 2 seconds for performance */
     if (qrCodeAlwaysOn) {
@@ -4678,7 +4692,7 @@ function duplicateItems() {
 function trNodesFromUuids(uuids, save = true) {
     let trNodes = [];
     setTimeout(() => {
-        /* select newly copy items for tr nodes. Timeout is so call back has time. */
+        /* select newly copy items for tr nodes. Timeout is so canvas/Konva has time to update. */
         uuids.forEach((uuid) => {
             trNodes.push(stage.find('#' + uuid)[0]);
         });
@@ -4697,7 +4711,7 @@ function trNodesFromUuids(uuids, save = true) {
             snapCenterToIncrement(tr.nodes()[0]);
         }
 
-    }, 100);
+    }, 200);
 }
 
 function stageAddLayers() {
@@ -4968,77 +4982,77 @@ function deleteTrNodes(save = true) {
 
 }
 
-let microphone = new Konva.Shape({
-    x: 0,
-    y: 0,
-    fill: 'grey',
-    width: 40,
-    height: 40,
-    name: 'microphone',
-    draggable: true,
-    strokeWidth: 4,
-    stroke: 'black',
-    sceneFunc: function (ctx, shape) {
-        ctx.beginPath();
-        ctx.arc(shape.width() / 2, shape.height() / 2, shape.width() / 2, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.fillStrokeShape(shape);
-    }
+// let microphone = new Konva.Shape({
+//     x: 0,
+//     y: 0,
+//     fill: 'grey',
+//     width: 40,
+//     height: 40,
+//     name: 'microphone',
+//     draggable: true,
+//     strokeWidth: 4,
+//     stroke: 'black',
+//     sceneFunc: function (ctx, shape) {
+//         ctx.beginPath();
+//         ctx.arc(shape.width() / 2, shape.height() / 2, shape.width() / 2, 0, 2 * Math.PI);
+//         ctx.stroke();
+//         ctx.fillStrokeShape(shape);
+//     }
 
-});
+// });
 
-microphone.data_type = 'microphone';
+// microphone.data_type = 'microphone';
 
-function updateInsertVideoDeviceOptions() {
+// function updateInsertVideoDeviceOptions() {
 
-    let drpInsertVideoDevice = document.getElementById('drpInsertVideoDevice');
-    videoDevices.forEach((device) => {
+//     let drpInsertVideoDevice = document.getElementById('drpInsertVideoDevice');
+//     videoDevices.forEach((device) => {
 
-        let name = device.name;
+//         let name = device.name;
 
-        let drpOption = new Option(name, device.id);
+//         let drpOption = new Option(name, device.id);
 
-        drpInsertVideoDevice.add(drpOption, undefined);
-    })
+//         drpInsertVideoDevice.add(drpOption, undefined);
+//     })
 
-}
+// }
 
 
-function sceneFuncPtz4k(ctx, shape) {
-    ctx.beginPath();
-    let width = shape.getAttr('width');
-    let height = shape.getAttr('height');
-    /* don't need to set position of rect, Konva will handle it */
-    ctx.rect(0, 0, width, height * 0.65);
-    /* (!) Konva specific method, it is very important it will apply are required styles */
+// function sceneFuncPtz4k(ctx, shape) {
+//     ctx.beginPath();
+//     let width = shape.getAttr('width');
+//     let height = shape.getAttr('height');
+//     /* don't need to set position of rect, Konva will handle it */
+//     ctx.rect(0, 0, width, height * 0.65);
+//     /* (!) Konva specific method, it is very important it will apply are required styles */
 
-    ctx.fillStrokeShape(shape);
-    ctx.moveTo(width * 0.3, height * 0.65);
-    ctx.lineTo(width * 0.7, height * 0.65);
-    ctx.lineTo(width, height * 0.95);
-    ctx.lineTo(0, height * 0.95);
-    ctx.closePath();
-    ctx.fillStrokeShape(shape);
-    ctx.stroke();
+//     ctx.fillStrokeShape(shape);
+//     ctx.moveTo(width * 0.3, height * 0.65);
+//     ctx.lineTo(width * 0.7, height * 0.65);
+//     ctx.lineTo(width, height * 0.95);
+//     ctx.lineTo(0, height * 0.95);
+//     ctx.closePath();
+//     ctx.fillStrokeShape(shape);
+//     ctx.stroke();
 
-}
+// }
 
-function sceneFuncQuadCam(ctx, shape) {
-    ctx.beginPath();
-    let width = shape.getAttr('width');
-    let height = shape.getAttr('height');
-    /*  don't need to set position of rect, Konva will handle it */
-    ctx.rect(0, 0, width, height * 0.65);
-    /* (!) Konva specific method, it is very important it will apply are required styles */
-    ctx.fillStrokeShape(shape);
-    ctx.moveTo(width * 0.4, height * 0.65);
-    ctx.lineTo(width * 0.6, height * 0.65);
-    ctx.lineTo(width, height * 0.8);
-    ctx.lineTo(0, height * 0.8);
-    ctx.closePath();
-    ctx.fillStrokeShape(shape);
-    ctx.stroke();
-}
+// function sceneFuncQuadCam(ctx, shape) {
+//     ctx.beginPath();
+//     let width = shape.getAttr('width');
+//     let height = shape.getAttr('height');
+//     /*  don't need to set position of rect, Konva will handle it */
+//     ctx.rect(0, 0, width, height * 0.65);
+//     /* (!) Konva specific method, it is very important it will apply are required styles */
+//     ctx.fillStrokeShape(shape);
+//     ctx.moveTo(width * 0.4, height * 0.65);
+//     ctx.lineTo(width * 0.6, height * 0.65);
+//     ctx.lineTo(width, height * 0.8);
+//     ctx.lineTo(0, height * 0.8);
+//     ctx.closePath();
+//     ctx.fillStrokeShape(shape);
+//     ctx.stroke();
+// }
 
 
 function getAttributes(device) {
@@ -5393,9 +5407,7 @@ function saveToUndoArray() {
 
     setItemForLocalStorage('undoArray', JSON.stringify(undoArray.slice(-30)));  /* only store the last 30 items to local storage to save on space */
 
-    if (workspaceWindow) {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
-    }
+    postMessageToWorkspace();
 
 }
 
@@ -5437,6 +5449,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         height = 0.9 * scale;
     } else if (insertDevice.id.startsWith('wallChair')) {
         wallWidth = 0.65 * scale;
+    } else if (insertDevice.id.startsWith('tblCurved')) {
+        width = 4.26 * scale;
+        height = 1.01 * scale;
     }
 
     if ('data_vHeight' in attrs) {
@@ -5695,6 +5710,43 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+
+
+    if (insertDevice.id === 'tblCurved') {
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+            sceneFunc: (ctx, shape) => {
+
+                let width = shape.width();
+                let height = shape.height();
+                let outerRadius = 510 / 426 * width; /* cm */
+                let innerRadius = 432 / 426 * width;
+                let outerStartAngle = 66 * Math.PI / 180;
+                let outerEndAngle = 114 * Math.PI / 180;
+                let innerStartAngle = 69 * Math.PI / 180;
+                let innerEndAngle = 111 * Math.PI / 180;
+
+
+                ctx.beginPath();
+                ctx.beginPath();
+                ctx.arc(width / 2, -outerRadius + height, outerRadius, outerStartAngle, outerEndAngle);
+                ctx.arc(width / 2, -innerRadius + (0.27 * height), innerRadius, innerEndAngle, innerStartAngle, true);
+                ctx.closePath(0, 0);
+                ctx.fillStrokeShape(shape);
+            }
+        });
+    }
+
     if (insertDevice.id === 'box') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
@@ -5835,7 +5887,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             rotation: rotation,
             width: wallWidth,
             height: height,
-            stroke: strokeColor,
+            stroke: '#aaaaaa',
             strokeWidth: 1,
             id: uuid,
             draggable: true,
@@ -5927,6 +5979,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         groupStageFloors.add(tblWallFlr);
     }
 
+    if (allDeviceTypes[tblWallFlr.data_deviceid].parentGroup === 'tables') {
+        if (tblWallFlr.data_deviceid.startsWith('wallChairs')) {
+            tblWallFlr.moveToTop();
+        } else {
+            tblWallFlr.zIndex(0);
+        }
+    }
 
 
     if (selectTrNode) {
@@ -5973,7 +6032,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
 
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
-            tr.nodes()[0].shadowColor('blue').shadowBlur(10).shadowOpacity(0.5).shadowEnabled(true);
+            tr.nodes()[0].shadowColor('grey').shadowBlur(10).shadowOpacity(0.5).shadowEnabled(true).opacity(0.4);
+
         }
     });
 
@@ -5985,8 +6045,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             if (roomObj.unit === 'meters') {
                 singleChairWidth = 2.35 / 3.28084;
             }
-            chairs.shadowEnabled(false);
+            chairs.shadowEnabled(false).opacity(1);
             let height = Math.round((chairs.height()) / singleChairWidth / scale) * singleChairWidth * scale;
+
+            if (height < singleChairWidth * scale) {
+                height = singleChairWidth * scale;
+            }
 
             document.getElementById('itemLength').value = height / scale;
 
@@ -6000,6 +6064,24 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
+}
+
+/* The wallChairs object needs to be resized by deleting and reinserting or the background image does not size correctly */
+function updatWallChairsOnResize() {
+    let redoTrNodes = false;
+    roomObj.items.tables.forEach((item) => {
+        if (item.data_deviceid === 'wallChairs') {
+            let node = groupTables.findOne('#' + item.id);
+            redoTrNodes = true;
+            if (node) {
+                node.destroy();
+                insertShapeItem(item.data_deviceid, 'tables', item, item.id, false)
+            }
+        }
+    });
+
+    /* only redraw tr.nodes() if wallChairs were used */
+    if (redoTrNodes) trNodesFromUuids(roomObj.trNodes, false);
 }
 
 function findUpperLeftXY(shape) {
@@ -6114,8 +6196,18 @@ function updateShapesBasedOnNewScale() {
 
                 let theObjects = parentGroup.getChildren();
 
-                theObjects.forEach(node => {
+                //    theObjects.forEach(node => {
+                for (let i = 0; i < theObjects.length; i++) {
+                    let node = theObjects[i];
                     let attrs = node.attrs;
+
+                    if (node.data_deviceid === 'wallChairs') {
+                        let fillScaleX = scale / oldScale * node.fillPatternScaleX();
+                        node.fillPatternScaleX(fillScaleX);
+                        let fillScaleY = scale / oldScale * node.fillPatternScaleY();
+                        node.fillPatternScaleY(fillScaleY);
+
+                    }
 
                     if ('x' in attrs) {
 
@@ -6138,15 +6230,17 @@ function updateShapesBasedOnNewScale() {
                         node.y(newY);
                     }
 
+                    if ('width' in attrs) {
+                        let newWidth = scale / oldScale * node.width();
+                        node.width(newWidth);
+                    }
+
                     if ('height' in attrs) {
                         let newHeight = scale / oldScale * node.height();
                         node.height(newHeight);
                     }
 
-                    if ('width' in attrs) {
-                        let newWidth = scale / oldScale * node.width();
-                        node.width(newWidth);
-                    }
+
 
                     if ('radius' in attrs) {
                         let newRadius = scale / oldScale * node.radius();
@@ -6158,7 +6252,7 @@ function updateShapesBasedOnNewScale() {
                         node.fillRadialGradientEndRadius(newFillRadialGradientEndRadius);
                     }
 
-                });
+                };
 
             })
         }
@@ -6185,6 +6279,9 @@ function removeShadingTrNodes() {
             node.strokeEnabled(true);
             node.stroke('#000000');
             node.strokeWidth(1);
+            if (node.data_deviceid.startsWith('wallChairs')) {
+                node.stroke('#aaaaaa');
+            };
 
         }
     });
@@ -7030,6 +7127,7 @@ function toggleDisplayDistanceSingleItem() {
 
 }
 
+dragElement(document.getElementById('floatingWorkspace'));
 
 function dragElement(element) {
     var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -7386,12 +7484,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     }
 
     tr.resizeEnabled(false);
+
     /* convert mm to meters * scale */
     width = insertDevice.width / 1000 * scale;
     height = insertDevice.depth / 1000 * scale;
 
     let addHighlight = false;
 
+    /* add circular highlight to any device smaller than sizeToAddOutline. Added after image obj is created */
     if (smallItemsHighlight && insertDevice.width < sizeToAddOultine && insertDevice.depth < sizeToAddOultine) {
         width = sizeToAddOultine / 1000 * scale;
         height = sizeToAddOultine / 1000 * scale;
@@ -7472,6 +7572,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
     let imageObj = new Image();
+
     imageObj.onload = function imageObjOnLoad() {
         let imageItem = new Konva.Image({
             x: cornerXY.x,
@@ -7487,15 +7588,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         imageItem.hitStrokeWidth(hitStrokeWidth); /* don't need to be close to the image to be selected */
 
         imageItem.data_deviceid = deviceId;
-
-        /* on a refresh of the page, make sure person is over the chair.  This isn't working, need to figure out why. */
-        if (imageItem.data_deviceid.startsWith('person')) {
-            imageItem.zIndex(groupChairs.getChildren().length - 1);
-        }
-
-        if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door')) {
-            imageItem.zIndex(0);
-        }
 
 
         if ('scaleX' in attrs) {
@@ -7630,6 +7722,23 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             setTimeout(() => {
                 updateFormatDetails(uuid)
             }, 500);
+        }
+
+        /* on insert and refresh of the page, make sure person is over the chair. */
+        if (imageItem.data_deviceid.startsWith('person')) {
+            imageItem.moveToTop();
+        }
+
+        if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door')) {
+            imageItem.zIndex(0);
+        }
+
+        if (allDeviceTypes[imageItem.data_deviceid].parentGroup === 'videoDevices') {
+            if (imageItem.data_deviceid.startsWith('ptz')) {
+                imageItem.moveToTop();
+            } else {
+                imageItem.zIndex(0);
+            }
         }
 
     };
@@ -7825,13 +7934,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             opacity: 0.3,
             stroke: '#00000080',
             strokeWidth: 1,
-            // fillRadialGradientStartPoint: { x: 0, y: 0 },
-            // fillRadialGradientStartRadius: 0,
-            // fillRadialGradientEndPoint: { x: 0, y: 0 },
-            // fillRadialGradientEndRadius: micRadius,
-            // fillRadialGradientColorStops: [0, 'purple', 0.8, '#800080', 1, '#80008000'],
         });
 
+        /* audioShadingLine & audioShadingShade combine to form the coverage */
         let audioShadingShade = new Konva.Wedge({
             /* x and y should be tracked in the group only */
             radius: micRadius * 1.2,
@@ -8759,6 +8864,11 @@ function updateFormatDetails(eventOrShapeId) {
         document.getElementById('itemLength').disabled = false;
     }
 
+    if (shape.data_deviceid.startsWith('tblCurved')) {
+        document.getElementById('itemWidth').disabled = true;
+        document.getElementById('itemLength').disabled = true;
+    }
+
     if (shape.data_deviceid.startsWith('tblSchoolDesk')) {
         document.getElementById('itemWidth').disabled = false;
         document.getElementById('itemLength').disabled = true;
@@ -8903,7 +9013,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemVheightDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')) {
+            if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')) && !shape.data_deviceid.startsWith('wallChairs')) {
                 let itemVheight = document.getElementById('itemVheight');
                 let defaultHeight = defaultWallHeight;
 
@@ -9424,37 +9534,30 @@ function removeElementsByClass(className) {
 
 
 
-function createItemsOnMenu(divMenuContainerId, menuItems, groupName, jsonGroup) {
+function createItemsOnMenu(divMenuContainerId, menuItems) {
 
     let divMenuContainer = document.getElementById(divMenuContainerId);
-    let frontImage = 'frontImage.png';
-    let name = 'No Name';
 
     menuItems.forEach((menuItem) => {
 
-        jsonGroup.forEach((item) => {
-            if (menuItem === item.id) {
-                if ('frontImage' in item) {
-                    frontImage = item.frontImage;
+        let item = allDeviceTypes[menuItem];
 
-                }
+        let frontImage = item.frontImage || 'wd.svg';
 
-                if ('name' in item) {
-                    name = item.name;
-                }
-            }
-        });
+        let name = item.name || 'No Name';
+
+        let parentGroup = item.parentGroup;
 
         let flexItemDiv = document.createElement("div");
         flexItemDiv.classList.add('flexItems');
         flexItemDiv.classList.add('equipmentItemOnMenu');
-        flexItemDiv.id = `${groupName}-${menuItem}-div`;
+        flexItemDiv.id = `${parentGroup}-${menuItem}-div`;
         flexItemDiv.draggable = 'true';
         divMenuContainer.appendChild(flexItemDiv);
 
         let flexItemImage = document.createElement("img");
         flexItemImage.classList.add('flexSubItemImage');
-        flexItemImage.id = `${groupName}-${menuItem}-img`;
+        flexItemImage.id = `${parentGroup}-${menuItem}-img`;
         flexItemImage.draggable = 'true';
         flexItemImage.src = `./assets/images/${frontImage}`;
         flexItemDiv.appendChild(flexItemImage);
@@ -9519,43 +9622,53 @@ function createEquipmentMenu() {
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall', 'laptop'];
 
-    // let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'wallChairs'];
+    // let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium',  'wallChairs'];
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium'];
+
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+        tablesMenu.push('tblCurved');
+    }
 
     let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
 
     let chairsMenu = ['chair', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble'];
 
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+        chairsMenu.splice(1, 0, 'pouf');
+        chairsMenu.splice(1, 0, 'wallChairs');
+
+    }
+
     let stageFloorMenu = ['stageFloor'];
 
     let accessibilityMenu = ['wheelchair', 'wheelchairTurnCycle', 'circulationSpace'];
 
-    createItemsOnMenu('cameraMenuContainer', videoDevicesMenu, 'videoDevices', videoDevices);
+    createItemsOnMenu('cameraMenuContainer', videoDevicesMenu);
 
-    createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu, 'videoDevices', videoDevices);
+    createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
 
-    createItemsOnMenu('personalDevicesMenuContainer', personalVideoDevicesMenu, 'videoDevices', videoDevices);
+    createItemsOnMenu('personalDevicesMenuContainer', personalVideoDevicesMenu);
 
-    createItemsOnMenu('cameraDevicesMenuContainer', cameraDevicesMenu, 'videoDevices', videoDevices);
+    createItemsOnMenu('cameraDevicesMenuContainer', cameraDevicesMenu);
 
-    createItemsOnMenu('cameraLegacyMenuContainer', legacyVideoDevicesMenu, 'videoDevices', videoDevices);
+    createItemsOnMenu('cameraLegacyMenuContainer', legacyVideoDevicesMenu);
 
-    createItemsOnMenu('microphoneMenuContainer', microphonesMenu, 'microphones', microphones);
+    createItemsOnMenu('microphoneMenuContainer', microphonesMenu);
 
-    createItemsOnMenu('displaysMenuContainer', displaysMenu, 'displays', displays);
+    createItemsOnMenu('displaysMenuContainer', displaysMenu);
 
-    createItemsOnMenu('navigatorsMenuContainer', navigatorsMenu, 'microphones', microphones);
+    createItemsOnMenu('navigatorsMenuContainer', navigatorsMenu);
 
-    createItemsOnMenu('tablesMenuContainer', tablesMenu, 'tables', tables);
+    createItemsOnMenu('tablesMenuContainer', tablesMenu);
 
-    createItemsOnMenu('wallsMenuContainer', wallsMenu, 'tables', tables);
+    createItemsOnMenu('wallsMenuContainer', wallsMenu);
 
-    createItemsOnMenu('chairsMenuContainer', chairsMenu, 'chairs', chairs);
+    createItemsOnMenu('chairsMenuContainer', chairsMenu);
 
-    createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu, 'chairs', chairs);
+    createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu);
 
-    createItemsOnMenu('stageFloorMenuContainer', stageFloorMenu, 'stageFloors', stageFloors);
+    createItemsOnMenu('stageFloorMenuContainer', stageFloorMenu);
 }
 
 
@@ -10372,13 +10485,20 @@ function resizeTableOrWall() {
 
         changeWallAnchors();
 
-        if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
+        if (nodes[0].data_deviceid.startsWith('wallChairs')) {
+            tr.enabledAnchors(['bottom-center']);
+            changeWallAnchors('wallChairs');
+            tr.resizeEnabled(true);
+        }
+        else if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
             tr.enabledAnchors(['top-center', 'bottom-center']);
             changeWallAnchors(true);
             tr.resizeEnabled(true);
         } else if (nodes[0].data_deviceid.startsWith('tblSchoolDesk') || nodes[0].data_deviceid.startsWith('tblPodium')) {
             tr.enabledAnchors(['middle-right', 'middle-left']);
             tr.resizeEnabled(true);
+        } else if (nodes[0].data_deviceid.startsWith('tblCurved')) {
+            tr.resizeEnabled(false);
         }
         else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor')) {
             tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
@@ -10411,7 +10531,19 @@ function changeWallAnchors(isWall = false) {
             ratioFactor = ratioFactor + minimumSize;
             ;
 
-            if (isWall) {
+            if (isWall === 'wallChairs') {
+                anchor.height(5 * ratioFactor);
+                anchor.width(20 * ratioFactor);
+
+                if (anchor.attrs.name.startsWith('bottom-center')) {
+                    anchor.offsetY(0 * ratioFactor);
+                    anchor.offsetX(10 * ratioFactor);
+                    anchor.fill('#FDDA0D');
+                    anchor.stroke('#44444488');
+                }
+
+            }
+            else if (isWall) {
 
 
                 anchor.height(5 * ratioFactor);
@@ -10423,43 +10555,17 @@ function changeWallAnchors(isWall = false) {
                     anchor.offsetY(0 * ratioFactor);
                     anchor.offsetX(10 * ratioFactor);
 
-                    // option 2
-                    anchor.offsetY(8 * ratioFactor);
-                    anchor.offsetX(10 * ratioFactor);
-                    anchor.fill('#FDDA0D');
-                    anchor.stroke('#44444488');
-                    // anchor.stroke('red');
+                    anchor.fill('#FFFFFF88');
+
 
 
                 }
                 else if (anchor.attrs.name.startsWith('top-center')) {
-                    //option 1
-                    anchor.offsetY(5 * ratioFactor);
-                    anchor.offsetX(10 * ratioFactor);
 
                     anchor.fill('#FFFFFF88');
-
-                    //options 2
                     anchor.offsetY(5 * ratioFactor);
                     anchor.offsetX(10 * ratioFactor);
-
-
-
                 }
-
-                // anchor.offsetX(15);
-
-                // option 1
-                //  anchor.fill('#FFFFFF55');
-
-
-
-                // anchor.stroke('');
-                // anchor.fill('');
-                // anchor.fillPatternImage(wallResizerImage);
-                // anchor.fillPatternImage('no-repeat');
-                //  anchor.fillPatternOffset({ x: 0, y: 0 });
-
 
             } else {
 
@@ -10908,20 +11014,31 @@ function openWorkspaceWindow() {
 
     workspaceWindow = window.open(newTab, sessionId);
 
+    if (testNew) {
+
+        iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
+        iFrameWorkspaceWindow.src = newTab;
+
+        document.getElementById('floatingWorkspace').style.display = '';
+    }
+
+
     /* send initial post message 3 times in case page is opening slow */
     setTimeout(() => {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+            postMessageToWorkspace();
     }, 1000);
 
     setTimeout(() => {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+           postMessageToWorkspace();
     }, 3000);
 
     setTimeout(() => {
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+            postMessageToWorkspace();
     }, 5000);
 
 }
+
+
 
 function openModalWorkspace() {
     reloadWorkspaceIcon();
@@ -10942,8 +11059,15 @@ function openDetailsRoomTab() {
 
 function postMessageToWorkspace() {
     if (workspaceWindow) {
+
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+
+        if (testNew) {
+              iFrameWorkspaceWindow.contentWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+        }
     }
+
+
 }
 
 window.addEventListener(
@@ -11395,6 +11519,10 @@ function convertRoomObjToWorkspace() {
             workspaceItem.width = displayDepth21_9 / 1000 / 2;
             workspaceItem.length = displayWidth21_9 * displayScale / 1000;
             workspaceItem.id = 'display21_9-' + workspaceItem.id;
+            if (testNew) {
+                workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
+            }
+
             delete workspaceItem.size;
 
             let screenInside = structuredClone(workspaceItem);
@@ -11454,6 +11582,17 @@ function convertRoomObjToWorkspace() {
 
         x = (xy.x - roomObj2.room.roomWidth / 2);
         y = (xy.y - roomObj2.room.roomLength / 2);
+
+
+        if ('yOffset' in attr || 'xOffset' in attr) {
+            let yOffset = 0;
+            let xOffset = 0;
+            if ('yOffset' in attr) yOffset = attr.yOffset;
+            if ('xOffset' in attr) xOffset = attr.xOffset;
+            let newXY = findNewTransformationCoordinate({ x: x, y: y, rotation: item.rotation }, xOffset, yOffset);
+            y = newXY.y;
+            x = newXY.x;
+        }
 
         if ('data_zPosition' in item) {
             if (item.data_zPosition != "") z = item.data_zPosition;
@@ -11743,7 +11882,7 @@ function tooltipTitleHover() {
                 tip.style.position = 'fixed';
                 tip.style.display = 'inline';
             }
-            , 1000);
+                , 1000);
         });
     });
 
