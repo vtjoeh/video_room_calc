@@ -451,18 +451,18 @@
                 </div>
               </div>
 
-              <div class="inputRow" id="itemTiltRollDiv" style="display: none;">
+              <div class="inputRow" id="itemTiltSlantDiv">
                 <div class="inputField" id="itemTiltId">
                   <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">Tilt and Roll are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                    <span class="tooltiptext">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
                   <input type="text" id="itemTilt" maxlength="12" size="5" class="unitInput">
                   <label class="classDegree">&deg;</label>
                 </div>
 
-                <div class="inputField" id="itemRollId">
+                <div class="inputField" id="itemSlantId">
                   <label class="tooltip">Roll:<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext tooltiptextLeft">Tilt and Roll are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
-                  <input type="text" id="itemRoll" maxlength="12" size="5" class="unitInput">
+                    <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                  <input type="text" id="itemSlant" maxlength="12" size="5" class="unitInput">
                   <label class="classDegree">&deg;</label>
                 </div>
               </div>
@@ -828,11 +828,8 @@
       <div id="RoomOSmessage" style="visibility: hidden;">
         The RoomOS browser does not support downloading PNG files or copying a link to the
         clickboard.
-        <br>
-        Try the experimental QR Code solution. Total QR Code length is limited to 2950 characters.
-
-        <button class="btn" onclick="loadQRCodeScript()" id="btnQRcodeLoad" title="Load QR Code">Load QR
-          Code Script</button>
+        <br><br>
+        Total QR Code length is limited to 2950 characters.
 
         <div id="qrCode"></div>
         <br>
@@ -1099,8 +1096,8 @@
     Reloading room. Please wait.
   </dialog>
 
-  <dialog id="dialogUndoRedo">
-    <img width="40px" src="/assets/images/recurring-light.svg"></img>
+  <dialog id="dialogUndoRedo" class="pleaseWaitDialog pleaseWaitDialogNoBackdrop" style="width: 50px">
+    <i class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content" ></i>
   </dialog>
 
   <dialog id="dialogQuestions" onclick="onDialogClick(event)">
@@ -1406,7 +1403,7 @@
         Calculator discussion</a> Webex space or contact joehughe@cisco.com </div>
   </div>
 
-  <div id="floatingWorkspace" class="menuMore" style="resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; right: 1%; display: none; ">
+  <div id="floatingWorkspace" class="menuMore" style="resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; right: 3%; display: none; ">
     <div style="padding: 10px; padding-bottom: 10px; border-bottom: solid 1px;" id="floatingWorkspace-dragger" >
 
     <div id="floatingWorkspaceHeader" >Cisco Workspace Designer (3rd Party site)</div>  <i class="icon icon-dragger-vertical-bold" style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>

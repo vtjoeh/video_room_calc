@@ -236,6 +236,7 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+workspaceKey.tblCurved = { objectType: 'table', yOffset: 0.3 };
 
 workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
 workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
@@ -1791,6 +1792,7 @@ function getQueryString() {
 
     if (urlParams.has('qr')) {
         qrCodeButtonsVisible = true;
+        qrCodeAlwaysOn = true;
         makeButtonsVisible();
     }
 
@@ -2360,6 +2362,14 @@ function parseShortenedXYUrl(parameters) {
 
             if ('n' in item) {
                 parseShadingDecimalToBinary(newItem, item.n);
+            }
+
+            if ('o' in item){
+                newItem.data_tilt = item.o /10;
+            }
+
+            if ('p' in item){
+                newItem.data_slant = item.p /10;
             }
 
             if ('text' in item) {
@@ -4021,7 +4031,7 @@ function createShareableLink() {
     postMessageToWorkspace();
 
     /* only create QR Code if RoomOS and only every 2 seconds for performance */
-    if (qrCodeAlwaysOn) {
+    if (qrCodeAlwaysOn && document.getElementById('dialogSave').open) {
         let qrImage = document.getElementById('qrCode').firstChild;
         clearTimeout(timerQRcodeOn);
 
@@ -4032,7 +4042,7 @@ function createShareableLink() {
 
         timerQRcodeOn = setTimeout(() => {
             createQrCode();
-        }, 2000);
+        }, 500);
 
     }
 
@@ -4129,12 +4139,28 @@ function createShareableLinkItem(item) {
         strItem += 'n' + hiddenShading;
     }
 
+    if ('data_tilt' in item){
+        let tilt = Math.round(item.data_tilt);
+        if (tilt != 0) {
+            strItem += 'o' + Math.round(round(item.data_tilt) * 10);
+        }
+    }
+
+    if ('data_slant' in item){
+        let slant = Math.round(item.data_slant);
+        if (slant != 0) {
+            strItem += 'p' + Math.round(round(item.data_slant) * 10);
+        }
+    }
+
     if ('data_labelField' in item) {
         if (item.data_labelField) {
             /* Trim all starting/trailing spaces or _underscores, then encode, then replace all spaces (%20) with + */
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
         }
     }
+
+
 
     return strItem;
 }
@@ -4433,7 +4459,20 @@ function onDialogClick(e) {
 }
 
 function openSaveDialog() {
-    document.getElementById('dialogSave').showModal()
+    document.getElementById('dialogSave').showModal();
+
+    let qrCodeDiv = document.getElementById('qrCode');
+    if((mobileDevice === 'RoomOS' || qrCodeAlwaysOn)){
+        console.log('loading QR Code script');
+
+        if(!qrCodeDiv.hasChildNodes()){
+            loadQRCodeScript();
+        } else {
+            createShareableLink();
+        }
+
+    }
+
 }
 
 function openNewRoomDialog() {
@@ -4589,6 +4628,14 @@ function copyToCanvasClipBoard(items) {
 
         if ('data_color' in node) {
             newAttr.data_color = node.data_color;
+        }
+
+        if('data_tilt' in node){
+            newAttr.data_tilt = node.data_tilt;
+        }
+
+        if('data_slant' in node){
+            newAttr.data_slant = node.data_slant;
         }
 
         if ('data_trapNarrowWidth' in node) {
@@ -5140,6 +5187,14 @@ function getAttributes(device) {
         attrObj.data_color = device.data_color;
     }
 
+    if('data_tilt' in device){
+        attrObj.data_tilt = device.data_tilt;
+    }
+
+    if('data_slant' in device){
+        attrObj.data_slant = device.data_slant;
+    }
+
     if ('data_diagonalInches' in device && device.data_diagonalInches) {
         attrObj.data_diagonalInches = device.data_diagonalInches;
     }
@@ -5358,6 +5413,17 @@ function canvasToJson() {
             if ('data_color' in node) {
                 itemAttr.data_color = node.data_color;
             }
+
+            if ('data_tilt' in node) {
+                itemAttr.data_tilt = node.data_tilt;
+            }
+
+
+            if ('data_slant' in node) {
+                itemAttr.data_slant = node.data_slant;
+            }
+
+
 
             roomObj.items[groupName].push(itemAttr);
 
@@ -5986,6 +6052,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         tblWallFlr.data_color = attrs.data_color;
     }
 
+    if (attrs.data_tilt) {
+        tblWallFlr.data_tilt = attrs.data_tilt;
+    }
+
+    if (attrs.data_slant) {
+        tblWallFlr.data_slant = attrs.data_slant;
+    }
+
     if ('scaleX' in attrs) {
         tblWallFlr.scaleX = attrs.scaleX;
     };
@@ -6375,10 +6449,14 @@ function updateItem() {
     let x = Number(document.getElementById('itemX').value);
     let y = Number(document.getElementById('itemY').value);
 
+
     let rotation = Number(document.getElementById('itemRotation').value);
     rotation = normalizeDegree(rotation);
 
     let data_zPosition = Number(document.getElementById('itemZposition').value);
+
+    let data_tilt = Number(document.getElementById('itemTilt').value);
+    let data_slant = Number(document.getElementById('itemSlant').value);
 
     let data_vHeight = Number(document.getElementById('itemVheight').value);
 
@@ -6421,6 +6499,8 @@ function updateItem() {
             if ('height' in item) {
                 item.height = height;
             }
+
+
 
             if (parentGroup === 'displays') {
                 item.data_diagonalInches = data_diagonalInches;
@@ -6504,6 +6584,20 @@ function updateItem() {
             }
             else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
                 delete item.data_vHeight;
+            }
+
+            if (!(data_tilt === '')){
+                item.data_tilt = data_tilt;
+            }
+            else if ('data_tilt' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+                delete item.data_tilt;
+            }
+
+            if (!(data_slant === '')){
+                item.data_slant = data_slant;
+            }
+            else if ('data_slant' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+                delete item.data_slant;
             }
 
 
@@ -7408,7 +7502,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     let insertDevice = {};
     let group;
-    let width, height, rotation, data_zPosition, data_vHeight;
+    let width, height, rotation, data_zPosition, data_vHeight, data_slant, data_tilt;
     let abbrUnit = 'm';  /* abbreviated unit - will be m for meters, f for feet. Inserted in the shape rendering. */
 
     if (unit === 'feet') {
@@ -7568,6 +7662,18 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         data_vHeight = "";
     }
 
+    if ('data_tilt' in attrs) {
+        data_tilt = attrs.data_tilt;
+    } else {
+        data_tilt = "";
+    }
+
+    if ('data_slant' in attrs) {
+        data_slant = attrs.data_slant;
+    } else {
+        data_slant = "";
+    }
+
     /*
         Calculate width of displays based on Diagonal inches.
     */
@@ -7643,6 +7749,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         if ('data_vHeight' in attrs && attrs.data_vHeight != '') {
             imageItem.data_vHeight = data_vHeight;
+        }
+
+        if ('data_tilt' in attrs && attrs.data_tilt != '') {
+            imageItem.data_tilt = data_tilt;
+        }
+
+        if ('data_slant' in attrs && attrs.data_slant != '') {
+            imageItem.data_slant = data_slant;
         }
 
         if ('data_labelField' in attrs) {
@@ -9116,10 +9230,22 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemRotation').value = round(shape.rotation(), -1);
             }
 
-            if ('data_zPosition' in item) {  // data_zPosition should never be rendered.
+            if ('data_zPosition' in item) {
                 document.getElementById('itemZposition').value = item.data_zPosition;
             } else {
                 document.getElementById('itemZposition').value = "";
+            }
+
+            if ('data_tilt' in item) {
+                document.getElementById('itemTilt').value = item.data_tilt;
+            } else {
+                document.getElementById('itemTilt').value = "";
+            }
+
+            if ('data_slant' in item) {
+                document.getElementById('itemSlant').value = item.data_slant;
+            } else {
+                document.getElementById('itemSlant').value = "";
             }
 
             if ('data_labelField' in item && item.data_labelField) {
@@ -10401,11 +10527,9 @@ async function loadQRCodeScript() {
     const script = './js/qrcode.js';
     qrCodeAlwaysOn = true;
 
-    document.getElementById('btnQRcodeLoad').disabled = true;
     const scripts = [script];
     for (let i = 0; i < scripts.length; i++) {
         canvasToJson();
-        document.getElementById('btnQRcodeLoad').disabled = true;
 
         await setExternalScripts(scripts[i]);
 
@@ -10783,6 +10907,14 @@ function expandChairs(item, unit = roomObj.unit) {
 
     if ('data_zPosition' in item) {
         primaryChair.data_zPosition = item.data_zPosition;
+    }
+
+    if ('data_tilt' in item){
+        primaryChair.data_tilt = item.data_tilt;
+    }
+
+    if ('data_slant' in item){
+        primaryChair.data_slant = item.data_slant;
     }
 
     chairArray.push(primaryChair);
@@ -11454,9 +11586,9 @@ function convertRoomObjToWorkspace() {
                 (swapXY ? y : x)
             ],
             "rotation": [
-                0,
-                (item.rotation * -(Math.PI / 180)),
-                0
+                ((item.data_tilt) * (Math.PI / 180)) || 0,
+                ((item.rotation) * -(Math.PI / 180)),
+                ((item.data_slant) * (Math.PI / 180)) || 0,
             ]
         }
 
@@ -11537,9 +11669,9 @@ function convertRoomObjToWorkspace() {
                 (swapXY ? y : x)
             ],
             "rotation": [
-                0,
-                (item.rotation * -(Math.PI / 180)),
-                0
+                ((item.data_tilt) * (Math.PI / 180)) || 0,
+                ((item.rotation) * -(Math.PI / 180)),
+                ((item.data_slant) * (Math.PI / 180)) || 0,
             ],
             size: item.data_diagonalInches,
             "role": item.role
@@ -11651,9 +11783,9 @@ function convertRoomObjToWorkspace() {
                 (swapXY ? y : x)
             ],
             "rotation": [
-                0,
-                (item.rotation * -(Math.PI / 180)),
-                0
+                ((item.data_tilt) * (Math.PI / 180)) || 0,
+                ((item.rotation) * -(Math.PI / 180)),
+                ((item.data_slant) * (Math.PI / 180)) || 0,
             ],
             "width": item.width,
             "length": item.height
@@ -11758,9 +11890,9 @@ function convertRoomObjToWorkspace() {
                 (swapXY ? y : x)
             ],
             "rotation": [
-                0,
+                ((item.data_slant) * -(Math.PI / 180)) || 0,
                 ((item.rotation - 90) * -(Math.PI / 180)),
-                0
+                ((item.data_tilt) * (Math.PI / 180)) || 0,
             ],
             "height": verticalHeight,
             "length": item.height,
@@ -11770,6 +11902,8 @@ function convertRoomObjToWorkspace() {
         if (testNew) {
             workspaceItem.length = item.width;
             workspaceItem.width = item.height;
+            workspaceItem.rotation[0] = ((item.data_slant) * -(Math.PI / 180)) || 0;
+            workspaceItem.rotation[2] = ((item.data_tilt) * (Math.PI / 180)) || 0;
         }
 
 
