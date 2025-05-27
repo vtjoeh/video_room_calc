@@ -132,7 +132,8 @@ let stageOriginalset = false;
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let testProduction = false; /* For forcing to test production crosslaunch */
 let testNew = false; /* used to toggle on new features */
-let testiFrame = false; /* testing iFrame settings */
+let testiFrame = false; /* testing iFrame settings, only works on internal Cisco Workspace Designer test site */
+let testiFrameInitialized = false; /* Keep track if the testing iFrame settings */
 
 let zoomScaleX = 1;  /* zoomScaleX zoomScaleY used clicking the + or - button to zoom. */
 
@@ -620,7 +621,7 @@ let videoDevicesNoCameras = structuredClone(videoDevices);
 /* camera key starts with C */
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
-    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 0, twoPersonZoom: 3.17, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 0, twoPersonZoom: 3.17, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{standard: 'Standard'}, {flipped: 'Flipped'}, {flippedPole:'Flipped & Ceiling Pole'}], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
     { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
@@ -1855,7 +1856,6 @@ function getQueryString() {
     }
 
     if (urlParams.has('testiFrame')) {
-        console.log('testing');
         let testiFrameQueryString = urlParams.get('testiFrame');
         if (testiFrameQueryString == '0') {
             console.info('urlParams testNew=0, new feature test is off');
@@ -1878,8 +1878,6 @@ function getQueryString() {
     if (testiFrame) {
         console.info('Testing iFrame is turned On. To turn off use ?testiFrame=0');
 
-    } else {
-        console.log('testiFrame off')
     }
 
     if (testNew) {
@@ -2364,12 +2362,18 @@ function parseShortenedXYUrl(parameters) {
                 parseShadingDecimalToBinary(newItem, item.n);
             }
 
-            if ('o' in item){
-                newItem.data_tilt = item.o /10;
+            if ('o' in item) {
+                newItem.data_tilt = item.o / 10;
             }
 
-            if ('p' in item){
-                newItem.data_slant = item.p /10;
+            if ('p' in item) {
+                newItem.data_slant = item.p / 10;
+            }
+
+            if('q' in item){
+                populateMountFromUrl(newItem, item.q);
+            } else {
+                populateMountFromUrl(newItem);
             }
 
             if ('text' in item) {
@@ -2536,6 +2540,11 @@ function onLoad() {
         document.getElementById('useNonWorkspaceItemsCheckBox').checked = false;
     }
 
+    if (localStorage.getItem('showTiltSlant') === 'true') {
+        document.getElementById('showTiltSlantCheckBox').checked = true;
+    } else {
+        document.getElementById('showTiltSlantCheckBox').checked = false;
+    }
 
     if (localStorage.getItem('snapIncrementCheckBox') === 'true') {
         document.getElementById('snapIncrementCheckBox').checked = true;
@@ -4139,19 +4148,28 @@ function createShareableLinkItem(item) {
         strItem += 'n' + hiddenShading;
     }
 
-    if ('data_tilt' in item){
+    if ('data_tilt' in item) {
         let tilt = Math.round(item.data_tilt);
         if (tilt != 0) {
             strItem += 'o' + Math.round(round(item.data_tilt) * 10);
         }
     }
 
-    if ('data_slant' in item){
+    if ('data_slant' in item) {
         let slant = Math.round(item.data_slant);
         if (slant != 0) {
             strItem += 'p' + Math.round(round(item.data_slant) * 10);
         }
     }
+
+        /* don't store data_role index if the value is 0 - this will be the default value */
+    if ('data_mount' in item && item.data_mount) {
+        let place = item.data_mount.index - 1;
+        if (place > -1) {
+            strItem += 'q' + place;
+        }
+    }
+
 
     if ('data_labelField' in item) {
         if (item.data_labelField) {
@@ -4462,10 +4480,9 @@ function openSaveDialog() {
     document.getElementById('dialogSave').showModal();
 
     let qrCodeDiv = document.getElementById('qrCode');
-    if((mobileDevice === 'RoomOS' || qrCodeAlwaysOn)){
-        console.log('loading QR Code script');
+    if ((mobileDevice === 'RoomOS' || qrCodeAlwaysOn)) {
 
-        if(!qrCodeDiv.hasChildNodes()){
+        if (!qrCodeDiv.hasChildNodes()) {
             loadQRCodeScript();
         } else {
             createShareableLink();
@@ -4630,11 +4647,15 @@ function copyToCanvasClipBoard(items) {
             newAttr.data_color = node.data_color;
         }
 
-        if('data_tilt' in node){
+        if('data_mount' in node){
+            newAttr.data_mount = node.data_mount;
+        }
+
+        if ('data_tilt' in node) {
             newAttr.data_tilt = node.data_tilt;
         }
 
-        if('data_slant' in node){
+        if ('data_slant' in node) {
             newAttr.data_slant = node.data_slant;
         }
 
@@ -4922,20 +4943,14 @@ function shadingCameraVisible(state = 'buttonPress') {
     }
 
     if (state) {
-        // button.style["color"] = toggleButtonOnColor;
-        // button.children[0].textContent = 'videocam';
         button.classList.toggle('active', true);
         grShadingCamera.visible(true);
         roomObj.layersVisible.grShadingCamera = true;
     } else {
-        // button.style["color"] = toggleButtonOffColor;
-        // button.children[0].textContent = 'videocam_off';
         button.classList.toggle('active', false);
         grShadingCamera.visible(false);
         roomObj.layersVisible.grShadingCamera = false;
     }
-
-    // updateFormatDetailsUpdate();
 
     if (saveToUndo) saveToUndoArray();
 }
@@ -4957,14 +4972,10 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
 
     if (state === true) {
         grShadingMicrophone.visible(true);
-        // button.children[0].textContent = 'mic';
-        // button.style["color"] = toggleButtonOnColor;
 
         button.classList.toggle('active', true);
         roomObj.layersVisible.grShadingMicrophone = true;
     } else {
-        // button.style["color"] = toggleButtonOffColor;
-        // button.children[0].textContent = 'mic_off';
 
         button.classList.toggle('active', false);
         grShadingMicrophone.visible(false);
@@ -4982,6 +4993,9 @@ function toggleSelectPan() {
     if (button.children[0].dataset.type === 'select') {
         button.children[0].dataset.type = 'pan_tool';
         button.style.color = '';
+
+        button.classList.remove('active');
+
         document.getElementById("canvasDiv").style.cursor = "auto";
 
         panScrollableOn = false;
@@ -4990,7 +5004,8 @@ function toggleSelectPan() {
     } else {
 
         button.children[0].dataset.type = 'select';
-        button.style.color = 'var(--active)'
+        //      button.style.color = 'var(--active)'
+        button.classList.add('active');
 
         document.getElementById("canvasDiv").style.cursor = "grab";
 
@@ -5187,11 +5202,15 @@ function getAttributes(device) {
         attrObj.data_color = device.data_color;
     }
 
-    if('data_tilt' in device){
+    if('data_mount' in device){
+        attrObj.data_mount = device.data_mount;
+    }
+
+    if ('data_tilt' in device) {
         attrObj.data_tilt = device.data_tilt;
     }
 
-    if('data_slant' in device){
+    if ('data_slant' in device) {
         attrObj.data_slant = device.data_slant;
     }
 
@@ -5414,16 +5433,17 @@ function canvasToJson() {
                 itemAttr.data_color = node.data_color;
             }
 
+            if('data_mount' in node){
+                itemAttr.data_mount = node.data_mount;
+            }
+
             if ('data_tilt' in node) {
                 itemAttr.data_tilt = node.data_tilt;
             }
 
-
             if ('data_slant' in node) {
                 itemAttr.data_slant = node.data_slant;
             }
-
-
 
             roomObj.items[groupName].push(itemAttr);
 
@@ -5432,7 +5452,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -6052,6 +6072,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         tblWallFlr.data_color = attrs.data_color;
     }
 
+    if ('data_mount' in attrs) {
+        tblWallFlr.data_mount = attrs.data_mount;
+    }
+
     if (attrs.data_tilt) {
         tblWallFlr.data_tilt = attrs.data_tilt;
     }
@@ -6456,7 +6480,10 @@ function updateItem() {
     let data_zPosition = Number(document.getElementById('itemZposition').value);
 
     let data_tilt = Number(document.getElementById('itemTilt').value);
+    data_tilt = normalizeDegree(data_tilt);
+
     let data_slant = Number(document.getElementById('itemSlant').value);
+    data_slant = normalizeDegree(data_slant);
 
     let data_vHeight = Number(document.getElementById('itemVheight').value);
 
@@ -6533,6 +6560,13 @@ function updateItem() {
                 item.data_color.index = document.getElementById('drpColor').selectedIndex;
             }
 
+            if (document.getElementById('drpMount').options.length > 0) {
+
+                item.data_mount = {};
+                item.data_mount.value = document.getElementById('drpMount').value;
+                item.data_mount.index = document.getElementById('drpMount').selectedIndex;
+            }
+
             if (item.data_deviceid === 'tblRect') {
                 if (tblRectRadius != '') {
                     item.tblRectRadius = tblRectRadius;
@@ -6586,14 +6620,14 @@ function updateItem() {
                 delete item.data_vHeight;
             }
 
-            if (!(data_tilt === '')){
+            if (!(data_tilt === '')) {
                 item.data_tilt = data_tilt;
             }
             else if ('data_tilt' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
                 delete item.data_tilt;
             }
 
-            if (!(data_slant === '')){
+            if (!(data_slant === '')) {
                 item.data_slant = data_slant;
             }
             else if ('data_slant' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
@@ -7784,6 +7818,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
 
+        if ('data_mount' in attrs) {
+            imageItem.data_mount = attrs.data_mount; /* data_mount.value & data_mount.index */
+        }
+
         if ('name' in insertDevice) {
             imageItem.name(insertDevice.name);
         }
@@ -8502,6 +8540,16 @@ function showNonWorkspaceItems(e) {
     createEquipmentMenu();
 }
 
+function showTiltSlant(e) {
+    if (e.srcElement.checked) {
+        setItemForLocalStorage('showTiltSlant', 'true');
+    } else {
+        setItemForLocalStorage('showTiltSlant', 'false');
+    }
+
+    updateFormatDetailsUpdate();
+}
+
 function updateRemoveDefaultWallsCheckBox() {
     document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
@@ -8863,6 +8911,37 @@ function populateRoleFromUrl(newItem, place = -1) {
     }
 }
 
+function populateMountFromUrl(newItem, place = -1) {
+    let index = Number(place) + 1; /* by default index = 0 is the default, */
+
+    videoDevices.forEach(indexToMount);
+    chairs.forEach(indexToMount);
+    displays.forEach(indexToMount);
+    microphones.forEach(indexToMount);
+
+    function indexToMount(device) {
+        if (newItem.data_deviceid === device.id) {
+            if ('mounts' in device && device.mounts) {
+                let mount = device.mounts[index];
+                newItem.data_mount = {};
+
+                /* determine if the object is a string or an object.  */
+                if (typeof (mount) === 'string') {
+                    newItem.data_mount.value = mount;
+
+                } else {
+                    for (const [key, value] of Object.entries(mount)) {
+                        newItem.data_mount.value = key;
+                    }
+                }
+                newItem.data_mount.index = index;
+            }
+        }
+    }
+}
+
+
+
 /* Populate the drpColor drop menu if there are Colors for the item.  Colors are for the Workspace Designer */
 function populateDrpColor(item) {
 
@@ -8937,6 +9016,45 @@ function populateDrpRole(item) {
                         }
                     }
                     document.getElementById('drpRole').add(drpOption, undefined);
+                })
+            }
+        }
+    }
+}
+
+/* Populate the drpMount drop menu if there are Mounts for the item.  Mounts are for the Workspace Designer */
+function populateDrpMount(item) {
+
+    document.getElementById('drpMount').options.length = 0; /* clear out all previous options */
+
+    document.getElementById('mountDiv').style.display = 'none';
+
+    videoDevices.forEach(populate);
+
+    microphones.forEach(populate);
+
+    chairs.forEach(populate);
+
+    displays.forEach(populate);
+
+    function populate(device) {
+        if (item.data_deviceid === device.id) {
+            if ('mounts' in device) {
+                document.getElementById('mountDiv').style.display = '';
+
+                device.mounts.forEach(mount => {
+                    let drpOption = new Option();
+                    /* determine if the object is a string or an object.  */
+                    if (typeof (mount) === 'string') {
+                        drpOption.text = mount;
+                        drpOption.value = mount;
+                    } else {
+                        for (const [key, value] of Object.entries(mount)) {
+                            drpOption.text = value;
+                            drpOption.value = key;
+                        }
+                    }
+                    document.getElementById('drpMount').add(drpOption, undefined);
                 })
             }
         }
@@ -9026,6 +9144,13 @@ function updateFormatDetails(eventOrShapeId) {
     if (shape.data_deviceid.startsWith('tblPodium')) {
         document.getElementById('itemWidth').disabled = false;
         document.getElementById('itemLength').disabled = true;
+    }
+
+    /* if both itemWidth and itemLength are disabled, don't show the row */
+    if(document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true){
+        document.getElementById('itemWidthLengthDiv').style.display = 'none';
+    } else {
+        document.getElementById('itemWidthLengthDiv').style.display = '';
     }
 
     roomObj.items[parentGroup].forEach((item, index) => {
@@ -9137,10 +9262,24 @@ function updateFormatDetails(eventOrShapeId) {
 
             } else {
                 document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
-                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
             }
 
+            if (document.getElementById('showTiltSlantCheckBox').checked === true) {
+                document.getElementById('itemTiltSlantDiv').style.display = '';
+                document.getElementById('itemTiltDiv').style.display = '';
+                document.getElementById('itemSlantDiv').style.display = '';
+            } else {
 
+                if (item.data_tilt || item.data_slant) {
+                    document.getElementById('itemTiltDiv').style.display = '';
+                    document.getElementById('itemSlantDiv').style.display = '';
+                    document.getElementById('itemTiltSlantDiv').style.display = '';
+                } else {
+                    document.getElementById('itemTiltDiv').style.display = 'none';
+                    document.getElementById('itemTiltDiv').style.display = 'none';
+                    document.getElementById('itemTiltSlantDiv').style.display = 'none';
+                }
+            }
 
             if (shape.data_deviceid === 'tblRect') {
                 document.getElementById('tblRectRadiusDiv').style.display = '';
@@ -9199,6 +9338,8 @@ function updateFormatDetails(eventOrShapeId) {
 
             populateDrpColor(item);
 
+            populateDrpMount(item);
+
             if ('data_role' in item && item.data_role) {
                 document.getElementById('drpRole').value = item.data_role.value;
             }
@@ -9206,6 +9347,11 @@ function updateFormatDetails(eventOrShapeId) {
 
             if ('data_color' in item && item.data_color) {
                 document.getElementById('drpColor').value = item.data_color.value;
+            }
+
+
+            if ('data_mount' in item && item.data_mount) {
+                document.getElementById('drpMount').value = item.data_mount.value;
             }
 
             if ('name' in item) {
@@ -10013,8 +10159,7 @@ function zoomInOut(zoomChange) {
         document.getElementById('btnSelectPan').disabled = true;
         document.getElementById('btnZoomOut').disabled = true;
         document.getElementById('btnZoomReset').disabled = true;
-        // document.getElementById('btnSelectPan').children[0].dataset.type = 'pan_tool';
-        // document.getElementById('btnSelectPan').children[0].style.color = '';
+        document.getElementById('btnSelectPan').classList.remove('active');
         document.getElementById("canvasDiv").style.cursor = "auto";
 
         panScrollableOn = false;
@@ -10773,6 +10918,30 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
+    if (testiFrame && (key === 'w' && (e.ctrlKey || e.metaKey))) {
+
+        e.preventDefault();
+        if(document.getElementById('floatingWorkspace').style.display === 'none'){
+
+            document.getElementById('floatingWorkspace').style.display = '';
+
+            if (testiFrameInitialized === false){
+
+                testiFrameInitialized = true;
+                 document.getElementById('floatingWorkspace').style.left = (window.innerWidth  - 450) + 'px';
+                 openWorkspaceWindow(false);
+
+            }
+
+
+
+
+        } else {
+            document.getElementById('floatingWorkspace').style.display = 'none';
+        }
+    }
+
+
     if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(tagName)) return;
 
     // if ((key === 'c')) { /* camera coverage toggle */
@@ -10909,11 +11078,11 @@ function expandChairs(item, unit = roomObj.unit) {
         primaryChair.data_zPosition = item.data_zPosition;
     }
 
-    if ('data_tilt' in item){
+    if ('data_tilt' in item) {
         primaryChair.data_tilt = item.data_tilt;
     }
 
-    if ('data_slant' in item){
+    if ('data_slant' in item) {
         primaryChair.data_slant = item.data_slant;
     }
 
@@ -11147,7 +11316,7 @@ function workspaceView(isNewTab = 'false') {
 }
 
 /* Opens the Workspace Designer  */
-function openWorkspaceWindow() {
+function openWorkspaceWindow(fromButton = true) {
 
 
     // let newTab = "http://localhost:3000/#/room/custom"
@@ -11179,14 +11348,17 @@ function openWorkspaceWindow() {
 
     // newTab = 'http://127.0.0.1:5001/assets/receiver.html';   // used for testing.
 
-    workspaceWindow = window.open(newTab, sessionId);
+    if(fromButton){
+        workspaceWindow = window.open(newTab, sessionId);
+    }
 
-    if (testiFrame) {
+
+    if (testiFrame && !fromButton) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         iFrameWorkspaceWindow.src = newTab;
 
-        document.getElementById('floatingWorkspace').style.display = '';
+     //   document.getElementById('floatingWorkspace').style.display = '';
     }
 
 
@@ -11229,9 +11401,11 @@ function postMessageToWorkspace() {
 
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
 
-        if (testiFrame) {
+
+    }
+
+    if (testiFrame && testiFrameInitialized) {
             iFrameWorkspaceWindow.contentWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
-        }
     }
 
 
@@ -11287,6 +11461,10 @@ function addDefaultsToWorkspaceObj() {
 
                     if ('models' in item && item.models) {
                         workspaceKey[key].model = returnStringOfDefaultRoleColor(item.models);
+                    }
+
+                    if('mounts' in item && item.mounts){
+                        workspaceKey[key].mount = returnStringOfDefaultRoleColor(item.mounts);
                     }
                 }
             })
@@ -11444,6 +11622,25 @@ function convertRoomObjToWorkspace() {
     });
 
     roomObj2.items.videoDevices.forEach((item) => {
+
+        if(item.data_mount && item.data_mount.value.startsWith('flippedPole')){
+            let pole = {};
+            let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
+            pole.width = 0.04;
+            pole.height = 0.04;
+            let poleXY = findNewTransformationCoordinate(item, pole.width/2, pole.width/2);
+            pole.x = poleXY.x;
+            pole.y = poleXY.y;
+            pole.data_zPosition = (item.data_zPosition || 0);
+            pole.data_vHeight = poleHeight;
+            pole.width = 0.04;
+            pole.height = 0.04;
+            pole.rotation = item.rotation;
+            pole.data_deviceid = "box";
+            pole.data_labelField = '{"color":"#999999"}';
+            pole.id = "flippedPoleMount-" + item.id;
+            workspaceObjWallPush(pole);
+        }
         workspaceObjItemPush(item);
     });
 
@@ -11602,6 +11799,19 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if ('data_mount' in item && item.data_mount) {
+            /* items like the PTZ 4K camera may be flipped */
+            if(item.data_mount.value.startsWith('flipped')){
+                workspaceItem.scale = [1,-1,1];
+            }
+            else if (item.data_mount.value.startsWith('standard')) {
+                workspaceItem.scale = [1,1,1];
+            }
+            else {
+                workspaceItem.mount = item.data_mount.value;
+            }
+        }
+
         if (item.data_hiddenInDesigner) {
             workspaceItem.hidden = true;
         }
@@ -11715,6 +11925,10 @@ function convertRoomObjToWorkspace() {
 
         if ('data_color' in item && item.data_color) {
             workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_mount' in item && item.data_mount) {
+            workspaceItem.mount = item.data_mount.value;
         }
 
         if (item.data_hiddenInDesigner) {
@@ -11831,6 +12045,10 @@ function convertRoomObjToWorkspace() {
             workspaceItem.color = item.data_color.value;
         }
 
+        if ('data_mount' in item && item.data_mount) {
+            workspaceItem.mount = item.data_mount.value;
+        }
+
         if (item.data_hiddenInDesigner) {
             workspaceItem.hidden = true;
         }
@@ -11925,6 +12143,10 @@ function convertRoomObjToWorkspace() {
 
         if ('data_color' in item && item.data_color) {
             workspaceItem.color = item.data_color.value;
+        }
+
+        if ('data_mount' in item && item.data_mount) {
+            workspaceItem.mount = item.data_mount.value;
         }
 
         if (item.data_hiddenInDesigner) {

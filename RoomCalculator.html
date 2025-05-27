@@ -24,11 +24,11 @@
     <label id="lblHeaderTitle">Video Room Calculator<label id="lblSubtitle">Beta</label>
     </label>
 
-    <button onclick="openNewRoomDialog()">
+    <button onclick="openNewRoomDialog()" title="New Room or Template">
       <i class="icon icon-plus-regular"></i>
       <span>New</span>
     </button>
-    <button onclick="openSaveDialog()">
+    <button onclick="openSaveDialog()" title="Save Link or PNG">
       <i class="icon icon-save-regular"></i>
       <span>Save</span>
     </button>
@@ -47,7 +47,7 @@
     </button>
 
     <span class="spacer"></span>
-    <button id="btnModalWorkspace" class="primary" onclick="openModalWorkspace()">
+    <button id="btnModalWorkspace" class="primary" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>
       Preview
     </button>
@@ -440,6 +440,17 @@
                   </select>
                 </div>
 
+
+                <div class="inputField" id="mountDiv">
+                  <label for="drpRole" class="tooltip">Mount:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Mount is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas.</span>
+                  </label>
+                  <select name="drpMount" id="drpMount" class="selectRole">
+                  </select>
+                </div>
+
                 <div class="inputField" id="colorDiv">
                   <label for="drpColor" class="tooltip">Color:
                     <i class="icon icon-info-circle-bold"></i>
@@ -451,15 +462,15 @@
                 </div>
               </div>
 
-              <div class="inputRow" id="itemTiltSlantDiv">
-                <div class="inputField" id="itemTiltId">
+              <div class="inputRow" id="itemTiltSlantDiv" style="display: none;">
+                <div class="inputField" id="itemTiltDiv" style="display: none;">
                   <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
                   <input type="text" id="itemTilt" maxlength="12" size="5" class="unitInput">
                   <label class="classDegree">&deg;</label>
                 </div>
 
-                <div class="inputField" id="itemSlantId">
+                <div class="inputField" id="itemSlantDiv" style="display: none;">
                   <label class="tooltip">Roll:<i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
                   <input type="text" id="itemSlant" maxlength="12" size="5" class="unitInput">
@@ -595,6 +606,19 @@
                 <span class="slider round"></span>
               </label>
             </div>
+
+            <div class="inputField" id="showTiltSlantCheckBoxDiv">
+              <label class="tooltipBottom">Workspace Designer tilt and slant:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show Tilt and Slant fields per an item, which are Workspace Designer settings & not reflected in the Video Room Calculator. Objects may appear in different locations when comparing the Video Room Calculator to the Workspace Designer.
+                </span></label>
+              <label class="switch">
+                <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+
           </div>
         </div>
       </div>
@@ -1130,6 +1154,7 @@
         esc = unselect items <br>
         Delete / Backspace = delete items<br>
         &larr;,&uarr;,&rarr;,&darr; arrows = move selected items <br>
+        [shift / ctrl / cmd] + click = select/unselect item<br>
 
         <hr />
         <div><label class="underlineHeader">Field of View (FOV)</label></div>
@@ -1403,10 +1428,16 @@
         Calculator discussion</a> Webex space or contact joehughe@cisco.com </div>
   </div>
 
-  <div id="floatingWorkspace" class="menuMore" style="resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; right: 3%; display: none; ">
-    <div style="padding: 10px; padding-bottom: 10px; border-bottom: solid 1px;" id="floatingWorkspace-dragger" >
+  <div id="floatingWorkspace" class="menuMore" style=" resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 500px; display: none; ">
+    <div style="cursor: pointer; padding: 10px; padding-left: 2px; border-bottom: solid 1px;" id="floatingWorkspace-dragger" >
 
-    <div id="floatingWorkspaceHeader" >Cisco Workspace Designer (3rd Party site)</div>  <i class="icon icon-dragger-vertical-bold" style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>
+    <div id="floatingWorkspaceHeader">
+    <button onclick="document.getElementById('floatingWorkspace').style.display = 'none';" style="border-style:hidden; margin-right: 15px;" >
+      <!-- <i class="icon icon-cancel-bold" ></i> -->
+       x
+    </button>
+      Cisco Workspace Designer (3rd Party site)
+    </div>  <i class="icon icon-dragger-vertical-bold" style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>
 
   </div>
     <iframe src="https://prototypes.cisco.com/roomdesigner2/#/room/custom" title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
