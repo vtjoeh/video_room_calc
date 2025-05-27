@@ -5452,7 +5452,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -6621,14 +6621,14 @@ function updateItem() {
             }
 
             if (!(data_tilt === '')) {
-                item.data_tilt = data_tilt;
+                item.data_tilt = Math.round(data_tilt * 10)/10;
             }
             else if ('data_tilt' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
                 delete item.data_tilt;
             }
 
             if (!(data_slant === '')) {
-                item.data_slant = data_slant;
+                item.data_slant = Math.round(data_slant * 10)/10;
             }
             else if ('data_slant' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
                 delete item.data_slant;
@@ -9382,14 +9382,14 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemZposition').value = "";
             }
 
-            if ('data_tilt' in item) {
-                document.getElementById('itemTilt').value = item.data_tilt;
+            if (item.data_tilt) {
+                document.getElementById('itemTilt').value = Math.round(item.data_tilt * 10)/10;
             } else {
                 document.getElementById('itemTilt').value = "";
             }
 
-            if ('data_slant' in item) {
-                document.getElementById('itemSlant').value = item.data_slant;
+            if (item.data_slant) {
+                document.getElementById('itemSlant').value = Math.round(item.data_slant * 10)/10;
             } else {
                 document.getElementById('itemSlant').value = "";
             }

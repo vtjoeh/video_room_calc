@@ -6,10 +6,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.606**
-- Added Row of Chairs shape that resizes and adds chairs.
-- Added curved table option for use with Campfire designs.
-- Minor bug fixes: Improved multi-select with shortcut keys.
+**v0.1.607**
+
+* **PTZ mount options** Added mount options for PTZ cameras: Standard, Flipped, and Flipped & Ceiling Pole, which render in Workspace Designer.
+* **Tilt & Slant** Introduced Tilt and Slant options for Workspace Designer. These are off by default; enable them under Details --> Settings. If a Shareable Link has a Tilt or Slant configured on an item, the fields will apply regardless of the **Workspace Designer Tilt and Slant** settings.  Video Room Calc does not reflect the changes made by Tilt or Slant.
+* Added a Row of Chairs shape that is a resizable object for multiple chairs. New Curved Table  for use with Campfire designs. Enable this under Details --> Settings: **Workspace Designer non-supported items**. The Row of Chairs should function in Workspace Designer, but since the object is new, it is currently aimed at power users.
+* Minor bug fixes: Enhanced multi-select functionality with shortcut keys.
 
 **v0.1.606**
 - 	**🟨Highlight Small Devices🟨** You can now highlight and move any device smaller than 0.5m/1.6ft! Resizable objects like walls remain unaffected. Please note that the highlight small device setting is not saved in the shareable link.
