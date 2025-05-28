@@ -466,15 +466,31 @@
                 <div class="inputField" id="itemTiltDiv" style="display: none;">
                   <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
-                  <input type="text" id="itemTilt" maxlength="12" size="5" class="degreeInput">
+                  <input type="text" id="itemTilt" maxlength="12" size="5" class="degreeInput allowBlank">
                   <label class="classDegree">&deg;</label>
                 </div>
 
                 <div class="inputField" id="itemSlantDiv" style="display: none;">
-                  <label class="tooltip">Roll:<i class="icon icon-info-circle-bold"></i>
+                  <label class="tooltip">Slant:<i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
-                  <input type="text" id="itemSlant" maxlength="12" size="5" class="degreeInput">
+                  <input type="text" id="itemSlant" maxlength="12" size="5" class="degreeInput allowBlank">
                   <label class="classDegree">&deg;</label>
+                </div>
+              </div>
+
+              <div class="inputRow" id="itemOffsetDiv" style="display: none;">
+                <div class="inputField">
+                  <label class="tooltip">X offset (m):<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">X & Y offset are used for calibrating setting between Video Room Calc and Workspace Designer</span></label>
+                  <input type="text" id="itemXoffset" maxlength="12" size="5" class="unitInput allowBlank">
+
+                </div>
+
+                <div class="inputField">
+                  <label class="tooltip">Y offset (m):<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">X & Y offset are used for calibrating setting between Video Room Calc and Workspace Designer</span></label>
+                  <input type="text" id="itemYoffset" maxlength="12" size="5" class="unitInput allowBlank">
+
                 </div>
               </div>
 

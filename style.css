@@ -914,6 +914,7 @@ a.tooltipIcon a.tooltiptextIcon {
   opacity: 1;
   border: black;
   transition: opacity 200ms 2s;
+  height: 28px; /* Firefox ignoes the min-height, so putting in a minimum height */
   min-height: fit-content;
   /* transition: opacity 2s 1s ease-in, visibility 3s 1s ease-in 2ms; */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
