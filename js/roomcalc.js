@@ -261,6 +261,8 @@ workspaceKey.box = { objectType: 'box' }
 workspaceKey.doorRight = { objectType: 'door', yOffset: -0.4 }
 workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
 workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] }
+workspaceKey.doorDoubleRight = { objectType: 'door', yOffset: -0.4, scale: [0.94, 1, 1] }
+workspaceKey.doorDoubleLeft = { objectType: 'door', yOffset: -0.4, scale: [-0.94, 1, 1] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
@@ -11684,10 +11686,34 @@ function convertRoomObjToWorkspace() {
             newItem.width = 1.5;
             newItem.height = 1.5;
             let xy = findUpperLeftXY(newItem);
-            let fakeTable = { data_deviceid: 'tblEllip', id: 'wheelChairRound-' + item.id, rotation: item.rotation, data_zPosition: -0.07, data_vHeight: 0.1, width: 1.5, height: 1.5, x: xy.x, y: xy.y };
+            let fakeTable = { data_deviceid: 'tblEllip', id: 'secondary-wheelChairRound-' + item.id, rotation: item.rotation, data_zPosition: -0.07, data_vHeight: 0.1, width: 1.5, height: 1.5, x: xy.x, y: xy.y };
 
             workspaceObjTablePush(fakeTable);
 
+        }
+
+        if(item.data_deviceid.startsWith('doorDouble')){
+            let leftDoor = structuredClone(item);
+            let rightDoor = structuredClone(item);
+            let deltaX = 0.48;
+            let deltaY = 0;
+            leftDoor.id = 'primary-doorDouble-L-' + item.id;
+            leftDoor.data_deviceid = 'doorDoubleLeft';
+
+            rightDoor.id = 'secondary-dooorDouble-R-' + item.id;
+            rightDoor.data_deviceid = 'doorDoubleRight';
+
+            let leftDoorXY = findNewTransformationCoordinate(item, deltaX, deltaY);
+            let rightDoorXY = findNewTransformationCoordinate(item, -deltaX, deltaY);
+
+            leftDoor.x = leftDoorXY.x;
+            leftDoor.y = leftDoorXY.y;
+
+            rightDoor.x = rightDoorXY.x;
+            leftDoor.y = rightDoorXY.y;
+
+            workspaceObjItemPush(rightDoor);
+            item = leftDoor; /* let Left door become the main item */
         }
 
         workspaceObjItemPush(item);
@@ -11749,7 +11775,9 @@ function convertRoomObjToWorkspace() {
     });
 
     roomObj2.items.displays.forEach((item) => {
+
         let displayRatio = 1.02;
+
         if (item.data_deviceid === 'displayDbl' || item.data_deviceid === 'displayTrpl') {
             let leftDisplay = structuredClone(item);
             let rightDisplay = structuredClone(item);
