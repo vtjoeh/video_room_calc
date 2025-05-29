@@ -10049,6 +10049,9 @@ function createEquipmentMenu() {
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
         chairsMenu.splice(1, 0, 'pouf');
+        chairsMenu.splice(1, 0, 'wallChairs');
+        chairsMenu.push('couch');
+
     }
 
     let stageFloorMenu = ['stageFloor'];
@@ -11859,13 +11862,21 @@ function convertRoomObjToWorkspace() {
         }
 
 
-        if ('yOffset' in attr || 'xOffset' in attr ) {
-
-
+        if ('yOffset' in attr || 'xOffset' in attr || 'data_labelField' in item) {
             let yOffset = 0;
             let xOffset = 0;
+
+
             if ('yOffset' in attr) yOffset = attr.yOffset;
             if ('xOffset' in attr) xOffset = attr.xOffset;
+
+            if ('data_labelField' in item) {
+                let labelParsed = parseDataLabelFieldJson(item);
+                if (labelParsed) {
+                    xOffset = labelParsed.xOffset || xOffset;
+                    yOffset = labelParsed.yOffset || yOffset;
+                }
+            }
 
             let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
 
@@ -11921,8 +11932,6 @@ function convertRoomObjToWorkspace() {
             workspaceItem.hidden = true;
         }
 
-
-
         if ('data_labelField' in item) {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
@@ -11963,12 +11972,25 @@ function convertRoomObjToWorkspace() {
                 z = item.data_zPosition + z;
             };
         }
-        if ('yOffset' in attr || 'xOffset' in attr) {
+
+        if ('yOffset' in attr || 'xOffset' in attr || 'data_labelField' in item) {
             let yOffset = 0;
             let xOffset = 0;
+
+
             if ('yOffset' in attr) yOffset = attr.yOffset;
             if ('xOffset' in attr) xOffset = attr.xOffset;
+
+            if ('data_labelField' in item) {
+                let labelParsed = parseDataLabelFieldJson(item);
+                if (labelParsed) {
+                    xOffset = labelParsed.xOffset || xOffset;
+                    yOffset = labelParsed.yOffset || yOffset;
+                }
+            }
+
             let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
+
             item.y = newXY.y;
             item.x = newXY.x;
         }
@@ -12069,14 +12091,26 @@ function convertRoomObjToWorkspace() {
         x = (xy.x - roomObj2.room.roomWidth / 2);
         y = (xy.y - roomObj2.room.roomLength / 2);
 
-        if ('yOffset' in attr || 'xOffset' in attr) {
+        if ('yOffset' in attr || 'xOffset' in attr || 'data_labelField' in item) {
             let yOffset = 0;
             let xOffset = 0;
+
+
             if ('yOffset' in attr) yOffset = attr.yOffset;
             if ('xOffset' in attr) xOffset = attr.xOffset;
-            let newXY = findNewTransformationCoordinate({ x: x, y: y, rotation: item.rotation }, xOffset, yOffset);
-            y = newXY.y;
-            x = newXY.x;
+
+            if ('data_labelField' in item) {
+                let labelParsed = parseDataLabelFieldJson(item);
+                if (labelParsed) {
+                    xOffset = labelParsed.xOffset || xOffset;
+                    yOffset = labelParsed.yOffset || yOffset;
+                }
+            }
+
+            let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
+
+            item.y = newXY.y;
+            item.x = newXY.x;
         }
 
         if ('data_zPosition' in item) {
