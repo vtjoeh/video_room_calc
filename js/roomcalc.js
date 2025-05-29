@@ -9370,23 +9370,6 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
             }
 
-            if (document.getElementById('showTiltSlantCheckBox').checked === true) {
-                document.getElementById('itemTiltSlantDiv').style.display = '';
-                document.getElementById('itemTiltDiv').style.display = '';
-                document.getElementById('itemSlantDiv').style.display = '';
-            } else {
-
-                if (item.data_tilt || item.data_slant) {
-                    document.getElementById('itemTiltDiv').style.display = '';
-                    document.getElementById('itemSlantDiv').style.display = '';
-                    document.getElementById('itemTiltSlantDiv').style.display = '';
-                } else {
-                    document.getElementById('itemTiltDiv').style.display = 'none';
-                    document.getElementById('itemTiltDiv').style.display = 'none';
-                    document.getElementById('itemTiltSlantDiv').style.display = 'none';
-                }
-            }
-
             if (shape.data_deviceid === 'tblRect') {
                 document.getElementById('tblRectRadiusDiv').style.display = '';
                 document.getElementById('tblRectRadiusRightDiv').style.display = '';
@@ -9486,6 +9469,23 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemZposition').value = item.data_zPosition;
             } else {
                 document.getElementById('itemZposition').value = "";
+            }
+
+            if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices') {
+                document.getElementById('itemTiltSlantDiv').style.display = '';
+                document.getElementById('itemTiltDiv').style.display = '';
+                document.getElementById('itemSlantDiv').style.display = '';
+            }
+            else {
+                    document.getElementById('itemTiltDiv').style.display = 'none';
+                    document.getElementById('itemTiltDiv').style.display = 'none';
+                    document.getElementById('itemTiltSlantDiv').style.display = 'none';
+            }
+
+            if (item.data_tilt || item.data_slant) {
+                    document.getElementById('itemTiltDiv').style.display = '';
+                    document.getElementById('itemSlantDiv').style.display = '';
+                    document.getElementById('itemTiltSlantDiv').style.display = '';
             }
 
             if (item.data_tilt) {
