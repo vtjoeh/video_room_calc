@@ -217,6 +217,10 @@ dialog .subtle {
   font-size: 14px;
 }
 
+button {
+  touch-action: manipulation;
+}
+
 button:not(:disabled) {
   cursor: pointer;
 }
@@ -583,6 +587,7 @@ input:placeholder-shown {
   align-items: center;
   background-color: transparent;
   border: 0;
+  touch-action: manipulation;
 }
 
 .btn.active {
