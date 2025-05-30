@@ -7,8 +7,10 @@ let timerQRcodeOn;
 const svgns = "http://www.w3.org/2000/svg";  // variable for the namespace
 const videoRoomCalcSVG = "videoRoomCalcSVG";
 let roomCanvas = "roomCanvas"; // roomCanvas will replace videoRoomCalcSVG
-let pxOffset = 40; // margin on the picture in pixels
+let pxOffset = 50; // margin on the picture in pixels
 let pyOffset = pxOffset;
+let outerwallPxOffset = pxOffset;
+let outerwallPyOffset = pxOffset;
 let scale = 50; /* Scale of image. initial value.  Will be recalculated before drawing image */
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
@@ -241,6 +243,7 @@ workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
 workspaceKey.tblCurved = { objectType: 'table', yOffset: 0.3 };
 
 workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
+workspaceKey.ceilingMount = { objectType: "ceilingMount" };
 workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
@@ -691,6 +694,7 @@ let microphones = [
         height: 48,
         defaultVert: 2500,
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
+        mounts: [{ceilingBracket: 'Ceiling Bracket Mount'}, {dropCeilingGrid: 'Drop Ceiling Grid Mount'} , {ceilingMount: 'Wired Hanging Mount'}]
     },
     {
         name: "Table Navigator",
@@ -1930,86 +1934,8 @@ function getQueryString() {
 
     if (urlParams.has('test2')) {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
-        // document.getElementById('test').setAttribute('style', 'visibility: visible;');
-        // document.getElementById('test2').setAttribute('style', 'visibility: visible;');
     }
 
-    // function updatePageValues(param) {
-    //     return;
-    //     if (urlParams.has(param)) {
-
-    //         let paramValue = urlParams.get(param);
-    //         paramValue = DOMPurify.sanitize(paramValue);
-    //         document.getElementById(param).value = paramValue;
-    //         if (param === 'drpVideoDevice') {
-    //             if (paramValue === 'custom') {
-    //                 /*  create redirect if older custom camera is being used */
-
-    //                 let redirectChoice = confirm('The link provided was created in version v0.1 with custom camera angles which are no longer supported. \n\n' +
-    //                     'OK: Redirect to older site and see custom camera.\n\n ' +
-    //                     'Cancel: Continue to new site, but data is lost.');
-
-    //                 if (redirectChoice) {
-    //                     responseRedirect('rc/v0.1/RoomCalculator.html');
-    //                 } else {
-    //                     let redirectLink = location.origin;
-    //                     window.location.href = redirectLink;
-    //                 }
-
-    //             }
-
-    //         }
-
-    //         if (param === 'roomLength') {
-    //             roomObj.room.roomLength = Number(paramValue);
-    //         }
-    //         if (param === 'drpMetersFeet') {
-    //             if (paramValue === 'meters') {
-    //                 roomObj.unit = 'meters';
-
-    //             } else {
-    //                 roomObj.unit = 'feet';
-    //             }
-    //         }
-
-    //         if (param === 'roomWidth') {
-
-    //             roomObj.room.roomWidth = Number(paramValue);
-
-    //             setTimeout(() => {
-    //                 //     quickSetupState = 'insert';
-    //                 //  quickUpdateButton();
-    //             }, 250);
-
-    //         }
-
-
-    //     }
-
-
-    // }
-
-    // updatePageValues('tableWidth');
-    // updatePageValues('tableLength');
-    // updatePageValues('distDisplayToTable');
-    // updatePageValues('frntWallToTv');
-    // updatePageValues('drpVideoDevice');
-    // updatePageValues('tvDiag');
-    // updatePageValues('drpTvNum');
-    // updatePageValues('wideFOV');
-    // updatePageValues('teleFOV');
-    // updatePageValues('onePersonZoom');
-    // updatePageValues('twoPersonZoom');
-    // updatePageValues('onePersonCrop');
-    // updatePageValues('twoPersonCrop');
-    // updatePageValues('roomName');
-    // updatePageValues('drpMetersFeet');
-    // updatePageValues('roomLength');
-    // updatePageValues('roomWidth');
-
-    // if (urlParams.has('tableWidth')) {
-    //     drawRoom(true, true);
-    // }
 
     setTimeout(() => {
         canvasToJson();
@@ -3146,112 +3072,111 @@ function getDistanceB(degreeB, distanceA) {
     return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
 }
 
-// /* svgStart */
-// function drawGrid(startX, startY, endX, endY, scale, increment = 1, style = 'stroke:#808080;stroke-width:2;opacity:0.3;') {
-//     /* scale */
+function drawOutsideWall(grOuterWall){
 
-//     let solidStyle = style;
+    let outsideWallThickness = 0.1;
 
-//     let lightStyle = 'stroke:#808080;stroke-width:0.6;opacity:0.4;'
+    if (roomObj.unit === 'feet'){
+        outsideWallThickness = outsideWallThickness * 3.28084;
+    }
 
-//     /* Create a <g> group element for the grid */
-//     const groupLines = document.createElementNS(svgns, "g");
+    let outsideWall = new Konva.Rect({
+        x: pxOffset - outsideWallThickness * scale,
+        y: pyOffset - outsideWallThickness * scale,
+        width: (roomWidth + outsideWallThickness * 2)  * scale,
+        height: (roomLength + outsideWallThickness * 2) * scale,
+        stroke: '#CCCCCC',
+        strokeWidth: 1,
+        id: 'outsideWall',
+        listening: false,
+        preventDefault: false,
+    });
 
-//     groupLines.setAttribute('id', 'grid-increment-' + increment.toFixed(2));
+    grOuterWall.add(outsideWall);
 
-//     /* draw horizontal lines */
+    let defaultWallColor = '#cccccc';
+    let defaultWallOpacity = 0.6;
 
-//     let measurementY = 0;
-//     let pxMeasurementY = 0;
+    if(!roomObj.workspace.removeDefaultWalls){
 
-//     let increments = 30;
-//     let toFixedValue = 0;
+        // outsideWall.stroke('#888888');
+        outsideWall.stroke('#111111');
+        let outsideWallLeft = new Konva.Rect({
+            x: pxOffset - outsideWallThickness * scale,
+            y: pyOffset - outsideWallThickness * scale,
+            width: outsideWallThickness * scale,
+            height: (roomLength + outsideWallThickness * 2) * scale,
+            // stroke: '#8f8d8d',
+            // strokeWidth: 1,
+            fill: defaultWallColor,
+            opacity: defaultWallOpacity,
+            id: 'defaultOutsideWallLeft',
+            name: 'defaultOutsideWall',
+            listening: false,
+            preventDefault: false,
+        });
 
-//     if (unit === 'feet' && scale < 19) {
-//         increment = 2 * Math.round((increments / (increment * scale)) / 2);
-//     }
+        grOuterWall.add(outsideWallLeft);
 
-//     if (unit === 'meters') {
-//         if (scale < 30) {
-//             increment = 2 * Math.round((increments / (increment * scale * 3.3) / 2));
-//         }
-//         else if (scale < 60) {
-//             increment = 1;
-//         }
+        let outsideWallRight = new Konva.Rect({
+            x: pxOffset + (roomWidth) * scale,
+            y: pyOffset - outsideWallThickness * scale,
+            width: outsideWallThickness * scale,
+            height: (roomLength + outsideWallThickness * 2) * scale,
+            // stroke: '#8f8d8d',
+            // strokeWidth: 1,
+            fill: defaultWallColor,
+            opacity: defaultWallOpacity,
+            id: 'defaultOutsideWallLeft',
+            name: 'defaultOutsideWall',
+            listening: false,
+            preventDefault: false,
+        });
 
-//         else if (scale < 134) {
-//             increment = 0.5
-//         }
-//     }
+        grOuterWall.add(outsideWallRight);
 
-//     if (increment < 1) {
-//         toFixedValue = 2;
-//     }
+        let outsideWallUpper = new Konva.Rect({
+            x: pxOffset,
+            y: pyOffset - outsideWallThickness * scale,
+            width: roomWidth * scale,
+            height: outsideWallThickness* scale,
+            fill: defaultWallColor,
+            opacity: defaultWallOpacity,
+            id: 'defaultOutsideWallLeft',
+            name: 'defaultOutsideWall',
+            listening: false,
+            preventDefault: false,
+        });
 
-//     if (increment === 0.5) {
-//         toFixedValue = 1;
-//     }
+        grOuterWall.add(outsideWallUpper);
 
-//     addCenteredText(unit, startX, startY, (pxOffset / 2 - 10), pxOffset / 2 - 10, groupLines, 'grid-unit' + unit);
+        let outsideWallLower = new Konva.Rect({
+            x: pxOffset,
+            y: pyOffset + (roomLength) * scale,
+            width: roomWidth * scale,
+            height: outsideWallThickness* scale,
+            fill: defaultWallColor,
+            opacity: defaultWallOpacity,
+            id: 'defaultOutsideWallLeft',
+            name: 'defaultOutsideWall',
+            listening: false,
+            preventDefault: false,
+        });
 
-//     do {
-//         measurementY += increment;
-//         if (measurementY % 1 != 0) {
-//             style = lightStyle;
-//         } else {
-//             style = solidStyle;
-//         }
-//         pxMeasurementY = (measurementY * scale) + startY;
-//         let lineHorizontal = document.createElementNS(svgns, 'line');
-//         lineHorizontal.setAttribute('x1', startX.toFixed(2));
-//         lineHorizontal.setAttribute('y1', pxMeasurementY.toFixed(2));
-//         lineHorizontal.setAttribute('x2', endX.toFixed(2));
-//         lineHorizontal.setAttribute('y2', pxMeasurementY.toFixed(2));
-//         lineHorizontal.setAttribute('id', 'horiz-incr-' + increment + '-measurement-' + measurementY.toFixed(2));
-//         lineHorizontal.setAttribute('style', style);
-//         groupLines.appendChild(lineHorizontal);
-//         addCenteredText(measurementY.toFixed(toFixedValue), 0, pxMeasurementY, startX, pxMeasurementY, groupLines);
+        grOuterWall.add(outsideWallLower);
 
-//     } while (pxMeasurementY <= (endY - increment * scale));
 
-//     /* draw vertical lines */
+    }
 
-//     let measurementX = 0;
-//     let pxMeasurementX = 0;
-
-//     do {
-
-//         measurementX += increment;
-//         if (measurementX % 1 != 0) {
-//             style = lightStyle;
-//         } else {
-//             style = solidStyle;
-//         }
-//         pxMeasurementX = (measurementX * scale) + startX;
-//         let lineVertical = document.createElementNS(svgns, 'line');
-//         lineVertical.setAttribute('y1', startY.toFixed(2));
-//         lineVertical.setAttribute('x1', pxMeasurementX.toFixed(2));
-//         lineVertical.setAttribute('y2', endY.toFixed(2));
-//         lineVertical.setAttribute('x2', pxMeasurementX.toFixed(2));
-//         lineVertical.setAttribute('id', 'vert-incr-' + increment + '-measurement-' + measurementX.toFixed(2));
-//         lineVertical.setAttribute('style', style);
-//         groupLines.appendChild(lineVertical);
-//         addCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0, pxMeasurementX, startY + 20, groupLines);
-
-//     } while (pxMeasurementX <= (endX - increment * scale));
-
-//     /* append to SVG */
-
-//     return groupLines;
-
-// }
-// /* svgEnd */
+}
 
 function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
     kGroupLines = new Konva.Group();
 
     let smallIncrementTextOffset = 0; /* if there is small increment, change the offset of the x position */
+    let outerWallWidth = 0.1 * scale;
+    if(roomObj.unit === 'feet') (outerWallWidth = outerWallWidth * 3.28084);
     let lineStyle;
     let darkLine = {};
     darkLine.stroke = "#808080";
@@ -3291,14 +3216,16 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
     if (increment < 1) {
         toFixedValue = 2;
-        smallIncrementTextOffset = 10;
+        smallIncrementTextOffset = 8;
     }
 
     if (increment === 0.5) {
         toFixedValue = 1;
-        smallIncrementTextOffset = 0;
+        smallIncrementTextOffset = 15;
     }
 
+    let countY = 0;
+    let countX = 0;
     do {
         measurementY += increment;
         if (measurementY % 1 != 0) {
@@ -3318,7 +3245,12 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
         kGroupLines.add(lineHorizontal);
 
-        kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX, pxMeasurementY, kGroupLines);
+       // kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX, pxMeasurementY, kGroupLines);
+
+       if (countY++ % 2 !== 0){
+        kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX - outerWallWidth, pxMeasurementY, kGroupLines);
+       }
+
 
     } while (pxMeasurementY <= (endY - increment * scale));
 
@@ -3347,8 +3279,9 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
         kGroupLines.add(lineVertical);
 
-        kAddCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0, pxMeasurementX, startY + 20, kGroupLines);
-
+        if (countX++ % 2 !== 0){
+            kAddCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0 + 20, pxMeasurementX, startY - outerWallWidth, kGroupLines);
+        }
     } while (pxMeasurementX <= (endX - increment * scale));
 
     return kGroupLines;
@@ -3424,7 +3357,7 @@ function clearShapeNodesFromStage(closeDetailsTab) {
 
 function updateTitleGroup() {
     let nodes = layerGrid.find('#txtPrimaryDevice');
-    let text = 'Primary Device: ';
+    let text = '';
     if (roomObj.items.videoDevices.length > 0) {
         text = 'Primary Device: ' + roomObj.items.videoDevices[0].name;
     }
@@ -3438,7 +3371,7 @@ function updateTitleGroup() {
 /* Adds the title and unit measurement for the layer grid */
 function drawTitleGroup() {
 
-    let txtPrimaryDeviceLabel = 'Primary Device: ';
+    let txtPrimaryDeviceLabel = 'Video Devices: ';
     let groupTitle = new Konva.Group({
         name: 'groupTitle',
     })
@@ -3474,7 +3407,17 @@ function drawTitleGroup() {
     txtAttribution.visible(false);
 
     if (roomObj.items.videoDevices.length > 0) {
-        txtPrimaryDeviceLabel = 'Primary Device: ' + roomObj.items.videoDevices[0].name;
+
+        if (roomObj.items.videoDevices.length > 1){
+            txtPrimaryDeviceLabel = 'Video Devices: ';
+        } else {
+            txtPrimaryDeviceLabel = 'Video Device: ';
+        }
+        roomObj.items.videoDevices.forEach(videoDevice=>{
+            txtPrimaryDeviceLabel += ' ' + videoDevice.name + ';';
+        });
+
+        txtPrimaryDeviceLabel = txtPrimaryDeviceLabel.replace(/;$/, '');
     }
 
     let txtPrimaryDevice = new Konva.Text({
@@ -3532,7 +3475,7 @@ function drawTitleGroup() {
 
     groupTitle.add(txtAttribution);
     groupTitle.add(txtName);
-    groupTitle.add(txtPrimaryDevice);
+//     groupTitle.add(txtPrimaryDevice);
     groupTitle.add(unitText);
 
     return groupTitle;
@@ -3613,6 +3556,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     roomObj.room.roomLength = roomLength;
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
+
+    pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 /roomWidth + 40;
+    pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 /roomLength + 40;
+
+    pyOffset = pxOffset;
 
     let xScale = (divRmContainerDOMRect.width - pxOffset * 2) / roomWidth;
 
@@ -3734,6 +3682,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     grOuterWall.add(cOuterWall);
 
     layerGrid.add(grOuterWall);
+
+
+    drawOutsideWall(grOuterWall);
 
     let increment = 1.0;
 
@@ -5347,7 +5298,7 @@ function canvasToJson() {
     setTimeout(() => {
         //  isQuickSetupEnabled();
         //  updateQuickSetupItems();
-        updateTitleGroup();
+       // updateTitleGroup();
 
     }, 500);
 
@@ -8650,6 +8601,7 @@ function showTiltSlant(e) {
 function updateRemoveDefaultWallsCheckBox() {
     document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
+
 }
 
 function removeDefaultWallsChange(e) {
@@ -8658,7 +8610,8 @@ function removeDefaultWallsChange(e) {
     } else {
         roomObj.workspace.removeDefaultWalls = false;
     }
-    saveToUndoArray();
+    drawRoom(true, true, false);
+    // saveToUndoArray();
 }
 
 addCeilingChange
@@ -11722,6 +11675,22 @@ function convertRoomObjToWorkspace() {
     });
 
     roomObj2.items.microphones.forEach((item) => {
+
+        if (item.data_mount && item.data_mount.value.startsWith('ceilingMount')) {
+            let ceilingMount = structuredClone(item);
+            let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
+            ceilingMount.data_vHeight = poleHeight;
+            ceilingMount.data_deviceid = "ceilingMount";
+            ceilingMount.id = "seondary-ceilingMount-" + item.id;
+
+            delete ceilingMount.data_mount;
+
+            workspaceObjItemPush(ceilingMount);
+
+            delete item.data_mount;
+
+        }
+
         workspaceObjItemPush(item);
     });
 
@@ -11885,6 +11854,7 @@ function convertRoomObjToWorkspace() {
 
 
 
+
         if ('data_zPosition' in item) {
             if (item.data_zPosition != "") z = item.data_zPosition;
         }
@@ -11955,6 +11925,10 @@ function convertRoomObjToWorkspace() {
                 workspaceItem.mount = item.data_mount.value;
             }
         }
+
+        if(item.data_deviceid.startsWith('ceilingMount')){
+            workspaceItem.scale = [1,item.data_vHeight,1];
+        };
 
         if (item.data_hiddenInDesigner) {
             workspaceItem.hidden = true;
