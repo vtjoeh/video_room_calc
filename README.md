@@ -8,12 +8,14 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.607**
 
-* **PTZ mount options**: Added mount options for PTZ cameras: Standard, Flipped, and Flipped & Ceiling Pole, which are rendered in Workspace Designer. 📸💈
-* **Tilt & Slant**: Introduced Tilt and Slant options for Workspace Designer (public integration release in June). These features are disabled by default; enable them under Details → Settings. If a Shareable Link has Tilt or Slant configured on an item, the fields will be applied regardless of the **Workspace Designer Tilt and Slant** settings. Since the Video Room Calc does not reflect the changes made by Tilt or Slant, these settings remain disabled by default. 🙂🙃
+* **Default Wall:** A default wall is now shown on the main room canvas. This can be removed with the **Remove Default Walls** toggle and is reflected in the Workspace Designer.
+* **PTZ mount options:** Added mount options for PTZ cameras: Standard, Flipped, and Flipped & Ceiling Pole, which are rendered in Workspace Designer. 📸💈
+* **Ceiling Mic Pro Ceiling mount options:** Show the ceiling wire mount.
+* **Tilt & Slant:** Introduced Tilt and Slant options for Workspace Designer (public integration release in June). These features are disabled by default; enable them under Details → Settings. If a Shareable Link has Tilt or Slant configured on an item, the fields will be applied regardless of the **Workspace Designer Tilt and Slant** settings. Since the Video Room Calc does not reflect the changes made by Tilt or Slant, these settings remain disabled by default. 🙂🙃
 * **New Devices:**
-  * **Row of Chairs**: Added a resizable Row of Chairs shape for quickly creating multiple chairs. 🪑🪑🪑
-  * **Couch**: Resizable couch. 🛋️
-  * **Curved Table**: New Curved Table designed for use with Campfire setups. Enable this under Details → Settings: **Workspace Designer non-supported items**. ⛺️🔥
+  * **Row of Chairs:** Added a resizable Row of Chairs shape for quickly creating multiple chairs. 🪑🪑🪑
+  * **Couch:** Resizable couch. 🛋️
+  * **Curved Table:** New Curved Table designed for use with Campfire setups. Enable this under Details → Settings: **Workspace Designer non-supported items**. ⛺️🔥
 * Minor bug fixes: Improved multi-select functionality with shortcut keys. 🔧
 
 **v0.1.606**

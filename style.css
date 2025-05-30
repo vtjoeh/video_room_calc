@@ -948,6 +948,7 @@ a.tooltipIcon a.tooltiptextIcon {
   display: inline-block;
   width: 45px;
   height: 25.5px;
+  touch-action: manipulation;
 }
 
 .switch input {
@@ -964,8 +965,9 @@ a.tooltipIcon a.tooltiptextIcon {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  -webkit-transition: .4s;
-  transition: .4s;
+  -webkit-transition: .5s;
+  transition: .5s;
+  touch-action: manipulation;
 }
 
 .slider:before {

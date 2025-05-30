@@ -694,7 +694,7 @@ let microphones = [
         height: 48,
         defaultVert: 2500,
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
-        mounts: [{ceilingBracket: 'Ceiling Bracket Mount'}, {dropCeilingGrid: 'Drop Ceiling Grid Mount'} , {ceilingMount: 'Wired Hanging Mount'}]
+        mounts: [{ ceilingBracket: 'Ceiling Bracket Mount' }, { dropCeilingGrid: 'Drop Ceiling Grid Mount' }, { ceilingMount: 'Wired Hanging Mount' }]
     },
     {
         name: "Table Navigator",
@@ -733,7 +733,7 @@ let microphones = [
         width: 340,
         depth: 260,
         height: 164,
-        defaultVert: 710,
+        defaultVert: 700,
 
     },
 ]
@@ -3072,18 +3072,18 @@ function getDistanceB(degreeB, distanceA) {
     return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
 }
 
-function drawOutsideWall(grOuterWall){
+function drawOutsideWall(grOuterWall) {
 
-    let outsideWallThickness = 0.1;
+    let outsideWallThickness = 0.115;
 
-    if (roomObj.unit === 'feet'){
+    if (roomObj.unit === 'feet') {
         outsideWallThickness = outsideWallThickness * 3.28084;
     }
 
     let outsideWall = new Konva.Rect({
         x: pxOffset - outsideWallThickness * scale,
         y: pyOffset - outsideWallThickness * scale,
-        width: (roomWidth + outsideWallThickness * 2)  * scale,
+        width: (roomWidth + outsideWallThickness * 2) * scale,
         height: (roomLength + outsideWallThickness * 2) * scale,
         stroke: '#CCCCCC',
         strokeWidth: 1,
@@ -3097,7 +3097,7 @@ function drawOutsideWall(grOuterWall){
     let defaultWallColor = '#cccccc';
     let defaultWallOpacity = 0.6;
 
-    if(!roomObj.workspace.removeDefaultWalls){
+    if (!roomObj.workspace.removeDefaultWalls) {
 
         // outsideWall.stroke('#888888');
         outsideWall.stroke('#111111');
@@ -3139,7 +3139,7 @@ function drawOutsideWall(grOuterWall){
             x: pxOffset,
             y: pyOffset - outsideWallThickness * scale,
             width: roomWidth * scale,
-            height: outsideWallThickness* scale,
+            height: outsideWallThickness * scale,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
             id: 'defaultOutsideWallLeft',
@@ -3154,7 +3154,7 @@ function drawOutsideWall(grOuterWall){
             x: pxOffset,
             y: pyOffset + (roomLength) * scale,
             width: roomWidth * scale,
-            height: outsideWallThickness* scale,
+            height: outsideWallThickness * scale,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
             id: 'defaultOutsideWallLeft',
@@ -3166,6 +3166,25 @@ function drawOutsideWall(grOuterWall){
         grOuterWall.add(outsideWallLower);
 
 
+    } else {
+        let offset = scale/20;
+        if (roomObj.unit === 'meters'){
+            offset = offset/3.28084;
+        }
+        let outsideGreyWall = new Konva.Rect({
+
+            x: pxOffset - offset/2,
+            y: pyOffset - offset/2,
+            width: (roomWidth) * scale + offset,
+            height: (roomLength) * scale + offset,
+            stroke: '#777777',
+            strokeWidth: offset,
+            id: 'outsideWall',
+            listening: false,
+            preventDefault: false,
+        });
+
+        grOuterWall.add(outsideGreyWall);
     }
 
 }
@@ -3176,7 +3195,7 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
     let smallIncrementTextOffset = 0; /* if there is small increment, change the offset of the x position */
     let outerWallWidth = 0.1 * scale;
-    if(roomObj.unit === 'feet') (outerWallWidth = outerWallWidth * 3.28084);
+    if (roomObj.unit === 'feet') (outerWallWidth = outerWallWidth * 3.28084);
     let lineStyle;
     let darkLine = {};
     darkLine.stroke = "#808080";
@@ -3245,11 +3264,11 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
         kGroupLines.add(lineHorizontal);
 
-       // kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX, pxMeasurementY, kGroupLines);
+        // kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX, pxMeasurementY, kGroupLines);
 
-       if (countY++ % 2 !== 0){
-        kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX - outerWallWidth, pxMeasurementY, kGroupLines);
-       }
+        if (countY++ % 2 !== 0) {
+            kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX - outerWallWidth, pxMeasurementY, kGroupLines);
+        }
 
 
     } while (pxMeasurementY <= (endY - increment * scale));
@@ -3279,7 +3298,7 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
         kGroupLines.add(lineVertical);
 
-        if (countX++ % 2 !== 0){
+        if (countX++ % 2 !== 0) {
             kAddCenteredText(measurementX.toFixed(toFixedValue), pxMeasurementX, 0 + 20, pxMeasurementX, startY - outerWallWidth, kGroupLines);
         }
     } while (pxMeasurementX <= (endX - increment * scale));
@@ -3408,12 +3427,12 @@ function drawTitleGroup() {
 
     if (roomObj.items.videoDevices.length > 0) {
 
-        if (roomObj.items.videoDevices.length > 1){
+        if (roomObj.items.videoDevices.length > 1) {
             txtPrimaryDeviceLabel = 'Video Devices: ';
         } else {
             txtPrimaryDeviceLabel = 'Video Device: ';
         }
-        roomObj.items.videoDevices.forEach(videoDevice=>{
+        roomObj.items.videoDevices.forEach(videoDevice => {
             txtPrimaryDeviceLabel += ' ' + videoDevice.name + ';';
         });
 
@@ -3475,7 +3494,7 @@ function drawTitleGroup() {
 
     groupTitle.add(txtAttribution);
     groupTitle.add(txtName);
-//     groupTitle.add(txtPrimaryDevice);
+    //     groupTitle.add(txtPrimaryDevice);
     groupTitle.add(unitText);
 
     return groupTitle;
@@ -3557,8 +3576,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
-    pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 /roomWidth + 40;
-    pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 /roomLength + 40;
+    pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
+    pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
 
     pyOffset = pxOffset;
 
@@ -5298,7 +5317,7 @@ function canvasToJson() {
     setTimeout(() => {
         //  isQuickSetupEnabled();
         //  updateQuickSetupItems();
-       // updateTitleGroup();
+        // updateTitleGroup();
 
     }, 500);
 
@@ -8366,6 +8385,14 @@ function getLineGuideStops(skipShape) {
     let vertical = [outerBox.x, outerBox.x + outerBox.width / 2, outerBox.x + outerBox.width];
     let horizontal = [outerBox.y, outerBox.y + outerBox.height / 2, outerBox.y + outerBox.height];
 
+
+    let outsideWall = stage.find("#outsideWall")[0];
+    let outsideBox = outsideWall.getClientRect();
+    vertical.push([outsideBox.x, outsideBox.x + outsideBox.width / 2, outsideBox.x + outsideBox.width]);
+    horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height / 2, outsideBox.y + outsideBox.height]);
+
+
+
     /* Go through objects on the primary layer.  Only return draggable() items.  and we snap over edges and center of each object on the canvas */
     layerTransform.find(
         node => {
@@ -8610,6 +8637,7 @@ function removeDefaultWallsChange(e) {
     } else {
         roomObj.workspace.removeDefaultWalls = false;
     }
+    zoomInOut('reset');
     drawRoom(true, true, false);
     // saveToUndoArray();
 }
@@ -9432,15 +9460,15 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemSlantDiv').style.display = '';
             }
             else {
-                    document.getElementById('itemTiltDiv').style.display = 'none';
-                    document.getElementById('itemTiltDiv').style.display = 'none';
-                    document.getElementById('itemTiltSlantDiv').style.display = 'none';
+                document.getElementById('itemTiltDiv').style.display = 'none';
+                document.getElementById('itemTiltDiv').style.display = 'none';
+                document.getElementById('itemTiltSlantDiv').style.display = 'none';
             }
 
             if (item.data_tilt || item.data_slant) {
-                    document.getElementById('itemTiltDiv').style.display = '';
-                    document.getElementById('itemSlantDiv').style.display = '';
-                    document.getElementById('itemTiltSlantDiv').style.display = '';
+                document.getElementById('itemTiltDiv').style.display = '';
+                document.getElementById('itemSlantDiv').style.display = '';
+                document.getElementById('itemTiltSlantDiv').style.display = '';
             }
 
             if (item.data_tilt) {
@@ -10003,10 +10031,7 @@ function createEquipmentMenu() {
     let chairsMenu = ['chair', 'wallChairs', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble', 'couch'];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        chairsMenu.splice(1, 0, 'pouf');
-        chairsMenu.splice(1, 0, 'wallChairs');
-        chairsMenu.push('couch');
-
+        chairsMenu.splice(2, 0, 'pouf');
     }
 
     let stageFloorMenu = ['stageFloor'];
@@ -11645,7 +11670,7 @@ function convertRoomObjToWorkspace() {
 
         }
 
-        if(item.data_deviceid.startsWith('doorDouble')){
+        if (item.data_deviceid.startsWith('doorDouble')) {
             let leftDoor = structuredClone(item);
             let rightDoor = structuredClone(item);
             let deltaX = 0.48;
@@ -11926,8 +11951,8 @@ function convertRoomObjToWorkspace() {
             }
         }
 
-        if(item.data_deviceid.startsWith('ceilingMount')){
-            workspaceItem.scale = [1,item.data_vHeight,1];
+        if (item.data_deviceid.startsWith('ceilingMount')) {
+            workspaceItem.scale = [1, item.data_vHeight, 1];
         };
 
         if (item.data_hiddenInDesigner) {

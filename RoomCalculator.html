@@ -127,6 +127,16 @@
               <option value="mtr">Microsoft Teams Rooms</option>
             </select>
           </div>
+          <div class="inputRow">
+            <div class="inputField">
+
+              <label>Remove Default Walls:</label>
+                            <label class="switch">
+                <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
           <div class="inputField">
             <label class="tooltip">Version / Author:
               <i class="icon icon-info-circle-bold"></i>
@@ -465,14 +475,20 @@
               <div class="inputRow" id="itemTiltSlantDiv" style="display: none;">
                 <div class="inputField" id="itemTiltDiv" style="display: none;">
                   <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                    <span class="tooltiptext">[Optional] Tilt and Slant are Workspace Designer settings and are not
+                      reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when
+                      comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield
+                      unexpected results.</span></label>
                   <input type="text" id="itemTilt" maxlength="12" size="5" class="degreeInput allowBlank">
                   <label class="classDegree">&deg;</label>
                 </div>
 
                 <div class="inputField" id="itemSlantDiv" style="display: none;">
                   <label class="tooltip">Slant:<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Slant are Workspace Designer settings and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield unexpected results.</span></label>
+                    <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Slant are Workspace Designer settings
+                      and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong
+                      location when comparing the Video Room Calculator to the Workspace Designer. Certain complex
+                      objects may yield unexpected results.</span></label>
                   <input type="text" id="itemSlant" maxlength="12" size="5" class="degreeInput allowBlank">
                   <label class="classDegree">&deg;</label>
                 </div>
@@ -481,14 +497,16 @@
               <div class="inputRow" id="itemOffsetDiv" style="display: none;">
                 <div class="inputField">
                   <label class="tooltip">X offset (m):<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">X & Y offset are used for calibrating setting between Video Room Calc and Workspace Designer</span></label>
+                    <span class="tooltiptext">X & Y offset are used for calibrating setting between Video Room Calc and
+                      Workspace Designer</span></label>
                   <input type="text" id="itemXoffset" maxlength="12" size="5" class="unitInput allowBlank">
 
                 </div>
 
                 <div class="inputField">
                   <label class="tooltip">Y offset (m):<i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext tooltiptextLeft">X & Y offset are used for calibrating setting between Video Room Calc and Workspace Designer</span></label>
+                    <span class="tooltiptext tooltiptextLeft">X & Y offset are used for calibrating setting between
+                      Video Room Calc and Workspace Designer</span></label>
                   <input type="text" id="itemYoffset" maxlength="12" size="5" class="unitInput allowBlank">
 
                 </div>
@@ -626,7 +644,9 @@
             <div class="inputField" id="showTiltSlantCheckBoxDiv">
               <label class="tooltipBottom">Workspace Designer Tilt and Slant:
                 <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">Show Tilt and Slant fields per an item, which are Workspace Designer settings & not reflected in the Video Room Calculator. Objects may appear in different locations when comparing the Video Room Calculator to the Workspace Designer.
+                <span class="tooltiptextBottom">Show Tilt and Slant fields per an item, which are Workspace Designer
+                  settings & not reflected in the Video Room Calculator. Objects may appear in different locations when
+                  comparing the Video Room Calculator to the Workspace Designer.
                 </span></label>
               <label class="switch">
                 <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
@@ -782,7 +802,8 @@
         <label class="tooltipBottom">Highlight small devices:
           <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the
-            highlighted portion to be used for moving device. Does not affect resizeable objects. Not saved in shareable template link.</span></label>
+            highlighted portion to be used for moving device. Does not affect resizeable objects. Not saved in shareable
+            template link.</span></label>
         <label class="switch">
           <input id="toggleHighlightItem" type="checkbox" onclick="toggleHighlightItem(event)">
           <span class="slider round"></span>
@@ -1108,13 +1129,6 @@
       <div class="inputRow">
         <div class="inputField">
           <label class="switch">
-            <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
-            <span class="slider round"></span>
-          </label>
-          <label>&nbsp; Remove Default Walls</label>
-        </div>
-        <div class="inputField">
-          <label class="switch">
             <input id="addCeilingCheckBox" type="checkbox" onclick="addCeilingChange(event)">
             <span class="slider round"></span>
           </label>
@@ -1137,7 +1151,7 @@
   </dialog>
 
   <dialog id="dialogUndoRedo" class="pleaseWaitDialog pleaseWaitDialogNoBackdrop" style="width: 50px">
-    <i class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content" ></i>
+    <i class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content"></i>
   </dialog>
 
   <dialog id="dialogQuestions" onclick="onDialogClick(event)">
@@ -1444,19 +1458,24 @@
         Calculator discussion</a> Webex space or contact joehughe@cisco.com </div>
   </div>
 
-  <div id="floatingWorkspace" class="menuMore" style=" resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 500px; display: none; ">
-    <div style="cursor: pointer; padding: 10px; padding-left: 2px; border-bottom: solid 1px;" id="floatingWorkspace-dragger" >
+  <div id="floatingWorkspace" class="menuMore"
+    style=" resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 500px; display: none; ">
+    <div style="cursor: pointer; padding: 10px; padding-left: 2px; border-bottom: solid 1px;"
+      id="floatingWorkspace-dragger">
 
-    <div id="floatingWorkspaceHeader">
-    <button onclick="document.getElementById('floatingWorkspace').style.display = 'none';" style="border-style:hidden; margin-right: 15px;" >
-      <!-- <i class="icon icon-cancel-bold" ></i> -->
-       x
-    </button>
-      Cisco Workspace Designer (3rd Party site)
-    </div>  <i class="icon icon-dragger-vertical-bold" style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>
+      <div id="floatingWorkspaceHeader">
+        <button onclick="document.getElementById('floatingWorkspace').style.display = 'none';"
+          style="border-style:hidden; margin-right: 15px;">
+          <!-- <i class="icon icon-cancel-bold" ></i> -->
+          x
+        </button>
+        Cisco Workspace Designer (3rd Party site)
+      </div> <i class="icon icon-dragger-vertical-bold"
+        style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>
 
-  </div>
-    <iframe src="https://prototypes.cisco.com/roomdesigner2/#/room/custom" title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
+    </div>
+    <iframe src="https://prototypes.cisco.com/roomdesigner2/#/room/custom" title="Workspace Designer"
+      id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
     </iframe>
   </div>
 
