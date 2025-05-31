@@ -1,4 +1,4 @@
-const version = "v0.1.607";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.608";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -694,7 +694,7 @@ let microphones = [
         height: 48,
         defaultVert: 2500,
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
-        mounts: [{ ceilingBracket: 'Ceiling Bracket Mount' }, { dropCeilingGrid: 'Drop Ceiling Grid Mount' }, { ceilingMount: 'Wired Hanging Mount' }]
+        mounts: [{ ceilingMount: 'Wired Hanging Mount' }, { ceilingBracket: 'Ceiling Bracket Mount' }, { dropCeilingGrid: 'Drop Ceiling Grid Mount' }]
     },
     {
         name: "Table Navigator",
@@ -1909,7 +1909,7 @@ function getQueryString() {
         workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
         workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
         workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
-        workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.3 };
+        workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
         console.info('testNew is on: ', testNew);
     }
 
@@ -8096,12 +8096,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
-        /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
-        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0) {
-            teleTwoPersonFOV.fillRadialGradientColorStops([0, onePersonCropColor, gradientStop2, onePersonCropColor, 1, onePersonCropColor + '64'])
-            wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
-        }
-
         let txtTwoPersonFov = new Konva.Text({
             x: -1000,
             y: twoPersonDistance * scale - 15,
@@ -8136,6 +8130,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             padding: 3,
             align: 'center',
         });
+
+        /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
+        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0) {
+            teleTwoPersonFOV.fillRadialGradientColorStops([0, onePersonCropColor, gradientStop2, onePersonCropColor, 1, onePersonCropColor + '64'])
+            wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
+
+        }
+
 
         if (!(deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0)) {
             groupFov.add(txtOnePersonFov);
@@ -11706,8 +11708,9 @@ function convertRoomObjToWorkspace() {
             let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
             ceilingMount.data_vHeight = poleHeight;
             ceilingMount.data_deviceid = "ceilingMount";
-            ceilingMount.id = "seondary-ceilingMount-" + item.id;
-
+            ceilingMount.data_zPosition = item.data_zPosition + (poleHeight/35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
+            ceilingMount.id = "secondary-ceilingMount-" + item.id;
+            item.id = "primary-ceilingMount-" + item.id;
             delete ceilingMount.data_mount;
 
             workspaceObjItemPush(ceilingMount);
@@ -12122,7 +12125,6 @@ function convertRoomObjToWorkspace() {
             let yOffset = 0;
             let xOffset = 0;
 
-
             if ('yOffset' in attr) yOffset = attr.yOffset;
             if ('xOffset' in attr) xOffset = attr.xOffset;
 
@@ -12134,10 +12136,10 @@ function convertRoomObjToWorkspace() {
                 }
             }
 
-            let newXY = findNewTransformationCoordinate(item, xOffset, yOffset);
+            let newXY = findNewTransformationCoordinate({x: x, y:y, rotation: item.rotation}, xOffset, yOffset);
 
-            item.y = newXY.y;
-            item.x = newXY.x;
+            y = newXY.y;
+            x = newXY.x;
         }
 
         if ('data_zPosition' in item) {

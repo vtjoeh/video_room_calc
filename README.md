@@ -6,6 +6,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.608**
+- Minor bug fixes including update of Ceiling Mic Pro ceiling mount.
+- updated templates.
+
 **v0.1.607**
 
 * **Default Wall:** A default wall is now shown on the main room canvas. This can be removed with the **Remove Default Walls** toggle and is reflected in the Workspace Designer.
