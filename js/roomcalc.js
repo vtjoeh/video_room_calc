@@ -1,4 +1,4 @@
-const version = "v0.1.608";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.609";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -3390,7 +3390,7 @@ function updateTitleGroup() {
 /* Adds the title and unit measurement for the layer grid */
 function drawTitleGroup() {
 
-    let txtPrimaryDeviceLabel = 'Video Devices: ';
+  //  let txtPrimaryDeviceLabel = 'Video Devices: ';
     let groupTitle = new Konva.Group({
         name: 'groupTitle',
     })
@@ -3399,7 +3399,7 @@ function drawTitleGroup() {
 
     let unitText = new Konva.Text({
         x: pxOffset / 3,
-        y: (pyOffset / 3),
+        y: (pyOffset / 5),
         text: unit,
         fontSize: 14,
         fontFamily: 'Arial, Helvetica, sans-serif',
@@ -3425,75 +3425,75 @@ function drawTitleGroup() {
 
     txtAttribution.visible(false);
 
-    if (roomObj.items.videoDevices.length > 0) {
+    // if (roomObj.items.videoDevices.length > 0) {
 
-        if (roomObj.items.videoDevices.length > 1) {
-            txtPrimaryDeviceLabel = 'Video Devices: ';
-        } else {
-            txtPrimaryDeviceLabel = 'Video Device: ';
-        }
-        roomObj.items.videoDevices.forEach(videoDevice => {
-            txtPrimaryDeviceLabel += ' ' + videoDevice.name + ';';
-        });
+    //     if (roomObj.items.videoDevices.length > 1) {
+    //         txtPrimaryDeviceLabel = 'Video Devices: ';
+    //     } else {
+    //         txtPrimaryDeviceLabel = 'Video Device: ';
+    //     }
+    //     roomObj.items.videoDevices.forEach(videoDevice => {
+    //         txtPrimaryDeviceLabel += ' ' + videoDevice.name + ';';
+    //     });
 
-        txtPrimaryDeviceLabel = txtPrimaryDeviceLabel.replace(/;$/, '');
-    }
+    //     txtPrimaryDeviceLabel = txtPrimaryDeviceLabel.replace(/;$/, '');
+    // }
 
-    let txtPrimaryDevice = new Konva.Text({
-        x: pxOffset,
-        y: pyOffset + roomLength * scale + 5,
-        text: txtPrimaryDeviceLabel,
-        fontSize: 13,
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        padding: 1,
-        opacity: 0.8,
-        id: 'txtPrimaryDevice',
+    // let txtPrimaryDevice = new Konva.Text({
+    //     x: pxOffset,
+    //     y: pyOffset + roomLength * scale + 5,
+    //     text: txtPrimaryDeviceLabel,
+    //     fontSize: 13,
+    //     fontFamily: 'Arial, Helvetica, sans-serif',
+    //     padding: 1,
+    //     opacity: 0.8,
+    //     id: 'txtPrimaryDevice',
 
-    })
+    // })
 
 
-    var txtName = new Konva.Label({
-        x: pxOffset,
-        y: pyOffset + roomLength * scale + 22,
-        opacity: 1,
-    });
+    // var txtName = new Konva.Label({
+    //     x: pxOffset,
+    //     y: pyOffset + roomLength * scale + 22,
+    //     opacity: 1,
+    // });
 
-    txtName.add(
-        new Konva.Tag({
-            // fill: 'lightgrey',
-        })
-    );
+    // txtName.add(
+    //     new Konva.Tag({
+    //         // fill: 'lightgrey',
+    //     })
+    // );
 
-    txtName.add(
-        new Konva.Text({
-            text: roomObj.name,
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            fontSize: 18,
-            padding: 1,
-            fill: 'black',
-        })
-    );
+    // txtName.add(
+    //     new Konva.Text({
+    //         text: roomObj.name,
+    //         fontFamily: 'Arial, Helvetica, sans-serif',
+    //         fontSize: 18,
+    //         padding: 1,
+    //         fill: 'black',
+    //     })
+    // );
 
-    if (txtName.width() > roomObj.room.roomWidth * scale) {
-        let newScale = (roomObj.room.roomWidth * scale) / txtName.width();
-        txtName.scaleX(newScale);
-        txtName.scaleY(newScale);
-    } else {
-        txtName.scaleX(1);
-        txtName.scaleY(1);
-    }
+    // if (txtName.width() > roomObj.room.roomWidth * scale) {
+    //     let newScale = (roomObj.room.roomWidth * scale) / txtName.width();
+    //     txtName.scaleX(newScale);
+    //     txtName.scaleY(newScale);
+    // } else {
+    //     txtName.scaleX(1);
+    //     txtName.scaleY(1);
+    // }
 
-    if (txtPrimaryDevice.width() > roomObj.room.roomWidth * scale - 30) {
-        let newScale = (roomObj.room.roomWidth * scale) / txtPrimaryDevice.width();
-        txtPrimaryDevice.scaleX(newScale);
-        txtPrimaryDevice.scaleY(newScale);
-    } else {
-        txtPrimaryDevice.scaleX(1);
-        txtPrimaryDevice.scaleY(1);
-    }
+    // if (txtPrimaryDevice.width() > roomObj.room.roomWidth * scale - 30) {
+    //     let newScale = (roomObj.room.roomWidth * scale) / txtPrimaryDevice.width();
+    //     txtPrimaryDevice.scaleX(newScale);
+    //     txtPrimaryDevice.scaleY(newScale);
+    // } else {
+    //     txtPrimaryDevice.scaleX(1);
+    //     txtPrimaryDevice.scaleY(1);
+    // }
 
     groupTitle.add(txtAttribution);
-    groupTitle.add(txtName);
+    // groupTitle.add(txtName);
     //     groupTitle.add(txtPrimaryDevice);
     groupTitle.add(unitText);
 
@@ -3583,7 +3583,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let xScale = (divRmContainerDOMRect.width - pxOffset * 2) / roomWidth;
 
-    let yScale = (canvasWindowHeight - pyOffset * 2 - 30) / roomLength;
+    let yScale = (canvasWindowHeight - pyOffset * 2) / roomLength;
 
     if (xScale < yScale) {
         scale = xScale;
@@ -3640,14 +3640,14 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     let canvasLength = roomLength + (pxOffset * 2) / scale;
 
     stageOriginalWidth = canvasWidth * scale;
-    stageOriginalLength = (canvasLength * scale) + 30; // 30 is for title at bottom
+    stageOriginalLength = (canvasLength * scale); // 30 is for title at bottom
 
     /* create Konva stage.  All things get written on the stage.  It requires at least 1 layer */
     stage = new Konva.Stage(
         {
             container: 'canvasDiv',
             width: canvasWidth * scale,
-            height: (canvasLength * scale) + 30,
+            height: (canvasLength * scale),
             id: roomCanvas,
 
         }
