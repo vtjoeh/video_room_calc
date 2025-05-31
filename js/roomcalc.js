@@ -3235,7 +3235,7 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
     if (increment < 1) {
         toFixedValue = 2;
-        smallIncrementTextOffset = 8;
+        smallIncrementTextOffset = 25;
     }
 
     if (increment === 0.5) {

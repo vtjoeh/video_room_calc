@@ -6,6 +6,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.609**
+- Title removed from room canvas to make more space for the actual room.
+
 **v0.1.608**
 - Minor bug fixes including update of Ceiling Mic Pro ceiling mount.
 - updated templates.
