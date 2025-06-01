@@ -1,4 +1,4 @@
-const version = "v0.1.609";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.610";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -2528,6 +2528,7 @@ function createTemplateButton(template) {
 
     const img = document.createElement('img');
     img.src = `./assets/images/templates/${image}`;
+    img.inert = true; /* used to remove the Edge image search */
     button.appendChild(img);
 
     button.appendChild(label);
@@ -2740,6 +2741,7 @@ function quickSetupUpdate() {
     roomObj.items.stageFloors = [];
     roomObj.room.roomWidth = document.getElementById('roomWidth2').value;
     roomObj.room.roomLength = document.getElementById('roomLength2').value;
+    roomObj.name = document.getElementById('roomName2').value;
 
     drawRoom(true, true, true);
     setTimeout(() => { quickSetupInsert() }, 100);
@@ -4483,6 +4485,7 @@ function openSaveDialog() {
 function openNewRoomDialog() {
     document.getElementById('roomWidth2').value = roomObj.room.roomWidth;
     document.getElementById('roomLength2').value = roomObj.room.roomLength;
+    document.getElementById('roomName2').value = roomObj.name;
     document.getElementById('newRoomDialog').showModal();
 }
 
