@@ -8,7 +8,8 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.609**
 - Fixed Edge browser added an image search button to certain images.
-- Added Room Name to quick setup
+- Added Room Name to quick setup.
+- Added extra delay to tooltips.
 
 **v0.1.609**
 - Title removed from room canvas to make more space for the actual room.

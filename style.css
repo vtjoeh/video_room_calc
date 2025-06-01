@@ -787,12 +787,13 @@ a.tooltip a.tooltiptext {
 .tooltip:hover .tooltiptext {
   visibility: visible;
   opacity: 1;
-
+  transition-delay: 1s;
 }
 
 .tooltip:hover .tooltiptextLeft {
   left: 17px;
   width: 180px;
+  transition-delay: 1s;
 }
 
 /* tool tips for icons */
@@ -816,7 +817,7 @@ a.tooltip a.tooltiptext {
   left: 50%;
   margin-left: -100px;
   opacity: 0;
-  transition: opacity 0.5s 1.4s;
+  transition: opacity 1.4s 0.2s;
 }
 
 
@@ -839,6 +840,7 @@ a.tooltipIcon a.tooltiptextIcon {
 .tooltipIcon:hover .tooltiptextIcon {
   visibility: visible;
   opacity: 1;
+  transition-delay: 1s;
 }
 
 /* tooltip bottom */
@@ -865,7 +867,7 @@ a.tooltipIcon a.tooltiptextIcon {
   left: 100px;
   margin-left: -100px;
   opacity: 0;
-  transition: opacity 0.5s 1.4s;
+  transition: opacity 1.4s 0.2s;
 }
 
 .tooltipBottom .tooltiptextBottom::after {
@@ -882,11 +884,13 @@ a.tooltipIcon a.tooltiptextIcon {
 .tooltipBottom:hover .tooltiptextBottom {
   visibility: visible;
   opacity: 1;
+  transition-delay: 1s;
 }
 
 .tooltipBottom:hover .tooltiptextLeft {
   left: 17px;
   width: 180px;
+  transition-delay: 1s;
 }
 
 /* tooltipTitle mimics the title attribute feature */
