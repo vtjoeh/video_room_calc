@@ -6,6 +6,15 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.611**
+- Camera coverage has been updated to more closely reflect the Workspace Designer and/or to incorporate the Virtual Lens settings.
+  - Virtual Lens is shown on the Room Bar Pro & Board Pros. Lens 1 coverage shows the wide lens, Lens 2 converage shows the tele-lens, Lens 3 shows the virtual lens.
+  - Quad Camera 2-person reach extended from 9 m to 11 m to match software feature upgrade and Workspace Designer.
+- `PTZ 4K camera` object has been upated to the `PTZ 4K Camera + Mount` to better match Workspace Designer. The older PTZ 4K camera (non-mount) can be found under Workspace Designer partially/non-supported items. Previous designs won't be affected.
+- Door renderings in the Workspace Designer are now double thickness by default to show on both sides of a wall.
+- Fixed a bug for Double Doors not rendering correctly in the Workspace Designer.
+- Quick Setup adds chairs around table.
+
 **v0.1.610**
 - Fixed Edge browser added an image search button to certain images.
 - Added Room Name to quick setup.

@@ -1,4 +1,4 @@
-const version = "v0.1.610";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.611";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -133,7 +133,7 @@ let stageOriginalset = false;
 
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let testProduction = false; /* For forcing to test production crosslaunch */
-let testNew = false; /* used to toggle on new features */
+let testNew = true; /* used to toggle on new features */
 let testiFrame = false; /* testing iFrame settings, only works on internal Cisco Workspace Designer test site */
 let testiFrameInitialized = false; /* Keep track if the testing iFrame settings */
 let testOffset = false; /* shows a field that configures xOffset and yOffset which is used in the items workspaceKey */
@@ -227,6 +227,11 @@ workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'f
 
 workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
 workspaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
+
+workspaceKey.ptz4kMount = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
+
+workspaceKey.wave2 = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.121 };
+
 workspaceKey.quadCam = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
@@ -261,11 +266,19 @@ workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
 
 workspaceKey.box = { objectType: 'box' }
 
-workspaceKey.doorRight = { objectType: 'door', yOffset: -0.4 }
-workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
-workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] }
-workspaceKey.doorDoubleRight = { objectType: 'door', yOffset: -0.4, scale: [0.94, 1, 1] }
-workspaceKey.doorDoubleLeft = { objectType: 'door', yOffset: -0.4, scale: [-0.94, 1, 1] }
+workspaceKey.doorRight = { objectType: 'door', yOffset: -0.47, scale:[1,1,2]}
+workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
+
+// workspaceKey.doorRightSkinny = { objectType: 'door', yOffset: -0.4 }
+// workspaceKey.doorLeftSkinny = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
+
+//workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.47, scale: [1.9, 1, 2] }
+workspaceKey.doorDoubleRight = { objectType: 'door',  scale: [0.94, 1, 2] }
+workspaceKey.doorDoubleLeft = { objectType: 'door',  scale: [-0.94, 1, 2] }
+
+// workspaceKey.doorDoubleSkinny = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] };
+// workspaceKey.doorDoubleRightSkinny = { objectType: 'door', yOffset: -0.4, scale: [0.94, 1, 1] };
+// workspaceKey.doorDoubleLeftSkinny = { objectType: 'door', yOffset: -0.4, scale: [-0.94, 1, 1] };
 
 workspaceKey.floor = { objectType: 'floor' };
 
@@ -597,46 +610,106 @@ document.getElementById('lblVersion').innerText = version;
 
 
 
-/* videoDevices key starts with A or B */
+/*
+    videoDevices key starts with A or B
+    videoDevices requires either: onePersonZoom & twoPersonZoom OR onePersonDistance & twoPersonDistance (OR codecParent or  cameraParent with those fields)
+*/
 let videoDevices = [
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
-    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+   //  { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+   //   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonZoom: 1.41, twoPersonZoom: 2.01, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], roles:[{standard: 'Standard View'}, {virtualLens: 'Virtual Lens'}] },
+
+   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
     { name: 'Room Kit EQX', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 0, defaultVert: 681, colors: null },
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
+
     { name: "Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
+
     { name: "Room Kit EQ: PTZ 4K Camera", key: 'AG', id: 'roomKitEqPtz4k', cameraParent: 'ptz4k' },
+
     { name: "Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
+
     { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam" },
+
     { name: "Board Pro 55*", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 923 },
+
     { name: "Board Pro 75*", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 763 },
-    { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'brdPro75G2', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
-    { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+    // { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'brdPro75G2', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
+    // { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+
+    { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
+
+    { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+
     { name: "Desk", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710 },
-    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710 },
+
+    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710 },
+
     { name: "Desk Mini*", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710 },
+
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
+
     { name: "Room Kit Mini*", id: 'rmKitMini', key: 'AR', wideHorizontalFOV: 112, teleHorizontalFOV: 112, onePersonZoom: 2.04, twoPersonZoom: 3.41, topImage: 'rmKitMini-top.png', frontImage: 'rmKitMini-front.png', width: 500, depth: 77, height: 80, defaultVert: 710 },
+
     { name: "Room Kit*", id: 'roomKit', key: 'AS', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'roomKit-top.png', frontImage: 'roomKit-front.png', width: 700, depth: 88, height: 106, defaultVert: 1200 },
+
     { name: "Virtual Lens Bar Pro", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5, defaultVert: 1200 },
+
     { name: 'Room Kit EQX: Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null },
-    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'brdPro75G2', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
-    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 ]
 
 
 let videoDevicesNoCameras = structuredClone(videoDevices);
 
-/* camera key starts with C */
+/*
+    camera key starts with C
+
+    cameras requires either onePersonZoom & twoPersonZoom or onePersonDistance & twoPersonDistance
+*/
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
-    { name: "PTZ 4K Camera", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 0, twoPersonZoom: 3.17, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
-    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 2.64, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
-    { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
-    { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
+
+    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+
+  { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.94, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+  { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+  { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
+
+  { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'wave2-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] } ,
+
+    { name: "PTZ 4K Camera & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
-let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 2.4, twoPersonZoom: 3.05 };
+let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 2.15, twoPersonZoom: 2.935 };
+
+cameras[1].extended_reach = ptz4kNarrowFov;
+cameras[1].presentertrack = ptz4kNarrowFov;
+
+cameras[6].extended_reach = ptz4kNarrowFov;
+cameras[6].presentertrack = ptz4kNarrowFov;
+
+cameras[5].extended_reach = ptz4kNarrowFov;
+cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+
+/* Room Bar Pro */
+videoDevices[1].multiLensReach = [
+    { rotation: videoDevices[1].teleHorizontalFOV / 2 + 90, teleAngle: 13, onePersonDistance: 2.5, twoPersonDistance: 6.85 },
+    { rotation: (180-videoDevices[1].wideHorizontalFOV)/2 + ((videoDevices[1].wideHorizontalFOV - videoDevices[1].teleHorizontalFOV)/2) - 13, teleAngle: 13, onePersonDistance: 2.5, twoPersonDistance: 6.85 },
+    { rotation: videoDevices[1].teleHorizontalFOV / 2 + 90 + 13, teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
+    { rotation: (180-videoDevices[1].wideHorizontalFOV)/2 , teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
+]
+
 
 /* Microphone & Navigators - key starts with M */
 let microphones = [
@@ -708,7 +781,6 @@ let microphones = [
         defaultVert: 710,
         roles: [{ navigator: 'Navigator' }, { scheduler: 'Scheduler' }],
         colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
-
     },
     {
         name: "Wall Navigator",
@@ -817,7 +889,7 @@ let tables = [{
     frontImage: 'wallChairs-menu.png'
 },
 {
-    name: 'Table Curved* (Campfire)',
+    name: 'Table Curved (Campfire)',
     id: 'tblCurved',
     key: 'WG',
     frontImage: 'tblCurved-menu.png'
@@ -924,7 +996,7 @@ let chairs = [
         opacity: 0.8,
     },
     {
-        name: "Pouf* (round stool)",
+        name: "Pouf (round stool)",
         id: 'pouf',
         key: 'SJ',
         width: 440,
@@ -1903,7 +1975,11 @@ function getQueryString() {
     }
 
     if (testNew) {
-        workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.205 };
+        workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
+        workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
+
+        workspaceKey.wave2 = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
+
         workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
         workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
         workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
@@ -1934,6 +2010,13 @@ function getQueryString() {
 
     if (urlParams.has('test2')) {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
+    }
+
+    if(workspaceDesignerTestUrl){
+        let regex = /^https:\/\/www\.webex\.com\//i
+        if(!regex.test(workspaceDesignerTestUrl)){
+            testiFrame = true;
+        }
     }
 
 
@@ -2748,6 +2831,69 @@ function quickSetupUpdate() {
 }
 
 
+function createTableChairs(table, tableUuid){
+    let x1 = table.x;
+    let y1 = table.y;
+    let baseUuid;
+    let chairWidth = 2.35; /* width in feet */
+    chairWidth = (roomObj.unit === 'meters') ? chairWidth / 3.28084 : chairWidth;
+
+    let numberOfChairsLength = Math.floor(table.height/chairWidth);
+
+    let numberOfChairsWidth = Math.floor(table.width/chairWidth);
+
+    // let startingPointY = table.y + (table.height - (numberOfChairsLength * chairWidth))/2 - chairWidth;
+
+    let startingPointY = table.y + chairWidth/2 + (table.height - (numberOfChairsLength * chairWidth))/2;
+
+    let startingPointX = table.x + chairWidth/2 + (table.width - (numberOfChairsWidth * chairWidth))/2;
+    console.log('startingPointX', startingPointX);
+    console.log('numberOfChairsWdith', numberOfChairsWidth);
+
+    if ('id' in table){
+        baseUuid = table.id;
+    }
+    else if (tableUuid){
+        baseUuid = tableUuid;
+    }
+    else {
+        baseUuid = createUuid();
+    }
+
+    /* Chairs on left site of table */
+    for(let i = 0; i < numberOfChairsLength; i++){
+        let chairAttr = {};
+        chairAttr.x = table.x - chairWidth/2.5;
+        chairAttr.y = startingPointY + chairWidth * i;
+        chairAttr.rotation = -90;
+        chairUuid = 'autoChair-L-' + i + '-' + baseUuid;
+        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+    }
+
+     /* Chairs on right site of table */
+    for(let i = 0; i < numberOfChairsLength; i++){
+        let chairAttr = {};
+        chairAttr.x = table.x + table.width + chairWidth/2.5;
+        chairAttr.y = startingPointY + chairWidth * i;
+        chairAttr.rotation = 90;
+        chairUuid = 'autoChair-R-' + i + '-' + baseUuid;
+        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+    }
+
+    /* Chairs head of table */
+    for(let i = 0; i < numberOfChairsWidth; i++){
+        let chairAttr = {};
+        chairAttr.x = startingPointX + chairWidth * i;
+        console.log('chairAttr.x', chairAttr.x);
+        chairAttr.y = table.y + table.height + chairWidth/2.5;
+        console.log('chairAttr.x', chairAttr.y);
+        chairAttr.rotation = 180;
+        chairUuid = 'autoChair-H-' + i + '-' + baseUuid;
+        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+    }
+
+}
+
 function quickSetupInsert() {
 
     let tableWidth = getNumberValue('tableWidth');
@@ -2769,6 +2915,8 @@ function quickSetupInsert() {
     tblAttrs.height = tableLength;
 
     insertShapeItem('tblRect', 'tables', tblAttrs, tableUuid, false);
+
+    createTableChairs(tblAttrs, tableUuid);
 
     /* insert videoDevice */
     let videoDeviceUuid = createUuid();
@@ -3169,14 +3317,14 @@ function drawOutsideWall(grOuterWall) {
 
 
     } else {
-        let offset = scale/20;
-        if (roomObj.unit === 'meters'){
-            offset = offset/3.28084;
+        let offset = scale / 20;
+        if (roomObj.unit === 'meters') {
+            offset = offset / 3.28084;
         }
         let outsideGreyWall = new Konva.Rect({
 
-            x: pxOffset - offset/2,
-            y: pyOffset - offset/2,
+            x: pxOffset - offset / 2,
+            y: pyOffset - offset / 2,
             width: (roomWidth) * scale + offset,
             height: (roomLength) * scale + offset,
             stroke: '#777777',
@@ -3392,7 +3540,7 @@ function updateTitleGroup() {
 /* Adds the title and unit measurement for the layer grid */
 function drawTitleGroup() {
 
-  //  let txtPrimaryDeviceLabel = 'Video Devices: ';
+    //  let txtPrimaryDeviceLabel = 'Video Devices: ';
     let groupTitle = new Konva.Group({
         name: 'groupTitle',
     })
@@ -5443,7 +5591,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -8035,9 +8183,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         /* Show narrow field of FOV based on field view for the ptz 4k camera when  */
-        if ('data_role' in attrs && attrs.data_role && (attrs.data_role.value === 'extended_reach' || attrs.data_role.value === 'presentertrack')) {
-            insertDevice = { ...insertDevice, ...ptz4kNarrowFov }
-            teleAngle = ptz4kNarrowFov.teleHorizontalFOV;
+        if ('data_role' in attrs && attrs.data_role && (attrs.data_role.value === 'extended_reach' || attrs.data_role.value === 'presentertrack' || attrs.data_role.value === 'virtualLens')) {
+            insertDevice = { ...insertDevice, ...insertDevice[attrs.data_role.value] };
+            teleAngle = insertDevice[attrs.data_role.value].teleHorizontalFOV;
         }
 
         let onePersonCrop = defaultOnePersonCrop;
@@ -8050,9 +8198,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
 
-        let onePersonDistance = getDistanceA(insertDevice.teleHorizontalFOV / 2, onePersonCrop / 2) * insertDevice.onePersonZoom;
+        let onePersonDistance = (insertDevice.onePersonDistance * (roomObj.unit === 'feet' ? 3.28084 : 1)) || getDistanceA(insertDevice.teleHorizontalFOV / 2, onePersonCrop / 2) * insertDevice.onePersonZoom;
 
-        let twoPersonDistance = getDistanceA(insertDevice.teleHorizontalFOV / 2, twoPersonCrop / 2) * insertDevice.twoPersonZoom;
+        let twoPersonDistance = (insertDevice.twoPersonDistance * (roomObj.unit === 'feet' ? 3.28084 : 1)) || getDistanceA(insertDevice.teleHorizontalFOV / 2, twoPersonCrop / 2) * insertDevice.twoPersonZoom;
 
         let gradientRatio = onePersonDistance / twoPersonDistance;
 
@@ -8060,7 +8208,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         let gradientStop2 = gradientRatio * 1.1;
 
-        let onePersonCropColor = "#8FBC8B"
+        let onePersonCropColor = "#8FBC8B";
         let twoPersonCropColor = "#87aeed";
 
         let wideFOV = new Konva.Wedge({
@@ -8134,20 +8282,58 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             align: 'center',
         });
 
+        /* multiLens shows multiple lens ranges on the outside for Room Bar Pro and Board Pros*/
+        if ('multiLensReach' in insertDevice) {
+
+            insertDevice.multiLensReach.forEach((lensReach, index) => {
+
+                let gradientRatio = lensReach.onePersonDistance / lensReach.twoPersonDistance;
+
+                let gradientStop1 = gradientRatio * 0.9;
+
+                let gradientStop2 = gradientRatio * 1.1;
+
+                let twoPersonDistMultiLens = lensReach.twoPersonDistance * scale * (roomObj.unit === 'feet' ? 3.28084 : 1)
+
+                let teleMultiTwoPersonFOV = new Konva.Wedge({
+                    /* x and y should be tracked in the group only */
+                    opacity: 0.55,
+                    radius: twoPersonDistMultiLens,
+                    angle: lensReach.teleAngle,
+                    stroke:  '#8989894D',
+                    strokeWidth: 0.5,
+                    name: 'singleMutliLensTeleFOV-' + index + '-' + deviceId + '-' + groupName,
+                    rotation: lensReach.rotation,
+                    listening: false,
+                    perfectDrawEnabled: perfectDrawEnabled,
+                    fillRadialGradientStartPoint: { x: 0, y: 0 },
+                    fillRadialGradientStartRadius: 0,
+                    fillRadialGradientEndPoint: { x: 0, y: 0 },
+                    fillRadialGradientEndRadius: twoPersonDistMultiLens,
+                    fillRadialGradientColorStops: [0, onePersonCropColor, gradientStop1, onePersonCropColor, gradientStop2, twoPersonCropColor, 1, twoPersonCropColor + '64'],
+                });
+
+                groupFov.add(teleMultiTwoPersonFOV.clone());
+
+            })
+        };
+
+
         /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
-        if (deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0) {
+        if ((deviceId.startsWith('ptz4k') || deviceId === 'wave2') && onePersonDistance === 0) {
             teleTwoPersonFOV.fillRadialGradientColorStops([0, onePersonCropColor, gradientStop2, onePersonCropColor, 1, onePersonCropColor + '64'])
             wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
 
         }
 
 
-        if (!(deviceId === 'ptz4k' && insertDevice.onePersonZoom === 0)) {
-            groupFov.add(txtOnePersonFov);
-            groupFov.add(teleOnePersonFOV);
+        if (!((deviceId.startsWith('ptz4k') || deviceId === 'wave2'))) {
+           groupFov.add(txtOnePersonFov);
+
             groupFov.add(txtTwoPersonFov);
         }
 
+        groupFov.add(teleOnePersonFOV);
         groupFov.add(wideFOV);
         groupFov.add(teleTwoPersonFOV);
         grShadingCamera.add(groupFov);
@@ -8732,9 +8918,9 @@ function updateShading(imageItem) {
             centerY = (imageItem.height() / 2) * -(Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
         }
 
-        if ('data_cameraShadeOffSet' in imageItem) {
+        if ('cameraShadeOffSet' in allDeviceTypes[imageItem.data_deviceid]) {
 
-            let cameraShadeOffset = imageItem.data_cameraShadeOffSet / 1000 * scale;
+            let cameraShadeOffset = allDeviceTypes[imageItem.data_deviceid].cameraShadeOffSet / 1000 * scale;
 
             if (unit === 'feet') {
                 cameraShadeOffset = cameraShadeOffset * 3.28084;
@@ -9993,7 +10179,6 @@ function createEquipmentMenu() {
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
         personalVideoDevicesMenu.push('webexDeskMini');
         personalVideoDevicesMenu.push('webexDesk');
-
     }
 
     // let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
@@ -10002,7 +10187,11 @@ function createEquipmentMenu() {
 
     //  let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
 
-    let cameraDevicesMenu = ['ptz4k', 'quadCam'];
+    let cameraDevicesMenu = ['wave2', 'ptz4kMount', 'quadCam'];
+
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+        cameraDevicesMenu.splice(2,0,'ptz4k')
+    }
 
     let legacyVideoDevicesMenu = [];
 
@@ -10023,21 +10212,11 @@ function createEquipmentMenu() {
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall', 'laptop'];
 
-    // let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium',  'wallChairs'];
-
-    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium'];
-
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        tablesMenu.push('tblCurved');
-    }
+    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
 
     let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
 
-    let chairsMenu = ['chair', 'wallChairs', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble', 'couch'];
-
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        chairsMenu.splice(2, 0, 'pouf');
-    }
+    let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble', 'couch'];
 
     let stageFloorMenu = ['stageFloor'];
 
@@ -11020,7 +11199,8 @@ function onKeyDown(e) {
             if (testiFrameInitialized === false) {
 
                 testiFrameInitialized = true;
-                document.getElementById('floatingWorkspace').style.left = (window.innerWidth - 450) + 'px';
+                document.getElementById('floatingWorkspace').style.left = (window.innerWidth) * 0.68 + 'px';
+                document.getElementById('floatingWorkspace').style.width = (window.innerWidth) * 0.3 + 'px';
                 openWorkspaceWindow(false);
 
             }
@@ -11679,7 +11859,9 @@ function convertRoomObjToWorkspace() {
             let leftDoor = structuredClone(item);
             let rightDoor = structuredClone(item);
             let deltaX = 0.48;
-            let deltaY = 0;
+
+            let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 /1000) - 0.05);
+
             leftDoor.id = 'primary-doorDouble-L-' + item.id;
             leftDoor.data_deviceid = 'doorDoubleLeft';
 
@@ -11693,10 +11875,10 @@ function convertRoomObjToWorkspace() {
             leftDoor.y = leftDoorXY.y;
 
             rightDoor.x = rightDoorXY.x;
-            leftDoor.y = rightDoorXY.y;
+            rightDoor.y = rightDoorXY.y;
 
             workspaceObjItemPush(rightDoor);
-            item = leftDoor; /* let Left door become the main item */
+            item = structuredClone(leftDoor); /* let Left door become the main item */
         }
 
         workspaceObjItemPush(item);
@@ -11706,12 +11888,12 @@ function convertRoomObjToWorkspace() {
 
     roomObj2.items.microphones.forEach((item) => {
 
-        if (item.data_mount && item.data_mount.value.startsWith('ceilingMount')) {
+        if ((item.data_mount && item.data_mount.value.startsWith('ceilingMount')) || ((item.data_deviceid === 'ceilingMicPro') && !item.data_mount)) {
             let ceilingMount = structuredClone(item);
             let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
             ceilingMount.data_vHeight = poleHeight;
             ceilingMount.data_deviceid = "ceilingMount";
-            ceilingMount.data_zPosition = item.data_zPosition + (poleHeight/35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
+            ceilingMount.data_zPosition = item.data_zPosition + (poleHeight / 35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
             ceilingMount.id = "secondary-ceilingMount-" + item.id;
             item.id = "primary-ceilingMount-" + item.id;
             delete ceilingMount.data_mount;
@@ -12139,7 +12321,7 @@ function convertRoomObjToWorkspace() {
                 }
             }
 
-            let newXY = findNewTransformationCoordinate({x: x, y:y, rotation: item.rotation}, xOffset, yOffset);
+            let newXY = findNewTransformationCoordinate({ x: x, y: y, rotation: item.rotation }, xOffset, yOffset);
 
             y = newXY.y;
             x = newXY.x;

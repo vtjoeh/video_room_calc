@@ -629,7 +629,7 @@
 
 
             <div class="inputField">
-              <label class="tooltipBottom">Workspace Designer non-supported items*
+              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items.*
                 <i class="icon icon-info-circle-bold"></i>
                 <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
                   Items will
@@ -956,7 +956,7 @@
         <div class="inputRow">
           <div class="inputField">
             <label for="roomName2">Name:</label>
-            <input type="text" id="roomName2" name="roomName2" class="unitInput">
+            <input type="text" id="roomName2" name="roomName2" class="textInput">
           </div>
         </div>
 
@@ -991,7 +991,7 @@
           <div class="inputField">
             <label for="frntWallToTv" class="tooltip">Front Wall:
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
+              <span class="tooltiptext">Distance from the front wall to the front of display. Farthest Participant = Front Wall to Display + Distance Table
                 to
                 Display + Table Length. <br /><br />This assumes that the front of the display is
                 aligned with the front of the video device.</span></label>
@@ -1000,11 +1000,10 @@
             <label class="unitFeetMeters">ft</label>
           </div>
           <div class="inputField">
-            <label for="distDisplayToTable" class="tooltip">Table:
+            <label for="distDisplayToTable" class="tooltip">Table to Display:
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Farthest Participant = Front Wall to Display + Distance Table
-                to
-                Display + Table Length. <br /> <br />This assumes that the front of the display is
+              <span class="tooltiptext">Distance from the front of the disply to the table. Farthest Participant = Front Wall to Display + Distance Table
+                to Display + Table Length. <br /> <br />This assumes that the front of the display is
                 aligned with the front of the video device.</span></label>
             <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
               class="unitInput">
@@ -1466,7 +1465,7 @@
   </div>
 
   <div id="floatingWorkspace" class="menuMore"
-    style=" resize: both; overflow: auto; height:400px;width:400px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 500px; display: none; ">
+    style=" resize: both; overflow: auto; height:90%; width:200px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 10px; display: none; ">
     <div style="cursor: pointer; padding: 10px; padding-left: 2px; border-bottom: solid 1px;"
       id="floatingWorkspace-dragger">
 
