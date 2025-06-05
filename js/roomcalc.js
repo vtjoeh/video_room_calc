@@ -689,7 +689,7 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'wave2-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'vision-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Camera & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
@@ -7662,7 +7662,15 @@ function listItemsOffStage() {
 
 }
 
-/* insert an item based on the current roomObj.unit scale.  insertItem() is a wrapper for insertShapeItem */
+/*
+    insert(item)
+    insertItem(item,uuid,selectTrNode)
+
+    insert an item based on the current roomObj.unit scale.
+    insertItem() is a wrapper for insertShapeItem.
+    If no uuid is provided, one is created, event if there is an item.id uuid.
+    selectTrNode means the inserted device will be selected and outlined in blue on insertion.
+*/
 function insertItem(item,uuid,selectTrNode){
     let deviceId = item.data_deviceid;
     let parentGroup = allDeviceTypes[item.data_deviceid].parentGroup;
@@ -8073,7 +8081,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         if (allDeviceTypes[imageItem.data_deviceid].parentGroup === 'videoDevices') {
-            if (imageItem.data_deviceid.startsWith('ptz')) {
+            if (imageItem.data_deviceid.startsWith('ptz') || imageItem.data_deviceid.startsWith('wave2') ) {
                 imageItem.moveToTop();
             } else {
                 imageItem.zIndex(0);
