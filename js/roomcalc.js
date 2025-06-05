@@ -226,11 +226,6 @@ workspaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', model: 'Room Bar
 workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'floor', yOffset: 0.44 };
 
 workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
-workspaceKey.ptz4k = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
-
-workspaceKey.ptz4kMount = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.205 };
-
-workspaceKey.wave2 = { objectType: 'ptzcam', role: 'extended_reach', yOffset: 0.121 };
 
 workspaceKey.quadCam = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
@@ -245,7 +240,6 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
-workspaceKey.tblCurved = { objectType: 'table', yOffset: 0.3 };
 
 workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
 workspaceKey.ceilingMount = { objectType: "ceilingMount" };
@@ -258,7 +252,6 @@ workspaceKey.display21_9 = { objectType: 'screen', role: 'firstScreen' }
 
 
 workspaceKey.wallStd = { objectType: 'wall' };
-workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', width: 0.03, opacity: '0.3' };
 workspaceKey.wallWindow = { objectType: 'wall', model: 'window' };
 workspaceKey.ceiling = { objectType: 'ceiling' };
 workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
@@ -266,19 +259,17 @@ workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
 
 workspaceKey.box = { objectType: 'box' }
 
-workspaceKey.doorRight = { objectType: 'door', yOffset: -0.47, scale:[1,1,2]}
-workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
+workspaceKey.doorRight = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 1] }
+workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 1] }
 
-// workspaceKey.doorRightSkinny = { objectType: 'door', yOffset: -0.4 }
-// workspaceKey.doorLeftSkinny = { objectType: 'door', yOffset: -0.4, scale: [-1, 1, 1] }
+workspaceKey.doorDoubleRight = { objectType: 'door', scale: [0.94, 1, 1] }
+workspaceKey.doorDoubleLeft = { objectType: 'door', scale: [-0.94, 1, 1] }
 
-//workspaceKey.doorDouble = { objectType: 'door', yOffset: -0.47, scale: [1.9, 1, 2] }
-workspaceKey.doorDoubleRight = { objectType: 'door',  scale: [0.94, 1, 2] }
-workspaceKey.doorDoubleLeft = { objectType: 'door',  scale: [-0.94, 1, 2] }
+workspaceKey.doorRight2 = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 2] }
+workspaceKey.doorLeft2 = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
 
-// workspaceKey.doorDoubleSkinny = { objectType: 'door', yOffset: -0.4, scale: [1.9, 1, 1] };
-// workspaceKey.doorDoubleRightSkinny = { objectType: 'door', yOffset: -0.4, scale: [0.94, 1, 1] };
-// workspaceKey.doorDoubleLeftSkinny = { objectType: 'door', yOffset: -0.4, scale: [-0.94, 1, 1] };
+workspaceKey.doorDoubleRight2 = { objectType: 'door', scale: [0.94, 1, 2] }
+workspaceKey.doorDoubleLeft2 = { objectType: 'door', scale: [-0.94, 1, 2] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
@@ -303,6 +294,19 @@ workspaceKey.pouf = { objectType: 'pouf' };
 workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 }
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
+
+workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
+workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
+
+workspaceKey.wave2 = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
+
+workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
+workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
+workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
+workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
+
 
 /* end of defining workSpaceKey */
 
@@ -615,15 +619,16 @@ document.getElementById('lblVersion').innerText = version;
     videoDevices requires either: onePersonZoom & twoPersonZoom OR onePersonDistance & twoPersonDistance (OR codecParent or  cameraParent with those fields)
 */
 let videoDevices = [
-   //  { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    //  { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-   //   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonZoom: 1.41, twoPersonZoom: 2.01, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], roles:[{standard: 'Standard View'}, {virtualLens: 'Virtual Lens'}] },
+    //   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonZoom: 1.41, twoPersonZoom: 2.01, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], roles:[{standard: 'Standard View'}, {virtualLens: 'Virtual Lens'}] },
 
-   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: 'Room Kit EQX', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 0, defaultVert: 681, colors: null },
+
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
 
     { name: "Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
@@ -678,13 +683,13 @@ let cameras = [
 
     { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
-  { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.94, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-  { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-  { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
+    { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-  { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'wave2-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] } ,
+    { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'wave2-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Camera & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
@@ -693,21 +698,24 @@ let cameras = [
 /* used for ptz4kNarrowFov crossview and extended_reach */
 let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 2.15, twoPersonZoom: 2.935 };
 
+/* ptz4k */
 cameras[1].extended_reach = ptz4kNarrowFov;
 cameras[1].presentertrack = ptz4kNarrowFov;
 
+/* ptz4kmount */
 cameras[6].extended_reach = ptz4kNarrowFov;
 cameras[6].presentertrack = ptz4kNarrowFov;
 
+/* wave2 */
 cameras[5].extended_reach = ptz4kNarrowFov;
 cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
 
 /* Room Bar Pro */
 videoDevices[1].multiLensReach = [
     { rotation: videoDevices[1].teleHorizontalFOV / 2 + 90, teleAngle: 13, onePersonDistance: 2.5, twoPersonDistance: 6.85 },
-    { rotation: (180-videoDevices[1].wideHorizontalFOV)/2 + ((videoDevices[1].wideHorizontalFOV - videoDevices[1].teleHorizontalFOV)/2) - 13, teleAngle: 13, onePersonDistance: 2.5, twoPersonDistance: 6.85 },
+    { rotation: (180 - videoDevices[1].wideHorizontalFOV) / 2 + ((videoDevices[1].wideHorizontalFOV - videoDevices[1].teleHorizontalFOV) / 2) - 13, teleAngle: 13, onePersonDistance: 2.5, twoPersonDistance: 6.85 },
     { rotation: videoDevices[1].teleHorizontalFOV / 2 + 90 + 13, teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
-    { rotation: (180-videoDevices[1].wideHorizontalFOV)/2 , teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
+    { rotation: (180 - videoDevices[1].wideHorizontalFOV) / 2, teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
 ]
 
 
@@ -1003,8 +1011,37 @@ let chairs = [
         depth: 440,
         frontImage: 'tblPodium-menu.png',
         topImage: 'pouf-top.png'
-    }
-
+    },
+        {
+        name: "Door (right)",
+        id: "doorRight2",
+        key: "SK",
+        topImage: 'doorRight-top.png',
+        frontImage: 'doorRight-menu.png',
+        width: 1117,
+        depth: 1016,
+        opacity: 1,
+    },
+    {
+        name: "Door (left)",
+        id: "doorLeft2",
+        key: "SL",
+        topImage: 'doorLeft-top.png',
+        frontImage: 'doorLeft-menu.png',
+        width: 1117,
+        depth: 1016,
+        opacity: 1,
+    },
+    {
+        name: "Double Door",
+        id: "doorDouble2",
+        key: "SM",
+        topImage: 'doorDouble-top.png',
+        frontImage: 'doorDouble-menu.png',
+        width: 2009,
+        depth: 1004,
+        opacity: 1,
+    },
 
 
 ]
@@ -1952,7 +1989,7 @@ function getQueryString() {
     if (urlParams.has('testiFrame')) {
         let testiFrameQueryString = urlParams.get('testiFrame');
         if (testiFrameQueryString == '0') {
-            console.info('urlParams testNew=0, new feature test is off');
+            console.info('urlParams testiFramee=0, new feature test is off');
             testiFrame = false;
             localStorage.removeItem('testiFrame');
         }
@@ -1973,23 +2010,6 @@ function getQueryString() {
         console.info('Testing iFrame is turned On. To turn off use ?testiFrame=0');
 
     }
-
-    if (testNew) {
-        workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
-        workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
-
-        workspaceKey.wave2 = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
-
-        workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
-        workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-        workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-        workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
-        workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
-        workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
-        console.info('testNew is on: ', testNew);
-    }
-
-
 
     if (urlParams.has('wd')) {
         let wd = urlParams.get('wd');
@@ -2012,9 +2032,9 @@ function getQueryString() {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
     }
 
-    if(workspaceDesignerTestUrl){
+    if (workspaceDesignerTestUrl) {
         let regex = /^https:\/\/www\.webex\.com\//i
-        if(!regex.test(workspaceDesignerTestUrl)){
+        if (!regex.test(workspaceDesignerTestUrl)) {
             testiFrame = true;
         }
     }
@@ -2831,29 +2851,27 @@ function quickSetupUpdate() {
 }
 
 
-function createTableChairs(table, tableUuid){
+function createTableChairs(table, tableUuid) {
     let x1 = table.x;
     let y1 = table.y;
     let baseUuid;
     let chairWidth = 2.35; /* width in feet */
     chairWidth = (roomObj.unit === 'meters') ? chairWidth / 3.28084 : chairWidth;
 
-    let numberOfChairsLength = Math.floor(table.height/chairWidth);
+    let numberOfChairsLength = Math.floor(table.height / chairWidth);
 
-    let numberOfChairsWidth = Math.floor(table.width/chairWidth);
+    let numberOfChairsWidth = Math.floor(table.width / chairWidth);
 
     // let startingPointY = table.y + (table.height - (numberOfChairsLength * chairWidth))/2 - chairWidth;
 
-    let startingPointY = table.y + chairWidth/2 + (table.height - (numberOfChairsLength * chairWidth))/2;
+    let startingPointY = table.y + chairWidth / 2 + (table.height - (numberOfChairsLength * chairWidth)) / 2;
 
-    let startingPointX = table.x + chairWidth/2 + (table.width - (numberOfChairsWidth * chairWidth))/2;
-    console.log('startingPointX', startingPointX);
-    console.log('numberOfChairsWdith', numberOfChairsWidth);
+    let startingPointX = table.x + chairWidth / 2 + (table.width - (numberOfChairsWidth * chairWidth)) / 2;
 
-    if ('id' in table){
+    if ('id' in table) {
         baseUuid = table.id;
     }
-    else if (tableUuid){
+    else if (tableUuid) {
         baseUuid = tableUuid;
     }
     else {
@@ -2861,35 +2879,38 @@ function createTableChairs(table, tableUuid){
     }
 
     /* Chairs on left site of table */
-    for(let i = 0; i < numberOfChairsLength; i++){
+    for (let i = 0; i < numberOfChairsLength; i++) {
         let chairAttr = {};
-        chairAttr.x = table.x - chairWidth/2.5;
+        chairAttr.x = table.x - chairWidth / 2.5;
         chairAttr.y = startingPointY + chairWidth * i;
         chairAttr.rotation = -90;
+        chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-L-' + i + '-' + baseUuid;
-        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+        insertItem(chairAttr, chairUuid);
     }
 
-     /* Chairs on right site of table */
-    for(let i = 0; i < numberOfChairsLength; i++){
+    /* Chairs on right site of table */
+    for (let i = 0; i < numberOfChairsLength; i++) {
         let chairAttr = {};
-        chairAttr.x = table.x + table.width + chairWidth/2.5;
+        chairAttr.x = table.x + table.width + chairWidth / 2.5;
         chairAttr.y = startingPointY + chairWidth * i;
         chairAttr.rotation = 90;
+        chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-R-' + i + '-' + baseUuid;
-        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+        insertItem(chairAttr, chairUuid);
     }
 
     /* Chairs head of table */
-    for(let i = 0; i < numberOfChairsWidth; i++){
+    for (let i = 0; i < numberOfChairsWidth; i++) {
         let chairAttr = {};
         chairAttr.x = startingPointX + chairWidth * i;
-        console.log('chairAttr.x', chairAttr.x);
-        chairAttr.y = table.y + table.height + chairWidth/2.5;
-        console.log('chairAttr.x', chairAttr.y);
+
+        chairAttr.y = table.y + table.height + chairWidth / 2.5;
+
         chairAttr.rotation = 180;
+        chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-H-' + i + '-' + baseUuid;
-        insertShapeItem('chair', 'chairs', chairAttr, chairUuid, false);
+        insertItem(chairAttr, chairUuid);
     }
 
 }
@@ -2913,8 +2934,9 @@ function quickSetupInsert() {
     tblAttrs.y = frntWallToTv + distDisplayToTable;
     tblAttrs.width = tableWidth;
     tblAttrs.height = tableLength;
+    tblAttrs.data_deviceid = 'tblRect';
 
-    insertShapeItem('tblRect', 'tables', tblAttrs, tableUuid, false);
+    insertItem(tblAttrs, tableUuid);
 
     createTableChairs(tblAttrs, tableUuid);
 
@@ -5212,154 +5234,81 @@ function deleteTrNodes(save = true) {
 
 }
 
-// let microphone = new Konva.Shape({
-//     x: 0,
-//     y: 0,
-//     fill: 'grey',
-//     width: 40,
-//     height: 40,
-//     name: 'microphone',
-//     draggable: true,
-//     strokeWidth: 4,
-//     stroke: 'black',
-//     sceneFunc: function (ctx, shape) {
-//         ctx.beginPath();
-//         ctx.arc(shape.width() / 2, shape.height() / 2, shape.width() / 2, 0, 2 * Math.PI);
-//         ctx.stroke();
-//         ctx.fillStrokeShape(shape);
+// function getAttributes(device) {
+//     let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
+
+//     if ('height' in device) {
+//         attrObj.height = device.height;
 //     }
 
-// });
+//     if ('width' in device) {
+//         attrObj.width = device.width;
+//     }
 
-// microphone.data_type = 'microphone';
+//     if ('tblRectRadius' in device) {
+//         attrObj.tblRectRadius = device.tblRectRadius;
+//     }
 
-// function updateInsertVideoDeviceOptions() {
+//     if ('tblRectRadiusRight' in device) {
+//         attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
+//     }
 
-//     let drpInsertVideoDevice = document.getElementById('drpInsertVideoDevice');
-//     videoDevices.forEach((device) => {
+//     if ('data_vHeight' in device && device.data_vHeight != '') {
+//         attrObj.data_vHeight = device.data_vHeight;
+//     }
 
-//         let name = device.name;
+//     if ('data_zPosition' in device && device.data_zPosition != '') {
+//         attrObj.data_zPosition = device.data_zPosition;
+//     }
 
-//         let drpOption = new Option(name, device.id);
+//     if ('data_labelField' in device) {
+//         attrObj.data_labelField = device.data_labelField;
+//     }
 
-//         drpInsertVideoDevice.add(drpOption, undefined);
-//     })
+//     if ('data_fovHidden' in device) {
+//         attrObj.data_fovHidden = device.data_fovHidden;
+//     }
+
+//     if ('data_audioHidden' in device) {
+//         attrObj.data_audioHidden = device.data_audioHidden;
+//     }
+
+//     if ('data_dispDistHidden' in device) {
+//         attrObj.data_dispDistHidden = device.data_dispDistHidden;
+//     }
+
+
+//     if ('data_trapNarrowWidth' in device) {
+//         attrObj.data_trapNarrowWidth = device.data_trapNarrowWidth;
+//     }
+
+//     if ('data_role' in device) {
+//         attrObj.data_role = device.data_role;
+//     }
+
+//     if ('data_color' in device) {
+//         attrObj.data_color = device.data_color;
+//     }
+
+//     if ('data_mount' in device) {
+//         attrObj.data_mount = device.data_mount;
+//     }
+
+//     if ('data_tilt' in device) {
+//         attrObj.data_tilt = device.data_tilt;
+//     }
+
+//     if ('data_slant' in device) {
+//         attrObj.data_slant = device.data_slant;
+//     }
+
+//     if ('data_diagonalInches' in device && device.data_diagonalInches) {
+//         attrObj.data_diagonalInches = device.data_diagonalInches;
+//     }
+
+//     return attrObj;
 
 // }
-
-
-// function sceneFuncPtz4k(ctx, shape) {
-//     ctx.beginPath();
-//     let width = shape.getAttr('width');
-//     let height = shape.getAttr('height');
-//     /* don't need to set position of rect, Konva will handle it */
-//     ctx.rect(0, 0, width, height * 0.65);
-//     /* (!) Konva specific method, it is very important it will apply are required styles */
-
-//     ctx.fillStrokeShape(shape);
-//     ctx.moveTo(width * 0.3, height * 0.65);
-//     ctx.lineTo(width * 0.7, height * 0.65);
-//     ctx.lineTo(width, height * 0.95);
-//     ctx.lineTo(0, height * 0.95);
-//     ctx.closePath();
-//     ctx.fillStrokeShape(shape);
-//     ctx.stroke();
-
-// }
-
-// function sceneFuncQuadCam(ctx, shape) {
-//     ctx.beginPath();
-//     let width = shape.getAttr('width');
-//     let height = shape.getAttr('height');
-//     /*  don't need to set position of rect, Konva will handle it */
-//     ctx.rect(0, 0, width, height * 0.65);
-//     /* (!) Konva specific method, it is very important it will apply are required styles */
-//     ctx.fillStrokeShape(shape);
-//     ctx.moveTo(width * 0.4, height * 0.65);
-//     ctx.lineTo(width * 0.6, height * 0.65);
-//     ctx.lineTo(width, height * 0.8);
-//     ctx.lineTo(0, height * 0.8);
-//     ctx.closePath();
-//     ctx.fillStrokeShape(shape);
-//     ctx.stroke();
-// }
-
-
-function getAttributes(device) {
-    let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
-
-    if ('height' in device) {
-        attrObj.height = device.height;
-    }
-
-    if ('width' in device) {
-        attrObj.width = device.width;
-    }
-
-    if ('tblRectRadius' in device) {
-        attrObj.tblRectRadius = device.tblRectRadius;
-    }
-
-    if ('tblRectRadiusRight' in device) {
-        attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
-    }
-
-    if ('data_vHeight' in device && device.data_vHeight != '') {
-        attrObj.data_vHeight = device.data_vHeight;
-    }
-
-    if ('data_zPosition' in device && device.data_zPosition != '') {
-        attrObj.data_zPosition = device.data_zPosition;
-    }
-
-    if ('data_labelField' in device) {
-        attrObj.data_labelField = device.data_labelField;
-    }
-
-    if ('data_fovHidden' in device) {
-        attrObj.data_fovHidden = device.data_fovHidden;
-    }
-
-    if ('data_audioHidden' in device) {
-        attrObj.data_audioHidden = device.data_audioHidden;
-    }
-
-    if ('data_dispDistHidden' in device) {
-        attrObj.data_dispDistHidden = device.data_dispDistHidden;
-    }
-
-
-    if ('data_trapNarrowWidth' in device) {
-        attrObj.data_trapNarrowWidth = device.data_trapNarrowWidth;
-    }
-
-    if ('data_role' in device) {
-        attrObj.data_role = device.data_role;
-    }
-
-    if ('data_color' in device) {
-        attrObj.data_color = device.data_color;
-    }
-
-    if ('data_mount' in device) {
-        attrObj.data_mount = device.data_mount;
-    }
-
-    if ('data_tilt' in device) {
-        attrObj.data_tilt = device.data_tilt;
-    }
-
-    if ('data_slant' in device) {
-        attrObj.data_slant = device.data_slant;
-    }
-
-    if ('data_diagonalInches' in device && device.data_diagonalInches) {
-        attrObj.data_diagonalInches = device.data_diagonalInches;
-    }
-
-    return attrObj;
-
-}
 
 function roomObjToCanvas(roomObjItems) {
 
@@ -5371,44 +5320,45 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
+           // let attrObj = getAttributes(device);
+           // insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
+            insertItem(device, device.id);
         }
     }
 
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'microphones', attrObj, device.id);
-
+          //  let attrObj = getAttributes(device);
+            //insertShapeItem(device.data_deviceid, 'microphones', attrObj, device.id);
+            insertItem(device, device.id);
         }
     }
 
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
-
+          //  let attrObj = getAttributes(device);
+           // insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
+            insertItem(device, device.id);
         }
     }
 
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
-
+          //  let attrObj = getAttributes(device);
+           // insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
+            insertItem(device, device.id);
         }
     }
 
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
-
+         //   let attrObj = getAttributes(device);
+         //   insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
+            insertItem(device, device.id);
 
         }
     }
@@ -5416,17 +5366,18 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
-
+        //    let attrObj = getAttributes(device);
+           //  insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
+            insertItem(device, device.id);
         }
     }
 
     if ('stageFloors' in roomObjItems) {
         for (const device of roomObjItems.stageFloors) {
 
-            let attrObj = getAttributes(device);
-            insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
+        //    let attrObj = getAttributes(device);
+         //   insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
+            insertItem(device, device.id);
 
         }
     }
@@ -5464,13 +5415,6 @@ function canvasToJson() {
     }
 
     trNodesUuidToRoomObj();
-
-    setTimeout(() => {
-        //  isQuickSetupEnabled();
-        //  updateQuickSetupItems();
-        // updateTitleGroup();
-
-    }, 500);
 
     function getNodesJson(parentGroup) {
         let theObjects = parentGroup.getChildren();
@@ -5591,7 +5535,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -5673,7 +5617,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     let pixelX = scale * attrs.x + pxOffset;
     let pixelY = scale * attrs.y + pyOffset;
     let opacity = 0.8;
-    let wallWidth = 0.1 * scale; // 0.1 to 0.166
+    let wallWidth = 0.1 * scale;
     let uShapeWidth = 0.85 * scale;
     let unitScale;
     let tblSchoolDeskRadius = 0.122;
@@ -5796,23 +5740,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     } else {
         data_zPosition = '';
     }
-
-    // if (insertDevice.id === 'tblRect') {
-    //     tblWallFlr = new Konva.Rect({
-    //         x: pixelX,
-    //         y: pixelY,
-    //         rotation: rotation,
-    //         width: width,
-    //         height: height,
-    //         fill: fillColor,
-    //         stroke: strokeColor,
-    //         strokeWidth: 1,
-    //         id: uuid,
-    //         cornerRadius: radius,
-    //         draggable: true,
-    //         opacity: opacity,
-    //     });
-    // }
 
     if (insertDevice.id === 'tblSchoolDesk') {
         tblWallFlr = new Konva.Rect({
@@ -6535,7 +6462,6 @@ function updateShapesBasedOnNewScale() {
 
                 let theObjects = parentGroup.getChildren();
 
-                //    theObjects.forEach(node => {
                 for (let i = 0; i < theObjects.length; i++) {
                     let node = theObjects[i];
                     let attrs = node.attrs;
@@ -6579,8 +6505,6 @@ function updateShapesBasedOnNewScale() {
                         node.height(newHeight);
                     }
 
-
-
                     if ('radius' in attrs) {
                         let newRadius = scale / oldScale * node.radius();
                         node.radius(newRadius);
@@ -6608,7 +6532,6 @@ function removeShadingTrNodes() {
 
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
     lastTrNodesWithShading.forEach(node => {
-        // node.shadowEnabled(false);
 
         if ('image' in node.attrs) {
             node.strokeEnabled(false);
@@ -7077,7 +7000,7 @@ function checkForAllUnchecked() {
 
 function createDeviceMenu(parentButton, attributeType) {
 
-    // Create the menu container and position it below the button.
+    /* Create the menu container and position it below the button. */
 
     const rect = parentButton.getBoundingClientRect();
     let unavailableTextColor = 'darkgrey';
@@ -7113,7 +7036,7 @@ function createDeviceMenu(parentButton, attributeType) {
 
     const devices = menuReachItemList(attributeType);
     if (devices.length < 1) menuReach.style.color = unavailableTextColor;
-    // const options = [...defaultOptions, ...devices];
+
     const options = devices;
     options.forEach(opt => {
         const menuReachItem = document.createElement('div');
@@ -7739,6 +7662,17 @@ function listItemsOffStage() {
 
 }
 
+/* insert an item based on the current roomObj.unit scale.  insertItem() is a wrapper for insertShapeItem */
+function insertItem(item,uuid,selectTrNode){
+    let deviceId = item.data_deviceid;
+    let parentGroup = allDeviceTypes[item.data_deviceid].parentGroup;
+    let newUuid = uuid || '';
+    let newSelectTrNode = selectTrNode || false;
+
+    insertShapeItem(deviceId, parentGroup, item, newUuid, newSelectTrNode);
+
+}
+
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
 
     let hitStrokeWidth = 10; /* px:  allows the user to be close within X pixels to click on shape */
@@ -8300,7 +8234,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                     opacity: 0.55,
                     radius: twoPersonDistMultiLens,
                     angle: lensReach.teleAngle,
-                    stroke:  '#8989894D',
+                    stroke: '#8989894D',
                     strokeWidth: 0.5,
                     name: 'singleMutliLensTeleFOV-' + index + '-' + deviceId + '-' + groupName,
                     rotation: lensReach.rotation,
@@ -8328,7 +8262,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
         if (!((deviceId.startsWith('ptz4k') || deviceId === 'wave2'))) {
-           groupFov.add(txtOnePersonFov);
+            groupFov.add(txtOnePersonFov);
 
             groupFov.add(txtTwoPersonFov);
         }
@@ -10168,8 +10102,10 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
 
 
 function createEquipmentMenu() {
-    // let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitEqPtz4k', 'roomKitEqQuadPtz4k', 'roomKitProQuadCam'];
+
+    /* remove previous menu, then add a menu */
     removeElementsByClass('equipmentItemOnMenu');
+
     let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
 
     let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
@@ -10181,16 +10117,10 @@ function createEquipmentMenu() {
         personalVideoDevicesMenu.push('webexDesk');
     }
 
-    // let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'quadPtz4kExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
-
-    // let cameraDevicesMenu = ['ptz4k', 'quadCam', 'roomKitEqPtz4k', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
-
-    //  let cameraDevicesMenu = ['ptz4k', 'quadCam', 'quadCamExt', 'roomKitEqQuadCamExt', 'rmBarProVirtualLens'];
-
     let cameraDevicesMenu = ['wave2', 'ptz4kMount', 'quadCam'];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        cameraDevicesMenu.splice(2,0,'ptz4k')
+        cameraDevicesMenu.splice(2, 0, 'ptz4k')
     }
 
     let legacyVideoDevicesMenu = [];
@@ -10216,7 +10146,7 @@ function createEquipmentMenu() {
 
     let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
 
-    let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight', 'doorLeft', 'doorDouble', 'couch'];
+    let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
     let stageFloorMenu = ['stageFloor'];
 
@@ -10539,15 +10469,11 @@ document.getElementById('Cameras').addEventListener("scroll", (event) => {
 
 
 function checkIfScrollable() {
-    // let scrollDivs = document.querySelectorAll('.subtabcontent');
-    // let scrollDivs = document.getElementsByClassName('subtabcontent');
 
     let scrollDivs = ['Tables', 'Microphones', 'Panels', 'Cameras'];
     const scrollButton = document.querySelector('#scrollButtonContainer');
 
     let width = document.getElementById('Insert').offsetWidth;
-
-    let containerInput = document.getElementById('Insert');
 
     if (scrollButton) {
         scrollButton.style.visibility = "hidden";
@@ -11591,8 +11517,12 @@ function workspaceView(isNewTab = 'false') {
 function openWorkspaceWindow(fromButton = true) {
 
 
-    // let newTab = "http://localhost:3000/#/room/custom"
-    let newTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
+    let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
+
+    // let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
+    // newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
+
+
     let btnWorkspace = document.getElementById('btnWorkspace');
 
     lastAction = "btnClick open Workspace Designer";
@@ -11606,26 +11536,21 @@ function openWorkspaceWindow(fromButton = true) {
 
     postHeartbeat();
 
-    /* querystring ?testProduction needed to test against production */
-    if (testProduction) {
-        newTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
-    }
+
 
     if (workspaceDesignerTestUrl) {
-        newTab = workspaceDesignerTestUrl;
+        newWorkspaceTab = workspaceDesignerTestUrl;
     }
 
-    // newTab = 'http://127.0.0.1:5001/assets/receiver.html';   // used for testing.
-
     if (fromButton) {
-        workspaceWindow = window.open(newTab, sessionId);
+        workspaceWindow = window.open(newWorkspaceTab, sessionId);
     }
 
 
     if (testiFrame && !fromButton) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
-        iFrameWorkspaceWindow.src = newTab;
+        iFrameWorkspaceWindow.src = newWorkspaceTab;
 
         //   document.getElementById('floatingWorkspace').style.display = '';
     }
@@ -11860,7 +11785,7 @@ function convertRoomObjToWorkspace() {
             let rightDoor = structuredClone(item);
             let deltaX = 0.48;
 
-            let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 /1000) - 0.05);
+            let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
 
             leftDoor.id = 'primary-doorDouble-L-' + item.id;
             leftDoor.data_deviceid = 'doorDoubleLeft';
@@ -12238,9 +12163,7 @@ function convertRoomObjToWorkspace() {
             workspaceItem.width = displayDepth21_9 / 1000 / 2;
             workspaceItem.length = displayWidth21_9 * displayScale / 1000;
             workspaceItem.id = 'display21_9-' + workspaceItem.id;
-            if (testNew) {
-                workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
-            }
+            workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
 
             delete workspaceItem.size;
 
@@ -12422,7 +12345,7 @@ function convertRoomObjToWorkspace() {
     function workspaceObjWallPush(item) {
 
         let swapXY = true;
-        if (testNew) { swapXY = true; }
+
         let x, y, z, verticalHeight, workspaceItem;
 
         let xy = getItemCenter(item);
@@ -12466,18 +12389,11 @@ function convertRoomObjToWorkspace() {
             "rotation": [
                 ((item.data_slant) * -(Math.PI / 180)) || 0,
                 ((item.rotation - 90) * -(Math.PI / 180)),
-                ((item.data_tilt) * (Math.PI / 180)) || 0,
+                 ((item.data_tilt) * (Math.PI / 180)) || 0,
             ],
             "height": verticalHeight,
-            "length": item.height,
-            "width": item.width
-        }
-
-        if (testNew) {
-            workspaceItem.length = item.width;
-            workspaceItem.width = item.height;
-            workspaceItem.rotation[0] = ((item.data_slant) * -(Math.PI / 180)) || 0;
-            workspaceItem.rotation[2] = ((item.data_tilt) * (Math.PI / 180)) || 0;
+            "length": item.width,
+            "width": item.height,
         }
 
 
@@ -12488,7 +12404,6 @@ function convertRoomObjToWorkspace() {
             delete workspaceItem.length;
             delete workspaceItem.width;
         }
-
 
 
         workspaceItem = { ...workspaceItem, ...attr };
