@@ -298,7 +298,7 @@ workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
 workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
 
-workspaceKey.wave2 = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
+workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
 
 workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
 workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
@@ -689,7 +689,7 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Tandberg Wave 2", id: 'wave2', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'vision-top.png', frontImage: 'wave2-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Camera & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
@@ -706,7 +706,7 @@ cameras[1].presentertrack = ptz4kNarrowFov;
 cameras[6].extended_reach = ptz4kNarrowFov;
 cameras[6].presentertrack = ptz4kNarrowFov;
 
-/* wave2 */
+/* ptzVision */
 cameras[5].extended_reach = ptz4kNarrowFov;
 cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
 
@@ -5535,7 +5535,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -7118,9 +7118,13 @@ function createDeviceMenu(parentButton, attributeType) {
 
         checkedBoxes.forEach(checkBox => {
             let opt = {};
-            opt.value = checkBox.getAttribute('data-device-id');
-            previewCheckedDevices(opt, attributeType);
             checkBox.checked = checkBoxchecked;
+            opt.value = checkBox.getAttribute('data-device-id');
+            console.log('opt', JSON.stringify(opt,5,null));
+            console.log('attributeType', JSON.stringify(attributeType));
+            console.log('checkbox.checked',)
+            previewCheckedDevices(opt, attributeType);
+
         });
     });
 
@@ -7223,7 +7227,7 @@ function getDevicesWithAttribute(attributeType) {
 }
 
 
-function previewCheckedDevices(opt, attributeType) {
+function    previewCheckedDevices(opt, attributeType) {
 
     let attributeString = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
 
@@ -8076,12 +8080,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.moveToTop();
         }
 
-        if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door')) {
+        if (imageItem.data_deviceid.startsWith('chair') || imageItem.data_deviceid.startsWith('plant') || imageItem.data_deviceid.startsWith('door') || imageItem.data_deviceid.startsWith('pouf')) {
             imageItem.zIndex(0);
         }
 
         if (allDeviceTypes[imageItem.data_deviceid].parentGroup === 'videoDevices') {
-            if (imageItem.data_deviceid.startsWith('ptz') || imageItem.data_deviceid.startsWith('wave2') ) {
+            if (imageItem.data_deviceid.startsWith('ptz')) {
                 imageItem.moveToTop();
             } else {
                 imageItem.zIndex(0);
@@ -8262,16 +8266,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
         /* make the ptz4k more closely match hte Workspace Designer limit, and only show green */
-        if ((deviceId.startsWith('ptz4k') || deviceId === 'wave2') && onePersonDistance === 0) {
+        if ((deviceId.startsWith('ptz')) && onePersonDistance === 0) {
             teleTwoPersonFOV.fillRadialGradientColorStops([0, onePersonCropColor, gradientStop2, onePersonCropColor, 1, onePersonCropColor + '64'])
             wideFOV.radius(twoPersonDistance * scale * 1.3 * 2);
 
         }
 
 
-        if (!((deviceId.startsWith('ptz4k') || deviceId === 'wave2'))) {
+        if (!(deviceId.startsWith('ptz'))) {
             groupFov.add(txtOnePersonFov);
-
             groupFov.add(txtTwoPersonFov);
         }
 
@@ -10125,7 +10128,7 @@ function createEquipmentMenu() {
         personalVideoDevicesMenu.push('webexDesk');
     }
 
-    let cameraDevicesMenu = ['wave2', 'ptz4kMount', 'quadCam'];
+    let cameraDevicesMenu = ['ptzVision', 'ptz4kMount', 'quadCam'];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
         cameraDevicesMenu.splice(2, 0, 'ptz4k')
@@ -11524,8 +11527,8 @@ function workspaceView(isNewTab = 'false') {
 /* Opens the Workspace Designer  */
 function openWorkspaceWindow(fromButton = true) {
 
-
-    let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
+    let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
+    //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
 
     // let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
     // newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"

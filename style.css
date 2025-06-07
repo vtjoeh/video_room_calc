@@ -1519,9 +1519,11 @@ hr.rightClickHorizontalLine {
 
   }
 
-  #closeOpenMenu {
-
-  }
+  .subtabcontent,
+.subtabcontent2 {
+  position: relative;
+  height: 490px;
+}
 
   .classOpenMenuClosed{
     transform: rotate(-90deg);
