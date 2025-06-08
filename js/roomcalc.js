@@ -91,6 +91,7 @@ roomObj.layersVisible.grDisplayDistance = true; /* true or false */
 roomObj.layersVisible.grShadingMicrophone = true;  /* true or false */
 roomObj.layersVisible.gridLines = true; /* true or false */
 roomObj.layersVisible.grShadingSpeaker = true;  /* true or false */
+roomObj.layersVisible.grLabels = false; /* true or false */
 
 roomObj.items.videoDevices = [];
 roomObj.items.chairs = [];
@@ -268,8 +269,8 @@ workspaceKey.doorDoubleLeft = { objectType: 'door', scale: [-0.94, 1, 1] }
 workspaceKey.doorRight2 = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 2] }
 workspaceKey.doorLeft2 = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
 
-workspaceKey.doorDoubleRight2 = { objectType: 'door', scale: [0.94, 1, 2] }
-workspaceKey.doorDoubleLeft2 = { objectType: 'door', scale: [-0.94, 1, 2] }
+workspaceKey.doorDouble2Right = { objectType: 'door', scale: [0.94, 1, 2] }
+workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-0.94, 1, 2] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
@@ -344,6 +345,10 @@ let grShadingSpeaker = new Konva.Group(
 let grShadingCamera = new Konva.Group({
     name: 'grShadingCamera',
     clip: clipShadingBorder,
+});
+
+let grLabels = new Konva.Group({
+    name: 'grLabels',
 });
 
 let layerTransform = new Konva.Layer(
@@ -689,9 +694,9 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ & Mount", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K Camera & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
 ]
 
@@ -863,7 +868,7 @@ let tables = [{
     frontImage: 'wallStd-front.png',
 },
 {
-    name: 'Glass Wall (10 cm / 3.9")',
+    name: 'Glass Wall',
     id: 'wallGlass',
     key: 'WB',
     frontImage: 'wallGlass-front.png',
@@ -934,7 +939,7 @@ let chairs = [
         models: ['woman-standing', 'man-standing-pen', 'woman-sitting-wheelchair'],
     },
     {
-        name: "Door (right)",
+        name: "Door Right (thin frame)",
         id: "doorRight",
         key: "SB",
         topImage: 'doorRight-top.png',
@@ -944,7 +949,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door (left)",
+        name: "Door Left (thin frame)",
         id: "doorLeft",
         key: "SD",
         topImage: 'doorLeft-top.png',
@@ -954,7 +959,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Double Door",
+        name: "Double Door (thin frame)",
         id: "doorDouble",
         key: "SE",
         topImage: 'doorDouble-top.png',
@@ -1012,8 +1017,8 @@ let chairs = [
         frontImage: 'tblPodium-menu.png',
         topImage: 'pouf-top.png'
     },
-        {
-        name: "Door (right)",
+    {
+        name: "Door Right",
         id: "doorRight2",
         key: "SK",
         topImage: 'doorRight-top.png',
@@ -1023,7 +1028,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door (left)",
+        name: "Door Left",
         id: "doorLeft2",
         key: "SL",
         topImage: 'doorLeft-top.png',
@@ -1258,9 +1263,6 @@ function addOnBlurUnitInputListener() {
 
             }
 
-            /*
-            version 0.1.517 update;
-            */
             updateItem();
 
         })
@@ -1755,6 +1757,7 @@ function convertMetersFeet(isDrawRoom, newUnit = null) {
 
     if (newUnit === null) {
         roomObj.unit = document.getElementById('drpMetersFeet').value;
+        zoomInOut('reset');
     } else {
         roomObj.unit = newUnit;
     }
@@ -2309,6 +2312,14 @@ function parseShortenedXYUrl(parameters) {
                     roomObj.workspace.removeDefaultWalls = false;
                     updateRemoveDefaultWallsCheckBox();
                 }
+
+                if (shadeArray[6] == '1') {
+                    roomObj.layersVisible.grLabels = true;
+                } else {
+                    roomObj.layersVisible.grLabels = false;
+                }
+
+
             }
 
         } else if (item.sid === "C") { /* authorVersion */
@@ -2447,6 +2458,7 @@ function resetRoomObj() {
     roomObj.layersVisible.grShadingMicrophone = true;  /* true or false */
     roomObj.layersVisible.gridLines = true; /* true or false */
     roomObj.layersVisible.grShadingSpeaker = true;  /* true or false */
+    roomObj.layersVisible.grLabels = false;
 
     roomObj.items.videoDevices = [];
     roomObj.items.chairs = [];
@@ -3905,6 +3917,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     stageAddLayers();
 
+    labelsVisible(roomObj.layersVisible.grLabels)
     gridLinesVisible(roomObj.layersVisible.gridLines);
     shadingMicrophoneVisible(roomObj.layersVisible.grShadingMicrophone);
     displayDistanceVisible(roomObj.layersVisible.grDisplayDistance);
@@ -4390,6 +4403,12 @@ function createShareableLinkItemShading() {
         shadeArray[5] = 1;
     } else {
         shadeArray[5] = 0;
+    }
+
+    if (roomObj.layersVisible.grLabels) {
+        shadeArray[6] = 1;
+    } else {
+        shadeArray[6] = 0;
     }
 
     return 'B' + shadeArray.join('');
@@ -4995,6 +5014,8 @@ function stageAddLayers() {
     layerTransform.add(groupVideoDevices);
     layerTransform.add(groupMicrophones);
 
+    layerTransform.add(grLabels);
+
     stage.add(layerTransform);
 
     stage.add(layerSelectionBox);
@@ -5044,6 +5065,38 @@ function displayDistanceVisible(state = 'buttonPress') {
     if (saveToUndo) saveToUndoArray();
 }
 
+
+function labelsVisible(state = 'buttonPress') {
+    let saveToUndo = false;
+    let button = document.getElementById('btnLabelsToggle');
+
+    if (state === 'buttonPress') {
+        saveToUndo = true;
+        if (grLabels.visible() === true) {
+            state = false;
+        } else {
+            state = true;
+        }
+    }
+
+    if (state === true) {
+
+        grLabels.visible(true);
+        button.classList.toggle('active', true);
+        roomObj.layersVisible.grLabels = true;
+    }
+    else {
+        grLabels.visible(false);
+        button.classList.toggle('active', false);
+        roomObj.layersVisible.grLabels = false;
+    }
+
+
+
+    if (saveToUndo) {
+        saveToUndoArray();
+    }
+}
 
 function gridLinesVisible(state = 'buttonPress') {
     let saveToUndo = false;
@@ -5211,6 +5264,7 @@ function deleteTrNodes(save = true) {
         let audioShading = stage.find('#audio~' + node.id())[0];
         let videoShading = stage.find('#fov~' + node.id())[0];
         let displayShading = stage.find('#dispDist~' + node.id())[0];
+        let labelText = stage.find('#label~' + node.id())[0];
 
         node.destroy();
         if (audioShading) {
@@ -5223,6 +5277,11 @@ function deleteTrNodes(save = true) {
 
         if (displayShading) {
             displayShading.destroy();
+        }
+
+
+        if (labelText) {
+            labelText.destroy();
         }
 
     });
@@ -5320,8 +5379,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-           // let attrObj = getAttributes(device);
-           // insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
+            // let attrObj = getAttributes(device);
+            // insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
@@ -5329,7 +5388,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
 
-          //  let attrObj = getAttributes(device);
+            //  let attrObj = getAttributes(device);
             //insertShapeItem(device.data_deviceid, 'microphones', attrObj, device.id);
             insertItem(device, device.id);
         }
@@ -5338,8 +5397,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
 
-          //  let attrObj = getAttributes(device);
-           // insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
+            //  let attrObj = getAttributes(device);
+            // insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
@@ -5347,8 +5406,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
 
-          //  let attrObj = getAttributes(device);
-           // insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
+            //  let attrObj = getAttributes(device);
+            // insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
@@ -5356,8 +5415,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
 
-         //   let attrObj = getAttributes(device);
-         //   insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
+            //   let attrObj = getAttributes(device);
+            //   insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
             insertItem(device, device.id);
 
         }
@@ -5366,8 +5425,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
 
-        //    let attrObj = getAttributes(device);
-           //  insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
+            //    let attrObj = getAttributes(device);
+            //  insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
@@ -5375,8 +5434,8 @@ function roomObjToCanvas(roomObjItems) {
     if ('stageFloors' in roomObjItems) {
         for (const device of roomObjItems.stageFloors) {
 
-        //    let attrObj = getAttributes(device);
-         //   insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
+            //    let attrObj = getAttributes(device);
+            //   insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
             insertItem(device, device.id);
 
         }
@@ -5393,7 +5452,7 @@ function canvasToJson() {
     transformGroups.forEach((group) => {
         let groupName = group.name();
         /* ignore the shading and the temporary groups - and the guide-line if not destroyed yet */
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker' || groupName === 'guide-line')) {
+        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker' || groupName === 'guide-line' || groupName === 'grLabels')) {
             getNodesJson(group);
         }
 
@@ -5534,7 +5593,7 @@ function canvasToJson() {
 
     }
 
-    // console.log('canvasToJson() roomObj', roomObj);
+   // console.log('canvasToJson() roomObj', roomObj);
     console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
@@ -6061,6 +6120,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         };
         windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
 
+
     }
 
     if (insertDevice.id === 'wallChairs') {
@@ -6264,6 +6324,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }, 250);
     }
 
+
+    tblWallFlr.on('transform', function tableOnTransform(e){
+
+            if(tblWallFlr.data_labelField) updateShading(tblWallFlr);
+    });
+
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
         snapToGuideLines(e);
 
@@ -6288,6 +6354,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 updateFormatDetails(e);
             }
         }
+
+        if(tblWallFlr.data_labelField) updateShading(tblWallFlr);
     });
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
@@ -6327,8 +6395,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         }
 
+
+
         if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
+
+    if(attrs.data_labelField){
+        addLabel(tblWallFlr, attrs);
+    }
 
 }
 
@@ -6622,7 +6696,9 @@ function updateItem() {
 
     let data_vHeight = Number(document.getElementById('itemVheight').value);
 
-    let id = document.getElementById('itemId').innerText;
+   let id = document.getElementById('itemId').innerText;
+
+   let data_deviceid = document.getElementById('itemName').value;
 
 
     let tblRectRadius = document.getElementById('tblRectRadius').value;
@@ -6643,10 +6719,17 @@ function updateItem() {
 
     /* take the item.id from the web page and find it in the RoomObj json. The Canvas shape
         really gets deleted and rebuilt versus updated */
+
+
+
     roomObj.items[parentGroup].forEach((item, index) => {
 
         if (item.id === id) {
+            /*once found, incoroprate the new parentGroup based on changes */
 
+            parentGroup = allDeviceTypes[data_deviceid].parentGroup;
+
+            item.data_deviceid = data_deviceid;
 
             if ('x' in item) {
                 item.x = x;
@@ -6663,8 +6746,6 @@ function updateItem() {
             if ('height' in item) {
                 item.height = height;
             }
-
-
 
             if (parentGroup === 'displays') {
                 item.data_diagonalInches = data_diagonalInches;
@@ -6791,8 +6872,10 @@ function updateItem() {
             let audioShading = stage.find('#audio~' + node.id())[0];
             let videoShading = stage.find('#fov~' + node.id())[0];
             let displayShading = stage.find('#dispDist~' + node.id())[0];
+            let labelText = stage.find('#label~' + node.id())[0];
 
             node.destroy();
+
             if (audioShading) {
                 audioShading.destroy();
             }
@@ -6803,6 +6886,10 @@ function updateItem() {
 
             if (displayShading) {
                 displayShading.destroy();
+            }
+
+            if (labelText) {
+                labelText.destroy();
             }
 
             insertShapeItem(item.data_deviceid, parentGroup, item, id, true);
@@ -7120,7 +7207,7 @@ function createDeviceMenu(parentButton, attributeType) {
             let opt = {};
             checkBox.checked = checkBoxchecked;
             opt.value = checkBox.getAttribute('data-device-id');
-            console.log('opt', JSON.stringify(opt,5,null));
+            console.log('opt', JSON.stringify(opt, 5, null));
             console.log('attributeType', JSON.stringify(attributeType));
             console.log('checkbox.checked',)
             previewCheckedDevices(opt, attributeType);
@@ -7227,7 +7314,7 @@ function getDevicesWithAttribute(attributeType) {
 }
 
 
-function    previewCheckedDevices(opt, attributeType) {
+function previewCheckedDevices(opt, attributeType) {
 
     let attributeString = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
 
@@ -7675,7 +7762,7 @@ function listItemsOffStage() {
     If no uuid is provided, one is created, event if there is an item.id uuid.
     selectTrNode means the inserted device will be selected and outlined in blue on insertion.
 */
-function insertItem(item,uuid,selectTrNode){
+function insertItem(item, uuid, selectTrNode) {
     let deviceId = item.data_deviceid;
     let parentGroup = allDeviceTypes[item.data_deviceid].parentGroup;
     let newUuid = uuid || '';
@@ -8065,6 +8152,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         group.add(imageItem);
         updateShading(imageItem);
 
+
+
         if (selectTrNode) {
 
             tr.nodes([imageItem]);
@@ -8091,6 +8180,20 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 imageItem.zIndex(0);
             }
         }
+
+        /* only add labels to Video Devices and Microphones, or devices that have labels */
+        if (groupName === 'videoDevices' || groupName === 'microphones' || 'data_labelField' in attrs) {
+
+            if ((deviceId != 'laptop')) {
+                addLabel(imageItem, attrs);
+            }
+            else if
+                (attrs.data_labelField) {
+                addLabel(imageItem, attrs);
+            }
+
+        }
+
 
     };
 
@@ -8391,7 +8494,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         let xc1 = -diagonalUnit * scale * widthRatio;
         let distance1 = diagonalUnit * scale;
+        let distance1unit  = diagonalUnit;
         let xc2 = diagonalUnit * scale * widthRatio;
+
+
+        if (attrs.data_deviceid === 'display21_9'){
+            distance1 = distance1 * 1.07 / 1.33;
+            distance1unit = distance1unit * 1.07 / 1.33;
+        }
 
         let purpleLine = new Konva.Line({
             points: [xc1, distance1, xc2, distance1],
@@ -8404,7 +8514,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let txt1xFromDisplay = new Konva.Text({
             x: -1000,
             y: distance1,
-            text: 'Ideal closest participant to display: ' + diagonalUnit.toFixed(1) + ' ' + abbrUnit,
+            text: 'Ideal closest participant to display: ' + distance1unit.toFixed(1) + ' ' + abbrUnit,
             fontSize: 12,
             fill: 'purple',
             align: 'center',
@@ -8425,7 +8535,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let txt3xFromDisplay = new Konva.Text({
             x: -1000,
             y: distance1 * 3,
-            text: 'Ideal farthest participant from display: ' + (diagonalUnit * 3).toFixed(1) + ' ' + abbrUnit,
+            text: 'Ideal farthest participant from display: ' + (distance1unit * 3).toFixed(1) + ' ' + abbrUnit,
             fontSize: 12,
             fill: 'green',
             align: 'center',
@@ -8445,7 +8555,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let txt4xFromDisplay = new Konva.Text({
             x: -1000,
             y: distance1 * 4,
-            text: 'Max farthest participant from display: ' + (diagonalUnit * 4).toFixed(1) + ' ' + abbrUnit,
+            text: 'Max farthest participant from display: ' + (distance1unit * 4).toFixed(1) + ' ' + abbrUnit,
             fontSize: 12,
             fill: '#C41E3A',
             align: 'center',
@@ -8464,8 +8574,68 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         grDisplayDistance.add(groupItemDisplayDistance);
     }
 
+
+
 }
 
+
+function addLabel(node, attrs) {
+
+    let text = node.name();
+
+    if ('data_labelField' in attrs) {
+        let textCandidate = attrs.data_labelField.replace(/{.*?}/g, '');
+        if (textCandidate) {
+            text = textCandidate;
+        }
+    }
+
+    let fontSize = 10;
+
+    let boundingBox = node.getClientRect();
+    let center = getShapeCenter(node);
+    let bottomY = center.y + boundingBox.height / 2 * (100 / zoomValue);
+    let centerX = center.x;
+
+    const labelTip = new Konva.Label({
+        x: centerX,
+        y: bottomY,
+        opacity: 0.85,
+        id: 'label~' + node.id(),
+        name: 'labelText',
+        listening: false,
+    });
+
+    labelTip.add(
+        new Konva.Tag({
+            fill: 'black',
+            stroke:'darkgrey',
+            strokeWidth: 0.5,
+            pointerDirection: 'up',
+            pointerWidth: 10,
+            pointerHeight: 10,
+            lineJoin: 'round',
+            shadowColor: 'black',
+            shadowBlur: 7,
+            shadowOffsetX: 5,
+            shadowOffsetY: 5,
+            shadowOpacity: 0.5,
+            cornerRadius: 2,
+        })
+    );
+
+    labelTip.add(
+        new Konva.Text({
+            text: text,
+            fontSize: fontSize,
+            padding: 5,
+            fill: 'white'
+        })
+    );
+
+    grLabels.add(labelTip);
+
+}
 
 
 /* snap the center of the node to the increment. */
@@ -8828,28 +8998,54 @@ function updateSnapToIncrement() {
 }
 
 
+// function updateLabelLocations(){
+//     let nodes = stage.find('.labelText');
 
-/* Snap to object end */
+//     nodes.forEach((labelTip)=>{
+//         console.log('labelText', labelTip);
+//         let id = labelTip.id().replace(/label~/,'');
+//         let node = stage.findOne('#' + id);
+//         moveLabel(node, labelTip);
+//     })
+// }
 
 
+function moveLabel(imageItem, labelTip) {
+    let boundingBox = imageItem.getClientRect();
+    let center = getShapeCenter(imageItem);
+    let bottomY = center.y + boundingBox.height / 2 * (100 / zoomValue);
+    let centerX = center.x;
 
-function updateShading(imageItem) {
-    let uuid = imageItem.id();
+    labelTip.x(centerX);
+    labelTip.y(bottomY);
+}
+
+function updateShading(node) {
+    let uuid = node.id();
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
-    let dispDistShading = stage.find(`#dispDist~${uuid}`)
+    let dispDistShading = stage.find(`#dispDist~${uuid}`);
+
+    let textLabel = stage.find(`#label~${uuid}`);
 
     if (fovShading.length === 1) {
-        moveShading(imageItem, fovShading[0]);
+        moveShading(node, fovShading[0]);
     }
 
     if (audioShading.length === 1) {
-        moveShading(imageItem, audioShading[0]);
+        moveShading(node, audioShading[0]);
     }
 
     if (dispDistShading.length === 1) {
-        moveShading(imageItem, dispDistShading[0]);
+        moveShading(node, dispDistShading[0]);
     }
+
+    if (textLabel.length === 1) {
+        moveLabel(node, textLabel[0])
+    }
+
+
+
 
 
     function moveShading(imageItem, shadingItem) {
@@ -9563,7 +9759,15 @@ function updateFormatDetails(eventOrShapeId) {
             }
 
             if ('name' in item) {
-                document.getElementById('itemName').value = shape.attrs.name;
+                let itemNameSelect = document.getElementById('itemName');
+                itemNameSelect.options.length = 0;
+                const newOption = new Option(item.name, item.data_deviceid);
+                itemNameSelect.add(newOption);
+                itemNameSelect.value = item.data_deviceid;
+
+                updateDevicesDropDown(itemNameSelect, item);
+
+
             } else {
                 document.getElementById('itemName').value = '';
             }
@@ -9628,7 +9832,7 @@ function updateFormatDetails(eventOrShapeId) {
             if ('data_trapNarrowWidth' in item && (item.data_trapNarrowWidth === 0 || item.data_trapNarrowWidth)) {
                 document.getElementById('trapNarrowWidth').value = item.data_trapNarrowWidth;
             } else {
-                document.getElementById('trapNarrowWidth').value = "?";
+                document.getElementById('trapNarrowWidth').value = (roomObj.unit === 'feet') ? 2.5 : 0.75;
             }
 
             if ('data_vHeight' in item && item.data_vHeight) {
@@ -9663,6 +9867,57 @@ function updateFormatDetails(eventOrShapeId) {
 }
 
 
+function updateDevicesDropDown(selectElement, item){
+
+    let deviceGroups = [];
+
+    selectElement.disabled = true;
+
+   deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
+
+    deviceGroups[1] = ['roomKitEqx', 'brdPro75G2',  'brdPro55G2' ];
+
+    deviceGroups[2] = ['roomKitEqxFS', 'brdPro55G2FS', 'brdPro75G2FS'];
+
+    deviceGroups[3] = ['ptzVision', 'ptz4kMount', 'quadCam' ];
+
+    deviceGroups[4] = ['doorLeft2', 'doorRight2', 'doorLeft', 'doorRight'];
+
+    deviceGroups[5] = ['box', 'stageFloor', 'columnRect'];
+
+    deviceGroups[6] = ['wallGlass', 'wallWindow', 'wallStd'];
+
+    deviceGroups[7] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
+
+    deviceGroups[8] =  ['displaySngl', 'displayDbl', 'displayTrpl'];
+
+    deviceGroups[9] = ['doorDouble2', 'doorDouble'];
+
+    deviceGroups[10] = ['tableMicPro', 'tableMic'];
+
+
+
+
+    deviceGroups.forEach((devices, index)=>{
+
+        devices.forEach((device_deviceid)=>{
+
+            if(item.data_deviceid === device_deviceid){
+                selectElement.options.length = 0;
+                selectElement.disabled = false;
+
+                deviceGroups[index].forEach(deviceid=>{
+                    const newOption = new Option(allDeviceTypes[deviceid].name, deviceid);
+                    selectElement.add(newOption);
+                    selectElement.value = item.data_deviceid;
+                })
+
+                selectElement.value = device_deviceid;
+
+            }
+        });
+    });
+}
 
 
 /*
@@ -10566,6 +10821,8 @@ function toggleHighlightItem() {
     tr.nodes(tr.nodes());
     smallItemsHighlight = !smallItemsHighlight;
     updateCreateHighlightImage()
+
+
 }
 
 
@@ -10647,6 +10904,12 @@ function updateCreateHighlightImage(minimumSize = 500) {
                 node.width(width);
                 node.height(height);
 
+                let textLabel = stage.findOne('#label~' + node.id());
+
+                if(textLabel){
+                    moveLabel(node,textLabel);
+                }
+
             }
         }
     });
@@ -10712,6 +10975,12 @@ function updateSingleHighlightImage(node, item, newItemAttr) {
             node.height(newItemAttr.height);
             node.x(newItemAttr.x);
             node.y(newItemAttr.y);
+
+            let textLabel = stage.findOne('#label~' + node.id());
+
+            if(textLabel){
+                moveLabel(node,textLabel);
+            }
         };
 
     }
@@ -11534,19 +11803,11 @@ function openWorkspaceWindow(fromButton = true) {
     // newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
 
 
-    let btnWorkspace = document.getElementById('btnWorkspace');
 
-    lastAction = "btnClick open Workspace Designer";
 
-    if (btnWorkspace.children[0].textContent === 'deployed_code_alert') {
-        reloadWorkspaceIcon();
-        lastAction = "btnClick Workspace Designer No VPN";
-    } else {
-        lastAction = "btnClick Workspace Designer";
-    }
+    lastAction = "btnClick Workspace Designer";
 
     postHeartbeat();
-
 
 
     if (workspaceDesignerTestUrl) {
@@ -11585,7 +11846,6 @@ function openWorkspaceWindow(fromButton = true) {
 
 
 function openModalWorkspace() {
-    reloadWorkspaceIcon();
     document.getElementById('modalWorkspace').showModal();
 }
 
@@ -11799,10 +12059,10 @@ function convertRoomObjToWorkspace() {
             let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
 
             leftDoor.id = 'primary-doorDouble-L-' + item.id;
-            leftDoor.data_deviceid = 'doorDoubleLeft';
+            leftDoor.data_deviceid = rightDoor.data_deviceid + 'Left';
 
             rightDoor.id = 'secondary-dooorDouble-R-' + item.id;
-            rightDoor.data_deviceid = 'doorDoubleRight';
+            rightDoor.data_deviceid = rightDoor.data_deviceid + 'Right';
 
             let leftDoorXY = findNewTransformationCoordinate(item, deltaX, deltaY);
             let rightDoorXY = findNewTransformationCoordinate(item, -deltaX, deltaY);
@@ -12400,7 +12660,7 @@ function convertRoomObjToWorkspace() {
             "rotation": [
                 ((item.data_slant) * -(Math.PI / 180)) || 0,
                 ((item.rotation - 90) * -(Math.PI / 180)),
-                 ((item.data_tilt) * (Math.PI / 180)) || 0,
+                ((item.data_tilt) * (Math.PI / 180)) || 0,
             ],
             "height": verticalHeight,
             "length": item.width,
@@ -12521,10 +12781,10 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 }
 
 /* if on Cisco VPN, this icon loads and lets the user know that the Workspace is available */
-function workspaceIconLoad() {
-    clearTimeout(vpnTestTimer);
-    toggleWorkspace(true);
-}
+// function workspaceIconLoad() {
+//     clearTimeout(vpnTestTimer);
+//     toggleWorkspace(true);
+// }
 
 
 
@@ -12578,36 +12838,25 @@ function closeTooltipTitleText() {
     })
 }
 
-function toggleWorkspace(isOn = true) {
-    let button = document.getElementById('btnWorkspace');
-    if (isOn || testProduction || workspaceDesignerTestUrl) {
-        button.children[0].textContent = 'deployed_code';
-        button.children[0].style.color = '';
-        document.getElementById('workspaceIcon').style.display = '';
-        document.getElementById('vpnRequiredLabel').classList.remove('highlightRed');
+// function toggleWorkspace(isOn = true) {
+//     let button = document.getElementById('btnWorkspace');
+//     if (isOn || testProduction || workspaceDesignerTestUrl) {
+//         button.children[0].textContent = 'deployed_code';
+//         button.children[0].style.color = '';
+//         document.getElementById('workspaceIcon').style.display = '';
+//         document.getElementById('vpnRequiredLabel').classList.remove('highlightRed');
 
-    } else {
+//     } else {
 
-        button.children[0].textContent = 'deployed_code_alert';
-        button.children[0].style.color = 'lightgray';
-        document.getElementById('workspaceIcon').style.display = 'none';
-        document.getElementById('vpnRequiredLabel').classList.add('highlightRed');
+//         button.children[0].textContent = 'deployed_code_alert';
+//         button.children[0].style.color = 'lightgray';
+//         document.getElementById('workspaceIcon').style.display = 'none';
+//         document.getElementById('vpnRequiredLabel').classList.add('highlightRed');
 
-    }
-}
+//     }
+// }
 
-toggleWorkspace(false);
-
-
-function reloadWorkspaceIcon() {
-    let workspaceIcon = document.getElementById('workspaceIcon');
-    let source = 'https://prototypes.cisco.com/roomdesigner2/images/appicon.png'
-    workspaceIcon.src = source + "?" + new Date().getTime();
-
-    vpnTestTimer = setTimeout(() => {  /* if the workspaceIcon does not load in x milliseconds, timer will change the label to red */
-        toggleWorkspace(false)
-    }, 1000);
-}
+// toggleWorkspace(false);
 
 let rightClickMenuDialogId = 'rightClickMenuId';
 let mouseOverRightClickMenu = false; /* is the mouse over the rightclick menu */

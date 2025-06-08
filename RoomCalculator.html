@@ -311,7 +311,10 @@
             <div id="itemDetailsVisible" style="display: none;">
               <div class="inputField">
                 <label class="tooltipBottom">Item Type:</label>
-                <input disabled type="text" id="itemName" size="45" class="">
+                <!-- <input disabled type="text" id="itemName" size="45" class=""> -->
+                 <select disabled id="itemName" onchange="updateItem()">
+
+                 </select>
               </div>
               <div class="inputField">
                 <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
@@ -393,7 +396,7 @@
                   <i class="icon icon-info-circle-bold"></i>
                   <span class="tooltiptext">For tappered/trapezoid
                     shape tables, the narrow width at the head of the table.</span></label>
-                <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput">
+                <input type="text" id="trapNarrowWidth" maxlength="6" size="5" class="unitInput" value="0.5">
                 <label class="unitFeetMeters">ft</label>
               </div>
 
@@ -685,6 +688,12 @@
         <div class="button-group">
           <button class="btn" onclick="gridLinesVisible()" id="btnGridToggle" title="Toggle grid">
             <i class="icon icon-table-bold"></i>
+          </button>
+        </div>
+
+        <div class="button-group">
+          <button class="btn" onclick="labelsVisible()" id="btnLabelsToggle" title="Toggle Labels">
+            <i class="icon icon-tag-bold"></i>
           </button>
         </div>
 
@@ -1114,8 +1123,8 @@
     <header>Preview in Cisco Workspace Designer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      <img id="workspaceIcon" onload="workspaceIconLoad()" width="16px"
-        src="https://prototypes.cisco.com/roomdesigner2/images/appicon.png"></img>
+      <img id="workspaceIcon" width="16px"
+        src="https://www.webex.com/us/en/workspaces/images/appicon.png"></img>
       Workspace Designer Custom Rooms (beta)
 
       <div class="inputField">
@@ -1128,9 +1137,9 @@
       <div class="inputField">
         Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2), Desk, Desk Mini
       </div>
-      <div class="inputField">
+      <!-- <div class="inputField">
         <b class="highlightRed" id="vpnRequiredLabel">&nbsp;&nbsp;Requires a Cisco network connection</b>
-      </div>
+      </div> -->
 
       <div class="inputRow">
         <div class="inputField">
