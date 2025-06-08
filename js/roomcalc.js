@@ -15,7 +15,7 @@ let scale = 50; /* Scale of image. initial value.  Will be recalculated before d
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let mobileDevice; /* Either 'true' / 'false' as a string */
-let muserAgent;
+// let muserAgent;
 let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height for room zoom
 let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
@@ -1424,7 +1424,12 @@ function determineMobileDevice() {
     else {
         mobileDevice = 'false';
     }
-    userAgent = navigator.userAgent;
+
+    if (isTeslaBrowser()){
+        mobileDevice = 'Tesla';
+    }
+
+    // userAgent = navigator.userAgent;
 
 }
 
@@ -1949,9 +1954,11 @@ function getQueryString() {
     }
 
     /* RoomOS does not support the Workspace Designer cross-launch */
-    if (mobileDevice != 'RoomOS') {
+    if (!(mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
         document.getElementById('testB').style.display = '';
+    } else {
+        loadDrpDownOverrideScript();
     }
 
     //   }
@@ -3013,6 +3020,8 @@ function quickSetupInsert() {
                 /* get defaultVert if available */
                 if ('defaultVert' in allDeviceTypes[displayId]) {
                     let defaultVert = allDeviceTypes[displayId].defaultVert / 1000;
+                    defaultVert = defaultVert - 0.23;
+
                     if (roomObj.unit === 'feet') {
                         defaultVert = round(defaultVert * 3.28084)
                     }
@@ -3020,6 +3029,8 @@ function quickSetupInsert() {
                 }
 
                 insertShapeItem(displayId, 'displays', displayAttr, displayUuid, false);
+
+                videoAttr.data_zPosition = fillInTopElevationDisplay(displayAttr, false);
             }
         }
     });
@@ -3130,7 +3141,7 @@ function getNumberValue(id) {
 }
 
 function makeButtonsVisible() {
-    if (mobileDevice === 'RoomOS') {
+    if (mobileDevice === 'RoomOS' || mobileDevice === 'Tesla') {
         document.getElementById('RoomOSmessage').setAttribute('style', 'visibility: visible;');
         document.getElementById('downloadButtons').style.display = 'none';
         document.getElementById('btnModalWorkspace').style.display = 'none';
@@ -4196,7 +4207,7 @@ function createShareableLink() {
         document.getElementById('qrCodeLinkText').style.backgroundColor = '#f9bfbf';
     }
 
-    let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,6}$/;
+    let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}$/;
     let queryParams = new URLSearchParams(window.location.search);
 
     if (regex.test(strUrlQuery2)) {
@@ -4659,7 +4670,7 @@ function openSaveDialog() {
     document.getElementById('dialogSave').showModal();
 
     let qrCodeDiv = document.getElementById('qrCode');
-    if ((mobileDevice === 'RoomOS' || qrCodeAlwaysOn)) {
+    if ((mobileDevice === 'RoomOS' || qrCodeAlwaysOn || mobileDevice === 'Tesla')) {
 
         if (!qrCodeDiv.hasChildNodes()) {
             loadQRCodeScript();
@@ -5594,7 +5605,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-  //   console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    //   console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -9162,6 +9173,10 @@ function enableCopyDelBtn() {
     }
 
 
+    if(tr.nodes().length === 1){
+        updateFormatDetails(tr.nodes()[0].id());
+    }
+
     updateTrNodesShadingTimer();
 };
 
@@ -9496,11 +9511,10 @@ function updateFormatDetailsUpdate() {
     if (!document.getElementById('itemId').innerText.startsWith('Unknown')) {
         updateFormatDetails(document.getElementById('itemId').innerText);
     }
-
 }
 
 /* Estimates the top elevation of a display and populates the itemTopElevation text box */
-function fillInTopElevationDisplay(item) {
+function fillInTopElevationDisplay(item, updateTextBox = true) {
     let zHeightOfDisplay, topElevation, zPosition;
     let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
 
@@ -9521,7 +9535,10 @@ function fillInTopElevationDisplay(item) {
     }
 
     topElevation = zPosition + zHeightOfDisplay;
-    document.getElementById("itemTopElevation").value = round(topElevation);
+
+    if (updateTextBox) document.getElementById("itemTopElevation").value = round(topElevation);
+
+    return round(topElevation);
 }
 
 function updateFormatDetails(eventOrShapeId) {
@@ -9949,7 +9966,7 @@ function updateDevicesDropDown(selectElement, item) {
 */
 function countConsectiveTouches() {
     let timeBetweenTouches = 1000; /* in ms */
-    let totalTouches = 5;
+    let totalTouches = 6;
 
     touchConsecutiveCount = touchConsecutiveCount + 1;
 
@@ -9972,7 +9989,7 @@ function addListeners(stage) {
 
 
     stage.on('click tap', function stageOnDblclickDbltap(e) {
-        if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS')) {
+        if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
             countConsectiveTouches();
         }
 
@@ -11180,6 +11197,16 @@ async function loadQRCodeScript() {
         createShareableLink();
     }
 }
+
+
+async function loadDrpDownOverrideScript() {
+
+    const script = './js/drpDownOverride.js';
+
+    await setExternalScripts(script);
+
+}
+
 
 function createQrCode() {
 
@@ -13106,6 +13133,27 @@ document.addEventListener('pointerdown', event => {
     }
 
 });
+
+/*
+    Tesla browser has issues with select dropDown drop down menus.  If tesla
+*/
+function isTeslaBrowser() {
+    const ua = navigator.userAgent || '';
+    // Known Tesla browser indicators (subject to change with OTA updates)
+    const teslaKeywords = [
+        'Tesla',             // Appears in many Tesla UAs
+        'QtCarBrowser',      // Older Tesla browsers
+        'X11; Linux x86_64'  // Tesla runs a custom Linux browser
+    ];
+
+    const hasTeslaKeyword = teslaKeywords.some(keyword => ua.includes(keyword));
+
+    // Additional sanity checks (optional)
+    const isTouchDevice = 'ontouchstart' in window;
+    const noBatteryAPI = typeof navigator.getBattery !== 'function';
+
+    return hasTeslaKeyword && isTouchDevice && noBatteryAPI;
+}
 
 /*
     Attribution:

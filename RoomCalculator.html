@@ -87,7 +87,7 @@
 
           <div class="inputField">
             <label for="drpMetersFeet">Unit (meters/feet):</label>
-            <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()">
+            <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()" class="drpDown" data-drpDownName="Unit (meters/feet):">
               <option value="feet">Feet</option>
               <option value="meters">Meters</option>
             </select>
@@ -121,7 +121,7 @@
               <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
                 Software Experience setting does not verify if the video device supports
                 MTR.</span></label>
-            <select id="drpSoftware">
+            <select id="drpSoftware" class="drpDown" data-drpDownName="Software Experience:">
               <option value="select">-</option>
               <option value="webex">RoomOS Cisco Rooms</option>
               <option value="mtr">Microsoft Teams Rooms</option>
@@ -312,7 +312,7 @@
               <div class="inputField">
                 <label class="tooltipBottom">Item Type:</label>
                 <!-- <input disabled type="text" id="itemName" size="45" class=""> -->
-                 <select disabled id="itemName" onchange="updateItem()">
+                 <select disabled id="itemName" class="drpDown" onchange="updateItem()" >
 
                  </select>
               </div>
@@ -449,7 +449,7 @@
                       not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
                       camera FOV angle will change based on the Role.</span>
                   </label>
-                  <select name="drpRole" id="drpRole" class="selectRole">
+                  <select name="drpRole" id="drpRole" class="selectRole drpDown">
                   </select>
                 </div>
 
@@ -460,7 +460,7 @@
                     <span class="tooltiptext">Mount is used in the Workspace Designer export and may
                       not reflect any changes in the Video Room Calculator canvas.</span>
                   </label>
-                  <select name="drpMount" id="drpMount" class="selectRole">
+                  <select name="drpMount" id="drpMount" class="selectRole drpDown">
                   </select>
                 </div>
 
@@ -470,7 +470,7 @@
                     <span class="tooltiptext">Color is used in the Workspace Designer export and may
                       not reflect any changes in the Video Room Calculator canvas objects. </span>
                   </label>
-                  <select name="drpColor" id="drpColor" class="selectRole">
+                  <select name="drpColor" id="drpColor" class="selectRole drpDown">
                   </select>
                 </div>
               </div>
@@ -1038,7 +1038,7 @@
               <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">The number of displays placed side-by-side. Width of total
                 displays is automatically calculated based on diagonal inches.</span></label>
-            <select name="drpTvNum" id="drpTvNum">
+            <select name="drpTvNum" id="drpTvNum" class="drpDown">
               <option value="1" selected="selected">One </option>
               <option value="2">Two </option>
               <option value="3">Three </option>
@@ -1047,7 +1047,7 @@
         </div>
         <div class="inputField">
           <label for="drpVideoDevice">Video Device:</label>
-          <select name="drpVideoDevice" id="drpVideoDevice">
+          <select name="drpVideoDevice" id="drpVideoDevice" class="drpDown">
           </select>
         </div>
         <div id="customSettings" style="display: none;" class="classCustomSettings">
@@ -1500,6 +1500,7 @@
   <script src="./js/konva.min.js"></script>
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
   <script src="./js/roomcalc.js"></script>
+  <!-- <script src="./js/drpDownOverride.js"></script> -->
 
   <!--
         Attribution:
