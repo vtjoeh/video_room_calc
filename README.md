@@ -8,12 +8,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.611** 🥳
 - **Workspace Designer Customs Rooms** integration is now publicly available. 🎉🎉🎉🎉
-- Labels now show on room canvas by using the Labels toggle button. 🏷️
-- Camera coverage has been updated to more closely reflect the Workspace Designer and/or incorporate the Virtual Lens settings. 📸
-- Virtual Lens is shown on the Room Bar Pro & Board Pros. Lens 1 coverage shows the wide lens, Lens 2 coverage shows the tele-lens, and Lens 3 shows the virtual lens.
-- `PTZ 4K camera` object has been updated to `PTZ 4K Camera + Mount` to better match the Workspace Designer object. The older PTZ 4K camera (non-mount) can be found under Workspace Designer's partially/non-supported items. Previous designs won't be affected.
-- Door renderings in the Workspace Designer are now double thickness by default to show on both sides of a wall. Previous designs won't be affected. 🚪🚪
-- Added ability to swap out similar type objects and maintain attributes like X, Y, Z from the individual items page.  For example, swap a Room Bar for a Room Bar Pro to see the coverage differences.   📸 🔄 📷
+- **Labels** Labels now show on room canvas by using the Labels toggle button. 🏷️
+- **Camera coverage** has been updated to more closely reflect the Workspace Designer and/or incorporate the Virtual Lens settings. 📸
+- **Virtual Lens** is shown on the Room Bar Pro & Board Pros. Lens 1 coverage shows the wide lens, Lens 2 coverage shows the tele-lens, and Lens 3 shows the virtual lens.
+- **PTZ 4K Camera + Mount** `PTZ 4K camera` object has been updated to `PTZ 4K Camera + Mount` to better match the Workspace Designer object. The older PTZ 4K camera (non-mount) can be found under Workspace Designer's partially/non-supported items. Previous designs won't be affected.
+- **Swappable Objects** Added ability to swap out similar type objects and maintain attributes like X, Y, Z from the individual items page.  For example, swap a Room Bar for a Room Bar Pro to see the coverage differences.   📸 🔄 📷
+- **Thicker Doors** Door renderings in the Workspace Designer are now double thickness by default to show on both sides of a wall. Previous designs won't be affected. Left, right and skinny doors are swappable. 🚪🚪
 - Quick Setup automatically adds chairs around the table. 🪑+🪑+🪑+🪑
 - Bug fixes, template updates and other minor changes.
 

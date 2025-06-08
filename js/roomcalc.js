@@ -1,4 +1,4 @@
-const version = "v0.1.611";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.611";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -5593,8 +5593,8 @@ function canvasToJson() {
 
     }
 
-   // console.log('canvasToJson() roomObj', roomObj);
-    console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    // console.log('canvasToJson() roomObj', roomObj);
+  //   console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -6325,9 +6325,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
 
-    tblWallFlr.on('transform', function tableOnTransform(e){
+    tblWallFlr.on('transform', function tableOnTransform(e) {
 
-            if(tblWallFlr.data_labelField) updateShading(tblWallFlr);
+        if (tblWallFlr.data_labelField) updateShading(tblWallFlr);
     });
 
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
@@ -6355,7 +6355,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         }
 
-        if(tblWallFlr.data_labelField) updateShading(tblWallFlr);
+        if (tblWallFlr.data_labelField) updateShading(tblWallFlr);
     });
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
@@ -6400,7 +6400,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
-    if(attrs.data_labelField){
+    if (attrs.data_labelField) {
         addLabel(tblWallFlr, attrs);
     }
 
@@ -6696,9 +6696,9 @@ function updateItem() {
 
     let data_vHeight = Number(document.getElementById('itemVheight').value);
 
-   let id = document.getElementById('itemId').innerText;
+    let id = document.getElementById('itemId').innerText;
 
-   let data_deviceid = document.getElementById('itemName').value;
+    let data_deviceid = document.getElementById('itemName').value;
 
 
     let tblRectRadius = document.getElementById('tblRectRadius').value;
@@ -7191,25 +7191,26 @@ function createDeviceMenu(parentButton, attributeType) {
     if (devices.length < 1) clearButton.style.color = unavailableTextColor;
     clearButton.addEventListener('click', () => {
 
-        var checkedBoxes = document.querySelectorAll('input[name=menuReachItemCheckBox]');
-
+        let checkedBoxes = document.querySelectorAll('input[name=menuReachItemCheckBox]');
+        let checkBoxChecked;
         if (clearButton.textContent === 'Uncheck All') {
             clearButton.textContent = 'Check All';
-            checkBoxchecked = false;
+            checkBoxChecked = false;
         }
         else if (clearButton.textContent === 'Check All') {
             clearButton.textContent = 'Uncheck All';
-            checkBoxchecked = true;
+            checkBoxChecked = true;
         }
 
 
         checkedBoxes.forEach(checkBox => {
             let opt = {};
-            checkBox.checked = checkBoxchecked;
+            checkBox.checked = checkBoxChecked;
             opt.value = checkBox.getAttribute('data-device-id');
-            console.log('opt', JSON.stringify(opt, 5, null));
-            console.log('attributeType', JSON.stringify(attributeType));
-            console.log('checkbox.checked',)
+            opt.checkBoxChecked = checkBoxChecked;
+            // console.log('opt', JSON.stringify(opt, 5, null));
+            // console.log('attributeType', JSON.stringify(attributeType));
+            // console.log('checkbox.checked',)
             previewCheckedDevices(opt, attributeType);
 
         });
@@ -7322,15 +7323,34 @@ function previewCheckedDevices(opt, attributeType) {
 
     let roomObjItems = getDevicesWithAttribute(attributeType);
 
+
+
+
+
+
+
     roomObjItems.forEach((item) => {
 
         let parentNode = stage.findOne('#' + item.id);
         let reachNode = stage.findOne(`#${attributeString}~${item.id}`);
         let allItemsUnchecked = true;
 
-        if (item.id === opt.value) {
 
-            if (attributeHidden in item && item[attributeHidden] === true) {
+        if ('checkBoxChecked' in opt) {
+            if ((opt.checkBoxChecked === true)) {
+                reachNode.visible(true);
+                /* insert value direct to canvas */
+                delete parentNode[attributeHidden]; /* delete .data_fovHidden etc. value direct in the Konva canvas */
+                delete item[attributeHidden]; /* delete .data_fovHidden ect. direct to roomObj */
+                allItemsUnchecked = false;
+            } else if (opt.checkBoxChecked === false) {
+                reachNode.visible(false);
+                parentNode[attributeHidden] = true;
+                item[attributeHidden] = true;
+            }
+
+        } else if (item.id === opt.value) {
+            if ((attributeHidden in item && item[attributeHidden] === true)) {
                 reachNode.visible(true);
                 /* insert value direct to canvas */
                 delete parentNode[attributeHidden]; /* delete .data_fovHidden etc. value direct in the Konva canvas */
@@ -8494,11 +8514,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         let xc1 = -diagonalUnit * scale * widthRatio;
         let distance1 = diagonalUnit * scale;
-        let distance1unit  = diagonalUnit;
+        let distance1unit = diagonalUnit;
         let xc2 = diagonalUnit * scale * widthRatio;
 
 
-        if (attrs.data_deviceid === 'display21_9'){
+        if (attrs.data_deviceid === 'display21_9') {
             distance1 = distance1 * 1.07 / 1.33;
             distance1unit = distance1unit * 1.07 / 1.33;
         }
@@ -8609,7 +8629,7 @@ function addLabel(node, attrs) {
     labelTip.add(
         new Konva.Tag({
             fill: 'black',
-            stroke:'darkgrey',
+            stroke: 'darkgrey',
             strokeWidth: 0.5,
             pointerDirection: 'up',
             pointerWidth: 10,
@@ -9867,19 +9887,19 @@ function updateFormatDetails(eventOrShapeId) {
 }
 
 
-function updateDevicesDropDown(selectElement, item){
+function updateDevicesDropDown(selectElement, item) {
 
     let deviceGroups = [];
 
     selectElement.disabled = true;
 
-   deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
+    deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
 
-    deviceGroups[1] = ['roomKitEqx', 'brdPro75G2',  'brdPro55G2' ];
+    deviceGroups[1] = ['roomKitEqx', 'brdPro75G2', 'brdPro55G2'];
 
     deviceGroups[2] = ['roomKitEqxFS', 'brdPro55G2FS', 'brdPro75G2FS'];
 
-    deviceGroups[3] = ['ptzVision', 'ptz4kMount', 'quadCam' ];
+    deviceGroups[3] = ['ptzVision', 'ptz4kMount', 'quadCam'];
 
     deviceGroups[4] = ['doorLeft2', 'doorRight2', 'doorLeft', 'doorRight'];
 
@@ -9889,7 +9909,7 @@ function updateDevicesDropDown(selectElement, item){
 
     deviceGroups[7] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
 
-    deviceGroups[8] =  ['displaySngl', 'displayDbl', 'displayTrpl'];
+    deviceGroups[8] = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
     deviceGroups[9] = ['doorDouble2', 'doorDouble'];
 
@@ -9898,15 +9918,15 @@ function updateDevicesDropDown(selectElement, item){
 
 
 
-    deviceGroups.forEach((devices, index)=>{
+    deviceGroups.forEach((devices, index) => {
 
-        devices.forEach((device_deviceid)=>{
+        devices.forEach((device_deviceid) => {
 
-            if(item.data_deviceid === device_deviceid){
+            if (item.data_deviceid === device_deviceid) {
                 selectElement.options.length = 0;
                 selectElement.disabled = false;
 
-                deviceGroups[index].forEach(deviceid=>{
+                deviceGroups[index].forEach(deviceid => {
                     const newOption = new Option(allDeviceTypes[deviceid].name, deviceid);
                     selectElement.add(newOption);
                     selectElement.value = item.data_deviceid;
@@ -10906,8 +10926,8 @@ function updateCreateHighlightImage(minimumSize = 500) {
 
                 let textLabel = stage.findOne('#label~' + node.id());
 
-                if(textLabel){
-                    moveLabel(node,textLabel);
+                if (textLabel) {
+                    moveLabel(node, textLabel);
                 }
 
             }
@@ -10978,8 +10998,8 @@ function updateSingleHighlightImage(node, item, newItemAttr) {
 
             let textLabel = stage.findOne('#label~' + node.id());
 
-            if(textLabel){
-                moveLabel(node,textLabel);
+            if (textLabel) {
+                moveLabel(node, textLabel);
             }
         };
 
