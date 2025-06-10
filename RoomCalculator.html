@@ -180,12 +180,31 @@
               <!-- Menu will be inserted -->
             </div>
 
+            <!--
             <div class="menuDivider">
               All In One Devices
             </div>
             <div id="cameraMenuAllin1Container" class="containerItems">
+
+            </div>
+            -->
+
+            <div class="menuDivider">
+              Room Kit EQX
+            </div>
+            <div id="roomKitEqxMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
+
+
+            <div class="menuDivider">
+              Board Pro G2
+            </div>
+            <div id="boardProG2MenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+
+
             <div class="menuDivider">
               Personal Devices
             </div>
@@ -440,7 +459,8 @@
                 <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
                 <label class="unitInches">in</label>
               </div>
-              <div id="testB" style="display: none;">
+              <!-- <div id="testB" style="display: none;"> -->
+              <div id="testB">
 
                 <div class="inputField" id="roleDiv">
                   <label for="drpRole" class="tooltip">Role:
@@ -455,7 +475,7 @@
 
 
                 <div class="inputField" id="mountDiv">
-                  <label for="drpRole" class="tooltip">Mount:
+                  <label for="drpRole" class="tooltip">Mount Method:
                     <i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext">Mount is used in the Workspace Designer export and may
                       not reflect any changes in the Video Room Calculator canvas.</span>
@@ -1452,19 +1472,31 @@
     </main>
   </dialog>
 
-  <dialog id="characterLimitWarning" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ">
-    !!! Warning !!! You have exceded the limit of the number of characters for the URL of 8190. <br><br><br>
-    <b>Please click the 'undo' button or delete some objects until this message no longer occurs. </b><br><br>
+  <dialog id="dialogMultipleVideoDevices" onclick="onDialogClick(event)" >
+    <header>
+     Multiple Video Device Alert
+    </header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+
+    <main>
+      There are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.
+    </main>
+</dialog>
+
+  <dialog id="characterLimitWarning" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 0px; ">
+    <header>
+     ⚠️ Warning URL Length Alert ⚠️
+    </header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main>
+     You have exceded the limit of the number of characters for the URL of 8190.
+    <b>Please click the 'undo' button or delete some objects until this message no longer occurs. </b>
     <b> You will lose your configuration if you click the browser refresh button. </b>
-    <br><br>
+    <br>
     Congratulations on being one of the few who will see this message! Please let joehughe@cisco.com know the limit
     should be extended.
-    <br><br>
-    <form method="dialog">
 
-      <input type="submit" value="OK" class="button" id="btnCharacterLimitWarning">
-
-    </form>
+    </main>
   </dialog>
 
   <div id="ContainerFooter" class="HeaderFooter">

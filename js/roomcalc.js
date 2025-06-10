@@ -4,8 +4,6 @@ const isCacheImages = true; /* Images for Canvas are preloaded in case of networ
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
 let timerQRcodeOn;
-const svgns = "http://www.w3.org/2000/svg";  // variable for the namespace
-const videoRoomCalcSVG = "videoRoomCalcSVG";
 let roomCanvas = "roomCanvas"; // roomCanvas will replace videoRoomCalcSVG
 let pxOffset = 50; // margin on the picture in pixels
 let pyOffset = pxOffset;
@@ -15,7 +13,6 @@ let scale = 50; /* Scale of image. initial value.  Will be recalculated before d
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let mobileDevice; /* Either 'true' / 'false' as a string */
-// let muserAgent;
 let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height for room zoom
 let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
@@ -126,6 +123,9 @@ let undoArrayTimeDelta = 500; /* ms between saves to undoArray after changes to 
 let touchConsecutiveCount = 0; /* Holds consecutive tapping to zoom out on mobile devices when stuck on the canvas.  Needed if user zooms web page on canvas. Ignored on RoomOS and non-touch devices. */
 let touchConsectiveCoutTimer; /* timer to hold consective taps */
 
+let characterLimitWarningTimer; /* timer for how long before showing the */
+let characterLimitWarningShow = true;
+
 let vpnTestTimer; /* time to see if the VPN is working */
 
 let stageOriginalWidth;
@@ -212,10 +212,16 @@ workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit P
 
 workspaceKey.boardPro55 = { objectType: 'VRC Custom', model: 'Board Pro 55 G1', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.boardPro75 = { objectType: 'VRC Custom', model: 'Board Pro 75 G2', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+
 workspaceKey.brdPro55G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro55G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
 workspaceKey.brdPro75G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
 workspaceKey.brdPro75G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 75, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro75G2Wheel = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wheelstand', size: 75, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro55G2Wheel = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wheelstand', size: 55, role: 'firstScreen', yOffset: 0.475 };
+
+workspaceKey.brdPro55G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 55, role: 'firstScreen', yOffset: 0.046 };
+workspaceKey.brdPro75G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
 
 workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88] };
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro' };
@@ -225,6 +231,7 @@ workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
 workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
 workspaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', model: 'Room Bar Pro', yOffset: 0.045 };
 workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'floor', yOffset: 0.44 };
+workspaceKey.roomKitEqxWS = { objectType: 'videoDevice', model: 'EQX', mount: 'wallstand', yOffset: 0.062 };
 
 workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
 
@@ -624,17 +631,14 @@ document.getElementById('lblVersion').innerText = version;
     videoDevices requires either: onePersonZoom & twoPersonZoom OR onePersonDistance & twoPersonDistance (OR codecParent or  cameraParent with those fields)
 */
 let videoDevices = [
-    //  { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonZoom: 4.76, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 3000, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
-
-    //   { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonZoom: 1.41, twoPersonZoom: 2.01, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], roles:[{standard: 'Standard View'}, {virtualLens: 'Virtual Lens'}] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar2-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: 'Room Kit EQX', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 0, defaultVert: 681, colors: null },
+    { name: 'Room Kit EQX: Wall Mount', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null },
 
-    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
+    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitEqQuadCam-menu.png' },
 
     { name: "Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
 
@@ -642,17 +646,15 @@ let videoDevices = [
 
     { name: "Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
 
-    { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam" },
+    { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam", frontImage: 'roomKitEqQuadCam-menu.png' },
 
     { name: "Board Pro 55*", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 923 },
 
     { name: "Board Pro 75*", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 763 },
-    // { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'brdPro75G2', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
-    // { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 2.09, twoPersonZoom: 3.16, topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
 
-    { name: "Board Pro 55 G2", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
+    { name: "Board Pro 55 G2: Wall Mount", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
 
-    { name: "Board Pro 75 G2", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+    { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
 
     { name: "Desk", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710 },
 
@@ -673,6 +675,17 @@ let videoDevices = [
     { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0,  colors: null },
+
+    { name: "Board Pro 75 G2: Wheel Stand", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 55 G2: Wheel Stand", id: 'brdPro55G2Wheel', key: 'AZ', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 55 G2: Wall Stand", id: 'brdPro55G2WS', key: 'BA', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+
+    { name: "Board Pro 75 G2: Wall Stand", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+
 ]
 
 
@@ -694,9 +707,9 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ & Mount", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Mount", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
 ]
 
@@ -1425,11 +1438,9 @@ function determineMobileDevice() {
         mobileDevice = 'false';
     }
 
-    if (isTeslaBrowser()){
+    if (isTeslaBrowser()) {
         mobileDevice = 'Tesla';
     }
-
-    // userAgent = navigator.userAgent;
 
 }
 
@@ -1513,8 +1524,6 @@ function windowResizeEvent() {
 }
 
 
-let lastSvgBoundWidth = 100
-let lastSvgBoundHeight = 100;
 
 /*
     resizePage moves ContainerFeedback from div Container1 <--> Contariner2.  Also determine if scrolling is enabled.
@@ -1528,56 +1537,7 @@ let lastSvgBoundHeight = 100;
                         konvajs-content (DIV created by Konva.js)
 
 */
-function resizePage() {
-    return;
-    let canvasDiv = document.getElementById('canvasDiv');
-    let canvasDivBound = canvasDiv.getBoundingClientRect();
 
-    let scrollContainer = document.getElementById('scroll-container');
-
-    let controlButtons = document.getElementById('controlButtons');
-    let controlButtonsBound = controlButtons.getBoundingClientRect();
-
-    let newCanvasDivHeight;
-    let newHeightScrollContainer;
-
-    /* determines if ContainerFeedback is moved */
-    if (scrollContainer.getBoundingClientRect().x > 40) {
-
-        let Container1 = document.getElementById('sidebar');
-
-        let ContainerFeedback = document.getElementById('ContainerFeedback');
-
-        Container1.append(ContainerFeedback);
-
-    } else {
-
-        let Container2 = document.getElementById('Container2');
-        let ContainerFeedback = document.getElementById('ContainerFeedback');
-        Container2.append(ContainerFeedback);
-    }
-
-    newCanvasDivHeight = window.innerHeight - controlButtonsBound.height;
-
-    newHeightScrollContainer = newCanvasDivHeight;
-
-    if (newHeightScrollContainer > stage.height()) {
-        newHeightScrollContainer = stage.height();
-        newCanvasDivHeight = stage.height() + controlButtonsBound.height;
-    }
-
-    if (canvasDivBound.width === lastSvgBoundWidth && canvasDivBound.height === lastSvgBoundHeight) {
-
-        return false;
-    } else {
-
-        lastSvgBoundWidth = canvasDivBound.width;
-        lastSvgBoundHeight = canvasDivBound.height;
-
-        return true;
-    }
-
-}
 
 /*
  Copy a hyperlink to the clipboard. Uses the name of the room or Video Room Calculator
@@ -2871,8 +2831,6 @@ function quickSetupUpdate() {
 
 
 function createTableChairs(table, tableUuid) {
-    let x1 = table.x;
-    let y1 = table.y;
     let baseUuid;
     let chairWidth = 2.35; /* width in feet */
     chairWidth = (roomObj.unit === 'meters') ? chairWidth / 3.28084 : chairWidth;
@@ -2880,8 +2838,6 @@ function createTableChairs(table, tableUuid) {
     let numberOfChairsLength = Math.floor(table.height / chairWidth);
 
     let numberOfChairsWidth = Math.floor(table.width / chairWidth);
-
-    // let startingPointY = table.y + (table.height - (numberOfChairsLength * chairWidth))/2 - chairWidth;
 
     let startingPointY = table.y + chairWidth / 2 + (table.height - (numberOfChairsLength * chairWidth)) / 2;
 
@@ -3050,30 +3006,13 @@ function updateTxtPrimaryDeviceNameLabel(primaryDevieName) {
 }
 
 function quickUpdateButton() {
-    /* enable and disable updateButton in case it is pushed too quicly and overwhelms the canvas */
 
     zoomInOut('reset');
-    // document.getElementById('quickUpdateButtonId').disabled = true;
+
     lastAction = 'quickupdate button';
     postHeartbeat();
 
     quickSetupUpdate();
-    // quickSetupInsert();
-    // update();
-
-    // if (quickSetupState === 'insert') {
-    //     quickSetupInsert();
-    // }
-    // else if (quickSetupState === 'update') {
-    //     quickSetupInsert();
-    // }
-    // else if (quickSetupState === 'disabled') {
-    //     update();
-    // }
-
-    // setTimeout(() => {
-    //     document.getElementById('quickUpdateButtonId').disabled = false;
-    // }, 2000)
 
     closeNewRoomDialog()
 }
@@ -3156,52 +3095,6 @@ function makeButtonsVisible() {
     }
 }
 
-function addText(text, x, y, size, color = 'black') {
-    /* Create a <text> element for the text */
-    const textSVG = document.createElementNS(svgns, "text");
-
-    /* Set the position and size of the <text> element */
-    textSVG.setAttribute("x", x);
-    textSVG.setAttribute("y", y);
-    textSVG.textContent = text;
-
-    svg = document.getElementById(videoRoomCalcSVG);
-    svg.appendChild(textSVG);
-
-}
-
-function addCenteredText(text, x1, y1, x2, y2, groups = '', id = '') {
-
-    let x = x1 + (x2 - x1) / 2
-    let y = y1 + (y2 - y1) / 2
-
-    /* Create a <text> element for the text */
-    const centeredTextSVG = document.createElementNS(svgns, "text");
-
-    /* Set the position and size of the <text> element */
-    centeredTextSVG.setAttribute("x", x);
-    centeredTextSVG.setAttribute("y", y);
-    /* centeredTextSVG.setAttribute('dominant-baseline', 'middle'); */
-    centeredTextSVG.setAttribute('text-anchor', 'middle');
-    centeredTextSVG.setAttribute('style', 'font-size: 14px; font-family: Arial, Helvetica, sans-serif; opacity: 0.5')
-    centeredTextSVG.textContent = text;
-
-    if (id !== '') {
-        centeredTextSVG.setAttribute('id', id);
-    }
-
-    if (groups === '') {
-        let svg = document.getElementById(videoRoomCalcSVG);
-        svg.appendChild(centeredTextSVG);
-    }
-    else if (groups == 'none') {
-    }
-    else {
-        groups.appendChild(centeredTextSVG);
-    }
-    return centeredTextSVG;
-
-}
 
 function kAddCenteredText(text, x1, y1, x2, y2, groups = '') {
 
@@ -3224,34 +3117,6 @@ function kAddCenteredText(text, x1, y1, x2, y2, groups = '') {
     groups.add(centeredText);
 
     return centeredText;
-
-}
-
-function createTextElement(settings) {
-
-    /* Create a <text> element for the text */
-    let textSVG = document.createElementNS(svgns, "text");
-
-    /* Set the position and size of the <text> element */
-    textSVG.setAttribute("x", settings.x);
-    textSVG.setAttribute("y", settings.y);
-    /* centeredTextSVG.setAttribute('dominant-baseline', 'middle'); */
-    /* centeredTextSVG.setAttribute('text-anchor', 'middle'); */
-    if (!('style' in settings)) {
-        settings.style = 'font-size: 14px; font-family: Arial, Helvetica, sans-serif;';
-    }
-    textSVG.setAttribute('style', settings.style)
-    textSVG.textContent = settings.text;
-
-    if ('id' in settings) {
-        textSVG.setAttribute('id', id);
-    }
-
-    if ('g' in settings) {
-        text.setAttribute('g', g);
-    }
-
-    return textSVG;
 
 }
 
@@ -3428,9 +3293,14 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
     }
 
+    // if (increment < 1) {
+    //     toFixedValue = 2;
+    //     smallIncrementTextOffset = 25;
+    // }
+
     if (increment < 1) {
-        toFixedValue = 2;
-        smallIncrementTextOffset = 25;
+        toFixedValue = 1;
+        smallIncrementTextOffset = 15;
     }
 
     if (increment === 0.5) {
@@ -4192,7 +4062,16 @@ function createShareableLink() {
     document.getElementById('qrCodeLinkText').value = 'QR Code Character Length: ' + fullShareLink.length + ' / 2950 max';
 
     if (fullShareLink.length > 8189 && !firstLoad) {
-        document.getElementById('characterLimitWarning').show();
+
+        if (characterLimitWarningShow) {
+            document.getElementById('characterLimitWarning').show();
+            characterLimitWarningShow = false;
+            setTimeout(() => {
+
+                characterLimitWarningShow = true;
+            }, 15 * 1000);
+        }
+
     } else {
         document.getElementById('characterLimitWarning').close();
     }
@@ -4714,8 +4593,7 @@ function btnUndoClicked() {
         enableBtnUndoRedo();
         setTimeout(() => {
             createShareableLink();
-            //   isQuickSetupEnabled();
-            //   updateQuickSetupItems();
+
         }, 750);
 
     }
@@ -4730,8 +4608,7 @@ function btnRedoClicked() {
         drawRoom(true, true, true);
         setTimeout(() => {
             createShareableLink();
-            //  isQuickSetupEnabled();
-            //  updateQuickSetupItems();
+
         }, 500);
     }
     enableBtnUndoRedo();
@@ -4905,6 +4782,9 @@ function loadLastCopyItem() {
     }
 }
 
+
+
+
 /* paste item in canvasClipBoard to canvas.  if duplicate = true, offset from current object. If duplicate = false, paste at the mouse arrow location */
 function pasteItems(duplicate = true) {
     let itemsObj = structuredClone(canvasClipBoard);
@@ -4913,6 +4793,8 @@ function pasteItems(duplicate = true) {
         if (roomObj.unit != itemsObj.unit) {
             alert('Copy from canvas clipboard unit mismatch. Items in clipboard are ' + itemsObj.unit + '. Current canvas is ' + unit + '. Change either source or destination units.');
             return;
+        } else {
+            checkForMultipleCodecsOnPaste(itemsObj.items);
         }
     } else {
         return;
@@ -4951,6 +4833,9 @@ function pasteItems(duplicate = true) {
         yOffset = mouseUnit.y - itemsObj.upperLeft.y;
     }
 
+
+
+
     itemsObj.items.forEach(item => {
 
         let uuid = createUuid();
@@ -4961,6 +4846,8 @@ function pasteItems(duplicate = true) {
         insertShapeItem(item.deviceId, item.parent, item.newAttr, uuid);
 
     })
+
+
 
     trNodesFromUuids(uuids, true);  /* select the newly pasted items */
 
@@ -5304,81 +5191,6 @@ function deleteTrNodes(save = true) {
 
 }
 
-// function getAttributes(device) {
-//     let attrObj = { x: device.x, y: device.y, rotation: device.rotation }
-
-//     if ('height' in device) {
-//         attrObj.height = device.height;
-//     }
-
-//     if ('width' in device) {
-//         attrObj.width = device.width;
-//     }
-
-//     if ('tblRectRadius' in device) {
-//         attrObj.tblRectRadius = device.tblRectRadius;
-//     }
-
-//     if ('tblRectRadiusRight' in device) {
-//         attrObj.tblRectRadiusRight = device.tblRectRadiusRight;
-//     }
-
-//     if ('data_vHeight' in device && device.data_vHeight != '') {
-//         attrObj.data_vHeight = device.data_vHeight;
-//     }
-
-//     if ('data_zPosition' in device && device.data_zPosition != '') {
-//         attrObj.data_zPosition = device.data_zPosition;
-//     }
-
-//     if ('data_labelField' in device) {
-//         attrObj.data_labelField = device.data_labelField;
-//     }
-
-//     if ('data_fovHidden' in device) {
-//         attrObj.data_fovHidden = device.data_fovHidden;
-//     }
-
-//     if ('data_audioHidden' in device) {
-//         attrObj.data_audioHidden = device.data_audioHidden;
-//     }
-
-//     if ('data_dispDistHidden' in device) {
-//         attrObj.data_dispDistHidden = device.data_dispDistHidden;
-//     }
-
-
-//     if ('data_trapNarrowWidth' in device) {
-//         attrObj.data_trapNarrowWidth = device.data_trapNarrowWidth;
-//     }
-
-//     if ('data_role' in device) {
-//         attrObj.data_role = device.data_role;
-//     }
-
-//     if ('data_color' in device) {
-//         attrObj.data_color = device.data_color;
-//     }
-
-//     if ('data_mount' in device) {
-//         attrObj.data_mount = device.data_mount;
-//     }
-
-//     if ('data_tilt' in device) {
-//         attrObj.data_tilt = device.data_tilt;
-//     }
-
-//     if ('data_slant' in device) {
-//         attrObj.data_slant = device.data_slant;
-//     }
-
-//     if ('data_diagonalInches' in device && device.data_diagonalInches) {
-//         attrObj.data_diagonalInches = device.data_diagonalInches;
-//     }
-
-//     return attrObj;
-
-// }
 
 function roomObjToCanvas(roomObjItems) {
 
@@ -5390,63 +5202,42 @@ function roomObjToCanvas(roomObjItems) {
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
-            // let attrObj = getAttributes(device);
-            // insertShapeItem(device.data_deviceid, 'videoDevices', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
 
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
-
-            //  let attrObj = getAttributes(device);
-            //insertShapeItem(device.data_deviceid, 'microphones', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
 
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
-
-            //  let attrObj = getAttributes(device);
-            // insertShapeItem(device.data_deviceid, 'speakers', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
 
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
-
-            //  let attrObj = getAttributes(device);
-            // insertShapeItem(device.data_deviceid, 'displays', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
 
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
-
-            //   let attrObj = getAttributes(device);
-            //   insertShapeItem(device.data_deviceid, 'chairs', attrObj, device.id);
             insertItem(device, device.id);
-
         }
     }
 
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
-
-            //    let attrObj = getAttributes(device);
-            //  insertShapeItem(device.data_deviceid, 'tables', attrObj, device.id);
             insertItem(device, device.id);
         }
     }
 
     if ('stageFloors' in roomObjItems) {
         for (const device of roomObjItems.stageFloors) {
-
-            //    let attrObj = getAttributes(device);
-            //   insertShapeItem(device.data_deviceid, 'stageFloors', attrObj, device.id);
             insertItem(device, device.id);
 
         }
@@ -9028,19 +8819,6 @@ function updateSnapToIncrement() {
     setItemForLocalStorage('snapToIncrement', snapIncrement);
 }
 
-
-// function updateLabelLocations(){
-//     let nodes = stage.find('.labelText');
-
-//     nodes.forEach((labelTip)=>{
-//         console.log('labelText', labelTip);
-//         let id = labelTip.id().replace(/label~/,'');
-//         let node = stage.findOne('#' + id);
-//         moveLabel(node, labelTip);
-//     })
-// }
-
-
 function moveLabel(imageItem, labelTip) {
     let boundingBox = imageItem.getClientRect();
     let center = getShapeCenter(imageItem);
@@ -9173,7 +8951,7 @@ function enableCopyDelBtn() {
     }
 
 
-    if(tr.nodes().length === 1){
+    if (tr.nodes().length === 1) {
         updateFormatDetails(tr.nodes()[0].id());
     }
 
@@ -9650,29 +9428,14 @@ function updateFormatDetails(eventOrShapeId) {
 
             }
 
-            if ('data_diagonalInches' in item) {
-                //    singleShadingDiv.style.visibility = 'visible';
-
-                // if (roomObj.layersVisible.grDisplayDistance) {
-                //     document.getElementById('btnDisplayDistanceSingleItem').disabled = false;
-                // } else {
-                //     document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
-                // }
-
-                if (item.data_dispDistHidden) {
-                    // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
-                } else {
-                    // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
-                }
-            } else {
+            if (!('data_diagonalInches' in item)) {
                 document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
-                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'do_not_disturb_on';
             }
 
 
 
             if ('wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
-                // singleShadingDiv.style.visibility = 'visible';
+
                 itemTopElevationDiv.style.display = '';
 
                 let deviceVertHeight = allDeviceTypes[item.data_deviceid].height / 1000; /* device height in meters */
@@ -9912,25 +9675,27 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
 
-    deviceGroups[1] = ['roomKitEqx', 'brdPro75G2', 'brdPro55G2'];
+    deviceGroups[1] = ['ptzVision', 'ptz4kMount', 'quadCam'];
 
-    deviceGroups[2] = ['roomKitEqxFS', 'brdPro55G2FS', 'brdPro75G2FS'];
+    deviceGroups[2] = ['doorLeft2', 'doorRight2', 'doorLeft', 'doorRight'];
 
-    deviceGroups[3] = ['ptzVision', 'ptz4kMount', 'quadCam'];
+    deviceGroups[3] = ['box', 'stageFloor', 'columnRect'];
 
-    deviceGroups[4] = ['doorLeft2', 'doorRight2', 'doorLeft', 'doorRight'];
+    deviceGroups[4] = ['wallGlass', 'wallWindow', 'wallStd'];
 
-    deviceGroups[5] = ['box', 'stageFloor', 'columnRect'];
+    deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
 
-    deviceGroups[6] = ['wallGlass', 'wallWindow', 'wallStd'];
+    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl'];
 
-    deviceGroups[7] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
+    deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
-    deviceGroups[8] = ['displaySngl', 'displayDbl', 'displayTrpl'];
+    deviceGroups[8] = ['tableMicPro', 'tableMic'];
 
-    deviceGroups[9] = ['doorDouble2', 'doorDouble'];
+    deviceGroups[9] = ['brdPro75G2', 'brdPro55G2'];
 
-    deviceGroups[10] = ['tableMicPro', 'tableMic'];
+    deviceGroups[10] = ['brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel' ];
+
+    deviceGroups[11] = ['roomKitEqxFS', 'roomKitEqxWS'];
 
 
 
@@ -10305,12 +10070,12 @@ function dragEnd(event) {
     setTimeout(() => { canvasToJson() }, 100);
 
 
-    checkForMultipleCodecs(deviceIdGroupName[1]);
+    checkForMultipleCodecsOnDragEnd(deviceIdGroupName[1]);
 }
 
 /* Checks to see if the last item dropped is also a codec.
 takes a string of the droppedItem id/data_deviceid */
-function checkForMultipleCodecs(droppedItem) {
+function checkForMultipleCodecsOnDragEnd(droppedItem) {
 
     setTimeout(() => {
 
@@ -10328,11 +10093,40 @@ function checkForMultipleCodecs(droppedItem) {
 
             if (videoDeviceCount === 2) {
                 /* update this later with a pretty modal and a "Don't show this message again" toggle */
-                alert('\u26A0 Multiple Video Device Alert\u26A0\r\n\r\nThere are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.')
+
+                document.getElementById('dialogMultipleVideoDevices').showModal();
+                // alert('\u26A0 Multiple Video Device Alert\u26A0\r\n\r\nThere are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.')
             }
 
         }
     }, 1000);
+}
+
+/* Checks to see if the items about to pasted contain a video device.   */
+function checkForMultipleCodecsOnPaste(pasteItems) {
+
+    let videoDeviceCanvasCount = 0;
+    let videoDevicePasteCount = 0;
+    pasteItems.forEach(pasteItem => {
+        let data_deviceId = pasteItem.deviceId;
+
+        if (allDeviceTypes[data_deviceId].parentGroup && allDeviceTypes[data_deviceId].parentGroup === 'videoDevices' && !allDeviceTypes[data_deviceId].cameraOnly) {
+            videoDevicePasteCount++;
+        }
+    });
+
+    roomObj.items.videoDevices.forEach((item) => {
+        if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
+            videoDeviceCanvasCount++;
+        }
+    })
+
+    if (videoDeviceCanvasCount === 1 && videoDevicePasteCount > 0) {
+        setTimeout(() => {
+            document.getElementById('dialogMultipleVideoDevices').showModal();
+        }, 1000);
+    }
+
 }
 
 
@@ -10409,9 +10203,13 @@ function createEquipmentMenu() {
     /* remove previous menu, then add a menu */
     removeElementsByClass('equipmentItemOnMenu');
 
-    let videoDevicesMenu = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
+    let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProQuadCam'];
 
-    let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
+  //  let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
+
+    let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
+
+    let boardProG2Menu = [ 'brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
     let personalVideoDevicesMenu = ['webexDeskPro'];
 
@@ -10457,7 +10255,11 @@ function createEquipmentMenu() {
 
     createItemsOnMenu('cameraMenuContainer', videoDevicesMenu);
 
-    createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
+   // createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
+
+   createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
+
+    createItemsOnMenu('boardProG2MenuContainer', boardProG2Menu);
 
     createItemsOnMenu('personalDevicesMenuContainer', personalVideoDevicesMenu);
 
@@ -10707,7 +10509,6 @@ function zoomInOut(zoomChange) {
 
     }
 
-    resizePage();
 }
 
 function onScrollContainerScroll() {
@@ -11843,10 +11644,10 @@ function workspaceView(isNewTab = 'false') {
 /* Opens the Workspace Designer  */
 function openWorkspaceWindow(fromButton = true) {
 
-    let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
+   // let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
     //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
 
-    // let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
+    let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
     // newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
 
 
@@ -11871,7 +11672,6 @@ function openWorkspaceWindow(fromButton = true) {
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         iFrameWorkspaceWindow.src = newWorkspaceTab;
 
-        //   document.getElementById('floatingWorkspace').style.display = '';
     }
 
 
@@ -12279,6 +12079,10 @@ function convertRoomObjToWorkspace() {
                 // newData_zPosition = 1.8 + Number(item.data_zPosition) - newDisplayHeight;
                 newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.07;
+            }
+            else if (item.data_deviceid === 'roomKitEqxWS'){
+                newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
+                deltaY = -0.12;
             }
             else {
                 newData_zPosition = 1.081 + Number(item.data_zPosition) - newDisplayHeight;
@@ -12768,50 +12572,6 @@ function parseDataLabelFieldJson(item, workspaceItem) {
 
     return workspaceItem;
 }
-// function parseDataLabelFieldJson(item, workspaceItem) {
-//     let jsonLabelString = /{(.*?)}/.exec(item.data_labelField);
-
-//     jsonLabelString = jsonLabelString.replace()
-
-//         try {
-//             let newKeyValues = JSON.parse('{' + newParts.join() + '}');
-//             workspaceItem = { ...workspaceItem, ...newKeyValues }
-//         } catch {
-//             console.info('Error parsing JSON ', jsonParts);
-//         }
-//     }
-
-//     return workspaceItem;
-// }
-
-/* original thought on parseDataLavelFieldJson to parse based on commas, then keep very short wild cards.  However, a 2nd level nested object or array with commas would break this solution.  It is work coming back to */
-// function parseDataLabelFieldJson(item, workspaceItem) {
-//     let jsonParts = /{(.*?)}/.exec(item.data_labelField);
-//     let newParts = [];
-
-//     if (jsonParts && jsonParts[1]) {
-//         let jsonPartsArray = jsonParts[1].split(/,(?=(?:(?:[^"[\]{}]*["[\]{}]){2})*[^"[\]{}]*$)/);  /* split string ignoring quotes source: https://stackoverflow.com/questions/11456850/ */
-
-//         jsonPartsArray.forEach((jsonPart, index)=>{
-//             let newPart;
-//             jsonPart = jsonPart.trim();
-//             // newPart = jsonPart.replace(/[Oo]\s*([\d.]+)/,'\"opacity\":\"$1\"')
-//             newPart = jsonPart.replace(/hide/i, `"hidden":true`);
-//             newParts.push(newPart)
-//         })
-
-
-
-//         try {
-//             let newKeyValues = JSON.parse('{' + newParts.join() + '}');
-//             workspaceItem = { ...workspaceItem, ...newKeyValues }
-//         } catch {
-//             console.info('Error parsing JSON ', jsonParts);
-//         }
-//     }
-
-//     return workspaceItem;
-// }
 
 function downloadJsonWorkpaceFile(workspaceObj) {
 
@@ -12827,15 +12587,7 @@ function downloadJsonWorkpaceFile(workspaceObj) {
     URL.revokeObjectURL(link.href);
 }
 
-/* if on Cisco VPN, this icon loads and lets the user know that the Workspace is available */
-// function workspaceIconLoad() {
-//     clearTimeout(vpnTestTimer);
-//     toggleWorkspace(true);
-// }
 
-
-
-/* tooltipTitleHover() simulates a tooltip, but places the tip above the item for Coverage buttons */
 tooltipTitleHover();
 
 function tooltipTitleHover() {
@@ -12885,25 +12637,6 @@ function closeTooltipTitleText() {
     })
 }
 
-// function toggleWorkspace(isOn = true) {
-//     let button = document.getElementById('btnWorkspace');
-//     if (isOn || testProduction || workspaceDesignerTestUrl) {
-//         button.children[0].textContent = 'deployed_code';
-//         button.children[0].style.color = '';
-//         document.getElementById('workspaceIcon').style.display = '';
-//         document.getElementById('vpnRequiredLabel').classList.remove('highlightRed');
-
-//     } else {
-
-//         button.children[0].textContent = 'deployed_code_alert';
-//         button.children[0].style.color = 'lightgray';
-//         document.getElementById('workspaceIcon').style.display = 'none';
-//         document.getElementById('vpnRequiredLabel').classList.add('highlightRed');
-
-//     }
-// }
-
-// toggleWorkspace(false);
 
 let rightClickMenuDialogId = 'rightClickMenuId';
 let mouseOverRightClickMenu = false; /* is the mouse over the rightclick menu */
@@ -13135,7 +12868,7 @@ document.addEventListener('pointerdown', event => {
 });
 
 /*
-    Tesla browser has issues with select dropDown drop down menus.  If tesla
+    Tesla browser has issues with select dropDown drop down menus. If on a Telsa, make similar to RoomOS.
 */
 function isTeslaBrowser() {
     const ua = navigator.userAgent || '';

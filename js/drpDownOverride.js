@@ -1,14 +1,14 @@
+/*
+RoomOS and Tesla browser have issues showing Select drop down menus. Create a dialog that allows for selection.
 
 
-const elements = document.querySelectorAll(".drpDown");
+*/
+
+const elements = document.querySelectorAll("select");
 
 elements.forEach((element) => {
-  // Perform actions on each element
-  console.log(element);
   element.addEventListener('click', () => {
     createDialogModal(element);
-    console.log('elemnt clicked', element);
-
   })
 });
 
@@ -28,6 +28,8 @@ function createDialogModal(element) {
   dialogSelect.style.width = 'fit-content';
   dialogSelect.style.minWidth = '100px';
   dialogSelect.style.borderRadius = '10px';
+  dialogSelect.style.overflowY = 'auto';
+  dialogSelect.style.height = 'fit-content';
   dialogSelect.innerText = 'Select: '
   dialogSelect.id = 'drpDownOverride';
   dialogSelect.className = 'room';
@@ -39,6 +41,7 @@ function createDialogModal(element) {
   }
 
   const innerDiv = document.createElement('div');
+
   dialogSelect.appendChild(innerDiv);
 
   const options = element.options;
@@ -46,8 +49,8 @@ function createDialogModal(element) {
   let optionsArray = Array.from(options);
 
 
-
   optionsArray.forEach(option => {
+
     const buttonDiv = document.createElement('div');
     const button = document.createElement('button');
     const buttonLabel = document.createElement('span');
@@ -69,8 +72,7 @@ function createDialogModal(element) {
     button.style.width = '250px';
     button.style.margin = '5px';
     button.value = option.value;
-    // button.className = '';
-    console.log('line 35')
+
     button.appendChild(buttonLabel);
 
     innerDiv.appendChild(buttonDiv);
@@ -82,7 +84,9 @@ function createDialogModal(element) {
 
       if (element.value != button.value) {
         element.value = button.value;
-        element.onchange();
+
+        let event = new Event('change');
+        element.dispatchEvent(event);
       }
 
     }
@@ -91,5 +95,4 @@ function createDialogModal(element) {
 
   document.body.appendChild(dialogSelect);
   dialogSelect.showModal();
-  console.log('line 40')
 }

@@ -7,15 +7,21 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.611** 🥳
-- **Workspace Designer Customs Rooms** integration is now publicly available. 🎉🎉🎉🎉
-- **Labels** Labels now show on room canvas by using the Labels toggle button. 🏷️
+- **Workspace Designer Customs Rooms** integration is now publicly available! 🎉🎉🎉🎉
+  - Workspace Designer opens in a separate tab.
+  - Workspace Designer is a 3rd party Cisco owned site with its own terms and condiitions.
+  - Learn more about the [Workspace Designer Custom Rooms API](https://www.webex.com/us/en/workspaces/workspace-designer.html#/article/CustomRooms)
+- **New Devices**: Room Vision camera, wall stand for Room Kit EQX, wall & wheel stands for Board Pros.
+- **Labels**: Labels now appear on the room canvas by using the Labels toggle button. Cisco devices use the device name by default. 🏷️
+- **Swappable Objects**: Added the ability to swap out similar type objects while maintaining attributes like X, Y, Z from the individual items page. 📸 🔄 📷
+  - For example, swap a Room Bar for a Room Bar Pro to see the coverage differences. Swap a Board Pro 75 Floor Stand for a Board Pro 75 Wall Stand.
+  - Swappable objects will have the same Z value. The center X, Y value is maintained, but length and width dimensions can change upon swap.
 - **Camera coverage** has been updated to more closely reflect the Workspace Designer and/or incorporate the Virtual Lens settings. 📸
 - **Virtual Lens** is shown on the Room Bar Pro & Board Pros. Lens 1 coverage shows the wide lens, Lens 2 coverage shows the tele-lens, and Lens 3 shows the virtual lens.
-- **PTZ 4K Camera + Mount** `PTZ 4K camera` object has been updated to `PTZ 4K Camera + Mount` to better match the Workspace Designer object. The older PTZ 4K camera (non-mount) can be found under Workspace Designer's partially/non-supported items. Previous designs won't be affected.
-- **Swappable Objects** Added ability to swap out similar type objects and maintain attributes like X, Y, Z from the individual items page.  For example, swap a Room Bar for a Room Bar Pro to see the coverage differences.   📸 🔄 📷
-- **Thicker Doors** Door renderings in the Workspace Designer are now double thickness by default to show on both sides of a wall. Previous designs won't be affected. Left, right and skinny doors are swappable. 🚪🚪
-- Quick Setup automatically adds chairs around the table. 🪑+🪑+🪑+🪑
-- Bug fixes, template updates and other minor changes.
+- **PTZ 4K Camera + Mount**: The `PTZ 4K camera` object has been updated to `PTZ 4K Camera + Mount` to better match the Workspace Designer object. The older PTZ 4K camera (non-mount) can be found under Workspace Designer's partially/non-supported items. Previous designs won't be affected.
+- **Thicker Doors**: Door renderings in the Workspace Designer are now double thickness by default to show on both sides of a wall. Previous designs won't be affected. Left, right, and skinny doors are swappable. 🚪🚪
+- Quick Setup automatically adds chairs around the table. 🪑 + 🪑 + 🪑 + 🪑
+- Bug fixes, template updates, and other minor changes.
 
 **v0.1.610**
 - Fixed Edge browser added an image search button to certain images.
