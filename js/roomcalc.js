@@ -632,7 +632,7 @@ document.getElementById('lblVersion').innerText = version;
 */
 let videoDevices = [
 
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar2-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -707,7 +707,7 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
 
@@ -1914,7 +1914,7 @@ function getQueryString() {
     }
 
     /* RoomOS does not support the Workspace Designer cross-launch */
-    if (!(mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
+    if (!(mobileDevice === 'RoomOS')) {
         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
         document.getElementById('testB').style.display = '';
     } else {
@@ -8319,8 +8319,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let distance1unit = diagonalUnit;
         let xc2 = diagonalUnit * scale * widthRatio;
 
-
-        if (attrs.data_deviceid === 'display21_9') {
+        if (deviceId === 'display21_9') {
             distance1 = distance1 * 1.07 / 1.33;
             distance1unit = distance1unit * 1.07 / 1.33;
         }
@@ -12112,6 +12111,23 @@ function convertRoomObjToWorkspace() {
 
         }
 
+        if(item.data_deviceid.startsWith('webexDeskMini')){
+            let deskMiniBase = {};
+            let deskMiniXY;
+
+            deskMiniBase.x = item.x;
+            deskMiniBase.y = item.y;
+            deskMiniBase.rotation = item.rotation;
+            deskMiniBase.data_zPosition = item.data_zPosition;
+            deskMiniBase.id = 'secondary_webexDeskMini_base_' + item.id;
+            item.id = 'webexDeskMini_simulated_' + item.id;
+            item.data_tilt = -17;
+
+            deskMiniBase.data_deviceid = 'pouf';
+            deskMiniBase.data_labelField = `{"scale":[${0.4}, ${0.64}, ${0.25}], "yOffset":0.05}`
+            workspaceObjItemPush(deskMiniBase);
+        }
+
 
 
 
@@ -12869,9 +12885,14 @@ document.addEventListener('pointerdown', event => {
 
 /*
     Tesla browser has issues with select dropDown drop down menus. If on a Telsa, make similar to RoomOS.
+
+    come back to this later. not getting the result I'd exepect.
 */
 function isTeslaBrowser() {
+    return false;
     const ua = navigator.userAgent || '';
+
+    let  noBatteryAPI; //
     // Known Tesla browser indicators (subject to change with OTA updates)
     const teslaKeywords = [
         'Tesla',             // Appears in many Tesla UAs
@@ -12883,7 +12904,9 @@ function isTeslaBrowser() {
 
     // Additional sanity checks (optional)
     const isTouchDevice = 'ontouchstart' in window;
-    const noBatteryAPI = typeof navigator.getBattery !== 'function';
+
+
+
 
     return hasTeslaKeyword && isTouchDevice && noBatteryAPI;
 }
