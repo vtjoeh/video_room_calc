@@ -2,6 +2,8 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+Video Room Calculator is a community project aimed at creating collaboration rooms using Cisco video devices. While it is not an official Cisco site, it utilizes the [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html#) Custom Rooms API to transform 2D images into 3D. 🎥🛠️
+
 Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md).
 
 ### Release Notes:
@@ -9,7 +11,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.611** 🥳
 - **Workspace Designer Customs Rooms** integration is now publicly available! 🎉🎉🎉🎉
   - Workspace Designer opens in a separate tab.
-  - Workspace Designer is a 3rd party Cisco owned site with its own terms and condiitions.
+  - Workspace Designer is a Cisco owned site with its own terms and conditions.
   - Learn more about the [Workspace Designer Custom Rooms API](https://www.webex.com/us/en/workspaces/workspace-designer.html#/article/CustomRooms)
 - **New Devices**: Room Vision camera, wall stand for Room Kit EQX, wall & wheel stands for Board Pros.
 - **Labels**: Labels now appear on the room canvas by using the Labels toggle button. Cisco devices use the device name by default. 🏷️
@@ -230,36 +232,15 @@ Huge update:
 - DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
 - kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator
 
-### Roadmap / ideas
-There is no warranty or guarantee the below features will ever be added.
 
-- Add ability to make FOV, audio and displa shading invisible per a device.
-- Outerwalls to snap better.
-- Further shorten URL when an item repeats itself. Decode of this already works, so only the encoding needs to be one.
-- Export configuration to JSON file / Import JSON file.
-- Add label fields that show up on the canvas.
-- Add arrow commands that move more than 1 object.
-- Add other room objects. Add a ceiling layer that can be toggled off/on. Requires additional group/layer.
-- MTR only devices to be labeled or selectable.
-- Remove dependency on Google Icon/Fonts to shorten download time.
-- Remove dependency on DOMPurify and maintain security.
-- Ability to change colors for accessibility purposes.
-- Simulated view from camera (simple 2d view of single person zoom and 2 person zoom).
-- Add a PoE calculator for the mics, Navigator and PoE cameras. Include different Cisco switches.
-- Add lobes to the digital microphones.
-- Have smaller devices like microphones auto-scale up in size for large rooms.
-- Ability to add custom generic devices.  Speakers, microphones and displays.
-
-This is a side project. Work is done mostly nights, weekends and holidays.
 
 ### Special thanks to those who have tested, gave feedback or were just really patient.
-<sub>* Tanguay Team - JVV, LT, Clay, Troy, Robbie, Brian, Clarence, Matt, Mike </sub> \
-<sub>* Win.</sub> \
+<sub>* Workspace Designer team </sub> \
+<sub>*  **Mark Baker** </sub> \
 <sub>* Alexis B. </sub> \
 <sub>*  Bobby McGonigle. </sub> \
-<sub>*  **Mark Baker** </sub> \
 <sub>* Julie, Anna, Paul & Joshua</sub> \
-<sub>*  Those who wish to be uncredited</sub> \
+<sub>* Those who wish to be uncredited</sub> \
 <sub>* The Famous One</sub>
 
 _Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._

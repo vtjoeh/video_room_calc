@@ -41,6 +41,15 @@ const templates = [
     note: 'Multi-camera Vision setup',
     noteUrl: 'https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/camera/cross-view_guidelines.pdf'
   },
+    {
+    id: 'executiveBoardroom',
+    name: 'Executive Boardroom',
+    image: 'executiveBoardroom.png',
+    url: 'A0v0.1.611b792c1000f300~Executive+Boardroom~B1001000AE396a10b100CF773a496b190f900CF8a496b190f-900CF395a8b230l0SA442a850f1800SA354a846f1800SF705a931TA299a172c206e666WB781a72c10e931WF248a191c65e645WF550a824c65e645f1800DA783a288b101f900g75l1DA6a303b101f-900g75l1DA782a697b101f900g75l1DA7a682b101f-900g75l1DB396a12b120g85ME409a786b71MF798a965b110f-900MA399a564b250MA401a251b250',
+    note: 'Webex Workspace example',
+    noteUrl: 'https://www.webex.com/us/en/workspaces/executive-boardroom.html'
+  },
+
   {
     id: 'classroom',
     name: 'Classroom',
