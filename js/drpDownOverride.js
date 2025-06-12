@@ -4,11 +4,11 @@ RoomOS and Tesla browser have issues showing Select drop down menus. Create a di
 
 */
 
-const elements = document.querySelectorAll("select");
+const elements = document.querySelectorAll(".drpDown");
 
 elements.forEach((element) => {
   element.addEventListener('click', () => {
-    roleSelectionDialog(element);
+    showRoleSelectionDialog(element);
   })
 });
 
@@ -21,18 +21,9 @@ function closeDialogModals() {
   });
 }
 
-function roleSelectionDialog(element) {
-
+function showRoleSelectionDialog(element) {
   const dialogSelect = document.createElement('dialog');
-  dialogSelect.style.padding = '10px';
-  dialogSelect.style.width = 'fit-content';
-  dialogSelect.style.minWidth = '100px';
-  dialogSelect.style.borderRadius = '10px';
-  dialogSelect.style.overflowY = 'auto';
-  dialogSelect.style.height = 'fit-content';
-  dialogSelect.innerText = 'Select: '
-  dialogSelect.id = 'drpDownOverride';
-  dialogSelect.className = 'room';
+  dialogSelect.classList.add('dialogWhiteBox')
 
   let dataDrpDownName = element.getAttribute('data-drpDownName');
 
@@ -47,7 +38,6 @@ function roleSelectionDialog(element) {
   const options = element.options;
 
   let optionsArray = Array.from(options);
-
 
   optionsArray.forEach(option => {
 
@@ -67,10 +57,8 @@ function roleSelectionDialog(element) {
     }
 
 
+    button.classList.add('roleSelectButton');
 
-
-    button.style.width = '250px';
-    button.style.margin = '5px';
     button.value = option.value;
 
     button.appendChild(buttonLabel);

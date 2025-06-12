@@ -223,9 +223,9 @@ workspaceKey.brdPro55G2Wheel = { objectType: 'videoDevice', model: 'Board Pro', 
 workspaceKey.brdPro55G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro75G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
 
-workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88] };
-workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro' };
-workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12 };
+workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88], role: 'singleScreen' };
+workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
+workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12, role: 'singleScreen' };
 workspaceKey.room55 = { objectType: 'VRC Custom', model: 'room55' };
 workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
 workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
@@ -691,7 +691,7 @@ let videoDevices = [
 
 let videoDevicesNoCameras = structuredClone(videoDevices);
 
-let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { extended_reach: 'Manual Camera' }]
+let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { presentertrack2: 'Manual Camera' }]
 
 /*
     camera key starts with C
@@ -711,7 +711,7 @@ let cameras = [
 
     { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles  },
+    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles },
 
 ]
 
@@ -721,17 +721,20 @@ let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZo
 /* ptz4k */
 cameras[1].extended_reach = ptz4kNarrowFov;
 cameras[1].presentertrack = ptz4kNarrowFov;
+cameras[1].presentertrack2 = ptz4kNarrowFov;
 cameras[1].rolesDialog = 'How do you want to use the camera?';
 
 /* ptz4kmount */
 cameras[6].extended_reach = ptz4kNarrowFov;
 cameras[6].presentertrack = ptz4kNarrowFov;
+cameras[6].presentertrack2 = ptz4kNarrowFov;
 cameras[6].rolesDialog = 'How do you want to use the camera?';
 
 /* ptzVision */
-cameras[5].extended_reach = ptz4kNarrowFov;
-cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
-cameras[5].rolesDialog =  'How do you want to use the camera?';
+cameras[5].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
+cameras[5].presentertrack = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].presentertrack2 = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].rolesDialog = 'How do you want to use the camera?';
 
 /* Room Bar Pro */
 videoDevices[1].multiLensReach = [
@@ -1918,12 +1921,21 @@ function getQueryString() {
         mobileDevice = 'RoomOS';
     }
 
+    if (urlParams.has('tesla') || urlParams.has('Tesla')) {
+        mobileDevice = 'Tesla';
+    }
+
     /* RoomOS does not support the Workspace Designer cross-launch */
-    if (!(mobileDevice === 'RoomOS')) {
+    if ((mobileDevice === 'RoomOS')) {
+        loadDrpDownOverrideScript();
+    }
+    else if ((mobileDevice === 'Tesla')) {
+        loadDrpDownOverrideScript();
         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
         document.getElementById('testB').style.display = '';
     } else {
-        loadDrpDownOverrideScript();
+        document.getElementById('testA').setAttribute('style', 'visibility: visible;');
+        document.getElementById('testB').style.display = '';
     }
 
     //   }
@@ -3085,12 +3097,12 @@ function getNumberValue(id) {
 }
 
 function makeButtonsVisible() {
-    if (mobileDevice === 'RoomOS' || mobileDevice === 'Tesla') {
+    if (mobileDevice === 'RoomOS') {
         document.getElementById('RoomOSmessage').setAttribute('style', 'visibility: visible;');
         document.getElementById('downloadButtons').style.display = 'none';
         document.getElementById('btnModalWorkspace').style.display = 'none';
     }
-    else if (qrCodeButtonsVisible == true) {
+    else if (qrCodeButtonsVisible == true || mobileDevice === 'Tesla') {
         document.getElementById('RoomOSmessage').setAttribute('style', 'visibility: visible;');
         document.getElementById('downloadButtons').setAttribute('style', 'visibility: visible;');
     }
@@ -8059,7 +8071,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         /* Show narrow field of FOV based on field view for the ptz 4k camera when  */
-        if ('data_role' in attrs && attrs.data_role && (attrs.data_role.value === 'extended_reach' || attrs.data_role.value === 'presentertrack' || attrs.data_role.value === 'virtualLens')) {
+        if ('data_role' in attrs && attrs.data_role && (attrs.data_role.value.startsWith('extended_reach') || attrs.data_role.value.startsWith('presentertrack') || attrs.data_role.value === 'virtualLens')) {
             insertDevice = { ...insertDevice, ...insertDevice[attrs.data_role.value] };
             teleAngle = insertDevice[attrs.data_role.value].teleHorizontalFOV;
         }
@@ -10067,8 +10079,14 @@ function dragEnd(event) {
         attrs.data_zPosition = defaultVert;
     }
 
-    if(allDeviceTypes[deviceIdGroupName[1]].rolesDialog){
-          roleSelectionDialog(deviceIdGroupName[1], attrs);
+
+
+
+    if (allDeviceTypes[deviceIdGroupName[1]].rolesDialog) {
+
+        let itemDataDeviceid = deviceIdGroupName[1];
+        showRoleOptions(itemDataDeviceid, attrs);
+
     } else {
         insertShapeItem(deviceIdGroupName[1], deviceIdGroupName[0], attrs, uuid = '', true);
 
@@ -10083,7 +10101,14 @@ function dragEnd(event) {
     dragClientY = 0;
 
 
+}
 
+/* post things at the bottom of the screen, an alternative to console.log */
+function showTestLog(...args) {
+    let text = args.join(', ');
+    let testLog = document.getElementById('testLog');
+    testLog.style.display = '';
+    testLog.innerHTML = testLog.innerHTML + "<br>" + text;
 }
 
 /* Checks to see if the last item dropped is also a codec.
@@ -10115,15 +10140,19 @@ function checkForMultipleCodecsOnDragEnd(droppedItem) {
     }, 1000);
 }
 
-function roleSelectionDialog(item_data_deviceid, attrs) {
+/*
+When dragging a new object onto the screen, the user must manual select the Role.  Requires item type have a .rolesDialog videoDevices.rolesDialog be set to true or have a value.
+*/
 
-    let item = attrs;
-    item.data_deviceid = item_data_deviceid;
+function showRoleOptions(itemDataDeviceid, attrs) {
+
+    let itemInsert = attrs;
+    itemInsert.data_deviceid = itemDataDeviceid;
 
     let dialogHeader = document.getElementById('headerRoleSelection');
     let roleSelectionDialog = document.getElementById('roleSelectionDialog');
 
-    let itemType = allDeviceTypes[item_data_deviceid];
+    let itemType = allDeviceTypes[itemDataDeviceid];
 
     if (!itemType.rolesDialog) return;
 
@@ -10132,16 +10161,11 @@ function roleSelectionDialog(item_data_deviceid, attrs) {
     } else {
         dialogHeader.innerText = 'Select from the following';
     }
-    console.log('dialogHeader')
-
 
     let roles = itemType.roles;
 
-
     const innerDiv = document.getElementById("roleSelection");
     innerDiv.innerHTML = '';
-
-
 
     roles.forEach((role, index) => {
         let roleKey = Object.keys(role)[0];
@@ -10163,12 +10187,11 @@ function roleSelectionDialog(item_data_deviceid, attrs) {
         buttonDiv.appendChild(button);
 
         button.onclick = () => {
+            itemInsert.data_role = {};
+            itemInsert.data_role.value = roleKey;
+            itemInsert.data_role.index = index;
 
-
-            item.data_role = {};
-            item.data_role.value = roleKey;
-            item.data_role.index = index;
-            insertItem(item);
+            insertItem(itemInsert, '', true);
 
             roleSelectionDialog.close();
             setTimeout(() => { canvasToJson() }, 100);
@@ -10177,7 +10200,9 @@ function roleSelectionDialog(item_data_deviceid, attrs) {
     });
 
     roleSelectionDialog.showModal();
+
 }
+
 
 /* Checks to see if the items about to pasted contain a video device.   */
 function checkForMultipleCodecsOnPaste(pasteItems) {
@@ -12261,6 +12286,9 @@ function convertRoomObjToWorkspace() {
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
+            if (workspaceItem.role === 'presentertrack2'){
+                workspaceItem.role = 'presentertrack';
+            }
         }
 
         if ('data_color' in item && item.data_color) {
@@ -12373,6 +12401,10 @@ function convertRoomObjToWorkspace() {
         workspaceItem = { ...attr, ...workspaceItem };
 
         if (item.data_deviceid === 'display21_9') {
+            let tilt = workspaceItem.rotation[0];
+            let slant = workspaceItem.rotation[2];
+            workspaceItem.rotation[2] = tilt;
+            workspaceItem.rotation[0] = -slant;
             workspaceItem.objectType = 'wall';
             workspaceItem.color = 'black';
             workspaceItem.height = displayHeight21_9 * displayScale / 1000;
@@ -12380,6 +12412,7 @@ function convertRoomObjToWorkspace() {
             workspaceItem.length = displayWidth21_9 * displayScale / 1000;
             workspaceItem.id = 'display21_9-' + workspaceItem.id;
             workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
+
 
             delete workspaceItem.size;
 
@@ -12967,26 +13000,27 @@ document.addEventListener('pointerdown', event => {
     come back to this later. not getting the result I'd exepect.
 */
 function isTeslaBrowser() {
-    return false;
     const ua = navigator.userAgent || '';
-
-    let noBatteryAPI; //
-    // Known Tesla browser indicators (subject to change with OTA updates)
-    const teslaKeywords = [
-        'Tesla',             // Appears in many Tesla UAs
-        'QtCarBrowser',      // Older Tesla browsers
-        'X11; Linux x86_64'  // Tesla runs a custom Linux browser
-    ];
-
-    const hasTeslaKeyword = teslaKeywords.some(keyword => ua.includes(keyword));
-
-    // Additional sanity checks (optional)
+    let hasTeslaKeyword = false;
+    let batteryAPI; //
     const isTouchDevice = 'ontouchstart' in window;
 
+    // Known Tesla browser indicators (subject to change with OTA updates)
+    if (ua.match(/Mozilla\/[0-9\.]*\s+\(X11;\s+Linux\s+x86_64\)\s+AppleWebKit\/[0-9\.]*\s+\(KHTML,\s+like\s+Gecko\)\s+Chrome\/[0-9\.]*\s+Safari\/[0-9\.]*/i)) {
+        hasTeslaKeyword = true;
+    }
 
+    if (ua.match(/.*tesla.*/i)) {
+        hasTeslaKeyword = true;
+    }
 
+    if ('getBattery' in navigator) {
+        batteryAPI = true;
+    } else {
+        batteryAPI = false;
+    }
 
-    return hasTeslaKeyword && isTouchDevice && noBatteryAPI;
+    return hasTeslaKeyword && isTouchDevice && !batteryAPI;
 }
 
 /*
