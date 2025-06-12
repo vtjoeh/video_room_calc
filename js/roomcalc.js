@@ -1,4 +1,4 @@
-const version = "v0.1.611";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.612";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -676,7 +676,7 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0,  colors: null },
+    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null },
 
     { name: "Board Pro 75 G2: Wheel Stand", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -691,6 +691,8 @@ let videoDevices = [
 
 let videoDevicesNoCameras = structuredClone(videoDevices);
 
+let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { extended_reach: 'Manual Camera' }]
+
 /*
     camera key starts with C
 
@@ -699,7 +701,7 @@ let videoDevicesNoCameras = structuredClone(videoDevices);
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
 
-    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles },
 
     { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -707,9 +709,9 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow - Extended Reach' }, { presentertrack: 'PresenterTrack' }], colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: [{ crossview: 'Wide Angle - Cross-view' }, { extended_reach: 'Narrow -Extended Reach' }, { presentertrack: 'Narrow - PresenterTrack' }] },
+    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles  },
 
 ]
 
@@ -719,14 +721,17 @@ let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZo
 /* ptz4k */
 cameras[1].extended_reach = ptz4kNarrowFov;
 cameras[1].presentertrack = ptz4kNarrowFov;
+cameras[1].rolesDialog = 'How do you want to use the camera?';
 
 /* ptz4kmount */
 cameras[6].extended_reach = ptz4kNarrowFov;
 cameras[6].presentertrack = ptz4kNarrowFov;
+cameras[6].rolesDialog = 'How do you want to use the camera?';
 
 /* ptzVision */
 cameras[5].extended_reach = ptz4kNarrowFov;
 cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].rolesDialog =  'How do you want to use the camera?';
 
 /* Room Bar Pro */
 videoDevices[1].multiLensReach = [
@@ -5396,7 +5401,7 @@ function canvasToJson() {
     }
 
     // console.log('canvasToJson() roomObj', roomObj);
-    //   console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
+    // console.log('canvasToJson() roomObj', JSON.stringify(roomObj, null, 5));
 
     clearTimeout(undoArrayTimer);
     undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
@@ -9692,7 +9697,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[9] = ['brdPro75G2', 'brdPro55G2'];
 
-    deviceGroups[10] = ['brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel' ];
+    deviceGroups[10] = ['brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel'];
 
     deviceGroups[11] = ['roomKitEqxFS', 'roomKitEqxWS'];
 
@@ -10062,14 +10067,23 @@ function dragEnd(event) {
         attrs.data_zPosition = defaultVert;
     }
 
-    insertShapeItem(deviceIdGroupName[1], deviceIdGroupName[0], attrs, uuid = '', true);
+    if(allDeviceTypes[deviceIdGroupName[1]].rolesDialog){
+          roleSelectionDialog(deviceIdGroupName[1], attrs);
+    } else {
+        insertShapeItem(deviceIdGroupName[1], deviceIdGroupName[0], attrs, uuid = '', true);
+
+        checkForMultipleCodecsOnDragEnd(deviceIdGroupName[1]);
+
+        setTimeout(() => { canvasToJson() }, 100);
+
+    }
+
 
     dragClientX = 0;
     dragClientY = 0;
-    setTimeout(() => { canvasToJson() }, 100);
 
 
-    checkForMultipleCodecsOnDragEnd(deviceIdGroupName[1]);
+
 }
 
 /* Checks to see if the last item dropped is also a codec.
@@ -10099,6 +10113,70 @@ function checkForMultipleCodecsOnDragEnd(droppedItem) {
 
         }
     }, 1000);
+}
+
+function roleSelectionDialog(item_data_deviceid, attrs) {
+
+    let item = attrs;
+    item.data_deviceid = item_data_deviceid;
+
+    let dialogHeader = document.getElementById('headerRoleSelection');
+    let roleSelectionDialog = document.getElementById('roleSelectionDialog');
+
+    let itemType = allDeviceTypes[item_data_deviceid];
+
+    if (!itemType.rolesDialog) return;
+
+    if (typeof itemType.rolesDialog === 'string') {
+        dialogHeader.innerText = itemType.rolesDialog;
+    } else {
+        dialogHeader.innerText = 'Select from the following';
+    }
+    console.log('dialogHeader')
+
+
+    let roles = itemType.roles;
+
+
+    const innerDiv = document.getElementById("roleSelection");
+    innerDiv.innerHTML = '';
+
+
+
+    roles.forEach((role, index) => {
+        let roleKey = Object.keys(role)[0];
+        let roleValue = role[roleKey];
+        const buttonDiv = document.createElement('div');
+        const button = document.createElement('button');
+        const buttonLabel = document.createElement('span');
+
+        buttonLabel.innerText = roleValue;
+        buttonLabel.classList.add('roleSelectButtonLabel')
+        buttonLabel.style.margin = 'auto';
+
+
+        button.classList.add('roleSelectButton');
+
+        button.appendChild(buttonLabel);
+
+        innerDiv.appendChild(buttonDiv);
+        buttonDiv.appendChild(button);
+
+        button.onclick = () => {
+
+
+            item.data_role = {};
+            item.data_role.value = roleKey;
+            item.data_role.index = index;
+            insertItem(item);
+
+            roleSelectionDialog.close();
+            setTimeout(() => { canvasToJson() }, 100);
+
+        }
+    });
+
+    roleSelectionDialog.showModal();
 }
 
 /* Checks to see if the items about to pasted contain a video device.   */
@@ -10204,11 +10282,11 @@ function createEquipmentMenu() {
 
     let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProQuadCam'];
 
-  //  let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
+    //  let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
 
     let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
 
-    let boardProG2Menu = [ 'brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
+    let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
     let personalVideoDevicesMenu = ['webexDeskPro'];
 
@@ -10254,9 +10332,9 @@ function createEquipmentMenu() {
 
     createItemsOnMenu('cameraMenuContainer', videoDevicesMenu);
 
-   // createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
+    // createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
 
-   createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
+    createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
 
     createItemsOnMenu('boardProG2MenuContainer', boardProG2Menu);
 
@@ -11643,7 +11721,7 @@ function workspaceView(isNewTab = 'false') {
 /* Opens the Workspace Designer  */
 function openWorkspaceWindow(fromButton = true) {
 
-   // let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
+    // let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
     //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
 
     let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
@@ -12079,7 +12157,7 @@ function convertRoomObjToWorkspace() {
                 newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.07;
             }
-            else if (item.data_deviceid === 'roomKitEqxWS'){
+            else if (item.data_deviceid === 'roomKitEqxWS') {
                 newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.12;
             }
@@ -12111,7 +12189,7 @@ function convertRoomObjToWorkspace() {
 
         }
 
-        if(item.data_deviceid.startsWith('webexDeskMini')){
+        if (item.data_deviceid.startsWith('webexDeskMini')) {
             let deskMiniBase = {};
             let deskMiniXY;
 
@@ -12892,7 +12970,7 @@ function isTeslaBrowser() {
     return false;
     const ua = navigator.userAgent || '';
 
-    let  noBatteryAPI; //
+    let noBatteryAPI; //
     // Known Tesla browser indicators (subject to change with OTA updates)
     const teslaKeywords = [
         'Tesla',             // Appears in many Tesla UAs

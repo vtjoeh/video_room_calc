@@ -598,6 +598,63 @@ input:placeholder-shown {
 
 }
 
+.roleSelectButton {
+  outline: none;
+  box-shadow: none;
+  border: 1.5px solid black;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  color: black;
+  border-radius: 30px;
+  padding: 7px 15px;
+  width: 250px;
+  margin: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 10px;
+  text-align: center;
+}
+
+.roleSelectButton:hover {
+  background-color: #ddd;
+}
+
+.roleSelectButton:disabled {
+  opacity: 0.6;
+}
+
+.roleSelectButtonLabel {
+  /* border: 1;
+  background-color: white;
+  color: black;
+  border: black;
+  border-radius: 30px;
+  text-align: center; */
+}
+
+#roleSelectionDialog {
+  border-radius: 20px;
+  padding: 19px 70px;
+  background-color: white;
+  min-width: 400px;
+  max-width: 700px;
+  /* consider removing this  */
+  /* max-height: 700px;  */
+  outline: none;
+  /* overflow-y: hidden; */
+  /* box-shadow: 4.0px 8.0px 8.0px hsl(0deg 0% 0% / 0.38); */
+}
+
+#headerRoleSelection {
+  background-color: white;
+  color: black;
+  padding: 0.5em;
+  text-align: center;
+  font-weight: 500;
+
+}
+
 
 .holdIndicator {
   width: 5.5px;
@@ -1381,7 +1438,6 @@ hr.rightClickHorizontalLine {
   display: none;
 }
 
-.help {}
 
 #newRoomDialog {
   max-height: 95vh;
@@ -1465,6 +1521,13 @@ hr.rightClickHorizontalLine {
     min-height: 100%;
     border-radius: 0px;
     max-height: 0px;
+  }
+
+  #roleSelectionDialog{
+    min-height: initial;
+    min-width: initial;
+    border-radius: 30px;
+    max-height: 100%;
   }
 
   h2 {

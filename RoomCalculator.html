@@ -87,7 +87,8 @@
 
           <div class="inputField">
             <label for="drpMetersFeet">Unit (meters/feet):</label>
-            <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()" class="drpDown" data-drpDownName="Unit (meters/feet):">
+            <select name="drpMetersFeet" id="drpMetersFeet" onChange="convertMetersFeet()" class="drpDown"
+              data-drpDownName="Unit (meters/feet):">
               <option value="feet">Feet</option>
               <option value="meters">Meters</option>
             </select>
@@ -131,7 +132,7 @@
             <div class="inputField">
 
               <label>Remove Default Walls:</label>
-                            <label class="switch">
+              <label class="switch">
                 <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
                 <span class="slider round"></span>
               </label>
@@ -331,9 +332,9 @@
               <div class="inputField">
                 <label class="tooltipBottom">Item Type:</label>
                 <!-- <input disabled type="text" id="itemName" size="45" class=""> -->
-                 <select disabled id="itemName" class="drpDown" onchange="updateItem()" >
+                <select disabled id="itemName" class="drpDown" onchange="updateItem()">
 
-                 </select>
+                </select>
               </div>
               <div class="inputField">
                 <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
@@ -1020,7 +1021,8 @@
           <div class="inputField">
             <label for="frntWallToTv" class="tooltip">Front Wall:
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Distance from the front wall to the front of display. Farthest Participant = Front Wall to Display + Distance Table
+              <span class="tooltiptext">Distance from the front wall to the front of display. Farthest Participant =
+                Front Wall to Display + Distance Table
                 to
                 Display + Table Length. <br /><br />This assumes that the front of the display is
                 aligned with the front of the video device.</span></label>
@@ -1031,7 +1033,8 @@
           <div class="inputField">
             <label for="distDisplayToTable" class="tooltip">Table to Display:
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Distance from the front of the disply to the table. Farthest Participant = Front Wall to Display + Distance Table
+              <span class="tooltiptext">Distance from the front of the disply to the table. Farthest Participant = Front
+                Wall to Display + Distance Table
                 to Display + Table Length. <br /> <br />This assumes that the front of the display is
                 aligned with the front of the video device.</span></label>
             <input type="text" id="distDisplayToTable" name="distDisplayToTable" value="5" maxlength="12" size="5"
@@ -1143,8 +1146,7 @@
     <header>Preview in Cisco Workspace Designer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      <img id="workspaceIcon" width="16px"
-        src="https://www.webex.com/us/en/workspaces/images/appicon.png"></img>
+      <img id="workspaceIcon" width="16px" src="https://www.webex.com/us/en/workspaces/images/appicon.png"></img>
       Workspace Designer Custom Rooms (beta)
 
       <div class="inputField">
@@ -1472,29 +1474,42 @@
     </main>
   </dialog>
 
-  <dialog id="dialogMultipleVideoDevices" onclick="onDialogClick(event)" >
+  <dialog id="dialogMultipleVideoDevices" onclick="onDialogClick(event)">
     <header>
-     Multiple Video Device Alert
+      Multiple Video Device Alert
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
 
     <main>
-      There are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.
+      There are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead,
+      delete/undo the last action and insert a camera.
     </main>
-</dialog>
+  </dialog>
 
-  <dialog id="characterLimitWarning" style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 0px; ">
+  <dialog id="roleSelectionDialog" onclick="onDialogClick(event)">
+    <div id="headerRoleSelection">
+
+    </div>
+
+        <div id="roleSelection" class="roleSelectionDiv">
+
+        </div>
+
+  </dialog>
+
+  <dialog id="characterLimitWarning"
+    style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 0px; ">
     <header>
-     ⚠️ Warning URL Length Alert ⚠️
+      ⚠️ Warning URL Length Alert ⚠️
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-     You have exceded the limit of the number of characters for the URL of 8190.
-    <b>Please click the 'undo' button or delete some objects until this message no longer occurs. </b>
-    <b> You will lose your configuration if you click the browser refresh button. </b>
-    <br>
-    Congratulations on being one of the few who will see this message! Please let joehughe@cisco.com know the limit
-    should be extended.
+      You have exceded the limit of the number of characters for the URL of 8190.
+      <b>Please click the 'undo' button or delete some objects until this message no longer occurs. </b>
+      <b> You will lose your configuration if you click the browser refresh button. </b>
+      <br>
+      Congratulations on being one of the few who will see this message! Please let joehughe@cisco.com know the limit
+      should be extended.
 
     </main>
   </dialog>

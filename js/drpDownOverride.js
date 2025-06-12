@@ -8,7 +8,7 @@ const elements = document.querySelectorAll("select");
 
 elements.forEach((element) => {
   element.addEventListener('click', () => {
-    createDialogModal(element);
+    roleSelectionDialog(element);
   })
 });
 
@@ -21,7 +21,7 @@ function closeDialogModals() {
   });
 }
 
-function createDialogModal(element) {
+function roleSelectionDialog(element) {
 
   const dialogSelect = document.createElement('dialog');
   dialogSelect.style.padding = '10px';
