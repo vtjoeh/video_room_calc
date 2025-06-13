@@ -732,8 +732,8 @@ cameras[6].rolesDialog = 'How do you want to use the camera?';
 
 /* ptzVision */
 cameras[5].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
-cameras[5].presentertrack = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 22 };
-cameras[5].presentertrack2 = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
 cameras[5].rolesDialog = 'How do you want to use the camera?';
 
 /* Room Bar Pro */
@@ -1127,7 +1127,7 @@ let displays = [
     },
 ]
 
-/* Floor keys start with */
+/* Floor keys start with F */
 let stageFloors = [
     {
         name: 'Stage Floor',
@@ -2020,10 +2020,17 @@ function getQueryString() {
     }
 
     if (workspaceDesignerTestUrl) {
+        let wdSite = document.getElementById('wdSite');
+        let wdSiteDiv = document.getElementById('wdSiteDiv');
         let regex = /^https:\/\/www\.webex\.com\//i
         if (!regex.test(workspaceDesignerTestUrl)) {
             testiFrame = true;
         }
+
+        wdSiteDiv.style.display = '';
+        wdSite.value = workspaceDesignerTestUrl;
+    } else {
+        document.getElementById('wdSiteDiv').style.display = 'none';
     }
 
 
@@ -4083,10 +4090,10 @@ function createShareableLink() {
         if (characterLimitWarningShow) {
             document.getElementById('characterLimitWarning').show();
             characterLimitWarningShow = false;
-            setTimeout(() => {
+            // setTimeout(() => {
 
-                characterLimitWarningShow = true;
-            }, 15 * 1000);
+            //     characterLimitWarningShow = true;
+            // }, 15 * 1000);
         }
 
     } else {
@@ -4106,7 +4113,9 @@ function createShareableLink() {
     let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}$/;
     let queryParams = new URLSearchParams(window.location.search);
 
-    if (regex.test(strUrlQuery2)) {
+
+
+    if (regex.test(strUrlQuery2) || fullShareLink.length > 8189 ) {
         queryParams.delete("x", strUrlQuery2);
         history.replaceState(null, null, location.origin + location.pathname);
     } else {
@@ -11340,9 +11349,22 @@ function onKeyDown(e) {
 
     if ((key === 'r') && e.shiftKey && (e.ctrlKey || e.metaKey)) return; /* allow for a hard refresh. */
 
+    /* export to the Workspace Designer */
     if (key === 'e' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         downloadFileWorkspace();
+    }
+
+    /* save / download VRC JSON file */
+    if (key === 's' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        downloadRoomObj();
+    }
+
+
+    if (key === 'o' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        document.getElementById('fileUpload').click();
     }
 
     if (testiFrame && (key === 'w' && (e.ctrlKey || e.metaKey))) {
@@ -11679,18 +11701,68 @@ fileJsonUpload.addEventListener('change', function (e) {
         reader.readAsText(e.target.files[0]);
         reader.onload = function (e) {
             let jsonFile = JSON.parse(reader.result);
+            let jsonFileGood = true;
+
+            if ('room' in jsonFile) {
+                if (!(jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
+                    console.info('JSON file missing roomWidth, roomLength or roomHeight')
+                    jsonFileGood = false;
+                }
+            } else {
+                jsonFileGood = false;
+                console.info('Room paramter missing from JSON file')
+            }
 
 
-            backgroundImageFloor.src = structuredClone(jsonFile.backgroundImageSrc);
+            //
 
-            delete jsonFile.backgroundImageSrc;
+            zoomInOut('reset');
 
-            roomObj = structuredClone(jsonFile);
 
-            drawRoom(true);
+            document.getElementById('dialogLoadingTemplate').showModal();
+
+
+
+
+           // keepDefaultUnit();
+
+
+            document.getElementById("defaultOpenTab").click();
+
+
+
+
+            setTimeout(() => {
+                closeAllDialogModals();
+            }, 3000);
+
+
+
+            if (jsonFileGood) {
+                resetRoomObj();
+
+                convertMetersFeet(true, jsonFile.unit);
+
+                setTimeout(()=>{
+                    roomObj = structuredClone(jsonFile);
+                    roomObj.trNodes = [];
+                    drawRoom(true, false, false);
+                }, 1500);
+
+
+            } else {
+                console.info('JSON file upload, improper format');
+                alert('Bad JSON format. Please note that the Workspace Designer format is not supported at this time. Make sure the file was created in the Video Room Calculator.');
+            }
+
+
+
+            document.getElementById('fileUpload').value = null;
         };
     }
 });
+
+
 
 /* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
 
@@ -11746,19 +11818,13 @@ function workspaceView(isNewTab = 'false') {
 /* Opens the Workspace Designer  */
 function openWorkspaceWindow(fromButton = true) {
 
-    // let newWorkspaceTab = "https://publish-p66109-e603452.adobeaemcloud.com/us/en/workspaces/workspace-designer.html#/room/custom"
-    //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
-
     let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
-    // newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner2/#/room/custom"
 
-
-
+    //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
 
     lastAction = "btnClick Workspace Designer";
 
     postHeartbeat();
-
 
     if (workspaceDesignerTestUrl) {
         newWorkspaceTab = workspaceDesignerTestUrl;
@@ -11767,7 +11833,6 @@ function openWorkspaceWindow(fromButton = true) {
     if (fromButton) {
         workspaceWindow = window.open(newWorkspaceTab, sessionId);
     }
-
 
     if (testiFrame && !fromButton) {
 
@@ -11814,7 +11879,6 @@ function postMessageToWorkspace() {
     if (workspaceWindow) {
 
         workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
-
 
     }
 
@@ -11939,15 +12003,15 @@ function convertRoomObjToWorkspace() {
 
         let wallWidth = 0.10 + 0.02; /* Add in the floor width to include the outer wall */
         let floor = {
-            "x": 0 - wallWidth,
-            "y": 0 - wallWidth,
-            "rotation": 0,
-            "data_deviceid": "wall",
-            "id": "primaryFloor",
-            "data_zPosition": -0.1,
-            "data_vHeight": 0.1,
-            "width": roomObj2.room.roomWidth + (wallWidth * 2),
-            "height": roomObj2.room.roomLength + (wallWidth * 2)
+            x: roomObj2.room.roomWidth + wallWidth,
+            y: 0 - wallWidth,
+            rotation: 90,
+            data_deviceid: "floor",
+            id: "primaryFloor",
+            data_zPosition: -0.1,
+            data_vHeight: 0.1,
+            width: roomObj2.room.roomLength + (wallWidth * 2),
+            height: roomObj2.room.roomWidth + (wallWidth * 2)
         };
 
         if (!swapXY) {
@@ -12286,7 +12350,7 @@ function convertRoomObjToWorkspace() {
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
-            if (workspaceItem.role === 'presentertrack2'){
+            if (workspaceItem.role === 'presentertrack2') {
                 workspaceItem.role = 'presentertrack';
             }
         }
@@ -12709,6 +12773,40 @@ function downloadJsonWorkpaceFile(workspaceObj) {
     link.href = URL.createObjectURL(file);
     downloadRoomName = workspaceObj.title.replace(/[/\\?%*:|"<>]/g, '-');
     downloadRoomName = downloadRoomName.trim() + '.json';
+    link.download = downloadRoomName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+/* download native VRC file format */
+function downloadRoomObj() {
+
+    let downloadRoomName = 'VideoRoomCalc';
+
+    const link = document.createElement("a");
+
+    /* use the roomObj clone, but remove unneeded objects and arrange the order so the name is at the top of the file */
+    let roomObj2 = structuredClone(roomObj);
+    delete roomObj2.room;
+    delete roomObj2.trNodes;
+    let roomItems = {};
+    roomItems.room = {};
+    roomItems.name = roomObj.name;
+    roomItems.date = new Date();
+    roomItems.room.roomWidth = roomObj.room.roomWidth;
+    roomItems.room.roomLength = roomObj.room.roomLength;
+    roomItems.room.roomHeight = roomObj.room.roomHeight;
+
+
+    let newRoomObj = { ...roomItems, ...roomObj2 };
+
+    const content = JSON.stringify(newRoomObj, null, 5);
+    const file = new Blob([content], { type: 'text/plain' });
+    link.href = URL.createObjectURL(file);
+    if (roomObj2.name.length > 1) {
+        downloadRoomName = roomObj2.name.replace(/[/\\?%*:|"<>]/g, '-');
+    }
+    downloadRoomName = downloadRoomName.trim() + '.vrc.json';
     link.download = downloadRoomName;
     link.click();
     URL.revokeObjectURL(link.href);
