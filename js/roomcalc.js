@@ -1,4 +1,4 @@
-const version = "v0.1.612";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.613";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -1450,6 +1450,7 @@ function determineMobileDevice() {
         mobileDevice = 'Tesla';
     }
 
+    console.trace()
 }
 
 setMouseEventListeners();
@@ -1926,6 +1927,7 @@ function getQueryString() {
     }
 
     /* RoomOS does not support the Workspace Designer cross-launch */
+
     if ((mobileDevice === 'RoomOS')) {
         loadDrpDownOverrideScript();
     }
@@ -1937,8 +1939,6 @@ function getQueryString() {
         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
         document.getElementById('testB').style.display = '';
     }
-
-    //   }
 
 
     if (urlParams.has('testProduction')) {
@@ -4090,10 +4090,6 @@ function createShareableLink() {
         if (characterLimitWarningShow) {
             document.getElementById('characterLimitWarning').show();
             characterLimitWarningShow = false;
-            // setTimeout(() => {
-
-            //     characterLimitWarningShow = true;
-            // }, 15 * 1000);
         }
 
     } else {
@@ -8888,9 +8884,12 @@ function updateShading(node) {
         let centerY = center.y;
         let centerX = center.x;
 
+        /* determine the imageItemHeight ignoring the Highlight image created */
+        let imageItemHeight = allDeviceTypes[imageItem.data_deviceid].depth / 1000 * scale * ((roomObj.unit === 'feet') ? 3.28084 : 1)
+
         if (imageItem.data_deviceid === 'ceilingMic') {
-            centerX = (imageItem.height() / 2) * (Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
-            centerY = (imageItem.height() / 2) * -(Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
+            centerX = (imageItemHeight / 2) * (Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
+            centerY = (imageItemHeight / 2) * -(Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
         }
 
         if ('cameraShadeOffSet' in allDeviceTypes[imageItem.data_deviceid]) {
@@ -8902,8 +8901,14 @@ function updateShading(node) {
             }
 
 
-            centerX = ((imageItem.height() / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
-            centerY = ((imageItem.height() / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
+            // centerX = ((imageItem.height() / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
+            // centerY = ((imageItem.height() / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
+
+
+            centerX = ((imageItemHeight / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
+            centerY = ((imageItemHeight / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
+
+
         }
 
         shadingItem.rotation(imageItem.rotation());
@@ -10114,10 +10119,11 @@ function dragEnd(event) {
 
 /* post things at the bottom of the screen, an alternative to console.log */
 function showTestLog(...args) {
-    let text = args.join(', ');
+    let text = args.join(' ');
     let testLog = document.getElementById('testLog');
     testLog.style.display = '';
     testLog.innerHTML = testLog.innerHTML + "<br>" + text;
+    console.info('showTestLog()', JSON.stringify(args));
 }
 
 /* Checks to see if the last item dropped is also a codec.
@@ -11456,6 +11462,11 @@ function onKeyDown(e) {
             rotateItems();
             isShortCutKeyUsed = true;
         }
+        // else if (key === 'f'){
+        //     e.preventDefault();
+        //     flipItems();
+        //     isShortCutKeyUsed = true;
+        // }
     }
 
     tr.nodes().forEach(shape => {
@@ -11585,7 +11596,54 @@ function rotatePointAroundOrigin(pointX, pointY, originX, originY, angleInDegree
     return { x: finalX, y: finalY };
 }
 
+/*
+comeback to flipItems
+*/
+function flipItems(){
+    let rotationAmount = 90;
 
+    let trCenter = getShapeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+
+    tr.nodes().forEach(node => {
+
+        let nodeCenter = getShapeCenter(node);
+
+        let rotation = normalizeDegree(node.rotation())
+        let rotationAmount;
+        if (rotation > 0){
+            rotationAmount = -(rotation * 2);
+        } else {
+            rotationAmount = rotation * 2;
+        }
+
+
+        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, node.x(), node.y(), rotationAmount);
+
+
+        // let totalRotation = normalizeDegree(rotationAmount);
+
+        let nodeCornerXY = findUpperLeftXY({ x: newNodeXY.x, y: newNodeXY.y, rotation: rotationAmount, width: node.width(), height: node.height() })
+        node.x(newNodeXY.x);
+        node.y(newNodeXY.y);
+
+
+
+        node.offsetX(node.width()/2);
+        node.offsetY(node.height()/2);
+
+        // node.offsetX(nodeCenterXY.x - node.x());
+        // node.offsetY(nodeCenterXY.y - node.y());
+
+        // node.x(nodeCornerXY.x);
+        // node.y(nodeCornerXY.y);
+
+        node.rotation(-node.rotation());
+
+        node.offsetX(0); /* reset the offsetX and offsetY back to zero */
+        node.offsetY(0);
+
+    })
+}
 
 function rotateItems() {
 
@@ -13095,20 +13153,20 @@ document.addEventListener('pointerdown', event => {
 /*
     Tesla browser has issues with select dropDown drop down menus. If on a Telsa, make similar to RoomOS.
 
-    come back to this later. not getting the result I'd exepect.
+    This only determines if it MIGHT be a Tesla browsers and could get false positive or negatives.
 */
 function isTeslaBrowser() {
-    const ua = navigator.userAgent || '';
+    const userAgent = navigator.userAgent || '';
     let hasTeslaKeyword = false;
     let batteryAPI; //
     const isTouchDevice = 'ontouchstart' in window;
 
-    // Known Tesla browser indicators (subject to change with OTA updates)
-    if (ua.match(/Mozilla\/[0-9\.]*\s+\(X11;\s+Linux\s+x86_64\)\s+AppleWebKit\/[0-9\.]*\s+\(KHTML,\s+like\s+Gecko\)\s+Chrome\/[0-9\.]*\s+Safari\/[0-9\.]*/i)) {
+    /* matches userAgent for Tesla Model Y 2023 */
+    if (userAgent.match(/Mozilla\/[0-9\.]*\s+\(X11;\s+Linux\s+x86_64\)\s+AppleWebKit\/[0-9\.]*\s+\(KHTML,\s+like\s+Gecko\)\s+Chrome\/[0-9\.]*\s+Safari\/[0-9\.]*/i)) {
         hasTeslaKeyword = true;
     }
 
-    if (ua.match(/.*tesla.*/i)) {
+    if (userAgent.match(/.*tesla.*/i)) {
         hasTeslaKeyword = true;
     }
 
@@ -13117,8 +13175,17 @@ function isTeslaBrowser() {
     } else {
         batteryAPI = false;
     }
+    // showTestLog(ua);
+    // showTestLog('isTouchDevice:', isTouchDevice)
+    // showTestLog('hasTeslaKeyword', hasTeslaKeyword);
+    // showTestLog('batteryAPI: ', batteryAPI);
 
-    return hasTeslaKeyword && isTouchDevice && !batteryAPI;
+    // showTestLog('isTesla?:', hasTeslaKeyword && isTouchDevice && batteryAPI)
+
+    // showTestLog('screen Width x Height:', screen.width, 'x', screen.height);
+    // showTestLog('available Screen Width x Height:', screen.availWidth, 'x', screen.availHeight);
+
+    return hasTeslaKeyword && isTouchDevice && batteryAPI;
 }
 
 /*
