@@ -200,14 +200,17 @@ canvasPixel.y = 0;
  *  **/
 
 workspaceKey = {};
+
+
+
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', yOffset: 0.076 };
 
 workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
 workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
-workspaceKey.roomKitEqPtz4k = { objectType: 'ptzcam', role: 'crossview', yOffset: 0.205 };
-workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit EQ' };
+
+
 workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', color: 'light' };
 
 workspaceKey.boardPro55 = { objectType: 'VRC Custom', model: 'Board Pro 55 G1', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
@@ -229,7 +232,7 @@ workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', sca
 workspaceKey.room55 = { objectType: 'VRC Custom', model: 'room55' };
 workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
 workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
-workspaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', model: 'Room Bar Pro', yOffset: 0.045 };
+
 workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'floor', yOffset: 0.44 };
 workspaceKey.roomKitEqxWS = { objectType: 'videoDevice', model: 'EQX', mount: 'wallstand', yOffset: 0.062 };
 
@@ -270,14 +273,17 @@ workspaceKey.box = { objectType: 'box' }
 workspaceKey.doorRight = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 1] }
 workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 1] }
 
-workspaceKey.doorDoubleRight = { objectType: 'door', scale: [0.94, 1, 1] }
-workspaceKey.doorDoubleLeft = { objectType: 'door', scale: [-0.94, 1, 1] }
+workspaceKey.doorDoubleRight = { objectType: 'door', scale: [1, 1, 1] }
+workspaceKey.doorDoubleLeft = { objectType: 'door', scale: [-1, 1, 1] }
 
 workspaceKey.doorRight2 = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 2] }
 workspaceKey.doorLeft2 = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
 
-workspaceKey.doorDouble2Right = { objectType: 'door', scale: [0.94, 1, 2] }
-workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-0.94, 1, 2] }
+// workspaceKey.doorDouble2Right = { objectType: 'door', scale: [0.94, 1, 2] }
+// workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-0.94, 1, 2] }
+
+workspaceKey.doorDouble2Right = { objectType: 'door', scale: [1, 1, 2] }
+workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-1, 1, 2] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
@@ -303,17 +309,25 @@ workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 }
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
-workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
+
+
 workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
+
+workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
 
 workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
 
-workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
+
 workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
 workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
+
+/* low priority */
+workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
+workspaceKey.rmBarProVirtualLens = { objectType: 'videoDevice', model: 'Room Bar Pro', yOffset: 0.045 };
+workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit EQ' };
 
 
 /* end of defining workSpaceKey */
@@ -698,10 +712,13 @@ let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended S
 
     cameras requires either onePersonZoom & twoPersonZoom or onePersonDistance & twoPersonDistance
 */
+
+let ptzCameraMounts = [{ stdMount: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }];
+
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
 
-    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles },
+    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
     { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -709,9 +726,9 @@ let cameras = [
 
     { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: [{ standard: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }], roles: ptzCameraRoles },
+    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
 ]
 
@@ -844,30 +861,34 @@ let microphones = [
     },
 ]
 
-/* Tables & Walls. Table keys starts with T, Wall keys start with W */
+/* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
 let tables = [{
     name: 'Table Rect (round corners)',
     id: 'tblRect',
     key: 'TA',
     frontImage: 'tblRect-front.png',
+    family: 'resizeItem',
 },
 {
     name: 'Table Ellipse',
     id: 'tblEllip',
     key: 'TB',
     frontImage: 'tblEllip-front.png',
+    family: 'resizeItem',
 },
 {
     name: 'Table Tapered (trapezoid)',
     id: 'tblTrap',
     key: 'TC',
     frontImage: 'tblTrap-front.png',
+    family: 'resizeItem',
 },
 {
     name: 'Table U-Shaped',
     id: 'tblShapeU',
     key: 'TD',
     frontImage: 'tblShapeU-menu.png',
+    family: 'tableBox',
 },
 {
     name: 'Desk',
@@ -875,24 +896,28 @@ let tables = [{
     key: 'TE',
     depth: 590,
     frontImage: 'tblSchoolDesk-menu.png',
+    family: 'resizeItem',
 },
 {
     name: 'Podium, round',
     id: 'tblPodium',
     key: 'TF',
     frontImage: 'tblPodium-menu.png',
+    family: 'resizeItem',
 },
 {
     name: 'Wall Standard (10 cm / 3.9")',
     id: 'wallStd',
     key: 'WA',
     frontImage: 'wallStd-front.png',
+    family: 'wallBox',
 },
 {
     name: 'Glass Wall',
     id: 'wallGlass',
     key: 'WB',
     frontImage: 'wallGlass-front.png',
+    family: 'wallBox',
 },
 
 {
@@ -900,6 +925,7 @@ let tables = [{
     id: 'columnRect',
     key: 'WC',
     frontImage: 'columnRect-front.png',
+    family: 'wallBox',
 },
 
 {
@@ -907,32 +933,37 @@ let tables = [{
     id: 'box',
     key: 'WD',
     frontImage: 'box-front.png',
+    family: 'wallBox',
 },
 {
     name: 'Wall with Windows',
     id: 'wallWindow',
     key: 'WE',
     frontImage: 'wallWindow-front.png',
-    topImage: 'wallWindow-top.png'
+    topImage: 'wallWindow-top.png',
+    family: 'wallBox',
 },
 {
     name: 'Row of Chairs',
     id: 'wallChairs',
     key: 'WF',
     topImage: 'chair-top.png',
-    frontImage: 'wallChairs-menu.png'
+    frontImage: 'wallChairs-menu.png',
+    family: 'resizeItem',
 },
 {
     name: 'Table Curved (Campfire)',
     id: 'tblCurved',
     key: 'WG',
-    frontImage: 'tblCurved-menu.png'
+    frontImage: 'tblCurved-menu.png',
+    family: 'resizeItem',
 },
 {
     name: 'Couch',
     id: 'couch',
     key: 'WH',
-    frontImage: 'couch-menu.png'
+    frontImage: 'couch-menu.png',
+    family: 'resizeItem',
 }
 ]
 
@@ -985,7 +1016,7 @@ let chairs = [
         key: "SE",
         topImage: 'doorDouble-top.png',
         frontImage: 'doorDouble-menu.png',
-        width: 2009,
+        width: 2134,
         depth: 1004,
         opacity: 1,
     },
@@ -1064,8 +1095,28 @@ let chairs = [
         key: "SM",
         topImage: 'doorDouble-top.png',
         frontImage: 'doorDouble-menu.png',
-        width: 2009,
+        width: 2134, /* 2008 */
         depth: 1004,
+        opacity: 1,
+    },
+    {
+        name: "Door Right (part of double)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "doorDoubleRight",
+        key: "SN",
+        topImage: 'doorRight-top.png',
+        frontImage: 'doorRight-menu.png',
+        width: 1059,
+        depth: 1016,
+        opacity: 1,
+    },
+    {
+        name: "Door Left (part of double)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "doorDoubleLeft",
+        key: "SO",
+        topImage: 'doorLeft-top.png',
+        frontImage: 'doorLeft-menu.png',
+        width: 1059,
+        depth: 1016,
         opacity: 1,
     },
 
@@ -1449,8 +1500,6 @@ function determineMobileDevice() {
     if (isTeslaBrowser()) {
         mobileDevice = 'Tesla';
     }
-
-    console.trace()
 }
 
 setMouseEventListeners();
@@ -2445,10 +2494,10 @@ function resetRoomObj() {
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
-    roomObj.layersVisible.grDisplayDistance = true; /* true or false */
-    roomObj.layersVisible.grShadingMicrophone = true;  /* true or false */
+    roomObj.layersVisible.grDisplayDistance = false; /* true or false */
+    roomObj.layersVisible.grShadingMicrophone = false;  /* true or false */
     roomObj.layersVisible.gridLines = true; /* true or false */
-    roomObj.layersVisible.grShadingSpeaker = true;  /* true or false */
+    roomObj.layersVisible.grShadingSpeaker = false;  /* true or false */
     roomObj.layersVisible.grLabels = false;
 
     roomObj.items.videoDevices = [];
@@ -4111,7 +4160,7 @@ function createShareableLink() {
 
 
 
-    if (regex.test(strUrlQuery2) || fullShareLink.length > 8189 ) {
+    if (regex.test(strUrlQuery2) || fullShareLink.length > 8189) {
         queryParams.delete("x", strUrlQuery2);
         history.replaceState(null, null, location.origin + location.pathname);
     } else {
@@ -7032,9 +7081,6 @@ function createDeviceMenu(parentButton, attributeType) {
             checkBox.checked = checkBoxChecked;
             opt.value = checkBox.getAttribute('data-device-id');
             opt.checkBoxChecked = checkBoxChecked;
-            // console.log('opt', JSON.stringify(opt, 5, null));
-            // console.log('attributeType', JSON.stringify(attributeType));
-            // console.log('checkbox.checked',)
             previewCheckedDevices(opt, attributeType);
 
         });
@@ -11368,7 +11414,7 @@ function onKeyDown(e) {
     }
 
 
-    if (key === 'o' && (e.ctrlKey || e.metaKey)) {
+    if (((key === 'o') || (key === 'i')) && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         document.getElementById('fileUpload').click();
     }
@@ -11551,11 +11597,11 @@ function expandChairs(item, unit = roomObj.unit) {
 
     for (let i = 1; i < numberOfChairs; i++) {
         let newXY = findNewTransformationCoordinate(primaryChair, singleChairWidth * i, 0);
-        let secondaryChair = structuredClone(primaryChair);
-        secondaryChair.x = newXY.x;
-        secondaryChair.y = newXY.y;
-        secondaryChair.id = 'secondaryChair-' + (i + 1) + '-of-' + numberOfChairs + '-' + item.id;
-        chairArray.push(secondaryChair);
+        let rowChair = structuredClone(primaryChair);
+        rowChair.x = newXY.x;
+        rowChair.y = newXY.y;
+        rowChair.id = 'rowChair-' + (i + 1) + '-of-' + numberOfChairs + '-' + item.id;
+        chairArray.push(rowChair);
     }
 
 
@@ -11599,7 +11645,7 @@ function rotatePointAroundOrigin(pointX, pointY, originX, originY, angleInDegree
 /*
 comeback to flipItems
 */
-function flipItems(){
+function flipItems() {
     let rotationAmount = 90;
 
     let trCenter = getShapeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
@@ -11610,7 +11656,7 @@ function flipItems(){
 
         let rotation = normalizeDegree(node.rotation())
         let rotationAmount;
-        if (rotation > 0){
+        if (rotation > 0) {
             rotationAmount = -(rotation * 2);
         } else {
             rotationAmount = rotation * 2;
@@ -11628,8 +11674,8 @@ function flipItems(){
 
 
 
-        node.offsetX(node.width()/2);
-        node.offsetY(node.height()/2);
+        node.offsetX(node.width() / 2);
+        node.offsetY(node.height() / 2);
 
         // node.offsetX(nodeCenterXY.x - node.x());
         // node.offsetY(nodeCenterXY.y - node.y());
@@ -11759,35 +11805,31 @@ fileJsonUpload.addEventListener('change', function (e) {
         reader.readAsText(e.target.files[0]);
         reader.onload = function (e) {
             let jsonFile = JSON.parse(reader.result);
-            let jsonFileGood = true;
+            let jsonFileType = false;
 
             if ('room' in jsonFile) {
-                if (!(jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
-                    console.info('JSON file missing roomWidth, roomLength or roomHeight')
-                    jsonFileGood = false;
+                if ((jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
+
+                    jsonFileType = 'vrc';
+                } else {
+                    console.info('Import Workspace Designer: JSON file missing roomWidth, roomLength or roomHeight')
                 }
-            } else {
-                jsonFileGood = false;
-                console.info('Room paramter missing from JSON file')
+            }
+            else if ('customObjects' in jsonFile) {
+                jsonFileType = 'workspaceDesigner';
+            }
+            else {
+                jsonFileType = false;
+                console.info('Import Workspace Designer: Room paramter missing from JSON file')
             }
 
-
-            //
 
             zoomInOut('reset');
 
 
             document.getElementById('dialogLoadingTemplate').showModal();
 
-
-
-
-           // keepDefaultUnit();
-
-
             document.getElementById("defaultOpenTab").click();
-
-
 
 
             setTimeout(() => {
@@ -11795,30 +11837,668 @@ fileJsonUpload.addEventListener('change', function (e) {
             }, 3000);
 
 
-
-            if (jsonFileGood) {
+            if (jsonFileType === 'vrc') {
                 resetRoomObj();
 
                 convertMetersFeet(true, jsonFile.unit);
 
-                setTimeout(()=>{
+                setTimeout(() => {
                     roomObj = structuredClone(jsonFile);
                     roomObj.trNodes = [];
                     drawRoom(true, false, false);
                 }, 1500);
 
 
-            } else {
-                console.info('JSON file upload, improper format');
-                alert('Bad JSON format. Please note that the Workspace Designer format is not supported at this time. Make sure the file was created in the Video Room Calculator.');
             }
-
-
+            else if (jsonFileType === 'workspaceDesigner') {
+                importWorkspaceDesignerFile(jsonFile);
+                //   alert('Bad JSON format. Please note that the Workspace Designer format is not supported at this time. Make sure the file was created in the Video Room Calculator.');
+            }
+            else {
+                console.info('Import: JSON file upload, improper format');
+                alert('Unable to import. Improper JSON format.');
+            }
 
             document.getElementById('fileUpload').value = null;
         };
     }
 });
+
+
+function importWorkspaceDesignerFile(workspaceObj) {
+    resetRoomObj();
+    let unknownObjects = [];
+
+    convertMetersFeet(true, 'meters');
+    let roomObj2 = structuredClone(roomObj);
+    roomObj2.room = {};
+    roomObj2.unit = 'meters';
+
+    roomObj2.name = workspaceObj.title || '';
+    roomObj2.workspace.addCeiling = false;
+    roomObj2.workspace.removeDefaultWalls = true;
+    roomObj2.room.roomHeight = 2.5;
+
+
+    /* create a structured clone of the array of customObjects. Once an item is parsed, delete it from the array */
+    let wdItems = structuredClone(workspaceObj.customObjects);
+
+    /* find the floor */
+    let isFloor = false;
+    if (workspaceObj.roomShape) {
+        roomObj2.room.roomWidth = workspaceObj.roomShape.width;
+        roomObj2.room.roomLength = workspaceObj.roomShape.length;
+        roomObj2.room.roomHeight = workspaceObj.roomShape.height || roomObj2.room.roomHeight;
+        if (workspaceObj.roomShape.manual) {
+            roomObj2.workspace.removeDefaultWalls = false;
+        }
+        isFloor = true;
+    }
+    else {
+
+        for (let i = 0; i < wdItems.length; i++) {
+            let wdItem = wdItems[i];
+            if (wdItem.objectType === 'floor') {
+                isFloor = true;
+                if ('length' in wdItem) {
+                    roomObj2.room.roomWidth = wdItem.width;
+                    roomObj2.room.roomLength = wdItem.length;
+                } else {
+                    roomObj2.room.roomWidth = wdItem.scale[0];
+                    roomObj2.room.roomLength = wdItem.scale[2]
+                }
+
+                delete wdItems[i];
+            }
+        }
+    }
+
+
+    if (!isFloor) {
+        let message = 'Import Workspace Designer: Size of room undetermined. Room Width or floor object not found on import of Workspace Designer!';
+        console.info(message);
+        alert(message);
+    }
+
+    if (roomObj2.workspace.removeDefaultWalls) {
+        document.getElementById("removeDefaultWallsCheckBox").checked = true;
+    } else {
+        document.getElementById("removeDefaultWallsCheckBox").checked = false;
+    }
+
+    /* determine if there is a ceiling.  */
+    document.getElementById("addCeilingCheckBox").checked = false;
+    for (let i = 0; i < wdItems.length; i++) {
+        let wdItem = wdItems[i];
+        /* ceiling */
+        if (wdItem && wdItem.objectType && wdItem.objectType === 'ceiling') {
+            console.info('Import Workspace Designer: adding ceiling');
+            roomObj2.workspace.addCeiling = true;
+            document.getElementById("addCeilingCheckBox").checked = true;
+            if ('position' in wdItem) {
+                roomObj2.room.roomHeight = wdItem.position[1];
+                if ('scale' in wdItem) {
+                    roomObj2.room.roomHeight = roomObj2.room.roomHeight - wdItem.scale[1] / 2;
+                }
+            }
+
+        }
+
+    }
+
+
+    for (let i = 0; i < wdItems.length; i++) {
+        let wdItem = wdItems[i];
+        let candidateKey = {};
+        let highHitCount = 0;
+
+        let candidateKeyName = 'none';
+
+        if (wdItem) {
+
+            for (let key in workspaceKey) {
+                let hits = 0;
+                let keyItem = workspaceKey[key];
+
+                if ((keyItem.objectType === wdItem.objectType)) {
+                    hits = hits + 50;
+
+                    if ('model' in keyItem && 'model' in wdItem) {
+                        if (keyItem.model === wdItem.model) {
+                            hits = hits + 20;
+                        }
+                    }
+
+                    if ('mount' in keyItem && 'mount' in wdItem) {
+                        if (keyItem.mount === wdItem.mount) {
+                            hits = hits + 10;
+                        }
+                    }
+
+                    if ('color' in keyItem && 'color' in wdItem) {
+                        if (keyItem.color === wdItem.color) {
+                            hits = hits + 2;
+                        }
+                    }
+
+                    if ('scale' in keyItem && 'scale' in wdItem) {
+
+                        if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
+
+                            if (keyItem.scale[0] === 1 && keyItem.scale[0] === 1 && keyItem.scale[0] === 1) {
+                                hits = hits + 1;
+                            }
+                            else {
+                                hits = hits + 5;
+                            }
+                        }
+                    }
+                }
+
+                if (hits > highHitCount) {
+                    highHitCount = hits;
+                    candidateKey = structuredClone(wdItem);
+                    candidateKeyName = key;
+                }
+
+
+            }
+
+            if (Object.keys(candidateKey).length === 0) {
+                console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
+                /*
+
+                Do something with unknow objects....
+
+                 */
+                unknownObjects.push(wdItem);
+
+            } else {
+                console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
+                console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
+
+                wdItemToRoomObjItem(wdItem, candidateKeyName, roomObj2, workspaceObj);
+
+                delete wdItems[i];
+            }
+        }
+    }
+
+    deletePossibleRoomKitEqxDisplays(roomObj2);
+
+    if(unknownObjects.length > 0){
+        console.info('Import Workspace Designer: Unknown object total: ', unknownObjects.length);
+         console.info('Import Workspace Designer: Unknown objects ', unknownObjects);
+
+    }
+    setTimeout(() => {
+        roomObj = structuredClone(roomObj2);
+        roomObj.trNodes = [];
+        drawRoom(true, false, false);
+    }, 1500);
+
+}
+
+
+function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
+    let regexSecondary = /^secondary(_|-).*/i;
+
+    if (regexSecondary.test(wdItemIn.id)) {
+        console.info('Workspace Designer import, ignore secondary item:', data_deviceid, wdItemIn.id)
+        return;
+    }
+
+    if (data_deviceid === 'ceilingMount' || data_deviceid === 'ceiling') {
+        console.info('Workspace Designer import ignore ignore:', data_deviceid);
+        return;
+    }
+
+    if (!(allDeviceTypes[data_deviceid])) {
+        console.info('Workspace Designer issues with:', data_deviceid);
+        return;
+    }
+
+    let wdItem = structuredClone(wdItemIn); /* make a structured clone of the wdItem, delete each object key as processed */
+    let position = wdItem.position;
+    let wdKey = workspaceKey[data_deviceid];
+    let deviceType = allDeviceTypes[data_deviceid];
+    let family = deviceType.family || 'default'; /* default, resizeItem (tables), wallBox */
+    let item = {};
+    item.id = wdItem.id;
+    item.name = allDeviceTypes[data_deviceid].name;
+    item.data_deviceid = data_deviceid;
+
+
+    // [{ stdMount: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }]
+    /* if it is pseudo mount, then use the below */
+    if (data_deviceid.startsWith('ptz')) {
+
+        if ('scale' in wdItem) {
+            let scale = wdItem.scale;
+            if (scale[0] === 1 && scale[1] === 1 && scale[2] === 1) {
+                item.data_mount = {};
+                item.data_mount.index = 0;
+                item.data_mount.value = 'stdMount';
+                delete wdItem.mount;
+
+            }
+            else if (scale[0] === 1 && scale[1] === -1 && scale[2] === 1) {
+                item.data_mount = {};
+                item.data_mount.index = 1;
+                item.data_mount.value = 'flipped';
+
+                workspaceObj.customObjects.forEach(wkspaceItem => {
+                    let secondaryPoleId = "secondary-flippedPoleMount-" + item.id;
+
+                    if (wkspaceItem.id === secondaryPoleId) {
+                        item.data_mount.index = 2;
+                        item.data_mount.value = 'flippedPole';
+                    }
+                });
+
+                delete wdItem.mount;
+            }
+        }
+    }
+
+    /* process rotation key/value pair */
+    if ('rotation' in wdItem) {
+        let data_slant = 0;
+        let data_tilt = 0;
+
+        if (family === 'wallBox') {
+            data_slant = (wdItem.rotation[0] * -(180 / Math.PI));
+            item.rotation = (wdItem.rotation[1] * -(180 / Math.PI)) + 90;
+            data_tilt = (wdItem.rotation[2] * (180 / Math.PI));
+
+        }
+        else {
+            data_tilt = (wdItem.rotation[0] * (180 / Math.PI));
+            item.rotation = (wdItem.rotation[1] * -(180 / Math.PI));
+            data_slant = (wdItem.rotation[2] * (180 / Math.PI));
+
+        }
+
+        if (data_slant != 0) {
+            item.data_slant = data_slant;
+        }
+
+        if (data_tilt != 0) {
+            item.data_tilt = data_tilt;
+        }
+
+        if (data_deviceid === 'tblSchoolDesk') {
+            item.rotation = normalizeDegree(item.rotation + 180);
+        }
+
+        if (data_deviceid === 'couch') {
+            item.rotation = normalizeDegree(item.rotation + 90);
+        }
+
+        delete wdItem.rotation;
+    }
+    else {
+        console.info('***Warning: No rotation key/value found Workspace Designer on import. wdItem: ', JSON.stringify('wdItem'))
+    }
+
+    /* get VRC width & height */
+    if ('length' in wdItem || 'width' in wdItem) {
+        if (family === 'wallBox') {
+
+            item.height = wdItem.width || 0.10;
+            item.width = wdItem.length || 0.10;
+
+            if (data_deviceid === 'wallGlass') {
+                item.width = 0.10;
+            }
+
+        } else {
+            item.height = wdItem.length || 0.10;
+            item.width = wdItem.width || 0.10;
+        }
+
+        if (family === 'wallBox') {
+            item.data_vHeight = wdItem.height || roomObj.room.roomHeight;
+        } else {
+            if (wdItem.height) {
+                item.data_vHeight = wdItem.height;
+            }
+        }
+
+        if (data_deviceid === 'tblTrap' && 'taper' in wdItem) {
+            item.width = wdItem.taper + wdItem.width;
+            item.data_trapNarrowWidth = wdItem.width;
+            delete wdItem.taper;
+        }
+
+
+        delete wdItem.height;
+        delete wdItem.length;
+        delete wdItem.width;
+    }
+    else if ('scale' in wdItem) {
+        item.height = wdItem.scale[0];
+        item.width = wdItem.scale[2];
+        item.data_vHeight = wdItem.scale[1];
+        delete wdItem.scale;
+    }
+
+    /* process position key/value pair */
+    if ('position' in wdItem) {
+        let x, y, z;
+
+        if (family === 'default') { /* default is not tables or walls */
+            x = position[0] + (roomObj2.room.roomWidth) / 2;
+            y = position[2] + (roomObj2.room.roomLength) / 2;
+        } else {
+            let centerX = position[0] + (roomObj2.room.roomWidth) / 2;
+            let centerY = position[2] + (roomObj2.room.roomLength) / 2;
+            let shape = { x: centerX, y: centerY, rotation: item.rotation, height: item.height, width: item.width }
+            let upperLeftXY = findUpperLeftXY(shape);
+            x = upperLeftXY.x;
+            y = upperLeftXY.y;
+        }
+
+        if (family === 'wallBox') {
+            z = position[1] - (item.data_vHeight / 2);
+
+            /* make a best guess at the ceiling height based on walls that have z <= 0 elevation height */
+            if (roomObj2.workspace.addCeiling === false) {
+                let candidateHeight = item.data_vHeight + ((z < 0) ? z : 0);
+                if (candidateHeight > roomObj2.room.roomHeight) {
+                    roomObj2.room.roomHeight = candidateHeight;
+                }
+            }
+
+        } else {
+            z = position[1];
+        }
+
+        if ('yOffset' in wdKey || 'xOffset' in wdKey) {
+            let yOffset = 0;
+            let xOffset = 0;
+
+
+            if ('yOffset' in wdKey) yOffset = wdKey.yOffset;
+            if ('xOffset' in wdKey) xOffset = wdKey.xOffset;
+
+
+            let newXY = findNewTransformationCoordinate({ x: x, y: y, rotation: item.rotation || 0 }, -xOffset, -yOffset);
+
+            x = newXY.x;
+            y = newXY.y;
+
+        }
+
+
+        if ('vertOffset' in wdKey) {
+            z = z - wdKey.vertOffset;
+        }
+
+        /* assumes 16:9 display */
+        if (wdItem.objectType === 'screen') {
+            let stdDisplayHeight = displayHeight / 1000;
+            let displayScale = (wdItem.size || 55) / diagonalInches;
+            z = z - (stdDisplayHeight * displayScale) / 2;
+        }
+
+        item.x = Math.round(x * 100) / 100;
+        item.y = Math.round(y * 100) / 100;
+
+        if (z != 0) {
+            item.data_zPosition = Math.round(z * 100) / 100;
+        }
+
+        delete wdItem.position;
+
+    } else {
+        console.info('***Warning: No position key/value found Workspace Designer on import. wdItem: ', JSON.stringify('wdItem'))
+    }
+
+    /* size is display */
+    if ('size' in wdItem) {
+        item.data_diagonalInches = wdItem.size;
+        delete wdItem.size;
+    }
+
+    /* if scale: [1,1,1], remove from lable */
+    if ('scale' in wdItem) {
+        if (wdItem.scale[0] === 1 && wdItem.scale[1] === 1 && wdItem.scale[2] === 1) {
+            delete wdItem.scale;
+        }
+    }
+
+    /* tblRect radius & radiusRight*/
+    if ('radius' in wdItem && data_deviceid === 'tblRect') {
+        item.tblRectRadius = wdItem.radius;
+        delete wdItem.radius;
+    }
+
+    if ('radiusRight' in wdItem && data_deviceid === 'tblRect') {
+        item.tblRectRadiusRight = wdItem.radiusRight;
+        delete wdItem.radiusRight;
+    }
+
+    /* A chair may have color:#fff, which is the default therefore remove */
+    if ('color' in wdItem && wdItem.color === '#fff' && (data_deviceid === 'chair' || data_deviceid.startsWith('tbl'))) {
+        delete wdItem.color;
+    }
+
+    /* default role of the laptop is role:laptop, therefore remove */
+    if (data_deviceid === 'laptop' && wdItem.role && wdItem.role === 'laptop') {
+        delete wdItem.role;
+    }
+
+    if ('color' in wdItem) {
+
+        if (deviceType.colors) {
+            deviceType.colors.forEach((colorKey, index) => {
+                let colorObj = Object.keys(colorKey);
+                if (colorObj.length > 0) {
+                    if (wdItem.color && wdItem.color === colorObj[0]) {
+                        item.data_color = {};
+                        item.data_color.index = index;
+                        item.data_color.value = colorObj[0];
+                        delete wdItem.color;
+                    }
+                }
+            });
+
+        }
+    }
+
+    if ('role' in wdItem) {
+        if (deviceType.roles) {
+            deviceType.roles.forEach((roleKey, index) => {
+                let roleObj = Object.keys(roleKey);
+                if (roleObj.length > 0) {
+                    if (wdItem.role && wdItem.role === roleObj[0]) {
+                        item.data_role = {};
+                        item.data_role.index = index;
+                        item.data_role.value = roleObj[0];
+                        delete wdItem.role;
+                    }
+                }
+            });
+        }
+    }
+
+    if ('mount' in wdItem) {
+        if (deviceType.mounts) {
+            deviceType.mounts.forEach((mountKey, index) => {
+                let mountObj = Object.keys(mountKey);
+                if (mountObj.length > 0) {
+                    if (wdItem.mount && wdItem.mount === mountObj[0]) {
+                        item.data_mount = {};
+                        item.data_mount.index = index;
+                        item.data_mount.value = mountObj[0];
+                        delete wdItem.mount;
+                    }
+                }
+            });
+        }
+    }
+
+    let comment = '';
+    if (wdItem.comment) {
+        comment = wdItem.comment;
+        delete wdItem.comment;
+    };
+
+    if(data_deviceid.startsWith('roomKitEqx')){
+        delete wdItem.color;
+        delete wdItem.mount;
+    }
+
+    delete wdItem.range;
+    delete wdItem.distanceBtwChairs;
+    delete wdItem.distanceToWall;
+    delete wdItem.id;
+    delete wdItem.objectType;
+    delete wdItem.model;
+
+    /* merge comments and unused JSON attributes */
+    if (Object.keys(wdItem).length > 0) {
+        if (comment.length > 0) {
+            item.data_labelField = comment + ' ' + JSON.stringify(wdItem);
+        } else {
+            item.data_labelField = JSON.stringify(wdItem);
+        }
+    }
+
+
+        /*
+        Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
+    */
+
+    if (item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') {
+        roomObj2.workspace.removeDefaultWalls = false;
+        document.getElementById('removeDefaultWallsCheckBox').checked = false;
+    } else {
+        roomObj2.items[deviceType.parentGroup].push(item);
+    }
+
+}
+
+/* find any roomKitEqx in the roomObj, then look for duplicate displays and delete them */
+function deletePossibleRoomKitEqxDisplays(roomObj) {
+
+    let displays = roomObj.items.displays;
+    let videoDevices = roomObj.items.videoDevices;
+    videoDevices.forEach(videoDevice => {
+        if (videoDevice.data_deviceid.startsWith('roomKitEqx')) {
+
+            let smallDisplays, largeDisplays;
+            let smallEqx = structuredClone(videoDevice);
+            let largeEqx = structuredClone(videoDevice);
+
+
+            smallEqx.data_diagonalInches = 60;
+            largeEqx.data_diagonalInches = 90;
+            console.log()
+            smallDisplays = getLocationOfRoomKitEqxDisplay(smallEqx);
+            largeDisplays = getLocationOfRoomKitEqxDisplay(largeEqx);
+
+            for (let i = displays.length - 1; i >= 0; i--) {
+                let display = displays[i];
+                let inLeftArea = isDisplayInArea(display, smallDisplays.left, largeDisplays.left);
+                let inRightArea = isDisplayInArea(display, smallDisplays.right, largeDisplays.right);
+                if (inLeftArea || inRightArea) {
+                    if(65 <= display.data_diagonalInches && display.data_diagonalInches <= 85 ){
+                        videoDevice.data_diagonalInches = display.data_diagonalInches;
+                        displays.splice(i, 1);
+                    }
+                }
+
+            }
+        }
+    });
+}
+
+function isDisplayInArea(display, smallDisp, largeDisp) {
+    let inBounds;
+    let smallDispZ = smallDisp.data_zPosition || 0;
+    let largeDispZ = largeDisp.data_zPosition || 0;
+    let displayZ = display.data_zPosition || 0;
+    let minX = Math.min(smallDisp.x, largeDisp.x);
+    let maxX = Math.max(smallDisp.x, largeDisp.x);
+    let minY = Math.min(smallDisp.y, largeDisp.y);
+    let maxY = Math.max(smallDisp.y, largeDisp.y);
+    let minZ = Math.min(smallDispZ, largeDispZ);
+    let maxZ = Math.max(smallDispZ, largeDispZ);
+    minZ = minZ - 0.20;
+    maxZ = maxZ + 0.2;
+
+    if ((minX < display.x && display.x < maxX) && (minY < display.y && display.y < maxY) && (minZ < displayZ && displayZ < maxZ)) {
+        inBounds = true;
+    } else {
+        inBounds = false;
+    }
+
+    return inBounds;
+}
+
+function getLocationOfRoomKitEqxDisplay(item) {
+    if (item.data_deviceid.startsWith('roomKitEqx')) {
+
+        let newData_zPosition, deltaY;
+        let leftDisplay = structuredClone(item);
+        let rightDisplay = structuredClone(item);
+        let displayRatio = 1.02;
+
+
+        /* if the data_zPosition (height) is blank or null, set to 0 */
+        if (!item.data_zPosition) {
+            item.data_zPosition = 0;
+        }
+
+        let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
+
+        let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
+
+        if (item.data_deviceid === 'roomKitEqxFS') {
+            newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
+            deltaY = -0.07;
+        }
+        else if (item.data_deviceid === 'roomKitEqxWS') {
+            newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
+            deltaY = -0.12;
+        }
+        else {
+            newData_zPosition = 1.081 + Number(item.data_zPosition) - newDisplayHeight;
+            deltaY = -0.12;
+        }
+
+        /* adjust delta Y for display changes.  One display will be closer, the other farther */
+        deltaY = deltaY * (item.data_diagonalInches / 75);
+
+        let leftDisplayXY = findNewTransformationCoordinate(item, -deltaX, deltaY);
+        let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
+
+        leftDisplay.data_deviceid = 'displaySngl';
+        leftDisplay.id = 'display-KitEQX-L~' + item.data_deviceid + '-' + leftDisplay.id;
+        leftDisplay.x = leftDisplayXY.x;
+        leftDisplay.y = leftDisplayXY.y;
+        leftDisplay.data_zPosition = newData_zPosition;
+        leftDisplay.role = 'secondScreen';
+
+
+        rightDisplay.data_deviceid = 'displaySngl';
+        rightDisplay.id = 'display-KitEQX-R~' + item.data_deviceid + '-' + rightDisplay.id;
+
+        rightDisplay.x = rightDisplayXY.x;
+        rightDisplay.y = rightDisplayXY.y;
+        rightDisplay.data_zPosition = newData_zPosition;
+        rightDisplay.role = 'firstScreen';
+
+        return { left: leftDisplay, right: rightDisplay };
+    }
+
+
+}
+
+/** move here */
+
 
 
 
@@ -11999,7 +12679,7 @@ function addDefaultsToWorkspaceObj() {
                         workspaceKey[key].model = returnStringOfDefaultRoleColor(item.models);
                     }
 
-                    if ('mounts' in item && item.mounts) {
+                    if ('mount' in item && item.mounts) {
                         workspaceKey[key].mount = returnStringOfDefaultRoleColor(item.mounts);
                     }
                 }
@@ -12059,25 +12739,39 @@ function convertRoomObjToWorkspace() {
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
 
-        let wallWidth = 0.10 + 0.02; /* Add in the floor width to include the outer wall */
+        let wallWidth = 0.10; /* Add in the floor width to include the outer wall */
+
         let floor = {
-            x: roomObj2.room.roomWidth + wallWidth,
-            y: 0 - wallWidth,
+            x: roomObj2.room.roomWidth,
+            y: 0,
             rotation: 90,
             data_deviceid: "floor",
             id: "primaryFloor",
             data_zPosition: -0.1,
             data_vHeight: 0.1,
-            width: roomObj2.room.roomLength + (wallWidth * 2),
-            height: roomObj2.room.roomWidth + (wallWidth * 2)
+            width: roomObj2.room.roomLength,
+            height: roomObj2.room.roomWidth
         };
 
-        if (!swapXY) {
-            floor.width = roomObj2.room.roomLength;
-            floor.height = roomObj2.room.roomWidth;
-        }
 
         workspaceObjWallPush(floor);
+
+
+        let outerFloor = {
+            x: roomObj2.room.roomWidth + wallWidth,
+            y: 0 - wallWidth,
+            rotation: 90,
+            data_deviceid: "wall",
+            id: "secondary-outerFloor",
+            data_zPosition: -0.105,
+            data_vHeight: 0.1,
+            data_labelField: `{"color":"#CCC", "opacity": 0.97}`,
+            width: roomObj2.room.roomLength + wallWidth * 2,
+            height: roomObj2.room.roomWidth + wallWidth * 2
+        };
+
+        workspaceObjWallPush(outerFloor);
+
     }
 
     if (roomObj.workspace.addCeiling === true) {
@@ -12125,14 +12819,15 @@ function convertRoomObjToWorkspace() {
         if (item.data_deviceid.startsWith('doorDouble')) {
             let leftDoor = structuredClone(item);
             let rightDoor = structuredClone(item);
-            let deltaX = 0.48;
+            let deltaX = 0.51;
 
+            //  let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
             let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
 
-            leftDoor.id = 'primary-doorDouble-L-' + item.id;
+            leftDoor.id = 'primary1-doorDouble-L-' + item.id;
             leftDoor.data_deviceid = rightDoor.data_deviceid + 'Left';
 
-            rightDoor.id = 'secondary-dooorDouble-R-' + item.id;
+            rightDoor.id = 'primary2-dooorDouble-R-' + item.id;
             rightDoor.data_deviceid = rightDoor.data_deviceid + 'Right';
 
             let leftDoorXY = findNewTransformationCoordinate(item, deltaX, deltaY);
@@ -12162,7 +12857,6 @@ function convertRoomObjToWorkspace() {
             ceilingMount.data_deviceid = "ceilingMount";
             ceilingMount.data_zPosition = item.data_zPosition + (poleHeight / 35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
             ceilingMount.id = "secondary-ceilingMount-" + item.id;
-            item.id = "primary-ceilingMount-" + item.id;
             delete ceilingMount.data_mount;
 
             workspaceObjItemPush(ceilingMount);
@@ -12201,7 +12895,6 @@ function convertRoomObjToWorkspace() {
     });
 
     roomObj2.items.videoDevices.forEach((item) => {
-
         if (item.data_mount && item.data_mount.value.startsWith('flippedPole')) {
             let pole = {};
             let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
@@ -12217,7 +12910,7 @@ function convertRoomObjToWorkspace() {
             pole.rotation = item.rotation;
             pole.data_deviceid = "box";
             pole.data_labelField = '{"color":"#999999"}';
-            pole.id = "flippedPoleMount-" + item.id;
+            pole.id = "secondary-flippedPoleMount-" + item.id;
             workspaceObjWallPush(pole);
         }
         workspaceObjItemPush(item);
@@ -12246,14 +12939,14 @@ function convertRoomObjToWorkspace() {
             let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
 
             leftDisplay.data_deviceid = 'displaySngl';
-            leftDisplay.id = 'secondScreen-L~' + leftDisplay.id;
+            leftDisplay.id = 'screen-L~' + leftDisplay.id;
             leftDisplay.x = leftDisplayXY.x;
             leftDisplay.y = leftDisplayXY.y;
             leftDisplay.role = 'secondScreen';
             workspaceObjDisplayPush(leftDisplay);
 
             rightDisplay.data_deviceid = 'displaySngl';
-            rightDisplay.id = 'firstScreen-R~' + rightDisplay.id;
+            rightDisplay.id = 'screen-R~' + rightDisplay.id;
 
             rightDisplay.x = rightDisplayXY.x;
             rightDisplay.y = rightDisplayXY.y;
@@ -12317,7 +13010,7 @@ function convertRoomObjToWorkspace() {
             let rightDisplayXY = findNewTransformationCoordinate(item, deltaX, deltaY);
 
             leftDisplay.data_deviceid = 'displaySngl';
-            leftDisplay.id = 'secondScreen-L~' + item.data_deviceid + '-' + leftDisplay.id;
+            leftDisplay.id = 'display-KitEQX-L~' + item.data_deviceid + '-' + leftDisplay.id;
             leftDisplay.x = leftDisplayXY.x;
             leftDisplay.y = leftDisplayXY.y;
             leftDisplay.data_zPosition = newData_zPosition;
@@ -12325,7 +13018,7 @@ function convertRoomObjToWorkspace() {
             workspaceObjDisplayPush(leftDisplay);
 
             rightDisplay.data_deviceid = 'displaySngl';
-            rightDisplay.id = 'firstScreen-R~' + item.data_deviceid + '-' + rightDisplay.id;
+            rightDisplay.id = 'display-KitEQX-R~' + item.data_deviceid + '-' + rightDisplay.id;
 
             rightDisplay.x = rightDisplayXY.x;
             rightDisplay.y = rightDisplayXY.y;
@@ -12338,7 +13031,6 @@ function convertRoomObjToWorkspace() {
 
         if (item.data_deviceid.startsWith('webexDeskMini')) {
             let deskMiniBase = {};
-            let deskMiniXY;
 
             deskMiniBase.x = item.x;
             deskMiniBase.y = item.y;
@@ -12352,8 +13044,6 @@ function convertRoomObjToWorkspace() {
             deskMiniBase.data_labelField = `{"scale":[${0.4}, ${0.64}, ${0.25}], "yOffset":0.05}`
             workspaceObjItemPush(deskMiniBase);
         }
-
-
 
 
         if ('data_zPosition' in item) {
@@ -12422,7 +13112,7 @@ function convertRoomObjToWorkspace() {
             if (item.data_mount.value.startsWith('flipped')) {
                 workspaceItem.scale = [1, -1, 1];
             }
-            else if (item.data_mount.value.startsWith('standard')) {
+            else if (item.data_mount.value.startsWith('stdMount')) {
                 workspaceItem.scale = [1, 1, 1];
             }
             else {
@@ -12542,7 +13232,7 @@ function convertRoomObjToWorkspace() {
             screenInside.color = "#0a0abc";
             screenInside.height = screenInside.height * 0.95;
             screenInside.length = screenInside.length * 0.98;
-            screenInside.id = 'secondaryInsideScreen-' + screenInside.id;
+            screenInside.id = 'secondary-InsideScreen-' + screenInside.id;
 
             let newXY = findNewTransformationCoordinate(item, 0, -0.005);
 
@@ -12705,6 +13395,13 @@ function convertRoomObjToWorkspace() {
             workspaceItem.hidden = true;
         }
 
+        if ('yOffset' in workspaceItem) {
+            delete workspaceItem.yOffset;
+        }
+
+        if ('xOffset' in workspaceItem) {
+            delete workspaceItem.xOffset;
+        }
 
         if ('data_labelField' in item) {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
@@ -12809,7 +13506,14 @@ function convertRoomObjToWorkspace() {
 }
 
 function parseDataLabelFieldJson(item, workspaceItem) {
+
+    let commentPart;
     let jsonPart = /{.*?}/.exec(item.data_labelField);
+
+    if ('data_labelField' in item && item.data_labelField) {
+        commentPart = item.data_labelField.replace(/{.*?}/g, '');
+    }
+
     if (jsonPart) {
         try {
             let newKeyValues = JSON.parse(jsonPart[0]);
@@ -12817,6 +13521,10 @@ function parseDataLabelFieldJson(item, workspaceItem) {
         } catch {
             console.info('Error parsing JSON ', jsonPart);
         }
+    }
+
+    if (commentPart && workspaceItem) {
+        workspaceItem.comment = commentPart;
     }
 
     return workspaceItem;
@@ -12838,8 +13546,11 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 
 /* download native VRC file format */
 function downloadRoomObj() {
-
-    let downloadRoomName = 'VideoRoomCalc';
+    /* create a time stamp */
+    let tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
+    let localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
+    localISOTime = localISOTime.replaceAll(/:/g, '');
+    let downloadRoomName = 'VideoRoomCalc_' + localISOTime;
 
     const link = document.createElement("a");
 

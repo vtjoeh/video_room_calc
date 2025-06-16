@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.613**
+- Experimental feature: ctrl+s downloads configuration JSON file. ctrl+O opens allows for upload of file.
+- Small fixes.
+
 **v0.1.612**
 - Require end user to choose a role for the Room Vision camera or PTZ 4K camera on insert (e.g. Cross-View, Extended Speaker View, et.). "Manual Camera" = PresenterTrack on Workspace Designer export.
 - The simulated Display 21:9 slant and tilt orientation now fixed to be similar to other displays when exported to the Workspace Designer.
