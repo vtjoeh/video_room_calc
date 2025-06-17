@@ -108,24 +108,21 @@ _**Note:** The above information could change at a later date based on new featu
 **Caution:** It is possible to create unsupported video device Role combinations of displays and cameras.
 
 ### Item Label field, JSON and the Workspace Designer
+
 - Example: [Video Room Calc Labels with custom JSON](https://collabexperience.com/?x=A1v0.1.510b1000c1000~Video+Room+Calc+Label+JSON+example~B000101AG809a199b623~%7B%22scale%22%3A%5B1%2C-1%2C1%5D%7D~WA125a52c33e864~%7B%22color%22%3A%22red%22%2C+%22opacity%22%3A%220.5%22%7D~WD522a626b70c200e200j200~%7B%22color%22%3A%22blue%22%2C+%22rotation%22%3A%5B0.785%2C0%2C0.785%5D%7D~WA1003a0c33e1001~%7B%22hidden%22%3A%22true%22%7D~DA460a199b433g55~Tilted+display+%7B%22rotation%22%3A%5B0.3%2C0%2C0%5D%7D~) with JSON in the **Details** --> **Item:** **Label** field
 - In support of the **Custom Rooms**, when the Label field has JSON it is inserted direct into the Workspace Designer's JSON configuration:
   - Anything not in curly brackets {} in the Label field is ignored when this merge happens.
   - Examples:
     - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
-    - To flip a PTZ 4K camera: {"scale":[1,-1,1]}
     - Hide an object when exported to the Workspace Designer, great for a wall: {"hidden":"true"}
     - To change a person's model use {"model":"man-standing-pen"}.  The default person is {"model":"woman-standing"}.
-    - To change the x, y, z rotation of any object: {"rotation":[0, 3.14, 0]}
-      - Rotation is in radians.
-      - Overrides the Degree field.
-      - Example: [Campfire with tilted displays](https://collabexperience.com/?x=A1v0.1.510b3999c3999~Example%3A+Campfire+tilted+displays~B100100AI1804a1913b269f900AE2165a1923b269f-900AE1988a2100b269AE1982a1742b269f1800SF446a377SA1880a2927f1800SA2995a1788f900SA984a1522f-900SA2116a922SA1594a912SA2995a2329f900SA2402a2940f1800SA984a1798f-900SA1854a922SA2995a2051f900SA1601a2927f1800SA2142a2927f1800SA2395a922SA984a2064f-900SA971a2323f-900SA3009a1529f900TE1427a2674c1152TE2743a2503c1152f-900TE2569a1175c1152f1800TE1237a1348c1152f900TA2372a1545c755e761f900j259WD1795a1732b312c384e374j3DB1575a1930b33f900g50~%7B%22rotation%22%3A%5B-0.3%2C-1.57%2C0%5D%7D~DB1991a2326b33g50~%7B%22rotation%22%3A%5B-0.3%2C0%2C0%5D%7D~DB2401a1923b33f-900g50~%7B%22rotation%22%3A%5B-0.3%2C1.57%2C0%5D%7D~DB1991a1512b33f1800g50~%7B%22rotation%22%3A%5B-0.3%2C3.14%2C0%5D%7D~ME2818a1450b233f-784MC2795a1683b233f-900MC2247a2726b233MC2799a2142b233f-900MC1181a1706b233f900MC2208a1122b233f1800MC1788a2730b233MC1749a1122b233f1800MC1184a2169b233f900)
 - No error is given if the JSON does not parse properly.
 - Use Label fields sparingly as they increase the length of the URL. Avoid unnecessary spaces.
-- The Workspace Designer's full JSON schema will be published at a later date.
-- The Video Room Calculator and the Workspace Designer use different coordinate and degree systems, more info at a later date.
+- The Video Room Calculator and the Workspace Designer use different coordinate and degree systems.
 - The Workspace Designer JSON objects are always in meters.  The Video Room Calculator can be in feet or meters.
 - The JSON values and syntax might change without warning as we work out the details of this beta.
+- For more details see [Workspace Designer: Custom Rooms](https://designer.cisco.com//#/article/CustomRooms) documentation.
+
 - **Caution**  Labels are powerful but can create undesired results in the Workspace Designer.
 
 

@@ -4613,6 +4613,7 @@ function onDialogClick(e) {
     const clickedOutside = e.target.tagName === 'DIALOG'
     if (clickedOutside) {
         e.target.close()
+        closeAllDialogModals();
     }
 }
 
@@ -11823,24 +11824,22 @@ fileJsonUpload.addEventListener('change', function (e) {
                 console.info('Import Workspace Designer: Room paramter missing from JSON file')
             }
 
-
             zoomInOut('reset');
-
 
             document.getElementById('dialogLoadingTemplate').showModal();
 
             document.getElementById("defaultOpenTab").click();
 
-
             setTimeout(() => {
                 closeAllDialogModals();
             }, 3000);
 
-
             if (jsonFileType === 'vrc') {
+
                 resetRoomObj();
 
                 convertMetersFeet(true, jsonFile.unit);
+
 
                 setTimeout(() => {
                     roomObj = structuredClone(jsonFile);
@@ -11864,6 +11863,18 @@ fileJsonUpload.addEventListener('change', function (e) {
     }
 });
 
+function alertDialog(headerHtml, mainHtml) {
+    let dialogAlertModal = document.getElementById('dialogAlertModal');
+    let dialogAlertHeader = document.getElementById('dialogAlertHeader');
+    let dialogAlertMain = document.getElementById('dialogAlertMain');
+
+
+    dialogAlertHeader.innerHTML = headerHtml;
+    dialogAlertMain.innerHTML = mainHtml;
+
+    dialogAlertModal.showModal();
+
+}
 
 function importWorkspaceDesignerFile(workspaceObj) {
     resetRoomObj();
@@ -12026,20 +12037,40 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     deletePossibleRoomKitEqxDisplays(roomObj2);
 
-    if(unknownObjects.length > 0){
+    let finalMessage = '... File Import Successful ...';
+
+    if (unknownObjects.length > 0) {
         console.info('Import Workspace Designer: Unknown object total: ', unknownObjects.length);
-         console.info('Import Workspace Designer: Unknown objects ', unknownObjects);
+        console.info('Import Workspace Designer: Unknown objects ', unknownObjects);
+        // finalMessage = '<b>Following unknown objects not imported:</b> <br>'
+        // unknownObjects.forEach(wdItem => {
+        //     if(wdItem.id){
+        //     finalMessage +=  'id: ' + wdItem.id;
+        //   }
+
+        // if(wdItem.objectType){
+        //    finalMessage +=  ', objectType: ' + wdItem.id;
+        // }
+        // finalMessage +=  '<br/><br/>';
+
+        // });
+
+        // finalMessage += '<b>Total objects unimported: </b>' + unknownObjects.length;
 
     }
+
+    // alertDialog('Importing Workspace Designer File', 'Please wait');
+
     setTimeout(() => {
         roomObj = structuredClone(roomObj2);
         roomObj.trNodes = [];
         drawRoom(true, false, false);
+        //   alertDialog('Workspace Designer File Import', finalMessage);
     }, 1500);
 
 }
 
-
+/* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
 
@@ -12054,7 +12085,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     if (!(allDeviceTypes[data_deviceid])) {
-        console.info('Workspace Designer issues with:', data_deviceid);
+        console.info('Workspace Designer import issues with:', data_deviceid);
         return;
     }
 
@@ -12345,9 +12376,13 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.comment;
     };
 
-    if(data_deviceid.startsWith('roomKitEqx')){
+    if (data_deviceid.startsWith('roomKitEqx')) {
         delete wdItem.color;
         delete wdItem.mount;
+    }
+
+    if (data_deviceid.startsWith('ceilingMic')) {
+        delete wdItem.sphere;
     }
 
     delete wdItem.range;
@@ -12367,9 +12402,9 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
 
-        /*
-        Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
-    */
+    /*
+    Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
+*/
 
     if (item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') {
         roomObj2.workspace.removeDefaultWalls = false;
@@ -12395,7 +12430,7 @@ function deletePossibleRoomKitEqxDisplays(roomObj) {
 
             smallEqx.data_diagonalInches = 60;
             largeEqx.data_diagonalInches = 90;
-            console.log()
+
             smallDisplays = getLocationOfRoomKitEqxDisplay(smallEqx);
             largeDisplays = getLocationOfRoomKitEqxDisplay(largeEqx);
 
@@ -12404,7 +12439,7 @@ function deletePossibleRoomKitEqxDisplays(roomObj) {
                 let inLeftArea = isDisplayInArea(display, smallDisplays.left, largeDisplays.left);
                 let inRightArea = isDisplayInArea(display, smallDisplays.right, largeDisplays.right);
                 if (inLeftArea || inRightArea) {
-                    if(65 <= display.data_diagonalInches && display.data_diagonalInches <= 85 ){
+                    if (65 <= display.data_diagonalInches && display.data_diagonalInches <= 85) {
                         videoDevice.data_diagonalInches = display.data_diagonalInches;
                         displays.splice(i, 1);
                     }
