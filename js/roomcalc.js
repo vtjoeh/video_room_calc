@@ -4141,8 +4141,12 @@ function createShareableLink() {
             characterLimitWarningShow = false;
         }
 
+        fullShareLink = 'https://collabexperience.com/'
+        document.getElementById('shareLink').style.display = 'none'
+
     } else {
         document.getElementById('characterLimitWarning').close();
+        document.getElementById('shareLink').style.display = ''
     }
 
     if (fullShareLink.length > 2500) {
