@@ -11400,10 +11400,6 @@ function onKeyDown(e) {
     const DELTA = 1; /* change in key movement in Canvas pixel */
     let isShortCutKeyUsed = false;
 
-
-
-
-
     if ((key === 'r') && e.shiftKey && (e.ctrlKey || e.metaKey)) return; /* allow for a hard refresh. */
 
     /* export to the Workspace Designer */
@@ -11804,6 +11800,8 @@ fileInputImage.addEventListener('change', function (e) {
 const fileJsonUpload = document.getElementById('fileUpload');
 
 fileJsonUpload.addEventListener('change', function (e) {
+
+    closeAllDialogModals();
 
     if (e.target.files && e.target.files[0]) {
         let reader = new FileReader();

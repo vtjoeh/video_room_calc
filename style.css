@@ -416,6 +416,13 @@ input:placeholder-shown {
   background-color: black;
 }
 
+.buttonWidth {
+  width: 250px;
+  margin: 5px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+}
 
 /* .holdIndicator {
   font-size: 5px;
@@ -1489,6 +1496,10 @@ hr.rightClickHorizontalLine {
     height: 20px;
     line-height: 20px;
     font-size: 16px;
+  }
+
+  dialog header button{
+    font-size: 10px;
   }
 
 

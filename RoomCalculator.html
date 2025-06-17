@@ -33,6 +33,7 @@
       <span>Save</span>
     </button>
 
+
     <button id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo [Ctrl-Z]">
       <i class="icon icon-undo-regular"></i>
       <span>Undo</span>
@@ -901,13 +902,15 @@
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
       <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
-        <input type="submit" value="Download .png" id="downloadPNG" class="button">
-        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button">
+        <input type="submit" value="Download File" id="downloadJson" class="button buttonWidth" onclick="downloadRoomObj();">
+        <input type="submit" value="Export to Workspace Designer" id="downloadWorkspaceDesignerJson" class="button buttonWidth" onclick="downloadFileWorkspace();">
+        <input type="submit" value="Download .png" id="downloadPNG" class="button buttonWidth">
+        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button buttonWidth">
         <br>
         <a href="javascript:void(0)">
           <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
             onclick="copyLinkToClipboard()">
-            <span style style="white-space: nowrap;">Shareable Link to Clipboard
+            <span style style="white-space: nowrap;">Shareable Template Link to Clipboard
               <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
                 <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
                   style="background-size: 10px 10px">
@@ -981,6 +984,10 @@
         <button onclick="loadTemplate('A1v0b2600c2000B100100')">
           <i class="icon icon-new-whiteboard-regular"></i>
           Blank canvas
+        </button>
+        <button onclick="document.getElementById('fileUpload').click()">
+          <i class="icon icon-import-regular"></i>
+          Open File
         </button>
       </div>
     </header>
