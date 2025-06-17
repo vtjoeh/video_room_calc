@@ -9,7 +9,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.613**
-- Experimental feature: ctrl+s downloads configuration JSON file. ctrl+O opens allows for upload of file.
+- Experimental feature: Save files locally in JSON format.
+  - ctrl+S to **S**ave/download configuration JSON file.
+  - ctrl-I to **I**mport file.
+- Experimental feature: Import a file from the Workspace Designer. **E**xport a file from while in the Workspace Designer using ctrl-E. **I**mport into the Video Room Calculator using ctrl-I.
 - Small fixes.
 
 **v0.1.612**
