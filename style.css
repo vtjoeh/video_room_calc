@@ -219,6 +219,7 @@ dialog .subtle {
 
 button {
   touch-action: manipulation;
+  outline: none;
 }
 
 button:not(:disabled) {
@@ -1503,6 +1504,107 @@ hr.rightClickHorizontalLine {
   }
 
 
+}
+
+.dropDownJSON, .dropDownPNG {
+    position: relative;
+    display: inline-flex;
+    overflow: visible;
+
+    gap: 2px;
+}
+
+.drpDownBtnMain {
+    padding-left: 70px;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+    width: 300px;
+    margin-bottom: 20px;
+    border: 1px solid black;
+    outline: none;
+}
+
+.dropDownBtnWhite {
+    outline: none;
+    box-shadow: none;
+    border: 1px solid black;
+    background-color: white;
+    color: black;
+}
+
+.dropDownBtnWhite:hover {
+  background-color: #ddd;
+}
+.drpDownBtnMainFull{
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  width: 338px;
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.drpDownBtnArrow {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    padding: 8px 10px;
+    border: 1px solid black;
+    outline: none;
+}
+
+.dropDownBtnMenu {
+    display: none;
+    /* hide until toggled */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #ffffff;
+    color: #000000;
+    z-index: 1000;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    padding: 0;
+    margin-top: -20px;
+    border-radius: 0.25rem;
+    border:#000 solid 0.3px;
+}
+
+
+.dropDownMenuItem {
+    display: block;
+    white-space: nowrap;
+    padding: 8px 12px;
+    cursor: pointer;
+    min-width: 338px;
+    font-size: small;
+
+}
+
+.dropDownMenuItem:hover,
+.dropDownMenuItem:focus {
+    background-color: #dddddd;
+    color: #222222;
+
+}
+
+.iconLeftOfText{
+  position:absolute;
+  left: -23px;
+  top: -4px;
+}
+
+.showJSONDropDown,
+.showPNGDropDown {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+    width: max-content;
 }
 
 #floatingWorkspace { display:flex; margin:0; padding:0; resize:both; overflow:hidden; flex-direction: column;}

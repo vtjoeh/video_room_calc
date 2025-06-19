@@ -679,18 +679,18 @@
               </label>
             </div>
 
-          <div class="inputField" id="wdSiteDiv" style="display: none;" >
+            <div class="inputField" id="wdSiteDiv" style="display: none;">
 
-            <label class="tooltip">Workspace Designer Site:</site> <a href="/?wd=0">Disable</a>
-            <i class="icon icon-info-circle-bold"></i>
-            <span class="tooltiptext">
-              Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
-              Deactivate with<br> https://site/?wd=0 <br>or press the Disable link.
-            </span>
-          </label>
+              <label class="tooltip">Workspace Designer Site:</site> <a href="/?wd=0">Disable</a>
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
+                  Deactivate with<br> https://site/?wd=0 <br>or press the Disable link.
+                </span>
+              </label>
 
-            <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
-          </div>
+              <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
+            </div>
 
 
           </div>
@@ -901,34 +901,67 @@
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      <div id="downloadButtons" class="downloadButtons" style="visibility: hidden;">
-        <input type="submit" value="Download File" id="downloadJson" class="button buttonWidth" onclick="downloadRoomObj();">
-        <input type="submit" value="Export to Workspace Designer" id="downloadWorkspaceDesignerJson" class="button buttonWidth" onclick="downloadFileWorkspace();">
-        <input type="submit" value="Download .png" id="downloadPNG" class="button buttonWidth">
-        <input type="submit" value="Transparent .png" id="downloadTransPNG" class="button buttonWidth">
-        <br>
-        <a href="javascript:void(0)">
-          <div style="display: inline-block; margin-left: 4px; margin-top: 10px; cursor: pointer;" id="shareLink"
-            onclick="copyLinkToClipboard()">
-            <span style style="white-space: nowrap;">Shareable Template Link to Clipboard
-              <div id="copyToLinkSvg" style="position:relative; top:5px; left:0px; display: inline;">
-                <svg width="21" height="21" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"
-                  style="background-size: 10px 10px">
-                  <title id="copyBoxId">Copy Share Link</title>
-                  <rect x="2" y="4" rx="3" ry="3" width="15" height="24"
-                    style="fill:rgb(47, 66, 189);stroke:royalblue;stroke-width:1;opacity:0.5" />
-                  <rect x="6" y="8" rx="3" ry="3" width="13" height="22"
-                    style="fill:white;stroke:blue;stroke-width:1;opacity:1.0" />
-                </svg>
+      <div id="downloadButtons" class="downloadButtons">
+        <div class="dropDownJSON">
+          <button class="button drpDownBtnMain" id="downloadJSONButton" onclick="downloadRoomObj()">
+            <span style="position: relative; ">Download File<i
+                class="icon icon-file-code-bold iconLeftOfText"></i></span></button>
+          <span>
+            </button>
+            <span>
+              <button class="button drpDownBtnArrow" id="drpDownBtnArrowJSON">▼</button>
+
+              <div class="dropDownBtnMenu" id="drpDownJSONContent">
+                <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadVRCJSONMenuItem"
+                  onclick="downloadRoomObj()">
+                  <i class="icon icon-file-code-bold" style="font-size: large;transform:  translate(0px,5px);"></i>Video
+                  Room Calculator JSON
+                </div>
+                <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadWDJSONMenuItem"
+                  onclick="downloadFileWorkspace()">
+                  <i class="icon icon-file-three-d-bold"
+                    style="font-size: large;transform:  translate(0px,5px);"></i>Export Workspace
+                  Designer JSON
+                </div>
+
               </div>
             </span>
-          </div>
-        </a>
-
-        <div class="menuDivider" style="text-align: left; font-size: smaller;">
-          <b>Note:</b> <i>The Shareable Link is a copy of your current room. Changes made to
-            the Shareable Link do not affect the original. </i>
         </div>
+
+        <div class="dropDownPNG">
+          <button class="button drpDownBtnMain dropDownBtnWhite" id="downloadPNG"><span
+              style="position: relative; ">Download Image<i
+                class="icon icon-file-image-bold iconLeftOfText"></i></span></button>
+          <span>
+            <button class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowPNG">▼</button>
+
+            <div class="dropDownBtnMenu" id="drpDownPNGContent">
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadPNGMenuItem">
+                <i class="icon icon-file-image-bold"
+                  style="font-size: large;transform:  translate(0px,5px);"></i>Download PNG
+              </div>
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadTransPNG">
+                <i class="icon icon-file-image-filled"
+                  style="font-size: large;transform:  translate(0px,5px);"></i>Download Transparent PNG
+              </div>
+            </div>
+          </span>
+        </div>
+
+        <div class="dropDownPNG">
+          <button class="button drpDownBtnMainFull dropDownBtnWhite" id="shareLink" onclick="copyLinkToClipboard()"
+            href="" style="padding-left: 50px; "></i>
+            <span style="position: relative; ">Shareable Template Hyperlink<i
+                class="icon icon-copy-bold iconLeftOfText"></i></span>
+          </button>
+        </div>
+
+      </div>
+
+      <div class="menuDivider" style="text-align: left; font-size: smaller;">
+        <b>Note:</b> <i>The Shareable Template Hyperlink is a copy of your current room. Changes made to
+          the Shareable Template Hyperlink do not affect the original. </i>
+      </div>
 
       </div>
 
@@ -1196,8 +1229,8 @@
       <form method="dialog">
         <div class="inputField">
           <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
-          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow2()" class="button"
-            id="btnModalWorkspace">
+          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow2()"
+            class="button" id="btnModalWorkspace">
         </div>
       </form>
     </main>
@@ -1492,7 +1525,9 @@
           <div>
             Video Room Calculator version: <label id="lblVersion">vx.x</label>
           </div>
-          <div id="testLog" style="display: none;"><hr><b>showTestLog():</b><br></div>
+          <div id="testLog" style="display: none;">
+            <hr><b>showTestLog():</b><br>
+          </div>
         </div>
         <br>
 
@@ -1518,16 +1553,16 @@
 
     </div>
 
-        <div id="roleSelection" class="roleSelectionDiv">
+    <div id="roleSelection" class="roleSelectionDiv">
 
-        </div>
+    </div>
 
   </dialog>
 
 
   <dialog id="dialogAlertModal" class='dialogWhiteBox' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">
-      <div id="dialogAlertHeader" ></div>
+      <div id="dialogAlertHeader"></div>
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
 
@@ -1545,7 +1580,8 @@
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
       You have exceded the limit of the number of characters for the URL of 8190.
-      <b>To maintain the Shareable Template Link, please click the 'undo' button or delete some objects until the configuration appers in the URL above.</b><br><br>
+      <b>To maintain the Shareable Template Link, please click the 'undo' button or delete some objects until the
+        configuration appers in the URL above.</b><br><br>
       Alternatively, use <b>ctrl-S</b> to <b>S</b>ave the file. Use <b>ctrl-I</b> to <b>I</b>mport and upload files.
       <br>
 
@@ -1561,36 +1597,45 @@
   <div id="floatingWorkspace" class="menuMore"
     style=" resize: both; overflow: auto; height:90%; width:200px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 10px; display: none; "
     ondragend="console.log('dragend')">
-    <div style="cursor: pointer; padding: 1px; padding-left: 2px; border-bottom: solid 1px;"
-      id="floatingWorkspace-dragger">
+    <div style="cursor: pointer; padding: 1px; padding-left: 2px; border-bottom: solid 1px;">
 
       <div id="floatingWorkspaceHeader">
-          <button style="border-style:hidden;" ontouch="document.getElementById('floatingWorkspace').style.display = 'none';" onclick="document.getElementById('floatingWorkspace').style.display = 'none';">
+        <button style="border-style:hidden; font-size:x-large;"
+          ontouchstart="document.getElementById('floatingWorkspace').style.display = 'none';"
+          onclick="document.getElementById('floatingWorkspace').style.display = 'none';">
 
           <i class="icon icon-clear-bold"></i>
         </button>
-        <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('fullscreen')" onclick="floatingWorkspaceResize('fullscreen')">
+        <button style="border-style:hidden; font-size:x-large;" id="floatingWorkspaceBtnFullScreen" ontouchstart="floatingWorkspaceResize('fullScreen')"
+          onclick="floatingWorkspaceResize('fullScreen')">
 
           <i class="icon icon-maximize-bold"></i>
         </button>
 
-       <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('slideOver')" onclick="floatingWorkspaceResize('slideOver')">
+        <button style="border-style:hidden; font-size:large;" id="floatingWorkspaceBtnSlideOver"  ontouchstart="floatingWorkspaceResize('slideOver')"
+          onclick="floatingWorkspaceResize('slideOver')">
           <i class="icon icon-video-layout-equal-dual-bold"></i>
         </button>
 
-        <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('pip')" onclick="floatingWorkspaceResize('pip')">
+        <button style="border-style:hidden; font-size:x-large" id="floatingWorkspaceBtnPip" ontouchstart="floatingWorkspaceResize('pip')"
+          onclick="floatingWorkspaceResize('pip')">
           <i class="icon icon-pip-bold"></i>
         </button>
+        <span >
 
-        <div style="display: inline-flex; transform: translate(30px, -4px);">
-        <div style="text-align: center;">Cisco Workspace Designer</div>
-        </div>
-      </div> <i class="icon icon-dragger-vertical-bold"
+          <div style="display: inline-flex; transform: translate(30px, -4px);">
+            <div style="text-align: center;">Cisco Workspace Designer</div>
+          </div>
+        </span>
+      </div>
+      <i class="icon icon-dragger-vertical-bold"
         style="position: absolute; right: 7px; top: 4px; cursor: all-scroll;"></i>
+      <div style="position: absolute; left: 170px; width: 99%; height: 35px; top: 1px;  " id="floatingWorkspace-dragger">
+
+      </div>
 
     </div>
-    <iframe title="Workspace Designer"
-      id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
+    <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
     </iframe>
   </div>
 

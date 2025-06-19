@@ -8,6 +8,11 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**0.1.614**
+- Button added for saving Video Room Calculator JSON file format
+- Button to the Workspace Designer format.
+
+
 **v0.1.613**
 - Experimental feature: Save files locally in JSON format.
   - ctrl+S to **S**ave/download configuration JSON file.

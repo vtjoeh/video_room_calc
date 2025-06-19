@@ -1385,12 +1385,6 @@ function updateWidthOfDisplay(inches) {
     }
 }
 
-/*
-version 0.1.517 update;
-*/
-/*
-    Add event listeners to the
-*/
 function addEventUpdateItemsDropDown() {
     let drp = document.querySelectorAll(".selectRole");
 
@@ -1625,7 +1619,7 @@ function copyLinkToClipboard() {
     })];
 
     navigator.clipboard.write(data).then(
-        () => { alert('Copied link to clipboard') },
+        () => { alert('Hyperlink copied to clipboard') },
         () => { }
     );
 
@@ -11428,7 +11422,7 @@ function changeWallAnchors(isWall = false) {
 
 
 function testiFrameToggle(allowClose = false){
-    console.log('testiFrame', testiFrame);
+
     if(!testiFrame) return;
 
     if (document.getElementById('floatingWorkspace').style.display === 'none') {
@@ -11439,6 +11433,12 @@ function testiFrameToggle(allowClose = false){
                 testiFrameInitialized = true;
                  openWorkspaceWindow(false);
                  floatingWorkspaceResize('slideOver');
+                 setTimeout(()=>{
+                    if(mobileDevice === 'RoomOS'){
+                        console.log('line 11439');
+                        floatingWorkspaceResize('fullScreen');
+                    }
+                 }, 1000);
             }
 
 
@@ -11450,19 +11450,26 @@ function testiFrameToggle(allowClose = false){
 
 function floatingWorkspaceResize(size){
 
-    if(size === 'fullscreen') {
+    document.getElementById('floatingWorkspaceBtnFullScreen').style.borderStyle = 'hidden';
+    document.getElementById('floatingWorkspaceBtnPip').style.borderStyle = 'hidden';
+    document.getElementById('floatingWorkspaceBtnSlideOver').style.borderStyle = 'hidden';
+
+    if(size === 'fullScreen') {
         document.getElementById('floatingWorkspace').style.left = 0 + 'px';
+        document.getElementById('floatingWorkspaceBtnFullScreen').style.borderStyle = '';
         document.getElementById('floatingWorkspace').style.top = 0 + 'px';
         document.getElementById('floatingWorkspace').style.width = '100%';
         document.getElementById('floatingWorkspace').style.height =  '100%';
     }
     else if (size === 'slideOver'){
+         document.getElementById('floatingWorkspaceBtnSlideOver').style.borderStyle = '';
         document.getElementById('floatingWorkspace').style.left = (window.innerWidth) * 0.595 + 'px';
         document.getElementById('floatingWorkspace').style.top =  '1%';
         document.getElementById('floatingWorkspace').style.width = (window.innerWidth) * 0.4 + 'px';
         document.getElementById('floatingWorkspace').style.height =  '98%';
     }
     else if (size === 'pip'){
+        document.getElementById('floatingWorkspaceBtnPip').style.borderStyle = '';
         document.getElementById('floatingWorkspace').style.left = (window.innerWidth * 3/4 - 10) + 'px';
         document.getElementById('floatingWorkspace').style.top =  (window.innerHeight * 1/2 + 70) + 'px';
         document.getElementById('floatingWorkspace').style.width = (window.innerWidth * .25) + 'px';
@@ -12722,6 +12729,7 @@ function openWorkspaceWindow2(){
     console.log('mobileDevice', mobileDevice, 'testiFrame', testiFrame)
     if(mobileDevice === 'RoomOS' && testiFrame === true){
         testiFrameToggle();
+        floatingWorkspaceResize('slideOver');
     }
     else {
         openWorkspaceWindow();
@@ -14080,6 +14088,79 @@ function isTeslaBrowser() {
 
     return hasTeslaKeyword && isTouchDevice && batteryAPI;
 }
+
+
+// Mark's Changes in roomcalc.js
+// Added at the very bottom of the file
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  const jsonArrowBtn = document.getElementById("drpDownBtnArrowJSON");
+  const jsonMenu = document.getElementById("drpDownJSONContent");
+  const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
+
+
+  //
+  // PNG split-button
+  //
+  const pngArrowBtn = document.getElementById("drpDownBtnArrowPNG");
+  const pngMenu = document.getElementById("drpDownPNGContent");
+  const pngItems = pngMenu.querySelectorAll(".dropDownMenuItem");
+
+  const pngDownloadPNGMenuItem = document.getElementById("downloadPNGMenuItem");
+
+  jsonArrowBtn.addEventListener("click", (e) => {
+    e.stopPropagation(); // don’t let this click close it immediately
+    pngMenu.classList.remove("showPNGDropDown");
+    jsonMenu.classList.toggle("showJSONDropDown");
+  });
+
+  //  Clicking anywhere else closes the JSON menu
+  document.addEventListener("click", (e) => {
+    if (!jsonArrowBtn.contains(e.target) && !jsonMenu.contains(e.target)) {
+      jsonMenu.classList.remove("showJSONDropDown");
+    }
+  });
+
+  //  Clicking a JSON menu-item also closes the menu
+  jsonItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      jsonMenu.classList.remove("showJSONDropDown");
+      // …your “download JSON” logic here…
+    });
+  });
+
+
+  //  Download the PNG if the Download Menu Items is clicked
+  pngDownloadPNGMenuItem.addEventListener("click",  () => {
+    console.log("Clicked Download PNG Menu Item");
+    downloadCanvasPNG();
+  });
+
+
+  /*  Toggle PNG menu on arrow click */
+  pngArrowBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    jsonMenu.classList.remove("showJSONDropDown");
+    pngMenu.classList.toggle("showPNGDropDown");
+  });
+
+  //  Clicking anywhere else closes the PNG menu
+  document.addEventListener("click", (e) => {
+    if (!pngArrowBtn.contains(e.target) && !pngMenu.contains(e.target)) {
+      pngMenu.classList.remove("showPNGDropDown");
+    }
+  });
+
+  //  Clicking a PNG menu-item also closes the menu
+  pngItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      pngMenu.classList.remove("showPNGDropDown");
+      // …your “download PNG” logic here…
+    });
+  });
+});
+
 
 /*
     Attribution:
