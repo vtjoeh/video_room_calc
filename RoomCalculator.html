@@ -28,7 +28,7 @@
       <i class="icon icon-plus-regular"></i>
       <span>New</span>
     </button>
-    <button onclick="openSaveDialog()" title="Save Link or PNG">
+    <button onclick="openSaveDialog()" title="Save Files or Link">
       <i class="icon icon-save-regular"></i>
       <span>Save</span>
     </button>
@@ -1196,7 +1196,7 @@
       <form method="dialog">
         <div class="inputField">
           <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
-          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow()" class="button"
+          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow2()" class="button"
             id="btnModalWorkspace">
         </div>
       </form>
@@ -1559,22 +1559,37 @@
   </div>
 
   <div id="floatingWorkspace" class="menuMore"
-    style=" resize: both; overflow: auto; height:90%; width:200px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 10px; display: none; ">
-    <div style="cursor: pointer; padding: 10px; padding-left: 2px; border-bottom: solid 1px;"
+    style=" resize: both; overflow: auto; height:90%; width:200px; min-height: 300px; min-width: 300px; max-height: 99%; max-height: 99%; top: 65px; left: 10px; display: none; "
+    ondragend="console.log('dragend')">
+    <div style="cursor: pointer; padding: 1px; padding-left: 2px; border-bottom: solid 1px;"
       id="floatingWorkspace-dragger">
 
       <div id="floatingWorkspaceHeader">
-        <button onclick="document.getElementById('floatingWorkspace').style.display = 'none';"
-          style="border-style:hidden; margin-right: 15px;">
-          <!-- <i class="icon icon-cancel-bold" ></i> -->
-          x
+          <button style="border-style:hidden;" ontouch="document.getElementById('floatingWorkspace').style.display = 'none';" onclick="document.getElementById('floatingWorkspace').style.display = 'none';">
+
+          <i class="icon icon-clear-bold"></i>
         </button>
-        Cisco Workspace Designer (3rd Party site)
+        <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('fullscreen')" onclick="floatingWorkspaceResize('fullscreen')">
+
+          <i class="icon icon-maximize-bold"></i>
+        </button>
+
+       <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('slideOver')" onclick="floatingWorkspaceResize('slideOver')">
+          <i class="icon icon-video-layout-equal-dual-bold"></i>
+        </button>
+
+        <button style="border-style:hidden;" ontouch="floatingWorkspaceResize('pip')" onclick="floatingWorkspaceResize('pip')">
+          <i class="icon icon-pip-bold"></i>
+        </button>
+
+        <div style="display: inline-flex; transform: translate(30px, -4px);">
+        <div style="text-align: center;">Cisco Workspace Designer</div>
+        </div>
       </div> <i class="icon icon-dragger-vertical-bold"
-        style="position: absolute; right: 3px; top: 5px; cursor: all-scroll;"></i>
+        style="position: absolute; right: 7px; top: 4px; cursor: all-scroll;"></i>
 
     </div>
-    <iframe src="https://prototypes.cisco.com/roomdesigner2/#/room/custom" title="Workspace Designer"
+    <iframe title="Workspace Designer"
       id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
     </iframe>
   </div>

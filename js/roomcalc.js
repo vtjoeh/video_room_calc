@@ -1,4 +1,4 @@
-const version = "v0.1.613";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.614";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -203,15 +203,15 @@ workspaceKey = {};
 
 
 
-workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', yOffset: 0.032 };
-workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', yOffset: 0.045 };
-workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', yOffset: 0.076 };
+workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
+workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
+workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
 
-workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
-workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', yOffset: 0.051 };
+workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
+workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
 
 
-workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', color: 'light' };
+workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', mount: "wall", color: 'light' };
 
 workspaceKey.boardPro55 = { objectType: 'VRC Custom', model: 'Board Pro 55 G1', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.boardPro75 = { objectType: 'VRC Custom', model: 'Board Pro 75 G2', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
@@ -2073,7 +2073,7 @@ function getQueryString() {
         let wdSiteDiv = document.getElementById('wdSiteDiv');
         let regex = /^https:\/\/www\.webex\.com\//i
         if (!regex.test(workspaceDesignerTestUrl)) {
-            testiFrame = true;
+             testiFrame = true;
         }
 
         wdSiteDiv.style.display = '';
@@ -3153,7 +3153,9 @@ function getNumberValue(id) {
 }
 
 function makeButtonsVisible() {
+    console.log('line 3156 mobileDevice', mobileDevice, 'testiFrame', testiFrame);
     if (mobileDevice === 'RoomOS') {
+
         document.getElementById('RoomOSmessage').setAttribute('style', 'visibility: visible;');
         document.getElementById('downloadButtons').style.display = 'none';
         document.getElementById('btnModalWorkspace').style.display = 'none';
@@ -3165,6 +3167,10 @@ function makeButtonsVisible() {
     else {
         document.getElementById('downloadButtons').setAttribute('style', 'visibility: visible;');
         document.getElementById('RoomOSmessage').style.display = 'none';
+    }
+
+    if(testiFrame){
+        document.getElementById('btnModalWorkspace').style.display = '';
     }
 }
 
@@ -6770,6 +6776,11 @@ function updateItem() {
                 labelText.destroy();
             }
 
+            /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
+            if (item.data_deviceid === 'displayTrpl' || item.data_deviceid === 'displayDbl') {
+                delete item.data_role;
+            }
+
             insertShapeItem(item.data_deviceid, parentGroup, item, id, true);
 
             /* give the canvas some time to be updated before updating */
@@ -7465,8 +7476,31 @@ function dragElement(element) {
     }
 
     function moveElement() {
-        element.style.top = (element.offsetTop - pos2) + "px";
-        element.style.left = (element.offsetLeft - pos1) + "px";
+        let elementTop = (element.offsetTop - pos2);
+        let elementLeft = (element.offsetLeft - pos1);
+        console.log('elementLeft', elementLeft );
+        console.log('elementTop', elementTop );
+
+        let boundRect = element.getBoundingClientRect();
+
+        if (elementTop < 0){
+            elementTop = 0;
+        }
+
+        if (elementTop > window.innerHeight - 40){
+            elementTop = window.innerHeight - 40;
+        }
+
+        if (elementLeft < (0 - boundRect.width + 50)){
+            elementLeft = (0 - boundRect.width + 50);
+        }
+
+        if (elementLeft > window.innerWidth - 150){
+            elementLeft = window.innerWidth - 150;
+        }
+
+        element.style.top = elementTop + 'px';
+        element.style.left = elementLeft  + 'px';
         element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
     }
 
@@ -11393,6 +11427,50 @@ function changeWallAnchors(isWall = false) {
 }
 
 
+function testiFrameToggle(allowClose = false){
+    console.log('testiFrame', testiFrame);
+    if(!testiFrame) return;
+
+    if (document.getElementById('floatingWorkspace').style.display === 'none') {
+
+            document.getElementById('floatingWorkspace').style.display = '';
+
+            if (testiFrameInitialized === false) {
+                testiFrameInitialized = true;
+                 openWorkspaceWindow(false);
+                 floatingWorkspaceResize('slideOver');
+            }
+
+
+        } else if(allowClose) {
+            document.getElementById('floatingWorkspace').style.display = 'none';
+    }
+}
+
+
+function floatingWorkspaceResize(size){
+
+    if(size === 'fullscreen') {
+        document.getElementById('floatingWorkspace').style.left = 0 + 'px';
+        document.getElementById('floatingWorkspace').style.top = 0 + 'px';
+        document.getElementById('floatingWorkspace').style.width = '100%';
+        document.getElementById('floatingWorkspace').style.height =  '100%';
+    }
+    else if (size === 'slideOver'){
+        document.getElementById('floatingWorkspace').style.left = (window.innerWidth) * 0.595 + 'px';
+        document.getElementById('floatingWorkspace').style.top =  '1%';
+        document.getElementById('floatingWorkspace').style.width = (window.innerWidth) * 0.4 + 'px';
+        document.getElementById('floatingWorkspace').style.height =  '98%';
+    }
+    else if (size === 'pip'){
+        document.getElementById('floatingWorkspace').style.left = (window.innerWidth * 3/4 - 10) + 'px';
+        document.getElementById('floatingWorkspace').style.top =  (window.innerHeight * 1/2 + 70) + 'px';
+        document.getElementById('floatingWorkspace').style.width = (window.innerWidth * .25) + 'px';
+        document.getElementById('floatingWorkspace').style.height =  (window.innerHeight * .25) + 'px';
+    }
+
+}
+
 /* key commands */
 function onKeyDown(e) {
     const { key, target } = e;
@@ -11423,25 +11501,7 @@ function onKeyDown(e) {
     if (testiFrame && (key === 'w' && (e.ctrlKey || e.metaKey))) {
 
         e.preventDefault();
-        if (document.getElementById('floatingWorkspace').style.display === 'none') {
-
-            document.getElementById('floatingWorkspace').style.display = '';
-
-            if (testiFrameInitialized === false) {
-
-                testiFrameInitialized = true;
-                document.getElementById('floatingWorkspace').style.left = (window.innerWidth) * 0.68 + 'px';
-                document.getElementById('floatingWorkspace').style.width = (window.innerWidth) * 0.3 + 'px';
-                openWorkspaceWindow(false);
-
-            }
-
-
-
-
-        } else {
-            document.getElementById('floatingWorkspace').style.display = 'none';
-        }
+        testiFrameToggle(true);
     }
 
 
@@ -11966,12 +12026,26 @@ function importWorkspaceDesignerFile(workspaceObj) {
         let highHitCount = 0;
 
         let candidateKeyName = 'none';
+        let candidateWdItem = {};
+
+
+
 
         if (wdItem) {
+
+            if (wdItem.id === 'presenter' && wdItem.objectType === 'custom' && wdItem.role === 'presenter' && wdItem.customUrl) {
+                wdItem.id = 'presenterCustomModified';
+                wdItem.objectType = 'person';
+                wdItem.model = 'woman-standing';
+                delete wdItem.role;
+                delete wdItem.customUrl;
+
+            }
 
             for (let key in workspaceKey) {
                 let hits = 0;
                 let keyItem = workspaceKey[key];
+                let modifiedWdItem = structuredClone(wdItem);
 
                 if ((keyItem.objectType === wdItem.objectType)) {
                     hits = hits + 50;
@@ -11979,18 +12053,21 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     if ('model' in keyItem && 'model' in wdItem) {
                         if (keyItem.model === wdItem.model) {
                             hits = hits + 20;
+                            delete modifiedWdItem.model;
                         }
                     }
 
                     if ('mount' in keyItem && 'mount' in wdItem) {
                         if (keyItem.mount === wdItem.mount) {
                             hits = hits + 10;
+                            delete modifiedWdItem.mount;
                         }
                     }
 
                     if ('color' in keyItem && 'color' in wdItem) {
                         if (keyItem.color === wdItem.color) {
                             hits = hits + 2;
+                            delete modifiedWdItem.color;
                         }
                     }
 
@@ -12004,6 +12081,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                             else {
                                 hits = hits + 5;
                             }
+                            delete modifiedWdItem.scale;
                         }
                     }
                 }
@@ -12012,6 +12090,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     highHitCount = hits;
                     candidateKey = structuredClone(wdItem);
                     candidateKeyName = key;
+                    candidateWdItem = modifiedWdItem;
                 }
 
 
@@ -12030,7 +12109,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
                 console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
 
-                wdItemToRoomObjItem(wdItem, candidateKeyName, roomObj2, workspaceObj);
+                wdItem = simplifyWdItem(wdItem);
+
+                wdItemToRoomObjItem(candidateWdItem, candidateKeyName, roomObj2, workspaceObj);
 
                 delete wdItems[i];
             }
@@ -12071,6 +12152,52 @@ function importWorkspaceDesignerFile(workspaceObj) {
     }, 1500);
 
 }
+
+
+function simplifyWdItem(wdItem) {
+
+    if (wdItem) {
+
+        for (let key in workspaceKey) {
+
+            let keyItem = workspaceKey[key];
+
+            if ((keyItem.objectType === wdItem.objectType)) {
+
+                if ('model' in keyItem && 'model' in wdItem) {
+                    if (keyItem.model === wdItem.model) {
+
+                    }
+                }
+
+                if ('mount' in keyItem && 'mount' in wdItem) {
+                    if (keyItem.mount === wdItem.mount) {
+
+                    }
+                }
+
+                if ('color' in keyItem && 'color' in wdItem) {
+                    if (keyItem.color === wdItem.color) {
+
+                    }
+                }
+
+                if ('scale' in keyItem && 'scale' in wdItem) {
+
+                    if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
+
+                    }
+                }
+            }
+
+
+
+        }
+    }
+
+    return wdItem;
+}
+
 
 /* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
@@ -12590,8 +12717,23 @@ function workspaceView(isNewTab = 'false') {
     }
 }
 
+
+function openWorkspaceWindow2(){
+    console.log('mobileDevice', mobileDevice, 'testiFrame', testiFrame)
+    if(mobileDevice === 'RoomOS' && testiFrame === true){
+        testiFrameToggle();
+    }
+    else {
+        openWorkspaceWindow();
+    }
+
+}
+
 /* Opens the Workspace Designer  */
+
+
 function openWorkspaceWindow(fromButton = true) {
+
 
     let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
 
@@ -12609,12 +12751,15 @@ function openWorkspaceWindow(fromButton = true) {
         workspaceWindow = window.open(newWorkspaceTab, sessionId);
     }
 
-    if (testiFrame && !fromButton) {
+
+    if (testiFrame) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         iFrameWorkspaceWindow.src = newWorkspaceTab;
 
+
     }
+
 
 
     /* send initial post message 3 times in case page is opening slow */
