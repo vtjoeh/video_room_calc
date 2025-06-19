@@ -9,9 +9,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **0.1.614**
-- A button has been added to save the Video Room Calculator in JSON file format. 📁
-- A button has been added to download the Workspace Designer format. 📥
-- Importing either of the above files should yield similar results, but it is recommended to use the Video Room Calculator JSON format to maintain full configuration. 🔧
+- An Open File button has been added to the +New modal, allowing users to open either Video Room Calculator or Workspace Designer JSON formats. 📁
+- Button to download Video Room Calculator JSON file format. 📁
+- Drop down option to download Workspace Designer JSON format. 📥
 - The Shareable Link has been renamed to Shareable Template Link. 🔗
 
 **v0.1.613**
