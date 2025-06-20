@@ -14097,7 +14097,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const jsonArrowBtn = document.getElementById("drpDownBtnArrowJSON");
   const jsonMenu = document.getElementById("drpDownJSONContent");
   const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
-
+  const jsonArrowIcon = document.getElementById("drpDownBtnArrowIconJSON");
 
   //
   // PNG split-button
@@ -14105,19 +14105,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const pngArrowBtn = document.getElementById("drpDownBtnArrowPNG");
   const pngMenu = document.getElementById("drpDownPNGContent");
   const pngItems = pngMenu.querySelectorAll(".dropDownMenuItem");
+  const pngArrowIcon = document.getElementById("drpDownBtnArrowIconPNG");
 
   const pngDownloadPNGMenuItem = document.getElementById("downloadPNGMenuItem");
 
   jsonArrowBtn.addEventListener("click", (e) => {
     e.stopPropagation(); // don’t let this click close it immediately
     pngMenu.classList.remove("showPNGDropDown");
-    jsonMenu.classList.toggle("showJSONDropDown");
+        if (jsonArrowIcon.classList.contains("icon-arrow-right-bold")) {
+            jsonArrowIcon.classList.replace("icon-arrow-right-bold","icon-arrow-down-bold");
+        } else if (jsonArrowIcon.classList.contains("icon-arrow-down-bold")) {
+            jsonArrowIcon.classList.replace("icon-arrow-down-bold","icon-arrow-right-bold");
+        }    
+        jsonMenu.classList.toggle("showJSONDropDown");
   });
 
   //  Clicking anywhere else closes the JSON menu
   document.addEventListener("click", (e) => {
     if (!jsonArrowBtn.contains(e.target) && !jsonMenu.contains(e.target)) {
       jsonMenu.classList.remove("showJSONDropDown");
+      jsonArrowIcon.classList.replace("icon-arrow-down-bold","icon-arrow-right-bold")
     }
   });
 
@@ -14141,13 +14148,21 @@ document.addEventListener("DOMContentLoaded", () => {
   pngArrowBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     jsonMenu.classList.remove("showJSONDropDown");
+    if (pngArrowIcon.classList.contains("icon-arrow-right-bold")) {
+        pngArrowIcon.classList.replace("icon-arrow-right-bold","icon-arrow-down-bold");
+    } else if (pngArrowIcon.classList.contains("icon-arrow-down-bold")) {
+        pngArrowIcon.classList.replace("icon-arrow-down-bold","icon-arrow-right-bold");
+    }    
     pngMenu.classList.toggle("showPNGDropDown");
+    
   });
 
   //  Clicking anywhere else closes the PNG menu
   document.addEventListener("click", (e) => {
     if (!pngArrowBtn.contains(e.target) && !pngMenu.contains(e.target)) {
       pngMenu.classList.remove("showPNGDropDown");
+      pngArrowIcon.classList.replace("icon-arrow-down-bold","icon-arrow-right-bold")
+
     }
   });
 
