@@ -201,8 +201,6 @@ canvasPixel.y = 0;
 
 workspaceKey = {};
 
-
-
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
@@ -935,6 +933,7 @@ let tables = [{
     frontImage: 'box-front.png',
     family: 'wallBox',
 },
+
 {
     name: 'Wall with Windows',
     id: 'wallWindow',
