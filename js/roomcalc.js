@@ -1,4 +1,4 @@
-const version = "v0.1.614";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.615";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -2066,7 +2066,7 @@ function getQueryString() {
         let wdSiteDiv = document.getElementById('wdSiteDiv');
         let regex = /^https:\/\/www\.webex\.com\//i
         if (!regex.test(workspaceDesignerTestUrl)) {
-             testiFrame = true;
+            testiFrame = true;
         }
 
         wdSiteDiv.style.display = '';
@@ -3162,7 +3162,7 @@ function makeButtonsVisible() {
         document.getElementById('RoomOSmessage').style.display = 'none';
     }
 
-    if(testiFrame){
+    if (testiFrame) {
         document.getElementById('btnModalWorkspace').style.display = '';
     }
 }
@@ -7471,29 +7471,29 @@ function dragElement(element) {
     function moveElement() {
         let elementTop = (element.offsetTop - pos2);
         let elementLeft = (element.offsetLeft - pos1);
-        console.log('elementLeft', elementLeft );
-        console.log('elementTop', elementTop );
+        console.log('elementLeft', elementLeft);
+        console.log('elementTop', elementTop);
 
         let boundRect = element.getBoundingClientRect();
 
-        if (elementTop < 0){
+        if (elementTop < 0) {
             elementTop = 0;
         }
 
-        if (elementTop > window.innerHeight - 40){
+        if (elementTop > window.innerHeight - 40) {
             elementTop = window.innerHeight - 40;
         }
 
-        if (elementLeft < (0 - boundRect.width + 50)){
+        if (elementLeft < (0 - boundRect.width + 50)) {
             elementLeft = (0 - boundRect.width + 50);
         }
 
-        if (elementLeft > window.innerWidth - 150){
+        if (elementLeft > window.innerWidth - 150) {
             elementLeft = window.innerWidth - 150;
         }
 
         element.style.top = elementTop + 'px';
-        element.style.left = elementLeft  + 'px';
+        element.style.left = elementLeft + 'px';
         element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
     }
 
@@ -8505,6 +8505,7 @@ function addLabel(node, attrs) {
     let text = node.name();
 
     if ('data_labelField' in attrs) {
+        console.log('line 8508 data_labelField', attrs.data_labelField)
         let textCandidate = attrs.data_labelField.replace(/{.*?}/g, '');
         if (textCandidate) {
             text = textCandidate;
@@ -11420,59 +11421,59 @@ function changeWallAnchors(isWall = false) {
 }
 
 
-function testiFrameToggle(allowClose = false){
+function testiFrameToggle(allowClose = false) {
 
-    if(!testiFrame) return;
+    if (!testiFrame) return;
 
     if (document.getElementById('floatingWorkspace').style.display === 'none') {
 
-            document.getElementById('floatingWorkspace').style.display = '';
+        document.getElementById('floatingWorkspace').style.display = '';
 
-            if (testiFrameInitialized === false) {
-                testiFrameInitialized = true;
-                 openWorkspaceWindow(false);
-                 floatingWorkspaceResize('slideOver');
-                 setTimeout(()=>{
-                    if(mobileDevice === 'RoomOS'){
-                        console.log('line 11439');
-                        floatingWorkspaceResize('fullScreen');
-                    }
-                 }, 1000);
-            }
+        if (testiFrameInitialized === false) {
+            testiFrameInitialized = true;
+            openWorkspaceWindow(false);
+            floatingWorkspaceResize('slideOver');
+            setTimeout(() => {
+                if (mobileDevice === 'RoomOS') {
+                    console.log('line 11439');
+                    floatingWorkspaceResize('fullScreen');
+                }
+            }, 1000);
+        }
 
 
-        } else if(allowClose) {
-            document.getElementById('floatingWorkspace').style.display = 'none';
+    } else if (allowClose) {
+        document.getElementById('floatingWorkspace').style.display = 'none';
     }
 }
 
 
-function floatingWorkspaceResize(size){
+function floatingWorkspaceResize(size) {
 
     document.getElementById('floatingWorkspaceBtnFullScreen').style.borderStyle = 'hidden';
     document.getElementById('floatingWorkspaceBtnPip').style.borderStyle = 'hidden';
     document.getElementById('floatingWorkspaceBtnSlideOver').style.borderStyle = 'hidden';
 
-    if(size === 'fullScreen') {
+    if (size === 'fullScreen') {
         document.getElementById('floatingWorkspace').style.left = 0 + 'px';
         document.getElementById('floatingWorkspaceBtnFullScreen').style.borderStyle = '';
         document.getElementById('floatingWorkspace').style.top = 0 + 'px';
         document.getElementById('floatingWorkspace').style.width = '100%';
-        document.getElementById('floatingWorkspace').style.height =  '100%';
+        document.getElementById('floatingWorkspace').style.height = '100%';
     }
-    else if (size === 'slideOver'){
-         document.getElementById('floatingWorkspaceBtnSlideOver').style.borderStyle = '';
+    else if (size === 'slideOver') {
+        document.getElementById('floatingWorkspaceBtnSlideOver').style.borderStyle = '';
         document.getElementById('floatingWorkspace').style.left = (window.innerWidth) * 0.595 + 'px';
-        document.getElementById('floatingWorkspace').style.top =  '1%';
+        document.getElementById('floatingWorkspace').style.top = '1%';
         document.getElementById('floatingWorkspace').style.width = (window.innerWidth) * 0.4 + 'px';
-        document.getElementById('floatingWorkspace').style.height =  '98%';
+        document.getElementById('floatingWorkspace').style.height = '98%';
     }
-    else if (size === 'pip'){
+    else if (size === 'pip') {
         document.getElementById('floatingWorkspaceBtnPip').style.borderStyle = '';
-        document.getElementById('floatingWorkspace').style.left = (window.innerWidth * 3/4 - 10) + 'px';
-        document.getElementById('floatingWorkspace').style.top =  (window.innerHeight * 1/2 + 70) + 'px';
+        document.getElementById('floatingWorkspace').style.left = (window.innerWidth * 3 / 4 - 10) + 'px';
+        document.getElementById('floatingWorkspace').style.top = (window.innerHeight * 1 / 2 + 70) + 'px';
         document.getElementById('floatingWorkspace').style.width = (window.innerWidth * .25) + 'px';
-        document.getElementById('floatingWorkspace').style.height =  (window.innerHeight * .25) + 'px';
+        document.getElementById('floatingWorkspace').style.height = (window.innerHeight * .25) + 'px';
     }
 
 }
@@ -11919,7 +11920,6 @@ fileJsonUpload.addEventListener('change', function (e) {
             }
             else if (jsonFileType === 'workspaceDesigner') {
                 importWorkspaceDesignerFile(jsonFile);
-                //   alert('Bad JSON format. Please note that the Workspace Designer format is not supported at this time. Make sure the file was created in the Video Room Calculator.');
             }
             else {
                 console.info('Import: JSON file upload, improper format');
@@ -12048,32 +12048,50 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
+            /* exmport and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */
+            if (wdItem.id.startsWith('display21_9') && wdItem.objectType === 'wall') {
+                wdItem.color = '#808080'; /* color for column */
+                wdItem.width = 0.08;
+                if('comment' in wdItem){
+                    if(!wdItem.comment.startsWith('Display21_9')) {
+                        wdItem.comment = 'Display21_9:' + wdItem.comment;
+                    }
+                } else {
+                    wdItem.comment = 'Display21_9';
+                }
+
+                if('role' in wdItem){
+                    delete wdItem.role;
+                }
+
+            }
+
             for (let key in workspaceKey) {
                 let hits = 0;
                 let keyItem = workspaceKey[key];
                 let modifiedWdItem = structuredClone(wdItem);
 
                 if ((keyItem.objectType === wdItem.objectType)) {
-                    hits = hits + 50;
+                    hits = hits + 100;
 
                     if ('model' in keyItem && 'model' in wdItem) {
                         if (keyItem.model === wdItem.model) {
-                            hits = hits + 20;
+                            hits = hits + 40;
                             delete modifiedWdItem.model;
                         }
                     }
 
                     if ('mount' in keyItem && 'mount' in wdItem) {
                         if (keyItem.mount === wdItem.mount) {
-                            hits = hits + 10;
+                            hits = hits + 20;
                             delete modifiedWdItem.mount;
                         }
                     }
 
-                    if ('color' in keyItem && 'color' in wdItem) {
-                        if (keyItem.color === wdItem.color) {
-                            hits = hits + 2;
-                            delete modifiedWdItem.color;
+                    if ('size' in keyItem && 'size' in wdItem) {
+                        if (keyItem.size === wdItem.size) {
+                            hits = hits + 6;
+                            delete modifiedWdItem.size;
                         }
                     }
 
@@ -12082,14 +12100,32 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
 
                             if (keyItem.scale[0] === 1 && keyItem.scale[0] === 1 && keyItem.scale[0] === 1) {
-                                hits = hits + 1;
+                                hits = hits + 2;
                             }
                             else {
-                                hits = hits + 5;
+                                hits = hits + 10;
                             }
                             delete modifiedWdItem.scale;
                         }
                     }
+
+                    if ('color' in keyItem && 'color' in wdItem) {
+                        if (keyItem.color === wdItem.color) {
+                            hits = hits + 4;
+                            delete modifiedWdItem.color;
+                        }
+                    }
+
+                    if ('role' in keyItem && 'role' in wdItem) {
+                        if (keyItem.role === wdItem.role) {
+                            hits = hits + 1;
+                            delete modifiedWdItem.role;
+                        }
+                    }
+
+
+
+
                 }
 
                 if (hits > highHitCount) {
@@ -12535,6 +12571,9 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.data_labelField = JSON.stringify(wdItem);
         }
     }
+    else if(comment != ''){
+        item.data_labelField = comment;
+    }
 
 
     /*
@@ -12724,9 +12763,9 @@ function workspaceView(isNewTab = 'false') {
 }
 
 
-function openWorkspaceWindow2(){
+function openWorkspaceWindow2() {
     console.log('mobileDevice', mobileDevice, 'testiFrame', testiFrame)
-    if(mobileDevice === 'RoomOS' && testiFrame === true){
+    if (mobileDevice === 'RoomOS' && testiFrame === true) {
         testiFrameToggle();
         floatingWorkspaceResize('slideOver');
     }
@@ -13411,7 +13450,12 @@ function convertRoomObjToWorkspace() {
             workspaceItem.height = displayHeight21_9 * displayScale / 1000;
             workspaceItem.width = displayDepth21_9 / 1000 / 2;
             workspaceItem.length = displayWidth21_9 * displayScale / 1000;
-            workspaceItem.id = 'display21_9-' + workspaceItem.id;
+
+            /* for exported and then imported devices, don't modify ID */
+            if (!workspaceItem.id.startsWith('display21_9-')) {
+                workspaceItem.id = 'display21_9-' + workspaceItem.id;
+            }
+
             workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
 
 
@@ -14094,70 +14138,70 @@ function isTeslaBrowser() {
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  const jsonArrowBtn = document.getElementById("drpDownBtnArrowJSON");
-  const jsonMenu = document.getElementById("drpDownJSONContent");
-  const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
+    const jsonArrowBtn = document.getElementById("drpDownBtnArrowJSON");
+    const jsonMenu = document.getElementById("drpDownJSONContent");
+    const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
 
 
-  //
-  // PNG split-button
-  //
-  const pngArrowBtn = document.getElementById("drpDownBtnArrowPNG");
-  const pngMenu = document.getElementById("drpDownPNGContent");
-  const pngItems = pngMenu.querySelectorAll(".dropDownMenuItem");
+    //
+    // PNG split-button
+    //
+    const pngArrowBtn = document.getElementById("drpDownBtnArrowPNG");
+    const pngMenu = document.getElementById("drpDownPNGContent");
+    const pngItems = pngMenu.querySelectorAll(".dropDownMenuItem");
 
-  const pngDownloadPNGMenuItem = document.getElementById("downloadPNGMenuItem");
+    const pngDownloadPNGMenuItem = document.getElementById("downloadPNGMenuItem");
 
-  jsonArrowBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); // don’t let this click close it immediately
-    pngMenu.classList.remove("showPNGDropDown");
-    jsonMenu.classList.toggle("showJSONDropDown");
-  });
-
-  //  Clicking anywhere else closes the JSON menu
-  document.addEventListener("click", (e) => {
-    if (!jsonArrowBtn.contains(e.target) && !jsonMenu.contains(e.target)) {
-      jsonMenu.classList.remove("showJSONDropDown");
-    }
-  });
-
-  //  Clicking a JSON menu-item also closes the menu
-  jsonItems.forEach((item) => {
-    item.addEventListener("click", () => {
-      jsonMenu.classList.remove("showJSONDropDown");
-      // …your “download JSON” logic here…
+    jsonArrowBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // don’t let this click close it immediately
+        pngMenu.classList.remove("showPNGDropDown");
+        jsonMenu.classList.toggle("showJSONDropDown");
     });
-  });
 
-
-  //  Download the PNG if the Download Menu Items is clicked
-  pngDownloadPNGMenuItem.addEventListener("click",  () => {
-    console.log("Clicked Download PNG Menu Item");
-    downloadCanvasPNG();
-  });
-
-
-  /*  Toggle PNG menu on arrow click */
-  pngArrowBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    jsonMenu.classList.remove("showJSONDropDown");
-    pngMenu.classList.toggle("showPNGDropDown");
-  });
-
-  //  Clicking anywhere else closes the PNG menu
-  document.addEventListener("click", (e) => {
-    if (!pngArrowBtn.contains(e.target) && !pngMenu.contains(e.target)) {
-      pngMenu.classList.remove("showPNGDropDown");
-    }
-  });
-
-  //  Clicking a PNG menu-item also closes the menu
-  pngItems.forEach((item) => {
-    item.addEventListener("click", () => {
-      pngMenu.classList.remove("showPNGDropDown");
-      // …your “download PNG” logic here…
+    //  Clicking anywhere else closes the JSON menu
+    document.addEventListener("click", (e) => {
+        if (!jsonArrowBtn.contains(e.target) && !jsonMenu.contains(e.target)) {
+            jsonMenu.classList.remove("showJSONDropDown");
+        }
     });
-  });
+
+    //  Clicking a JSON menu-item also closes the menu
+    jsonItems.forEach((item) => {
+        item.addEventListener("click", () => {
+            jsonMenu.classList.remove("showJSONDropDown");
+            // …your “download JSON” logic here…
+        });
+    });
+
+
+    //  Download the PNG if the Download Menu Items is clicked
+    pngDownloadPNGMenuItem.addEventListener("click", () => {
+        console.log("Clicked Download PNG Menu Item");
+        downloadCanvasPNG();
+    });
+
+
+    /*  Toggle PNG menu on arrow click */
+    pngArrowBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        jsonMenu.classList.remove("showJSONDropDown");
+        pngMenu.classList.toggle("showPNGDropDown");
+    });
+
+    //  Clicking anywhere else closes the PNG menu
+    document.addEventListener("click", (e) => {
+        if (!pngArrowBtn.contains(e.target) && !pngMenu.contains(e.target)) {
+            pngMenu.classList.remove("showPNGDropDown");
+        }
+    });
+
+    //  Clicking a PNG menu-item also closes the menu
+    pngItems.forEach((item) => {
+        item.addEventListener("click", () => {
+            pngMenu.classList.remove("showPNGDropDown");
+            // …your “download PNG” logic here…
+        });
+    });
 });
 
 
