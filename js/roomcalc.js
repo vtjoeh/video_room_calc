@@ -265,7 +265,7 @@ workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
 workspaceKey.displaySngl = { objectType: 'screen', role: 'firstScreen', yOffset: 0.045 };
-workspaceKey.display21_9 = { objectType: 'wall', color: '#010101' }; /* dummy key item */
+workspaceKey.display21_9 = {  }; /* dummy key item */
 
 
 workspaceKey.wallStd = { objectType: 'wall' };
@@ -12086,7 +12086,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     roomObj2.room.roomLength = wdItem.scale[2]
                 }
 
-                delete wdItems[i];
+
+                break;
             }
         }
     }
@@ -12132,9 +12133,6 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         let candidateKeyName = 'none';
         let candidateWdItem = {};
-
-
-
 
         if (wdItem) {
 
@@ -12269,12 +12267,11 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     deletePossibleRoomKitEqxDisplays(roomObj2);
 
-    let finalMessage = '... File Import Successful ...';
 
     if (unknownObjects.length > 0) {
         console.info('Import Workspace Designer: Unknown object total: ', unknownObjects.length);
         console.info('Import Workspace Designer: Unknown objects ', unknownObjects);
-        // finalMessage = '<b>Following unknown objects not imported:</b> <br>'
+
         unknownObjects.forEach(wdItem => {
             if (wdItem.id) {
                 if ('length' in wdItem && 'width' in wdItem) {
@@ -12285,15 +12282,6 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
         });
-
-        // if(wdItem.objectType){
-        //    finalMessage +=  ', objectType: ' + wdItem.id;
-        // }
-        // finalMessage +=  '<br/><br/>';
-
-        // });
-
-        // finalMessage += '<b>Total objects unimported: </b>' + unknownObjects.length;
 
     }
 
@@ -12384,7 +12372,32 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     item.data_deviceid = data_deviceid;
 
 
-    // [{ stdMount: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }]
+    /* convert walls with no measurements but only scale to a columnRect. Why? Walls have set length of 0.10, Boxes do not.  */
+    if(!('width' in wdItem) && data_deviceid.startsWith('wall')){
+        console.info('Workspace Designer import ERROR, wall with no width, be changed to a column', wdItem)
+        data_deviceid = 'columnRect';
+        deviceType = allDeviceTypes[data_deviceid];
+        item.name = allDeviceTypes[data_deviceid].name;
+        item.data_deviceid = data_deviceid;
+    }
+
+
+    /* add scale to items that need scale */
+    if(data_deviceid === 'couch'){
+        if(!wdItem.scale){
+            wdItem.scale = [1,1,1];
+        }
+    }
+
+    /* items will need a position, add one if not found */
+    if(!('position' in wdItem)){
+        wdItem.position = [0,0,0];
+    }
+
+    if(!('rotation' in wdItem)){
+        wdItem.rotation = [0,0,0];
+    }
+
     /* if it is pseudo mount, then use the below */
     if (data_deviceid.startsWith('ptz')) {
 
@@ -13878,7 +13891,8 @@ function convertRoomObjToWorkspace() {
 function parseDataLabelFieldJson(item, workspaceItem) {
 
     let commentPart;
-    let jsonPart = /{.*?}/.exec(item.data_labelField);
+  //  let jsonPart = /{.*?}/.exec(item.data_labelField);
+    let jsonPart = /{.*}/.exec(item.data_labelField);
 
     if ('data_labelField' in item && item.data_labelField) {
         commentPart = item.data_labelField.replace(/{.*?}/g, '');
