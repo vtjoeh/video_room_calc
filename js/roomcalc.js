@@ -201,6 +201,13 @@ canvasPixel.y = 0;
 
 workspaceKey = {};
 
+workspaceKey.unknownObj = {}; /* Workspace Designer Unkown Objects on import */
+workspaceKey.tblUnknownObj = {}; /* Workspace Designer Unkown Objects on import with width and length */
+
+workspaceKey.switch = { objectType: 'switch' };
+
+workspaceKey.codec = { objectType: 'codec' };
+
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
@@ -249,6 +256,7 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+workspaceKey.carpet = { objectType: 'carpet', color: "#aaa" };
 
 workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
 workspaceKey.ceilingMount = { objectType: "ceilingMount" };
@@ -257,7 +265,7 @@ workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
 workspaceKey.displaySngl = { objectType: 'screen', role: 'firstScreen', yOffset: 0.045 };
-workspaceKey.display21_9 = { objectType: 'screen', role: 'firstScreen' }
+workspaceKey.display21_9 = { objectType: 'wall', color: '#010101' }; /* dummy key item */
 
 
 workspaceKey.wallStd = { objectType: 'wall' };
@@ -285,7 +293,7 @@ workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-1, 1, 2] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
-workspaceKey.stageFloor = { objectType: 'box' };
+workspaceKey.stageFloor = { objectType: 'box', idRegex: '(^stage$)|(^step-)' };
 
 workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
 
@@ -932,6 +940,9 @@ let tables = [{
     key: 'WD',
     frontImage: 'box-front.png',
     family: 'wallBox',
+    stroke: 'black',
+    strokeWidth: '2',
+    dash: [7, 5],
 },
 
 {
@@ -963,6 +974,16 @@ let tables = [{
     key: 'WH',
     frontImage: 'couch-menu.png',
     family: 'resizeItem',
+},
+{
+    name: 'Unknown Workspace Designer Resizeable',
+    id: 'tblUnknownObj',
+    key: 'WI',
+    frontImage: 'unknownObj-top.png',
+    family: 'resizeItem',
+    stroke: 'purple',
+    strokeWidth: '3',
+    dash: [4, 4],
 }
 ]
 
@@ -1118,7 +1139,37 @@ let chairs = [
         depth: 1016,
         opacity: 1,
     },
-
+    {
+        name: "Unknown Workspace Designer Object",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "unknownObj",
+        key: "SP",
+        topImage: 'unknownObj-top.png',
+        frontImage: 'unknownObj-top.png',
+        width: 750,
+        depth: 750,
+        opacity: 0.6,
+    },
+    {
+        name: "Switch (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "switch",
+        key: "SQ",
+        topImage: 'switch-top.png',
+        frontImage: 'switch-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+        roles: [{ceiling:'ceiling'},{table:'table'} ]
+    },
+    {
+        name: "Codec (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codec",
+        key: "SR",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+    },
 
 ]
 
@@ -1184,7 +1235,21 @@ let stageFloors = [
         id: 'stageFloor',
         key: 'FA',
         frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'black',
+        strokeWidth: '2',
+        dash: [4, 8],
     },
+    {
+        name: 'Carpet',
+        id: 'carpet',
+        key: 'FB',
+        frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'grey',
+        strokeWidth: '4',
+        dash: [8, 3],
+    }
 ]
 
 
@@ -3146,7 +3211,7 @@ function getNumberValue(id) {
 }
 
 function makeButtonsVisible() {
-    console.log('line 3156 mobileDevice', mobileDevice, 'testiFrame', testiFrame);
+
     if (mobileDevice === 'RoomOS') {
 
         document.getElementById('RoomOSmessage').setAttribute('style', 'visibility: visible;');
@@ -5570,7 +5635,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2.5 * scale;
         height = 3.4 * scale;
     }
-    else if (insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor')) {
+    else if (insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet')) {
         width = 1 * scale;
         height = 1 * scale;
     }
@@ -5596,7 +5661,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         data_vHeight = attrs.data_vHeight;
     }
 
-    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor')) && !data_vHeight) {
+    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet')) && !data_vHeight) {
 
         if (unit === 'feet') {
             data_vHeight = 3.28;
@@ -5710,6 +5775,25 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             opacity: opacity,
         });
     }
+
+    if (insertDevice.id === 'tblUnknownObj') {
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#FFFFFF99',
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            dash: allDeviceTypes[insertDevice.id].dash,
+            stroke: allDeviceTypes[insertDevice.id].stroke,
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
+        });
+    }
+
+
 
     if (insertDevice.id === 'tblEllip') {
         tblWallFlr = new Konva.Shape({
@@ -5878,12 +5962,30 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             width: width,
             height: height,
             fill: '#FFFFFF99',
-            stroke: 'black',
-            strokeWidth: 2,
             id: uuid,
             cornerRadius: radius,
             draggable: true,
-            dash: [7, 5]
+            dash: allDeviceTypes[insertDevice.id].dash,
+            stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
+        });
+    }
+
+    if (insertDevice.id === 'carpet') {
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#FFFFFF99',
+            id: uuid,
+            cornerRadius: radius,
+            draggable: true,
+            dash: allDeviceTypes[insertDevice.id].dash,
+            stroke: allDeviceTypes[insertDevice.id].stroke,
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
+            opacity: 1,
         });
     }
 
@@ -5895,12 +5997,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             width: width,
             height: height,
             fill: '#FFFFFF99',
-            stroke: 'grey',
-            strokeWidth: 4,
             id: uuid,
             cornerRadius: radius,
             draggable: true,
-            dash: [4, 8]
+            dash: allDeviceTypes[insertDevice.id].dash,
+            stroke: allDeviceTypes[insertDevice.id].stroke,
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
+            opacity: 1,
         });
     }
 
@@ -6492,9 +6595,21 @@ function removeShadingTrNodes() {
             node.strokeEnabled(true);
             node.stroke('#000000');
             node.strokeWidth(1);
+
             if (node.data_deviceid.startsWith('wallChairs')) {
                 node.stroke('#aaaaaa');
-            };
+            }
+            if ('stroke' in allDeviceTypes[node.data_deviceid]) {
+                node.stroke(allDeviceTypes[node.data_deviceid].stroke);
+            }
+
+            if ('strokeWidth' in allDeviceTypes[node.data_deviceid]) {
+                node.strokeWidth(allDeviceTypes[node.data_deviceid].strokeWidth);
+            }
+
+            if ('dash' in allDeviceTypes[node.data_deviceid]) {
+                node.dash(allDeviceTypes[node.data_deviceid].dash);
+            }
 
         }
     });
@@ -7283,16 +7398,6 @@ function hightlightOverlayForDevice(opt, attributeType, highlight, checkbox) {
     if (!overlayGroup) return;
     overlayGroup.visible(true);
     overlayGroup.getChildren().forEach(child => {
-        //   If we haven't stored the default opacity yet, get it.
-
-        // if (child.data_defaultOpacity === undefined) {
-        //     let currentOpacity = child.opacity();
-        //     // If the current opacity is zero (or very low), use 0.3 as a fallback.
-        //     if (currentOpacity === 0) {
-        //         currentOpacity = 0.3;
-        //     }
-        //     child.data_defaultOpacity = currentOpacity;
-        // }
 
         if (highlight) {
             child.shadowColor(blurColor);
@@ -7306,10 +7411,6 @@ function hightlightOverlayForDevice(opt, attributeType, highlight, checkbox) {
             child.shadowEnabled(false);
             node.shadowEnabled(false);
         }
-
-
-        // Apply the highlight multiplier (3x) if highlighting, else revert.
-        //    child.opacity(highlight ? child.data_defaultOpacity * 1 : child.data_defaultOpacity);
     });
 
     if (!highlight) {
@@ -7471,8 +7572,6 @@ function dragElement(element) {
     function moveElement() {
         let elementTop = (element.offsetTop - pos2);
         let elementLeft = (element.offsetLeft - pos1);
-        console.log('elementLeft', elementLeft);
-        console.log('elementTop', elementTop);
 
         let boundRect = element.getBoundingClientRect();
 
@@ -8106,11 +8205,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         /* only add labels to Video Devices and Microphones, or devices that have labels */
         if (groupName === 'videoDevices' || groupName === 'microphones' || 'data_labelField' in attrs) {
 
-            if ((deviceId != 'laptop')) {
-                addLabel(imageItem, attrs);
+            if ((groupName === 'videoDevices' || groupName === 'microphones') && (deviceId != 'laptop')) {
+                addLabel(imageItem, attrs, true);
             }
-            else if
-                (attrs.data_labelField) {
+            else if (attrs.data_labelField) {
                 addLabel(imageItem, attrs);
             }
 
@@ -8500,17 +8598,19 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 }
 
 
-function addLabel(node, attrs) {
+function addLabel(node, attrs, alwaysLabel = false) {
 
     let text = node.name();
+    let textCandidate = '';
 
     if ('data_labelField' in attrs) {
-        console.log('line 8508 data_labelField', attrs.data_labelField)
-        let textCandidate = attrs.data_labelField.replace(/{.*?}/g, '');
+        textCandidate = attrs.data_labelField.replace(/{.*?}/g, '');
         if (textCandidate) {
             text = textCandidate;
         }
     }
+
+    if (textCandidate === '' && !alwaysLabel) return
 
     let fontSize = 10;
 
@@ -11325,7 +11425,7 @@ function resizeTableOrWall() {
         } else if (nodes[0].data_deviceid.startsWith('tblCurved')) {
             tr.resizeEnabled(false);
         }
-        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor')) {
+        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor') || nodes[0].data_deviceid.startsWith('carpet')) {
             tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
             tr.resizeEnabled(true);
         } else {
@@ -11435,7 +11535,6 @@ function testiFrameToggle(allowClose = false) {
             floatingWorkspaceResize('slideOver');
             setTimeout(() => {
                 if (mobileDevice === 'RoomOS') {
-                    console.log('line 11439');
                     floatingWorkspaceResize('fullScreen');
                 }
             }, 1000);
@@ -11948,7 +12047,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     resetRoomObj();
     let unknownObjects = [];
 
-    convertMetersFeet(true, 'meters');
+    convertMetersFeet(true, 'meters'); /* always import in meters. Get the room canvas ready */
     let roomObj2 = structuredClone(roomObj);
     roomObj2.room = {};
     roomObj2.unit = 'meters';
@@ -12039,6 +12138,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         if (wdItem) {
 
+            /* A person presenter imported as a custom URL gets replaced with the proper API */
             if (wdItem.id === 'presenter' && wdItem.objectType === 'custom' && wdItem.role === 'presenter' && wdItem.customUrl) {
                 wdItem.id = 'presenterCustomModified';
                 wdItem.objectType = 'person';
@@ -12048,22 +12148,21 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
-            /* exmport and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */
+            /* export and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */
             if (wdItem.id.startsWith('display21_9') && wdItem.objectType === 'wall') {
                 wdItem.color = '#808080'; /* color for column */
                 wdItem.width = 0.08;
-                if('comment' in wdItem){
-                    if(!wdItem.comment.startsWith('Display21_9')) {
+                if ('comment' in wdItem) {
+                    if (!wdItem.comment.startsWith('Display21_9')) {
                         wdItem.comment = 'Display21_9:' + wdItem.comment;
                     }
                 } else {
                     wdItem.comment = 'Display21_9';
                 }
 
-                if('role' in wdItem){
+                if ('role' in wdItem) {
                     delete wdItem.role;
                 }
-
             }
 
             for (let key in workspaceKey) {
@@ -12072,7 +12171,15 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 let modifiedWdItem = structuredClone(wdItem);
 
                 if ((keyItem.objectType === wdItem.objectType)) {
-                    hits = hits + 100;
+                    hits = hits + 200;
+
+                    if ('idRegex' in keyItem && 'id' in wdItem) {
+                        let regex = new RegExp(keyItem.idRegex);
+                        if (regex.test(wdItem.id)) {
+                            hits = hits + 100;
+                        }
+
+                    }
 
                     if ('model' in keyItem && 'model' in wdItem) {
                         if (keyItem.model === wdItem.model) {
@@ -12151,7 +12258,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
                 console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
 
-                wdItem = simplifyWdItem(wdItem);
+                // wdItem = simplifyWdItem(wdItem);
 
                 wdItemToRoomObjItem(candidateWdItem, candidateKeyName, roomObj2, workspaceObj);
 
@@ -12168,10 +12275,16 @@ function importWorkspaceDesignerFile(workspaceObj) {
         console.info('Import Workspace Designer: Unknown object total: ', unknownObjects.length);
         console.info('Import Workspace Designer: Unknown objects ', unknownObjects);
         // finalMessage = '<b>Following unknown objects not imported:</b> <br>'
-        // unknownObjects.forEach(wdItem => {
-        //     if(wdItem.id){
-        //     finalMessage +=  'id: ' + wdItem.id;
-        //   }
+        unknownObjects.forEach(wdItem => {
+            if (wdItem.id) {
+                if ('length' in wdItem && 'width' in wdItem) {
+                    wdItemToRoomObjItem(wdItem, 'tblUnknownObj', roomObj2, workspaceObj)
+                } else {
+                    wdItemToRoomObjItem(wdItem, 'unknownObj', roomObj2, workspaceObj)
+                }
+
+            }
+        });
 
         // if(wdItem.objectType){
         //    finalMessage +=  ', objectType: ' + wdItem.id;
@@ -12196,49 +12309,49 @@ function importWorkspaceDesignerFile(workspaceObj) {
 }
 
 
-function simplifyWdItem(wdItem) {
+// function simplifyWdItem(wdItem) {
 
-    if (wdItem) {
+//     if (wdItem) {
 
-        for (let key in workspaceKey) {
+//         for (let key in workspaceKey) {
 
-            let keyItem = workspaceKey[key];
+//             let keyItem = workspaceKey[key];
 
-            if ((keyItem.objectType === wdItem.objectType)) {
+//             if ((keyItem.objectType === wdItem.objectType)) {
 
-                if ('model' in keyItem && 'model' in wdItem) {
-                    if (keyItem.model === wdItem.model) {
+//                 if ('model' in keyItem && 'model' in wdItem) {
+//                     if (keyItem.model === wdItem.model) {
 
-                    }
-                }
+//                     }
+//                 }
 
-                if ('mount' in keyItem && 'mount' in wdItem) {
-                    if (keyItem.mount === wdItem.mount) {
+//                 if ('mount' in keyItem && 'mount' in wdItem) {
+//                     if (keyItem.mount === wdItem.mount) {
 
-                    }
-                }
+//                     }
+//                 }
 
-                if ('color' in keyItem && 'color' in wdItem) {
-                    if (keyItem.color === wdItem.color) {
+//                 if ('color' in keyItem && 'color' in wdItem) {
+//                     if (keyItem.color === wdItem.color) {
 
-                    }
-                }
+//                     }
+//                 }
 
-                if ('scale' in keyItem && 'scale' in wdItem) {
+//                 if ('scale' in keyItem && 'scale' in wdItem) {
 
-                    if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
+//                     if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
 
-                    }
-                }
-            }
+//                     }
+//                 }
+//             }
 
 
 
-        }
-    }
+//         }
+//     }
 
-    return wdItem;
-}
+//     return wdItem;
+// }
 
 
 /* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
@@ -12345,6 +12458,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     /* get VRC width & height */
     if ('length' in wdItem || 'width' in wdItem) {
+        if (data_deviceid.startsWith('unknownObj')) {
+            data_deviceid = 'tblUnknownObj';
+
+        }
+
         if (family === 'wallBox') {
 
             item.height = wdItem.width || 0.10;
@@ -12378,7 +12496,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.length;
         delete wdItem.width;
     }
-    else if ('scale' in wdItem) {
+    else if ('scale' in wdItem && !data_deviceid.startsWith('unknownObj')) {
         item.height = wdItem.scale[0];
         item.width = wdItem.scale[2];
         item.data_vHeight = wdItem.scale[1];
@@ -12556,12 +12674,18 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.sphere;
     }
 
-    delete wdItem.range;
-    delete wdItem.distanceBtwChairs;
-    delete wdItem.distanceToWall;
+
     delete wdItem.id;
-    delete wdItem.objectType;
-    delete wdItem.model;
+
+    if (!(data_deviceid === 'unknownObj' || data_deviceid === 'tblUnknownObj')) {
+        delete wdItem.objectType;
+        delete wdItem.range;
+        delete wdItem.distanceBtwChairs;
+        delete wdItem.distanceToWall;
+        // delete wdItem.model;
+    }
+
+
 
     /* merge comments and unused JSON attributes */
     if (Object.keys(wdItem).length > 0) {
@@ -12571,7 +12695,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.data_labelField = JSON.stringify(wdItem);
         }
     }
-    else if(comment != ''){
+    else if (comment != '') {
         item.data_labelField = comment;
     }
 
@@ -12764,7 +12888,6 @@ function workspaceView(isNewTab = 'false') {
 
 
 function openWorkspaceWindow2() {
-    console.log('mobileDevice', mobileDevice, 'testiFrame', testiFrame)
     if (mobileDevice === 'RoomOS' && testiFrame === true) {
         testiFrameToggle();
         floatingWorkspaceResize('slideOver');
@@ -12953,10 +13076,6 @@ function convertRoomObjToWorkspace() {
         workspaceObj.meetingPlatform = roomObj.software;
     }
 
-    // workspaceObj.peripherals = {};
-    // workspaceObj.peripherals.navigator = true;
-    // workspaceObj.peripherals.scheduler = true;
-
     workspaceObj.customObjects = [];
 
     workspaceObj.source = {};
@@ -13115,8 +13234,17 @@ function convertRoomObjToWorkspace() {
 
     roomObj2.items.stageFloors.forEach((item) => {
         if (item.data_deviceid) {
-            item.id = 'stageFloor~' + item.id;
+
             if (item.data_deviceid.startsWith('stageFloor')) {
+                if (item.id.startsWith('stage') || item.id.startsWith('step')) {
+                    // do nothing for stage or step objects
+                } else {
+                    item.id = 'stageFloor~' + item.id;
+                }
+
+                workspaceObjWallPush(item);
+            }
+            else if (item.data_deviceid.startsWith('carpet')) {
                 workspaceObjWallPush(item);
             }
         }
@@ -13323,6 +13451,7 @@ function convertRoomObjToWorkspace() {
         }
 
         workspaceItem = { ...workspaceItem, ...attr };
+        delete workspaceItem.idRegex;
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
@@ -13438,7 +13567,8 @@ function convertRoomObjToWorkspace() {
             "role": item.role
         }
 
-        workspaceItem = { ...attr, ...workspaceItem };
+        workspaceItem = { ...workspaceItem, ...attr };
+        delete workspaceItem.idRegex;
 
         if (item.data_deviceid === 'display21_9') {
             let tilt = workspaceItem.rotation[0];
@@ -13611,6 +13741,7 @@ function convertRoomObjToWorkspace() {
         }
 
         workspaceItem = { ...workspaceItem, ...attr };
+        delete workspaceItem.idRegex;
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
@@ -13679,6 +13810,11 @@ function convertRoomObjToWorkspace() {
             z = (verticalHeight / 2);
         }
 
+        /* Fix hundreths place rounding error messing with placement of carpet to keep it from overlapping with table base */
+        if (item.data_deviceid === 'carpet') {
+            z = Math.round((z - 0.005) * 100) / 100;
+        }
+
         workspaceItem = {
             "objectType": "wall",
             id: item.id,
@@ -13708,6 +13844,7 @@ function convertRoomObjToWorkspace() {
 
 
         workspaceItem = { ...workspaceItem, ...attr };
+        delete workspaceItem.idRegex;
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
@@ -14176,7 +14313,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //  Download the PNG if the Download Menu Items is clicked
     pngDownloadPNGMenuItem.addEventListener("click", () => {
-        console.log("Clicked Download PNG Menu Item");
         downloadCanvasPNG();
     });
 
