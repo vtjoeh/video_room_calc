@@ -264,7 +264,7 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
-workspaceKey.displaySngl = { objectType: 'screen', role: 'firstScreen', yOffset: 0.045 };
+workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
 workspaceKey.display21_9 = {  }; /* dummy key item */
 
 
@@ -13580,7 +13580,7 @@ function convertRoomObjToWorkspace() {
             "role": item.role
         }
 
-        workspaceItem = { ...workspaceItem, ...attr };
+        workspaceItem = { ...attr, ...workspaceItem };
         delete workspaceItem.idRegex;
 
         if (item.data_deviceid === 'display21_9') {
