@@ -11546,6 +11546,35 @@ function testiFrameToggle(allowClose = false) {
     }
 }
 
+setupDragAndDropImport()
+// import a file by dragging and dropping it into the tab
+function setupDragAndDropImport() {
+  const onFileDrop = (e) => {
+    e.preventDefault();
+    const item = e.dataTransfer?.items?.[0];
+    if (item && item.kind === 'file') {
+      const file = item.getAsFile();
+      const fileName = file.name;
+      const reader = new FileReader();
+      reader.readAsText(file, 'UTF-8');
+      reader.onload = function (evt) {
+        const text = evt.target.result;
+        try {
+            const json = JSON.parse(text);
+            importJson(json)
+
+        } catch (error) {
+          console.log(error);
+          alert(`Error loading file '${fileName}':\n\n${error.message}`);
+        }
+      }
+    }
+  }
+
+  document.body.addEventListener('dragover',  e => e.preventDefault())
+  document.body.addEventListener('drop', onFileDrop)
+}
+
 
 function floatingWorkspaceResize(size) {
 
@@ -11963,6 +11992,59 @@ fileInputImage.addEventListener('change', function (e) {
     }
 });
 
+function importJson(jsonFile) {
+    console.log('import:', jsonFile)
+    let jsonFileType = false;
+
+    if ('room' in jsonFile) {
+        if ((jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
+            jsonFileType = 'vrc';
+        } else {
+            console.info('Import Workspace Designer: JSON file missing roomWidth, roomLength or roomHeight')
+        }
+    }
+    else if ('customObjects' in jsonFile) {
+        jsonFileType = 'workspaceDesigner';
+    }
+    else {
+        jsonFileType = false;
+        console.info('Import Workspace Designer: Room paramter missing from JSON file')
+    }
+
+    zoomInOut('reset');
+
+    document.getElementById('dialogLoadingTemplate').showModal();
+
+    document.getElementById("defaultOpenTab").click();
+
+    setTimeout(() => {
+        closeAllDialogModals();
+    }, 3000);
+
+    if (jsonFileType === 'vrc') {
+
+        resetRoomObj();
+
+        convertMetersFeet(true, jsonFile.unit);
+
+        setTimeout(() => {
+            roomObj = structuredClone(jsonFile);
+            roomObj.trNodes = [];
+            drawRoom(true, false, false);
+        }, 1500);
+
+    }
+    else if (jsonFileType === 'workspaceDesigner') {
+        importWorkspaceDesignerFile(jsonFile);
+    }
+    else {
+        console.info('Import: JSON file upload, improper format');
+        alert('Unable to import. Improper JSON format.');
+    }
+
+    document.getElementById('fileUpload').value = null;
+};
+
 const fileJsonUpload = document.getElementById('fileUpload');
 
 fileJsonUpload.addEventListener('change', function (e) {
@@ -11974,59 +12056,8 @@ fileJsonUpload.addEventListener('change', function (e) {
         reader.readAsText(e.target.files[0]);
         reader.onload = function (e) {
             let jsonFile = JSON.parse(reader.result);
-            let jsonFileType = false;
-
-            if ('room' in jsonFile) {
-                if ((jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
-
-                    jsonFileType = 'vrc';
-                } else {
-                    console.info('Import Workspace Designer: JSON file missing roomWidth, roomLength or roomHeight')
-                }
-            }
-            else if ('customObjects' in jsonFile) {
-                jsonFileType = 'workspaceDesigner';
-            }
-            else {
-                jsonFileType = false;
-                console.info('Import Workspace Designer: Room paramter missing from JSON file')
-            }
-
-            zoomInOut('reset');
-
-            document.getElementById('dialogLoadingTemplate').showModal();
-
-            document.getElementById("defaultOpenTab").click();
-
-            setTimeout(() => {
-                closeAllDialogModals();
-            }, 3000);
-
-            if (jsonFileType === 'vrc') {
-
-                resetRoomObj();
-
-                convertMetersFeet(true, jsonFile.unit);
-
-
-                setTimeout(() => {
-                    roomObj = structuredClone(jsonFile);
-                    roomObj.trNodes = [];
-                    drawRoom(true, false, false);
-                }, 1500);
-
-
-            }
-            else if (jsonFileType === 'workspaceDesigner') {
-                importWorkspaceDesignerFile(jsonFile);
-            }
-            else {
-                console.info('Import: JSON file upload, improper format');
-                alert('Unable to import. Improper JSON format.');
-            }
-
-            document.getElementById('fileUpload').value = null;
-        };
+            importJson(jsonFile)
+        }
     }
 });
 
@@ -12253,8 +12284,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 unknownObjects.push(wdItem);
 
             } else {
-                console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
-                console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
+                // console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
+                // console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
 
                 // wdItem = simplifyWdItem(wdItem);
 
