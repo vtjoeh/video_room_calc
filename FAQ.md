@@ -20,10 +20,17 @@ ctrl-v / cmd-v = paste (at location of arrow click)
 ctrl-d / cmd-d = duplicate
 ctrl-z / cmd-z = undo
 ctrl-y / cmd-y = redo
+shift + [ctrl-z / cmd-z] = redo
 ctrl-r / cmd-r = rotate 90 degrees
 esc = unselect items
 Delete / Backspace = delete items
 ←,↑,→,↓ arrows = move selected items
+[shift / ctrl / cmd] + click = select/unselect item
+ctrl-s = Save (download) Video Room Calculator JSON file.
+ctrl-e = Export to Workspace Designer file format.
+ctrl-i = Import Video Room Calculator or Workspace Designer file.
+
+From the Workspace Designer, use ctrl-e to export a file to the Video Room Calculator.
 
 ### What browsers does the Video Room Calculator work in?
 The goal is to support the following:
@@ -38,7 +45,7 @@ If you see any issue with any of the above please let me know.
 Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas and how HTML canvas + Javascript is not truly synchronous. This could be optimized at a later date.
 
 ### What is the maximum URL size or number of items in a design?
-The size of the URL can be up to 8190 characters, which is about 500 objects. The use of text fields like the Name or Label fields contributes to the URL size.
+The size of the URL can be up to 8190 characters, which is about 500 objects. The use of text fields like the Name or Label fields contributes to the URL size. There is no enforced limit for downloading or uploading files.
 
 ### What about privacy and security? What information is tracked?
 The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud.

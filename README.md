@@ -9,6 +9,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.615**
+Small improvements:
+- Box objects are now on separate level from table/wall level. Box level is above the table/wall level. Stage Floor object is also a box, but on the bottom level.
+
+**v0.1.615**
 Improvements for importing Workspace Designer files:
 - The cable map switch, cable map codec, and carpet are now visible upon import.
 - Unknown objects during import will be displayed on the room canvas. If an object lacks width and length, it will show up as a square with a single purple question mark. If width and length are provided, the item will be represented as a resizable rectangle with a purple dashed perimeter. The unknown objectType and additional attributes will be shown in the Label field.

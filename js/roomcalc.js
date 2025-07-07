@@ -1,4 +1,4 @@
-const version = "v0.1.615";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.616";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -26,7 +26,8 @@ let smallItemsHighlight = false; /* keep track if small items have a highlight *
 let sizeToAddOultine = 500; /* mm size to make small items highlighted */
 let workspaceDesignerTestUrl; /* used to store workspace designer URL when testing only */
 let toolTipTextTimeout; /* timer used for toolTipText on coverage buttons */
-
+let lastSelectedNodePosition; /* keep track of the last node selected, make a structured clone of it to keep track of position */
+let lastSelectionGuideLines = {};
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
 
 
@@ -94,7 +95,7 @@ roomObj.items.videoDevices = [];
 roomObj.items.chairs = [];
 roomObj.items.tables = [];
 roomObj.items.stageFloors = [];
-roomObj.items.shapes = [];
+roomObj.items.boxes = [];
 roomObj.items.displays = [];
 roomObj.items.speakers = [];
 roomObj.items.microphones = [];
@@ -265,7 +266,7 @@ workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
 workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
-workspaceKey.display21_9 = {  }; /* dummy key item */
+workspaceKey.display21_9 = {}; /* dummy key item */
 
 
 workspaceKey.wallStd = { objectType: 'wall' };
@@ -414,10 +415,9 @@ let groupTouchPanel = new Konva.Group({
     name: 'touchPanels',
 })
 
-/* future use.  groupShapes could be used for ceiling shapes or custom images */
-let groupShapes = new Konva.Group(
+let groupBoxes = new Konva.Group(
     {
-        name: 'shapes',
+        name: 'boxes',
     }
 )
 
@@ -934,16 +934,16 @@ let tables = [{
     family: 'wallBox',
 },
 
-{
-    name: 'Box',
-    id: 'box',
-    key: 'WD',
-    frontImage: 'box-front.png',
-    family: 'wallBox',
-    stroke: 'black',
-    strokeWidth: '2',
-    dash: [7, 5],
-},
+// {
+//     name: 'Box',
+//     id: 'box',
+//     key: 'WD',
+//     frontImage: 'box-front.png',
+//     family: 'wallBox',
+//     stroke: 'black',
+//     strokeWidth: '2',
+//     dash: [7, 5],
+// },
 
 {
     name: 'Wall with Windows',
@@ -1145,8 +1145,8 @@ let chairs = [
         key: "SP",
         topImage: 'unknownObj-top.png',
         frontImage: 'unknownObj-top.png',
-        width: 750,
-        depth: 750,
+        width: 350,
+        depth: 350,
         opacity: 0.6,
     },
     {
@@ -1158,7 +1158,7 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
-        roles: [{ceiling:'ceiling'},{table:'table'} ]
+        roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
     },
     {
         name: "Codec (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
@@ -1231,7 +1231,7 @@ let displays = [
 /* Floor keys start with F */
 let stageFloors = [
     {
-        name: 'Stage Floor',
+        name: 'Stage Floor (Box)',
         id: 'stageFloor',
         key: 'FA',
         frontImage: 'box-front.png',
@@ -1250,6 +1250,21 @@ let stageFloors = [
         strokeWidth: '4',
         dash: [8, 3],
     }
+]
+
+
+/*  Boxes are a higher level than tables and can start with W */
+let boxes = [
+    {
+    name: 'Box',
+    id: 'box',
+    key: 'WD',
+    frontImage: 'box-front.png',
+    family: 'wallBox',
+    stroke: 'black',
+    strokeWidth: '2',
+    dash: [7, 5],
+},
 ]
 
 
@@ -2562,7 +2577,7 @@ function resetRoomObj() {
     roomObj.items.chairs = [];
     roomObj.items.tables = [];
     roomObj.items.stageFloors = [];
-    roomObj.items.shapes = [];
+    roomObj.items.boxes = [];
     roomObj.items.displays = [];
     roomObj.items.speakers = [];
     roomObj.items.microphones = [];
@@ -2847,10 +2862,10 @@ function isQuickSetupEnabled() {
     let displaysNum = roomObj.items.displays.length;
     let tablesNum = roomObj.items.tables.length;
     let chairsNum = roomObj.items.chairs.length;
-    let shapesNum = roomObj.items.shapes.length;
+    let boxesNum = roomObj.items.boxes.length;
     let touchPanlesNum = roomObj.items.touchPanels.length;
     let microphones = roomObj.items.microphones.length;
-    let otherDevices = chairsNum + shapesNum + touchPanlesNum + microphones;
+    let otherDevices = chairsNum + boxesNum + touchPanlesNum + microphones;
 
     quickSetupState = 'disabled';
 
@@ -2952,6 +2967,7 @@ function quickSetupUpdate() {
     roomObj.items.videoDevices = [];
     roomObj.items.microphones = [];
     roomObj.items.stageFloors = [];
+    roomObj.items.boxes = [];
     roomObj.room.roomWidth = document.getElementById('roomWidth2').value;
     roomObj.room.roomLength = document.getElementById('roomLength2').value;
     roomObj.name = document.getElementById('roomName2').value;
@@ -4135,7 +4151,8 @@ function creatArrayKeysTypes() {
     eachCategory(chairs, 'chairs');
     eachCategory(tables, 'tables');
     eachCategory(displays, 'displays');
-    eachCategory(stageFloors, 'stageFloors')
+    eachCategory(stageFloors, 'stageFloors');
+    eachCategory(boxes, 'boxes');
 
     function eachCategory(category, groupName) {
         category.forEach((item) => {
@@ -4794,7 +4811,7 @@ function copyToCanvasClipBoard(items) {
         let rotation = attrs.rotation;
         let center = {};
 
-        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors') {
+        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes' ) {
             center.x = node.x();
             center.y = node.y();
         } else {
@@ -5037,8 +5054,7 @@ function stageAddLayers() {
     layerTransform.add(grShadingCamera);
     layerTransform.add(groupTables);
     layerTransform.add(groupChairs);
-
-    layerTransform.add(groupShapes);
+    layerTransform.add(groupBoxes);
 
 
     layerTransform.add(grShadingMicrophone);
@@ -5051,6 +5067,7 @@ function stageAddLayers() {
 
     layerTransform.add(groupVideoDevices);
     layerTransform.add(groupMicrophones);
+
 
     layerTransform.add(grLabels);
 
@@ -5383,6 +5400,12 @@ function roomObjToCanvas(roomObjItems) {
         }
     }
 
+    if ('boxes' in roomObjItems){
+        for (const device of roomObjItems.boxes) {
+            insertItem(device, device.id);
+        }
+    }
+
 }
 
 function canvasToJson() {
@@ -5433,7 +5456,7 @@ function canvasToJson() {
 
             let rotation = attrs.rotation;
 
-            if (groupName === 'tables' || groupName === 'stageFloors') {
+            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
                 x = attrs.x;
                 y = attrs.y;
             } else {
@@ -5474,7 +5497,7 @@ function canvasToJson() {
                 itemAttr.data_vHeight = node.data_vHeight;
             }
 
-            if (groupName === 'tables' || groupName === 'stageFloors') {
+            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
                 itemAttr.width = (attrs.width / scale);
                 itemAttr.height = (attrs.height / scale);
             }
@@ -5971,6 +5994,24 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+    // if (insertDevice.id === 'boxTopLevel') {
+    //     tblWallFlr = new Konva.Rect({
+    //         x: pixelX,
+    //         y: pixelY,
+    //         rotation: rotation,
+    //         width: width,
+    //         height: height,
+    //         fill: '#FFFFFF99',
+    //         id: uuid,
+    //         cornerRadius: radius,
+    //         draggable: true,
+    //         dash: allDeviceTypes[insertDevice.id].dash,
+    //         stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
+    //         strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
+    //     });
+    // }
+
+
     if (insertDevice.id === 'carpet') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
@@ -6277,12 +6318,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         tblWallFlr.name(insertDevice.name);
     }
 
-    /* if statement to add incase in future */
+    /* if statement to add incase in future  */
     if (groupName === 'tables') {
         groupTables.add(tblWallFlr);
     }
     else if (groupName === 'stageFloors') {
         groupStageFloors.add(tblWallFlr);
+    }
+    else if (groupName === 'boxes'){
+        groupBoxes.add(tblWallFlr);
     }
 
     if (allDeviceTypes[tblWallFlr.data_deviceid].parentGroup === 'tables') {
@@ -6307,6 +6351,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.on('transform', function tableOnTransform(e) {
 
+        snapToGuideLines(e, true);
+
         if (tblWallFlr.data_labelField) updateShading(tblWallFlr);
     });
 
@@ -6321,7 +6367,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             tr.nodes([e.target]);
             enableCopyDelBtn();
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -6344,7 +6390,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
-
+        lastSelectedNodePosition = deepCopyNode(tblWallFlr);
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
             tr.nodes()[0].shadowColor('grey').shadowBlur(10).shadowOpacity(0.5).shadowEnabled(true).opacity(0.4);
 
@@ -6371,19 +6417,42 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             chairs.attrs.height = height;
 
 
-            tr.nodes([chairs]);
+            //   tr.nodes([chairs]);
 
         }
 
+        // updateFormatDetailsUpdate();
 
+        layerTransform.find('.guide-line').forEach((l) => l.destroy());
 
-        if (tr.nodes().length === 1) updateItem();  /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
+        if (tr.nodes().length === 1)
+            setTimeout(() => {
+                // layerTransform.batchDraw();
+                if(tblWallFlr.data_deviceid === 'tblShapeU' || tblWallFlr.data_deviceid === 'tblTrap' || tblWallFlr.data_deviceid === 'wallChairs' || tblWallFlr.data_deviceid === 'couch'){
+                    updateItem();
+                }
+
+            }, 100);
+        /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
     if (attrs.data_labelField) {
         addLabel(tblWallFlr, attrs);
     }
 
+}
+
+/* returns a clone of the node include the data_  items */
+function deepCopyNode(node) {
+    let newNode = node.clone();
+    let keys = Object.keys(node);
+    keys.forEach(key => {
+        if (key.startsWith('data_')) {
+            newNode[key] = node[key];
+        }
+    })
+
+    return newNode;
 }
 
 /* The wallChairs object needs to be resized by deleting and reinserting or the background image does not size correctly */
@@ -6628,6 +6697,10 @@ function updateTrNodesShading() {
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
 
     let trNodes = tr.nodes();
+
+    if (trNodes.length === 1) {
+        lastSelectedNodePosition = trNodes[0].clone();
+    }
 
     removeShadingTrNodes();
 
@@ -7819,7 +7892,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
         if in tables/stageFloors break out of this and go to insertTable.
     */
-    if (groupName === 'tables' || groupName === 'stageFloors') {
+    if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
         for (const device of tables) {
             if (device.id === deviceId) {
                 insertDevice = device;
@@ -7835,6 +7908,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 break;
             }
         }
+
+        for (const device of boxes) {
+            if (device.id === deviceId) {
+                insertDevice = device;
+                group = groupBoxes;
+                break;
+            }
+        }
+
         insertTable(insertDevice, groupName, attrs, uuid, selectTrNode)
         return;
     }
@@ -7881,16 +7963,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
     }
 
-    if (groupName === 'shapes') {
-        /*
-        for (const device of shapes) {
+    if (groupName === 'boxes') {
+        for (const device of boxes) {
             if (device.id === deviceId) {
                 insertDevice = device;
-                group = groupShapes;
+                group = groupBoxes;
                 break;
             }
         }
-        */
     }
 
     if (groupName === 'speakers') {
@@ -8125,7 +8205,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 tr.nodes([e.target]);
                 enableCopyDelBtn();
                 /* tables and other objects maybe resizable. */
-                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
+                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
                     resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
@@ -8704,8 +8784,8 @@ function snapCenterToIncrement(node) {
 
 /* snap to object start */
 
-/* were can we snap our objects? */
-function getLineGuideStops(skipShape) {
+/* were can we snap our objects? If resize = true, ignore center */
+function getLineGuideStops(skipShape, resize = false) {
     /* we can snap to stage borders and the center of the stage */
 
     let outerWall = stage.find("#cOuterWall")[0];
@@ -8713,11 +8793,23 @@ function getLineGuideStops(skipShape) {
     let vertical = [outerBox.x, outerBox.x + outerBox.width / 2, outerBox.x + outerBox.width];
     let horizontal = [outerBox.y, outerBox.y + outerBox.height / 2, outerBox.y + outerBox.height];
 
+    /* remove center items*/
+    if (resize) {
+        vertical.splice(1, 1);
+        horizontal.splice(1, 1);
+    }
+
 
     let outsideWall = stage.find("#outsideWall")[0];
     let outsideBox = outsideWall.getClientRect();
-    vertical.push([outsideBox.x, outsideBox.x + outsideBox.width / 2, outsideBox.x + outsideBox.width]);
-    horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height / 2, outsideBox.y + outsideBox.height]);
+    if (resize) {
+        vertical.push([outsideBox.x, outsideBox.x + outsideBox.width]);
+        horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height])
+    } else {
+        vertical.push([outsideBox.x, outsideBox.x + outsideBox.width / 2, outsideBox.x + outsideBox.width]);
+        horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height / 2, outsideBox.y + outsideBox.height]);
+    }
+
 
 
 
@@ -8736,9 +8828,15 @@ function getLineGuideStops(skipShape) {
             return;
         }
         let box = guideItem.getClientRect();
-        /* and we can snap to all edges of shapes */
-        vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
-        horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
+        /* and we can snap to all edges of shapes. If resize equals true, don't grab center values */
+        if (resize) {
+            vertical.push([box.x, box.x + box.width]);
+            horizontal.push([box.y, box.y + box.height]);
+        } else {
+            vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
+            horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
+        }
+
     });
 
 
@@ -8751,51 +8849,63 @@ function getLineGuideStops(skipShape) {
 
 
 /* what points of the object will trigger to snapping?
- it can be just center of the object but we will enable all edges and center */
-function getObjectSnappingEdges(node) {
+ If it is resize, igonore center of objects.  */
+function getObjectSnappingEdges(node, resize = false) {
     let box = node.getClientRect();
     let absPos = node.absolutePosition();
+    let objectSnap = {}
 
-    return {
-        vertical: [
-            {
-                guide: Math.round(box.x),
-                offset: Math.round(absPos.x - box.x),
-                snap: 'start',
-            },
-            {
-                guide: Math.round(box.x + box.width / 2),
-                offset: Math.round(absPos.x - box.x - box.width / 2),
-                snap: 'center',
-            },
-            {
-                guide: Math.round(box.x + box.width),
-                offset: Math.round(absPos.x - box.x - box.width),
-                snap: 'end',
-            },
-        ],
-        horizontal: [
-            {
-                guide: Math.round(box.y),
-                offset: Math.round(absPos.y - box.y),
-                snap: 'start',
-            },
-            {
-                guide: Math.round(box.y + box.height / 2),
-                offset: Math.round(absPos.y - box.y - box.height / 2),
-                snap: 'center',
-            },
-            {
-                guide: Math.round(box.y + box.height),
-                offset: Math.round(absPos.y - box.y - box.height),
-                snap: 'end',
-            },
-        ],
-    };
+
+    objectSnap.vertical = [
+        {
+            guide: round(box.x),
+            offset: round(absPos.x - box.x),
+            snap: 'start',
+        },
+        {
+            guide: round(box.x + box.width),
+            offset: round(absPos.x - box.x - box.width),
+            snap: 'end',
+        },
+    ];
+
+    objectSnap.horizontal = [
+        {
+            guide: round(box.y),
+            offset: round(absPos.y - box.y),
+            snap: 'start',
+        },
+        {
+            guide: round(box.y + box.height),
+            offset: round(absPos.y - box.y - box.height),
+            snap: 'end',
+        },
+    ];
+
+    if (!resize) {
+
+        objectSnap.vertical[2] = {
+
+            guide: Math.round(box.x + box.width / 2),
+            offset: Math.round(absPos.x - box.x - box.width / 2),
+            snap: 'center',
+
+        };
+
+        objectSnap.horizontal[2] = {
+            guide: Math.round(box.y + box.height / 2),
+            offset: Math.round(absPos.y - box.y - box.height / 2),
+            snap: 'center',
+        };
+    }
+
+    return objectSnap;
 }
 
 /* find all snapping possibilities */
 function getGuides(lineGuideStops, itemBounds) {
+    // console.log('lineGuideStops', JSON.stringify(lineGuideStops, null, 5));
+    // console.log('itemBounds', JSON.stringify(itemBounds, null, 5 ));
     let resultV = [];
     let resultH = [];
 
@@ -8803,7 +8913,7 @@ function getGuides(lineGuideStops, itemBounds) {
         itemBounds.vertical.forEach((itemBound) => {
             let diff = Math.abs(lineGuide - itemBound.guide);
             /* if the distance between guild line and object snap point is close we can consider this for snapping */
-            if (diff < GUIDELINE_OFFSET) {
+            if (diff < GUIDELINE_OFFSET && !itemBound.ignore) {
                 resultV.push({
                     lineGuide: lineGuide,
                     diff: diff,
@@ -8817,7 +8927,7 @@ function getGuides(lineGuideStops, itemBounds) {
     lineGuideStops.horizontal.forEach((lineGuide) => {
         itemBounds.horizontal.forEach((itemBound) => {
             let diff = Math.abs(lineGuide - itemBound.guide);
-            if (diff < GUIDELINE_OFFSET) {
+            if (diff < GUIDELINE_OFFSET && !itemBound.ignore) {
                 resultH.push({
                     lineGuide: lineGuide,
                     diff: diff,
@@ -8853,7 +8963,18 @@ function getGuides(lineGuideStops, itemBounds) {
 }
 
 
-function snapToGuideLines(e) {
+function snapToGuideLinesResize(moved) {
+    let original = lastSelectedNodePosition;
+    if (snapGuidesDrawn && moved.rotation() === 0) {
+        // lastSelectedNodePosition.height(lastSelectedNodePosition.y() + guides[0].lineGuide + 300);
+        // console.log('line 8968')
+        // e.target.height(Math.abs(lastSelectedNodePosition.y() - guides[0].lineGuide));
+        // e.target.y(lastSelectedNodePosition.y());
+        updateFormatDetails(e.target.id());
+    }
+}
+
+function snapToGuideLines(e, resize = false) {
 
     if (!document.getElementById('snapGuidelinesCheckBox').checked) return; /* bail out if snap to guidelines not turned on */
 
@@ -8862,40 +8983,113 @@ function snapToGuideLines(e) {
     layerTransform.find('.guide-line').forEach((l) => l.destroy());
 
     /* find possible snapping lines */
-    let lineGuideStops = getLineGuideStops(e.target);
-    /* find snapping points of current object */
-    let itemBounds = getObjectSnappingEdges(e.target);
+    let lineGuideStops = getLineGuideStops(e.target, resize);
 
-    /* now find where can we snap current object */
-    let guides = getGuides(lineGuideStops, itemBounds);
-
-    /* do nothing of no snapping */
-    if (!guides.length) {
-        return;
-    }
-
-    drawSnapGuides(guides);
+    // drawSnapGuides(guides);
 
     let absPos = e.target.absolutePosition();
-    /* now force object position */
-    guides.forEach((lg) => {
-        switch (lg.orientation) {
-            case 'V': {
-                absPos.x = lg.lineGuide + lg.offset;
-                break;
+    if (resize === true) {
+        return;
+        let original = lastSelectedNodePosition;
+        let moved = e.target;
+        /* make sure it is a resize transformation and not a rotation, and is 0, 90, 180, 270 */
+        //  console.log('origingal.rotation', original.rotation(), 'moved.rotation()', moved.rotation());
+        if (Math.round(original.rotation() * 10) === Math.round(moved.rotation() * 10) && (moved.rotation() % 90) === 0) {
+
+            /* find snapping points of current object .guide, .offset, .snap: start & end */
+            let itemBounds = getObjectSnappingEdges(e.target, resize);
+            let cf = 0.01; /* ccoefficient factor */
+
+
+            let itemOriginalBounds = getObjectSnappingEdges(original, resize);
+            // console.log('itemBounds', JSON.stringify(itemBounds));
+            // console.log('itemOrigin', JSON.stringify(itemOriginalBounds));
+
+            if (!itemOriginalBounds) return;
+            if (!itemBounds) return;
+
+
+
+            console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
+            console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
+            if (Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide) > Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide)) {
+                itemBounds.vertical[0].ignore = true;
+
+            } else {
+                itemBounds.vertical[1].ignore = true;
             }
-            case 'H': {
-                absPos.y = lg.lineGuide + lg.offset;
-                break;
+
+            if (Math.abs(itemBounds.horizontal[1].guide - itemOriginalBounds.horizontal[1].guide) > Math.abs(itemBounds.horizontal[0].guide - itemOriginalBounds.horizontal[0].guide)) {
+                itemBounds.horizontal[0].ignore = true;
+            } else {
+                itemBounds.horizontal[1].ignore = true;
+            }
+
+
+            /* now find where can we snap current object */
+            let guides = getGuides(lineGuideStops, itemBounds);
+
+            /* do nothing of no snapping */
+            if (!guides.length) {
+                return;
+            }
+
+            // console.log('original', original.id(), original.x(), original.y(), original.width(), original.height());
+            // console.log('moved', moved.id(), moved.x(), moved.y(), moved.width(), moved.height());
+            // console.log('guides', JSON.stringify(guides));
+
+            /* only show vertical guides */
+            if (Math.round(original.width() * 1000) === Math.round(moved.width() * 1000) && ((moved.rotation() % 180) === 0)) {
+                let snapGuidesDrawn = drawSnapGuides(guides, 'H');
+                lastSelectionGuideLines.type = 'H';
+                lastSelectionGuideLines.guides = guides;
+
+                console.log('H');
+
+
+            }
+            else {
+                drawSnapGuides(guides, 'V');
+
             }
         }
-    });
-    e.target.absolutePosition(absPos);
+
+    } else {
+
+        /* find snapping points of current object */
+        let itemBounds = getObjectSnappingEdges(e.target, resize);
+
+        /* now find where can we snap current object */
+        let guides = getGuides(lineGuideStops, itemBounds);
+
+        /* do nothing of no snapping */
+        if (!guides.length) {
+            return;
+        }
+        drawSnapGuides(guides);
+
+        /* now force object position */
+        guides.forEach((lg) => {
+            switch (lg.orientation) {
+                case 'V': {
+                    absPos.x = lg.lineGuide + lg.offset;
+                    break;
+                }
+                case 'H': {
+                    absPos.y = lg.lineGuide + lg.offset;
+                    break;
+                }
+            }
+        });
+        e.target.absolutePosition(absPos);
+    }
+
 }
 
-function drawSnapGuides(guides) {
+function drawSnapGuides(guides, direction = 'both') {
+    let snapGuidesDrawn = false;
     guides.forEach((lg) => {
-        if (lg.orientation === 'H') {
+        if (lg.orientation === 'H' && (direction === 'both' || direction === 'H')) {
             let line = new Konva.Line({
                 points: [-6000, 0, 6000, 0],
                 stroke: 'rgb(247, 0, 255)',
@@ -8908,7 +9102,8 @@ function drawSnapGuides(guides) {
                 x: 0,
                 y: lg.lineGuide,
             });
-        } else if (lg.orientation === 'V') {
+            snapGuidesDrawn = true;
+        } else if (lg.orientation === 'V' && (direction === 'both' || direction === 'V')) {
             let line = new Konva.Line({
                 points: [0, -6000, 0, 6000],
                 stroke: 'rgb(247, 0, 255)',
@@ -8921,8 +9116,11 @@ function drawSnapGuides(guides) {
                 x: lg.lineGuide,
                 y: 0,
             });
+            snapGuidesDrawn = true;
         }
     });
+
+    return snapGuidesDrawn;
 }
 
 function defaultUnitChange(e) {
@@ -9553,7 +9751,7 @@ function updateFormatDetails(eventOrShapeId) {
 
     document.getElementById('itemVheight').disabled = false;
 
-    if (parentGroup === 'tables' || parentGroup === 'stageFloors') {
+    if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
         document.getElementById('itemWidth').disabled = false;
         document.getElementById('itemLength').disabled = false;
     } else {
@@ -9610,7 +9808,7 @@ function updateFormatDetails(eventOrShapeId) {
             isPrimaryCheckBox.checked = false;
             isPrimaryDiv.style.display = 'none';
 
-            if (parentGroup === 'tables' || parentGroup === 'stageFloors') {
+            if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
                 x = shape.x();
                 y = shape.y();
 
@@ -9708,7 +9906,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors') {
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
                 document.getElementById('itemVheightDiv').style.display = '';
             } else {
                 document.getElementById('itemVheightDiv').style.display = 'none';
@@ -10052,7 +10250,7 @@ function addListeners(stage) {
 
         shapes = shapes.concat(groupMicrophones.getChildren());
 
-        shapes = shapes.concat(groupShapes.getChildren());
+        shapes = shapes.concat(groupBoxes.getChildren());
 
         shapes = shapes.concat(groupSpeakers.getChildren());
 
@@ -10068,7 +10266,7 @@ function addListeners(stage) {
 
         tr.nodes(selected);
 
-        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors')) {
+        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes')) {
             /* if there is a single table, make it resizable */
             resizeTableOrWall();
         }
@@ -10113,7 +10311,7 @@ function addListeners(stage) {
             tr.nodes([e.target]);
 
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -11432,6 +11630,8 @@ function resizeTableOrWall() {
             tr.resizeEnabled(false);
         }
 
+        lastSelectedNodePosition = nodes[0].clone();
+
     }
 
 }
@@ -12055,7 +12255,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     roomObj2.name = workspaceObj.title || '';
     roomObj2.workspace.addCeiling = false;
     roomObj2.workspace.removeDefaultWalls = true;
-    roomObj2.room.roomHeight = 2.5;
+    roomObj2.room.roomHeight = 2;
 
 
     /* create a structured clone of the array of customObjects. Once an item is parsed, delete it from the array */
@@ -12373,7 +12573,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
 
     /* convert walls with no measurements but only scale to a columnRect. Why? Walls have set length of 0.10, Boxes do not.  */
-    if(!('width' in wdItem) && data_deviceid.startsWith('wall')){
+    if (!('width' in wdItem) && data_deviceid.startsWith('wall')) {
         console.info('Workspace Designer import ERROR, wall with no width, be changed to a column', wdItem)
         data_deviceid = 'columnRect';
         deviceType = allDeviceTypes[data_deviceid];
@@ -12383,19 +12583,19 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
 
     /* add scale to items that need scale */
-    if(data_deviceid === 'couch'){
-        if(!wdItem.scale){
-            wdItem.scale = [1,1,1];
+    if (data_deviceid === 'couch') {
+        if (!wdItem.scale) {
+            wdItem.scale = [1, 1, 1];
         }
     }
 
     /* items will need a position, add one if not found */
-    if(!('position' in wdItem)){
-        wdItem.position = [0,0,0];
+    if (!('position' in wdItem)) {
+        wdItem.position = [0, 0, 0];
     }
 
-    if(!('rotation' in wdItem)){
-        wdItem.rotation = [0,0,0];
+    if (!('rotation' in wdItem)) {
+        wdItem.rotation = [0, 0, 0];
     }
 
     /* if it is pseudo mount, then use the below */
@@ -13263,6 +13463,10 @@ function convertRoomObjToWorkspace() {
         }
     });
 
+    roomObj2.items.boxes.forEach((item)=>{
+        workspaceObjWallPush(item);
+    });
+
     roomObj2.items.videoDevices.forEach((item) => {
         if (item.data_mount && item.data_mount.value.startsWith('flippedPole')) {
             let pole = {};
@@ -13891,7 +14095,7 @@ function convertRoomObjToWorkspace() {
 function parseDataLabelFieldJson(item, workspaceItem) {
 
     let commentPart;
-  //  let jsonPart = /{.*?}/.exec(item.data_labelField);
+    //  let jsonPart = /{.*?}/.exec(item.data_labelField);
     let jsonPart = /{.*}/.exec(item.data_labelField);
 
     if ('data_labelField' in item && item.data_labelField) {
