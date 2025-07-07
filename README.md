@@ -8,9 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.615**
+**v0.1.616**
 Small improvements:
-- Box objects are now on separate level from table/wall level. Box level is above the table/wall level. Stage Floor object is also a box, but on the bottom level.
+- Box objects are now on separate level from table/wall level. The Box level is above the table/wall level. The Stage Floor object is also a box, but it is on the lowest room object level.
+- You can now also drag .json files onto room canvas to upload.
 
 **v0.1.615**
 Improvements for importing Workspace Designer files:
