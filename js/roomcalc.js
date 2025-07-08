@@ -18,6 +18,10 @@ let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
 let roomName = '';
 let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
+
+const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
+let newWorkspaceTab = defaultWorkspaceTab;
+let defaultWorkspaceTestSite = 'https://designer.cisco.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Windwo reprsenting the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
@@ -249,7 +253,7 @@ workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0
 workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 
 workspaceKey.chair = { objectType: 'chair' };
-workspaceKey.plant = { objectType: 'plant' };
+workspaceKey.plant = { objectType: 'plant', scale: [1,1,1] };
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
 workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
@@ -927,25 +931,6 @@ let tables = [{
 },
 
 {
-    name: 'Column',
-    id: 'columnRect',
-    key: 'WC',
-    frontImage: 'columnRect-front.png',
-    family: 'wallBox',
-},
-
-// {
-//     name: 'Box',
-//     id: 'box',
-//     key: 'WD',
-//     frontImage: 'box-front.png',
-//     family: 'wallBox',
-//     stroke: 'black',
-//     strokeWidth: '2',
-//     dash: [7, 5],
-// },
-
-{
     name: 'Wall with Windows',
     id: 'wallWindow',
     key: 'WE',
@@ -953,14 +938,7 @@ let tables = [{
     topImage: 'wallWindow-top.png',
     family: 'wallBox',
 },
-{
-    name: 'Row of Chairs',
-    id: 'wallChairs',
-    key: 'WF',
-    topImage: 'chair-top.png',
-    frontImage: 'wallChairs-menu.png',
-    family: 'resizeItem',
-},
+
 {
     name: 'Table Curved (Campfire)',
     id: 'tblCurved',
@@ -968,23 +946,7 @@ let tables = [{
     frontImage: 'tblCurved-menu.png',
     family: 'resizeItem',
 },
-{
-    name: 'Couch',
-    id: 'couch',
-    key: 'WH',
-    frontImage: 'couch-menu.png',
-    family: 'resizeItem',
-},
-{
-    name: 'Unknown Workspace Designer Resizeable',
-    id: 'tblUnknownObj',
-    key: 'WI',
-    frontImage: 'unknownObj-top.png',
-    family: 'resizeItem',
-    stroke: 'purple',
-    strokeWidth: '3',
-    dash: [4, 4],
-}
+
 ]
 
 /* Chair, doors and people. Key ID start with S */
@@ -1265,6 +1227,40 @@ let boxes = [
     strokeWidth: '2',
     dash: [7, 5],
 },
+{
+    name: 'Row of Chairs',
+    id: 'wallChairs',
+    key: 'WF',
+    topImage: 'chair-top.png',
+    frontImage: 'wallChairs-menu.png',
+    family: 'resizeItem',
+},
+
+{
+    name: 'Couch',
+    id: 'couch',
+    key: 'WH',
+    frontImage: 'couch-menu.png',
+    family: 'resizeItem',
+},
+{
+    name: 'Unknown Workspace Designer Resizeable',
+    id: 'tblUnknownObj',
+    key: 'WI',
+    frontImage: 'unknownObj-top.png',
+    family: 'resizeItem',
+    stroke: 'purple',
+    strokeWidth: '3',
+    dash: [4, 4],
+},
+{
+    name: 'Column',
+    id: 'columnRect',
+    key: 'WC',
+    frontImage: 'columnRect-front.png',
+    family: 'wallBox',
+},
+
 ]
 
 
@@ -2126,10 +2122,16 @@ function getQueryString() {
             console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
             localStorage.removeItem('wd');
             workspaceDesignerTestUrl = null;
-        } else {
+        }
+         else {
             /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
             let base = decodeURIComponent(wd);
-            workspaceDesignerTestUrl = `${base}/#/room/custom`;
+            if (wd === '1') {
+                workspaceDesignerTestUrl = defaultWorkspaceTab;
+            } else {
+                workspaceDesignerTestUrl = `${base}/#/room/custom`;
+            }
+
             console.info('urlParams wd=', workspaceDesignerTestUrl, 'custom Workspace Designer tab is set.');
             setItemForLocalStorage('wd', workspaceDesignerTestUrl);
         }
@@ -13156,10 +13158,14 @@ function openWorkspaceWindow2() {
 
 function openWorkspaceWindow(fromButton = true) {
 
+    let currentSite = location.origin + location.pathname;
+    console.log('current site:', currentSite);
 
-    let newWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom";
-
-    //let newWorkspaceTab = "https://prototypes.cisco.com/roomdesigner-007/#/room/custom";
+    /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
+    if(currentSite != 'https://collabexperience.com/'){
+        newWorkspaceTab = defaultWorkspaceTestSite;
+        console.info('WD site: ', newWorkspaceTab);
+    }
 
     lastAction = "btnClick Workspace Designer";
 

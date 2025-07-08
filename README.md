@@ -10,8 +10,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.616**
 Small improvements:
-- Box objects are now on separate level from table/wall level. The Box level is above the table/wall level. The Stage Floor object is also a box, but it is on the lowest room object level.
+- Box objects are now on a separate level from table/wall level. The Box level is above the table/wall level. The Stage Floor object is also a box, but it is on the lowest room object level.
 - You can now also drag .json files onto room canvas to upload.
+- For testing, if https://collabexperience.com/ is not the loction origin & pathname, the VRC automatically opens up the beta Workspace Designer site https://designer.cisco.com
+    -- ?wd=<URL> overides the above.
+    -- ?wd=1 will force the use of the default production site https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom
+    -- ?wd=0 or clicking Details-->Settings-->Disable will disable forced WD site.
 
 **v0.1.615**
 Improvements for importing Workspace Designer files:

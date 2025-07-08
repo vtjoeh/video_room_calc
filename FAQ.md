@@ -66,6 +66,23 @@ For the nearest participant to the display, assuming they are seated front and c
 
 The AVIXA DISCAS standard does not directly account for dual displays, the size of individuals on the displays during a meeting, or the frequent scaling and resizing of content in a videoconference setting when layouts are altered.
 
+### How do I change the level or layer that an object is on?
+The Video Room Calcultor has implicit levels (layers) and does not allow you to change the level of an object.  PowerPoint or other solutions have a 'Send to Back' or 'Bring to Front' concept.  The Video Room Calculator tries to simplify the objects so they end up on the correct level. Level rendering has nothing to do with the Z (base elevation).
+
+**Levels**
+From top down, here are the different levels of the objects:
+	•	Microphones level: Microphones, Navigators, Laptop or other small objects
+	•	Display Level: Single, double or triple displays.
+	•	Chairs Level: Chairs, People, Plants, Doors. _Note: People always get placed on top for this layer when inserted, therefore people will be on top of chairs.
+	•	VideoDevices Level: Video Devices & Camera. _Note: PTZ cameras always get placed on top for this level, therefore a PTZ will be on top of a Quad Camera.
+  •	Box Level: Box, Column, Row of Chairs, Couch
+	•	Table Level: Tables, Walls (but not default walls)
+	•	[Coverage level for cameras, mics, and displays. This level is not affected by touch.]
+	•	Stage Floor Level: Stage Floor, Carpet
+	•	[Grid level, includes default walls]
+
+Pro-tip: A Box and Stage Floor are the same type of Workspace Designer object, but they appear on different levels in the Video Room Calculator.  Therefore, you can swap between these two objects to change the level.
+
 ### Why does the Room Bar Pro and Board Pro G2 with an external mic pickup range look different in the Workspace Designer than the Video Room Calculator?
 This is a configurable setting and works differntly depending on products and configurations, so it is hard to say what the correct default pickup range should be in the Video Room Calculator. There is an important setting:
 Configuration--> Audio--> BeamMix--> Inputs: **Auto** or **BeamsAndExtMics**
