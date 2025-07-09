@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.617**
+- Audio coverage added to Desk Pro, Desk and Desk Mini.
+
 **v0.1.616**
 Small improvements:
 - Box objects are now positioned on a separate level from the table/wall level. The Box level is situated above the table/wall level. The Stage Floor object is also a box, but it is placed on the lowest room object level. 📦

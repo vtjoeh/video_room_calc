@@ -690,11 +690,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
 
-    { name: "Desk", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710 },
+    { name: "Desk*", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710 },
+    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Mini*", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710 },
+    { name: "Desk Mini*", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
 
@@ -12292,7 +12292,6 @@ fileInputImage.addEventListener('change', function (e) {
 
 
 function importJson(jsonFile) {
-    console.log('import:', jsonFile)
     let jsonFileType = false;
 
     if ('room' in jsonFile) {
