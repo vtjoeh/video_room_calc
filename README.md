@@ -11,6 +11,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.616**
 Small improvements:
 - Box objects are now on a separate level from table/wall level. The Box level is above the table/wall level. The Stage Floor object is also a box, but it is on the lowest room object level.
+- Person Stading Man added. Default is still Person Standing Woman.
 - Drag .json files onto room canvas to upload.
 - For testing, if https://collabexperience.com/ is not the loction origin & pathname, the VRC automatically opens up the beta Workspace Designer site https://designer.cisco.com
     -- ?wd=<https://domain> overides the above.
