@@ -14,9 +14,9 @@ Small improvements:
 - **Person Standing (man)** has been added. The default remains **Person Standing (woman)**. After adding **Person Standing**, switch to **Person Standing (man)**. 🚶‍♂️
 - Drag .json files onto the room canvas to upload. The .json files used can be exported from Workspace Designer or the Video Room Calculator. 📁
 - For testing, if https://collabexperience.com/ is not the location origin & pathname, the VRC automatically opens the beta Workspace Designer site at https://designer.cisco.com
-    -- ?wd=<https://domain> overrides the above.
-    -- ?wd=1 will force the use of the default production site https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom
-    -- ?wd=0 or clicking Details-->Settings-->Disable will disable the forced WD site.
+  - ?wd=<https://domain> overrides the above.
+  - ?wd=1 will force the use of the default production site https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom
+  - ?wd=0 or clicking Details-->Settings-->Disable will disable the forced WD site.
 - Import 9800 phone (Workspace Designer beta only). 📞
 
 **v0.1.615**
