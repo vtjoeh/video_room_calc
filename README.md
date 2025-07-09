@@ -10,14 +10,14 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.616**
 Small improvements:
-- Box objects are now on a separate level from table/wall level. The Box level is above the table/wall level. The Stage Floor object is also a box, but it is on the lowest room object level.
-- Person Stading Man added. Default is still Person Standing Woman.
-- Drag .json files onto room canvas to upload.
-- For testing, if https://collabexperience.com/ is not the loction origin & pathname, the VRC automatically opens up the beta Workspace Designer site https://designer.cisco.com
-    -- ?wd=<https://domain> overides the above.
+- Box objects are now positioned on a separate level from the table/wall level. The Box level is situated above the table/wall level. The Stage Floor object is also a box, but it is placed on the lowest room object level. 📦
+- **Person Standing (man)** has been added. The default remains **Person Standing (woman)**. After adding **Person Standing**, switch to **Person Standing (man)**. 🚶‍♂️
+- Drag .json files onto the room canvas to upload. The .json files used can be exported from Workspace Designer or the Video Room Calculator. 📁
+- For testing, if https://collabexperience.com/ is not the location origin & pathname, the VRC automatically opens the beta Workspace Designer site at https://designer.cisco.com
+    -- ?wd=<https://domain> overrides the above.
     -- ?wd=1 will force the use of the default production site https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom
-    -- ?wd=0 or clicking Details-->Settings-->Disable will disable forced WD site.
-- Import 9800 phone (Workspace Designer beta only)
+    -- ?wd=0 or clicking Details-->Settings-->Disable will disable the forced WD site.
+- Import 9800 phone (Workspace Designer beta only). 📞
 
 **v0.1.615**
 Improvements for importing Workspace Designer files:
