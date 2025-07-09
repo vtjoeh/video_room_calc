@@ -17,6 +17,7 @@ Small improvements:
   - ?wd=<https://domain> overrides the above.
   - ?wd=1 will force the use of the default production site https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom
   - ?wd=0 or clicking Details-->Settings-->Disable will disable the forced WD site.
+- Board Pro and Desk Pro now opens up the Workspace Designer when used as a web app. RoomOS only supports one web browser window, therefore the Workspace Designer opens in a floating iFrame.
 - Import 9800 phone (Workspace Designer beta only). 📞
 
 **v0.1.615**
