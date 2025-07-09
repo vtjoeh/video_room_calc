@@ -213,6 +213,16 @@ workspaceKey.switch = { objectType: 'switch' };
 
 workspaceKey.codec = { objectType: 'codec' };
 
+workspaceKey.phoneUnknown = { objectType: 'phone', role: "phone", yOffset: -0.1, xOffset:-0.04 };
+
+workspaceKey.phone9841 = { objectType: 'phone', model: "9841", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+
+workspaceKey.phone9851 = { objectType: 'phone', model: "9851", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+
+workspaceKey.phone9861 = { objectType: 'phone', model: "9861", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+
+workspaceKey.phone9871 = { objectType: 'phone', model: "9871", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
@@ -290,8 +300,6 @@ workspaceKey.doorDoubleLeft = { objectType: 'door', scale: [-1, 1, 1] }
 workspaceKey.doorRight2 = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 2] }
 workspaceKey.doorLeft2 = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 2] }
 
-// workspaceKey.doorDouble2Right = { objectType: 'door', scale: [0.94, 1, 2] }
-// workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-0.94, 1, 2] }
 
 workspaceKey.doorDouble2Right = { objectType: 'door', scale: [1, 1, 2] }
 workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-1, 1, 2] }
@@ -301,6 +309,8 @@ workspaceKey.floor = { objectType: 'floor' };
 workspaceKey.stageFloor = { objectType: 'box', idRegex: '(^stage$)|(^step-)' };
 
 workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
+
+workspaceKey.personStandingMan = { objectType: 'person', model: 'man-standing-pen' };
 
 workspaceKey.wheelchair = { objectType: 'person', model: 'woman-sitting-wheelchair' };
 
@@ -869,6 +879,65 @@ let microphones = [
         defaultVert: 700,
 
     },
+    {
+        name: "Phone (unknown)",
+        id: "phoneUnknown",
+        key: "MH",
+        topImage: 'phone9861-top.png',
+        frontImage: 'phone9861-top.png',
+        width: 210,
+        depth: 190,
+        height: 160,
+        defaultVert: 710,
+    },
+    {
+        name: "Phone 9841",
+        id: "phone9841",
+        key: "MI",
+        topImage: 'phone9861-top.png',
+        frontImage: 'phone9861-top.png',
+        width: 210,
+        depth: 190,
+        height: 160,
+        defaultVert: 710,
+        colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
+    },
+    {
+        name: "Phone 9851",
+        id: "phone9851",
+        key: "MJ",
+        topImage: 'phone9861-top.png',
+        frontImage: 'phone9861-top.png',
+        width: 210,
+        depth: 190,
+        height: 160,
+        defaultVert: 710,
+        colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
+    },
+    {
+        name: "Phone 9861",
+        id: "phone9861",
+        key: "MK",
+        topImage: 'phone9861-top.png',
+        frontImage: 'phone9861-top.png',
+        width: 210,
+        depth: 190,
+        height: 160,
+        defaultVert: 710,
+        colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
+    },
+    {
+        name: "Phone 9871",
+        id: "phone9871",
+        key: "ML",
+        topImage: 'phone9861-top.png',
+        frontImage: 'phone9861-top.png',
+        width: 210,
+        depth: 190,
+        height: 160,
+        defaultVert: 710,
+        colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
+    },
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -931,6 +1000,14 @@ let tables = [{
 },
 
 {
+    name: 'Column',
+    id: 'columnRect',
+    key: 'WC',
+    frontImage: 'columnRect-front.png',
+    family: 'wallBox',
+},
+
+{
     name: 'Wall with Windows',
     id: 'wallWindow',
     key: 'WE',
@@ -938,7 +1015,14 @@ let tables = [{
     topImage: 'wallWindow-top.png',
     family: 'wallBox',
 },
-
+{
+    name: 'Row of Chairs',
+    id: 'wallChairs',
+    key: 'WF',
+    topImage: 'chair-top.png',
+    frontImage: 'wallChairs-menu.png',
+    family: 'resizeItem',
+},
 {
     name: 'Table Curved (Campfire)',
     id: 'tblCurved',
@@ -946,7 +1030,23 @@ let tables = [{
     frontImage: 'tblCurved-menu.png',
     family: 'resizeItem',
 },
-
+{
+    name: 'Couch',
+    id: 'couch',
+    key: 'WH',
+    frontImage: 'couch-menu.png',
+    family: 'resizeItem',
+},
+{
+    name: 'Unknown Workspace Designer Resizeable',
+    id: 'tblUnknownObj',
+    key: 'WI',
+    frontImage: 'unknownObj-top.png',
+    family: 'resizeItem',
+    stroke: 'purple',
+    strokeWidth: '3',
+    dash: [4, 4],
+}
 ]
 
 /* Chair, doors and people. Key ID start with S */
@@ -962,7 +1062,7 @@ let chairs = [
         opacity: 0.7,
     },
     {
-        name: "Person Standing",
+        name: "Person Standing (woman)",
         id: "personStanding",
         key: "SC",
         topImage: 'person-top.png',
@@ -970,7 +1070,6 @@ let chairs = [
         width: 640,
         depth: 640,
         opacity: 1,
-        models: ['woman-standing', 'man-standing-pen', 'woman-sitting-wheelchair'],
     },
     {
         name: "Door Right (thin frame)",
@@ -1132,6 +1231,16 @@ let chairs = [
         depth: 300,
         opacity: 0.8,
     },
+     {
+        name: "Person Standing (man)",
+        id: "personStandingMan",
+        key: "SS",
+        topImage: 'person-top.png',
+        frontImage: 'person-front.png',
+        width: 640,
+        depth: 640,
+        opacity: 1,
+    },
 
 ]
 
@@ -1227,40 +1336,6 @@ let boxes = [
     strokeWidth: '2',
     dash: [7, 5],
 },
-{
-    name: 'Row of Chairs',
-    id: 'wallChairs',
-    key: 'WF',
-    topImage: 'chair-top.png',
-    frontImage: 'wallChairs-menu.png',
-    family: 'resizeItem',
-},
-
-{
-    name: 'Couch',
-    id: 'couch',
-    key: 'WH',
-    frontImage: 'couch-menu.png',
-    family: 'resizeItem',
-},
-{
-    name: 'Unknown Workspace Designer Resizeable',
-    id: 'tblUnknownObj',
-    key: 'WI',
-    frontImage: 'unknownObj-top.png',
-    family: 'resizeItem',
-    stroke: 'purple',
-    strokeWidth: '3',
-    dash: [4, 4],
-},
-{
-    name: 'Column',
-    id: 'columnRect',
-    key: 'WC',
-    frontImage: 'columnRect-front.png',
-    family: 'wallBox',
-},
-
 ]
 
 
@@ -2048,6 +2123,7 @@ function getQueryString() {
 
     if ((mobileDevice === 'RoomOS')) {
         loadDrpDownOverrideScript();
+        testiFrame = true;
     }
     else if ((mobileDevice === 'Tesla')) {
         loadDrpDownOverrideScript();
@@ -2548,6 +2624,7 @@ function parseShortenedXYUrl(parameters) {
             } else {
                 populateMountFromUrl(newItem);
             }
+
 
             if ('text' in item) {
                 newItem.data_labelField = DOMPurify.sanitize(item.text);
@@ -9484,6 +9561,7 @@ function parseShadingDecimalToBinary(newItem, decimalInput) {
 
 }
 
+
 function populateColorFromUrl(newItem, place = -1) {
     let index = Number(place) + 1; /* by default index = 0 is the default, */
 
@@ -9653,6 +9731,8 @@ function populateDrpRole(item) {
         }
     }
 }
+
+
 
 /* Populate the drpMount drop menu if there are Mounts for the item.  Mounts are for the Workspace Designer */
 function populateDrpMount(item) {
@@ -9962,6 +10042,10 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('drpColor').value = item.data_color.value;
             }
 
+            if('data_model' in item && item.data_model){
+                document.getElementById('drpModel').value = item.data_model.value;
+            }
+
 
             if ('data_mount' in item && item.data_mount) {
                 document.getElementById('drpMount').value = item.data_mount.value;
@@ -10105,6 +10189,10 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[10] = ['brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel'];
 
     deviceGroups[11] = ['roomKitEqxFS', 'roomKitEqxWS'];
+
+    deviceGroups[12] = ['personStanding', 'personStandingMan'];
+
+    deviceGroups[13] = ['phone9841', 'phone9851', 'phone9861','phone9871'];
 
 
 
@@ -12405,6 +12493,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 }
             }
 
+            /* iterate throught the workspaceKey and find the best match on import. objecType > idRegex > model > mount > scale[x,x,x]> size > scale[1,1,1] */
             for (let key in workspaceKey) {
                 let hits = 0;
                 let keyItem = workspaceKey[key];
@@ -12630,6 +12719,12 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             wdItem.scale = [1, 1, 1];
         }
     }
+
+    /* desk */
+    if(data_deviceid === 'tblSchoolDesk' && !wdItem.length){
+        wdItem.length = 0.59;
+    }
+
 
     /* items will need a position, add one if not found */
     if (!('position' in wdItem)) {
@@ -13283,10 +13378,6 @@ function addDefaultsToWorkspaceObj() {
 
                     if ('colors' in item && item.colors) {
                         workspaceKey[key].color = returnStringOfDefaultRoleColor(item.colors);
-                    }
-
-                    if ('models' in item && item.models) {
-                        workspaceKey[key].model = returnStringOfDefaultRoleColor(item.models);
                     }
 
                     if ('mount' in item && item.mounts) {

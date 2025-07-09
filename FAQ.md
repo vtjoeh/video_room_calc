@@ -75,8 +75,8 @@ From top down, here are the different levels of the objects:
 	•	Display Level: Single, double or triple displays.
 	•	Chairs Level: Chairs, People, Plants, Doors. _Note: People always get placed on top for this layer when inserted, therefore people will be on top of chairs.
 	•	VideoDevices Level: Video Devices & Camera. _Note: PTZ cameras always get placed on top for this level, therefore a PTZ will be on top of a Quad Camera.
-  •	Box Level: Box, Column, Row of Chairs, Couch
-	•	Table Level: Tables, Walls (but not default walls)
+  •	Boxes Level: Box
+	•	Table Level: Tables, Walls (but not default walls), Column, Row of Chairs, Couch
 	•	[Coverage level for cameras, mics, and displays. This level is not affected by touch.]
 	•	Stage Floor Level: Stage Floor, Carpet
 	•	[Grid level, includes default walls]
