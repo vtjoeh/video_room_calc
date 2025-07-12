@@ -2375,6 +2375,9 @@ function convertMetersFeet(isDrawRoom, newUnit = null) {
 }
 
 function getQueryString() {
+    // TODO temp fix for not having online connection
+    // return;
+
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     roomName = urlParams.get('roomName');
@@ -8294,7 +8297,6 @@ function insertItem(item, uuid, selectTrNode) {
 }
 
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
-
     let hitStrokeWidth = 10; /* px:  allows the user to be close within X pixels to click on shape */
 
     /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
@@ -10820,7 +10822,6 @@ function addListeners(stage) {
             } else {
                 tr.resizeEnabled(false);
             }
-
         } else if (metaPressed && isSelected) {
             /* if we pressed keys and node was selected
              we need to remove it from selection: */
@@ -12335,12 +12336,15 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
+    if (key === ' ') {
+        toggleQuickAdd(true);
+    }
+
     /* save / download VRC JSON file */
     if (key === 's' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         downloadRoomObj();
     }
-
 
     if (((key === 'o') || (key === 'i')) && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -12452,7 +12456,96 @@ function onKeyDown(e) {
             updateFormatDetails(shape.id());
         }
     })
+}
 
+function toggleQuickAdd(show) {
+    const dialog = document.querySelector('.quick-dialog');
+
+    // already open
+    if (show && dialog.style.display === 'flex') return
+
+    dialog.style.display = show ? 'flex' : 'none';
+    const input = dialog.querySelector('input');
+
+    if (show) {
+        if (input) {
+            setTimeout(() => {
+            input.focus();
+            input.select();
+            }, 20)
+        }
+    }
+    else if (input) {
+        input.blur();
+    }
+}
+
+// TODO quick search:
+//
+// - tap tab/shift-tab to change selected
+// - esc to close dialog
+// - add item at cursor
+
+function searchQuickItem(items, word = '') {
+    if (word.length < 2) return []
+    const match = (search = '', fullWord = '') =>
+        fullWord.toLowerCase().replaceAll(' ', '')
+        .includes(search.toLowerCase().replaceAll(' ', ''))
+
+    const all = items.filter(i => match(word, i.name))
+    return all.filter(i => !i.name.includes('Unknown'))
+}
+
+function onQuickAddChange(e) {
+    const allItems = [].concat(videoDevices, cameras, microphones, tables, chairs, displays, stageFloors, boxes);
+
+    const word = e.target.value;
+    const matches = searchQuickItem(allItems, word);
+
+    const gallery = document.querySelector('.quick-dialog .gallery');
+    gallery.innerHTML = '';
+    matches.forEach((m, n) => {
+        const item = document.createElement('button');
+
+        const img = m.frontImage || m.topImage;
+        if (img) {
+            const i = document.createElement('img');
+            i.src = `./assets/images/${img}`;
+            item.appendChild(i);
+        }
+        const label = document.createElement('label');
+        label.innerText = m.name?.slice(0, 30);
+        item.title = `${m.name} - Tap to add to room`;
+        item.appendChild(label);
+
+        const group = allDeviceTypes[m.id]?.parentGroup;
+
+        item.onclick = () => {
+            const { roomWidth, roomLength } = roomObj.room;
+            // TODO: insert at cursor pos instead
+            const attrs = { x: roomWidth / 2, y: roomLength / 2 };
+            insertShapeItem(m.id, group, attrs, '', true);
+            toggleQuickAdd(false);
+        }
+        gallery.appendChild(item);
+    })
+
+    if (!matches.length) {
+        const msg = word.length > 1 ? 'No matching object found.' : 'Type at least 2 characters.'
+        gallery.innerHTML = `<i>${msg}</i>`;
+    }
+}
+
+function onQuickInputKey(event) {
+    if (event.key === 'Enter') {
+        const first = document.querySelector('.quick-dialog button');
+        if (first) {
+            first.click();
+        }
+    }
+    else if (event.key === 'Escape') {
+        toggleQuickAdd(false);
+    }
 }
 
 /* Take a wallChairs object and return an array of chairs */

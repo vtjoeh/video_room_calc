@@ -1589,6 +1589,21 @@
     </main>
   </dialog>
 
+  <div id="dialogQuickAdd" class="quick-dialog" onclick="onDialogClick(event)">
+    <div class="closeDialogX" onclick="toggleQuickAdd(false);">x</div>
+    <h2>Quick Add</h2>
+    <div>What do you want to quickly add to the scene?</div>
+    <input
+      type="search"
+      placeholder="Board Pro, Table Mic, tapered table, plant, ..."
+      id="quick-add-input"
+      oninput="onQuickAddChange(event)"
+      onkeydown="onQuickInputKey(event)"
+      autocomplete="off"
+    />
+    <ul class="gallery"></ul>
+  </div>
+
   <dialog id="dialogMultipleVideoDevices" onclick="onDialogClick(event)">
     <header>
       Multiple Video Device Alert
