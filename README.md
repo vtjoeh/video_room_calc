@@ -9,10 +9,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.617**
-- Audio coverage added to Desk Pro, Desk and Desk Mini.
-- Workspace Designer import added items: Display monitor, webcam, share cables & share cable lid.
+- Audio coverage has been added to Desk Pro, Desk, and Desk Mini.
+- Improvements made to Workspace Designer import and added items on import: display monitor, webcam, share cables, and share cable lid.
+- An option to disable auto-conversion of Workspace Designer default walls on import is now available under Details --> Settings.
 - Template updates.
-- Bug fixed on import of Workspace Designer. The VRC does not like spaces in the item ID. A Workspace Designer ID with a space is replaced with an underscore (_).
+- A bug has been fixed on import of Workspace Designer. The VRC does not accept spaces in the item ID; a Workspace Designer ID containing a space is replaced with an underscore (_).
+
 
 **v0.1.616**
 Small improvements:

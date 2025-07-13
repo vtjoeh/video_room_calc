@@ -759,6 +759,7 @@ let cameras = [
 
     { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
+
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
@@ -951,7 +952,7 @@ let microphones = [
         name: "Cable Lid",
         id: "shareCableLid",
         key: "MM",
-        topImage: 'shareCableLid-top4.png',
+        topImage: 'shareCableLid-top.png',
         frontImage: 'shareCableLid-menu.png',
         width: 500,
         depth: 685,
@@ -1288,7 +1289,7 @@ let chairs = [
         name: "USB-C Cable",
         id: "shareCableUsbc",
         key: "SU",
-        topImage: 'shareCableUsbc-top2.png',
+        topImage: 'shareCableUsbc-top.png',
         frontImage: 'shareCableUsbc-menu.png',
         width: 500,
         depth: 685,
@@ -1300,7 +1301,7 @@ let chairs = [
         name: "HDMI Cable",
         id: "shareCableHdmi",
         key: "SV",
-        topImage: 'shareCableHdmi-top2.png',
+        topImage: 'shareCableHdmi-top.png',
         frontImage: 'shareCableHdmi-menu.png',
         width: 500,
         depth: 685,
@@ -1312,7 +1313,7 @@ let chairs = [
         name: "Multi-Head Cable",
         id: "shareCableMultiHead",
         key: "SW",
-        topImage: 'shareCableMultiHead-top2.png',
+        topImage: 'shareCableMultiHead-top.png',
         frontImage: 'shareCableMultiHead-menu.png',
         width: 500,
         depth: 685,
@@ -5147,6 +5148,8 @@ function pasteItems(duplicate = true) {
             xOffset = (stage.width() * 0.04) / scale;
             yOffset = (stage.height() * 0.04) / scale;
         }
+
+
     } else if (mouseUnit.x < (unit === 'feet' ? -1.5 : -0.45) || mouseUnit.y < (unit === 'feet' ? -1.5 : -0.45) || mouseUnit.x > (roomObj.room.roomWidth * 1.04) || mouseUnit.y > (roomObj.room.roomLength * 1.04)) {
         /* if the mouse is off the canvas, don't paste */
         return;
@@ -9180,7 +9183,6 @@ function snapToGuideLinesResize(moved) {
     let original = lastSelectedNodePosition;
     if (snapGuidesDrawn && moved.rotation() === 0) {
         // lastSelectedNodePosition.height(lastSelectedNodePosition.y() + guides[0].lineGuide + 300);
-        // console.log('line 8968')
         // e.target.height(Math.abs(lastSelectedNodePosition.y() - guides[0].lineGuide));
         // e.target.y(lastSelectedNodePosition.y());
         updateFormatDetails(e.target.id());
@@ -9206,7 +9208,6 @@ function snapToGuideLines(e, resize = false) {
         let original = lastSelectedNodePosition;
         let moved = e.target;
         /* make sure it is a resize transformation and not a rotation, and is 0, 90, 180, 270 */
-        //  console.log('origingal.rotation', original.rotation(), 'moved.rotation()', moved.rotation());
         if (Math.round(original.rotation() * 10) === Math.round(moved.rotation() * 10) && (moved.rotation() % 90) === 0) {
 
             /* find snapping points of current object .guide, .offset, .snap: start & end */
@@ -9223,8 +9224,8 @@ function snapToGuideLines(e, resize = false) {
 
 
 
-            console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
-            console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
+           // console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
+           //  console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
             if (Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide) > Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide)) {
                 itemBounds.vertical[0].ignore = true;
 
@@ -9453,7 +9454,7 @@ function updateShading(node) {
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
     let dispDistShading = stage.find(`#dispDist~${uuid}`);
-    console.log('line 9456');
+
     let textLabel = stage.find(`#label~${uuid}`);
 
     if (fovShading.length === 1) {
@@ -9469,7 +9470,6 @@ function updateShading(node) {
     }
 
     if (textLabel.length === 1) {
-        console.log('node', node);
         moveLabel(node, textLabel[0])
     }
 
@@ -12005,7 +12005,7 @@ function setupDragAndDropImport() {
                     importJson(json)
 
                 } catch (error) {
-                    console.log(error);
+                    console.error(error);
                     alert(`Error loading file '${fileName}':\n\n${error.message}`);
                 }
             }
@@ -12549,7 +12549,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         for (let i = 0; i < wdItems.length; i++) {
             let wdItem = wdItems[i];
-            if (wdItem.objectType === 'floor') {
+            if (wdItem.objectType === 'floor' || wdItem.id === 'primaryFloor') {
                 isFloor = true;
                 if ('length' in wdItem) {
                     roomObj2.room.roomWidth = wdItem.width;
@@ -12558,7 +12558,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     roomObj2.room.roomWidth = wdItem.scale[0];
                     roomObj2.room.roomLength = wdItem.scale[2]
                 }
-
+                wdItem.objectType = 'floor';
 
                 break;
             }
@@ -12795,7 +12795,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
 
-
+    if(wdItemIn.objectType === 'line') {
+        wdItemIn.position = wdItemIn.points[0];
+    }
     if (regexSecondary.test(wdItemIn.id)) {
         console.info('Workspace Designer import, ignore secondary item:', data_deviceid, wdItemIn.id)
         return;
@@ -12811,6 +12813,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         return;
     }
 
+
+
     let wdItem = structuredClone(wdItemIn); /* make a structured clone of the wdItem, delete each object key as processed */
     let position = wdItem.position;
     let wdKey = workspaceKey[data_deviceid];
@@ -12818,9 +12822,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let family = deviceType.family || 'default'; /* default, resizeItem (tables), wallBox */
     let item = {};
     item.id = wdItem.id.replace(/ /g, "_"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
+    item.id = wdItem.id.replace(/#/g, "_");
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
+    /* a line has no position, only points. On import allow line to have a position */
 
     /* convert walls with no measurements but only scale to a columnRect. Why? Walls have set length of 0.10, Boxes do not.  */
     if (!('width' in wdItem) && data_deviceid.startsWith('wall')) {
@@ -12852,6 +12858,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     if (!('rotation' in wdItem)) {
         wdItem.rotation = [0, 0, 0];
+    }
+
+    if(data_deviceid === 'wallGlass' && !('opacity' in wdItem)){
+        wdItem.opacity = null;
     }
 
     /* if it is pseudo mount, then use the below */
@@ -12927,6 +12937,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     /* get VRC width & height */
     if ('length' in wdItem || 'width' in wdItem) {
+
         if (data_deviceid.startsWith('unknownObj')) {
             data_deviceid = 'tblUnknownObj';
 
@@ -12941,7 +12952,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
                 item.width = 0.10;
             }
 
-        } else {
+        } else if (wdItem.objectType === 'cylinder'){
+            // do nothing, update cylinder later
+        }
+        else {
             item.height = wdItem.length || 0.10;
             item.width = wdItem.width || 0.10;
         }
@@ -12962,7 +12976,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
 
         delete wdItem.height;
-        delete wdItem.length;
+
+        if(wdItem.objecType != 'cylinder'){
+            delete wdItem.length;
+        }
+
         delete wdItem.width;
     }
     else if ('scale' in wdItem && !data_deviceid.startsWith('unknownObj')) {
@@ -13174,6 +13192,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 */
 
 
+
     if ((item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') && (document.getElementById('convertDefaultWallsOffCheckBox').checked === false)) {
         roomObj2.workspace.removeDefaultWalls = false;
         document.getElementById('removeDefaultWallsCheckBox').checked = false;
@@ -13374,7 +13393,7 @@ function openWorkspaceWindow2() {
 function openWorkspaceWindow(fromButton = true) {
 
     let currentSite = location.origin + location.pathname;
-    console.log('current site:', currentSite);
+    console.info('Current WD site:', currentSite);
 
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
     if (currentSite != 'https://collabexperience.com/') {
