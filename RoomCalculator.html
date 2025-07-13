@@ -656,7 +656,7 @@
 
 
             <div class="inputField">
-              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items.*
+              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items:*
                 <i class="icon icon-info-circle-bold"></i>
                 <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
                   Items will
@@ -677,6 +677,17 @@
                 </span></label>
               <label class="switch">
                 <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="convertDefaultWallsDiv">
+              <label class="tooltip">Turn off auto-converstion of Workspace Designer default walls:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">By default when Workspace Designer files are imported, the three walls seen in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable this feature.
+                </span></label>
+              <label class="switch">
+                <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
                 <span class="slider round"></span>
               </label>
             </div>

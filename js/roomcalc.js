@@ -1,4 +1,4 @@
-const version = "v0.1.616";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.617";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -213,15 +213,15 @@ workspaceKey.switch = { objectType: 'switch' };
 
 workspaceKey.codec = { objectType: 'codec' };
 
-workspaceKey.phoneUnknown = { objectType: 'phone', role: "phone", yOffset: -0.1, xOffset:-0.04 };
+workspaceKey.phoneUnknown = { objectType: 'phone', role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
-workspaceKey.phone9841 = { objectType: 'phone', model: "9841", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+workspaceKey.phone9841 = { objectType: 'phone', model: "9841", role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
-workspaceKey.phone9851 = { objectType: 'phone', model: "9851", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+workspaceKey.phone9851 = { objectType: 'phone', model: "9851", role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
-workspaceKey.phone9861 = { objectType: 'phone', model: "9861", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+workspaceKey.phone9861 = { objectType: 'phone', model: "9861", role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
-workspaceKey.phone9871 = { objectType: 'phone', model: "9871", role: "phone", yOffset: -0.1, xOffset:-0.04 };
+workspaceKey.phone9871 = { objectType: 'phone', model: "9871", role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
@@ -263,7 +263,7 @@ workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0
 workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 
 workspaceKey.chair = { objectType: 'chair' };
-workspaceKey.plant = { objectType: 'plant', scale: [1,1,1] };
+workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
 workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
@@ -279,8 +279,15 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
+workspaceKey.shareCableHdmi = { objectType: 'sharecable', model: 'hdmi' };
+workspaceKey.shareCableUsbc = { objectType: 'sharecable', model: 'usbc' };
+workspaceKey.shareCableMultiHead = { objectType: 'sharecable', model: 'multihead' };
+workspaceKey.shareCableLid = { objectType: 'sharecable', model: 'lid' };
+
 workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
 workspaceKey.display21_9 = {}; /* dummy key item */
+
+workspaceKey.displayMonitor = { objectType: "monitor" }
 
 
 workspaceKey.wallStd = { objectType: 'wall' };
@@ -337,6 +344,8 @@ workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_
 workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
 
 workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
+
+workspaceKey.webcam4k = { objectType: 'webcam', model: 'webcam' };
 
 
 workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
@@ -938,6 +947,28 @@ let microphones = [
         defaultVert: 710,
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
+    {
+        name: "Cable Lid",
+        id: "shareCableLid",
+        key: "MM",
+        topImage: 'shareCableLid-top4.png',
+        frontImage: 'shareCableLid-menu.png',
+        width: 500,
+        depth: 685,
+        height: 10,
+        defaultVert: 710,
+    },
+    {
+        name: "Desk Camera 4K (webcam)",
+        id: "webcam4k",
+        key: "MN",
+        topImage: 'webcam-top.png',
+        frontImage: 'webcam-top.png',
+        width: 92,
+        depth: 67,
+        height: 73,
+        defaultVert: 1180,
+    },
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -1231,7 +1262,7 @@ let chairs = [
         depth: 300,
         opacity: 0.8,
     },
-     {
+    {
         name: "Person Standing (man)",
         id: "personStandingMan",
         key: "SS",
@@ -1240,6 +1271,54 @@ let chairs = [
         width: 640,
         depth: 640,
         opacity: 1,
+    },
+    {
+        name: 'PC Monitor',
+        id: 'displayMonitor',
+        key: 'ST',
+        frontImage: 'displayMonitor-menu.png',
+        topImage: 'displayMonitor-top.png',
+        width: 615,
+        depth: 35,
+        height: 450,
+        defaultVert: 710,
+    },
+
+    {
+        name: "USB-C Cable",
+        id: "shareCableUsbc",
+        key: "SU",
+        topImage: 'shareCableUsbc-top2.png',
+        frontImage: 'shareCableUsbc-menu.png',
+        width: 500,
+        depth: 685,
+        height: 10,
+        defaultVert: 710,
+
+    },
+    {
+        name: "HDMI Cable",
+        id: "shareCableHdmi",
+        key: "SV",
+        topImage: 'shareCableHdmi-top2.png',
+        frontImage: 'shareCableHdmi-menu.png',
+        width: 500,
+        depth: 685,
+        height: 10,
+        defaultVert: 710,
+
+    },
+    {
+        name: "Multi-Head Cable",
+        id: "shareCableMultiHead",
+        key: "SW",
+        topImage: 'shareCableMultiHead-top2.png',
+        frontImage: 'shareCableMultiHead-menu.png',
+        width: 500,
+        depth: 685,
+        height: 10,
+        defaultVert: 710,
+
     },
 
 ]
@@ -1297,6 +1376,8 @@ let displays = [
         diagonalInches: diagonalInches21_9,
         defaultVert: 1010,
     },
+
+
 ]
 
 /* Floor keys start with F */
@@ -1327,15 +1408,15 @@ let stageFloors = [
 /*  Boxes are a higher level than tables and can start with W */
 let boxes = [
     {
-    name: 'Box',
-    id: 'box',
-    key: 'WD',
-    frontImage: 'box-front.png',
-    family: 'wallBox',
-    stroke: 'black',
-    strokeWidth: '2',
-    dash: [7, 5],
-},
+        name: 'Box',
+        id: 'box',
+        key: 'WD',
+        frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'black',
+        strokeWidth: '2',
+        dash: [7, 5],
+    },
 ]
 
 
@@ -2199,7 +2280,7 @@ function getQueryString() {
             localStorage.removeItem('wd');
             workspaceDesignerTestUrl = null;
         }
-         else {
+        else {
             /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
             let base = decodeURIComponent(wd);
             if (wd === '1') {
@@ -2795,6 +2876,12 @@ function onLoad() {
         document.getElementById('showTiltSlantCheckBox').checked = true;
     } else {
         document.getElementById('showTiltSlantCheckBox').checked = false;
+    }
+
+    if (localStorage.getItem('convertDefaultWallsOff') === 'true') {
+        document.getElementById('convertDefaultWallsOffCheckBox').checked = true;
+    } else {
+        document.getElementById('convertDefaultWallsOffCheckBox').checked = false;
     }
 
     if (localStorage.getItem('snapIncrementCheckBox') === 'true') {
@@ -4890,7 +4977,7 @@ function copyToCanvasClipBoard(items) {
         let rotation = attrs.rotation;
         let center = {};
 
-        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes' ) {
+        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes') {
             center.x = node.x();
             center.y = node.y();
         } else {
@@ -5479,7 +5566,7 @@ function roomObjToCanvas(roomObjItems) {
         }
     }
 
-    if ('boxes' in roomObjItems){
+    if ('boxes' in roomObjItems) {
         for (const device of roomObjItems.boxes) {
             insertItem(device, device.id);
         }
@@ -6404,7 +6491,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     else if (groupName === 'stageFloors') {
         groupStageFloors.add(tblWallFlr);
     }
-    else if (groupName === 'boxes'){
+    else if (groupName === 'boxes') {
         groupBoxes.add(tblWallFlr);
     }
 
@@ -6507,7 +6594,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (tr.nodes().length === 1)
             setTimeout(() => {
                 // layerTransform.batchDraw();
-                if(tblWallFlr.data_deviceid === 'tblShapeU' || tblWallFlr.data_deviceid === 'tblTrap' || tblWallFlr.data_deviceid === 'wallChairs' || tblWallFlr.data_deviceid === 'couch'){
+                if (tblWallFlr.data_deviceid === 'tblShapeU' || tblWallFlr.data_deviceid === 'tblTrap' || tblWallFlr.data_deviceid === 'wallChairs' || tblWallFlr.data_deviceid === 'couch') {
                     updateItem();
                 }
 
@@ -8270,6 +8357,53 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
+        if (deviceId === 'shareCableHdmi') {
+            let hitFunction = function (context, shape) {
+                context.beginPath();
+                context.rect(shape.width() * 0.073, shape.height() * 0.231, shape.width() * 0.857, shape.height() * 0.156);
+                context.closePath();
+                context.fillStrokeShape(shape);
+            }
+
+            imageItem.hitFunc(hitFunction);
+        }
+
+
+        if (deviceId === 'shareCableLid') {
+            let hitFunction = function (context, shape) {
+                context.beginPath();
+                context.rect(shape.width() * 0.323, shape.height() * 0.404, shape.width() * 0.303, shape.height() * 0.200);
+                context.closePath();
+                context.fillStrokeShape(shape);
+            }
+
+            imageItem.hitFunc(hitFunction);
+        }
+
+        if (deviceId === 'shareCableUsbc') {
+            let hitFunction = function (context, shape) {
+                context.beginPath();
+                context.rect(shape.width() * 0.073, shape.height() * 0.622, shape.width() * 0.857, shape.height() * 0.164);
+                context.closePath();
+                context.fillStrokeShape(shape);
+            }
+
+            imageItem.hitFunc(hitFunction);
+        }
+
+
+        if (deviceId === 'shareCableMultiHead') {
+            let hitFunction = function (context, shape) {
+                context.beginPath();
+                context.rect(shape.width() * 0.073, shape.height() * 0.791, shape.width() * 0.857, shape.height() * 0.169);
+                context.closePath();
+                context.fillStrokeShape(shape);
+            }
+
+            imageItem.hitFunc(hitFunction);
+        }
+
+
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
             snapCenterToIncrement(imageItem);
 
@@ -9230,6 +9364,14 @@ function showTiltSlant(e) {
     updateFormatDetailsUpdate();
 }
 
+function convertDefaultWallsOff(e) {
+    if (e.srcElement.checked) {
+        setItemForLocalStorage('convertDefaultWallsOff', 'true');
+    } else {
+        setItemForLocalStorage('convertDefaultWallsOff', 'false');
+    }
+}
+
 function updateRemoveDefaultWallsCheckBox() {
     document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
@@ -9311,7 +9453,7 @@ function updateShading(node) {
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
     let dispDistShading = stage.find(`#dispDist~${uuid}`);
-
+    console.log('line 9456');
     let textLabel = stage.find(`#label~${uuid}`);
 
     if (fovShading.length === 1) {
@@ -9327,6 +9469,7 @@ function updateShading(node) {
     }
 
     if (textLabel.length === 1) {
+        console.log('node', node);
         moveLabel(node, textLabel[0])
     }
 
@@ -10042,7 +10185,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('drpColor').value = item.data_color.value;
             }
 
-            if('data_model' in item && item.data_model){
+            if ('data_model' in item && item.data_model) {
                 document.getElementById('drpModel').value = item.data_model.value;
             }
 
@@ -10192,7 +10335,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[12] = ['personStanding', 'personStandingMan'];
 
-    deviceGroups[13] = ['phone9841', 'phone9851', 'phone9861','phone9871'];
+    deviceGroups[13] = ['phone9841', 'phone9851', 'phone9861', 'phone9871'];
 
 
 
@@ -11847,30 +11990,30 @@ function testiFrameToggle(allowClose = false) {
 setupDragAndDropImport()
 // import a file by dragging and dropping it into the tab
 function setupDragAndDropImport() {
-  const onFileDrop = (e) => {
-    e.preventDefault();
-    const item = e.dataTransfer?.items?.[0];
-    if (item && item.kind === 'file') {
-      const file = item.getAsFile();
-      const fileName = file.name;
-      const reader = new FileReader();
-      reader.readAsText(file, 'UTF-8');
-      reader.onload = function (evt) {
-        const text = evt.target.result;
-        try {
-            const json = JSON.parse(text);
-            importJson(json)
+    const onFileDrop = (e) => {
+        e.preventDefault();
+        const item = e.dataTransfer?.items?.[0];
+        if (item && item.kind === 'file') {
+            const file = item.getAsFile();
+            const fileName = file.name;
+            const reader = new FileReader();
+            reader.readAsText(file, 'UTF-8');
+            reader.onload = function (evt) {
+                const text = evt.target.result;
+                try {
+                    const json = JSON.parse(text);
+                    importJson(json)
 
-        } catch (error) {
-          console.log(error);
-          alert(`Error loading file '${fileName}':\n\n${error.message}`);
+                } catch (error) {
+                    console.log(error);
+                    alert(`Error loading file '${fileName}':\n\n${error.message}`);
+                }
+            }
         }
-      }
     }
-  }
 
-  document.body.addEventListener('dragover',  e => e.preventDefault())
-  document.body.addEventListener('drop', onFileDrop)
+    document.body.addEventListener('dragover', e => e.preventDefault())
+    document.body.addEventListener('drop', onFileDrop)
 }
 
 
@@ -12387,6 +12530,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     roomObj2.room.roomHeight = 2;
 
 
+
     /* create a structured clone of the array of customObjects. Once an item is parsed, delete it from the array */
     let wdItems = structuredClone(workspaceObj.customObjects);
 
@@ -12427,6 +12571,12 @@ function importWorkspaceDesignerFile(workspaceObj) {
         console.info(message);
         alert(message);
     }
+
+
+
+    if (document.getElementById('convertDefaultWallsOffCheckBox').checked === true) {
+        roomObj2.workspace.removeDefaultWalls = true;
+    };
 
     if (roomObj2.workspace.removeDefaultWalls) {
         document.getElementById("removeDefaultWallsCheckBox").checked = true;
@@ -12621,60 +12771,30 @@ function importWorkspaceDesignerFile(workspaceObj) {
         roomObj = structuredClone(roomObj2);
         roomObj.trNodes = [];
         drawRoom(true, false, false);
-        //   alertDialog('Workspace Designer File Import', finalMessage);
+
+        setTimeout(() => {
+            zoomInOut('reset');
+            drawRoom();
+            canvasToJson();
+            setTimeout(() => {
+                createShareableLink();
+                zoomInOut('reset');
+            }, 500);
+
+
+        }, 500);
     }, 1500);
+
+
 
 }
 
-
-// function simplifyWdItem(wdItem) {
-
-//     if (wdItem) {
-
-//         for (let key in workspaceKey) {
-
-//             let keyItem = workspaceKey[key];
-
-//             if ((keyItem.objectType === wdItem.objectType)) {
-
-//                 if ('model' in keyItem && 'model' in wdItem) {
-//                     if (keyItem.model === wdItem.model) {
-
-//                     }
-//                 }
-
-//                 if ('mount' in keyItem && 'mount' in wdItem) {
-//                     if (keyItem.mount === wdItem.mount) {
-
-//                     }
-//                 }
-
-//                 if ('color' in keyItem && 'color' in wdItem) {
-//                     if (keyItem.color === wdItem.color) {
-
-//                     }
-//                 }
-
-//                 if ('scale' in keyItem && 'scale' in wdItem) {
-
-//                     if (keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0] && keyItem.scale[0] === wdItem.scale[0]) {
-
-//                     }
-//                 }
-//             }
-
-
-
-//         }
-//     }
-
-//     return wdItem;
-// }
 
 
 /* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
+
 
     if (regexSecondary.test(wdItemIn.id)) {
         console.info('Workspace Designer import, ignore secondary item:', data_deviceid, wdItemIn.id)
@@ -12697,7 +12817,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let deviceType = allDeviceTypes[data_deviceid];
     let family = deviceType.family || 'default'; /* default, resizeItem (tables), wallBox */
     let item = {};
-    item.id = wdItem.id;
+    item.id = wdItem.id.replace(/ /g, "_"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
@@ -12720,7 +12840,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     /* desk */
-    if(data_deviceid === 'tblSchoolDesk' && !wdItem.length){
+    if (data_deviceid === 'tblSchoolDesk' && !wdItem.length) {
         wdItem.length = 0.59;
     }
 
@@ -13053,7 +13173,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
 */
 
-    if (item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') {
+
+    if ((item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') && (document.getElementById('convertDefaultWallsOffCheckBox').checked === false)) {
         roomObj2.workspace.removeDefaultWalls = false;
         document.getElementById('removeDefaultWallsCheckBox').checked = false;
     } else {
@@ -13256,7 +13377,7 @@ function openWorkspaceWindow(fromButton = true) {
     console.log('current site:', currentSite);
 
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
-    if(currentSite != 'https://collabexperience.com/'){
+    if (currentSite != 'https://collabexperience.com/') {
         newWorkspaceTab = defaultWorkspaceTestSite;
         console.info('WD site: ', newWorkspaceTab);
     }
@@ -13599,7 +13720,7 @@ function convertRoomObjToWorkspace() {
         }
     });
 
-    roomObj2.items.boxes.forEach((item)=>{
+    roomObj2.items.boxes.forEach((item) => {
         workspaceObjWallPush(item);
     });
 
