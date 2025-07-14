@@ -12821,8 +12821,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let deviceType = allDeviceTypes[data_deviceid];
     let family = deviceType.family || 'default'; /* default, resizeItem (tables), wallBox */
     let item = {};
-    item.id = wdItem.id.replace(/ /g, "_"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
-    item.id = wdItem.id.replace(/#/g, "_");
+    item.id = wdItem.id.replace(/ /g, "_").replace(/#/g, "__"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
