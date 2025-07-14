@@ -12549,7 +12549,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         for (let i = 0; i < wdItems.length; i++) {
             let wdItem = wdItems[i];
-            if (wdItem.objectType === 'floor' || wdItem.id === 'primaryFloor') {
+            if ((wdItem.objectType === 'floor' || wdItem.id === 'primaryFloor') ) {
                 isFloor = true;
                 if ('length' in wdItem) {
                     roomObj2.room.roomWidth = wdItem.width;
@@ -12560,7 +12560,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 }
                 wdItem.objectType = 'floor';
 
-                break;
+
             }
         }
     }
@@ -12938,12 +12938,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     /* get VRC width & height */
     if ('length' in wdItem || 'width' in wdItem) {
 
-        if (data_deviceid.startsWith('unknownObj')) {
-            data_deviceid = 'tblUnknownObj';
 
-        }
+        if (data_deviceid === 'unknownObj'){
 
-        if (family === 'wallBox') {
+            /* do nothing with length if unknownObj */
+        } else if (family === 'wallBox') {
 
             item.height = wdItem.width || 0.10;
             item.width = wdItem.length || 0.10;
@@ -12952,8 +12951,6 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
                 item.width = 0.10;
             }
 
-        } else if (wdItem.objectType === 'cylinder'){
-            // do nothing, update cylinder later
         }
         else {
             item.height = wdItem.length || 0.10;
@@ -12977,7 +12974,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         delete wdItem.height;
 
-        if(wdItem.objecType != 'cylinder'){
+        if(data_deviceid != 'unknownObj'){
             delete wdItem.length;
         }
 
@@ -13063,7 +13060,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     /* size is display */
-    if ('size' in wdItem) {
+    if ('size' in wdItem && !(data_deviceid === 'unknownObj' || data_deviceid === 'tblUnknownObj')) {
         item.data_diagonalInches = wdItem.size;
         delete wdItem.size;
     }
