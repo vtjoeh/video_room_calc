@@ -1727,7 +1727,6 @@ function determineMobileDevice() {
         mobileDevice = 'Tesla';
     }
 
-    console.log('trace mobileDevice', mobileDevice);
 }
 
 setMouseEventListeners();
