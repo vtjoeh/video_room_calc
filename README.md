@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.618**
+- fixed bug on RoomOS devices as web app
+
 **v0.1.617**
 - Audio coverage has been added to Desk Pro, Desk, and Desk Mini.
 - Improvements made to Workspace Designer import and added items on import: display monitor, webcam, share cables, and share cable lid.
