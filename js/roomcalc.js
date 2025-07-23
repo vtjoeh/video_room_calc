@@ -1076,7 +1076,7 @@ let tables = [{
     frontImage: 'unknownObj-top.png',
     family: 'resizeItem',
     stroke: 'purple',
-    strokeWidth: '3',
+    strokeWidth: 3,
     dash: [4, 4],
 }
 ]
@@ -1390,7 +1390,7 @@ let stageFloors = [
         frontImage: 'box-front.png',
         family: 'wallBox',
         stroke: 'black',
-        strokeWidth: '2',
+        strokeWidth: 2,
         dash: [4, 8],
     },
     {
@@ -1400,7 +1400,7 @@ let stageFloors = [
         frontImage: 'box-front.png',
         family: 'wallBox',
         stroke: 'grey',
-        strokeWidth: '4',
+        strokeWidth: 4,
         dash: [8, 3],
     }
 ]
@@ -1415,7 +1415,7 @@ let boxes = [
         frontImage: 'box-front.png',
         family: 'wallBox',
         stroke: 'black',
-        strokeWidth: '2',
+        strokeWidth: 2,
         dash: [7, 5],
     },
 ]

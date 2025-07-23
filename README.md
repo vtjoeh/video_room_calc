@@ -9,6 +9,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.618**
+- fixed multi-selection issue for boxes and stage floors.
 - fixed bug on RoomOS devices as web app
 
 **v0.1.617**
