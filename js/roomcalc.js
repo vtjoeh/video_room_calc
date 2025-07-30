@@ -13357,7 +13357,7 @@ function downloadJsonFile() {
 
 function downloadFileWorkspace() {
 
-    let workspaceObj = convertRoomObjToWorkspace(roomObj);
+    let workspaceObj = exportRoomObjToWorkspace(roomObj);
 
     downloadJsonWorkpaceFile(workspaceObj);
 }
@@ -13365,7 +13365,7 @@ function downloadFileWorkspace() {
 
 function workspaceView(isNewTab = 'false') {
     let urlWorkspaceView = './assets/workspacedesignerview.html';
-    let workspaceObj = convertRoomObjToWorkspace(roomObj);
+    let workspaceObj = exportRoomObjToWorkspace(roomObj);
     let localStorageObj = {};
     localStorageObj.sessionId = sessionId;
     localStorageObj.workspace = workspaceObj;
@@ -13466,12 +13466,12 @@ function openDetailsRoomTab() {
 function postMessageToWorkspace() {
     if (workspaceWindow) {
 
-        workspaceWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace() }, '*');
 
     }
 
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: convertRoomObjToWorkspace() }, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace() }, '*');
     }
 
 
@@ -13537,7 +13537,7 @@ function addDefaultsToWorkspaceObj() {
 
 
 
-function convertRoomObjToWorkspace() {
+function exportRoomObjToWorkspace() {
 
     let swapXY = true;
 
@@ -13705,6 +13705,11 @@ function convertRoomObjToWorkspace() {
 
             delete item.data_mount;
 
+        }
+
+
+        if (item.data_deviceid === 'ceilingMic'){
+            item.data_ceilingHeight = roomObj2.room.roomHeight;
         }
 
         workspaceObjItemPush(item);
@@ -13950,6 +13955,7 @@ function convertRoomObjToWorkspace() {
         }
 
         workspaceItem = { ...workspaceItem, ...attr };
+
         delete workspaceItem.idRegex;
 
         if ('data_role' in item && item.data_role) {
@@ -13957,6 +13963,10 @@ function convertRoomObjToWorkspace() {
             if (workspaceItem.role === 'presentertrack2') {
                 workspaceItem.role = 'presentertrack';
             }
+        }
+
+        if ('data_ceilingHeight' in item && item.data_ceilingHeight){
+            workspaceItem.ceilingHeight = item.data_ceilingHeight;
         }
 
         if ('data_color' in item && item.data_color) {

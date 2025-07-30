@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.619**
+- fixed import of Video Room Calculator JSON correctly setting the "Remove Default Walls" and "Add Ceiling" options.
+- added attribute {"ceilingHeight": x } to export of the Ceiling Microphone. This attribute works with designer.cisco.com when a room does not have default walls.
+
 **v0.1.618**
 - fixed multi-selection issue for boxes and stage floors.
 - fixed bug on RoomOS devices as web app
