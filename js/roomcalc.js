@@ -13990,6 +13990,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.scale = [1, item.data_vHeight, 1];
         };
 
+        /* coverage of analog Ceiling Mic shows 180 from above */
         if (item.data_deviceid === 'ceilingMic'){
             workspaceItem.sphere = 'quarter';
         }

@@ -10,7 +10,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.620**
 - Changed the **Background Image** name to **Room Floor Plan.** Located at **Details --> Room Floor Plan.**
-- **Bug fix:** Export of the analog Ceiling Mic now properly shows 180-degree coverage in the Workspace Designer.
+- Bug fix: Export of the analog Ceiling Mic now properly shows 180-degree coverage in the Workspace Designer.
 
 **v0.1.619**
 - fixed import of Video Room Calculator JSON correctly setting the "Remove Default Walls" and "Add Ceiling" options.
