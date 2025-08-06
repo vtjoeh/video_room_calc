@@ -1,4 +1,4 @@
-const version = "v0.1.619";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.620";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -13989,6 +13989,10 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid.startsWith('ceilingMount')) {
             workspaceItem.scale = [1, item.data_vHeight, 1];
         };
+
+        if (item.data_deviceid === 'ceilingMic'){
+            workspaceItem.sphere = 'quarter';
+        }
 
         if (item.data_hiddenInDesigner) {
             workspaceItem.hidden = true;

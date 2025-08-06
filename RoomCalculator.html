@@ -318,8 +318,7 @@
           <div class="tab">
             <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
               id="subTabItemDetails">Items</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Background
-              Image</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Room Floor Plan</button>
             <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
           </div>
 
@@ -584,17 +583,21 @@
           <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
             <div class="tip">
               <i class="icon icon-room-lights-bold"></i>
-              Experimental
+              <label class="tooltipBottom" >Experimental
+                <i class="icon icon-info-circle-bold" ></i>
+                <span
+                    class="tooltiptextBottom"> Use a Room Floor Plan image as a temporary background image. This makes it easier to recreate the room dimensions precisely. Room Floor Plan images are
+                temporary and not saved in the URL by design. Most web image formats are suppored like JPEG, PNG, GIF & SVG. </span>
+              </label>
             </div>
 
-            <div style="text-align: left; font-size:12px;">
-              <b>Note:</b> <i>Background images are
-                temporary and not saved in the URL by design. Undo button does not work properly after
-                multiple images are loaded. </i>
+            <div style="text-align: left; font-size:12px; ">
+              <i>Use a Room Floor Plan image as a temporary background image. This makes it easier to recreate the room dimensions precisely.</i>
+
             </div>
             <br>
             <div class="inputField">
-              <label class="tooltip">1) First set the room width and length, then choose the background image file
+              <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
                 upload:
                 <!-- <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
@@ -617,7 +620,7 @@
               <label class="unitFeetMeters">ft</label>
             </div>
             <div class="inputField">
-              <input type="button" id="btnUpdateImageScale" value="Update Background Image Scale"
+              <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
                 onclick="updateBackgroundImageScale()" class="button" disabled>
             </div>
 
@@ -630,10 +633,10 @@
             </div>
 
             <div class="inputField">
-              <label class="tooltip">5) Move background image:
+              <label class="tooltip">5) Move room floor plan:
                 <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Brings the background image temporarily to the front which allows
-                  moving of the background image.</span></label>
+                <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
+                  moving of the room floor plan image.</span></label>
               <label class="switch">
                 <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
                   disabled>
@@ -682,9 +685,9 @@
             </div>
 
             <div class="inputField" id="convertDefaultWallsDiv">
-              <label class="tooltip">Turn off auto-converstion of Workspace Designer default walls:
+              <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
                 <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">By default when Workspace Designer files are imported, the three walls seen in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable this feature.
+                <span class="tooltiptext">By default, when Workspace Designer files are imported, the three walls seen in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable this feature.
                 </span></label>
               <label class="switch">
                 <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
