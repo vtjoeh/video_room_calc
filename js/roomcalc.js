@@ -265,6 +265,7 @@ workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0
 workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 
 workspaceKey.chair = { objectType: 'chair' };
+workspaceKey.chairSwivel = { objectType: 'chair', model: 'swivel' };
 workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
@@ -1341,6 +1342,16 @@ let chairs = [
         height: 10,
         defaultVert: 710,
 
+    },
+    {
+        name: "Swivel Chair",
+        id: "chairSwivel",
+        key: "SX",
+        topImage: 'chair-top.png',
+        frontImage: 'chair-front.png',
+        width: 740,
+        depth: 740,
+        opacity: 0.7,
     },
 
 ]
@@ -10360,6 +10371,10 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[12] = ['personStanding', 'personStandingMan'];
 
     deviceGroups[13] = ['phone9841', 'phone9851', 'phone9861', 'phone9871'];
+
+    deviceGroups[14] = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
+
+    deviceGroups[15] = ['chair', 'chairSwivel'];
 
 
 
