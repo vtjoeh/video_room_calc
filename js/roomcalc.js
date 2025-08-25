@@ -1,4 +1,4 @@
-const version = "v0.1.620";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.621";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -246,9 +246,11 @@ workspaceKey.brdPro55G2Wheel = { objectType: 'videoDevice', model: 'Board Pro', 
 workspaceKey.brdPro55G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro75G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
 
-workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88], role: 'singleScreen' };
+// workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.88, 0.88, 0.88], role: 'singleScreen' };
+workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk', role: 'singleScreen', yOffset: -0.08 };
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
-workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12, role: 'singleScreen' };
+// workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12, role: 'singleScreen' };
+workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Mini', role: 'singleScreen' };
 workspaceKey.room55 = { objectType: 'VRC Custom', model: 'room55' };
 workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
 workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
@@ -337,8 +339,12 @@ workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 }
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
+/* newer PTZ mount cameras will change the base when flipped */
+workspaceKey.ptz4kMount2 = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
 
+workspaceKey.ptzVision2 = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
 
+/* below are the older ptz cameras that don't change the base position when flipped */
 workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
 
 workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
@@ -699,11 +705,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
 
-    { name: "Desk*", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 70, height: 474, diagonalInches: 24, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Mini*", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
 
@@ -759,6 +765,9 @@ let cameras = [
 
     { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
+    { name: "Room Vision PTZ & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+    { name: "PTZ 4K & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
 ]
 
@@ -771,17 +780,29 @@ cameras[1].presentertrack = ptz4kNarrowFov;
 cameras[1].presentertrack2 = ptz4kNarrowFov;
 cameras[1].rolesDialog = 'How do you want to use the camera?';
 
-/* ptz4kmount */
+/* ptz4kmount - backwards compatible object  */
 cameras[6].extended_reach = ptz4kNarrowFov;
 cameras[6].presentertrack = ptz4kNarrowFov;
 cameras[6].presentertrack2 = ptz4kNarrowFov;
 cameras[6].rolesDialog = 'How do you want to use the camera?';
 
-/* ptzVision */
+/* ptz4kMount2 */
+cameras[8].extended_reach = ptz4kNarrowFov;
+cameras[8].presentertrack = ptz4kNarrowFov;
+cameras[8].presentertrack2 = ptz4kNarrowFov;
+cameras[8].rolesDialog = 'How do you want to use the camera?';
+
+/* ptzVision - backwards compatible object */
 cameras[5].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
 cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
 cameras[5].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
 cameras[5].rolesDialog = 'How do you want to use the camera?';
+
+/* ptzVision2 */
+cameras[7].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
+cameras[7].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[7].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[7].rolesDialog = 'How do you want to use the camera?';
 
 /* Room Bar Pro */
 videoDevices[1].multiLensReach = [
@@ -10314,7 +10335,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
 
-    deviceGroups[1] = ['ptzVision', 'ptz4kMount', 'quadCam'];
+    deviceGroups[1] = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
 
     deviceGroups[2] = ['doorLeft2', 'doorRight2', 'doorLeft', 'doorRight'];
 
@@ -10941,14 +10962,14 @@ function createEquipmentMenu() {
 
     let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
-    let personalVideoDevicesMenu = ['webexDeskPro'];
+    let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        personalVideoDevicesMenu.push('webexDeskMini');
-        personalVideoDevicesMenu.push('webexDesk');
-    }
+    // if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+    //     personalVideoDevicesMenu.push('webexDeskMini');
+    //     personalVideoDevicesMenu.push('webexDesk');
+    // }
 
-    let cameraDevicesMenu = ['ptzVision', 'ptz4kMount', 'quadCam'];
+    let cameraDevicesMenu = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
         cameraDevicesMenu.splice(2, 0, 'ptz4k')
@@ -12889,11 +12910,12 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
                 item.data_mount = {};
                 item.data_mount.index = 1;
                 item.data_mount.value = 'flipped';
-
+                wdItem.position[1] = wdItem.position[1] - allDeviceTypes[item.data_deviceid].height / 1000;
+                console.log('12911');
                 workspaceObj.customObjects.forEach(wkspaceItem => {
                     let secondaryPoleId = "secondary-flippedPoleMount-" + item.id;
-
-                    if (wkspaceItem.id === secondaryPoleId) {
+                    console.log('wkspaceItem.id', wkspaceItem.id, 'secondaryPoleId', secondaryPoleId);
+                    if (wkspaceItem.id.startsWith("secondary-flippedPoleMount-") && wkspaceItem.id.includes(item.id)) {
                         item.data_mount.index = 2;
                         item.data_mount.value = 'flippedPole';
                     }
@@ -13423,7 +13445,7 @@ function openWorkspaceWindow(fromButton = true) {
     if (testiFrame) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
-        iFrameWorkspaceWindow.src = newWorkspaceTab;
+        iFrameWorkspaceWindow.src = newWorkspaceTab + '?embed=1';
 
 
     }
@@ -13755,7 +13777,14 @@ function exportRoomObjToWorkspace() {
     });
 
     roomObj2.items.videoDevices.forEach((item) => {
+        /* Adjust the height and create a pole for a flipped camera */
         if (item.data_mount && item.data_mount.value.startsWith('flippedPole')) {
+
+            /* only adjust height on ptz4KMount2 and ptzVision2. The original ptz4kMount and ptzVision stay the same. */
+            if(item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2' ){
+                item.data_zPosition = item.data_zPosition + allDeviceTypes[item.data_deviceid].height / 1000;
+            }
+
             let pole = {};
             let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
             pole.width = 0.04;
@@ -13773,6 +13802,14 @@ function exportRoomObjToWorkspace() {
             pole.id = "secondary-flippedPoleMount-" + item.id;
             workspaceObjWallPush(pole);
         }
+
+         if (item.data_mount && item.data_mount.value === 'flipped') {
+            if(item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2' ){
+                item.data_zPosition = item.data_zPosition + allDeviceTypes[item.data_deviceid].height / 1000;
+            }
+        }
+
+
         workspaceObjItemPush(item);
     });
 
@@ -13889,21 +13926,21 @@ function exportRoomObjToWorkspace() {
 
         }
 
-        if (item.data_deviceid.startsWith('webexDeskMini')) {
-            let deskMiniBase = {};
+        // if (item.data_deviceid.startsWith('webexDeskMini')) {
+        //     let deskMiniBase = {};
 
-            deskMiniBase.x = item.x;
-            deskMiniBase.y = item.y;
-            deskMiniBase.rotation = item.rotation;
-            deskMiniBase.data_zPosition = item.data_zPosition;
-            deskMiniBase.id = 'secondary_webexDeskMini_base_' + item.id;
-            item.id = 'webexDeskMini_simulated_' + item.id;
-            item.data_tilt = -17;
+        //     deskMiniBase.x = item.x;
+        //     deskMiniBase.y = item.y;
+        //     deskMiniBase.rotation = item.rotation;
+        //     deskMiniBase.data_zPosition = item.data_zPosition;
+        //     deskMiniBase.id = 'secondary_webexDeskMini_base_' + item.id;
+        //     item.id = 'webexDeskMini_simulated_' + item.id;
+        //     item.data_tilt = -17;
 
-            deskMiniBase.data_deviceid = 'pouf';
-            deskMiniBase.data_labelField = `{"scale":[${0.4}, ${0.64}, ${0.25}], "yOffset":0.05}`
-            workspaceObjItemPush(deskMiniBase);
-        }
+        //     deskMiniBase.data_deviceid = 'pouf';
+        //     deskMiniBase.data_labelField = `{"scale":[${0.4}, ${0.64}, ${0.25}], "yOffset":0.05}`
+        //     workspaceObjItemPush(deskMiniBase);
+        // }
 
 
         if ('data_zPosition' in item) {
