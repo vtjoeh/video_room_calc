@@ -1347,10 +1347,10 @@ let chairs = [
         name: "Swivel Chair",
         id: "chairSwivel",
         key: "SX",
-        topImage: 'chair-top.png',
-        frontImage: 'chair-front.png',
-        width: 740,
-        depth: 740,
+        topImage: 'chairSwivel-top.png',
+        frontImage: 'chairSwivel-top.png',
+        width: 640,
+        depth: 640,
         opacity: 0.7,
     },
 
@@ -12012,11 +12012,11 @@ function testiFrameToggle(allowClose = false) {
             testiFrameInitialized = true;
             openWorkspaceWindow(false);
             floatingWorkspaceResize('slideOver');
-            setTimeout(() => {
-                if (mobileDevice === 'RoomOS') {
-                    floatingWorkspaceResize('fullScreen');
-                }
-            }, 1000);
+            // setTimeout(() => {
+            //     if (mobileDevice === 'RoomOS') {
+            //         floatingWorkspaceResize('fullScreen');
+            //     }
+            // }, 1000);
         }
 
 
@@ -13215,6 +13215,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         // delete wdItem.model;
     }
 
+    if (wdItem.model === ''){
+        delete wdItem.model;
+    }
+
 
 
     /* merge comments and unused JSON attributes */
@@ -13460,7 +13464,7 @@ function openWorkspaceWindow(fromButton = true) {
     if (testiFrame) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
-        iFrameWorkspaceWindow.src = newWorkspaceTab + '?embed=1';
+        iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
 
 
     }

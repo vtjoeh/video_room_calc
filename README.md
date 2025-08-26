@@ -11,7 +11,8 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.621**
 - Cisco Desk and Desk Mini are now fully supported in the Video Room Calculator and Workspace Designer.
 - Flipped Room Vision PTZ and PTZ 4K now display the lowest point of the camera when exported to the Workspace Designer, aligning more closely with Cisco documentation recommendations. This change only affects new designs moving forward, as new Video Room Calculator objects have been created. Previous designs with the PTZ cameras will operate as they did before when exported to the Workspace Designer.
-- RoomOS mode now opens the Workspace Designer in the expanded mode of the room using https://<wd site>?embed=1
+- RoomOS mode now opens the Workspace Designer in the expanded mode of the room using https://<wd site>?preview=1
+- Added a swivel chair. Access by changing the Item Type of a chair.
 
 **v0.1.620**
 - Changed the **Background Image** name to **Room Floor Plan.** Located at **Details --> Room Floor Plan.**
