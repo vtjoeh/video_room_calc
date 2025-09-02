@@ -1078,7 +1078,7 @@ let tables = [{
     family: 'resizeItem',
 },
 {
-    name: 'Table Curved (Campfire)',
+    name: 'Table Curved',
     id: 'tblCurved',
     key: 'WG',
     frontImage: 'tblCurved-menu.png',
