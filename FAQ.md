@@ -72,9 +72,9 @@ The Video Room Calculator has implicit levels (layers) and does not permit you t
 ### Levels
 From top to bottom, here are the different implicit levels of the objects:
 - Microphones Level: Microphones, Navigators, Laptops, or other small objects.
+- Video Devices Level: Video Devices & Cameras. _Note: PTZ cameras are always placed on top in this level; therefore, a PTZ will be above a Quad Camera._
 - Displays Level: Displays, including single, double, or triple displays.
 - Chairs Level: Chairs, People, Plants, Doors. _Note: People are always positioned on top in this level when inserted; therefore, people will be above chairs._
-- Video Devices Level: Video Devices & Cameras. _Note: PTZ cameras are always placed on top in this level; therefore, a PTZ will be above a Quad Camera._
 - Boxes Level: Box.
 - Table Level: Tables, Walls (excluding default walls), Columns, Rows of Chairs, Couch.
 - _[Coverage Level: for cameras, mics, and displays. This level is not affected by touch.]_
