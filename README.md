@@ -8,6 +8,18 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.623**
+- A UUID roomId is now added to the Workspace Designer export and VRC JSON files.  The roomId will allow for traking a room between the Workspace Designer and Video Room Calculator on export and import.
+A new roomId is created when:
+  - Video Room Calculator web page refresh
+  - Opening a new template or creating a blank canvas
+  - Using Quick Setup
+  - Opening a file that does not contain a roomId object
+
+
+**v0.1.622**
+- Template update.
+
 **v0.1.621**
 - Cisco Desk and Desk Mini are now fully supported in the Video Room Calculator and Workspace Designer.
 - Flipped Room Vision PTZ and PTZ 4K now display the lowest point of the camera when exported to the Workspace Designer, aligning more closely with Cisco documentation recommendations. This change only affects new designs moving forward, as new Video Room Calculator objects have been created. Previous designs with the PTZ cameras will operate as they did before when exported to the Workspace Designer.

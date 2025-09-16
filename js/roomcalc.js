@@ -1,4 +1,4 @@
-const version = "v0.1.622";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.623";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -75,6 +75,8 @@ let idKeyObj = {}; /* keep the vavlue pair { 'id' : 'key' } of the different cat
 let keyIdObj = {}; /* keep the vavlue pair { 'key' : 'id' } of the different categories in 1 object */
 let allDeviceTypes = {}; /* a list of all device types merged using the id/data_deviceType as the key */
 let roomObj = {}; /* used to store the room data in JSON format.  redraw(true) rebuilds the entire room from the roomObj JSON */
+
+roomObj.roomId = createRoomId();
 roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
 roomObj.version = version; /* version of Video Room Calculator */
 roomObj.unit = 'feet'; /* meters or feet*/
@@ -107,6 +109,8 @@ roomObj.items.touchPanels = [];
 
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
+
+
 
 let unit = roomObj.unit;
 
@@ -1516,6 +1520,11 @@ function createUuid() {
     );
 }
 
+function createRoomId(){
+    let roomId =  createUuid();
+    return roomId;
+}
+
 /* determine if touchenabled */
 function isTouchEnabled() {
     return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
@@ -2878,7 +2887,9 @@ function onLoad() {
 
     redirectToCollabExpereince();
 
+
     undoArray = JSON.parse(localStorage.getItem('undoArray'));
+
     if (!Array.isArray(undoArray)) undoArray = [];  /* for first run, if local storage not set */
     updateSelectVideoDeviceOptions();
     getQueryString();
@@ -3356,6 +3367,8 @@ function updateTxtPrimaryDeviceNameLabel(primaryDevieName) {
 function quickUpdateButton() {
 
     zoomInOut('reset');
+
+    roomObj.roomId = createRoomId();
 
     lastAction = 'quickupdate button';
     postHeartbeat();
@@ -11853,6 +11866,8 @@ function loadTemplate(x) {
 
     keepDefaultUnit();
 
+    roomObj.roomId = createRoomId();
+
     drawRoom(true, true);
     document.getElementById("defaultOpenTab").click();
     setTimeout(() => {
@@ -12476,6 +12491,8 @@ fileInputImage.addEventListener('change', function (e) {
 function importJson(jsonFile) {
     let jsonFileType = false;
 
+    roomObj.roomId = createRoomId();
+
     if ('room' in jsonFile) {
         if ((jsonFile.room.roomWidth && jsonFile.room.roomLength && 'roomHeight' in jsonFile.room)) {
             jsonFileType = 'vrc';
@@ -12541,9 +12558,6 @@ fileJsonUpload.addEventListener('change', function (e) {
             let jsonFile = JSON.parse(reader.result);
             importJson(jsonFile);
 
-
-
-
         };
     }
 });
@@ -12563,6 +12577,7 @@ function alertDialog(headerHtml, mainHtml) {
 
 function importWorkspaceDesignerFile(workspaceObj) {
     resetRoomObj();
+
     let unknownObjects = [];
 
     convertMetersFeet(true, 'meters'); /* always import in meters. Get the room canvas ready */
@@ -12575,6 +12590,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     roomObj2.workspace.removeDefaultWalls = true;
     roomObj2.room.roomHeight = 2;
 
+    roomObj2.roomId = workspaceObj.roomId || roomObj.roomId;
 
 
     /* create a structured clone of the array of customObjects. Once an item is parsed, delete it from the array */
@@ -13612,12 +13628,16 @@ function exportRoomObjToWorkspace() {
         workspaceObj.meetingPlatform = roomObj.software;
     }
 
+    workspaceObj.roomId = roomObj.roomId;
+
     workspaceObj.customObjects = [];
 
     workspaceObj.source = {};
     workspaceObj.source.name = 'vrc';
     workspaceObj.source.url = fullShareLinkCollabExpBase;
     workspaceObj.source.version = version;
+
+
 
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
