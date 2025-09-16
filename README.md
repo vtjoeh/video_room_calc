@@ -9,13 +9,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.623**
-- A UUID roomId is now added to the Workspace Designer export and VRC JSON files.  The roomId will allow for traking a room between the Workspace Designer and Video Room Calculator on export and import.
+- A UUID roomId is now added to the Workspace Designer export and VRC JSON files.  The roomId will allow for tracking a room between the Workspace Designer and Video Room Calculator on export and import.
 A new roomId is created when:
   - Video Room Calculator web page refresh
   - Opening a new template or creating a blank canvas
   - Using Quick Setup
   - Opening a file that does not contain a roomId object
-
 
 **v0.1.622**
 - Template update.
