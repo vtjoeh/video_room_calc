@@ -29,6 +29,7 @@ Delete / Backspace = delete items
 ctrl-s = Save (download) Video Room Calculator JSON file.
 ctrl-e = Export to Workspace Designer file format.
 ctrl-i = Import Video Room Calculator or Workspace Designer file.
+__ctrl-w = open iFrame window if enabled__
 
 From the Workspace Designer, use ctrl-e to export a file to the Video Room Calculator.
 

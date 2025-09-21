@@ -164,8 +164,8 @@
         <div id="Insert" class="tabcontent">
           <div class="tab">
             <button class="subtablinks active" onclick="openSubTab(event, 'Cameras')">Video Devices</button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Microphones&nbsp;&nbsp;</button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Panels </button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Peripherals&nbsp;&nbsp;</button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Displays </button>
             <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture</button>
           </div>
           <div id="Cameras" class="subtabcontent" style="display: block;">
@@ -213,12 +213,7 @@
             <div id="personalDevicesMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-            <div class="menuDivider">
-              Cameras / Misc
-            </div>
-            <div id="cameraDevicesMenuContainer" class="containerItems">
-              <!-- Menu will be inserted -->
-            </div>
+
             <div class="menuDivider" id="legacyVideoDevicesMenuDivider" style="display:none; ">
               Legacy Video Devices
             </div>
@@ -237,12 +232,37 @@
               <b>Tip:</b>
               &nbsp;Drag and drop to room canvas
             </div>
+
+            <div class="menuDivider">
+              Cameras
+            </div>
+            <div id="cameraDevicesMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+
             <div class="menuDivider">
               Cisco Microphones
             </div>
             <div id="microphoneMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
+
+
+
+            <div class="menuDivider">
+              Navigators
+            </div>
+            <div id="navigatorsMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+
+            <div class="menuDivider">
+              Desktop: Headsets / Phones / Webcam
+            </div>
+            <div id="desktopMenuContainer" class="containerItems">
+              <!-- Menu will be inserted -->
+            </div>
+
             <div class="hideScrollButton">
 
             </div>
@@ -301,12 +321,7 @@
             <div id="displaysMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-            <div class="menuDivider">
-              Navigator
-            </div>
-            <div id="navigatorsMenuContainer" class="containerItems">
-              <!-- Menu will be inserted -->
-            </div>
+
             <div class="hideScrollButton">
 
             </div>
@@ -1293,7 +1308,9 @@
         [shift / ctrl / cmd] + click = select/unselect item<br>
         ctrl-s = <b>S</b>ave (download) Video Room Calculator JSON file.<br>
         ctrl-e = <b>E</b>xport to Workspace Designer file format.<br>
-        ctrl-i = <b>I</b>mport Video Room Calculator or Workspace Designer file.<br>
+        ctrl-i = <b>I</b>mport Video Room Calculator or Workspace Designer file.<br><br>
+
+        <i>(ctrl-w = open Workspace Designer floating iFrame if enabled. More details at bottom.)</i><br>
 
         <hr />
         <div><label class="underlineHeader">Field of View (FOV)</label></div>
@@ -1534,6 +1551,13 @@
             </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
                 src="assets/images/pop-out-bold.svg" width="14px"> Webex
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
+
+          <hr>
+              <b>Test settings:</b><br>
+              <a href="/?wd=https://designer.cisco.com&testiFrame=1">Click to test against Workspace Designer beta site</a><br>
+              Use ctrl-w to open iFrame for Workspace Designer.<br><br>
+              <a href="/?wd=0&testiFrame=0"">Click to turn off Workspace Designer beta</a>
+
 
           <hr>
 

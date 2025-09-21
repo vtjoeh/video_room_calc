@@ -8,6 +8,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.624**
+- Support for 21:9 display in Workspace Designer, MTR only.
+- Changed name of **Equipment->Microphones** to **Equipment->Peripherals**. Moved items on equipment menu.
+- Added to **Equipment->Peripherals** objects headset, web cam, monitor, keyboard & phone. Phone and headset models can be changed after being added to room canvas under **Item Type**.
+- bug fixes.
+
 **v0.1.623**
 - A UUID roomId is now added to the Workspace Designer export and VRC JSON files.  The roomId will allow for tracking a room between the Workspace Designer and Video Room Calculator on export and import.
 A new roomId is created when:

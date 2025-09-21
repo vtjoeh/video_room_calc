@@ -934,7 +934,8 @@ let microphones = [
         width: 340,
         depth: 260,
         height: 164,
-        defaultVert: 700,
+        defaultVert: 720,
+        roles: [{ firstMonitor: 'First Monitor' }, { secondMonitor: 'Second Monitor' }],
 
     },
     {
@@ -946,7 +947,7 @@ let microphones = [
         width: 210,
         depth: 190,
         height: 160,
-        defaultVert: 710,
+        defaultVert: 720,
     },
     {
         name: "Phone 9841",
@@ -957,7 +958,7 @@ let microphones = [
         width: 210,
         depth: 190,
         height: 160,
-        defaultVert: 710,
+        defaultVert: 720,
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
     {
@@ -969,7 +970,7 @@ let microphones = [
         width: 210,
         depth: 190,
         height: 160,
-        defaultVert: 710,
+        defaultVert: 720,
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
     {
@@ -981,7 +982,7 @@ let microphones = [
         width: 210,
         depth: 190,
         height: 160,
-        defaultVert: 710,
+        defaultVert: 720,
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
     {
@@ -989,11 +990,11 @@ let microphones = [
         id: "phone9871",
         key: "ML",
         topImage: 'phone9861-top.png',
-        frontImage: 'phone9861-top.png',
+        frontImage: 'phone9871-menu.png',
         width: 210,
         depth: 190,
         height: 160,
-        defaultVert: 710,
+        defaultVert: 720,
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
     {
@@ -1005,14 +1006,14 @@ let microphones = [
         width: 500,
         depth: 685,
         height: 10,
-        defaultVert: 710,
+        defaultVert: 720,
     },
     {
         name: "Desk Camera 4K (webcam)",
         id: "webcam4k",
         key: "MN",
         topImage: 'webcam-top.png',
-        frontImage: 'webcam-top.png',
+        frontImage: 'webcam4k-menu.png',
         width: 92,
         depth: 67,
         height: 73,
@@ -1023,11 +1024,11 @@ let microphones = [
         id: "headset980",
         key: "MO",
         topImage: 'headset-top.png',
-        frontImage: 'headset-top.png',
+        frontImage: 'headset980-menu.png',
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "B&O Cisco 950",
@@ -1038,7 +1039,7 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Headset 730",
@@ -1049,7 +1050,7 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Headset 720",
@@ -1060,7 +1061,7 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Headset 560",
@@ -1071,7 +1072,7 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Headset 530",
@@ -1082,7 +1083,7 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Headset 320",
@@ -1093,18 +1094,18 @@ let microphones = [
         width: 175,
         depth: 175,
         height: 73,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
     {
         name: "Keyboard",
         id: "keyboard",
         key: "MV",
         topImage: 'keyboard-top.png',
-        frontImage: 'keyboard-top.png',
+        frontImage: 'keyboard-menu.png',
         width: 360,
         depth: 130,
         height: 13,
-        defaultVert: 1180,
+        defaultVert: 720,
     },
 
 
@@ -1413,7 +1414,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: 'PC Monitor',
+        name: 'PC Monitor 27"',
         id: 'displayMonitor',
         key: 'ST',
         frontImage: 'displayMonitor-menu.png',
@@ -1422,10 +1423,11 @@ let chairs = [
         depth: 35,
         height: 450,
         defaultVert: 710,
+        roles: [{ firstMonitor: 'First Monitor' }, { secondMonitor: 'Second Monitor' }],
     },
 
     {
-        name: "USB-C Cable",
+        name: "USB-C Cable*",
         id: "shareCableUsbc",
         key: "SU",
         topImage: 'shareCableUsbc-top.png',
@@ -1437,7 +1439,7 @@ let chairs = [
 
     },
     {
-        name: "HDMI Cable",
+        name: "HDMI Cable*",
         id: "shareCableHdmi",
         key: "SV",
         topImage: 'shareCableHdmi-top.png',
@@ -1449,7 +1451,7 @@ let chairs = [
 
     },
     {
-        name: "Multi-Head Cable",
+        name: "Multi-Head Cable*",
         id: "shareCableMulti",
         key: "SW",
         topImage: 'shareCableMulti-top.png',
@@ -1518,15 +1520,15 @@ let chairs = [
 
     },
     {
-        name: "Mouse",
+        name: "Mouse*",
         id: "mouse",
         key: "UC",
         topImage: 'mouse-top.png',
-        frontImage: 'mouse-top.png',
+        frontImage: 'mouse-menu.png',
         width: 45,
         depth: 85,
         height: 33,
-        defaultVert: 710,
+        defaultVert: 730    ,
     }
 
 
@@ -11156,36 +11158,34 @@ function createEquipmentMenu() {
 
     let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProQuadCam'];
 
-    //  let videoDevicesAllin1Menu = ['roomKitEqx', 'roomKitEqxFS', 'brdPro55G2', 'brdPro55G2FS', 'brdPro75G2', 'brdPro75G2FS'];
-
     let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
 
     let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
     let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
-    // if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-    //     personalVideoDevicesMenu.push('webexDeskMini');
-    //     personalVideoDevicesMenu.push('webexDesk');
-    // }
-
     let cameraDevicesMenu = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
-
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        cameraDevicesMenu.splice(2, 0, 'ptz4k')
-    }
 
     let legacyVideoDevicesMenu = [];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
         legacyVideoDevicesMenu = ['room55', 'rmKitMini', 'roomKit', 'cameraP60', 'boardPro55', 'boardPro75'];
+        document.getElementById('legacyVideoDevicesMenuDivider').style.display = '';
+    } else {
+        document.getElementById('legacyVideoDevicesMenuDivider').style.display = 'none';
     }
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
     let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9'];
 
-    let navigatorsMenu = ['navigatorTable', 'navigatorWall', 'laptop'];
+    let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
+
+    let desktopMenu = ['laptop', 'phone9871', 'headset980', 'webcam4k', 'displayMonitor', 'keyboard'];
+
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+        desktopMenu = desktopMenu.concat('shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'mouse');
+    }
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
 
@@ -11199,7 +11199,6 @@ function createEquipmentMenu() {
 
     createItemsOnMenu('cameraMenuContainer', videoDevicesMenu);
 
-    // createItemsOnMenu('cameraMenuAllin1Container', videoDevicesAllin1Menu);
 
     createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
 
@@ -11226,6 +11225,8 @@ function createEquipmentMenu() {
     createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu);
 
     createItemsOnMenu('stageFloorMenuContainer', stageFloorMenu);
+
+    createItemsOnMenu('desktopMenuContainer', desktopMenu);
 }
 
 
