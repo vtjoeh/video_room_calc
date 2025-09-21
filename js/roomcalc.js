@@ -1,4 +1,4 @@
-const version = "v0.1.623";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.624";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -286,13 +286,24 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
-workspaceKey.shareCableHdmi = { objectType: 'sharecable', model: 'hdmi' };
-workspaceKey.shareCableUsbc = { objectType: 'sharecable', model: 'usbc' };
-workspaceKey.shareCableMultiHead = { objectType: 'sharecable', model: 'multihead' };
-workspaceKey.shareCableLid = { objectType: 'sharecable', model: 'lid' };
+// workspaceKey.shareCableHdmi = { objectType: 'sharecable', model: 'hdmi' };
+// workspaceKey.shareCableUsbc = { objectType: 'sharecable', model: 'usbc' };
+// workspaceKey.shareCableMultiHead = { objectType: 'sharecable', model: 'multihead' };
+// workspaceKey.shareCableLid = { objectType: 'sharecable', model: 'lid' };
+
+workspaceKey.shareCableUsbc = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 0}};
+workspaceKey.shareCableHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 0}};
+workspaceKey.shareCableMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 0, multihead: 1}};
+workspaceKey.shareCableUsbcHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 0}};
+workspaceKey.shareCableUsbcMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 1}};
+workspaceKey.shareCableHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 1}};
+workspaceKey.shareCableUsbcHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 1}};
+
+workspaceKey.mouse = { objectType: 'mouse'};
 
 workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
-workspaceKey.display21_9 = {}; /* dummy key item */
+
+workspaceKey.display21_9 = { objectType: 'screen', aspect:'21:9', yOffset: 0.045};
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
@@ -364,6 +375,17 @@ workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossvie
 workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
 workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
+
+workspaceKey.headset980 = {objectType:'headset',model:'980'};
+workspaceKey.headset950 = {objectType:'headset',model:'950'};
+workspaceKey.headset730 = {objectType:'headset',model:'730'};
+workspaceKey.headset720 = {objectType:'headset',model:'720'};
+workspaceKey.headset560 = {objectType:'headset',model:'560'};
+workspaceKey.headset530  = {objectType:'headset',model:'530', yOffset: -0.08};
+workspaceKey.headset320 = {objectType:'headset',model:'320', yOffset: -0.08};
+
+workspaceKey.keyboard = {objectType:'keyboard'};
+
 
 /* low priority */
 workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
@@ -978,8 +1000,8 @@ let microphones = [
         name: "Cable Lid",
         id: "shareCableLid",
         key: "MM",
-        topImage: 'shareCableLid-top.png',
-        frontImage: 'shareCableLid-menu.png',
+        topImage: 'shareCableUsbc-top.png',
+        frontImage: 'shareCableUsbc-top.png',
         width: 500,
         depth: 685,
         height: 10,
@@ -996,6 +1018,97 @@ let microphones = [
         height: 73,
         defaultVert: 1180,
     },
+    {
+        name: "B&O Cisco 980",
+        id: "headset980",
+        key: "MO",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "B&O Cisco 950",
+        id: "headset950",
+        key: "MP",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Headset 730",
+        id: "headset730",
+        key: "MQ",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Headset 720",
+        id: "headset720",
+        key: "MR",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Headset 560",
+        id: "headset560",
+        key: "MS",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Headset 530",
+        id: "headset530",
+        key: "MT",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Headset 320",
+        id: "headset320",
+        key: "MU",
+        topImage: 'headset-top.png',
+        frontImage: 'headset-top.png',
+        width: 175,
+        depth: 175,
+        height: 73,
+        defaultVert: 1180,
+    },
+    {
+        name: "Keyboard",
+        id: "keyboard",
+        key: "MV",
+        topImage: 'keyboard-top.png',
+        frontImage: 'keyboard-top.png',
+        width: 360,
+        depth: 130,
+        height: 13,
+        defaultVert: 1180,
+    },
+
+
+
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -1107,7 +1220,7 @@ let tables = [{
 }
 ]
 
-/* Chair, doors and people. Key ID start with S */
+/* Chair, doors and people. Key ID start with S or U */
 let chairs = [
     {
         name: "Chair",
@@ -1317,8 +1430,8 @@ let chairs = [
         key: "SU",
         topImage: 'shareCableUsbc-top.png',
         frontImage: 'shareCableUsbc-menu.png',
-        width: 500,
-        depth: 685,
+        width: 499,
+        depth: 499,
         height: 10,
         defaultVert: 710,
 
@@ -1329,20 +1442,20 @@ let chairs = [
         key: "SV",
         topImage: 'shareCableHdmi-top.png',
         frontImage: 'shareCableHdmi-menu.png',
-        width: 500,
-        depth: 685,
+        width: 499,
+        depth: 499,
         height: 10,
         defaultVert: 710,
 
     },
     {
         name: "Multi-Head Cable",
-        id: "shareCableMultiHead",
+        id: "shareCableMulti",
         key: "SW",
-        topImage: 'shareCableMultiHead-top.png',
-        frontImage: 'shareCableMultiHead-menu.png',
-        width: 500,
-        depth: 685,
+        topImage: 'shareCableMulti-top.png',
+        frontImage: 'shareCableMulti-menu.png',
+        width: 499,
+        depth: 499,
         height: 10,
         defaultVert: 710,
 
@@ -1357,6 +1470,65 @@ let chairs = [
         depth: 640,
         opacity: 0.7,
     },
+    {
+        name: "USB-C & HDMI",
+        id: "shareCableUsbcHdmi",
+        key: "SY",
+        topImage: 'shareCableUsbcHdmi-top.png',
+        frontImage: 'shareCableUsbcHdmi-top.png',
+        width: 499,
+        depth: 499,
+        height: 10,
+        defaultVert: 710,
+
+    },
+    {
+        name: "USB-C & Multi-Head",
+        id: "shareCableUsbcMulti",
+        key: "SZ",
+        topImage: 'shareCableUsbcMulti-top.png',
+        frontImage: 'shareCableUsbcMulti-top.png',
+        width: 499,
+        depth: 499,
+        height: 10,
+        defaultVert: 710,
+    },
+    {
+        name: "HDMI & Multi-Head",
+        id: "shareCableHdmiMulti",
+        key: "UA",
+        topImage: 'shareCableHdmiMulti-top.png',
+        frontImage: 'shareCableHdmiMulti-top.png',
+        width: 499,
+        depth: 499,
+        height: 10,
+        defaultVert: 710,
+
+    },
+    {
+        name: "HDMI & USB-C & Multi-Head",
+        id: "shareCableUsbcHdmiMulti",
+        key: "UB",
+        topImage: 'shareCableUsbcHdmiMulti-top.png',
+        frontImage: 'shareCableUsbcHdmiMulti-top.png',
+        width: 499,
+        depth: 683,
+        height: 10,
+        defaultVert: 710,
+
+    },
+    {
+        name: "Mouse",
+        id: "mouse",
+        key: "UC",
+        topImage: 'mouse-top.png',
+        frontImage: 'mouse-top.png',
+        width: 45,
+        depth: 85,
+        height: 33,
+        defaultVert: 710,
+    }
+
 
 ]
 
@@ -1402,7 +1574,7 @@ let displays = [
     },
 
     {
-        name: 'Single 21:9 (MTR Only)*',
+        name: 'Single 21:9 (MTR Only)',
         id: 'display21_9',
         key: 'DD',
         frontImage: 'display21_9-front.png',
@@ -1582,6 +1754,8 @@ function convertToUnit(input) {
 
 
 function addOnBlurUnitInputListener() {
+
+
     let inputs = document.querySelectorAll(".unitInput");
 
     for (var i = 0; i < inputs.length; i++) {
@@ -1608,7 +1782,7 @@ function addOnBlurUnitInputListener() {
 
             }
 
-            updateItem();
+             updateItem();
 
         })
     }
@@ -1673,6 +1847,7 @@ function addEventUpdateItemsDropDown() {
 }
 
 function addOnNumberInputListener() {
+
     let inputs = document.querySelectorAll(".numberInput");
 
     for (var i = 0; i < inputs.length; i++) {
@@ -1684,9 +1859,7 @@ function addOnNumberInputListener() {
         })
 
         inputs[i].addEventListener("blur", () => {
-            /*
-            version 0.1.517 update;
-            */
+
             updateItem();
 
         })
@@ -1700,9 +1873,7 @@ function addOnNumberInputListener() {
         })
 
         degreeInputs[i].addEventListener("blur", () => {
-            /*
-            version 0.1.517 update;
-            */
+
             updateItem();
         })
     }
@@ -1730,9 +1901,6 @@ function addOnNumberInputListener() {
                 roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
             }
 
-            /*
-            version 0.1.517 update;
-            */
             updateItem();
 
 
@@ -7179,7 +7347,7 @@ function updateItem() {
                 delete item.data_role;
             }
 
-            insertShapeItem(item.data_deviceid, parentGroup, item, id, true);
+            insertShapeItem(item.data_deviceid, parentGroup, item, id, false);
 
             /* give the canvas some time to be updated before updating */
             setTimeout(() => {
@@ -8408,51 +8576,51 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         });
 
-        if (deviceId === 'shareCableHdmi') {
-            let hitFunction = function (context, shape) {
-                context.beginPath();
-                context.rect(shape.width() * 0.073, shape.height() * 0.231, shape.width() * 0.857, shape.height() * 0.156);
-                context.closePath();
-                context.fillStrokeShape(shape);
-            }
+        // if (deviceId === 'shareCableHdmi') {
+        //     let hitFunction = function (context, shape) {
+        //         context.beginPath();
+        //         context.rect(shape.width() * 0.073, shape.height() * 0.231, shape.width() * 0.857, shape.height() * 0.156);
+        //         context.closePath();
+        //         context.fillStrokeShape(shape);
+        //     }
 
-            imageItem.hitFunc(hitFunction);
-        }
-
-
-        if (deviceId === 'shareCableLid') {
-            let hitFunction = function (context, shape) {
-                context.beginPath();
-                context.rect(shape.width() * 0.323, shape.height() * 0.404, shape.width() * 0.303, shape.height() * 0.200);
-                context.closePath();
-                context.fillStrokeShape(shape);
-            }
-
-            imageItem.hitFunc(hitFunction);
-        }
-
-        if (deviceId === 'shareCableUsbc') {
-            let hitFunction = function (context, shape) {
-                context.beginPath();
-                context.rect(shape.width() * 0.073, shape.height() * 0.622, shape.width() * 0.857, shape.height() * 0.164);
-                context.closePath();
-                context.fillStrokeShape(shape);
-            }
-
-            imageItem.hitFunc(hitFunction);
-        }
+        //     imageItem.hitFunc(hitFunction);
+        // }
 
 
-        if (deviceId === 'shareCableMultiHead') {
-            let hitFunction = function (context, shape) {
-                context.beginPath();
-                context.rect(shape.width() * 0.073, shape.height() * 0.791, shape.width() * 0.857, shape.height() * 0.169);
-                context.closePath();
-                context.fillStrokeShape(shape);
-            }
+        // if (deviceId === 'shareCableLid') {
+        //     let hitFunction = function (context, shape) {
+        //         context.beginPath();
+        //         context.rect(shape.width() * 0.323, shape.height() * 0.404, shape.width() * 0.303, shape.height() * 0.200);
+        //         context.closePath();
+        //         context.fillStrokeShape(shape);
+        //     }
 
-            imageItem.hitFunc(hitFunction);
-        }
+        //     imageItem.hitFunc(hitFunction);
+        // }
+
+        // if (deviceId === 'shareCableUsbc') {
+        //     let hitFunction = function (context, shape) {
+        //         context.beginPath();
+        //         context.rect(shape.width() * 0.073, shape.height() * 0.622, shape.width() * 0.857, shape.height() * 0.164);
+        //         context.closePath();
+        //         context.fillStrokeShape(shape);
+        //     }
+
+        //     imageItem.hitFunc(hitFunction);
+        // }
+
+
+        // if (deviceId === 'shareCableMultiHead') {
+        //     let hitFunction = function (context, shape) {
+        //         context.beginPath();
+        //         context.rect(shape.width() * 0.073, shape.height() * 0.791, shape.width() * 0.857, shape.height() * 0.169);
+        //         context.closePath();
+        //         context.fillStrokeShape(shape);
+        //     }
+
+        //     imageItem.hitFunc(hitFunction);
+        // }
 
 
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
@@ -10369,7 +10537,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
 
-    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl'];
+    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9'];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -10388,6 +10556,10 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[14] = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
     deviceGroups[15] = ['chair', 'chairSwivel'];
+
+    deviceGroups[16] = ['headset980', 'headset950','headset730','headset720','headset560','headset530','headset320'];
+
+    deviceGroups[17] = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'shareCableUsbcHdmi', 'shareCableUsbcMulti', 'shareCableHdmiMulti', 'shareCableUsbcHdmiMulti'];
 
 
 
@@ -11011,14 +11183,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl'];
-
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        displaysMenu.push('display21_9');
-        document.getElementById('legacyVideoDevicesMenuDivider').style.display = '';
-    } else {
-        document.getElementById('legacyVideoDevicesMenuDivider').style.display = 'none';
-    }
+    let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall', 'laptop'];
 
@@ -12718,7 +12883,6 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         if (regex.test(wdItem.id)) {
                             hits = hits + 100;
                         }
-
                     }
 
                     if ('model' in keyItem && 'model' in wdItem) {
@@ -12728,10 +12892,24 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         }
                     }
 
+                    if ('aspect' in keyItem && 'aspect' in wdItem) {
+                        if (keyItem.aspect === wdItem.aspect) {
+                            hits = hits + 30;
+                            delete modifiedWdItem.aspect;
+                        }
+                    }
+
                     if ('mount' in keyItem && 'mount' in wdItem) {
                         if (keyItem.mount === wdItem.mount) {
                             hits = hits + 20;
                             delete modifiedWdItem.mount;
+                        }
+                    }
+
+                    if('shareSettings' in keyItem && 'shareSettings' in wdItem){
+                        if(areObjectsEqual(keyItem.shareSettings, wdItem)){
+                            hits = hits + 10;
+                            delete modifiedWdItem.shareSettings;
                         }
                     }
 
@@ -12876,7 +13054,6 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
 
-
     let wdItem = structuredClone(wdItemIn); /* make a structured clone of the wdItem, delete each object key as processed */
     let position = wdItem.position;
     let wdKey = workspaceKey[data_deviceid];
@@ -12898,6 +13075,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         item.data_deviceid = data_deviceid;
     }
 
+    /* if it is a shareCable item, remove the share settings */
+    if(data_deviceid.startsWith('shareCable')){
+        delete wdItem.shareSettings;
+    }
 
     /* add scale to items that need scale */
     if (data_deviceid === 'couch') {
@@ -12942,10 +13123,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
                 item.data_mount.index = 1;
                 item.data_mount.value = 'flipped';
                 wdItem.position[1] = wdItem.position[1] - allDeviceTypes[item.data_deviceid].height / 1000;
-                console.log('12911');
                 workspaceObj.customObjects.forEach(wkspaceItem => {
                     let secondaryPoleId = "secondary-flippedPoleMount-" + item.id;
-                    console.log('wkspaceItem.id', wkspaceItem.id, 'secondaryPoleId', secondaryPoleId);
                     if (wkspaceItem.id.startsWith("secondary-flippedPoleMount-") && wkspaceItem.id.includes(item.id)) {
                         item.data_mount.index = 2;
                         item.data_mount.value = 'flippedPole';
@@ -13101,12 +13280,20 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             z = z - wdKey.vertOffset;
         }
 
-        /* assumes 16:9 display */
-        if (wdItem.objectType === 'screen') {
+
+        /* calculate Z elevation of displays. Display 29. height of display */
+
+        if(item.data_deviceid === 'display21_9'){
+            let display219Height = displayHeight21_9  / 1000;
+            let displayScale = (wdItem.size || 105) / 105;
+            z = z - (display219Height * displayScale) / 2;
+        }
+        else if (wdItem.objectType === 'screen') {
             let stdDisplayHeight = displayHeight / 1000;
             let displayScale = (wdItem.size || 55) / diagonalInches;
             z = z - (stdDisplayHeight * displayScale) / 2;
         }
+
 
         item.x = Math.round(x * 100) / 100;
         item.y = Math.round(y * 100) / 100;
@@ -14160,43 +14347,43 @@ function exportRoomObjToWorkspace() {
         workspaceItem = { ...attr, ...workspaceItem };
         delete workspaceItem.idRegex;
 
-        if (item.data_deviceid === 'display21_9') {
-            let tilt = workspaceItem.rotation[0];
-            let slant = workspaceItem.rotation[2];
-            workspaceItem.rotation[2] = tilt;
-            workspaceItem.rotation[0] = -slant;
-            workspaceItem.objectType = 'wall';
-            workspaceItem.color = 'black';
-            workspaceItem.height = displayHeight21_9 * displayScale / 1000;
-            workspaceItem.width = displayDepth21_9 / 1000 / 2;
-            workspaceItem.length = displayWidth21_9 * displayScale / 1000;
+        // if (item.data_deviceid === 'display21_9') {
+        //     let tilt = workspaceItem.rotation[0];
+        //     let slant = workspaceItem.rotation[2];
+        //     workspaceItem.rotation[2] = tilt;
+        //     workspaceItem.rotation[0] = -slant;
+        //     workspaceItem.objectType = 'wall';
+        //     workspaceItem.color = 'black';
+        //     workspaceItem.height = displayHeight21_9 * displayScale / 1000;
+        //     workspaceItem.width = displayDepth21_9 / 1000 / 2;
+        //     workspaceItem.length = displayWidth21_9 * displayScale / 1000;
 
-            /* for exported and then imported devices, don't modify ID */
-            if (!workspaceItem.id.startsWith('display21_9-')) {
-                workspaceItem.id = 'display21_9-' + workspaceItem.id;
-            }
+        //     /* for exported and then imported devices, don't modify ID */
+        //     if (!workspaceItem.id.startsWith('display21_9-')) {
+        //         workspaceItem.id = 'display21_9-' + workspaceItem.id;
+        //     }
 
-            workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
+        //     workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
 
 
-            delete workspaceItem.size;
+        //     delete workspaceItem.size;
 
-            let screenInside = structuredClone(workspaceItem);
-            screenInside.color = "#0a0abc";
-            screenInside.height = screenInside.height * 0.95;
-            screenInside.length = screenInside.length * 0.98;
-            screenInside.id = 'secondary-InsideScreen-' + screenInside.id;
+        //     let screenInside = structuredClone(workspaceItem);
+        //     screenInside.color = "#0a0abc";
+        //     screenInside.height = screenInside.height * 0.95;
+        //     screenInside.length = screenInside.length * 0.98;
+        //     screenInside.id = 'secondary-InsideScreen-' + screenInside.id;
 
-            let newXY = findNewTransformationCoordinate(item, 0, -0.005);
+        //     let newXY = findNewTransformationCoordinate(item, 0, -0.005);
 
-            let newX = (newXY.x - (roomObj2.room.roomWidth) / 2);
-            let newY = (newXY.y - (roomObj2.room.roomLength) / 2);
+        //     let newX = (newXY.x - (roomObj2.room.roomWidth) / 2);
+        //     let newY = (newXY.y - (roomObj2.room.roomLength) / 2);
 
-            screenInside.position = [newX, screenInside.position[1], newY];
+        //     screenInside.position = [newX, screenInside.position[1], newY];
 
-            workspaceObj.customObjects.push(screenInside);
+        //     workspaceObj.customObjects.push(screenInside);
 
-        }
+        // }
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
@@ -14931,6 +15118,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
+
+/* Custom deep comparison of objects */
+function areObjectsEqual(obj1, obj2) {
+  // Check if both are objects and not null
+  if (typeof obj1 !== 'object' || obj1 === null ||
+      typeof obj2 !== 'object' || obj2 === null) {
+    return obj1 === obj2; // Compare primitives directly
+  }
+
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) {
+    return false;
+  }
+
+  for (const key of keys1) {
+    if (!keys2.includes(key) || !areObjectsEqual(obj1[key], obj2[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /*
     Attribution:
