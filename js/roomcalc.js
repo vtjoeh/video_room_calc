@@ -270,6 +270,7 @@ workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset:
 
 workspaceKey.chair = { objectType: 'chair' };
 workspaceKey.chairSwivel = { objectType: 'chair', model: 'swivel' };
+workspaceKey.chairHigh =  { objectType: 'chair', model: 'high' };
 workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
@@ -1210,10 +1211,10 @@ let tables = [{
     family: 'resizeItem',
 },
 {
-    name: 'Unknown Workspace Designer Resizeable',
+    name: 'Unknown Resizeable Workspace* Designer Object*',
     id: 'tblUnknownObj',
     key: 'WI',
-    frontImage: 'unknownObj-top.png',
+    frontImage: 'tblUnknownObj-menu.png',
     family: 'resizeItem',
     stroke: 'purple',
     strokeWidth: 3,
@@ -1373,11 +1374,11 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Unknown Workspace Designer Object",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Unknown Workspace Designer* Object",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "unknownObj",
         key: "SP",
         topImage: 'unknownObj-top.png',
-        frontImage: 'unknownObj-top.png',
+        frontImage: 'unknownObj-menu.png',
         width: 350,
         depth: 350,
         opacity: 0.6,
@@ -1427,7 +1428,7 @@ let chairs = [
     },
 
     {
-        name: "USB-C Cable*",
+        name: "USB-C Cable",
         id: "shareCableUsbc",
         key: "SU",
         topImage: 'shareCableUsbc-top.png',
@@ -1439,7 +1440,7 @@ let chairs = [
 
     },
     {
-        name: "HDMI Cable*",
+        name: "HDMI Cable",
         id: "shareCableHdmi",
         key: "SV",
         topImage: 'shareCableHdmi-top.png',
@@ -1451,7 +1452,7 @@ let chairs = [
 
     },
     {
-        name: "Multi-Head Cable*",
+        name: "Multi-Head Cable",
         id: "shareCableMulti",
         key: "SW",
         topImage: 'shareCableMulti-top.png',
@@ -1520,7 +1521,7 @@ let chairs = [
 
     },
     {
-        name: "Mouse*",
+        name: "Mouse",
         id: "mouse",
         key: "UC",
         topImage: 'mouse-top.png',
@@ -1529,7 +1530,17 @@ let chairs = [
         depth: 85,
         height: 33,
         defaultVert: 730    ,
-    }
+    },
+        {
+        name: "Stool Chair",
+        id: "chairHigh",
+        key: "UD",
+        topImage: 'chairHigh-top.png',
+        frontImage: 'chairHigh-top.png',
+        width: 640,
+        depth: 640,
+        opacity: 0.7,
+    },
 
 
 ]
@@ -10557,7 +10568,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[14] = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
-    deviceGroups[15] = ['chair', 'chairSwivel'];
+    deviceGroups[15] = ['chair', 'chairSwivel', 'chairHigh'];
 
     deviceGroups[16] = ['headset980', 'headset950','headset730','headset720','headset560','headset530','headset320'];
 
@@ -11181,10 +11192,14 @@ function createEquipmentMenu() {
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
-    let desktopMenu = ['laptop', 'phone9871', 'headset980', 'webcam4k', 'displayMonitor', 'keyboard'];
+    let ciscoDesktopMenu = ['phone9871', 'headset980', 'webcam4k'];
+
+    let desktopMenu = ['laptop', 'displayMonitor', 'keyboard', 'mouse'];
+
+    let cableLidMenu = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti'];
 
     if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
-        desktopMenu = desktopMenu.concat('shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'mouse');
+        desktopMenu = desktopMenu.concat('unknownObj', 'tblUnknownObj');
     }
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
@@ -11225,6 +11240,10 @@ function createEquipmentMenu() {
     createItemsOnMenu('accessibilityMenuContainer', accessibilityMenu);
 
     createItemsOnMenu('stageFloorMenuContainer', stageFloorMenu);
+
+    createItemsOnMenu('cableLidMenuContainer', cableLidMenu);
+
+    createItemsOnMenu('ciscoDesktopMenuContainer', ciscoDesktopMenu);
 
     createItemsOnMenu('desktopMenuContainer', desktopMenu);
 }

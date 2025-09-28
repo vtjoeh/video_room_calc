@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.625**
+- Added support for HDMI, USB-C and Multi-Head cable objects.  Switch or combine under Item Type.
+- Added Stool Chair. To use a Stool Chair first insert a chair then change the Item Type.
+
 **v0.1.624**
 - Support for 21:9 display in Workspace Designer, MTR only.
 - Changed name of **Equipment->Microphones** to **Equipment->Peripherals**. Moved items on equipment menu.
