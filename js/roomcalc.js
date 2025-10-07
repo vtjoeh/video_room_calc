@@ -287,6 +287,8 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
+workspaceKey.projector = {objectType: 'projector'};
+
 // workspaceKey.shareCableHdmi = { objectType: 'sharecable', model: 'hdmi' };
 // workspaceKey.shareCableUsbc = { objectType: 'sharecable', model: 'usbc' };
 // workspaceKey.shareCableMultiHead = { objectType: 'sharecable', model: 'multihead' };
@@ -303,6 +305,8 @@ workspaceKey.shareCableUsbcHdmiMulti = { objectType: 'sharelid', shareSettings: 
 workspaceKey.mouse = { objectType: 'mouse'};
 
 workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
+
+workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: 0.02};
 
 workspaceKey.display21_9 = { objectType: 'screen', aspect:'21:9', yOffset: 0.045};
 
@@ -1108,6 +1112,17 @@ let microphones = [
         height: 13,
         defaultVert: 720,
     },
+    {
+        name:"Ceiling Projector",
+        id: "projector",
+        key: "MW",
+        topImage: 'projector-top.png',
+        frontImage: 'projector-menu.png',
+        width: 580,
+        depth: 680,
+        height: 200,
+        defaultVert: 2500,
+    }
 
 
 
@@ -1598,6 +1613,20 @@ let displays = [
         diagonalInches: diagonalInches21_9,
         defaultVert: 1010,
     },
+    {
+        name: 'Projector Screen',
+        id: 'displayScreen',
+        key: 'DE',
+        frontImage: 'displayScreen-menu.png',
+        topImage: 'displayScreen-top.png',
+        width: displayWidth * 2,
+        depth: displayDepth * 0.7,
+        height: displayHeight & 2,
+        diagonalInches: diagonalInches * 2,
+        defaultVert: 1010,
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
+    },
+
 
 
 ]
@@ -8480,9 +8509,14 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
         }
 
-        if (!deviceId.startsWith('roomKitEqx')) {
+        if(deviceId.startsWith('displayScreen')){
+            height = allDeviceTypes['displayScreen'].depth / 1000 * scale;
+        }
+        else if (!deviceId.startsWith('roomKitEqx')) {
             height = displayDepth / 1000 * scale;  /* height is displayDepth, which is constant regardless of diagnol inches. roomKitEqx width is set in the videoDevices object */
         }
+
+
 
         if (unit === 'feet') {
             width = width * 3.28084;
@@ -10550,7 +10584,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
 
-    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9'];
+    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9', 'displayScreen'];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -11188,7 +11222,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9'];
+    let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9', 'projector', 'displayScreen'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
@@ -12313,7 +12347,7 @@ function onKeyDown(e) {
         document.getElementById('fileUpload').click();
     }
 
-    if (testiFrame && (key === 'w' && (e.ctrlKey || e.metaKey))) {
+    if (testiFrame && ((key === 'w' || key === '3') && (e.ctrlKey || e.metaKey))) {
 
         e.preventDefault();
         testiFrameToggle(true);

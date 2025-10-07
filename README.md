@@ -9,7 +9,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.626**
-- Bug fix on Workspace Designer import on HDMI, USB-C and Multi-Head.
+- Objects for the Ceiling Projector and Projector Screen have been added. 🎥🖥️
+- A bug fix has been implemented for the Workspace Designer import concerning HDMI, USB-C, and Multi-Head. 🛠️
+- When testing against the beta version of Workspace Designer, use ctrl-3 to open an iFrame of the Workspace Designer (on Mac, ctrl-w still works). See the bottom of the help section. 📚
 
 **v0.1.625**
 - Added support for HDMI, USB-C and Multi-Head cable objects.  Switch or combine under Item Type.
