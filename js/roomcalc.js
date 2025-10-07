@@ -12927,8 +12927,10 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     }
 
                     if('shareSettings' in keyItem && 'shareSettings' in wdItem){
-                        if(areObjectsEqual(keyItem.shareSettings, wdItem)){
+                        console.log('keyItem.shareSettings', keyItem.shareSettings, 'wdItem.shareSettings', wdItem.shareSettings);
+                        if(areObjectsEqual(keyItem.shareSettings, wdItem.shareSettings)){
                             hits = hits + 10;
+                            console.log('shareSettings hit');
                             delete modifiedWdItem.shareSettings;
                         }
                     }
