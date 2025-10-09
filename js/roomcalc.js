@@ -1,4 +1,4 @@
-const version = "v0.1.626";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.627";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -270,7 +270,7 @@ workspaceKey.quadPtz4kExt = { objectType: 'quadcam', role: 'crossview', yOffset:
 
 workspaceKey.chair = { objectType: 'chair' };
 workspaceKey.chairSwivel = { objectType: 'chair', model: 'swivel' };
-workspaceKey.chairHigh =  { objectType: 'chair', model: 'high' };
+workspaceKey.chairHigh = { objectType: 'chair', model: 'high' };
 workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
@@ -287,28 +287,28 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
-workspaceKey.projector = {objectType: 'projector'};
+workspaceKey.projector = { objectType: 'projector' };
 
 // workspaceKey.shareCableHdmi = { objectType: 'sharecable', model: 'hdmi' };
 // workspaceKey.shareCableUsbc = { objectType: 'sharecable', model: 'usbc' };
 // workspaceKey.shareCableMultiHead = { objectType: 'sharecable', model: 'multihead' };
 // workspaceKey.shareCableLid = { objectType: 'sharecable', model: 'lid' };
 
-workspaceKey.shareCableUsbc = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 0}};
-workspaceKey.shareCableHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 0}};
-workspaceKey.shareCableMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 0, multihead: 1}};
-workspaceKey.shareCableUsbcHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 0}};
-workspaceKey.shareCableUsbcMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 1}};
-workspaceKey.shareCableHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 1}};
-workspaceKey.shareCableUsbcHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 1}};
+workspaceKey.shareCableUsbc = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 0 } };
+workspaceKey.shareCableHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 0 } };
+workspaceKey.shareCableMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 0, multihead: 1 } };
+workspaceKey.shareCableUsbcHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 0 } };
+workspaceKey.shareCableUsbcMulti = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 1 } };
+workspaceKey.shareCableHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 1 } };
+workspaceKey.shareCableUsbcHdmiMulti = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 1, multihead: 1 } };
 
-workspaceKey.mouse = { objectType: 'mouse'};
+workspaceKey.mouse = { objectType: 'mouse' };
 
 workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
 
-workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: 0.02};
+workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: 0.02 };
 
-workspaceKey.display21_9 = { objectType: 'screen', aspect:'21:9', yOffset: 0.045};
+workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: 0.045 };
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
@@ -356,7 +356,10 @@ workspaceKey.laptop = { objectType: 'laptop', role: 'laptop', yOffset: 0.12 };
 
 workspaceKey.pouf = { objectType: 'pouf' };
 
-workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 }
+workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 };
+
+workspaceKey.sphere = { objectType: 'sphere' };
+workspaceKey.cylinder = { objectType: 'cylinder' };
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
@@ -381,15 +384,15 @@ workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossv
 workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
 workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
 
-workspaceKey.headset980 = {objectType:'headset',model:'980'};
-workspaceKey.headset950 = {objectType:'headset',model:'950'};
-workspaceKey.headset730 = {objectType:'headset',model:'730'};
-workspaceKey.headset720 = {objectType:'headset',model:'720'};
-workspaceKey.headset560 = {objectType:'headset',model:'560'};
-workspaceKey.headset530  = {objectType:'headset',model:'530', yOffset: -0.08};
-workspaceKey.headset320 = {objectType:'headset',model:'320', yOffset: -0.08};
+workspaceKey.headset980 = { objectType: 'headset', model: '980' };
+workspaceKey.headset950 = { objectType: 'headset', model: '950' };
+workspaceKey.headset730 = { objectType: 'headset', model: '730' };
+workspaceKey.headset720 = { objectType: 'headset', model: '720' };
+workspaceKey.headset560 = { objectType: 'headset', model: '560' };
+workspaceKey.headset530 = { objectType: 'headset', model: '530', yOffset: -0.08 };
+workspaceKey.headset320 = { objectType: 'headset', model: '320', yOffset: -0.08 };
 
-workspaceKey.keyboard = {objectType:'keyboard'};
+workspaceKey.keyboard = { objectType: 'keyboard' };
 
 
 /* low priority */
@@ -1113,7 +1116,7 @@ let microphones = [
         defaultVert: 720,
     },
     {
-        name:"Ceiling Projector",
+        name: "Ceiling Projector",
         id: "projector",
         key: "MW",
         topImage: 'projector-top.png',
@@ -1122,10 +1125,7 @@ let microphones = [
         depth: 680,
         height: 200,
         defaultVert: 2500,
-    }
-
-
-
+    },
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -1234,6 +1234,24 @@ let tables = [{
     stroke: 'purple',
     strokeWidth: 3,
     dash: [4, 4],
+},
+{
+    name: 'Sphere',
+    id: 'sphere',
+    key: 'WJ',
+    frontImage: 'sphere-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 0.5,
+},
+{
+    name: 'Column / Cylinder',
+    id: 'cylinder',
+    key: 'WK',
+    frontImage: 'cylinder-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
 }
 ]
 
@@ -1544,9 +1562,9 @@ let chairs = [
         width: 45,
         depth: 85,
         height: 33,
-        defaultVert: 730    ,
+        defaultVert: 730,
     },
-        {
+    {
         name: "Stool Chair",
         id: "chairHigh",
         key: "UD",
@@ -1734,8 +1752,8 @@ function createUuid() {
     );
 }
 
-function createRoomId(){
-    let roomId =  createUuid();
+function createRoomId() {
+    let roomId = createUuid();
     return roomId;
 }
 
@@ -1824,7 +1842,7 @@ function addOnBlurUnitInputListener() {
 
             }
 
-             updateItem();
+            updateItem();
 
         })
     }
@@ -6106,12 +6124,20 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 0.9 * scale;
         height = 2.2 * scale;
     }
+    else if ( insertDevice.id === 'cylinder'){
+        width = 0.45 * scale;
+        height = 0.45 * scale;
+    }
+    else if (insertDevice.id.startsWith('sphere')) {
+        width = 1 * scale;
+        height = 1 * scale;
+    }
 
     if ('data_vHeight' in attrs) {
         data_vHeight = attrs.data_vHeight;
     }
 
-    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet')) && !data_vHeight) {
+    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet') || insertDevice.id.startsWith('sphere')) && !data_vHeight) {
 
         if (unit === 'feet') {
             data_vHeight = 3.28;
@@ -6258,6 +6284,59 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             id: uuid,
             draggable: true,
             opacity: opacity,
+            sceneFunc: (context, shape) => {
+                context.beginPath();
+                /* don't need to set position of ellipse, Konva will handle it */
+                context.ellipse(shape.getAttr('width') / 2, shape.getAttr('height') / 2, shape.getAttr('width') / 2, shape.getAttr('height') / 2, 0, 0, 2 * Math.PI);
+                /* (!) Konva specific method, it is very important - it will apply are required styles */
+                context.fillStrokeShape(shape);
+            }
+        });
+    }
+
+    if (insertDevice.id === 'sphere') {
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            // fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: allDeviceTypes['sphere'].strokeWidth,
+            id: uuid,
+            draggable: true,
+            opacity: opacity,
+
+            sceneFunc: (context, shape) => {
+                context.beginPath();
+                context.ellipse(shape.getAttr('width') / 2, shape.getAttr('height') / 2, shape.getAttr('width') / 2, shape.getAttr('height') / 2, 0, 0, 2 * Math.PI);
+                shape.fillRadialGradientStartPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3 });
+                shape.fillRadialGradientStartRadius(0)
+                 shape.fillRadialGradientEndPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3});
+              shape.fillRadialGradientEndRadius(shape.width());
+                shape.fillRadialGradientColorStops([0, 'white', 0.5, 'grey', 1, 'grey']);
+                context.fillStrokeShape(shape);
+            }
+
+
+        });
+
+    }
+
+    if (insertDevice.id === 'cylinder') {
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: 'grey',
+            stroke: strokeColor,
+            strokeWidth: allDeviceTypes['cylinder'].strokeWidth,
+            id: uuid,
+            draggable: true,
+            opacity: 0.4,
             sceneFunc: (context, shape) => {
                 context.beginPath();
                 /* don't need to set position of ellipse, Konva will handle it */
@@ -6825,6 +6904,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('transformend', function tableOnTransformed(e) {
+        let theDeviceId = e.target.data_deviceid;
         /* round out the wallChairs width to a singleChairWidth */
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
             let chairs = tr.nodes()[0];
@@ -6843,23 +6923,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             chairs.attrs.height = height;
 
-
-            //   tr.nodes([chairs]);
-
         }
-
-        // updateFormatDetailsUpdate();
 
         layerTransform.find('.guide-line').forEach((l) => l.destroy());
 
         if (tr.nodes().length === 1)
-            setTimeout(() => {
-                // layerTransform.batchDraw();
-                if (tblWallFlr.data_deviceid === 'tblShapeU' || tblWallFlr.data_deviceid === 'tblTrap' || tblWallFlr.data_deviceid === 'wallChairs' || tblWallFlr.data_deviceid === 'couch') {
+
+            setTimeout((theDeviceId) => {
+
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
                     updateItem();
                 }
 
-            }, 100);
+            }, 100, theDeviceId);
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
@@ -7235,8 +7311,20 @@ function updateItem() {
                 item.width = width;
             }
 
+
             if ('height' in item) {
                 item.height = height;
+            }
+
+            if(data_deviceid === 'sphere' || data_deviceid === 'cylinder'){
+               item.height = width;
+            }
+
+            if(data_deviceid === 'sphere')
+            {
+                item.data_vHeight = width;
+                data_vHeight = width;
+
             }
 
             if (parentGroup === 'displays') {
@@ -7329,6 +7417,8 @@ function updateItem() {
             else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
                 delete item.data_vHeight;
             }
+
+
 
             if (!(data_tilt === '')) {
                 item.data_tilt = Math.round(data_tilt * 10) / 10;
@@ -8509,7 +8599,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
         }
 
-        if(deviceId.startsWith('displayScreen')){
+        if (deviceId.startsWith('displayScreen')) {
             height = allDeviceTypes['displayScreen'].depth / 1000 * scale;
         }
         else if (!deviceId.startsWith('roomKitEqx')) {
@@ -9487,8 +9577,8 @@ function snapToGuideLines(e, resize = false) {
 
 
 
-           // console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
-           //  console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
+            // console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
+            //  console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
             if (Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide) > Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide)) {
                 itemBounds.vertical[0].ignore = true;
 
@@ -10274,6 +10364,20 @@ function updateFormatDetails(eventOrShapeId) {
         document.getElementById('itemVheight').disabled = true;
     }
 
+    if (shape.data_deviceid.startsWith('sphere')) {
+        document.getElementById('itemWidth').disabled = false;
+        document.getElementById('itemLength').disabled = true;
+        document.getElementById('itemVheight').disabled = true;
+    }
+
+
+    if (shape.data_deviceid.startsWith('cylinder')) {
+        document.getElementById('itemWidth').disabled = false;
+        document.getElementById('itemLength').disabled = true;
+        document.getElementById('itemVheight').disabled = false;
+    }
+
+
     /* if both itemWidth and itemLength are disabled, don't show the row */
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true) {
         document.getElementById('itemWidthLengthDiv').style.display = 'none';
@@ -10400,7 +10504,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemVheightDiv').style.display = 'none';
             }
 
-            if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column')) && !shape.data_deviceid.startsWith('wallChairs')) {
+            if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviced === 'cylinder') && !shape.data_deviceid.startsWith('wallChairs')) {
                 let itemVheight = document.getElementById('itemVheight');
                 let defaultHeight = defaultWallHeight;
 
@@ -10604,7 +10708,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[15] = ['chair', 'chairSwivel', 'chairHigh'];
 
-    deviceGroups[16] = ['headset980', 'headset950','headset730','headset720','headset560','headset530','headset320'];
+    deviceGroups[16] = ['headset980', 'headset950', 'headset730', 'headset720', 'headset560', 'headset530', 'headset320'];
 
     deviceGroups[17] = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'shareCableUsbcHdmi', 'shareCableUsbcMulti', 'shareCableHdmiMulti', 'shareCableUsbcHdmiMulti'];
 
@@ -11238,7 +11342,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
 
-    let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'box'];
+    let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -12126,6 +12230,11 @@ function resizeTableOrWall() {
             changeWallAnchors('wallChairs');
             tr.resizeEnabled(true);
         }
+        else if (nodes[0].data_deviceid.startsWith('sphere') || nodes[0].data_deviceid.startsWith('cylinder')) {
+            tr.enabledAnchors(['bottom-right']);
+            changeWallAnchors('wallChairs');
+            tr.resizeEnabled(true);
+        }
         else if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
             tr.enabledAnchors(['top-center', 'bottom-center']);
             changeWallAnchors(true);
@@ -12830,7 +12939,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         for (let i = 0; i < wdItems.length; i++) {
             let wdItem = wdItems[i];
-            if ((wdItem.objectType === 'floor' || wdItem.id === 'primaryFloor') ) {
+            if ((wdItem.objectType === 'floor' || wdItem.id === 'primaryFloor')) {
                 isFloor = true;
                 if ('length' in wdItem) {
                     roomObj2.room.roomWidth = wdItem.width;
@@ -12960,11 +13069,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         }
                     }
 
-                    if('shareSettings' in keyItem && 'shareSettings' in wdItem){
-                        console.log('keyItem.shareSettings', keyItem.shareSettings, 'wdItem.shareSettings', wdItem.shareSettings);
-                        if(areObjectsEqual(keyItem.shareSettings, wdItem.shareSettings)){
+                    if ('shareSettings' in keyItem && 'shareSettings' in wdItem) {
+                        if (areObjectsEqual(keyItem.shareSettings, wdItem.shareSettings)) {
                             hits = hits + 10;
-                            console.log('shareSettings hit');
                             delete modifiedWdItem.shareSettings;
                         }
                     }
@@ -13091,7 +13198,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
 
-    if(wdItemIn.objectType === 'line') {
+    if (wdItemIn.objectType === 'line') {
         wdItemIn.position = wdItemIn.points[0];
     }
     if (regexSecondary.test(wdItemIn.id)) {
@@ -13132,7 +13239,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     /* if it is a shareCable item, remove the share settings */
-    if(data_deviceid.startsWith('shareCable')){
+    if (data_deviceid.startsWith('shareCable')) {
         delete wdItem.shareSettings;
     }
 
@@ -13158,7 +13265,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         wdItem.rotation = [0, 0, 0];
     }
 
-    if(data_deviceid === 'wallGlass' && !('opacity' in wdItem)){
+    if (data_deviceid === 'wallGlass' && !('opacity' in wdItem)) {
         wdItem.opacity = null;
     }
 
@@ -13236,10 +13343,16 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     if ('length' in wdItem || 'width' in wdItem) {
 
 
-        if (data_deviceid === 'unknownObj'){
+        if (data_deviceid === 'unknownObj') {
 
             /* do nothing with length if unknownObj */
-        } else if (family === 'wallBox') {
+        }
+        else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder'){
+            item.height = wdItem.radius * 2;
+            item.width = wdItem.radius * 2;
+
+        }
+        else if (family === 'wallBox') {
 
             item.height = wdItem.width || 0.10;
             item.width = wdItem.length || 0.10;
@@ -13254,7 +13367,14 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.width = wdItem.width || 0.10;
         }
 
-        if (family === 'wallBox') {
+        /* set data_vHeight */
+        if (item.data_deviceid === 'sphere'){
+            item.data_vHeight = round(wdItem.radius * 2);
+        }
+        else if (item.data_deviceid === 'cylinder'){
+            item.data_vHeight = wdItem.length;
+        }
+        else if (family === 'wallBox') {
             item.data_vHeight = wdItem.height || roomObj.room.roomHeight;
         } else {
             if (wdItem.height) {
@@ -13271,7 +13391,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         delete wdItem.height;
 
-        if(data_deviceid != 'unknownObj'){
+        if (!(data_deviceid === 'unknownObj' || data_deviceid === 'cylinder')) {
             delete wdItem.length;
         }
 
@@ -13300,7 +13420,14 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             y = upperLeftXY.y;
         }
 
-        if (family === 'wallBox') {
+        if (data_deviceid === 'sphere'){
+            z = position[1] - wdItem.radius;
+        }
+        else if (data_deviceid === 'cylinder'){
+            z = position[1] - wdItem.length/2;
+            delete wdItem.length;
+        }
+        else if (family === 'wallBox') {
             z = position[1] - (item.data_vHeight / 2);
 
             /* make a best guess at the ceiling height based on walls that have z <= 0 elevation height */
@@ -13339,8 +13466,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         /* calculate Z elevation of displays. Display 29. height of display */
 
-        if(item.data_deviceid === 'display21_9'){
-            let display219Height = displayHeight21_9  / 1000;
+        if (item.data_deviceid === 'display21_9') {
+            let display219Height = displayHeight21_9 / 1000;
             let displayScale = (wdItem.size || 105) / 105;
             z = z - (display219Height * displayScale) / 2;
         }
@@ -13474,10 +13601,13 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         // delete wdItem.model;
     }
 
-    if (wdItem.model === ''){
+    if (wdItem.model === '') {
         delete wdItem.model;
     }
 
+    if (data_deviceid === 'cylinder' || data_deviceid === 'sphere'){
+        delete wdItem.radius;
+    }
 
 
     /* merge comments and unused JSON attributes */
@@ -14012,7 +14142,7 @@ function exportRoomObjToWorkspace() {
         }
 
 
-        if (item.data_deviceid === 'ceilingMic'){
+        if (item.data_deviceid === 'ceilingMic') {
             item.data_ceilingHeight = roomObj2.room.roomHeight;
         }
 
@@ -14023,12 +14153,16 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid) {
             if (item.data_deviceid.startsWith('tbl') || item.data_deviceid.startsWith('couch')) {
                 workspaceObjTablePush(item);
-            } if (item.data_deviceid.startsWith('wallChairs')) {
+            }
+            else if (item.data_deviceid.startsWith('wallChairs')) {
 
                 let chairs = expandChairs(item, 'meters');
                 chairs.forEach(chair => {
                     workspaceObjItemPush(chair);
                 });
+            }
+            else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder'){
+                workspaceObjWallPush(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
                 workspaceObjWallPush(item);
@@ -14063,7 +14197,7 @@ function exportRoomObjToWorkspace() {
         if (item.data_mount && item.data_mount.value.startsWith('flippedPole')) {
 
             /* only adjust height on ptz4KMount2 and ptzVision2. The original ptz4kMount and ptzVision stay the same. */
-            if(item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2' ){
+            if (item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2') {
                 item.data_zPosition = item.data_zPosition + allDeviceTypes[item.data_deviceid].height / 1000;
             }
 
@@ -14085,8 +14219,8 @@ function exportRoomObjToWorkspace() {
             workspaceObjWallPush(pole);
         }
 
-         if (item.data_mount && item.data_mount.value === 'flipped') {
-            if(item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2' ){
+        if (item.data_mount && item.data_mount.value === 'flipped') {
+            if (item.data_deviceid === 'ptz4kMount2' || item.data_deviceid === 'ptzVision2') {
                 item.data_zPosition = item.data_zPosition + allDeviceTypes[item.data_deviceid].height / 1000;
             }
         }
@@ -14208,22 +14342,6 @@ function exportRoomObjToWorkspace() {
 
         }
 
-        // if (item.data_deviceid.startsWith('webexDeskMini')) {
-        //     let deskMiniBase = {};
-
-        //     deskMiniBase.x = item.x;
-        //     deskMiniBase.y = item.y;
-        //     deskMiniBase.rotation = item.rotation;
-        //     deskMiniBase.data_zPosition = item.data_zPosition;
-        //     deskMiniBase.id = 'secondary_webexDeskMini_base_' + item.id;
-        //     item.id = 'webexDeskMini_simulated_' + item.id;
-        //     item.data_tilt = -17;
-
-        //     deskMiniBase.data_deviceid = 'pouf';
-        //     deskMiniBase.data_labelField = `{"scale":[${0.4}, ${0.64}, ${0.25}], "yOffset":0.05}`
-        //     workspaceObjItemPush(deskMiniBase);
-        // }
-
 
         if ('data_zPosition' in item) {
             if (item.data_zPosition != "") z = item.data_zPosition;
@@ -14259,6 +14377,11 @@ function exportRoomObjToWorkspace() {
             z = z + attr.vertOffset;
         }
 
+        if (item.data_deviceId === 'cylinder' || item.data_deviceid === 'sphere'){
+            x = x + item.width/2;
+            y = y + item.width/2;
+        }
+
         let workspaceItem = {
             id: item.id,
             "position": [
@@ -14277,6 +14400,14 @@ function exportRoomObjToWorkspace() {
 
         delete workspaceItem.idRegex;
 
+        if (item.data_deviceid === 'sphere'){
+            workspaceItem.radius = item.width / 2;
+        }
+
+        if (item.data_deviceId === 'cylinder'){
+            z = item.data_zPosition - (item.width/2);
+        }
+
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
             if (workspaceItem.role === 'presentertrack2') {
@@ -14284,7 +14415,7 @@ function exportRoomObjToWorkspace() {
             }
         }
 
-        if ('data_ceilingHeight' in item && item.data_ceilingHeight){
+        if ('data_ceilingHeight' in item && item.data_ceilingHeight) {
             workspaceItem.ceilingHeight = item.data_ceilingHeight;
         }
 
@@ -14310,7 +14441,7 @@ function exportRoomObjToWorkspace() {
         };
 
         /* coverage of analog Ceiling Mic shows 180 from above */
-        if (item.data_deviceid === 'ceilingMic'){
+        if (item.data_deviceid === 'ceilingMic') {
             workspaceItem.sphere = 'quarter';
         }
 
@@ -14643,6 +14774,17 @@ function exportRoomObjToWorkspace() {
             z = (verticalHeight / 2);
         }
 
+        if (item.data_deviceid === 'sphere'){
+            z = item.data_zPosition + (item.width/2);
+        }
+
+        if (item.data_deviceId === 'cylinder'){
+            z = item.data_zPosition + item.data_vHeight / 2;
+
+        }
+
+
+
         /* Fix hundreths place rounding error messing with placement of carpet to keep it from overlapping with table base */
         if (item.data_deviceid === 'carpet') {
             z = Math.round((z - 0.005) * 100) / 100;
@@ -14665,6 +14807,32 @@ function exportRoomObjToWorkspace() {
             "length": item.width,
             "width": item.height,
         }
+
+
+        if (item.data_deviceid === 'sphere'){
+            workspaceItem.radius = item.width / 2;
+            delete workspaceItem.width;
+            delete workspaceItem.height;
+            delete workspaceItem.rotation;
+        }
+
+        if (item.data_deviceid === 'cylinder'){
+            workspaceItem.radius = item.width / 2;
+           // workspaceItem.length = item.data_vHeight;
+            if ('data_vHeight' in item && item.data_vHeight) {
+                workspaceItem.length = item.data_vHeight;
+             } else {
+                workspaceItem.length = roomObj2.room.roomHeight || defaultWallHeight;
+            }
+
+            workspaceItem.rotation[0] = ((item.data_tilt) * (Math.PI / 180)) || 0;
+            workspaceItem.rotation[1] = ((item.rotation) * -(Math.PI / 180)) || 0;
+            workspaceItem.rotation[2] = ((item.data_slant) * (Math.PI / 180)) || 0;
+
+            delete workspaceItem.width;
+            delete workspaceItem.height;
+        }
+
 
 
         if (item.id === 'primaryCeiling') {
@@ -15177,26 +15345,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* Custom deep comparison of objects */
 function areObjectsEqual(obj1, obj2) {
-  // Check if both are objects and not null
-  if (typeof obj1 !== 'object' || obj1 === null ||
-      typeof obj2 !== 'object' || obj2 === null) {
-    return obj1 === obj2; // Compare primitives directly
-  }
-
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-
-  if (keys1.length !== keys2.length) {
-    return false;
-  }
-
-  for (const key of keys1) {
-    if (!keys2.includes(key) || !areObjectsEqual(obj1[key], obj2[key])) {
-      return false;
+    // Check if both are objects and not null
+    if (typeof obj1 !== 'object' || obj1 === null ||
+        typeof obj2 !== 'object' || obj2 === null) {
+        return obj1 === obj2; // Compare primitives directly
     }
-  }
 
-  return true;
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) {
+        return false;
+    }
+
+    for (const key of keys1) {
+        if (!keys2.includes(key) || !areObjectsEqual(obj1[key], obj2[key])) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /*

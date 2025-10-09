@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**0.1.627**
+- added new objects Column/Cylinder and Sphere.
+
 **v0.1.626**
 - Objects for the Ceiling Projector and Projector Screen have been added. 🎥🖥️
 - A bug fix has been implemented for the Workspace Designer import concerning HDMI, USB-C, and Multi-Head. 🛠️
