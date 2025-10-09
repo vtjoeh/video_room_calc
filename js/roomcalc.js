@@ -12336,7 +12336,8 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
-    if (key === ' ') {
+    const inputElements = ['input', 'textarea']
+    if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
         toggleQuickAdd(true);
     }
 
