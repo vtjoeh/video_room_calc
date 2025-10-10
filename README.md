@@ -9,7 +9,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **0.1.627**
-- added new objects Column/Cylinder and Sphere.
+- Quick Add Menu.  Type space bar and search for objects to add.
+- Quick Add Menu added to right-click.
+- Added new objects Column/Cylinder and Sphere.
 
 **v0.1.626**
 - Objects for the Ceiling Projector and Projector Screen have been added. 🎥🖥️

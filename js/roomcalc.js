@@ -215,7 +215,16 @@ workspaceKey.tblUnknownObj = {}; /* Workspace Designer Unkown Objects on import 
 
 workspaceKey.switch = { objectType: 'switch' };
 
+workspaceKey.switchC9200CX = { objectType: 'switch', model: "Catalyst 9200CX Series"};
+
+workspaceKey.switchC1200 = { objectType: 'switch', model: 'Catalyst 1200 Series'}
+
+
 workspaceKey.codec = { objectType: 'codec' };
+
+workspaceKey.codecEQX = { objectType: 'codec', model: 'EQX' };
+workspaceKey.codecEQ = { objectType: 'codec', model: 'Room Kit EQ' };
+workspaceKey.codecPro = { objectType: 'codec', model: 'Room Kit Pro' };
 
 workspaceKey.phoneUnknown = { objectType: 'phone', role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
@@ -724,11 +733,11 @@ let videoDevices = [
 
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitEqQuadCam-menu.png' },
 
-    { name: "Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
+    { name: "_Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
 
-    { name: "Room Kit EQ: PTZ 4K Camera", key: 'AG', id: 'roomKitEqPtz4k', cameraParent: 'ptz4k' },
+    { name: "_Room Kit EQ: PTZ 4K Camera", key: 'AG', id: 'roomKitEqPtz4k', cameraParent: 'ptz4k' },
 
-    { name: "Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
+    { name: "_Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
 
     { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam", frontImage: 'roomKitEqQuadCam-menu.png' },
 
@@ -788,17 +797,17 @@ let ptzCameraMounts = [{ stdMount: 'Standard' }, { flipped: 'Flipped' }, { flipp
 let cameras = [
     { name: "Precision 60 Camera*", id: 'cameraP60', key: 'CA', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 20, twoPersonZoom: 20, topImage: 'cameraP60-top.png', frontImage: 'cameraP60-front.png', width: 268.1, depth: 162.5, height: 151.9, cameraShadeOffSet: 40, displayOffSetY: 35, defaultVert: 1900 },
 
-    { name: "PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+    { name: "_PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
     { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "_Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
+    { name: "_Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "_Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+    { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
     { name: "Room Vision PTZ & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -947,7 +956,7 @@ let microphones = [
 
     },
     {
-        name: "Phone (unknown)",
+        name: "_Phone (unknown)",
         id: "phoneUnknown",
         key: "MH",
         topImage: 'phone9861-top.png',
@@ -1006,7 +1015,7 @@ let microphones = [
         colors: [{ dark: 'Carbon Black' }, { light: 'First Light' }],
     },
     {
-        name: "Cable Lid",
+        name: "_Cable Lid",
         id: "shareCableLid",
         key: "MM",
         topImage: 'shareCableUsbc-top.png',
@@ -1407,7 +1416,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Unknown Workspace Designer* Object",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Unknown Workspace Designer* Object*",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "unknownObj",
         key: "SP",
         topImage: 'unknownObj-top.png',
@@ -1417,7 +1426,7 @@ let chairs = [
         opacity: 0.6,
     },
     {
-        name: "Switch (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "_Switch (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "switch",
         key: "SQ",
         topImage: 'switch-top.png',
@@ -1428,7 +1437,7 @@ let chairs = [
         roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
     },
     {
-        name: "Codec (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "_Codec (cable map)",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codec",
         key: "SR",
         topImage: 'codec-top.png',
@@ -1574,7 +1583,58 @@ let chairs = [
         depth: 640,
         opacity: 0.7,
     },
-
+    {
+        name: "Codec-Room Kit Pro**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codecPro",
+        key: "UE",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+    },
+    {
+        name: "Codec-Room Kit EQ**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codecEQ",
+        key: "UF",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+    },
+    {
+        name: "Codec-Room Kit EQX**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codecEQX",
+        key: "UG",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+    },
+    {
+        name: "Switch Catalyst 9200CX series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "switchC9200CX",
+        key: "UH",
+        topImage: 'switch-top.png',
+        frontImage: 'switch-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+        roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
+    },
+    {
+        name: "Switch Catalyst 1200 series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "switchC1200",
+        key: "UI",
+        topImage: 'switch-top.png',
+        frontImage: 'switch-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+        roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
+    },
 
 ]
 
@@ -1620,7 +1680,7 @@ let displays = [
     },
 
     {
-        name: 'Single 21:9 (MTR Only)',
+        name: 'Single 21:9 (MTR Only) display',
         id: 'display21_9',
         key: 'DD',
         frontImage: 'display21_9-front.png',
@@ -2018,6 +2078,10 @@ let mouseUnit = {}; /* mouseUnit.x .y are the position on the canvas in feet or 
 mouseUnit.x = 0;
 mouseUnit.y = 0;
 
+let quickAddMouse = {}; /* keep track of where the mouse was when initiating the toggleQuickAdd() */
+quickAddMouse.x = 0;
+quickAddMouse.y = 0;
+
 /* log last mouse movement for Copy / Cut / Paste */
 
 
@@ -2393,6 +2457,9 @@ function convertMetersFeet(isDrawRoom, newUnit = null) {
 }
 
 function getQueryString() {
+    // TODO temp fix for not having online connection
+    // return;
+
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     roomName = urlParams.get('roomName');
@@ -12444,6 +12511,10 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
+    const inputElements = ['input', 'textarea']
+    if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
+        toggleQuickAdd(true);
+    }
     /* save / download VRC JSON file */
     if (key === 's' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -12561,7 +12632,118 @@ function onKeyDown(e) {
             updateFormatDetails(shape.id());
         }
     })
+}
 
+function toggleQuickAdd(show) {
+    const dialog = document.querySelector('.quick-dialog');
+
+    quickAddMouse.x = mouseUnit.x;
+    quickAddMouse.y = mouseUnit.y;
+
+    // already open
+    if (show && dialog.style.display === 'flex') return
+
+    dialog.style.display = show ? 'flex' : 'none';
+    const input = dialog.querySelector('input');
+
+    if (show) {
+        if (input) {
+            setTimeout(() => {
+            input.focus();
+            input.select();
+            }, 20)
+        }
+    }
+    else if (input) {
+        input.blur();
+    }
+}
+
+// TODO quick search:
+//
+// - tap tab/shift-tab to change selected
+// - esc to close dialog
+// - add item at cursor
+
+function searchQuickItem(items, word = '') {
+    if (word.length < 2) return []
+    const match = (search = '', fullWord = '') =>
+        fullWord.toLowerCase().replaceAll(' ', '')
+        .includes(search.toLowerCase().replaceAll(' ', ''))
+
+    const all = items.filter(i => match(word, i.name))
+    let regex = /(^_.*)|(.*\*$)/;
+
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked ){
+        regex = /(^_.*)|(.*\*\*$)/;
+    }
+    // return all.filter(i => !i.name.includes('Unknown'))
+
+    return all.filter(i => !regex.test(i.name));
+}
+
+function onQuickAddChange(e) {
+    const allItems = [].concat(tables, videoDevices, microphones,  chairs, displays, boxes, stageFloors);
+
+    const word = e.target.value;
+    const matches = searchQuickItem(allItems, word);
+
+    const gallery = document.querySelector('.quick-dialog .gallery');
+    gallery.innerHTML = '';
+    matches.forEach((m, n) => {
+        const item = document.createElement('button');
+
+        const img = m.frontImage || m.topImage;
+        if (img) {
+            const i = document.createElement('img');
+            i.src = `./assets/images/${img}`;
+            item.appendChild(i);
+        }
+        const label = document.createElement('label');
+        label.innerText = m.name?.slice(0, 30);
+        item.title = `${m.name} - Tap to add to room`;
+        item.appendChild(label);
+
+        const group = allDeviceTypes[m.id]?.parentGroup;
+
+        item.onclick = () => {
+            const { roomWidth, roomLength } = roomObj.room;
+
+            const attrs = {};
+            let b; /* boundary */
+            b = roomObj.unit === 'feet' ? 0.6 : 0.2;
+
+            if (quickAddMouse.x > -b && quickAddMouse.x < (roomWidth + b) && quickAddMouse.y > -b && quickAddMouse.y < (roomLength + b)){
+                attrs.x = quickAddMouse.x;
+                attrs.y = quickAddMouse.y;
+            } else {
+                attrs.x = roomWidth / 2;
+                attrs.y = roomLength / 2;
+            }
+
+
+            insertShapeItem(m.id, group, attrs, '', true);
+            toggleQuickAdd(false);
+        }
+        gallery.appendChild(item);
+    })
+
+    if (!matches.length) {
+        const msg = word.length > 1 ? 'No matching object found.' : 'Type at least 2 characters.'
+        gallery.innerHTML = `<i>${msg}</i>`;
+    }
+}
+
+function onQuickInputKey(event) {
+    if (event.key === 'Enter') {
+        const first = document.querySelector('.quick-dialog button');
+        if (first) {
+            first.click();
+        }
+    }
+    else if (event.key === 'Escape') {
+        toggleQuickAdd(false);
+    }
 }
 
 /* Take a wallChairs object and return an array of chairs */
@@ -13791,6 +13973,8 @@ function downloadFileWorkspace() {
 
     downloadJsonWorkpaceFile(workspaceObj);
 }
+
+
 
 
 function workspaceView(isNewTab = 'false') {
@@ -15080,12 +15264,15 @@ function createRightClickMenu() {
     createMenuItem('deleteMenuDiv', 'Delete', 'delete', tr.nodes().length < 1);
     createMenuItem('duplicateMenuDiv', 'Duplicate', 'ctrl+d', tr.nodes().length < 1);
     rightClickMenuDiv.appendChild(hr.cloneNode(true));
+    createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
+    rightClickMenuDiv.appendChild(hr.cloneNode(true));
     createMenuItem('zoomResetDiv', 'Zoom 100%', '', (zoomValue === 100));
     rightClickMenuDiv.appendChild(hr.cloneNode(true));
     createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
     rightClickMenuDiv.appendChild(hr.cloneNode(true));
     createMenuItem('undoDiv', 'Undo', 'ctrl+z', !(undoArray.length > 1));
     createMenuItem('redoDiv', 'Redo', 'ctrl+y', !(redoArray.length > 0));
+
 
 
     rightClickMenuDialog.style.top = newY + 'px'; /* Distance from the top of the viewport, moved to center */
@@ -15160,6 +15347,9 @@ function createRightClickMenu() {
             }
             else if (e.target.id === 'redoDiv') {
                 btnRedoClicked();
+            }
+            else if (e.target.id === 'quickAddMenu'){
+                toggleQuickAdd(true);
             }
             else if (e.target.id === 'rotateDiv') {
                 rotateItems();
