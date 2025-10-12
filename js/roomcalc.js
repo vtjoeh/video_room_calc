@@ -215,9 +215,9 @@ workspaceKey.tblUnknownObj = {}; /* Workspace Designer Unkown Objects on import 
 
 workspaceKey.switch = { objectType: 'switch' };
 
-workspaceKey.switchC9200CX = { objectType: 'switch', model: "Catalyst 9200CX Series"};
+workspaceKey.switchC9200CX = { objectType: 'switch', model: "Catalyst 9200CX Series" };
 
-workspaceKey.switchC1200 = { objectType: 'switch', model: 'Catalyst 1200 Series'}
+workspaceKey.switchC1200 = { objectType: 'switch', model: 'Catalyst 1200 Series' }
 
 
 workspaceKey.codec = { objectType: 'codec' };
@@ -725,7 +725,7 @@ document.getElementById('lblVersion').innerText = version;
 */
 let videoDevices = [
 
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 3100, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -809,9 +809,9 @@ let cameras = [
 
     { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Room Vision PTZ & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
 ]
 
@@ -1135,6 +1135,19 @@ let microphones = [
         height: 200,
         defaultVert: 2500,
     },
+    {
+        name: "Ceiling Speaker Round**",
+        id: "speaker",
+        key: "MX",
+        topImage: 'tblPodium-menu.png',
+        frontImage: 'tblPodium-menu.png',
+        width: 250,
+        depth: 250,
+        height: 10,
+        defaultVert: 2500,
+        speakerRadius: 1500,
+        speakerDeg: 360,
+    }
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -1287,7 +1300,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door Right (thin frame)",
+        name: "Door Right (thin frame)**",
         id: "doorRight",
         key: "SB",
         topImage: 'doorRight-top.png',
@@ -1297,7 +1310,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door Left (thin frame)",
+        name: "Door Left (thin frame)**",
         id: "doorLeft",
         key: "SD",
         topImage: 'doorLeft-top.png',
@@ -1307,7 +1320,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Double Door (thin frame)",
+        name: "Double Door (thin frame)**",
         id: "doorDouble",
         key: "SE",
         topImage: 'doorDouble-top.png',
@@ -1396,7 +1409,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door Right (part of double)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Door Right (part of double)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "doorDoubleRight",
         key: "SN",
         topImage: 'doorRight-top.png',
@@ -1406,7 +1419,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "Door Left (part of double)",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Door Left (part of double)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "doorDoubleLeft",
         key: "SO",
         topImage: 'doorLeft-top.png',
@@ -1722,7 +1735,7 @@ let stageFloors = [
         dash: [4, 8],
     },
     {
-        name: 'Carpet',
+        name: 'Carpet*',
         id: 'carpet',
         key: 'FB',
         frontImage: 'box-front.png',
@@ -2510,24 +2523,28 @@ function getQueryString() {
         makeButtonsVisible();
     }
 
-    // if (urlParams.has('test')) {
-    //     let testValue = urlParams.get('test');
-    //     if (testValue === '' || testValue == 1 || testValue == 'on') {
-    //         console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
-    //         document.getElementById('test').setAttribute('style', 'visibility: visible;');
-    //         document.getElementById('testA').setAttribute('style', 'visibility: visible;');
-    //         document.getElementById('testB').style.display = '';
-    //         setItemForLocalStorage('test', 'true');
-    //     }
-    //     else if (testValue == '0' || testValue === 'off') {
-    //         console.info('"test" fields are turned off and the setting is removed from local storage');
-    //         document.getElementById('testB').style.display = 'none';
-    //         localStorage.removeItem('test');
-    //     }
+    if (urlParams.has('test')) {
+        let testValue = urlParams.get('test');
+        if (testValue === '' || testValue == 1 || testValue == 'on') {
+            console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
+            if (document.getElementById('test')) {
+                document.getElementById('test').setAttribute('style', 'visibility: visible;');
+            }
 
-    // } else if (localStorage.getItem('test') === 'true') {
+            setItemForLocalStorage('test', 'true');
+        }
+        else if (testValue == '0' || testValue === 'off') {
+            console.info('"test" fields are turned off and the setting is removed from local storage');
+            localStorage.removeItem('test');
+        }
 
-    // document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    } else if (localStorage.getItem('test') === 'true') {
+
+        if (document.getElementById('test')) {
+            document.getElementById('test').setAttribute('style', 'visibility: visible;');
+        }
+
+    }
 
     /* simulate RoomOS for testing only */
     if (urlParams.has('RoomOS') || urlParams.has('roomos')) {
@@ -2928,6 +2945,12 @@ function parseShortenedXYUrl(parameters) {
                     roomObj.layersVisible.grLabels = true;
                 } else {
                     roomObj.layersVisible.grLabels = false;
+                }
+
+                if (shadeArray[7] == '1') {
+                    roomObj.layersVisible.grShadingSpeaker = true;
+                } else {
+                    roomObj.layersVisible.grShadingSpeaker = false;
                 }
 
 
@@ -4466,6 +4489,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     shadingMicrophoneVisible(roomObj.layersVisible.grShadingMicrophone);
     displayDistanceVisible(roomObj.layersVisible.grDisplayDistance);
     shadingCameraVisible(roomObj.layersVisible.grShadingCamera);
+    shadingSpeakerVisible(roomObj.layersVisible.grShadingSpeaker);
 
     if (redrawShapes) {
 
@@ -4965,6 +4989,12 @@ function createShareableLinkItemShading() {
         shadeArray[6] = 1;
     } else {
         shadeArray[6] = 0;
+    }
+
+    if (roomObj.layersVisible.grShadingSpeaker) {
+        shadeArray[7] = 1;
+    } else {
+        shadeArray[7] = 0;
     }
 
     return 'B' + shadeArray.join('');
@@ -5768,6 +5798,35 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
     if (saveToUndo) saveToUndoArray();
 }
 
+function shadingSpeakerVisible(state = 'buttonPress') {
+    closeTooltipTitleText();
+
+    let button = document.getElementById('btnSpeakerShadeToggle');
+    let saveToUndo = false;
+    if (state === 'buttonPress') {
+        saveToUndo = true;
+        if (grShadingSpeaker.visible() === true) {
+            state = false;
+        } else {
+            state = true;
+        }
+    }
+
+    if (state === true) {
+        grShadingSpeaker.visible(true);
+
+        button.classList.toggle('active', true);
+        roomObj.layersVisible.grShadingSpeaker = true;
+    } else {
+
+        button.classList.toggle('active', false);
+        grShadingSpeaker.visible(false);
+        roomObj.layersVisible.grShadingSpeaker = false;
+    }
+
+    if (saveToUndo) saveToUndoArray();
+}
+
 
 function toggleSelectPan() {
     let button = document.getElementById('btnSelectPan');
@@ -5829,6 +5888,7 @@ function deleteTrNodes(save = true) {
     tr.nodes().forEach(node => {
 
         let audioShading = stage.find('#audio~' + node.id())[0];
+        let speakerShading = stage.find('#speaker~' + node.id())[0];
         let videoShading = stage.find('#fov~' + node.id())[0];
         let displayShading = stage.find('#dispDist~' + node.id())[0];
         let labelText = stage.find('#label~' + node.id())[0];
@@ -5836,6 +5896,10 @@ function deleteTrNodes(save = true) {
         node.destroy();
         if (audioShading) {
             audioShading.destroy();
+        }
+
+        if (speakerShading){
+            speakerShading.destroy();
         }
 
         if (videoShading) {
@@ -6191,7 +6255,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 0.9 * scale;
         height = 2.2 * scale;
     }
-    else if ( insertDevice.id === 'cylinder'){
+    else if (insertDevice.id === 'cylinder') {
         width = 0.45 * scale;
         height = 0.45 * scale;
     }
@@ -6204,12 +6268,20 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         data_vHeight = attrs.data_vHeight;
     }
 
-    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet') || insertDevice.id.startsWith('sphere')) && !data_vHeight) {
-
+    if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('sphere')) && !data_vHeight) {
         if (unit === 'feet') {
             data_vHeight = 3.28;
         } else {
             data_vHeight = 1;
+        }
+
+    }
+
+    if (insertDevice.id === 'carpet') {
+        if (unit === 'feet') {
+            data_vHeight = .03;
+        } else {
+            data_vHeight = .01;
         }
     }
 
@@ -6380,8 +6452,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.ellipse(shape.getAttr('width') / 2, shape.getAttr('height') / 2, shape.getAttr('width') / 2, shape.getAttr('height') / 2, 0, 0, 2 * Math.PI);
                 shape.fillRadialGradientStartPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3 });
                 shape.fillRadialGradientStartRadius(0)
-                 shape.fillRadialGradientEndPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3});
-              shape.fillRadialGradientEndRadius(shape.width());
+                shape.fillRadialGradientEndPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3 });
+                shape.fillRadialGradientEndRadius(shape.width());
                 shape.fillRadialGradientColorStops([0, 'white', 0.5, 'grey', 1, 'grey']);
                 context.fillStrokeShape(shape);
             }
@@ -7383,12 +7455,11 @@ function updateItem() {
                 item.height = height;
             }
 
-            if(data_deviceid === 'sphere' || data_deviceid === 'cylinder'){
-               item.height = width;
+            if (data_deviceid === 'sphere' || data_deviceid === 'cylinder') {
+                item.height = width;
             }
 
-            if(data_deviceid === 'sphere')
-            {
+            if (data_deviceid === 'sphere') {
                 item.data_vHeight = width;
                 data_vHeight = width;
 
@@ -7519,6 +7590,7 @@ function updateItem() {
             let node = stage.find('#' + id)[0];
 
             let audioShading = stage.find('#audio~' + node.id())[0];
+            let speakerShading = stage.find('#speaker~' + node.id())[0];
             let videoShading = stage.find('#fov~' + node.id())[0];
             let displayShading = stage.find('#dispDist~' + node.id())[0];
             let labelText = stage.find('#label~' + node.id())[0];
@@ -7527,6 +7599,10 @@ function updateItem() {
 
             if (audioShading) {
                 audioShading.destroy();
+            }
+
+            if (speakerShading){
+                speakerShading.destroy();
             }
 
             if (videoShading) {
@@ -7575,7 +7651,8 @@ function addButtonListeners() {
     let parentButtonAttributes = [
         ['btnMicShadeToggle', 'hasMic'],
         ['btnCamShadeToggle', 'hasCamera'],
-        ['btnDisplayDistance', 'hasDisplay']
+        ['btnDisplayDistance', 'hasDisplay'],
+        ['btnSpeakerShadeToggle', 'hasSpeaker']
     ];
 
     parentButtonAttributes.forEach(parentButtonAttribute => {
@@ -7624,15 +7701,22 @@ function buttonMouseDown(attributeType) {
     if (attributeType === 'hasMic') {
         displayDistanceVisible(false);
         shadingCameraVisible(false);
-
+        shadingSpeakerVisible(false);
     }
     else if (attributeType === 'hasCamera') {
         displayDistanceVisible(false);
         shadingMicrophoneVisible(false);
+        shadingSpeakerVisible(false);
     }
     else if (attributeType === 'hasDisplay') {
         shadingCameraVisible(false);
         shadingMicrophoneVisible(false);
+        shadingSpeakerVisible(false);
+    } else if (attributeType === 'hasSpeaker') {
+        displayDistanceVisible(false);
+        shadingCameraVisible(false);
+        shadingMicrophoneVisible(false);
+
     }
 
 }
@@ -7651,6 +7735,8 @@ function buttonMouseUp(attributeType) {
     }
     else if (attributeType === 'hasDisplay') {
         displayDistanceVisible();
+    } else if (attributeType === 'hasSpeaker') {
+        shadingSpeakerVisible();
     }
 
 }
@@ -7666,10 +7752,13 @@ function buttonTurnOn(attributeType) {
     else if (attributeType === 'hasDisplay') {
         displayDistanceVisible(true);
     }
+    else if (attributeType === 'hasSpeaker') {
+        shadingSpeakerVisible(true);
+    }
 }
 
 function closeAllMenus() {
-    let attributeTypeArray = ['hasMic', 'hasCamera', 'hasDisplay'];
+    let attributeTypeArray = ['hasMic', 'hasCamera', 'hasDisplay', 'hasSpeaker'];
     attributeTypeArray.forEach((attributeType) => {
         let menu = document.getElementById(`deviceMenu-${attributeType}`);
         if (menu) menu.remove();
@@ -7713,7 +7802,7 @@ function closeOpenSidebar(tabToOpen) {
 }
 
 function checkForAllUnchecked() {
-    let attributeTypeArray = ['hasMic', 'hasCamera', 'hasDisplay'];
+    let attributeTypeArray = ['hasMic', 'hasCamera', 'hasDisplay', 'hasSpeaker'];
     attributeTypeArray.forEach((attributeType) => {
         let menu = document.getElementById(`deviceMenu-${attributeType}`);
         if (menu) {
@@ -7772,6 +7861,11 @@ function createDeviceMenu(parentButton, attributeType) {
         defaultOptions = [
             { text: 'All Displays', value: 'all' },
             { text: 'No Displays', value: 'none' }
+        ];
+    } else if (attributeType === 'hasSpeaker') {
+        defaultOptions = [
+            { text: 'All Speakers', value: 'all' },
+            { text: 'No Speakers', value: 'none' }
         ];
     }
 
@@ -7915,7 +8009,7 @@ function getMenuItems(itemArray, attributeType) {
     let menuItemArray = [];
     let data_field = '';
 
-    data_field = (attributeType === 'hasMic') ? 'data_audioHidden' : (attributeType === 'hasCamera') ? 'data_fovHidden' : (attributeType === 'hasDisplay') ? 'data_dispDistHidden' : 'unknown';
+    data_field = (attributeType === 'hasMic') ? 'data_audioHidden' : (attributeType === 'hasSpeaker') ? 'data_speakerHidden' : (attributeType === 'hasCamera') ? 'data_fovHidden' : (attributeType === 'hasDisplay') ? 'data_dispDistHidden' : 'unknown';
 
     itemArray.forEach(item => {
         let menuItem = {};
@@ -7952,6 +8046,11 @@ function getDevicesWithAttribute(attributeType) {
                 itemArray.push(item);
             }
 
+            if (attributeType === 'hasSpeaker' && 'speakerRadius' in allDeviceTypes[item.data_deviceid]) {
+                itemArray.push(item);
+            }
+
+
             if (attributeType === 'hasDisplay' && 'data_diagonalInches' in item) {
                 itemArray.push(item);
             }
@@ -7959,6 +8058,8 @@ function getDevicesWithAttribute(attributeType) {
             if (attributeType === 'hasCamera' && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
                 itemArray.push(item);
             }
+
+
         }
     }
 
@@ -7968,9 +8069,9 @@ function getDevicesWithAttribute(attributeType) {
 
 function previewCheckedDevices(opt, attributeType) {
 
-    let attributeString = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
+    let attributeString = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasSpeaker') ? 'speaker' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
 
-    let attributeHidden = (attributeType === 'hasMic') ? 'data_audioHidden' : (attributeType === 'hasCamera') ? 'data_fovHidden' : (attributeType === 'hasDisplay') ? 'data_dispDistHidden' : 'unknown';
+    let attributeHidden = (attributeType === 'hasMic') ? 'data_audioHidden' : (attributeType === 'hasSpeaker') ? 'data_speakerHidden' : (attributeType === 'hasCamera') ? 'data_fovHidden' : (attributeType === 'hasDisplay') ? 'data_dispDistHidden' : 'unknown';
 
     let roomObjItems = getDevicesWithAttribute(attributeType);
 
@@ -8031,6 +8132,7 @@ function previewCheckedDevices(opt, attributeType) {
             displayDistanceVisible(false);
             shadingMicrophoneVisible(false);
             shadingCameraVisible(false);
+            shadingSpeakerVisible(false);
         }
 
     });
@@ -8042,9 +8144,9 @@ let defaultOpacity = 0.3; /* used to store the default opacity of the device */
 
 function hightlightOverlayForDevice(opt, attributeType, highlight, checkbox) {
 
-    let overlayType = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
+    let overlayType = (attributeType === 'hasMic') ? 'audio' : (attributeType === 'hasSpeaker') ? 'speaker' : (attributeType === 'hasCamera') ? 'fov' : (attributeType === 'hasDisplay') ? 'dispDist' : 'unknown';
 
-    let blurColor = (attributeType === 'hasMic') ? 'blue' : (attributeType === 'hasCamera') ? 'green' : (attributeType === 'hasDisplay') ? 'blue' : 'unknown';
+    let blurColor = (attributeType === 'hasMic') ? 'blue' : (attributeType === 'hasSpeaker') ? 'blue' : (attributeType === 'hasCamera') ? 'green' : (attributeType === 'hasDisplay') ? 'blue' : 'unknown';
 
 
     const targetId = '#' + overlayType + "~" + opt.value;
@@ -8096,10 +8198,38 @@ function toggleMicShadingSingleItem() {
                 delete node.data_audioHidden;
                 delete item.data_audioHidden;
             } else {
-                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
                 stage.find('#audio~' + id)[0].visible(false);
                 node.data_audioHidden = true;
                 item.data_audioHidden = true;
+            }
+
+        }
+    });
+    canvasToJson();
+
+}
+
+function toggleSpeakerShadingSingleItem() {
+    let id = document.getElementById('itemId').innerText;
+    let parentGroup = document.getElementById('itemGroup').innerText;
+
+    /* this function should not be called if grShadingSpeaker === false, but in case it is, give the user feedback */
+    if (roomObj.layersVisible.grShadingSpeaker === false) {
+        document.getElementById('dialogSingleItemToggles').showModal();
+        return;
+    }
+
+    roomObj.items[parentGroup].forEach((item, index) => {
+        if (item.id === id) {
+            let node = stage.find('#' + id)[0];
+            if ('data_speakerHidden' in item && item.data_speakerHidden === true) {
+                stage.find('#speaker~' + id)[0].visible(true);
+                delete node.data_speakerHidden;
+                delete item.data_speakerHidden;
+            } else {
+                stage.find('#speaker~' + id)[0].visible(false);
+                node.data_speakerHidden = true;
+                item.data_speakerHidden = true;
             }
 
         }
@@ -8329,11 +8459,16 @@ function deleteNegativeShapes() {
                 || (corners[0].y < yBound && corners[1].y < yBound && corners[2].y < yBound && corners[3].y < yBound)) {
 
                 let audioShading = stage.find('#audio~' + node.id())[0];
+                let speakerShading = stage.find('#speaker~' + node.id())[0];
                 let videoShading = stage.find('#fov~' + node.id())[0];
 
                 node.destroy();
                 if (audioShading) {
                     audioShading.destroy();
+                }
+
+                if (speakerShading){
+                    speakerShading.destroy();
                 }
 
                 if (videoShading) {
@@ -9203,6 +9338,84 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         grShadingMicrophone.add(groupAudioShading);
     }
 
+    if ('speakerRadius' in insertDevice && 'speakerDeg' in insertDevice) {
+
+        let groupSpeakerCoverage = new Konva.Group({
+            id: 'speaker~' + uuid,
+            x: pixelX,
+            y: pixelY,
+            listening: false,
+            rotation: 0,
+            name: 'shading_group',
+        })
+
+        if (attrs.data_speakerHidden) {
+            groupSpeakerCoverage.visible(false);
+        } else {
+            groupSpeakerCoverage.visible(true);
+        }
+
+        let speakerRadius = insertDevice.speakerRadius / 1000 * scale;
+
+        let lblSpeakerRadius = insertDevice.speakerRadius / 1000;
+
+        if (unit === 'feet') {
+            speakerRadius = speakerRadius * 3.28084;
+            lblSpeakerRadius = lblSpeakerRadius * 3.28084;
+        }
+
+        let speakerShadingLine = new Konva.Wedge({
+            /* x and y should be tracked in the group only */
+            radius: speakerRadius,
+            angle: insertDevice.speakerDeg,
+            name: 'speaker-' + deviceId + '-' + groupName,
+            rotation: 90 - insertDevice.speakerDeg / 2,
+            opacity: 0.3,
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.3,
+            stroke: '#96969680',
+            strokeWidth: 1,
+        });
+
+        /* audioShadingLine & audioShadingShade combine to form the coverage */
+        let speakerShadingShade = new Konva.Wedge({
+            /* x and y should be tracked in the group only */
+            radius: speakerRadius * 1.2,
+            angle: insertDevice.speakerDeg,
+            stroke: '',
+            strokeWidth: 3,
+            name: 'speaker-' + deviceId + '-' + groupName,
+            rotation: 90 - insertDevice.speakerDeg / 2,
+            opacity: 0.3,
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.3,
+            fillRadialGradientStartPoint: { x: 0, y: 0 },
+            fillRadialGradientStartRadius: 0,
+            fillRadialGradientEndPoint: { x: 0, y: 0 },
+            fillRadialGradientEndRadius: speakerRadius * 1.2,
+            fillRadialGradientColorStops: [0, 'blue', 0.6, '#001c80ee', 0.8, '#02629da8', 1, 'rgba(36, 0, 128, 0)'],
+        });
+
+
+        let txtSpeaker = new Konva.Text({
+            x: -1000,
+            y: speakerRadius - 10,
+            width: 2000,
+            text: lblSpeakerRadius.toFixed(1) + ' ' + abbrUnit + ' from mic',
+            fontSize: 12,
+            fill: 'purple',
+            padding: 3,
+            align: 'center',
+        });
+
+        groupSpeakerCoverage.add(speakerShadingLine);
+        groupSpeakerCoverage.add(speakerShadingShade);
+        // groupSpeakerCoverage.add(txtSpeaker);
+        grShadingSpeaker.add(groupSpeakerCoverage);
+    }
+
     /* Add shading lines for a display */
     if (data_diagonalInches > 0) {
 
@@ -9874,6 +10087,7 @@ function updateShading(node) {
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
     let dispDistShading = stage.find(`#dispDist~${uuid}`);
+    let speakerShading = stage.find(`#speaker~${uuid}`);
 
     let textLabel = stage.find(`#label~${uuid}`);
 
@@ -9887,6 +10101,10 @@ function updateShading(node) {
 
     if (dispDistShading.length === 1) {
         moveShading(node, dispDistShading[0]);
+    }
+
+    if (speakerShading.length === 1) {
+        moveShading(node, speakerShading[0]);
     }
 
     if (textLabel.length === 1) {
@@ -9919,14 +10137,8 @@ function updateShading(node) {
                 cameraShadeOffset = cameraShadeOffset * 3.28084;
             }
 
-
-            // centerX = ((imageItem.height() / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
-            // centerY = ((imageItem.height() / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
-
-
             centerX = ((imageItemHeight / 2) - cameraShadeOffset) * -(Math.sin(imageItem.rotation() * Math.PI / 180)) + center.x;
             centerY = ((imageItemHeight / 2) - cameraShadeOffset) * (Math.cos(imageItem.rotation() * Math.PI / 180)) + center.y;
-
 
         }
 
@@ -10549,6 +10761,11 @@ function updateFormatDetails(eventOrShapeId) {
 
             } else {
                 document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
+            }
+
+            if (!('micRadius' in allDeviceTypes[item.data_deviceid])) {
+
+                document.getElementById('btnSpeakerShadeToggleSingleItem').disabled = true;
             }
 
             if (shape.data_deviceid === 'tblRect') {
@@ -12511,10 +12728,7 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
-    const inputElements = ['input', 'textarea']
-    if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
-        toggleQuickAdd(true);
-    }
+
     /* save / download VRC JSON file */
     if (key === 's' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -12533,24 +12747,38 @@ function onKeyDown(e) {
         testiFrameToggle(true);
     }
 
+    const inputElements = ['input', 'textarea']
+
+    {
+        if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
+            quickAddMouse.x = mouseUnit.x;
+            quickAddMouse.y = mouseUnit.y;
+            toggleQuickAdd(true);
+        }
+
+
+        if (!inputElements.includes(target.tagName?.toLowerCase()) && (!(e.ctrlKey || e.metaKey)))
+
+            if ((key === 'c')) { /* camera coverage toggle */
+                shadingCameraVisible();
+                displayDistanceVisible(false);
+                shadingMicrophoneVisible(false);
+            }
+            else if ((key === 'd')) { /* display coverage toggle */
+                shadingCameraVisible(false);
+                displayDistanceVisible();
+                shadingMicrophoneVisible(false);
+            }
+            else if ((key === 'm')) { /* display mic coverage toggle */
+                shadingCameraVisible(false);
+                displayDistanceVisible(false);
+                shadingMicrophoneVisible();
+            }
+
+    }
+
 
     if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(tagName)) return;
-
-    // if ((key === 'c')) { /* camera coverage toggle */
-    //     shadingCameraVisible();
-    //     displayDistanceVisible(false);
-    //     shadingMicrophoneVisible(false);
-    // }
-    // else if ((key === 'd')) { /* display coverage toggle */
-    //     shadingCameraVisible(false);
-    //     displayDistanceVisible();
-    //     shadingMicrophoneVisible(false);
-    // }
-    // else if ((key === 'm')) { /* display mic coverage toggle */
-    //     shadingCameraVisible(false);
-    //     displayDistanceVisible(false);
-    //     shadingMicrophoneVisible();
-    // }
 
 
     if (key === 'Backspace' || key === 'Delete') {
@@ -12559,6 +12787,7 @@ function onKeyDown(e) {
     }
     else if ((key === 'Escape' || key === 'Esc')) {
         e.preventDefault();
+        toggleQuickAdd(false);
         tr.nodes([]);
         enableCopyDelBtn();
     }
@@ -12637,8 +12866,7 @@ function onKeyDown(e) {
 function toggleQuickAdd(show) {
     const dialog = document.querySelector('.quick-dialog');
 
-    quickAddMouse.x = mouseUnit.x;
-    quickAddMouse.y = mouseUnit.y;
+    tr.nodes([]);
 
     // already open
     if (show && dialog.style.display === 'flex') return
@@ -12649,8 +12877,8 @@ function toggleQuickAdd(show) {
     if (show) {
         if (input) {
             setTimeout(() => {
-            input.focus();
-            input.select();
+                input.focus();
+                input.select();
             }, 20)
         }
     }
@@ -12663,32 +12891,45 @@ function toggleQuickAdd(show) {
 //
 // - tap tab/shift-tab to change selected
 // - esc to close dialog
-// - add item at cursor
 
 function searchQuickItem(items, word = '') {
     if (word.length < 2) return []
-    const match = (search = '', fullWord = '') =>
-        fullWord.toLowerCase().replaceAll(' ', '')
-        .includes(search.toLowerCase().replaceAll(' ', ''))
 
-    const all = items.filter(i => match(word, i.name))
+
     let regex = /(^_.*)|(.*\*$)/;
 
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked ){
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked) {
         regex = /(^_.*)|(.*\*\*$)/;
     }
+
+    /* by typing ** in the Quick Search box, find hidden objects */
+    if(/^\*\*.*/.test(word)){
+        regex = /(^_.*)/;
+        word = word.replace(/\*\*/, '');
+    }
+
+    console.log('** replace word:', word);
+
+
+    const match = (search = '', fullWord = '') =>
+        fullWord.toLowerCase().replaceAll(' ', '')
+            .includes(search.toLowerCase().replaceAll(' ', ''))
+
+    const all = items.filter(i => match(word, i.name))
+
     // return all.filter(i => !i.name.includes('Unknown'))
 
     return all.filter(i => !regex.test(i.name));
 }
 
 function onQuickAddChange(e) {
-    const allItems = [].concat(tables, videoDevices, microphones,  chairs, displays, boxes, stageFloors);
+    const allItems = [].concat(tables, videoDevices, microphones, chairs, displays, boxes, stageFloors);
 
     const word = e.target.value;
     const matches = searchQuickItem(allItems, word);
 
     const gallery = document.querySelector('.quick-dialog .gallery');
+
     gallery.innerHTML = '';
     matches.forEach((m, n) => {
         const item = document.createElement('button');
@@ -12713,7 +12954,7 @@ function onQuickAddChange(e) {
             let b; /* boundary */
             b = roomObj.unit === 'feet' ? 0.6 : 0.2;
 
-            if (quickAddMouse.x > -b && quickAddMouse.x < (roomWidth + b) && quickAddMouse.y > -b && quickAddMouse.y < (roomLength + b)){
+            if (quickAddMouse.x > -b && quickAddMouse.x < (roomWidth + b) && quickAddMouse.y > -b && quickAddMouse.y < (roomLength + b)) {
                 attrs.x = quickAddMouse.x;
                 attrs.y = quickAddMouse.y;
             } else {
@@ -12721,9 +12962,13 @@ function onQuickAddChange(e) {
                 attrs.y = roomLength / 2;
             }
 
+            let uuid = createUuid();
+            insertShapeItem(m.id, group, attrs, uuid, true);
 
-            insertShapeItem(m.id, group, attrs, '', true);
+            // updateFormatDetails(uuid);
             toggleQuickAdd(false);
+
+            trNodesFromUuids([uuid]);
         }
         gallery.appendChild(item);
     })
@@ -13529,7 +13774,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
             /* do nothing with length if unknownObj */
         }
-        else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder'){
+        else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
             item.height = wdItem.radius * 2;
             item.width = wdItem.radius * 2;
 
@@ -13550,10 +13795,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
 
         /* set data_vHeight */
-        if (item.data_deviceid === 'sphere'){
+        if (item.data_deviceid === 'sphere') {
             item.data_vHeight = round(wdItem.radius * 2);
         }
-        else if (item.data_deviceid === 'cylinder'){
+        else if (item.data_deviceid === 'cylinder') {
             item.data_vHeight = wdItem.length;
         }
         else if (family === 'wallBox') {
@@ -13602,11 +13847,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             y = upperLeftXY.y;
         }
 
-        if (data_deviceid === 'sphere'){
+        if (data_deviceid === 'sphere') {
             z = position[1] - wdItem.radius;
         }
-        else if (data_deviceid === 'cylinder'){
-            z = position[1] - wdItem.length/2;
+        else if (data_deviceid === 'cylinder') {
+            z = position[1] - wdItem.length / 2;
             delete wdItem.length;
         }
         else if (family === 'wallBox') {
@@ -13679,7 +13924,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.size;
     }
 
-    /* if scale: [1,1,1], remove from lable */
+    /* if scale: [1,1,1], remove from label */
     if ('scale' in wdItem) {
         if (wdItem.scale[0] === 1 && wdItem.scale[1] === 1 && wdItem.scale[2] === 1) {
             delete wdItem.scale;
@@ -13787,7 +14032,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.model;
     }
 
-    if (data_deviceid === 'cylinder' || data_deviceid === 'sphere'){
+    if (data_deviceid === 'cylinder' || data_deviceid === 'sphere') {
         delete wdItem.radius;
     }
 
@@ -14345,7 +14590,7 @@ function exportRoomObjToWorkspace() {
                     workspaceObjItemPush(chair);
                 });
             }
-            else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder'){
+            else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
                 workspaceObjWallPush(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
@@ -14561,9 +14806,9 @@ function exportRoomObjToWorkspace() {
             z = z + attr.vertOffset;
         }
 
-        if (item.data_deviceId === 'cylinder' || item.data_deviceid === 'sphere'){
-            x = x + item.width/2;
-            y = y + item.width/2;
+        if (item.data_deviceId === 'cylinder' || item.data_deviceid === 'sphere') {
+            x = x + item.width / 2;
+            y = y + item.width / 2;
         }
 
         let workspaceItem = {
@@ -14584,12 +14829,12 @@ function exportRoomObjToWorkspace() {
 
         delete workspaceItem.idRegex;
 
-        if (item.data_deviceid === 'sphere'){
+        if (item.data_deviceid === 'sphere') {
             workspaceItem.radius = item.width / 2;
         }
 
-        if (item.data_deviceId === 'cylinder'){
-            z = item.data_zPosition - (item.width/2);
+        if (item.data_deviceId === 'cylinder') {
+            z = item.data_zPosition - (item.width / 2);
         }
 
         if ('data_role' in item && item.data_role) {
@@ -14958,11 +15203,11 @@ function exportRoomObjToWorkspace() {
             z = (verticalHeight / 2);
         }
 
-        if (item.data_deviceid === 'sphere'){
-            z = item.data_zPosition + (item.width/2);
+        if (item.data_deviceid === 'sphere') {
+            z = item.data_zPosition + (item.width / 2);
         }
 
-        if (item.data_deviceId === 'cylinder'){
+        if (item.data_deviceId === 'cylinder') {
             z = item.data_zPosition + item.data_vHeight / 2;
 
         }
@@ -14993,19 +15238,19 @@ function exportRoomObjToWorkspace() {
         }
 
 
-        if (item.data_deviceid === 'sphere'){
+        if (item.data_deviceid === 'sphere') {
             workspaceItem.radius = item.width / 2;
             delete workspaceItem.width;
             delete workspaceItem.height;
             delete workspaceItem.rotation;
         }
 
-        if (item.data_deviceid === 'cylinder'){
+        if (item.data_deviceid === 'cylinder') {
             workspaceItem.radius = item.width / 2;
-           // workspaceItem.length = item.data_vHeight;
+            // workspaceItem.length = item.data_vHeight;
             if ('data_vHeight' in item && item.data_vHeight) {
                 workspaceItem.length = item.data_vHeight;
-             } else {
+            } else {
                 workspaceItem.length = roomObj2.room.roomHeight || defaultWallHeight;
             }
 
@@ -15202,6 +15447,8 @@ function closeRightClickMenu() {
 /* createas a right click menu */
 function createRightClickMenu() {
 
+    quickAddMouse.x = mouseUnit.x;
+    quickAddMouse.y = mouseUnit.y;
 
     let element = document.getElementById(rightClickMenuDialogId);
     if (element && element.open) {
@@ -15348,7 +15595,7 @@ function createRightClickMenu() {
             else if (e.target.id === 'redoDiv') {
                 btnRedoClicked();
             }
-            else if (e.target.id === 'quickAddMenu'){
+            else if (e.target.id === 'quickAddMenu') {
                 toggleQuickAdd(true);
             }
             else if (e.target.id === 'rotateDiv') {

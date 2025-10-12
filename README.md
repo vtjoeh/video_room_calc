@@ -9,9 +9,17 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **0.1.627**
-- Quick Add Menu.  Type space bar and search for objects to add.
-- Quick Add Menu added to right-click.
-- Added new objects Column/Cylinder and Sphere.
+- New **Quick Add Menu**: Type `space bar` to access the Quick Add menu and search for objects. 🌟
+ - Objects are added at the location of the arrow as long as the cursor is within the room. If the cursor is outside the room, the new object is placed in the center of the room. 🏠
+ - Objects with names ending in a single star (*) are only found if **Workspace Designer partially or non-supported items:** is toggled on. ⚙️
+ - Objects with names starting with an underline (_) or ending in double stars (**) are excluded from the Quick Add Menu. ❌
+      - Names starting with an underline (_) are typically deprecated objects maintained for backward compatibility. 🔄
+      - Names ending with ** are typically only available on import from the Workspace Designer. 📥
+      - Type ** in the search to find all items with a * or **.
+  - Quick Add has been added to the right-click menu. 🖱️
+
+- Shortcut keys `c`, `m`, & `d` toggle camera coverage, microphone coverage, & display coverage. 🎥 🎤 🖥️
+- Added new objects: Column/Cylinder and Sphere. 🔵🔳
 
 **v0.1.626**
 - Objects for the Ceiling Projector and Projector Screen have been added. 🎥🖥️
