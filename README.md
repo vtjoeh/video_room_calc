@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.628**
+- Video Room Calculator will open the Workspace Designer in unit feet or meters as set in the VRC.
+
 **0.1.627**
 - New **Quick Add Menu**: Type `space bar` to access the Quick Add menu and search for objects. 🌟
  - Objects are added at the location of the arrow as long as the cursor is within the room. If the cursor is outside the room, the new object is placed in the center of the room. 🏠

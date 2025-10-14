@@ -1,4 +1,4 @@
-const version = "v0.1.627";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.628";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -769,7 +769,7 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140  },
+    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
 
     { name: "Board Pro 75 G2: Wheel Stand", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -799,7 +799,7 @@ let cameras = [
 
     { name: "_PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], speakerRadius: 4000, speakerDeg: 140,  },
+    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], speakerRadius: 4000, speakerDeg: 140, },
 
     { name: "_Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -5898,7 +5898,7 @@ function deleteTrNodes(save = true) {
             audioShading.destroy();
         }
 
-        if (speakerShading){
+        if (speakerShading) {
             speakerShading.destroy();
         }
 
@@ -7601,7 +7601,7 @@ function updateItem() {
                 audioShading.destroy();
             }
 
-            if (speakerShading){
+            if (speakerShading) {
                 speakerShading.destroy();
             }
 
@@ -8467,7 +8467,7 @@ function deleteNegativeShapes() {
                     audioShading.destroy();
                 }
 
-                if (speakerShading){
+                if (speakerShading) {
                     speakerShading.destroy();
                 }
 
@@ -12887,10 +12887,6 @@ function toggleQuickAdd(show) {
     }
 }
 
-// TODO quick search:
-//
-// - tap tab/shift-tab to change selected
-// - esc to close dialog
 
 function searchQuickItem(items, word = '') {
     if (word.length < 2) return []
@@ -12903,7 +12899,7 @@ function searchQuickItem(items, word = '') {
     }
 
     /* by typing ** in the Quick Search box, find hidden objects */
-    if(/^\*\*.*/.test(word)){
+    if (/^\*\*.*/.test(word)) {
         regex = /(^_.*)/;
         word = word.replace(/\*\*/, '');
     }
@@ -12958,6 +12954,14 @@ function onQuickAddChange(e) {
             } else {
                 attrs.x = roomWidth / 2;
                 attrs.y = roomLength / 2;
+            }
+
+            if ('defaultVert' in allDeviceTypes[m.id]) {
+                let defaultVert = allDeviceTypes[m.id].defaultVert / 1000;
+                if (roomObj.unit === 'feet') {
+                    defaultVert = round(defaultVert * 3.28084)
+                }
+                attrs.data_zPosition = defaultVert;
             }
 
             let uuid = createUuid();
@@ -14321,14 +14325,23 @@ function openDetailsRoomTab() {
 
 
 function postMessageToWorkspace() {
+
+    let unit = 'meter';
+
+
+    if (roomObj.unit === 'feet'){
+        unit = 'foot'
+    }
+
     if (workspaceWindow) {
 
-        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace() }, '*');
+        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: {unit: unit } }, '*');
 
     }
 
+
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace() }, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: {unit: unit } }, '*');
     }
 
 
