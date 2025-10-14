@@ -805,47 +805,48 @@ let cameras = [
 
     { name: "_Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "_Room Vision PTZ & Bracket", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "_Room Vision PTZ", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 3.5, twoPersonDistance: 6.9, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
-let ptz4kNarrowFov = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonZoom: 2.15, twoPersonZoom: 2.935 };
+let ptz4kExtendedReach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 18};
 
+let ptz4kPresenterTrack =  { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 16 };
 /* ptz4k */
-cameras[1].extended_reach = ptz4kNarrowFov;
-cameras[1].presentertrack = ptz4kNarrowFov;
-cameras[1].presentertrack2 = ptz4kNarrowFov;
+cameras[1].extended_reach = ptz4kExtendedReach;
+cameras[1].presentertrack = ptz4kPresenterTrack;
+cameras[1].presentertrack2 = ptz4kPresenterTrack;
 cameras[1].rolesDialog = 'How do you want to use the camera?';
 
 /* ptz4kmount - backwards compatible object  */
-cameras[6].extended_reach = ptz4kNarrowFov;
-cameras[6].presentertrack = ptz4kNarrowFov;
-cameras[6].presentertrack2 = ptz4kNarrowFov;
+cameras[6].extended_reach = ptz4kExtendedReach;
+cameras[6].presentertrack = ptz4kPresenterTrack;
+cameras[6].presentertrack2 = ptz4kPresenterTrack;
 cameras[6].rolesDialog = 'How do you want to use the camera?';
 
 /* ptz4kMount2 */
-cameras[8].extended_reach = ptz4kNarrowFov;
-cameras[8].presentertrack = ptz4kNarrowFov;
-cameras[8].presentertrack2 = ptz4kNarrowFov;
+cameras[8].extended_reach = ptz4kExtendedReach;
+cameras[8].presentertrack = ptz4kPresenterTrack;
+cameras[8].presentertrack2 = ptz4kPresenterTrack;
 cameras[8].rolesDialog = 'How do you want to use the camera?';
 
 /* ptzVision - backwards compatible object */
-cameras[5].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
-cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
-cameras[5].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[5].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 13, twoPersonDistance: 26 };
+cameras[5].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 10, twoPersonDistance: 22 };
+cameras[5].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 10, twoPersonDistance: 22 };
 cameras[5].rolesDialog = 'How do you want to use the camera?';
 
 /* ptzVision2 */
-cameras[7].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 7.65, twoPersonDistance: 16 };
-cameras[7].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
-cameras[7].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 8, twoPersonDistance: 22 };
+cameras[7].extended_reach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 13, twoPersonDistance: 26 };
+cameras[7].presentertrack = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 10, twoPersonDistance: 22 };
+cameras[7].presentertrack2 = { wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 10, twoPersonDistance: 22 };
 cameras[7].rolesDialog = 'How do you want to use the camera?';
 
 /* Room Bar Pro */
