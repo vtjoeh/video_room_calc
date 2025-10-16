@@ -403,6 +403,8 @@ workspaceKey.headset320 = { objectType: 'headset', model: '320', yOffset: -0.08 
 
 workspaceKey.keyboard = { objectType: 'keyboard' };
 
+workspaceKey.pathShape = { objectType: 'shape'};
+
 
 /* low priority */
 workspaceKey.roomKitEqPtz4k = { objectType: 'camera', model: 'ptz', role: 'crossview', yOffset: 0.205 };
@@ -1275,6 +1277,15 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 1,
+},
+{
+    name: 'Custom Shape Object**',
+    id: 'pathShape',
+    key: 'WL',
+    frontImage: 'tblUnknownObj-menu.png',
+    stroke: 'black',
+    // strokeWidth: 1/scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
+    strokeWidth: 1/scale/2,
 }
 ]
 
@@ -4838,15 +4849,15 @@ function createShareableLinkItem(item) {
         }
     }
 
-    if ('width' in item) {
+    if ('width' in item && item.data_deviceid != 'pathShape') {
         strItem += 'c' + Math.round(round(item.width) * 100);
     }
 
-    if ('length' in item) {
+    if ('length' in item && item.data_deviceid != 'pathShape') {
         strItem += 'd' + Math.round(round(item.length) * 100);
     }
 
-    if ('height' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
+    if ('height' in item && item.data_deviceid != 'tblSchoolDesk' && item.height) { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
         strItem += 'e' + Math.round(round(item.height) * 100);
     }
 
@@ -6210,6 +6221,7 @@ function saveToUndoArray() {
 
 }
 
+
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     let tblWallFlr, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
@@ -6356,6 +6368,46 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     } else {
         data_zPosition = '';
+    }
+
+
+    if(insertDevice.id === 'pathShape'){
+        let label;
+        let path = "M-0.5 -0.5 h1 v1 h-1 z";
+
+        if('data_labelField' in attrs && attrs.data_labelField){
+            label = attrs.data_labelField;
+        }
+        else {
+            label = '{"path":"' + path + '"}'
+        }
+
+        let match = label.match(/{.*"path"\s*:\s*"\s*([Mm]\s*[0-9.-].*?)".*}/)
+
+        if(match && match[1]){
+
+            path = match[1];
+        }
+
+
+
+        tblWallFlr = new Konva.Path({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            data: path,
+            fill: '#D3D3D3' || fillColor,
+            stroke: strokeColor,
+            id: uuid,
+            strokeWidth: allDeviceTypes['pathShape'].strokeWidth,
+            draggable: true,
+            opacity: opacity,
+            scale: {
+                x: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
+                y: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
+            }
+        })
+
     }
 
     if (insertDevice.id === 'tblSchoolDesk') {
@@ -7240,6 +7292,13 @@ function updateShapesBasedOnNewScale() {
 
                     }
 
+                    if(node.data_deviceid = 'pathShape'){
+                            let newScaleX = scale / oldScale * node.scaleX();
+                            let newScaleY = scale / oldScale * node.scaleY();
+                            node.scaleX(newScaleX);
+                            node.scaleY(newScaleY);
+                    }
+
                     if ('x' in attrs) {
 
                         let newX = pxOffset + ((scale / oldScale) * (node.x() - oldPxOffset));
@@ -7351,6 +7410,13 @@ function updateTrNodesShading() {
 
         node.strokeEnabled(true);
         node.strokeWidth(2);
+
+        console.log('line 7405', node.data_deviceid);
+
+        if(node.data_deviceid === 'pathShape'){
+            node.strokeWidth(allDeviceTypes['pathShape'].strokeWidth);
+        }
+
         if ('image' in node.attrs) {
             node.stroke("rgb(0, 161, 255)");
 
@@ -8606,6 +8672,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     if (unit === 'feet') {
         abbrUnit = 'ft'
+    }
+
+
+    if(deviceId === 'pathShape'){
+        insertTable(allDeviceTypes['pathShape'],'chairs', attrs, uuid, selectTrNode);
     }
 
     /*
@@ -10084,6 +10155,7 @@ function moveLabel(imageItem, labelTip) {
 }
 
 function updateShading(node) {
+    console.log('line 10151 updateShading');
     let uuid = node.id();
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
@@ -10586,7 +10658,7 @@ function fillInTopElevationDisplay(item, updateTextBox = true) {
 
 function updateFormatDetails(eventOrShapeId) {
 
-    let shape; /* 'shape' is direct from canvans, 'item' is in roomObj JSON. */
+    let shape; /* shape is direct from canvas, 'item' is in roomObj JSON. */
 
     let itemTopElevationDiv = document.getElementById('itemTopElevationDiv');
 
@@ -11241,7 +11313,7 @@ function addListeners(stage) {
         let scaleX = e.target.scaleX();
         let scaleY = e.target.scaleY();
 
-        if (tr.nodes().length === 1 && !(scaleX === 1 || scaleY === 1)) {
+        if (tr.nodes().length === 1 && !(scaleX === 1 || scaleY === 1) && e.target.data_deviceid != 'pathShape') {
 
             let width = e.target.width();
             let height = e.target.height();
@@ -13806,6 +13878,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
         else if (family === 'wallBox') {
             item.data_vHeight = wdItem.height || roomObj.room.roomHeight;
+        }
+        else if (item.data_deviceid === 'pathShape' && 'thickness' in wdItem){
+            item.data_vHeight = wdItem.thickness;
+            delete wdItem.thickness;
         } else {
             if (wdItem.height) {
                 item.data_vHeight = wdItem.height;
@@ -14591,6 +14667,7 @@ function exportRoomObjToWorkspace() {
     });
 
     roomObj2.items.tables.forEach((item) => {
+
         if (item.data_deviceid) {
             if (item.data_deviceid.startsWith('tbl') || item.data_deviceid.startsWith('couch')) {
                 workspaceObjTablePush(item);
@@ -14604,6 +14681,9 @@ function exportRoomObjToWorkspace() {
             }
             else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
                 workspaceObjWallPush(item);
+            }
+            else if (item.data_deviceid === 'pathShape'){
+                workspaceObjItemPush(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
                 workspaceObjWallPush(item);
@@ -14888,6 +14968,10 @@ function exportRoomObjToWorkspace() {
 
         if (item.data_hiddenInDesigner) {
             workspaceItem.hidden = true;
+        }
+
+        if('data_vHeight' in item && item.data_vHeight && item.data_deviceid === 'pathShape'){
+            workspaceItem.thickness = item.data_vHeight;
         }
 
         if ('data_labelField' in item) {
