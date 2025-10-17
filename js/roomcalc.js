@@ -403,7 +403,7 @@ workspaceKey.headset320 = { objectType: 'headset', model: '320', yOffset: -0.08 
 
 workspaceKey.keyboard = { objectType: 'keyboard' };
 
-workspaceKey.pathShape = { objectType: 'shape'};
+workspaceKey.pathShape = { objectType: 'shape' };
 
 
 /* low priority */
@@ -818,9 +818,9 @@ let cameras = [
 ]
 
 /* used for ptz4kNarrowFov crossview and extended_reach */
-let ptz4kExtendedReach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 18};
+let ptz4kExtendedReach = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 18 };
 
-let ptz4kPresenterTrack =  { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 16 };
+let ptz4kPresenterTrack = { wideHorizontalFOV: 33, teleHorizontalFOV: 33, onePersonDistance: 8, twoPersonDistance: 16 };
 /* ptz4k */
 cameras[1].extended_reach = ptz4kExtendedReach;
 cameras[1].presentertrack = ptz4kPresenterTrack;
@@ -1279,13 +1279,11 @@ let tables = [{
     strokeWidth: 1,
 },
 {
-    name: 'Custom Shape Object**',
+    name: 'Custom Path Shape**',
     id: 'pathShape',
     key: 'WL',
-    frontImage: 'tblUnknownObj-menu.png',
-    stroke: 'black',
-    // strokeWidth: 1/scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
-    strokeWidth: 1/scale/2,
+    frontImage: 'pathShape-menu.png',
+    strokeWidth: 1 / scale,
 }
 ]
 
@@ -5921,9 +5919,8 @@ function deleteTrNodes(save = true) {
         if (displayShading) {
             displayShading.destroy();
         }
-
-
         if (labelText) {
+
             labelText.destroy();
         }
 
@@ -6371,25 +6368,32 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
 
-    if(insertDevice.id === 'pathShape'){
+    if (insertDevice.id === 'pathShape') {
         let label;
-        let path = "M-0.5 -0.5 h1 v1 h-1 z";
+        let jsonScaleX = 1;
+        let jsonScaleY = 1;
+        let path = "M-0.5-0.5 h1.2 l0.1 1 l-0.5 -0.4 L-0.5 0.5z";
 
-        if('data_labelField' in attrs && attrs.data_labelField){
+        if ('data_labelField' in attrs && attrs.data_labelField) {
             label = attrs.data_labelField;
         }
         else {
-            label = '{"path":"' + path + '"}'
+            label = '{"path":"' + path + '"}';
+            attrs.data_labelField = label;
         }
 
         let match = label.match(/{.*"path"\s*:\s*"\s*([Mm]\s*[0-9.-].*?)".*}/)
 
-        if(match && match[1]){
 
+        if (match && match[1]) {
             path = match[1];
         }
 
-
+        let matchScale = label.match(/{.*"scale"\s*:\s*\[\s*([\-0-9.]+)\s*,\s*[\-0-9.]+\s*,\s*([\-0-9.]+)\s*\].*?}/)
+        if (matchScale) {
+            jsonScaleX = matchScale[1];
+            jsonScaleY = matchScale[2];
+        }
 
         tblWallFlr = new Konva.Path({
             x: pixelX,
@@ -6403,8 +6407,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
             scale: {
-                x: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
-                y: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1),
+                x: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1) * jsonScaleX,
+                y: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1) * jsonScaleY,
             }
         })
 
@@ -7048,10 +7052,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     tblWallFlr.on('transform', function tableOnTransform(e) {
-
         snapToGuideLines(e, true);
-
-        if (tblWallFlr.data_labelField) updateShading(tblWallFlr);
+        if (tblWallFlr.data_labelField) {
+            updateShading(tblWallFlr);
+        }
     });
 
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
@@ -7079,7 +7083,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         }
 
-        if (tblWallFlr.data_labelField) updateShading(tblWallFlr);
+        if (tblWallFlr.data_labelField) {
+
+            updateShading(tblWallFlr);
+        }
     });
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
@@ -7182,13 +7189,37 @@ function findUpperLeftXY(shape) {
     };
 }
 
-/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.  All other objects uese center for x,y */
+/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.  SVG path shapes are more simplified and use the bounding getClientRect(). All other objects uese center for x,y */
 function findFourCorners(item) {
 
     let shapeCorners = [];
     let width, height;
 
-    if ('width' in item) {
+    /* for pathshape, determine if it is on the canvas by using the Node object and Konva .getClientRect to get four corners. */
+    if (item.data_deviceid === 'pathShape') {
+        const node = stage.findOne('#' + item.id);
+        if (node) {
+            let b = node.getClientRect();
+            let x = (b.x - pxOffset) / scale;
+            let y = (b.y - pxOffset) / scale;
+            let width = b.width / scale;
+            let height = b.height / scale;
+
+            shapeCorners[0] = { x: x, y: y };
+            shapeCorners[1] = { x: x + width, y: y };
+            shapeCorners[2] = { x: x + width, y: y + height };
+            shapeCorners[3] = { x: x, y: y + height };
+        }
+        else {
+            /* if the node does not exist, return fake corners */
+            shapeCorners[0] = { x: -20, y: -20 };
+            shapeCorners[1] = { x: -20, y: -10 };
+            shapeCorners[2] = { x: -10, y: -10 };
+            shapeCorners[3] = { x: -10, y: -20 };
+
+        }
+    }
+    else if ('width' in item) {
         width = item.width;
         height = item.height;
 
@@ -7292,11 +7323,11 @@ function updateShapesBasedOnNewScale() {
 
                     }
 
-                    if(node.data_deviceid = 'pathShape'){
-                            let newScaleX = scale / oldScale * node.scaleX();
-                            let newScaleY = scale / oldScale * node.scaleY();
-                            node.scaleX(newScaleX);
-                            node.scaleY(newScaleY);
+                    if (node.data_deviceid === 'pathShape') {
+                        let newScaleX = scale / oldScale * node.scaleX();
+                        let newScaleY = scale / oldScale * node.scaleY();
+                        node.scaleX(newScaleX);
+                        node.scaleY(newScaleY);
                     }
 
                     if ('x' in attrs) {
@@ -7411,9 +7442,7 @@ function updateTrNodesShading() {
         node.strokeEnabled(true);
         node.strokeWidth(2);
 
-        console.log('line 7405', node.data_deviceid);
-
-        if(node.data_deviceid === 'pathShape'){
+        if (node.data_deviceid === 'pathShape') {
             node.strokeWidth(allDeviceTypes['pathShape'].strokeWidth);
         }
 
@@ -7660,7 +7689,7 @@ function updateItem() {
             let speakerShading = stage.find('#speaker~' + node.id())[0];
             let videoShading = stage.find('#fov~' + node.id())[0];
             let displayShading = stage.find('#dispDist~' + node.id())[0];
-            let labelText = stage.find('#label~' + node.id())[0];
+            let labelText = stage.find('#label~' + node.id());
 
             node.destroy();
 
@@ -7681,7 +7710,10 @@ function updateItem() {
             }
 
             if (labelText) {
-                labelText.destroy();
+                labelText.forEach(label => {
+                    label.destroy();
+                })
+
             }
 
             /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
@@ -8620,7 +8652,9 @@ function listItemsOffStage() {
     for (const category in roomObj.items) {
         for (const i in roomObj.items[category]) {
             let item = structuredClone(roomObj.items[category][i]);
+
             if (!(xBoundMin < item.x && item.x < xBoundMax && yBoundMin < item.y && item.y < yBoundMax)) {  /* check first if the main point is in the border, as this is simpler than the SAT poly check methord */
+
                 let fourCorners = findFourCorners(item);
                 if (!doPolygonsIntersect(fourCorners, border)) {
                     itemsOffStageId.push(item.id);
@@ -8675,9 +8709,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     }
 
 
-    if(deviceId === 'pathShape'){
-        insertTable(allDeviceTypes['pathShape'],'chairs', attrs, uuid, selectTrNode);
-    }
 
     /*
         Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
@@ -9600,7 +9631,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
 function addLabel(node, attrs, alwaysLabel = false) {
-
     let text = node.name();
     let textCandidate = '';
 
@@ -10155,7 +10185,6 @@ function moveLabel(imageItem, labelTip) {
 }
 
 function updateShading(node) {
-    console.log('line 10151 updateShading');
     let uuid = node.id();
     let fovShading = stage.find(`#fov~${uuid}`);
     let audioShading = stage.find(`#audio~${uuid}`);
@@ -10180,7 +10209,7 @@ function updateShading(node) {
         moveShading(node, speakerShading[0]);
     }
 
-    if (textLabel.length === 1) {
+    if (textLabel.length > 0) {
         moveLabel(node, textLabel[0])
     }
 
@@ -10731,6 +10760,14 @@ function updateFormatDetails(eventOrShapeId) {
 
 
     /* if both itemWidth and itemLength are disabled, don't show the row */
+    if (shape.data_deviceid === 'pathShape') {
+        document.getElementById('itemWidthDiv').style.display = 'none';
+        document.getElementById('itemLengthDiv').style.display = 'none';
+    } else {
+        document.getElementById('itemWidthDiv').style.display = '';
+        document.getElementById('itemLengthDiv').style.display = '';
+    }
+
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true) {
         document.getElementById('itemWidthLengthDiv').style.display = 'none';
     } else {
@@ -13869,6 +13906,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.width = wdItem.width || 0.10;
         }
 
+
         /* set data_vHeight */
         if (item.data_deviceid === 'sphere') {
             item.data_vHeight = round(wdItem.radius * 2);
@@ -13879,10 +13917,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         else if (family === 'wallBox') {
             item.data_vHeight = wdItem.height || roomObj.room.roomHeight;
         }
-        else if (item.data_deviceid === 'pathShape' && 'thickness' in wdItem){
-            item.data_vHeight = wdItem.thickness;
-            delete wdItem.thickness;
-        } else {
+        else {
             if (wdItem.height) {
                 item.data_vHeight = wdItem.height;
             }
@@ -13903,11 +13938,16 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         delete wdItem.width;
     }
-    else if ('scale' in wdItem && !data_deviceid.startsWith('unknownObj')) {
+    else if ('scale' in wdItem && !(data_deviceid.startsWith('unknownObj') || data_deviceid === 'pathShape')) {
         item.height = wdItem.scale[0];
         item.width = wdItem.scale[2];
         item.data_vHeight = wdItem.scale[1];
         delete wdItem.scale;
+    }
+
+    if (item.data_deviceid === 'pathShape' && 'thickness' in wdItem) {
+            item.data_vHeight = wdItem.thickness;
+            delete wdItem.thickness;
     }
 
     /* process position key/value pair */
@@ -14406,19 +14446,19 @@ function postMessageToWorkspace() {
     let unit = 'meter';
 
 
-    if (roomObj.unit === 'feet'){
+    if (roomObj.unit === 'feet') {
         unit = 'foot'
     }
 
     if (workspaceWindow) {
 
-        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: {unit: unit } }, '*');
+        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: { unit: unit } }, '*');
 
     }
 
 
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: {unit: unit } }, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: { unit: unit } }, '*');
     }
 
 
@@ -14682,7 +14722,7 @@ function exportRoomObjToWorkspace() {
             else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
                 workspaceObjWallPush(item);
             }
-            else if (item.data_deviceid === 'pathShape'){
+            else if (item.data_deviceid === 'pathShape') {
                 workspaceObjItemPush(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
@@ -14970,7 +15010,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.hidden = true;
         }
 
-        if('data_vHeight' in item && item.data_vHeight && item.data_deviceid === 'pathShape'){
+        if ('data_vHeight' in item && item.data_vHeight && item.data_deviceid === 'pathShape') {
             workspaceItem.thickness = item.data_vHeight;
         }
 

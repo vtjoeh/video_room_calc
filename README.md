@@ -8,6 +8,17 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.628**
+- New object **Path Shape**. The Path Shape is a new object currently being tested. To add a Path Shape, use the **Quick Add** menu by pressing the space bar and then searching for `** custom path shape**`. The Path Shape has an **Item Label** of:
+`{"path":"<path>"}`
+for example:
+`{"path": "M -1.4 0 Q 0 1.4 1.4 0 L 1 -0.4 Q 0 0.6 -1 -0.4 Z"}`
+  - The path format is in SVG path format. Units are in meters regardless of whether you are using feet or meters for the design.
+  - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
+  - The Workspace Designer `thickness` parameter is translated to `height` in the VRC.
+  - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
+
+
 **0.1.627**
 - New **Quick Add Menu**: Type `space bar` to access the Quick Add menu and search for objects. 🌟
  - Objects are added at the location of the arrow as long as the cursor is within the room. If the cursor is outside the room, the new object is placed in the center of the room. 🏠
