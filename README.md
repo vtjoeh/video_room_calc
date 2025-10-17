@@ -9,7 +9,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 **v0.1.628**
-- New object **Path Shape**. The Path Shape is a new object currently being tested. To add a Path Shape, use the **Quick Add** menu by pressing the space bar and then searching for `** custom path shape**`. The Path Shape has an **Item Label** of:
+- New object **Path Shape**. The Path Shape is a new object currently being tested. To add a Path Shape, use the **Quick Add** menu by pressing the space bar and then searching for `** custom path shape`. The Path Shape has an **Item Label** of:
 `{"path":"<path>"}`
 for example:
 `{"path": "M -1.4 0 Q 0 1.4 1.4 0 L 1 -0.4 Q 0 0.6 -1 -0.4 Z"}`
