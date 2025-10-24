@@ -3128,6 +3128,15 @@ function resetRoomObj() {
         "drpTvNum": 1,
     };
 
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if(konvaBackgroundImageFloor){
+        konvaBackgroundImageFloor.destroy();
+        document.getElementById('fileInputImage').value = '';
+        delete roomObj.backgroundImage;
+    }
+
+
     /* reset fields */
 
     document.getElementById("tvDiag").value = "65";
@@ -4263,6 +4272,8 @@ function drawTitleGroup() {
 
 function getKonvaBackgroundImageFloor() {
     let konvaBackgroundImageFloor = stage.find('#konvaBackgroundImageFloor')[0];
+    console.log('line 4273');
+    console.log('konvaBackgroundImageFloor', konvaBackgroundImageFloor);
     return konvaBackgroundImageFloor;
 }
 
@@ -5560,7 +5571,7 @@ function pasteItems(duplicate = true) {
 
     trNodesFromUuids(uuids, true);  /* select the newly pasted items */
 
-
+    stage.draw();
 
 }
 
@@ -12575,6 +12586,9 @@ function loadTemplate(x) {
         loadTemplateTime = 1500;
     }
 
+
+
+
     resetRoomObj();
     x = x.replaceAll('+', ' ');
     x = x.replace(/(.*\d)v[0-9.]+(.*)/, `$1v${version}$2`); /* regardless of original template verion update to latest version in URL */
@@ -13411,6 +13425,7 @@ function importJson(jsonFile) {
 
     document.getElementById('fileUpload').value = null;
 };
+
 
 const fileJsonUpload = document.getElementById('fileUpload');
 
