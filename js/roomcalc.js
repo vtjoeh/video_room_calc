@@ -3130,7 +3130,7 @@ function resetRoomObj() {
 
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
-    if(konvaBackgroundImageFloor){
+    if (konvaBackgroundImageFloor) {
         konvaBackgroundImageFloor.destroy();
         document.getElementById('fileInputImage').value = '';
         delete roomObj.backgroundImage;
@@ -4272,8 +4272,6 @@ function drawTitleGroup() {
 
 function getKonvaBackgroundImageFloor() {
     let konvaBackgroundImageFloor = stage.find('#konvaBackgroundImageFloor')[0];
-    console.log('line 4273');
-    console.log('konvaBackgroundImageFloor', konvaBackgroundImageFloor);
     return konvaBackgroundImageFloor;
 }
 
@@ -5571,7 +5569,7 @@ function pasteItems(duplicate = true) {
 
     trNodesFromUuids(uuids, true);  /* select the newly pasted items */
 
-    stage.draw();
+    // stage.draw();
 
 }
 
@@ -7627,6 +7625,10 @@ function updateItem() {
                 else if ('tblRectRadiusRight' in item) {
                     delete item.tblRectRadiusRight;
                 }
+            }
+
+            if(item.data_deviceid === 'pathShape'){
+                data_labelField = combinePathShapeLabel(data_labelField, document.getElementById('labelPath').value);
             }
 
             if (data_labelField) {
@@ -10342,7 +10344,7 @@ function round(inNumber, place = -2) {
 
 function updateRoomDetails() {
     let roomHeight = document.getElementById('roomHeight').value;
-    let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value);
+    let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value).trim();
     let drpSoftware = document.getElementById('drpSoftware').value;
 
     if (roomHeight != 0 || roomHeight != '') {
@@ -10351,9 +10353,9 @@ function updateRoomDetails() {
     }
 
 
-    if (authorVersion != '') {
-        roomObj.authorVersion = authorVersion;
-    }
+
+    roomObj.authorVersion = authorVersion;
+
 
     if (drpSoftware != 'select') {
         roomObj.software = drpSoftware;
@@ -10772,11 +10774,14 @@ function updateFormatDetails(eventOrShapeId) {
 
     /* if both itemWidth and itemLength are disabled, don't show the row */
     if (shape.data_deviceid === 'pathShape') {
+
+        document.getElementById('labelPathId').style.display = '';
         document.getElementById('itemWidthDiv').style.display = 'none';
         document.getElementById('itemLengthDiv').style.display = 'none';
     } else {
         document.getElementById('itemWidthDiv').style.display = '';
         document.getElementById('itemLengthDiv').style.display = '';
+        document.getElementById('labelPathId').style.display = 'none';
     }
 
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true) {
@@ -11031,8 +11036,21 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemSlant').value = "";
             }
 
+
             if ('data_labelField' in item && item.data_labelField) {
-                document.getElementById('labelField').value = item.data_labelField;
+
+                if(shape.data_deviceid === 'pathShape'){
+
+                    let pathLabel = parsePathShapeLabelFieldJson(item);
+
+                    document.getElementById('labelField').value = pathLabel.label.trim();
+                    document.getElementById('labelPath').value = pathLabel.path.trim();
+
+                } else {
+                    document.getElementById('labelField').value = item.data_labelField;
+                }
+
+
             } else {
                 document.getElementById('labelField').value = "";
             }
@@ -13961,8 +13979,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     if (item.data_deviceid === 'pathShape' && 'thickness' in wdItem) {
-            item.data_vHeight = wdItem.thickness;
-            delete wdItem.thickness;
+        item.data_vHeight = wdItem.thickness;
+        delete wdItem.thickness;
     }
 
     /* process position key/value pair */
@@ -14138,7 +14156,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     let comment = '';
     if (wdItem.comment) {
-        comment = wdItem.comment;
+        comment = wdItem.comment.trim();
         delete wdItem.comment;
     };
 
@@ -15476,11 +15494,109 @@ function parseDataLabelFieldJson(item, workspaceItem) {
     }
 
     if (commentPart && workspaceItem) {
-        workspaceItem.comment = commentPart;
+        workspaceItem.comment = commentPart.trim();
     }
 
     return workspaceItem;
 }
+
+/* parse out {"path:": "values"} from the data_labelField.  */
+function parsePathShapeLabelFieldJson(item) {
+
+    let newLabel = '';
+    let lblObj = {};
+    lblObj.label = "";
+    lblObj.path = "";
+
+    let jsonPart = /{.*}/.exec(item.data_labelField);
+
+    if ('data_labelField' in item && item.data_labelField) {
+        newLabel = item.data_labelField.replace(/{.*?}/g, ''); /* remove regex portion between {} */
+    }
+
+    if (jsonPart) {
+        try {
+            let jsonValue = JSON.parse(jsonPart[0]);
+            if('path' in jsonValue){
+                lblObj.path = jsonValue.path;
+                delete jsonValue.path;
+            }
+
+            if(newLabel && !isObjectEmpty(jsonValue)){
+                newLabel = (newLabel + " " + JSON.stringify(jsonValue)).trim();
+            }
+
+
+        } catch {
+            newLabel = item.data_labelField;
+            document.getElementById("labelPath").placeholder = "Error parsing JSON. Edit here or *Item Label*."
+            console.info('Error parsing JSON on parsePathShapeLabelFieldJson()', jsonPart);
+        }
+
+    }
+
+    if(newLabel){
+        lblObj.label = newLabel;
+    }
+
+
+    return lblObj;
+
+}
+
+function combinePathShapeLabel(label, path){
+    let newLabel = '';
+
+    let commentPart = label.replace(/{.*?}/g, '').trim();
+
+    let jsonPart = /{.*}/.exec(label);
+
+    label = label.trim();
+
+    path = path.trim();
+
+    if (jsonPart){
+        try {
+            let jsonValue = JSON.parse(jsonPart[0]);
+
+            if(path){
+                jsonValue.path = path;
+            }
+
+            if(label && !isObjectEmpty(jsonValue)){
+                newLabel = commentPart + JSON.stringify(jsonValue);
+            }
+            else if(label) {
+                newLabel = label;
+
+             }
+            else if (!isObjectEmpty(jsonValue)){
+                newLabel = JSON.stringify(jsonValue);
+            }
+
+        } catch {
+            if (path && path.trim() != ''){
+                newLabel = (label + '{"path":"' + path + '"}').trim();
+            } else {
+                newLabel = label;
+            }
+
+
+            console.info('Error parsing JSON on combine:', jsonPart);
+        }
+    } else {
+            if (path && path != ''){
+                newLabel = (label + '{"path":"' + path + '"}').trim();
+            } else {
+                newLabel = label;
+            }
+    }
+
+    return newLabel;
+
+}
+
+
 
 function downloadJsonWorkpaceFile(workspaceObj) {
 
@@ -15953,6 +16069,13 @@ function areObjectsEqual(obj1, obj2) {
     }
 
     return true;
+}
+
+function isObjectEmpty(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return false;
+  }
+  return Object.keys(obj).length === 0;
 }
 
 /*
