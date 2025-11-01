@@ -1,4 +1,4 @@
-const version = "v0.1.628";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.629";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -69,6 +69,7 @@ const clientTimeStamp = startTime.toUTCString();
 let fullShareLink;
 let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
 let lastAction = "load";
+let isBackgroundImageFloorFileLoad = false; /* keep track if the backgroundImageFloor is being loaded as part of a JSON file */
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
 let primaryDeviceIsAllInOne = false; /* keep track if the primary device is all in one */
 let idKeyObj = {}; /* keep the vavlue pair { 'id' : 'key' } of the different categories in 1 object */
@@ -1279,7 +1280,7 @@ let tables = [{
     strokeWidth: 1,
 },
 {
-    name: 'Custom Path Shape**',
+    name: 'Custom Path Shape',
     id: 'pathShape',
     key: 'WL',
     frontImage: 'pathShape-menu.png',
@@ -2414,6 +2415,7 @@ function convertMetersFeet(isDrawRoom, newUnit = null) {
     roomObj.room.twoPersonCrop = roomObj.room.twoPersonCrop * ratio;
 
     if ('backgroundImage' in roomObj) {
+
         roomObj.backgroundImage.x = roomObj.backgroundImage.x * ratio;
         roomObj.backgroundImage.y = roomObj.backgroundImage.y * ratio;
         roomObj.backgroundImage.width = roomObj.backgroundImage.width * ratio;
@@ -3095,6 +3097,34 @@ function parseShortenedXYUrl(parameters) {
 
 }
 
+function deleteBackgroundImageConfirmation(){
+    let text = "Delete Room Floor Plan Background?";
+    if (confirm(text) == true){
+        deleteBackgroundImage();
+    }
+}
+
+function deleteBackgroundImage(){
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+
+    if (konvaBackgroundImageFloor) {
+        konvaBackgroundImageFloor.destroy();
+        document.getElementById('fileInputImage').value = '';
+
+    }
+
+
+    delete roomObj.backgroundImage;
+    delete roomObj.backgroundImageFile;
+
+    document.getElementById('transparencySlider').value = 50
+    document.getElementById('transparencyOutput').innerText = 50;
+
+    turnOffBackgroundImageButtons();
+
+
+}
+
 function resetRoomObj() {
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
@@ -3128,14 +3158,7 @@ function resetRoomObj() {
         "drpTvNum": 1,
     };
 
-    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
-
-    if (konvaBackgroundImageFloor) {
-        konvaBackgroundImageFloor.destroy();
-        document.getElementById('fileInputImage').value = '';
-        delete roomObj.backgroundImage;
-    }
-
+    deleteBackgroundImage();
 
     /* reset fields */
 
@@ -4337,6 +4360,12 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         canvasWindowHeight = minWindowHeight;
     }
 
+    if(roomObj.backgroundImage){
+        turnOnBackgroundImageButtons();
+        document.getElementById('transparencySlider').value = roomObj.backgroundImage.opacity || 50;
+        document.getElementById('transparencyOutput').innerText = roomObj.backgroundImage.opacity || 50;
+    }
+
     scrollContainer.setAttribute('style', 'height:' + (canvasWindowHeight) + 'px');
 
     roomWidth = getNumberValue('roomWidth');
@@ -4563,12 +4592,17 @@ function getFullHeightIncludingMargin(element) {
     return element.offsetHeight + marginTop + marginBottom;
 }
 
-function changeTransparency(value) {
+function changeTransparency(value = 50) {
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
     if (!konvaBackgroundImageFloor) return;
 
     document.getElementById('transparencyOutput').innerText = value;
     konvaBackgroundImageFloor.opacity(value / 100);
+
+    if(!roomObj.backgroundImage){
+        roomObj.backgroundImage = {};
+    }
+    roomObj.backgroundImage.opacity = value;
 }
 
 function select2Points() {
@@ -4606,6 +4640,9 @@ function insertKonvaBackgroundImageFloor() {
             listening: false,
             name: roomObj.backgroundImage.name,
         });
+
+        document.getElementById('transparencySlider').value = roomObj.backgroundImage.opacity;
+        document.getElementById('transparencyOutput').innerText = roomObj.backgroundImage.opacity;
 
         konvaBackgroundImageFloor.data_deviceid = 'backgroundImageFloor';
 
@@ -4665,6 +4702,7 @@ function updateBackgroundImageScale() {
         let pixelDistance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
         let imageHeight = konvaBackgroundImageFloor.height();
+
 
         let imageWidth = konvaBackgroundImageFloor.width();
 
@@ -6023,7 +6061,6 @@ function canvasToJson() {
         roomObj.backgroundImage = {};
         roomObj.backgroundImage.name = konvaBackgroundImageFloor.attrs.name;
         roomObj.backgroundImage.x = ((konvaBackgroundImageFloor.attrs.x - pxOffset) / scale);
-
         roomObj.backgroundImage.y = ((konvaBackgroundImageFloor.attrs.y - pyOffset) / scale);
         roomObj.backgroundImage.width = konvaBackgroundImageFloor.width() / scale;
         roomObj.backgroundImage.height = konvaBackgroundImageFloor.height() / scale;
@@ -6194,8 +6231,10 @@ function setItemForLocalStorage(key, value) {
 
 function saveToUndoArray() {
     let strUndoArrayLastItem;
+    let roomObj2 = structuredClone(roomObj);
+    delete roomObj2.backgroundImageFile;
 
-    let strRoomObj = JSON.stringify(roomObj);
+    let strRoomObj = JSON.stringify(roomObj2);
 
     if (undoArray.length === 0) {
         strUndoArrayLastItem = '';
@@ -6209,7 +6248,7 @@ function saveToUndoArray() {
     if ((strRoomObj === strUndoArrayLastItem)) {
         /* do nothing */
     } else {
-        undoArray.push(structuredClone(roomObj));
+        undoArray.push(structuredClone(roomObj2));
         createShareableLink();
     }
 
@@ -6220,6 +6259,7 @@ function saveToUndoArray() {
     if (undoArray.length > maxUndoArrayLength) {
         undoArray.shift();
     }
+
 
     setItemForLocalStorage('undoArray', JSON.stringify(undoArray.slice(-30)));  /* only store the last 30 items to local storage to save on space */
 
@@ -7738,7 +7778,7 @@ function updateItem() {
 
             /* give the canvas some time to be updated before updating */
             setTimeout(() => {
-                updateFormatDetails(id);
+                // updateFormatDetails(id);  /* value is contained in enableCopyDelBtn */
                 tr.nodes([stage.find('#' + id)[0]]);
                 enableCopyDelBtn();
                 canvasToJson();
@@ -11765,7 +11805,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
 
-    let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere'];
+    let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -13325,10 +13365,22 @@ function turnOnBackgroundImageButtons() {
     document.getElementById('resizeBackgroundImageCheckBox').disabled = false;
     document.getElementById('transparencySlider').disabled = false;
     document.getElementById('btnSelect2Points').disabled = false;
+    document.getElementById('btnDeleteBackgroundImage').disabled = false;
+
+}
+
+function turnOffBackgroundImageButtons(){
+    document.getElementById('resizeBackgroundImageCheckBox').disabled = true;
+    document.getElementById('transparencySlider').disabled = true;
+    document.getElementById('btnSelect2Points').disabled = true;
+    document.getElementById('btnUpdateImageScale').disabled = true;
+    document.getElementById('btnDeleteBackgroundImage').disabled = true;
 
 }
 
 fileInputImage.addEventListener('change', function (e) {
+
+
     if (e.target.files && e.target.files[0]) {
 
         const reader = new FileReader();
@@ -13338,6 +13390,11 @@ fileInputImage.addEventListener('change', function (e) {
         reader.onload = function (e) {
 
             backgroundImageFloor.onload = function () {
+
+                if(isBackgroundImageFloorFileLoad){
+
+                    return;
+                }
 
                 let konvaBackgroundImageFloor = createKonvaBackgroundImageFloor();
 
@@ -13370,6 +13427,9 @@ fileInputImage.addEventListener('change', function (e) {
 
                 konvaBackgroundImageFloor.name(fileInputImage.value.replace(/C:\\fakepath\\/gm, ''));
 
+                document.getElementById('transparencySlider').value = 50;
+                changeTransparency(50);
+
                 setTimeout(() => {
                     canvasToJson();
                 }, 2000);
@@ -13378,10 +13438,12 @@ fileInputImage.addEventListener('change', function (e) {
             };
             backgroundImageFloor.src = e.target.result;
 
+            roomObj.backgroundImageFile = backgroundImageFloor.src;
 
             ;
         };
         reader.readAsDataURL(e.target.files[0]);
+
         drawScaledLineMode = true;
     }
 });
@@ -13423,10 +13485,20 @@ function importJson(jsonFile) {
 
         convertMetersFeet(true, jsonFile.unit);
 
+        isBackgroundImageFloorFileLoad = true;
+
+
+
         setTimeout(() => {
             roomObj = structuredClone(jsonFile);
             roomObj.trNodes = [];
 
+            if('backgroundImageFile' in jsonFile){
+                backgroundImageFloor.src = jsonFile.backgroundImageFile;
+                insertKonvaBackgroundImageFloor();
+                turnOnBackgroundImageButtons();
+                setTimeout(()=>{ isBackgroundImageFloorFileLoad = false;}, 1000);
+            }
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
             document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
             drawRoom(true, false, false);
@@ -14341,28 +14413,28 @@ function getLocationOfRoomKitEqxDisplay(item) {
 
 /* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
 
-function downloadJsonFile() {
-    let downloadRoomName;
-    let roomObj2 = structuredClone(roomObj);
-    if (konvaBackgroundImageFloor.name() != '') {
-        roomObj2.backgroundImageSrc = backgroundImageFloor.src;
-    }
-    const link = document.createElement("a");
-    const content = JSON.stringify(roomObj2, null, 5);
-    const file = new Blob([content], { type: 'text/plain' });
+// function downloadJsonFile() {
+//     let downloadRoomName;
+//     let roomObj2 = structuredClone(roomObj);
+//     if (konvaBackgroundImageFloor.name() != '') {
+//         roomObj2.backgroundImageSrc = backgroundImageFloor.src;
+//     }
+//     const link = document.createElement("a");
+//     const content = JSON.stringify(roomObj2, null, 5);
+//     const file = new Blob([content], { type: 'text/plain' });
 
-    downloadRoomName = roomObj.name;
+//     downloadRoomName = roomObj.name;
 
-    if (downloadRoomName == '') {
-        downloadRoomName = 'Video Room Calc';
-    }
-    link.href = URL.createObjectURL(file);
-    downloadRoomName = downloadRoomName.replace(/[/\\?%*:|"<>]/g, '-');
-    downloadRoomName = downloadRoomName.trim() + '.json';
-    link.download = downloadRoomName;
-    link.click();
-    URL.revokeObjectURL(link.href);
-}
+//     if (downloadRoomName == '') {
+//         downloadRoomName = 'Video Room Calc';
+//     }
+//     link.href = URL.createObjectURL(file);
+//     downloadRoomName = downloadRoomName.replace(/[/\\?%*:|"<>]/g, '-');
+//     downloadRoomName = downloadRoomName.trim() + '.json';
+//     link.download = downloadRoomName;
+//     link.click();
+//     URL.revokeObjectURL(link.href);
+// }
 
 function downloadFileWorkspace() {
 
@@ -15522,7 +15594,7 @@ function parsePathShapeLabelFieldJson(item) {
                 delete jsonValue.path;
             }
 
-            if(newLabel && !isObjectEmpty(jsonValue)){
+            if(!isObjectEmpty(jsonValue)){
                 newLabel = (newLabel + " " + JSON.stringify(jsonValue)).trim();
             }
 
@@ -15538,7 +15610,6 @@ function parsePathShapeLabelFieldJson(item) {
     if(newLabel){
         lblObj.label = newLabel;
     }
-
 
     return lblObj;
 
@@ -15633,6 +15704,15 @@ function downloadRoomObj() {
     roomItems.room.roomWidth = roomObj.room.roomWidth;
     roomItems.room.roomLength = roomObj.room.roomLength;
     roomItems.room.roomHeight = roomObj.room.roomHeight;
+
+    /* because undo might mess up roomObj.backgroundImageFile, just add the current background image to roomObj2 or get rid of all references to the backgroundImage */
+    let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
+    if (konvaBackgroundImageFloor && 'backgroundImage' in roomObj2) {
+        roomObj2.backgroundImageFile = backgroundImageFloor.src;
+    } else {
+        delete roomObj2.backgroundImageFile;
+        delete roomObj2.backgroundImage;
+    }
 
 
     let newRoomObj = { ...roomItems, ...roomObj2 };

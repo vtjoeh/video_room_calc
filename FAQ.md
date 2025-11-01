@@ -45,17 +45,39 @@ If you see any issue with any of the above please let me know.
 ### When I zoom in and click the undo/redo buttons, it zooms out.
 Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas and how HTML canvas + Javascript is not truly synchronous. This could be optimized at a later date.
 
-### What is the maximum URL size or number of items in a design?
-The size of the URL can be up to 8190 characters, which is about 500 objects. The use of text fields like the Name or Label fields contributes to the URL size. There is no enforced limit for downloading or uploading files.
+### What is the maximum Shareable Template Hyplerlink URL size or number of items in a design?
+The Shareable Template Hyperlink saves the full x, y, and z coordinates, as well as the sizes of every object in the query string parameter of the hyperlink. The size of the URL can be up to 8190 characters, which accommodates approximately 500 objects. The use of text fields, such as the Name or Label fields, contributes to the URL size. There is no enforced limit for downloading or uploading files.
 
 ### What about privacy and security? What information is tracked?
 The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud.
 **Third party javascript**: DomPurify by Mozilla Foundation distributed by Cloudfare CDN is used to help protect against XSS attacks, which means 3rd party.
-**Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookies are used.
+**Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookie trakcers are used.
 **Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies.
 
 ### I see a discrepancy between the Video Room Room Calculator and the Workspace Designer, what should I do?
 The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down flat view, whereas the Workspace Designer allows for a 3D side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
+
+### How do I use a custom Path Shape object to make a table or curved wall?
+From the Workspace Designer page:
+>"It is possible to create custom shapes by defining a shape and then controlling the thickness of it, similar to how you would form a flat gingerbread cake and then grow it in the oven. This can be useful to create custom table shapes or other objects that are not represented by the standard objects... To use custom shapes, you need a basic understanding of SVG path shapes. This is a 2-dimensional shape format that supports lines, curves, circles and ellipsis."
+
+The custom Path Shape objects are powerful but complicated to use at first.
+  - The Path Shape field format follows SVG path format.
+  - Units are in meters, regardless of whether you are using feet or meters for the design.
+  - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
+  - The Video Room Calculator `height` is translated to the Workspace Designer `thickness` parameter.
+  - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicted objects might require more than one custom Path Shape.
+  - Center the object around 0,0
+  - The tool at https://yqnn.github.io/svg-path-editor/ can be used to create your path, which can be copied to the Path Shape field.
+  - JSON objects are permitted in the **Item Label** field, but if you use curly brackets `{ }` and do not have a properly formatted JSON, the **Path Shape field** will be empty, and `{"path":"<path>"}` will be moved to the **Item Label** field.   Fix the JSON and click **Update Item** to have your `{"path":"<path>"}` parsed and placed in the **Path Shape field**.
+  - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
+  - The Path Shape fiild format is in SVG path format.
+  - Units are in meters regardless of whether you are using feet or meters for the design.
+  - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
+  - The Video Room Calculator `height` is translated to the Workspace Designer `thickness` parameter.
+  - The https://yqnn.github.io/svg-path-editor/ tool can be used to create your path, then copy the path to the Path Shape.
+  - If you use curly brackets`{ }` in the **Item Label** field but don't have the a properly formatted JSON, the **Path Shape field** will be empty and the `path:<your path>` will be moved to the **Item Label** field.
+  - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
 
 ### How is the display coverage for the closest and farthest participants determined?
 The Video Room Calculator assumes the optimum viewing distance of the display is 1x-3x the diagonal measurement of the display, but also shows the farthest participant should be no farther than 4x. According to [Cisco's Best Practices: Creating Effective Video-enabled Workspaces](https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf) "the optimal viewing distance for video and normal content is one to four times the diagonal of the screen." Other industry guidelines ranges will be slightly different. To better represent smaller font options and better align with the AVIXA standard (assuming 3% elemental height), a 3x line is also shown. See more details below.

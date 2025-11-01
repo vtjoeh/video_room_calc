@@ -623,13 +623,13 @@
               <label class="tooltipBottom" >Experimental
                 <i class="icon icon-info-circle-bold" ></i>
                 <span
-                    class="tooltiptextBottom"> Use a Room Floor Plan image as a temporary background image. This makes it easier to recreate the room dimensions precisely. Room Floor Plan images are
-                temporary and not saved in the URL by design. Most web image formats are suppored like JPEG, PNG, GIF & SVG. </span>
+                    class="tooltiptextBottom"> Use a Room Floor Plan image as a background. This makes it easier to recreate the room dimensions precisely. Room Floor Plan images are
+                 not saved in the URL by design, but saved in the vrc.json file. Most web image formats are suppored like JPEG, PNG, GIF & SVG. </span>
               </label>
             </div>
 
             <div style="text-align: left; font-size:12px; ">
-              <i>Use a Room Floor Plan image as a temporary background image. This makes it easier to recreate the room dimensions precisely.</i>
+              <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not saved to the Shareable Hyperlink Template.</i>
 
             </div>
             <br>
@@ -639,7 +639,9 @@
                 <!-- <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
               </label>
-              <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
+              <span id="fileInputImageContainer">
+               <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
+              </span>
             </div>
 
             <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
@@ -680,6 +682,10 @@
                 <span class="slider round"></span>
               </label>
             </div>
+            <div class="inputField">
+              <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()" class="button"
+              id="btnDeleteBackgroundImage" disabled>
+          </div>
           </div>
 
           <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
@@ -1022,7 +1028,7 @@
 
       <div class="menuDivider" style="text-align: left; font-size: smaller;">
         <b>Note:</b> <i>The Shareable Template Hyperlink is a copy of your current room. Changes made to
-          the Shareable Template Hyperlink do not affect the original. </i>
+          the Shareable Template Hyperlink do not affect the original. Room Floor Plan images are not saved in the Shareable Template Hyperlink. </i>
       </div>
 
       </div>
@@ -1041,7 +1047,7 @@
       </div>
 
       <div id="test2" style="display: none;">
-        Experimental JSON File Download:
+        <!-- Experimental JSON File Download:
 
         <div class="inputField">
           <input type="submit" value="Download JSON file" onclick="downloadJsonFile()" class="button"
@@ -1052,11 +1058,9 @@
         <div class="inputField">
           <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
             style="width: 300px">
-        </div>
-        Experimental JSON File Upload:
+        </div> -->
+        JSON File Upload (hidden):
         <input type="file" id="fileUpload" accept=".json">
-
-      </div>
 
     </main>
   </dialog>

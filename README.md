@@ -8,6 +8,11 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.629**
+- Background **Room Floor Plan** is now saved in the vrc.json file.  The Room Floor Plan is not saved in the Shareable Hyperlink Template.
+- **Room Floor Plan** now has a delete button.
+- Added field **Path Shape** for the **Path Shape** object.  The `<path>` is parsed from the `{"path":"<path>"}`.
+
 **v0.1.628**
 - New object **Path Shape**. The Path Shape is a new object currently being tested. To add a Path Shape, use the **Quick Add** menu by pressing the space bar and then searching for `** custom path shape`. The Path Shape has an **Item Label** of:
 `{"path":"<path>"}`
