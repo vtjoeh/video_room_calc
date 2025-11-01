@@ -67,17 +67,11 @@ The custom Path Shape objects are powerful but complicated to use at first.
   - Units are in meters, regardless of whether you are using feet or meters for the design.
   - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
   - The Video Room Calculator `height` is translated to the Workspace Designer `thickness` parameter.
-  - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicted objects might require more than one custom Path Shape.
-  - Center the object around 0,0
-  - The tool at https://yqnn.github.io/svg-path-editor/ can be used to create your path, which can be copied to the Path Shape field.
+  - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicted objects might require more than one Custom Path Shape.
+  - Center the object around 0,0.
+  - The path shape needs to be closed, making it challenging to draw walls of a consistent thickness.
   - JSON objects are permitted in the **Item Label** field, but if you use curly brackets `{ }` and do not have a properly formatted JSON, the **Path Shape field** will be empty, and `{"path":"<path>"}` will be moved to the **Item Label** field.   Fix the JSON and click **Update Item** to have your `{"path":"<path>"}` parsed and placed in the **Path Shape field**.
-  - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
-  - The Path Shape fiild format is in SVG path format.
-  - Units are in meters regardless of whether you are using feet or meters for the design.
-  - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
-  - The Video Room Calculator `height` is translated to the Workspace Designer `thickness` parameter.
-  - The https://yqnn.github.io/svg-path-editor/ tool can be used to create your path, then copy the path to the Path Shape.
-  - If you use curly brackets`{ }` in the **Item Label** field but don't have the a properly formatted JSON, the **Path Shape field** will be empty and the `path:<your path>` will be moved to the **Item Label** field.
+ - The tool at https://yqnn.github.io/svg-path-editor/ can be used to create your path, which can be copied to the Path Shape field.
   - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
 
 ### How is the display coverage for the closest and farthest participants determined?
