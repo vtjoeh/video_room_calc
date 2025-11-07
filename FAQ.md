@@ -61,7 +61,7 @@ The Workspace Designer is the official tool from Cisco and should take precedenc
 From the Workspace Designer page:
 >"It is possible to create custom shapes by defining a shape and then controlling the thickness of it, similar to how you would form a flat gingerbread cake and then grow it in the oven. This can be useful to create custom table shapes or other objects that are not represented by the standard objects... To use custom shapes, you need a basic understanding of SVG path shapes. This is a 2-dimensional shape format that supports lines, curves, circles and ellipsis."
 
-The custom Path Shape objects are powerful but complicated to use at first.
+The **Custom Path Shape** objects are powerful but complicated to use at first.
   - See the [Path Shape Example](https://collabexperience.com/?x=A0v0.1.629b500c800~Path+Shape+Example~B10010100AC18a588b90f-900UD177a306f-1350~%7B%22ignore%22%3A1%7D~UD370a302f1350~%7B%22ignore%22%3A1%7D~SX246a686f1475~%7B%22ignore%22%3A1%7D~SX180a724f1611~%7B%22ignore%22%3A1%7D~SX172a443f238~%7B%22ignore%22%3A1%7D~UD153a223f-900~%7B%22ignore%22%3A1%7D~UD180a119f-450~%7B%22ignore%22%3A1%7D~UD275a73~%7B%22ignore%22%3A1%7D~UD386a127f450~%7B%22ignore%22%3A1%7D~UD416a217f900~%7B%22ignore%22%3A1%7D~UD279a349f1800~%7B%22ignore%22%3A1%7D~SX255a477f297SX313a528f393SX313a639f1442WA-11a295c10e512WL205a583b68f900j4~%7B%22path%22%3A%22M+-1.19+0.901+C+-0.927+0.076+-0.495+-0.668+0.002+-1.152+C+0.547+-0.603+0.906+0.123+1.182+0.897+C+0.417+1.122+-0.395+1.031+-1.19+0.897%22%7D~WL288a294f-900j250~%7B%22color%22%3A%22lightblue%22%2C%22opacity%22%3A0.3%2C%22path%22%3A%22M+0+-3+v+0.1+C+1.4883+-2.9082+2.9211+-1.8828+2.9667+-0.0099+h+0.1+C+3.015+-1.991+1.602+-2.979+0+-3%22%7D~WA519a-12c10e235f900WL278a215b100f1350j4~%7B%22path%22%3A%22M+-0.904+-0.3928+L+-0.372+-0.9248+L+0.3608+-0.9304+L+0.904+-0.3928+L+0.904+0.3608+L+0.3976+0.8984+L+-0.3824+0.904+L+-0.92+0.3664+z%22%7D~DD16a590b101f-900g105) of custom tables and a custom wall.
   - The Path Shape field format follows SVG path format.
   - Units are in meters, regardless of whether you are using feet or meters for the design.
@@ -70,7 +70,7 @@ The custom Path Shape objects are powerful but complicated to use at first.
   - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicted objects might require more than one Custom Path Shape.
   - Center the object around 0,0.
   - The path shape needs to be closed, making it challenging to draw walls of a consistent thickness.
-  - JSON objects are permitted in the **Item Label** field, but if you use curly brackets `{ }` and do not have a properly formatted JSON, the **Path Shape field** will be empty, and `{"path":"<path>"}` will be moved to the **Item Label** field.   Fix the JSON and click **Update Item** to have your `{"path":"<path>"}` parsed and placed in the **Path Shape field**.
+  - JSON objects are still permitted in the **Item Label** field, but if you use curly brackets `{ }` and do not have a properly formatted JSON, the **Path Shape field** will be empty, and `{"path":"<path>"}` will be moved to the **Item Label** field.  Fix the JSON and click **Update Item** to have your `{"path":"<path>"}` parsed and placed in the **Path Shape field**.
  - The tool at https://yqnn.github.io/svg-path-editor/ can be used to create your path, which can be copied to the Path Shape field.
   - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
 

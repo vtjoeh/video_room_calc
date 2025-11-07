@@ -1,4 +1,4 @@
-const version = "v0.1.629";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.630";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -2153,6 +2153,8 @@ function windowResizeEventName() {
     }, 550);
 }
 
+
+
 function hasScrollbar(element) {
 
     return element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth;
@@ -3097,14 +3099,14 @@ function parseShortenedXYUrl(parameters) {
 
 }
 
-function deleteBackgroundImageConfirmation(){
+function deleteBackgroundImageConfirmation() {
     let text = "Delete Room Floor Plan Background?";
-    if (confirm(text) == true){
+    if (confirm(text) == true) {
         deleteBackgroundImage();
     }
 }
 
-function deleteBackgroundImage(){
+function deleteBackgroundImage() {
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
     if (konvaBackgroundImageFloor) {
@@ -3868,6 +3870,7 @@ function drawOutsideWall(grOuterWall) {
         outsideWallThickness = outsideWallThickness * 3.28084;
     }
 
+
     let outsideWall = new Konva.Rect({
         x: pxOffset - outsideWallThickness * scale,
         y: pyOffset - outsideWallThickness * scale,
@@ -3887,8 +3890,8 @@ function drawOutsideWall(grOuterWall) {
 
     if (!roomObj.workspace.removeDefaultWalls) {
 
-        // outsideWall.stroke('#888888');
-        outsideWall.stroke('#111111');
+        outsideWall.stroke('#888888');
+
         let outsideWallLeft = new Konva.Rect({
             x: pxOffset - outsideWallThickness * scale,
             y: pyOffset - outsideWallThickness * scale,
@@ -4360,7 +4363,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         canvasWindowHeight = minWindowHeight;
     }
 
-    if(roomObj.backgroundImage){
+    if (roomObj.backgroundImage) {
         turnOnBackgroundImageButtons();
         document.getElementById('transparencySlider').value = roomObj.backgroundImage.opacity || 50;
         document.getElementById('transparencyOutput').innerText = roomObj.backgroundImage.opacity || 50;
@@ -4375,7 +4378,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
-    pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
+    // pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
+    // pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
+
+
+    pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + ((roomObj.unit === 'feet') ? 0.115 : 0.115 * 3.284) + 40;
     pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
 
     pyOffset = pxOffset;
@@ -4384,10 +4391,17 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let yScale = (canvasWindowHeight - pyOffset * 2) / roomLength;
 
+
     if (xScale < yScale) {
         scale = xScale;
     } else {
         scale = yScale;
+    }
+
+    if (pxOffset < (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3)){
+        pxOffset = (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3);
+        pyOffset = pxOffset;
+        scale = scale * 0.85;
     }
 
     clipShadingBorder.x = pxOffset;
@@ -4483,9 +4497,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     layerGrid.add(groupBackground);
 
     /* create the outerWall (border) */
-    let cOuterWall = new Konva.Rect({
+    let innerWall = new Konva.Rect({
         x: pxOffset,
-        y: pxOffset,
+        y: pyOffset,
         width: roomWidth * scale,
         height: roomLength * scale,
         stroke: '#3e3d3d',
@@ -4495,14 +4509,13 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         preventDefault: false,
     });
 
-    let grOuterWall = new Konva.Group();
+    let groupOuterWall = new Konva.Group();
 
-    grOuterWall.add(cOuterWall);
+    groupOuterWall.add(innerWall);
 
-    layerGrid.add(grOuterWall);
+    layerGrid.add(groupOuterWall);
 
-
-    drawOutsideWall(grOuterWall);
+    drawOutsideWall(groupOuterWall);
 
     let increment = 1.0;
 
@@ -4599,7 +4612,7 @@ function changeTransparency(value = 50) {
     document.getElementById('transparencyOutput').innerText = value;
     konvaBackgroundImageFloor.opacity(value / 100);
 
-    if(!roomObj.backgroundImage){
+    if (!roomObj.backgroundImage) {
         roomObj.backgroundImage = {};
     }
     roomObj.backgroundImage.opacity = value;
@@ -6745,23 +6758,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
-    // if (insertDevice.id === 'boxTopLevel') {
-    //     tblWallFlr = new Konva.Rect({
-    //         x: pixelX,
-    //         y: pixelY,
-    //         rotation: rotation,
-    //         width: width,
-    //         height: height,
-    //         fill: '#FFFFFF99',
-    //         id: uuid,
-    //         cornerRadius: radius,
-    //         draggable: true,
-    //         dash: allDeviceTypes[insertDevice.id].dash,
-    //         stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
-    //         strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
-    //     });
-    // }
-
 
     if (insertDevice.id === 'carpet') {
         tblWallFlr = new Konva.Rect({
@@ -7178,10 +7174,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (tr.nodes().length === 1)
 
             setTimeout((theDeviceId) => {
-
-                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
-                    updateItem();
-                }
+                updateItem();
+                // if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
+                //     updateItem();
+                // }
 
             }, 100, theDeviceId);
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
@@ -7350,79 +7346,92 @@ function updateShapesBasedOnNewScale() {
         oldPxOffset = layerTransform.data_pxOffset;
         oldPyOffset = layerTransform.data_pyOffset;
 
-        updateNodeScale(layerTransform);
+        updateNodeScaleLayer(layerTransform);
 
         updateKonvaBackgroundImageFloor();
 
-        function updateNodeScale(layer) {
+
+
+        function updateNodeScaleLayer(layer) {
 
             layer.getChildren().forEach((parentGroup) => {
 
                 let theObjects = parentGroup.getChildren();
 
                 for (let i = 0; i < theObjects.length; i++) {
-                    let node = theObjects[i];
-                    let attrs = node.attrs;
 
-                    if (node.data_deviceid === 'wallChairs') {
-                        let fillScaleX = scale / oldScale * node.fillPatternScaleX();
-                        node.fillPatternScaleX(fillScaleX);
-                        let fillScaleY = scale / oldScale * node.fillPatternScaleY();
-                        node.fillPatternScaleY(fillScaleY);
-
-                    }
-
-                    if (node.data_deviceid === 'pathShape') {
-                        let newScaleX = scale / oldScale * node.scaleX();
-                        let newScaleY = scale / oldScale * node.scaleY();
-                        node.scaleX(newScaleX);
-                        node.scaleY(newScaleY);
-                    }
-
-                    if ('x' in attrs) {
-
-                        let newX = pxOffset + ((scale / oldScale) * (node.x() - oldPxOffset));
-                        node.x(newX);
-                    }
-
-                    /* for the shading_group, scaling works. */
-                    if ('name' in attrs) {
-                        if (attrs.name === 'shading_group') {
-                            let newScaleX = scale / oldScale * node.scaleX();
-                            let newScaleY = scale / oldScale * node.scaleY();
-                            node.scaleX(newScaleX);
-                            node.scaleY(newScaleY);
-                        }
-                    }
-
-                    if ('y' in attrs) {
-                        let newY = pyOffset + ((scale / oldScale) * (node.y() - oldPyOffset));
-                        node.y(newY);
-                    }
-
-                    if ('width' in attrs) {
-                        let newWidth = scale / oldScale * node.width();
-                        node.width(newWidth);
-                    }
-
-                    if ('height' in attrs) {
-                        let newHeight = scale / oldScale * node.height();
-                        node.height(newHeight);
-                    }
-
-                    if ('radius' in attrs) {
-                        let newRadius = scale / oldScale * node.radius();
-                        node.radius(newRadius);
-                    }
-
-                    if ('fillRadialGradientEndRadius' in attrs) {
-                        let newFillRadialGradientEndRadius = scale / oldScale * node.fillRadialGradientEndRadius();
-                        node.fillRadialGradientEndRadius(newFillRadialGradientEndRadius);
-                    }
-
+                    updateNode(theObjects[i]);
                 };
 
             })
+        }
+
+        // let outerWall = stage.findOne('#outsideWall');
+
+        // if (outerWall){
+        //     updateNode(outerWall);
+        // }
+
+
+        function updateNode(node) {
+
+            let attrs = node.attrs;
+
+            if (node.data_deviceid === 'wallChairs') {
+                let fillScaleX = scale / oldScale * node.fillPatternScaleX();
+                node.fillPatternScaleX(fillScaleX);
+                let fillScaleY = scale / oldScale * node.fillPatternScaleY();
+                node.fillPatternScaleY(fillScaleY);
+
+            }
+
+            if (node.data_deviceid === 'pathShape') {
+                let newScaleX = scale / oldScale * node.scaleX();
+                let newScaleY = scale / oldScale * node.scaleY();
+                node.scaleX(newScaleX);
+                node.scaleY(newScaleY);
+            }
+
+            if ('x' in attrs) {
+
+                let newX = pxOffset + ((scale / oldScale) * (node.x() - oldPxOffset));
+                node.x(newX);
+            }
+
+            /* for the shading_group, scaling works. */
+            if ('name' in attrs) {
+                if (attrs.name === 'shading_group') {
+                    let newScaleX = scale / oldScale * node.scaleX();
+                    let newScaleY = scale / oldScale * node.scaleY();
+                    node.scaleX(newScaleX);
+                    node.scaleY(newScaleY);
+                }
+            }
+
+            if ('y' in attrs) {
+                let newY = pyOffset + ((scale / oldScale) * (node.y() - oldPyOffset));
+                node.y(newY);
+            }
+
+            if ('width' in attrs) {
+                let newWidth = scale / oldScale * node.width();
+                node.width(newWidth);
+            }
+
+            if ('height' in attrs) {
+                let newHeight = scale / oldScale * node.height();
+                node.height(newHeight);
+            }
+
+            if ('radius' in attrs) {
+                let newRadius = scale / oldScale * node.radius();
+                node.radius(newRadius);
+            }
+
+            if ('fillRadialGradientEndRadius' in attrs) {
+                let newFillRadialGradientEndRadius = scale / oldScale * node.fillRadialGradientEndRadius();
+                node.fillRadialGradientEndRadius(newFillRadialGradientEndRadius);
+            }
         }
     }
 
@@ -7667,7 +7676,7 @@ function updateItem() {
                 }
             }
 
-            if(item.data_deviceid === 'pathShape'){
+            if (item.data_deviceid === 'pathShape') {
                 data_labelField = combinePathShapeLabel(data_labelField, document.getElementById('labelPath').value);
             }
 
@@ -11079,7 +11088,7 @@ function updateFormatDetails(eventOrShapeId) {
 
             if ('data_labelField' in item && item.data_labelField) {
 
-                if(shape.data_deviceid === 'pathShape'){
+                if (shape.data_deviceid === 'pathShape') {
 
                     let pathLabel = parsePathShapeLabelFieldJson(item);
 
@@ -13369,7 +13378,7 @@ function turnOnBackgroundImageButtons() {
 
 }
 
-function turnOffBackgroundImageButtons(){
+function turnOffBackgroundImageButtons() {
     document.getElementById('resizeBackgroundImageCheckBox').disabled = true;
     document.getElementById('transparencySlider').disabled = true;
     document.getElementById('btnSelect2Points').disabled = true;
@@ -13391,7 +13400,7 @@ fileInputImage.addEventListener('change', function (e) {
 
             backgroundImageFloor.onload = function () {
 
-                if(isBackgroundImageFloorFileLoad){
+                if (isBackgroundImageFloorFileLoad) {
 
                     return;
                 }
@@ -13493,11 +13502,11 @@ function importJson(jsonFile) {
             roomObj = structuredClone(jsonFile);
             roomObj.trNodes = [];
 
-            if('backgroundImageFile' in jsonFile){
+            if ('backgroundImageFile' in jsonFile) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
-                setTimeout(()=>{ isBackgroundImageFloorFileLoad = false;}, 1000);
+                setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
             }
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
             document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
@@ -14556,14 +14565,14 @@ function postMessageToWorkspace() {
     }
 
     if (workspaceWindow) {
-
-        workspaceWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: { unit: unit } }, '*');
+        //    console.info(JSON.stringify({ plan: exportRoomObjToWorkspace(), settings: { unit: unit }}, null, 5));
+        workspaceWindow.postMessage({ roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }, '*');
 
     }
 
 
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage({ plan: exportRoomObjToWorkspace(), settings: { unit: unit } }, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage({ roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }, '*');
     }
 
 
@@ -14572,8 +14581,8 @@ function postMessageToWorkspace() {
 window.addEventListener(
     "message",
     (event) => {
-        if (event.origin.startsWith('https://prototypes.cisco.com/') || event.origin.startsWith('https://www.webex.com/') || event.origin.startsWith('https://collabexperience.com/') || event.origin.startsWith('http://127.0.0.1:5001/')) {
-            console.info('received postMessage() back: ', event.data);
+        if (event.origin.match(/https:\/\/.*(\.cisco|\.webex|)\.com$/) || event.origin.startsWith('https://collabexperience.com') || event.origin.startsWith('http://127.0.0.1')) {
+            console.info('message received postMessage() back: ', event.data);
         }
     },
     false,
@@ -15589,12 +15598,12 @@ function parsePathShapeLabelFieldJson(item) {
     if (jsonPart) {
         try {
             let jsonValue = JSON.parse(jsonPart[0]);
-            if('path' in jsonValue){
+            if ('path' in jsonValue) {
                 lblObj.path = jsonValue.path;
                 delete jsonValue.path;
             }
 
-            if(!isObjectEmpty(jsonValue)){
+            if (!isObjectEmpty(jsonValue)) {
                 newLabel = (newLabel + " " + JSON.stringify(jsonValue)).trim();
             }
 
@@ -15607,7 +15616,7 @@ function parsePathShapeLabelFieldJson(item) {
 
     }
 
-    if(newLabel){
+    if (newLabel) {
         lblObj.label = newLabel;
     }
 
@@ -15615,7 +15624,7 @@ function parsePathShapeLabelFieldJson(item) {
 
 }
 
-function combinePathShapeLabel(label, path){
+function combinePathShapeLabel(label, path) {
     let newLabel = '';
 
     let commentPart = label.replace(/{.*?}/g, '').trim();
@@ -15626,27 +15635,27 @@ function combinePathShapeLabel(label, path){
 
     path = path.trim();
 
-    if (jsonPart){
+    if (jsonPart) {
         try {
             let jsonValue = JSON.parse(jsonPart[0]);
 
-            if(path){
+            if (path) {
                 jsonValue.path = path;
             }
 
-            if(label && !isObjectEmpty(jsonValue)){
+            if (label && !isObjectEmpty(jsonValue)) {
                 newLabel = commentPart + JSON.stringify(jsonValue);
             }
-            else if(label) {
+            else if (label) {
                 newLabel = label;
 
-             }
-            else if (!isObjectEmpty(jsonValue)){
+            }
+            else if (!isObjectEmpty(jsonValue)) {
                 newLabel = JSON.stringify(jsonValue);
             }
 
         } catch {
-            if (path && path.trim() != ''){
+            if (path && path.trim() != '') {
                 newLabel = (label + '{"path":"' + path + '"}').trim();
             } else {
                 newLabel = label;
@@ -15656,11 +15665,11 @@ function combinePathShapeLabel(label, path){
             console.info('Error parsing JSON on combine:', jsonPart);
         }
     } else {
-            if (path && path != ''){
-                newLabel = (label + '{"path":"' + path + '"}').trim();
-            } else {
-                newLabel = label;
-            }
+        if (path && path != '') {
+            newLabel = (label + '{"path":"' + path + '"}').trim();
+        } else {
+            newLabel = label;
+        }
     }
 
     return newLabel;
@@ -16152,10 +16161,10 @@ function areObjectsEqual(obj1, obj2) {
 }
 
 function isObjectEmpty(obj) {
-  if (obj === null || typeof obj !== 'object') {
-    return false;
-  }
-  return Object.keys(obj).length === 0;
+    if (obj === null || typeof obj !== 'object') {
+        return false;
+    }
+    return Object.keys(obj).length === 0;
 }
 
 /*
