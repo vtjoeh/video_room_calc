@@ -8,9 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.6390**
-- Setting **Rotation Snap Off** added
-- update on room canvas refresh on window resize
+**v0.1.630**
+- Setting **Rotation Snap Off** added.
+- Update on room canvas refresh on window resize.
 
 **v0.1.629**
 - Background **Room Floor Plan** is now saved in the vrc.json file.  The Room Floor Plan is not saved in the Shareable Hyperlink Template.
