@@ -922,6 +922,15 @@
         </label>
       </div>
       <div class="menuMoreInputField">
+        <label class="tooltipBottom">Rotation Snap Off:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Rotation snaps to 45&deg; increments by default.</span></label>
+        <label class="switch">
+          <input id="snapRotationOffCheckBox" type="checkbox" onclick="snapRotationOffChange(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
         <label class="tooltipBottom">Snap to Objects:
           <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptextBottom">Show guidelines and snap to the edges or center of other
@@ -956,9 +965,11 @@
         <div>
           <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
             style="width: 100%" onChange="updateSnapToIncrement()" disabled>
-          <div style="top: 160px; right:17px; position: absolute; " class="unitFeetMeters">ft</div>
+          <div style="top: 195px; right:17px; position: absolute; " class="unitFeetMeters">ft</div>
         </div>
       </div>
+
+
     </div>
 
   </div>

@@ -553,6 +553,7 @@ let tr = new Konva.Transformer({
 });
 
 
+
 /* Customize the rotation / rotater anchor */
 const rotateImageObj = new Image();
 
@@ -2138,7 +2139,18 @@ let resizeWindowTimer;
 
 windowResizeEvent(); /* initialize first time */
 
+let scrollContDim = {};
+
+scrollContDim.width = 0;
+scrollContDim.height = 0;
+scrollContDim.rectWidth = 0;
+scrollContDim.rectHeight = 0;
+
 function windowResizeEventName() {
+
+    let blurryDiv = document.getElementById('scroll-container');
+    blurryDiv.classList.add('my-blurred-div');
+
     trNodesUuidToRoomObj();
     toggleMoreMenu('close');
     closeAllMenus();
@@ -2148,9 +2160,16 @@ function windowResizeEventName() {
 
     resizeWindowTimer = setTimeout(function resizingCanvas() {
         zoomInOut('reset');
-        drawRoom(false, false, true);
-        setTimeout(updatWallChairsOnResize, 100);
+        drawRoom(true, false, true);
+
+        setTimeout(()=>{
+            blurryDiv.classList.remove('my-blurred-div');
+        }, 500);
+
+       // setTimeout(updatWallChairsOnResize, 100);
     }, 550);
+
+
 }
 
 
@@ -3298,6 +3317,14 @@ function onLoad() {
     } else {
         document.getElementById('snapIncrementCheckBox').checked = false;
         document.getElementById('snapToIncrement').disabled = true;
+    }
+
+    if(localStorage.getItem('snapRotationOffCheckBox') === 'true'){
+        document.getElementById('snapRotationOffCheckBox').checked = true;
+        tr.rotationSnaps([]);
+    } else {
+        document.getElementById('snapRotationOffCheckBox').checked = false;
+        tr.rotationSnaps([0, 45, 90, 135, 180, 225, 270, 315, 360]);
     }
 
     if (localStorage.getItem('snapToIncrement')) {
@@ -7174,12 +7201,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (tr.nodes().length === 1)
 
             setTimeout((theDeviceId) => {
-                updateItem();
-                // if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
-                //     updateItem();
-                // }
+
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
+                    updateItem();
+                }
 
             }, 100, theDeviceId);
+            layerTransform.draw()
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
@@ -10226,6 +10254,17 @@ function snapChange(e) {
 
     setItemForLocalStorage('snapToIncrement', document.getElementById('snapToIncrement').value)
 
+}
+
+function snapRotationOffChange(e){
+
+    if (e.srcElement.checked) {
+        setItemForLocalStorage('snapRotationOffCheckBox', 'true');
+        tr.rotationSnaps([]);
+    } else {
+        setItemForLocalStorage('snapRotationOffCheckBox', 'false');
+        tr.rotationSnaps([0, 45, 90, 135, 180, 225, 270, 315, 360]);
+    }
 }
 
 function updateSnapToIncrement() {
@@ -14515,11 +14554,10 @@ function openWorkspaceWindow(fromButton = true) {
     if (testiFrame) {
 
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
-        iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
+        // iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
 
-
+        iFrameWorkspaceWindow.src = newWorkspaceTab
     }
-
 
 
     /* send initial post message 3 times in case page is opening slow */
@@ -14558,21 +14596,23 @@ function openDetailsRoomTab() {
 function postMessageToWorkspace() {
 
     let unit = 'meter';
-
+    let message = {};
 
     if (roomObj.unit === 'feet') {
         unit = 'foot'
     }
 
-    if (workspaceWindow) {
-        //    console.info(JSON.stringify({ plan: exportRoomObjToWorkspace(), settings: { unit: unit }}, null, 5));
-        workspaceWindow.postMessage({ roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }, '*');
+    message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
+   // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
+   // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
+
+    if (workspaceWindow) {
+        workspaceWindow.postMessage(message, '*');
     }
 
-
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage({ roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage(message, '*');
     }
 
 
