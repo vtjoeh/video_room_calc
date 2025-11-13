@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+***v0.1.631**
+- Support for designer.cisco.com configurable walls. The Video Room Calculator refers to these walls as Default Walls.
+
 **v0.1.630**
 - Setting **Rotation Snap Off** added.
 - Update on room canvas refresh on window resize.

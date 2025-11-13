@@ -1,4 +1,4 @@
-const version = "v0.1.630";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.631";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
@@ -111,6 +111,14 @@ roomObj.items.touchPanels = [];
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
 
+let defaultRoomSurfaces = {
+    leftwall: { type: 'regular', acousticTreatment: true },
+    videowall: { type: 'regular', acousticTreatment: false },
+    rightwall: { type: 'regular', acousticTreatment: false },
+    backwall: { type: 'regular', acousticTreatment: false }
+}
+
+roomObj.roomSurfaces = structuredClone(defaultRoomSurfaces);
 
 
 let unit = roomObj.unit;
@@ -144,7 +152,7 @@ let stageOriginalset = false;
 
 let qrCodeAlwaysOn = false; /* QrCode is only used on RoomOS devices.  Adding &qr to the query string turns on the qrCode options */
 let testProduction = false; /* For forcing to test production crosslaunch */
-let testNew = true; /* used to toggle on new features */
+let testNew = false; /* used to toggle on new features */
 let testiFrame = false; /* testing iFrame settings, only works on internal Cisco Workspace Designer test site */
 let testiFrameInitialized = false; /* Keep track if the testing iFrame settings */
 let testOffset = false; /* shows a field that configures xOffset and yOffset which is used in the items workspaceKey */
@@ -168,6 +176,8 @@ let selecting = false; /* keeps state if in the process of selecting 2 points */
 let clickedOnItemId = ''; /* keeps track of single clicked on items */
 
 let selectingTwoPoints = false; /* Keeps state if selecting 2 points to scale background image */
+
+let selectingOuterWall = false; /* if an outerwall is clicked on, turn true to keep selectionRectangle from happening */
 
 let movingBackgroundImage = false; /* Keeps state if moving background image */
 
@@ -512,6 +522,12 @@ let txtAttribution = new Konva.Text(
 /* create a background image floorplan  to load */
 let backgroundImageFloor = new Image();
 
+
+if (localStorage.getItem('testNew') === 'true') {
+    testNew = true;
+} else {
+    testNew = false;
+}
 
 
 function createKonvaBackgroundImageFloor(x = pxOffset - 5, y = pyOffset - 5, height = stage.height() * 1.05, opacity = 0.5) {
@@ -2162,11 +2178,11 @@ function windowResizeEventName() {
         zoomInOut('reset');
         drawRoom(true, false, true);
 
-        setTimeout(()=>{
+        setTimeout(() => {
             blurryDiv.classList.remove('my-blurred-div');
         }, 500);
 
-       // setTimeout(updatWallChairsOnResize, 100);
+        // setTimeout(updatWallChairsOnResize, 100);
     }, 550);
 
 
@@ -2594,6 +2610,7 @@ function getQueryString() {
         loadDrpDownOverrideScript();
         testiFrame = true;
         newWorkspaceTab = defaultWorkspaceTestSite;
+        testNew = true;
     }
     else if ((mobileDevice === 'Tesla')) {
         loadDrpDownOverrideScript();
@@ -2664,6 +2681,7 @@ function getQueryString() {
 
     if (urlParams.has('wd')) {
         let wd = urlParams.get('wd');
+        let testNewString = 'false';
         if (wd == '0') {
             console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
             localStorage.removeItem('wd');
@@ -2674,12 +2692,14 @@ function getQueryString() {
             let base = decodeURIComponent(wd);
             if (wd === '1') {
                 workspaceDesignerTestUrl = defaultWorkspaceTab;
+                testNew = false;
             } else {
                 workspaceDesignerTestUrl = `${base}/#/room/custom`;
             }
 
             console.info('urlParams wd=', workspaceDesignerTestUrl, 'custom Workspace Designer tab is set.');
             setItemForLocalStorage('wd', workspaceDesignerTestUrl);
+            setItemForLocalStorage('testNew', testNew)
         }
     } else {
         workspaceDesignerTestUrl = localStorage.getItem('wd');
@@ -2994,6 +3014,55 @@ function parseShortenedXYUrl(parameters) {
                 roomObj.authorVersion = DOMPurify.sanitize(item.text);
             }
         }
+        else if (item.sid === "D" || item.sid === "E" || item.sid === "F" || item.sid === "G") {
+            let roomSurface = {};
+            let wall;
+
+            if ('value' in item) {
+                if (item.value === '0') {
+                    roomSurface.type = 'regular';
+                }
+                else if (item.value === '1') {
+                    roomSurface.type = 'glass';
+                }
+                else if (item.value === '2') {
+                    roomSurface.type = 'window';
+                }
+            }
+
+            if ('a' in item) {
+                if (item.a === '0') {
+                    roomSurface.acousticTreatment = false;
+                }
+                else if (item.a === '1') {
+                    roomSurface.acousticTreatment = true;
+                }
+            }
+
+            if ('b' in item) {
+                if (item.b === '0') {
+                    roomSurface.door = 'left';
+                }
+                else if (item.b === '1') {
+                    roomSurface.door = 'center';
+                }
+                else if (item.b === '2') {
+                    roomSurface.door = 'right';
+                }
+            }
+
+            if (item.sid === "D") {
+                wall = 'leftwall';
+            } else if (item.sid === 'E') {
+                wall = 'rightwall';
+            } else if (item.sid === 'F') {
+                wall = 'videowall';
+            } else if (item.sid === 'G') {
+                wall = 'backwall';
+            }
+
+            roomObj.roomSurfaces[wall] = roomSurface;
+        }
 
         if (item.sid in keyIdObj) {
 
@@ -3179,6 +3248,15 @@ function resetRoomObj() {
         "drpTvNum": 1,
     };
 
+
+    roomObj.roomSurfaces =
+    {
+        leftwall: { type: 'regular', acousticTreatment: true },
+        videowall: { type: 'regular', acousticTreatment: false },
+        rightwall: { type: 'regular', acousticTreatment: false },
+        backwall: { type: 'regular', acousticTreatment: false }
+    }
+
     deleteBackgroundImage();
 
     /* reset fields */
@@ -3319,7 +3397,7 @@ function onLoad() {
         document.getElementById('snapToIncrement').disabled = true;
     }
 
-    if(localStorage.getItem('snapRotationOffCheckBox') === 'true'){
+    if (localStorage.getItem('snapRotationOffCheckBox') === 'true') {
         document.getElementById('snapRotationOffCheckBox').checked = true;
         tr.rotationSnaps([]);
     } else {
@@ -3340,6 +3418,8 @@ function onLoad() {
     addEventUpdateItemsDropDown()
 
     makeButtonsVisible();
+
+    updateRemoveDefaultWallsCheckBox();
 }
 
 
@@ -3889,6 +3969,8 @@ function getDistanceB(degreeB, distanceA) {
     return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
 }
 
+
+
 function drawOutsideWall(grOuterWall) {
 
     let outsideWallThickness = 0.115;
@@ -3921,68 +4003,138 @@ function drawOutsideWall(grOuterWall) {
 
         let outsideWallLeft = new Konva.Rect({
             x: pxOffset - outsideWallThickness * scale,
-            y: pyOffset - outsideWallThickness * scale,
+            //   y: pyOffset - outsideWallThickness * scale,
+            y: pyOffset,
             width: outsideWallThickness * scale,
-            height: (roomLength + outsideWallThickness * 2) * scale,
+            //   height: (roomLength + outsideWallThickness * 2) * scale,
+            height: roomLength * scale,
             // stroke: '#8f8d8d',
             // strokeWidth: 1,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
             id: 'defaultOutsideWallLeft',
-            name: 'defaultOutsideWall',
-            listening: false,
+            name: 'leftwall',
+            listening: true,
             preventDefault: false,
         });
+
+        outsideWallLeft.data_deviceid = 'outsideWallLeft';
 
         grOuterWall.add(outsideWallLeft);
 
         let outsideWallRight = new Konva.Rect({
-            x: pxOffset + (roomWidth) * scale,
-            y: pyOffset - outsideWallThickness * scale,
+            x: pxOffset + (roomWidth + outsideWallThickness) * scale,
+            y: pxOffset + roomLength * scale,
+            rotation: 180,
             width: outsideWallThickness * scale,
-            height: (roomLength + outsideWallThickness * 2) * scale,
+            height: roomLength * scale,
             // stroke: '#8f8d8d',
             // strokeWidth: 1,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
-            id: 'defaultOutsideWallLeft',
-            name: 'defaultOutsideWall',
-            listening: false,
+            id: 'defaultOutsideWallRight',
+            name: 'rightwall',
+            listening: true,
             preventDefault: false,
         });
 
+        outsideWallLeft.data_deviceid = 'outsideWallRight';
         grOuterWall.add(outsideWallRight);
 
         let outsideWallUpper = new Konva.Rect({
-            x: pxOffset,
+            x: pxOffset + (roomWidth + outsideWallThickness) * scale,
             y: pyOffset - outsideWallThickness * scale,
-            width: roomWidth * scale,
-            height: outsideWallThickness * scale,
+            rotation: 90,
+            width: outsideWallThickness * scale,
+            height: (roomWidth + (outsideWallThickness * 2)) * scale,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
-            id: 'defaultOutsideWallLeft',
-            name: 'defaultOutsideWall',
-            listening: false,
+            id: 'defaultOutsideWallUpper',
+            name: 'videowall',
+            listening: true,
             preventDefault: false,
         });
+
+        outsideWallLeft.data_deviceid = 'outsideWallUpper';
 
         grOuterWall.add(outsideWallUpper);
 
         let outsideWallLower = new Konva.Rect({
-            x: pxOffset,
-            y: pyOffset + (roomLength) * scale,
-            width: roomWidth * scale,
-            height: outsideWallThickness * scale,
+            x: pxOffset - outsideWallThickness * scale,
+            y: pyOffset + (roomLength + outsideWallThickness) * scale,
+            rotation: 270,
+            width: outsideWallThickness * scale,
+            height: (roomWidth + (outsideWallThickness * 2)) * scale,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
-            id: 'defaultOutsideWallLeft',
-            name: 'defaultOutsideWall',
-            listening: false,
+            id: 'defaultOutsideWallLower',
+            name: 'backwall',
+            listening: true,
             preventDefault: false,
         });
 
+        outsideWallLeft.data_deviceid = 'outsideWallLower';
+
         grOuterWall.add(outsideWallLower);
 
+        addListeners(outsideWallLeft);
+        addListeners(outsideWallRight);
+        addListeners(outsideWallUpper);
+        addListeners(outsideWallLower);
+
+        ['leftwall', 'videowall', 'backwall', 'rightwall'].forEach(type => {
+            updateDefaultWallType(type);
+        })
+
+        function addListeners(wallItem) {
+
+            if (!testNew) return;
+
+            wallItem.on('mousedown touchstart', function outsideWallOnMouseDownTouchstart(e) {
+                /* tempWall is just for flashing purple when the wall is selected */
+                let tempWall = stage.findOne('#tempWall');
+                if (tempWall) {
+                    tempWall.destroy();
+                }
+
+                selectingOuterWall = true;
+                tr.nodes([]);
+
+                e.evt.preventDefault();
+                if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
+                    e.evt.preventDefault();
+                    return;
+                }
+
+                tempWall = e.target.clone();
+
+                tempWall.id('tempWall');
+                tempWall.fill('purple');
+                tempWall.opacity(0.2);
+
+                grOuterWall.add(tempWall);
+
+                document.getElementById("tabItem").click();
+                document.getElementById("subTabDefaultWalls").click();
+                document.getElementById("drpRoomSurfaces").value = e.target.name();
+                setDefaultWallsMenu(e.target.name());
+                //  updateFormatDetails(e);
+
+                //  updateShading(imageItem);
+                clickedOnItemId = e.target.id();
+            });
+
+            wallItem.on('mouseup touchend mouseleave', function outsideWallMouseUpTouchend(e) {
+                e.evt.preventDefault();
+                selectingOuterWall = false;
+                clickedOnItemId = '';
+                let tempWall = stage.findOne('#tempWall');
+                if (tempWall) {
+                    tempWall.destroy();
+                }
+                // tempWall.destroy();
+            });
+        }
 
     } else {
         let offset = scale / 20;
@@ -4408,6 +4560,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     // pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
     // pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
 
+    setDefaultWallsMenu(document.getElementById('drpRoomSurfaces').value);
 
     pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + ((roomObj.unit === 'feet') ? 0.115 : 0.115 * 3.284) + 40;
     pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
@@ -4425,7 +4578,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         scale = yScale;
     }
 
-    if (pxOffset < (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3)){
+    if (pxOffset < (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3)) {
         pxOffset = (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3);
         pyOffset = pxOffset;
         scale = scale * 0.85;
@@ -4538,10 +4691,12 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let groupOuterWall = new Konva.Group();
 
+    groupOuterWall.id('groupOuterWall');
+
     groupOuterWall.add(innerWall);
 
     layerGrid.add(groupOuterWall);
-
+    stage.add(layerGrid);
     drawOutsideWall(groupOuterWall);
 
     let increment = 1.0;
@@ -4825,6 +4980,68 @@ function createShareableLink() {
 
     strUrlQuery2 += `${roomObj.authorVersion == '' ? '' : 'C~' + encodeURIComponent(roomObj.authorVersion).replaceAll('%20', '+') + '~'}`;
 
+    if ('roomSurfaces' in roomObj) {
+
+        ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(wall => {
+            let strWall = '';
+            if (wall in roomObj.roomSurfaces) {
+                if ('type' in roomObj.roomSurfaces[wall]) {
+                    if (roomObj.roomSurfaces[wall].type === 'regular') {
+                        strWall += '0';
+                    }
+                    else if (roomObj.roomSurfaces[wall].type === 'glass') {
+                        strWall += '1';
+                    }
+                    else if (roomObj.roomSurfaces[wall].type === 'window') {
+                        strWall += '2';
+                    } else {
+                        strWall += '0';
+                    }
+                }
+
+                if ('acousticTreatment' in roomObj.roomSurfaces[wall]) {
+                    if (roomObj.roomSurfaces[wall].acousticTreatment === true) {
+                        strWall += 'a1';
+                    }
+                }
+
+                if ('door' in roomObj.roomSurfaces[wall] && roomObj.roomSurfaces[wall] != 'none') {
+                    strWall += 'b';
+                    if (roomObj.roomSurfaces[wall].door === 'left') {
+                        strWall += '0';
+                    }
+                    else if (roomObj.roomSurfaces[wall].door === 'center') {
+                        strWall += '1';
+                    }
+                    else if (roomObj.roomSurfaces[wall].door === 'right') {
+                        strWall += '2';
+                    }
+                    else {
+                        strWall += '1'; /* default to center of wall for door */
+                    }
+
+                }
+
+                if (strWall != '0') {  /* if it is just a regular wall, don't save anything to the URL */
+                    if (wall === 'leftwall') {
+                        strWall = 'D' + strWall;
+                    }
+                    else if (wall === 'rightwall') {
+                        strWall = 'E' + strWall;
+                    }
+                    else if (wall === 'videowall') {
+                        strWall = 'F' + strWall;
+                    }
+                    else if (wall === 'backwall') {
+                        strWall = 'G' + strWall;
+                    }
+
+                    strUrlQuery2 += strWall;
+                }
+
+            }
+        })
+    }
 
     let items = roomObj.items;
     let i = 0;
@@ -4871,7 +5088,7 @@ function createShareableLink() {
         document.getElementById('qrCodeLinkText').style.backgroundColor = '#f9bfbf';
     }
 
-    let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}$/;
+    let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}(D0a1)?$/;
     let queryParams = new URLSearchParams(window.location.search);
 
 
@@ -5686,7 +5903,7 @@ function trNodesFromUuids(uuids, save = true) {
 }
 
 function stageAddLayers() {
-    stage.add(layerGrid);
+
 
     stage.add(layerBackgroundImageFloor);
     layerTransform.add(groupStageFloors);
@@ -7207,7 +7424,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 }
 
             }, 100, theDeviceId);
-            layerTransform.draw()
+        layerTransform.draw()
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
@@ -10200,7 +10417,25 @@ function convertDefaultWallsOff(e) {
 
 function updateRemoveDefaultWallsCheckBox() {
     document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
+    document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls;
+
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
+
+    if (testNew && roomObj.workspace.removeDefaultWalls === false) {
+        document.getElementById('addCeilingCheckBox').checked = true;
+        roomObj.workspace.addCeiling = true;
+        document.getElementById('addCeilingCheckBox').disabled = true;
+        document.getElementById('addCeilingDiv').style.display = 'none';
+        document.getElementById('addCeilingAutoDiv').style.display = '';
+
+        document.getElementById('defaultWallSettings').style.display = "";
+    } else {
+        document.getElementById('addCeilingCheckBox').disabled = false;
+        document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
+        document.getElementById('defaultWallSettings').style.display = "none";
+        document.getElementById('addCeilingDiv').style.display = '';
+        document.getElementById('addCeilingAutoDiv').style.display = 'none';
+    }
 
 }
 
@@ -10210,12 +10445,249 @@ function removeDefaultWallsChange(e) {
     } else {
         roomObj.workspace.removeDefaultWalls = false;
     }
+
+    updateRemoveDefaultWallsCheckBox();
+
     zoomInOut('reset');
     drawRoom(true, true, false);
+
+
     // saveToUndoArray();
 }
 
-addCeilingChange
+
+
+
+function updateDefaultWalls() {
+
+    let roomSurfacesObj = document.getElementById('drpRoomSurfaces').value;
+    let wallType = document.getElementById('drpWallType').value;
+    let accousicTreatment = document.getElementById('acousticTreatment').checked;
+    let drpDefaultWallDoor = document.getElementById('drpDefaultWallDoor').value;
+
+    roomObj.roomSurfaces[roomSurfacesObj].type = wallType;
+    roomObj.roomSurfaces[roomSurfacesObj].acousticTreatment = accousicTreatment;
+
+    if (wallType === 'window') {
+        delete roomObj.roomSurfaces[roomSurfacesObj].door;
+    } else {
+        roomObj.roomSurfaces[roomSurfacesObj].door = drpDefaultWallDoor;
+
+    }
+
+    canvasToJson();
+
+    updateDefaultWallType(roomSurfacesObj);
+    setDefaultWallsMenu(roomSurfacesObj);
+
+}
+
+/* roomSurfaces = leftwall, rightwall, videowall or backwall */
+function setDefaultWallsMenu(event) {
+
+    let wall;
+
+    if (typeof event === 'string') {
+        wall = event;
+    }
+    else {
+        wall = event.target.value;
+    }
+
+    document.getElementById('drpWallType').value = roomObj.roomSurfaces[wall].type;
+    document.getElementById('acousticTreatment').checked = roomObj.roomSurfaces[wall].acousticTreatment;
+
+    if (roomObj.roomSurfaces[wall].type === 'window') {
+
+        document.getElementById('defaultWallDoor').style.display = 'none';
+    } else {
+        document.getElementById('defaultWallDoor').style.display = '';
+        document.getElementById('drpDefaultWallDoor').value = roomObj.roomSurfaces[wall].door || 'none';
+    }
+
+
+}
+
+
+
+
+function updateDefaultWallType(defaultWallName) {
+    let defaultWall = stage.findOne('.' + defaultWallName);
+    let xOffset = 8; /* default for leftwall */
+    let yOffset = 0;
+
+
+    if (!defaultWall) {
+        console.info('Default wall name not found', defaultWallName);
+        return;
+    }
+
+
+    let type = roomObj.roomSurfaces[defaultWall.name()].type;
+
+    if (type === 'regular') {
+        defaultWall.fill('#cccccc');
+    }
+    else if (type === 'glass') {
+        defaultWall.fill('lightblue');
+    } else if (type === 'window') {
+        defaultWall.fill('');
+        const windowBackgroundObj = new Image();
+
+        windowBackgroundObj.onload = function windowBackgroundObjOnload() {
+            defaultWall.fillPatternImage(windowBackgroundObj);
+            defaultWall.fillPatternRepeat('repeat');
+
+            defaultWall.fillPatternOffset({ x: xOffset, y: yOffset });
+        };
+        windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
+    }
+
+    insertDefaultDoors();
+}
+
+function insertDefaultDoors() {
+    /* first delete all existing doors, then create */
+    let existingDoors = stage.find('.defaultDoorFamily');
+    let imageOffset;
+    let leftRightOffset = 1.47 * scale;
+
+    let doorWidth = allDeviceTypes['doorLeft'].width / 1000 * scale;
+    let doorDepth = allDeviceTypes['doorLeft'].depth / 1000 * scale;
+    let wallWidth = 0.11 * scale;
+
+    if (roomObj.unit === 'meters') {
+        imageOffset = imageOffset / 3.28084;
+        leftRightOffset = leftRightOffset / 3.28084;
+    } else {
+        doorWidth = doorWidth * 3.28084;
+        doorDepth = doorDepth * 3.28084;
+        wallWidth = wallWidth * 3.28084;
+    }
+
+    imageOffset = doorDepth;
+
+    let groupOuterWall = stage.findOne('#groupOuterWall');
+
+    for (let i = existingDoors.length - 1; i >= 0; i--) {
+        existingDoors[i].destroy();
+    }
+
+    ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(roomSurfaceId => {
+        let doorRightImg = 'doorRight-top.png';
+        let doorLeftImg = 'doorLeft-top.png';
+        let x, y;
+
+        let img = doorRightImg;
+
+        if (roomObj.roomSurfaces[roomSurfaceId].door && roomObj.roomSurfaces[roomSurfaceId].door != 'none') {
+            let rotation = 0;
+            let door = roomObj.roomSurfaces[roomSurfaceId].door;
+
+
+            if (roomSurfaceId === 'leftwall') {
+                rotation = 90;
+                x = pxOffset + imageOffset - wallWidth;
+
+                if (door === 'left') {
+                    y = pyOffset + (roomLength * scale) - leftRightOffset - doorWidth;
+                }
+                else if (door === 'right') {
+                    img = doorLeftImg;
+                    y = pyOffset + leftRightOffset;
+                }
+                else {
+                    img = doorLeftImg;
+                    y = pyOffset + - doorWidth / 2 + (roomLength * scale) / 2;
+                }
+
+            }
+            else if (roomSurfaceId === 'rightwall') {
+                rotation = 270;
+                x = pxOffset + (roomWidth * scale) - imageOffset + wallWidth;
+
+                if (door === 'left') {
+                    y = pyOffset + leftRightOffset + doorWidth;
+                }
+                else if (door === 'right') {
+                    img = doorLeftImg;
+                    y = pyOffset + (roomLength * scale) - leftRightOffset;
+                }
+                else {
+                    img = doorLeftImg;
+                    y = pyOffset + doorWidth / 2 + (roomLength * scale) / 2;
+                }
+            }
+            else if (roomSurfaceId === 'videowall') {
+                rotation = 180;
+                y = pyOffset + doorDepth - wallWidth;
+
+                if (door === 'left') {
+                    x = pxOffset + leftRightOffset - wallWidth + doorWidth;
+
+                }
+                else if (door === 'right') {
+                    img = doorLeftImg;
+                    x = pxOffset + (roomWidth * scale) - leftRightOffset + wallWidth;
+                }
+                else {
+                    img = doorLeftImg;
+                    x = pxOffset + doorWidth / 2 + (roomWidth * scale) / 2;
+                }
+
+            }
+            else if (roomSurfaceId === 'backwall') {
+                rotation = 0;
+                y = pyOffset + (roomLength * scale) - doorDepth + wallWidth;
+
+                if (door === 'left') {
+                    x = pxOffset + (roomWidth * scale) - leftRightOffset - doorWidth + wallWidth;
+                }
+                else if (door === 'right') {
+                    img = doorLeftImg;
+                    x = pxOffset + leftRightOffset - wallWidth;
+                }
+                else {
+                    img = doorLeftImg;
+                    x = pxOffset + - doorWidth / 2 + (roomWidth * scale) / 2;
+                }
+
+            }
+
+
+            let imageObj = new Image();
+            imageObj.onload = function () {
+                const doorShape = new Konva.Image({
+                    x: x,
+                    y: y,
+                    image: imageObj,
+                    width: doorWidth,
+                    height: doorDepth,
+                    id: 'defaultDoor-' + roomSurfaceId + '-' + door,
+                    name: 'defaultDoorFamily',
+                    rotation: rotation,
+                    opacity: 0.5,
+                    listening: false,
+                });
+
+                groupOuterWall.add(doorShape);
+            };
+
+            imageObj.src = `./assets/images/${img}`;
+
+        }
+
+
+
+
+
+    });
+
+
+
+}
+
+// addCeilingChange
 
 function addCeilingChange(e) {
     if (e.srcElement.checked) {
@@ -10256,7 +10728,7 @@ function snapChange(e) {
 
 }
 
-function snapRotationOffChange(e){
+function snapRotationOffChange(e) {
 
     if (e.srcElement.checked) {
         setItemForLocalStorage('snapRotationOffCheckBox', 'true');
@@ -10797,8 +11269,10 @@ function updateFormatDetails(eventOrShapeId) {
     if (typeof eventOrShapeId === 'string') {
         shape = stage.find('#' + eventOrShapeId)[0];
 
+
     } else {
         shape = eventOrShapeId.target;
+
     }
 
     if (!shape) return /* escape out of function in case the specific shape or detail does not exist, usually this happens with a new template load */
@@ -11301,7 +11775,7 @@ function addListeners(stage) {
             return;
         }
 
-        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
+        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage || selectingOuterWall) {
             return;
         }
 
@@ -11324,7 +11798,7 @@ function addListeners(stage) {
             return;
         }
 
-        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
+        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage || selectingOuterWall) {
             return;
         }
 
@@ -13536,7 +14010,6 @@ function importJson(jsonFile) {
         isBackgroundImageFloorFileLoad = true;
 
 
-
         setTimeout(() => {
             roomObj = structuredClone(jsonFile);
             roomObj.trNodes = [];
@@ -13547,7 +14020,14 @@ function importJson(jsonFile) {
                 turnOnBackgroundImageButtons();
                 setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
             }
+
+            if(!('roomSurfaces' in roomObj)){
+                roomObj.roomSurfaces = structuredClone(defaultRoomSurfaces);
+            }
+
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
+            document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
+
             document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
             drawRoom(true, false, false);
         }, 1500);
@@ -13613,8 +14093,44 @@ function importWorkspaceDesignerFile(workspaceObj) {
     roomObj2.roomId = workspaceObj.roomId || roomObj.roomId;
 
 
+
+
     /* create a structured clone of the array of customObjects. Once an item is parsed, delete it from the array */
     let wdItems = structuredClone(workspaceObj.customObjects);
+
+    /* determine if this is the NEW default walls */
+    let defaultWallCount = 0;
+    let roomSurfaces = {};
+
+    for (let i = wdItems.length - 1; i >= 0; i--) {
+
+        let wdItem = wdItems[i];
+
+        if (wdItem.id === 'leftwall' || wdItem.id === 'rightwall' || wdItem.id === 'videowall' || wdItem.id === 'backwall') {
+            defaultWallCount++;
+            roomSurfaces[wdItem.id] = {};
+
+            if ('model' in wdItem) {
+
+                roomSurfaces[wdItem.id].type = wdItem.model;
+            }
+
+            if ('acousticTreatment' in wdItem) {
+                roomSurfaces[wdItem.id].acousticTreatment = wdItem.acousticTreatment;
+            }
+
+            if ('door' in wdItem) {
+                roomSurfaces[wdItem.id].door = wdItem.door;
+            }
+
+        }
+
+    }
+
+    if (defaultWallCount === 4) {
+
+        roomObj2.roomSurfaces = roomSurfaces;
+    }
 
     /* find the floor */
     let isFloor = false;
@@ -13644,9 +14160,15 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
 
             }
+
+
         }
     }
 
+    /* with the new default walls (defaultWallCount === 4), they sit on the floor, so subtract 0.2 */
+    if (defaultWallCount === 4) {
+        roomObj2.room.roomWidth = roomObj2.room.roomWidth - 0.2;
+    }
 
     if (!isFloor) {
         let message = 'Import Workspace Designer: Size of room undetermined. Room Width or floor object not found on import of Workspace Designer!';
@@ -13662,8 +14184,10 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     if (roomObj2.workspace.removeDefaultWalls) {
         document.getElementById("removeDefaultWallsCheckBox").checked = true;
+        document.getElementById("removeDefaultWallsCheckBox2").checked = true;
     } else {
         document.getElementById("removeDefaultWallsCheckBox").checked = false;
+        document.getElementById("removeDefaultWallsCheckBox2").checked = false;
     }
 
     /* determine if there is a ceiling.  */
@@ -14328,9 +14852,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
 
 
-    if ((item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall') && (document.getElementById('convertDefaultWallsOffCheckBox').checked === false)) {
+    if ((item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall' || item.id === 'rightwall' || item.id === 'backwall') && (document.getElementById('convertDefaultWallsOffCheckBox').checked === false)) {
         roomObj2.workspace.removeDefaultWalls = false;
         document.getElementById('removeDefaultWallsCheckBox').checked = false;
+        document.getElementById("removeDefaultWallsCheckBox2").checked = false;
     } else {
         roomObj2.items[deviceType.parentGroup].push(item);
     }
@@ -14535,6 +15060,7 @@ function openWorkspaceWindow(fromButton = true) {
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
     if (currentSite != 'https://collabexperience.com/') {
         newWorkspaceTab = defaultWorkspaceTestSite;
+        testNew = true;
         console.info('WD site: ', newWorkspaceTab);
     }
 
@@ -14579,6 +15105,7 @@ function openWorkspaceWindow(fromButton = true) {
 
 function openModalWorkspace() {
     document.getElementById('modalWorkspace').showModal();
+    updateRemoveDefaultWallsCheckBox();
 }
 
 function closeModalWorkspace() {
@@ -14604,8 +15131,8 @@ function postMessageToWorkspace() {
 
     message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
-   // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
-   // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
+    // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
+    // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
 
     if (workspaceWindow) {
         workspaceWindow.postMessage(message, '*');
@@ -14698,6 +15225,22 @@ function exportRoomObjToWorkspace() {
         workspaceObj.roomShape.length = roomObj2.room.roomWidth;
     }
 
+    if (testNew) {
+
+        ['leftwall', 'videowall', 'rightwall', 'backwall'].forEach(roomSurfaceId => {
+            if (roomObj.roomSurfaces[roomSurfaceId].door === 'none') {
+                delete roomObj.roomSurfaces[roomSurfaceId].door;
+            }
+        })
+
+        workspaceObj.roomShape.roomSurfaces = [
+            { ...{ objectId: 'leftwall' }, ...roomObj.roomSurfaces.leftwall },
+            { ...{ objectId: 'videowall' }, ...roomObj.roomSurfaces.videowall },
+            { ...{ objectId: 'rightwall' }, ...roomObj.roomSurfaces.rightwall },
+            { ...{ objectId: 'backwall' }, ...roomObj.roomSurfaces.backwall },
+
+        ]
+    }
 
     if ('roomHeight' in roomObj2.room) {
         if ((roomObj2.room.roomHeight == 0 || roomObj2.room.roomHeight == '')) {
@@ -14761,7 +15304,7 @@ function exportRoomObjToWorkspace() {
 
     }
 
-    if (roomObj.workspace.addCeiling === true) {
+    if (roomObj.workspace.addCeiling === true && (testNew && roomObj.workspace.removeDefaultWalls)) {
         let wallWidth = 0;
         let ceiling = {
             "x": 0 - wallWidth,
