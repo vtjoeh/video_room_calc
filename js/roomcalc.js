@@ -1,5 +1,4 @@
 const version = "v0.1.631";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
-
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -4086,6 +4085,8 @@ function drawOutsideWall(grOuterWall) {
             updateDefaultWallType(type);
         })
 
+        insertDefaultDoors();
+
         function addListeners(wallItem) {
 
             if (!testNew) return;
@@ -4118,9 +4119,7 @@ function drawOutsideWall(grOuterWall) {
                 document.getElementById("subTabDefaultWalls").click();
                 document.getElementById("drpRoomSurfaces").value = e.target.name();
                 setDefaultWallsMenu(e.target.name());
-                //  updateFormatDetails(e);
 
-                //  updateShading(imageItem);
                 clickedOnItemId = e.target.id();
             });
 
@@ -4132,7 +4131,6 @@ function drawOutsideWall(grOuterWall) {
                 if (tempWall) {
                     tempWall.destroy();
                 }
-                // tempWall.destroy();
             });
         }
 
@@ -4482,6 +4480,7 @@ function getKonvaBackgroundImageFloor() {
 
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
 function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false) {
+
     layerGrid.destroyChildren();
 
     unit = roomObj.unit;
@@ -4759,6 +4758,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         updateShapesBasedOnNewScale();
     }
+
 
     tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
 
@@ -10478,6 +10478,7 @@ function updateDefaultWalls() {
     canvasToJson();
 
     updateDefaultWallType(roomSurfacesObj);
+    insertDefaultDoors();
     setDefaultWallsMenu(roomSurfacesObj);
 
 }
@@ -10504,7 +10505,6 @@ function setDefaultWallsMenu(event) {
         document.getElementById('defaultWallDoor').style.display = '';
         document.getElementById('drpDefaultWallDoor').value = roomObj.roomSurfaces[wall].door || 'none';
     }
-
 
 }
 
@@ -10543,12 +10543,12 @@ function updateDefaultWallType(defaultWallName) {
         windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
     }
 
-    insertDefaultDoors();
+
 }
 
 function insertDefaultDoors() {
     /* first delete all existing doors, then create */
-    let existingDoors = stage.find('.defaultDoorFamily');
+
     let imageOffset;
     let leftRightOffset = 1.47 * scale;
 
@@ -10569,111 +10569,116 @@ function insertDefaultDoors() {
 
     let groupOuterWall = stage.findOne('#groupOuterWall');
 
+    let existingDoors = stage.find('.defaultDoorFamily');
+    /* destroy existing doors */
     for (let i = existingDoors.length - 1; i >= 0; i--) {
+        existingDoors[i].x(-200);
+        existingDoors[i].y(-200);
+        existingDoors[i].hide();
         existingDoors[i].destroy();
     }
 
-    ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(roomSurfaceId => {
+    ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(wallType => {
         let doorRightImg = 'doorRight-top.png';
         let doorLeftImg = 'doorLeft-top.png';
         let x, y;
 
         let img = doorRightImg;
 
-        if (roomObj.roomSurfaces[roomSurfaceId].door && roomObj.roomSurfaces[roomSurfaceId].door != 'none') {
+        if (roomObj.roomSurfaces[wallType].door && roomObj.roomSurfaces[wallType].door != 'none') {
             let rotation = 0;
-            let door = roomObj.roomSurfaces[roomSurfaceId].door;
+            let door = roomObj.roomSurfaces[wallType].door;
 
 
-            if (roomSurfaceId === 'leftwall') {
-                rotation = 90;
-                x = pxOffset + imageOffset - wallWidth;
+                if (wallType === 'leftwall') {
+                    rotation = 90;
+                    x = pxOffset + imageOffset - wallWidth;
 
-                if (door === 'left') {
-                    y = pyOffset + (roomLength * scale) - leftRightOffset - doorWidth;
-                }
-                else if (door === 'right') {
-                    img = doorLeftImg;
-                    y = pyOffset + leftRightOffset;
-                }
-                else {
-                    img = doorLeftImg;
-                    y = pyOffset + - doorWidth / 2 + (roomLength * scale) / 2;
-                }
-
-            }
-            else if (roomSurfaceId === 'rightwall') {
-                rotation = 270;
-                x = pxOffset + (roomWidth * scale) - imageOffset + wallWidth;
-
-                if (door === 'left') {
-                    y = pyOffset + leftRightOffset + doorWidth;
-                }
-                else if (door === 'right') {
-                    img = doorLeftImg;
-                    y = pyOffset + (roomLength * scale) - leftRightOffset;
-                }
-                else {
-                    img = doorLeftImg;
-                    y = pyOffset + doorWidth / 2 + (roomLength * scale) / 2;
-                }
-            }
-            else if (roomSurfaceId === 'videowall') {
-                rotation = 180;
-                y = pyOffset + doorDepth - wallWidth;
-
-                if (door === 'left') {
-                    x = pxOffset + leftRightOffset - wallWidth + doorWidth;
+                    if (door === 'left') {
+                        y = pyOffset + (roomLength * scale) - leftRightOffset - doorWidth;
+                    }
+                    else if (door === 'right') {
+                        img = doorLeftImg;
+                        y = pyOffset + leftRightOffset;
+                    }
+                    else {
+                        img = doorLeftImg;
+                        y = pyOffset + - doorWidth / 2 + (roomLength * scale) / 2;
+                    }
 
                 }
-                else if (door === 'right') {
-                    img = doorLeftImg;
-                    x = pxOffset + (roomWidth * scale) - leftRightOffset + wallWidth;
+                else if (wallType === 'rightwall') {
+                    rotation = 270;
+                    x = pxOffset + (roomWidth * scale) - imageOffset + wallWidth;
+
+                    if (door === 'left') {
+                        y = pyOffset + leftRightOffset + doorWidth;
+                    }
+                    else if (door === 'right') {
+                        img = doorLeftImg;
+                        y = pyOffset + (roomLength * scale) - leftRightOffset;
+                    }
+                    else {
+                        img = doorLeftImg;
+                        y = pyOffset + doorWidth / 2 + (roomLength * scale) / 2;
+                    }
                 }
-                else {
-                    img = doorLeftImg;
-                    x = pxOffset + doorWidth / 2 + (roomWidth * scale) / 2;
+                else if (wallType === 'videowall') {
+                    rotation = 180;
+                    y = pyOffset + doorDepth - wallWidth;
+
+                    if (door === 'left') {
+                        x = pxOffset + leftRightOffset - wallWidth + doorWidth;
+                    }
+                    else if (door === 'right') {
+                        img = doorLeftImg;
+                        x = pxOffset + (roomWidth * scale) - leftRightOffset + wallWidth;
+                    }
+                    else {
+                        img = doorLeftImg;
+                        x = pxOffset + doorWidth / 2 + (roomWidth * scale) / 2;
+                    }
+
+                }
+                else if (wallType === 'backwall') {
+                    rotation = 0;
+                    y = pyOffset + (roomLength * scale) - doorDepth + wallWidth;
+
+                    if (door === 'left') {
+                        x = pxOffset + (roomWidth * scale) - leftRightOffset - doorWidth + wallWidth;
+                    }
+                    else if (door === 'right') {
+                        img = doorLeftImg;
+                        x = pxOffset + leftRightOffset - wallWidth;
+                    }
+                    else {
+                        img = doorLeftImg;
+                        x = pxOffset + - doorWidth / 2 + (roomWidth * scale) / 2;
+                    }
+
                 }
 
-            }
-            else if (roomSurfaceId === 'backwall') {
-                rotation = 0;
-                y = pyOffset + (roomLength * scale) - doorDepth + wallWidth;
 
-                if (door === 'left') {
-                    x = pxOffset + (roomWidth * scale) - leftRightOffset - doorWidth + wallWidth;
-                }
-                else if (door === 'right') {
-                    img = doorLeftImg;
-                    x = pxOffset + leftRightOffset - wallWidth;
-                }
-                else {
-                    img = doorLeftImg;
-                    x = pxOffset + - doorWidth / 2 + (roomWidth * scale) / 2;
-                }
+                let imageObj = new Image();
+                imageObj.onload = function () {
+                    const doorShape = new Konva.Image({
+                        x: x,
+                        y: y,
+                        image: imageObj,
+                        width: doorWidth,
+                        height: doorDepth,
+                        id: 'defaultDoor-' + wallType + '-' + door,
+                        rotation: rotation,
+                        name: 'defaultDoorFamily',
+                        opacity: 0.5,
+                        listening: false,
+                    });
 
-            }
+                    groupOuterWall.add(doorShape);
+                };
 
+                imageObj.src = `./assets/images/${img}`;
 
-            let imageObj = new Image();
-            imageObj.onload = function () {
-                const doorShape = new Konva.Image({
-                    x: x,
-                    y: y,
-                    image: imageObj,
-                    width: doorWidth,
-                    height: doorDepth,
-                    id: 'defaultDoor-' + roomSurfaceId + '-' + door,
-                    name: 'defaultDoorFamily',
-                    rotation: rotation,
-                    opacity: 0.5,
-                    listening: false,
-                });
-
-                groupOuterWall.add(doorShape);
-            };
-
-            imageObj.src = `./assets/images/${img}`;
 
         }
 
@@ -14021,7 +14026,7 @@ function importJson(jsonFile) {
                 setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
             }
 
-            if(!('roomSurfaces' in roomObj)){
+            if (!('roomSurfaces' in roomObj)) {
                 roomObj.roomSurfaces = structuredClone(defaultRoomSurfaces);
             }
 
