@@ -14818,8 +14818,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.sphere;
     }
 
+     if (!(item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall' || item.id === 'rightwall' || item.id === 'backwall')) {
+            delete wdItem.id;
+     }
 
-    delete wdItem.id;
+
 
     if (!(data_deviceid === 'unknownObj' || data_deviceid === 'tblUnknownObj')) {
         delete wdItem.objectType;

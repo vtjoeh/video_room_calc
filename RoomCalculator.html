@@ -631,7 +631,7 @@
               </div>
             </div>
 
-            <span id="defaultWallSettings" >
+            <div id="defaultWallSettings" >
 
               <div class="inputRow">
                 <div class="inputField">
@@ -684,12 +684,8 @@
                   </select>
                 </div>
               </div>
-
-            </span>
+            </div>
           </div>
-        </div>
-
-
         <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
           <div class="tip">
             <i class="icon icon-room-lights-bold"></i>
@@ -817,7 +813,7 @@
 
           <div class="inputField" id="wdSiteDiv" style="display: none;">
 
-            <label class="tooltip">Workspace Designer Site:</site> <a href="/?wd=0">Disable</a>
+            <label class="tooltip">Workspace Designer Site: <a href="/?wd=0">Disable</a>
               <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">
                 Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
@@ -827,10 +823,8 @@
 
             <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
           </div>
-
-
         </div>
-      </div>
+        </div>
     </div>
   </div>
   </div>
@@ -924,7 +918,7 @@
           <div style="display: inline-block; text-align: center;">
 
             <button class="btn" onclick="zoomInOut('reset')" style="font-size: xx-small; display: block;"
-              title="Reset Zoom to 100%" />Reset</button>
+              title="Reset Zoom to 100%" >Reset</button>
           </div>
           <span id="testA" style="visibility: hidden;">
             <button class="btn" onclick="openModalWorkspace()" title="3D view in Workspace Designer"
@@ -950,7 +944,7 @@
         <button class="tablinks2" onclick="openTabBottom(event, 'Resources')" id="lowerTabItem">Resources</button>
         <button class="tablinks2" onclick="openTabBottom(event, 'Disclaimer')" id="lowerTabItem">Disclaimer</button>
       </div>
-      <div id="Legend" class="tabcontent2" style="display: block;" ;>
+      <div id="Legend" class="tabcontent2" style="display: block;">
       </div>
 
       <div id="Templates" class="tabcontent2">
@@ -1063,8 +1057,6 @@
             <span style="position: relative; ">Download File<i
                 class="icon icon-file-code-bold iconLeftOfText"></i></span></button>
           <span>
-            </button>
-            <span>
               <button class="button drpDownBtnArrow" id="drpDownBtnArrowJSON">▼</button>
 
               <div class="dropDownBtnMenu" id="drpDownJSONContent">
@@ -1130,7 +1122,7 @@
 
         <div id="qrCode"></div>
         <br>
-        <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled></input>
+        <input type="text" id="qrCodeLinkText" style="width: 300px;" disabled>
         <br>
 
       </div>
@@ -1354,7 +1346,7 @@
     <header>Preview in Cisco Workspace Designer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      <img id="workspaceIcon" width="16px" src="https://www.webex.com/us/en/workspaces/images/appicon.png"></img>
+      <img id="workspaceIcon" width="16px" src="https://www.webex.com/us/en/workspaces/images/appicon.png">
       Workspace Designer Custom Rooms (beta)
 
       <div class="inputField">
@@ -1391,7 +1383,7 @@
         <div class="inputField">
           <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
           <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow2()"
-            class="button" id="btnModalWorkspace">
+            class="button" id="btnModalWorkspace2">
         </div>
       </form>
     </main>
@@ -1704,9 +1696,6 @@
         </div>
     </div>
     <br>
-
-
-    </div>
     </main>
   </dialog>
 
@@ -1772,7 +1761,7 @@
   </dialog>
 
   <div id="ContainerFooter" class="HeaderFooter">
-    <div>Version: <label id="lblVersion">vx.x</label> - For more info join the <a href="https://eurl.io/#4d-kKP6l1"
+    <div>Version: <label id="lblVersion2">vx.x</label> - For more info join the <a href="https://eurl.io/#4d-kKP6l1"
         target="_blank" class="whiteUnderlinedLink" style="text-decoration: underline;">Video Room
         Calculator discussion</a> Webex space or contact joehughe@cisco.com </div>
   </div>
@@ -1820,7 +1809,6 @@
 
     </div>
     <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
-    </iframe>
   </div>
 
 
