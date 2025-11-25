@@ -302,6 +302,10 @@ button:not(:disabled) {
   margin-bottom: 20px;
 }
 
+.inputFieldRow {
+  flex-direction: column;
+}
+
 .inputField label {
   font-size: 14px;
   display: flex;
@@ -424,6 +428,117 @@ input:placeholder-shown {
   margin-bottom: 10px;
 
 }
+
+.wallButton {
+  border: 0px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 4px 12px;
+  background-color: rgb(199, 199, 199);
+  color: black;
+  width: max-content;
+  touch-action: manipulation;
+  cursor: pointer;
+  align-self: center;
+  position: absolute;
+}
+
+.wallButton:hover {
+  background-color: #575757;
+  color: rgb(199, 199, 199);
+}
+
+.wallButton:active {
+  box-shadow: 0 1px #777;
+  color: white;
+}
+
+.wallButton:disabled {
+  opacity: 0.6;
+  cursor: auto;
+}
+
+.wallButton:hover:disabled {
+  background-color: black;
+}
+
+.wallButtonSelected {
+  background-color: #000000;
+  color: white;
+}
+
+.wallButtonSelected:hover {
+  color: white;
+  background-color: black;
+}
+
+
+.wallSelection {
+  width: 50px;
+  height: 50px;
+  background-image: url('./assets/images/wallsAll.png');
+  position: absolute;
+}
+
+.doorSelection {
+  width: 150px;
+  height: 150px;
+  background-image: url('./assets/images/roomBackgroundDoors.png');
+  position: absolute;
+  /* transform: rotate(90deg) translate(10px, 10px); */
+}
+
+.doorSelectionOuter {
+  position: absolute;
+}
+
+.doors {
+  position: absolute;
+  width: 45px;
+  opacity: 1;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.doorButton {
+  border: 3px solid white;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 4px 12px;
+  background-color: rgb(199, 199, 199);
+  color: black;
+  width: max-content;
+  touch-action: manipulation;
+  cursor: pointer;
+  align-self: center;
+  position: absolute;
+}
+
+.doors:hover {
+  background-color: lightgray;
+  opacity: 1;
+}
+
+.doorSelected {
+  opacity: 1;
+  border: 3px solid rgb(69, 85, 230);
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.noDoorSelected {
+  border: 3px solid white;
+  outline:  3px solid rgb(69, 85, 230);
+  background-color: black;
+  color: white;
+}
+
+.parentWallSelection {
+  display: flex;
+  justify-content: center; /* Centers horizontally */
+  height: 100px; /* height for the parent */
+}
+
 
 /* .holdIndicator {
   font-size: 5px;

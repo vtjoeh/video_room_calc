@@ -622,7 +622,7 @@
 
           <div id="DefaultWalls" class="subtabcontent2 subtabcontent2a">
             <div class="inputRow">
-              <div class="inputField">
+              <div class="inputField inputFieldRow">
                 <label>Remove Default Walls:</label>
                 <label class="switch">
                   <input id="removeDefaultWallsCheckBox2" type="checkbox" onclick="removeDefaultWallsChange(event)">
@@ -631,28 +631,37 @@
               </div>
             </div>
 
-            <div id="defaultWallSettings" >
+            <div id="defaultWallSettings">
 
               <div class="inputRow">
                 <div class="inputField">
                   <label class="tooltipBottom">Choose Wall:
-                    <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span></label>
-                  <select id="drpRoomSurfaces" class="drpDown" onchange="setDefaultWallsMenu(event)">
-                    <option value="videowall">Front Wall (video wall)</option>
-                    <option value="leftwall" selected>Left Wall</option>
-                    <option value="rightwall">Right Wall</option>
-                    <option value="backwall">Back Wall (bottom)</option>
-                  </select>
+                    <!-- <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span> --></label>
+                  <br>
+                  <div class="parentWallSelection">
+
+                    <div class="wallSelection">
+                      <button id="leftwall" class="wallButton wallButtonSelected" style="left: -70px; top: 15px;"
+                        onclick="btnWallSelected('leftwall')">Left Wall</button>
+                      <button id="videowall" class="wallButton" style="left: -14px; top: -24.5px;"
+                        onclick="btnWallSelected('videowall')">Video Wall</button>
+                      <button id="rightwall" class="wallButton" style="right: -78px; top: 15px;"
+                        onclick="btnWallSelected('rightwall')">Right Wall</button>
+                      <button id="backwall" class="wallButton" style="left: -11px; top: 53px;"
+                        onclick="btnWallSelected('backwall')">Back Wall</button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
               <div class="inputRow">
                 <div class="inputField">
-                  <label class="tooltipBottom">Wall Type:
+                  <label class="tooltipBottom">Material:
                     <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Wall Standard, Glass Wall or Wall with Windows.</span></label>
-                  <select id="drpWallType" class="drpDown" onchange="updateDefaultWalls()">
+                    <span class="tooltiptextBottom">Material or wall type: Wall Standard, Glass Wall or Wall with Windows.</span></label>
+                  <select id="drpWallType" class="drpDown" onchange="updateDefaultWallsMenuAndCanvas()">
                     <option value="regular">Wall Standard</option>
                     <option value="glass">Glass Wall</option>
                     <option value="window">Wall with Windows</option>
@@ -661,172 +670,187 @@
               </div>
 
               <div class="inputRow">
-                <div class="inputField">
-                  <label>Acoustic Treatment:</label>
+                <div class="inputField inputFieldRow">
+                  <label class="tooltip">Acoustic Treatment:  <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Acoustic treatment only shows up on the Workspace Designer.</span> </label>
                   <label class="switch">
-                    <input id="acousticTreatment" type="checkbox" onchange="updateDefaultWalls()">
+                    <input id="acousticTreatment" type="checkbox" onchange="updateDefaultWallsMenuAndCanvas()">
                     <span class="slider round"></span>
                   </label>
                 </div>
               </div>
 
-              <div class="inputRow" id="defaultWallDoor">
-                <div class="inputField">
-                  <label class="tooltipBottom">Door Location:
-                    <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Pick a door location:</span></label>
-                  <select id="drpDefaultWallDoor" class="drpDown" onchange="updateDefaultWalls()">
-                    <option value="none">None</option>
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
 
-                  </select>
+              <div class="inputField" id="pickDoorSelection"><label class="tooltip">Default Door Location:  <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Door location for the default wall that renders in the Workspace Designer. Manual walls can also be dragged and dropped at any location.</span></label>
+                <div class="parentWallSelection">
+
+
+                  <div id="doorSelectionDiv" class="doorSelection">
+
+                    <button id="doorNone" class="doorButton" style="left: 48px; bottom: 60px; position:absolute;"
+                        onclick="doorSelected('none')">None</button>
+                    <img id="rightDoor" class="doors doorSelected" src="./assets/images/doorLeft-top.png"
+                      style="left: 5px; bottom: -6.5px;" onclick="doorSelected('right')">
+                    <img id="centerDoor" class="doors" src="./assets/images/doorLeft-top.png"
+                      style="left: 53px; bottom: -6.5px; " onclick="doorSelected('center')">
+                    <img id="leftDoor" class="doors" src="./assets/images/doorRight-top.png"
+                      style="left: 100px; bottom: -6.5px; " onclick="doorSelected('left')">
+                  </div>
                 </div>
+
               </div>
+
+              <div id="noDoorSelectionDiv" class="inputRow"><span style="font-size: 14px;">Default Door Location: <br><span style="font-size: 12px;">Not supported with a wall with windows.</span></span></div>
+
+
+              <br>
+              <br>
+              <br>
+              <br>
             </div>
           </div>
-        <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
-          <div class="tip">
-            <i class="icon icon-room-lights-bold"></i>
-            <label class="tooltipBottom">Experimental
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom"> Use a Room Floor Plan image as a background. This makes it easier to
-                recreate the room dimensions precisely. Room Floor Plan images are
-                not saved in the URL by design, but saved in the vrc.json file. Most web image formats are suppored
-                like JPEG, PNG, GIF & SVG. </span>
-            </label>
-          </div>
+          <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
+            <div class="tip">
+              <i class="icon icon-room-lights-bold"></i>
+              <label class="tooltipBottom">Experimental
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom"> Use a Room Floor Plan image as a background. This makes it easier to
+                  recreate the room dimensions precisely. Room Floor Plan images are
+                  not saved in the URL by design, but saved in the vrc.json file. Most web image formats are suppored
+                  like JPEG, PNG, GIF & SVG. </span>
+              </label>
+            </div>
 
-          <div style="text-align: left; font-size:12px; ">
-            <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
-              saved to the Shareable Hyperlink Template.</i>
+            <div style="text-align: left; font-size:12px; ">
+              <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
+                saved to the Shareable Hyperlink Template.</i>
 
-          </div>
-          <br>
-          <div class="inputField">
-            <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
-              upload:
-              <!-- <i class="icon icon-info-circle-bold"></i>
+            </div>
+            <br>
+            <div class="inputField">
+              <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
+                upload:
+                <!-- <i class="icon icon-info-circle-bold"></i>
               <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
-            </label>
-            <span id="fileInputImageContainer">
-              <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
-            </span>
-          </div>
-
-          <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
-              distance between
-              them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
-            <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points" class="button"
-              disabled>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltipBottom">3) Distance between 2 points:</label>
-            <!-- <i class="icon icon-info-circle-bold"></i>
-                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
-            <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
-            <label class="unitFeetMeters">ft</label>
-          </div>
-          <div class="inputField">
-            <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
-              onclick="updateBackgroundImageScale()" class="button" disabled>
-          </div>
-
-
-          <div class="inputField" style="padding: 0.2rem"><label>4) Transparency: <span
-                id="transparencyOutput">50</span></label></div>
-          <div class="inputField">
-            <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
-              oninput="changeTransparency(this.value)" disabled>
-          </div>
-
-          <div class="inputField">
-            <label class="tooltip">5) Move room floor plan:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
-                moving of the room floor plan image.</span></label>
-            <label class="switch">
-              <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
-                disabled>
-              <span class="slider round"></span>
-            </label>
-          </div>
-          <div class="inputField">
-            <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()"
-              class="button" id="btnDeleteBackgroundImage" disabled>
-          </div>
-        </div>
-
-        <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
-          <div class="inputField">
-            <label class="tooltipBottom">Load in original unit (m/f):
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
-                will use the unit (meters/feet) that it was created in.</span></label>
-            <label class="switch">
-              <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-
-          <div class="inputField">
-            <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items:*
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
-                Items will
-                have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
-              </span></label>
-            <label class="switch">
-              <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="inputField" id="showTiltSlantCheckBoxDiv">
-            <label class="tooltipBottom">Workspace Designer Tilt and Lean:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Show Tilt and Lean fields per an item, which are Workspace Designer
-                settings & not reflected in the Video Room Calculator. Objects may appear in different locations when
-                comparing the Video Room Calculator to the Workspace Designer.
-              </span></label>
-            <label class="switch">
-              <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="inputField" id="convertDefaultWallsDiv">
-            <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">By default, when Workspace Designer files are imported, the three walls seen
-                in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable
-                this feature.
-              </span></label>
-            <label class="switch">
-              <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="inputField" id="wdSiteDiv" style="display: none;">
-
-            <label class="tooltip">Workspace Designer Site: <a href="/?wd=0">Disable</a>
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">
-                Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
-                Deactivate with<br> https://site/?wd=0 <br>or press the Disable link.
+              </label>
+              <span id="fileInputImageContainer">
+                <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
               </span>
-            </label>
+            </div>
 
-            <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
+            <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
+                distance between
+                them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
+              <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points"
+                class="button" disabled>
+            </div>
+
+            <div class="inputField">
+              <label class="tooltipBottom">3) Distance between 2 points:</label>
+              <!-- <i class="icon icon-info-circle-bold"></i>
+                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
+              <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+            <div class="inputField">
+              <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
+                onclick="updateBackgroundImageScale()" class="button" disabled>
+            </div>
+
+
+            <div class="inputField" style="padding: 0.2rem"><label>4) Transparency: <span
+                  id="transparencyOutput">50</span></label></div>
+            <div class="inputField">
+              <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
+                oninput="changeTransparency(this.value)" disabled>
+            </div>
+
+            <div class="inputField">
+              <label class="tooltip">5) Move room floor plan:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
+                  moving of the room floor plan image.</span></label>
+              <label class="switch">
+                <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
+                  disabled>
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="inputField">
+              <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()"
+                class="button" id="btnDeleteBackgroundImage" disabled>
+            </div>
+          </div>
+
+          <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
+            <div class="inputField">
+              <label class="tooltipBottom">Load in original unit (m/f):
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
+                  will use the unit (meters/feet) that it was created in.</span></label>
+              <label class="switch">
+                <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+
+            <div class="inputField">
+              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items:*
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
+                  Items will
+                  have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
+                </span></label>
+              <label class="switch">
+                <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="showTiltSlantCheckBoxDiv">
+              <label class="tooltipBottom">Workspace Designer Tilt and Lean:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show Tilt and Lean fields per an item, which are Workspace Designer
+                  settings & not reflected in the Video Room Calculator. Objects may appear in different locations when
+                  comparing the Video Room Calculator to the Workspace Designer.
+                </span></label>
+              <label class="switch">
+                <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="convertDefaultWallsDiv">
+              <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">By default, when Workspace Designer files are imported, the three walls seen
+                  in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable
+                  this feature.
+                </span></label>
+              <label class="switch">
+                <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="wdSiteDiv" style="display: none;">
+
+              <label class="tooltip">Workspace Designer Site: <a href="/?wd=0">Disable</a>
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
+                  Deactivate with<br> https://site/?wd=0 <br>or press the Disable link.
+                </span>
+              </label>
+
+              <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
+            </div>
           </div>
         </div>
-        </div>
+      </div>
     </div>
-  </div>
   </div>
   <div id="ContainerForContainerRoom">
     <div id="ContainerRoomSvg" class="floatColumns" style="width: 100%; ">
@@ -918,7 +942,7 @@
           <div style="display: inline-block; text-align: center;">
 
             <button class="btn" onclick="zoomInOut('reset')" style="font-size: xx-small; display: block;"
-              title="Reset Zoom to 100%" >Reset</button>
+              title="Reset Zoom to 100%">Reset</button>
           </div>
           <span id="testA" style="visibility: hidden;">
             <button class="btn" onclick="openModalWorkspace()" title="3D view in Workspace Designer"
@@ -1057,23 +1081,23 @@
             <span style="position: relative; ">Download File<i
                 class="icon icon-file-code-bold iconLeftOfText"></i></span></button>
           <span>
-              <button class="button drpDownBtnArrow" id="drpDownBtnArrowJSON">▼</button>
+            <button class="button drpDownBtnArrow" id="drpDownBtnArrowJSON">▼</button>
 
-              <div class="dropDownBtnMenu" id="drpDownJSONContent">
-                <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadVRCJSONMenuItem"
-                  onclick="downloadRoomObj()">
-                  <i class="icon icon-file-code-bold" style="font-size: large;transform:  translate(0px,5px);"></i>Video
-                  Room Calculator JSON
-                </div>
-                <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadWDJSONMenuItem"
-                  onclick="downloadFileWorkspace()">
-                  <i class="icon icon-file-three-d-bold"
-                    style="font-size: large;transform:  translate(0px,5px);"></i>Export Workspace
-                  Designer JSON
-                </div>
-
+            <div class="dropDownBtnMenu" id="drpDownJSONContent">
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadVRCJSONMenuItem"
+                onclick="downloadRoomObj()">
+                <i class="icon icon-file-code-bold" style="font-size: large;transform:  translate(0px,5px);"></i>Video
+                Room Calculator JSON
               </div>
-            </span>
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadWDJSONMenuItem"
+                onclick="downloadFileWorkspace()">
+                <i class="icon icon-file-three-d-bold"
+                  style="font-size: large;transform:  translate(0px,5px);"></i>Export Workspace
+                Designer JSON
+              </div>
+
+            </div>
+          </span>
         </div>
 
         <div class="dropDownPNG">
@@ -1416,6 +1440,9 @@
         </div>
 
         <hr />
+        <label class="underlineHeader">Export a file from the Workspace Designer:</label> <br>
+        <b>ctrl-e</b> from the Workspace Designer, then in the Video Room Calcualtor <b>New</b> --> <b>Open
+          File</b><br><br>
         <label class="underlineHeader">Short cut keys</label><br>
         space bar = quick add object menu<br>
         ctrl-c / cmd-c = copy<br>
@@ -1690,13 +1717,13 @@
 
           <div>
             Video Room Calculator version: <label id="lblVersion">vx.x</label>
+          </div>
+          <div id="testLog" style="display: none;">
+            <hr><b>showTestLog():</b><br>
+          </div>
         </div>
-        <div id="testLog" style="display: none;">
-          <hr><b>showTestLog():</b><br>
-        </div>
-    </div>
-    <br>
-    </main>
+        <br>
+      </main>
   </dialog>
 
   <div id="dialogQuickAdd" class="quick-dialog" onclick="onDialogClick(event)">

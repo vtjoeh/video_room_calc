@@ -145,6 +145,8 @@ let characterLimitWarningShow = true;
 
 let vpnTestTimer; /* time to see if the VPN is working */
 
+let currentDefaultWall = 'leftwall'; /* 'leftwall', 'rightwall', 'videowall', backwall' */
+
 let stageOriginalWidth;
 let stageOriginalLength;
 let stageOriginalset = false;
@@ -2987,10 +2989,10 @@ function parseShortenedXYUrl(parameters) {
 
                 if (shadeArray[5] == '1') {
                     roomObj.workspace.removeDefaultWalls = true;
-                    updateRemoveDefaultWallsCheckBox();
+                   //  updateRemoveDefaultWallsCheckBox();
                 } else {
                     roomObj.workspace.removeDefaultWalls = false;
-                    updateRemoveDefaultWallsCheckBox();
+                  //  updateRemoveDefaultWallsCheckBox();
                 }
 
                 if (shadeArray[6] == '1') {
@@ -4082,10 +4084,10 @@ function drawOutsideWall(grOuterWall) {
         addListeners(outsideWallLower);
 
         ['leftwall', 'videowall', 'backwall', 'rightwall'].forEach(type => {
-            updateDefaultWallType(type);
+            updateDefaultWallTypeOnCanvas(type);
         })
 
-        insertDefaultDoors();
+        insertDefaultDoorsOnCanvas();
 
         function addListeners(wallItem) {
 
@@ -4117,8 +4119,8 @@ function drawOutsideWall(grOuterWall) {
 
                 document.getElementById("tabItem").click();
                 document.getElementById("subTabDefaultWalls").click();
-                document.getElementById("drpRoomSurfaces").value = e.target.name();
-                setDefaultWallsMenu(e.target.name());
+             //   document.getElementById("drpRoomSurfaces").value = e.target.name();
+                updateDefaultWallsMenu(e.target.name());
 
                 clickedOnItemId = e.target.id();
             });
@@ -4559,7 +4561,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     // pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
     // pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
 
-    setDefaultWallsMenu(document.getElementById('drpRoomSurfaces').value);
+    updateDefaultWallsMenu(currentDefaultWall);
 
     pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + ((roomObj.unit === 'feet') ? 0.115 : 0.115 * 3.284) + 40;
     pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
@@ -4732,6 +4734,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     displayDistanceVisible(roomObj.layersVisible.grDisplayDistance);
     shadingCameraVisible(roomObj.layersVisible.grShadingCamera);
     shadingSpeakerVisible(roomObj.layersVisible.grShadingSpeaker);
+
+    updateRemoveDefaultWallsCheckBox();
 
     if (redrawShapes) {
 
@@ -10456,38 +10460,61 @@ function removeDefaultWallsChange(e) {
 }
 
 
+function btnWallSelected(wallSelected){
+    // setDefaultWallsMenu(wallSelected);
+    // updateBtnWallUpateMenu(wallSelected);
+    currentDefaultWall = wallSelected;
+
+    updateDefaultWallsMenu(wallSelected);
+
+}
+
+function updateBtnWallUpateMenu(wallSelected){
+         ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(wall=>{
+        let buttonWall = document.getElementById(wall);
+        let wallButtonSelected = 'wallButtonSelected';
+        if(wall === wallSelected ){
+            buttonWall.classList.add(wallButtonSelected);
+        } else {
+            buttonWall.classList.remove(wallButtonSelected);
+        }
+
+     });
+}
 
 
-function updateDefaultWalls() {
+function updateDefaultWallsMenuAndCanvas() {
 
-    let roomSurfacesObj = document.getElementById('drpRoomSurfaces').value;
+    let wall = currentDefaultWall;
     let wallType = document.getElementById('drpWallType').value;
     let accousicTreatment = document.getElementById('acousticTreatment').checked;
-    let drpDefaultWallDoor = document.getElementById('drpDefaultWallDoor').value;
 
-    roomObj.roomSurfaces[roomSurfacesObj].type = wallType;
-    roomObj.roomSurfaces[roomSurfacesObj].acousticTreatment = accousicTreatment;
+    roomObj.roomSurfaces[wall].type = wallType;
+    roomObj.roomSurfaces[wall].acousticTreatment = accousicTreatment;
 
     if (wallType === 'window') {
-        delete roomObj.roomSurfaces[roomSurfacesObj].door;
+        delete roomObj.roomSurfaces[wall].door;
     } else {
-        roomObj.roomSurfaces[roomSurfacesObj].door = drpDefaultWallDoor;
+  //      roomObj.roomSurfaces[wall].door = defaultWallDoor || 'none';
 
     }
 
     canvasToJson();
 
-    updateDefaultWallType(roomSurfacesObj);
-    insertDefaultDoors();
-    setDefaultWallsMenu(roomSurfacesObj);
+    updateDefaultWallTypeOnCanvas(wall);
+    insertDefaultDoorsOnCanvas();
+    updateDefaultWallsMenu(wall);
+
 
 }
 
 /* roomSurfaces = leftwall, rightwall, videowall or backwall */
-function setDefaultWallsMenu(event) {
+function updateDefaultWallsMenu(event) {
 
     let wall;
-
+    let rotateSelectionDiv = 0;
+    let doorSelectionDiv = document.getElementById('doorSelectionDiv');
+    let doorNoneDiv = document.getElementById('doorNone');
     if (typeof event === 'string') {
         wall = event;
     }
@@ -10495,23 +10522,83 @@ function setDefaultWallsMenu(event) {
         wall = event.target.value;
     }
 
+    currentDefaultWall = wall;
     document.getElementById('drpWallType').value = roomObj.roomSurfaces[wall].type;
     document.getElementById('acousticTreatment').checked = roomObj.roomSurfaces[wall].acousticTreatment;
 
+    if(wall === 'backwall'){
+        rotateSelectionDiv = 0;
+    }
+    else if(wall === 'rightwall'){
+        rotateSelectionDiv = 90;
+    } else if (wall === 'videowall'){
+        rotateSelectionDiv = 180;
+    } else if (wall === 'leftwall'){
+        rotateSelectionDiv = 270;
+    }
+
+    doorSelectionDiv.style.transform = `rotate(-${rotateSelectionDiv}deg)`;
+    doorNoneDiv.style.transform = `rotate(${rotateSelectionDiv}deg)`;
+
     if (roomObj.roomSurfaces[wall].type === 'window') {
 
-        document.getElementById('defaultWallDoor').style.display = 'none';
+        document.getElementById('pickDoorSelection').style.display = 'none';
+        document.getElementById('noDoorSelectionDiv').style.display = '';
     } else {
-        document.getElementById('defaultWallDoor').style.display = '';
-        document.getElementById('drpDefaultWallDoor').value = roomObj.roomSurfaces[wall].door || 'none';
+        document.getElementById('pickDoorSelection').style.display = '';
+        document.getElementById('noDoorSelectionDiv').style.display = 'none';
+      ///  document.getElementById('drpDefaultWallDoor').value = roomObj.roomSurfaces[wall].door || 'none';
     }
+
+
+   //  btnWallSelected(wall);
+
+   updateBtnWallUpateMenu(wall);
+
+
+    showSelectedWallDoorMenu(roomObj.roomSurfaces[wall].door || 'none');
+
+
+}
+
+function doorSelected(door){
+    if(door === 'none'){
+        delete roomObj.roomSurfaces[currentDefaultWall].door;
+    } else {
+        roomObj.roomSurfaces[currentDefaultWall].door = door;
+    }
+
+    updateDefaultWallsMenuAndCanvas();
+
+}
+
+function showSelectedWallDoorMenu(doorLocation){
+
+
+    ['leftDoor', 'rightDoor', 'centerDoor'].forEach(door =>{
+
+        let location = door.replace('Door', '');
+        if(location === doorLocation){
+            document.getElementById(door).classList.add('doorSelected');
+
+        } else {
+            document.getElementById(door).classList.remove('doorSelected');
+        }
+
+    })
+
+    if(doorLocation === 'none'){
+        document.getElementById('doorNone').classList.add('noDoorSelected');
+    }
+    else {
+        document.getElementById('doorNone').classList.remove('noDoorSelected');
+    }
+
 
 }
 
 
-
-
-function updateDefaultWallType(defaultWallName) {
+function updateDefaultWallTypeOnCanvas(defaultWallName) {
     let defaultWall = stage.findOne('.' + defaultWallName);
     let xOffset = 8; /* default for leftwall */
     let yOffset = 0;
@@ -10546,7 +10633,7 @@ function updateDefaultWallType(defaultWallName) {
 
 }
 
-function insertDefaultDoors() {
+function insertDefaultDoorsOnCanvas() {
     /* first delete all existing doors, then create */
 
     let imageOffset;
@@ -14132,9 +14219,30 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     }
 
+
     if (defaultWallCount === 4) {
 
         roomObj2.roomSurfaces = roomSurfaces;
+    }
+
+    if('roomShape' in workspaceObj && 'roomSurfaces' in workspaceObj.roomShape){
+
+        workspaceObj.roomShape.roomSurfaces.forEach(wallObj =>{
+            roomObj2.roomSurfaces[wallObj.objectId] = {};
+
+            if ('type' in wallObj){
+                roomObj2.roomSurfaces[wallObj.objectId].type = wallObj.type;
+            }
+
+            if ('acousticTreatment' in wallObj){
+                roomObj2.roomSurfaces[wallObj.objectId].acousticTreatment = wallObj.acousticTreatment;
+            }
+
+            if ('door' in wallObj){
+                roomObj2.roomSurfaces[wallObj.objectId].door = wallObj.door;
+            }
+
+        });
     }
 
     /* find the floor */
