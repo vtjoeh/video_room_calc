@@ -144,6 +144,9 @@ let defaultWallHighlightTimer; /* timer to make sure default walls highlight get
 
 let highlightedSelectNodeTimer; /* when cameras or other objects are highlighted, this insures it gets turned off */
 
+let rightClickTouchTimer; /* timer to allow for right click menu on touch */
+let rightClickTouchTimerDelta = 1500;
+
 let characterLimitWarningTimer; /* timer for how long before showing the */
 let characterLimitWarningShow = true;
 
@@ -11891,13 +11894,23 @@ function addListeners(stage) {
     });
 
     stage.on('mousedown touchstart', function stageOnMousedownTouchstart(e) {
-        if (e.target.findAncestor('.layerTransform')) {
-            return;
-        }
 
         if (panScrollableOn || selectingTwoPoints || movingBackgroundImage || selectingOuterWall) {
             return;
         }
+
+        clearTimeout(rightClickTouchTimer);
+
+        if(!(mobileDevice === 'false')){
+            rightClickTouchTimer = setTimeout(()=>{
+                    createRightClickMenu();
+            }, rightClickTouchTimerDelta);
+       }
+
+        if (e.target.findAncestor('.layerTransform')) {
+            return;
+        }
+
 
         e.evt.preventDefault();
 
@@ -11910,9 +11923,12 @@ function addListeners(stage) {
         selectionRectangle.height(0);
         selecting = true;
 
+
+
     });
 
     stage.on('mousemove touchmove', function stageOnMousemoveTouchmove(e) {
+
 
         if (!selecting) {
             return;
@@ -11942,7 +11958,11 @@ function addListeners(stage) {
     });
 
     stage.on('mouseup touchend', function stageOnMouseupTouchend(e) {
+
+
         canvasToJson();
+
+        clearTimeout(rightClickTouchTimer);
 
         selecting = false;
 
@@ -12508,6 +12528,7 @@ function touchStart(e) {
     newInsertItem.style.zIndex = 100;
     document.body.appendChild(newInsertItem);
     newInsertItem.style.position = 'absolute';
+
 }
 
 function touchMove(e) {
@@ -16698,6 +16719,15 @@ function createRightClickMenu() {
     }
 
 }
+
+window.addEventListener('touchstart', (e) =>{
+      const touch = e.touches[0]; // Get the first touch point
+      logMouseMovements(touch);
+});
+
+window.addEventListener('touchmove', (e)=>{
+    clearTimeout(rightClickTouchTimer);
+});
 
 function closeAllDialogModals() {
     const dialogs = document.querySelectorAll('dialog');
