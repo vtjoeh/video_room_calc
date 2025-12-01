@@ -32,6 +32,7 @@ let toolTipTextTimeout; /* timer used for toolTipText on coverage buttons */
 let lastSelectedNodePosition; /* keep track of the last node selected, make a structured clone of it to keep track of position */
 let lastSelectionGuideLines = {};
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
+let rightClickMenuDialogLastPosition = {}; /* last position of the rightClickMenuDialog when last opened. Used when updating the position. */
 
 
 let isLoadingTemplate = false;  /* used to keep track if a template is loading */
@@ -2758,7 +2759,7 @@ function parseShortenedXYUrl(parameters) {
 
     let objCount = 0;
 
-    let charType = {
+    const charType = {
         Start: 0,
         CapLetter: "CapLetter",
         CapNum: "CapNum",
@@ -4133,7 +4134,7 @@ function drawOutsideWall(grOuterWall) {
 
                 clearTimeout(defaultWallHighlightTimer);
 
-                /* there is no 'touchout' event, so set a timer to turn off highlighting */
+                /* sometimes the pointerout event does not trigger on touch devices, so set a timer to turn off highlighting */
                 defaultWallHighlightTimer = setTimeout(() => {
                     let tempWall = stage.findOne('#tempWall');
                     if (tempWall) {
@@ -4142,7 +4143,7 @@ function drawOutsideWall(grOuterWall) {
                 }, 2000);
             });
 
-            wallItem.on('mouseup touchend mouseleave', function outsideWallMouseUpTouchend(e) {
+            wallItem.on('mouseup touchend pointerout', function outsideWallMouseUpTouchend(e) {
                 clearTimeout(defaultWallHighlightTimer);
                 e.evt.preventDefault();
                 selectingOuterWall = false;
@@ -4152,6 +4153,7 @@ function drawOutsideWall(grOuterWall) {
                     tempWall.destroy();
                 }
             });
+
         }
 
     } else {
@@ -11905,7 +11907,7 @@ function addListeners(stage) {
             rightClickTouchTimer = setTimeout(()=>{
                     createRightClickMenu();
             }, rightClickTouchTimerDelta);
-       }
+         }
 
         if (e.target.findAncestor('.layerTransform')) {
             return;
@@ -11963,6 +11965,15 @@ function addListeners(stage) {
         canvasToJson();
 
         clearTimeout(rightClickTouchTimer);
+
+        /* update right-click menu if already exisiting to capture updated TR node options */
+        setTimeout(()=>{
+            if(document.getElementById(rightClickMenuDialogId)){
+                     createRightClickMenu(true);
+            }
+        }, 500)
+
+
 
         selecting = false;
 
@@ -16549,16 +16560,22 @@ function closeRightClickMenu() {
 }
 
 /* createas a right click menu */
-function createRightClickMenu() {
+function createRightClickMenu(usePreviousPosition = false) {
 
+    let previousXY = {};
     quickAddMouse.x = mouseUnit.x;
     quickAddMouse.y = mouseUnit.y;
 
+
+
     let element = document.getElementById(rightClickMenuDialogId);
+
     if (element && element.open) {
+
         element.close();
         return;
     }
+
     if (element) {
 
         element.remove();
@@ -16569,6 +16586,10 @@ function createRightClickMenu() {
 
     let bottomBuffer = 177;
     let rightBuffer = 277;
+
+    if(mobileDevice === 'RoomOS'){
+        bottomBuffer = 380;
+    }
 
     selecting = false; /* selecting rectangle should not be used */
 
@@ -16601,6 +16622,11 @@ function createRightClickMenu() {
     let newX = mouseX;
     let newY = mouseY;
 
+    if(usePreviousPosition){
+        newX = rightClickMenuDialogLastPosition.x;
+        newY =  rightClickMenuDialogLastPosition.y;
+    }
+
     const pos = stage.getPointerPosition();
     const shape = layerTransform.getIntersection(pos);
 
@@ -16625,9 +16651,12 @@ function createRightClickMenu() {
     createMenuItem('redoDiv', 'Redo', 'ctrl+y', !(redoArray.length > 0));
 
 
-
     rightClickMenuDialog.style.top = newY + 'px'; /* Distance from the top of the viewport, moved to center */
-    rightClickMenuDialog.style.left = newX + 'px'; /* Distance from the left of the viewport, moved to center */
+    rightClickMenuDialog.style.left = newX + 'px';
+
+    rightClickMenuDialogLastPosition.x = newX;
+    rightClickMenuDialogLastPosition.y = newY;
+
     rightClickMenuDialog.style.position = 'fixed';
 
 
