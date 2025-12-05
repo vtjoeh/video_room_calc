@@ -110,6 +110,7 @@ roomObj.items.touchPanels = [];
 
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
+roomObj.workspace.theme = 'regular'; /* 'christmas' or 'regular' in the Workspace Designer */
 
 let defaultRoomSurfaces = {
     leftwall: { type: 'regular', acousticTreatment: true },
@@ -3008,10 +3009,8 @@ function parseShortenedXYUrl(parameters) {
 
                 if (shadeArray[5] == '1') {
                     roomObj.workspace.removeDefaultWalls = true;
-                    //  updateRemoveDefaultWallsCheckBox();
                 } else {
                     roomObj.workspace.removeDefaultWalls = false;
-                    //  updateRemoveDefaultWallsCheckBox();
                 }
 
                 if (shadeArray[6] == '1') {
@@ -4594,6 +4593,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     roomObj.room.roomWidth = roomWidth;
     roomLength = getNumberValue('roomLength');
     roomObj.room.roomLength = roomLength;
+
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
@@ -10483,7 +10483,9 @@ function updateRemoveDefaultWallsCheckBox() {
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
 
     if (roomObj.workspace.theme === 'christmas') {
-        document.getElementById('changeThemeCheckBox').checked = roomObj.workspace.theme;
+        document.getElementById('changeThemeCheckBox').checked = true;
+    } else {
+        document.getElementById('changeThemeCheckBox').checked = false;
     }
 
     if (testNew && roomObj.workspace.removeDefaultWalls === false) {
@@ -14217,7 +14219,7 @@ function importJson(jsonFile) {
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
             document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
 
-            document.getElementById('changeThemeCheckBox').checked = roomObj.workspace.theme || false;
+
             document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
             drawRoom(true, false, false);
         }, 1500);
@@ -14596,8 +14598,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
     }
 
     if(workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.workspace && workspaceObj.data.vrc.workspace.theme){
-        roomObj.workspace.theme = workspaceObj.data.vrc.workspace.theme;
-        console.info('roomObj.workspace.theme: ', roomObj.workspace.theme);
+        roomObj2.workspace.theme = workspaceObj.data.vrc.workspace.theme;
+        console.info('roomObj.workspace.theme: ', roomObj2.workspace.theme);
     }
 
     if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc && 'backgroundImageFile' in workspaceObj.data.vrc) {
