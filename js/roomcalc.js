@@ -110,7 +110,7 @@ roomObj.items.touchPanels = [];
 
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
-roomObj.workspace.theme = 'regular'; /* 'christmas' or 'regular' in the Workspace Designer */
+roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Workspace Designer */
 
 let defaultRoomSurfaces = {
     leftwall: { type: 'regular', acousticTreatment: true },
@@ -302,6 +302,7 @@ workspaceKey.chair = { objectType: 'chair' };
 workspaceKey.chairSwivel = { objectType: 'chair', model: 'swivel' };
 workspaceKey.chairHigh = { objectType: 'chair', model: 'high' };
 workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
+workspaceKey.tree = { objectType: 'tree', scale: [0.533, 0.533, 0.533]}
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
 workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
@@ -1685,6 +1686,16 @@ let chairs = [
         depth: 300,
         opacity: 0.8,
         roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
+    },
+    {
+        name: "Christmas Tree",
+        id: "tree",
+        key: "UJ",
+        topImage: 'tree.png',
+        frontImage: 'tree.png',
+        width: 800,
+        depth: 800,
+        opacity: 1,
     },
 
 ]
@@ -3259,7 +3270,7 @@ function resetRoomObj() {
     roomObj.items.speakers = [];
     roomObj.items.microphones = [];
 
-    roomObj.workspace.theme = 'regular';
+    roomObj.workspace.theme = 'standard';
 
     roomObj.software = '';
     roomObj.authorVersion = '';
@@ -10857,7 +10868,7 @@ function changeTheme(e) {
     if (e.srcElement.checked) {
         roomObj.workspace.theme = 'christmas';
     } else {
-        roomObj.workspace.theme = 'regular';
+        roomObj.workspace.theme = 'standard';
     }
     saveToUndoArray();
 }
@@ -14444,6 +14455,11 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
+            if(wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false){
+                wdItem.objectType = 'plant';
+                roomObj2.workspace.theme = 'christmas';
+            }
+
             /* export and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */
             if (wdItem.id.startsWith('display21_9') && wdItem.objectType === 'wall') {
                 wdItem.color = '#808080'; /* color for column */
@@ -14540,9 +14556,6 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         }
                     }
 
-
-
-
                 }
 
                 if (hits > highHitCount) {
@@ -14551,6 +14564,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     candidateKeyName = key;
                     candidateWdItem = modifiedWdItem;
                 }
+
 
 
             }
@@ -14664,7 +14678,6 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         console.info('Workspace Designer import issues with:', data_deviceid);
         return;
     }
-
 
     let wdItem = structuredClone(wdItemIn); /* make a structured clone of the wdItem, delete each object key as processed */
     let position = wdItem.position;
@@ -15083,9 +15096,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
 
     /*
-    Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
-*/
-
+      Because the id videoWall, glassWall or leftWall can be used to guess the ceiling height, only ignore them after height has been processed
+    */
 
 
     if ((item.id === 'glasswall' || item.id === 'videowall' || item.id === 'leftwall' || item.id === 'rightwall' || item.id === 'backwall') && (document.getElementById('convertDefaultWallsOffCheckBox').checked === false)) {
@@ -15368,7 +15380,7 @@ function postMessageToWorkspace() {
     message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
 
-    message.roomdesigner.plan.theme = roomObj.workspace.theme || 'regular';
+    message.roomdesigner.plan.theme = roomObj.workspace.theme || 'standard';
 
     // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
     // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
@@ -15456,6 +15468,8 @@ function exportRoomObjToWorkspace() {
     workspaceObj.title = '';
     workspaceObj.roomShape = {};
     workspaceObj.roomShape.manual = true;
+
+    workspaceObj.roomShape.plant = false;
 
     if (swapXY) {
         workspaceObj.roomShape.width = roomObj2.room.roomWidth;
@@ -15594,6 +15608,7 @@ function exportRoomObjToWorkspace() {
             workspaceObjTablePush(fakeTable);
 
         }
+
 
         if (item.data_deviceid.startsWith('doorDouble')) {
             let leftDoor = structuredClone(item);
@@ -15786,6 +15801,11 @@ function exportRoomObjToWorkspace() {
         let x, y, attr;
         let z = 0;
         let item = structuredClone(newItem);
+
+        /* plants will be converted to christmas trees. Note: scale is different */
+        if(item.data_deviceid === 'plant' && roomObj.workspace.theme === 'christmas'){
+            item.data_deviceid = 'tree';
+        }
 
         if ((item.data_deviceid in workspaceKey)) {
             attr = workspaceKey[item.data_deviceid];
