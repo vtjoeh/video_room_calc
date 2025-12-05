@@ -2308,6 +2308,17 @@ function convertToMeters(roomObj2) {
         roomObjTemp.room.roomHeight = 2.5;
     }
 
+    if('backgroundImage' in roomObj2){
+        roomObjTemp.backgroundImage = {};
+        roomObjTemp.backgroundImage.x = roomObj2.backgroundImage.x * ratio;
+        roomObjTemp.backgroundImage.y = roomObj2.backgroundImage.y * ratio;
+        roomObjTemp.backgroundImage.width = roomObj2.backgroundImage.width * ratio;
+        roomObjTemp.backgroundImage.height = roomObj2.backgroundImage.height * ratio;
+        roomObjTemp.backgroundImage.rotation = roomObj2.backgroundImage.rotation;
+        roomObjTemp.backgroundImage.name = roomObj2.backgroundImage.name;
+        roomObjTemp.backgroundImage.opacity = roomObj2.backgroundImage.opacity;
+    }
+
     for (const category in roomObj2.items) {
         roomObjTemp.items[category] = [];
         for (const i in roomObj2.items[category]) {
@@ -3015,6 +3026,12 @@ function parseShortenedXYUrl(parameters) {
                     roomObj.layersVisible.grShadingSpeaker = false;
                 }
 
+                if (shadeArray[8] === '1') {
+                    roomObj.workspace.theme = 'christmas';
+                } else {
+                    roomObj.workspace.theme = 'regular';
+                }
+
 
             }
 
@@ -3242,6 +3259,8 @@ function resetRoomObj() {
     roomObj.items.displays = [];
     roomObj.items.speakers = [];
     roomObj.items.microphones = [];
+
+    roomObj.workspace.theme = 'regular';
 
     roomObj.software = '';
     roomObj.authorVersion = '';
@@ -5333,6 +5352,12 @@ function createShareableLinkItemShading() {
         shadeArray[7] = 1;
     } else {
         shadeArray[7] = 0;
+    }
+
+    if (roomObj.workspace.theme === 'christmas') {
+        shadeArray[8] = 1;
+    } else {
+        shadeArray[8] = 0;
     }
 
     return 'B' + shadeArray.join('');
@@ -8350,7 +8375,7 @@ function createDeviceMenu(parentButton, attributeType) {
 
             clearTimeout(highlightedSelectNodeTimer);
 
-            highlightedSelectNodeTimer = setTimeout((opt, attributeType, highlight, checkbox)=>{
+            highlightedSelectNodeTimer = setTimeout((opt, attributeType, highlight, checkbox) => {
                 hightlightOverlayForDevice(opt, attributeType, false, checkbox);
             }, 2000, opt, attributeType, false, checkbox);
         });
@@ -10457,6 +10482,10 @@ function updateRemoveDefaultWallsCheckBox() {
 
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
 
+    if (roomObj.workspace.theme === 'christmas') {
+        document.getElementById('changeThemeCheckBox').checked = roomObj.workspace.theme;
+    }
+
     if (testNew && roomObj.workspace.removeDefaultWalls === false) {
         document.getElementById('addCeilingCheckBox').checked = true;
         roomObj.workspace.addCeiling = true;
@@ -10472,7 +10501,6 @@ function updateRemoveDefaultWallsCheckBox() {
         document.getElementById('addCeilingDiv').style.display = '';
         document.getElementById('addCeilingAutoDiv').style.display = 'none';
     }
-
 
 }
 
@@ -10819,6 +10847,15 @@ function addCeilingChange(e) {
         roomObj.workspace.addCeiling = true;
     } else {
         roomObj.workspace.addCeiling = false;
+    }
+    saveToUndoArray();
+}
+
+function changeTheme(e) {
+    if (e.srcElement.checked) {
+        roomObj.workspace.theme = 'christmas';
+    } else {
+        roomObj.workspace.theme = 'regular';
     }
     saveToUndoArray();
 }
@@ -11903,11 +11940,11 @@ function addListeners(stage) {
 
         clearTimeout(rightClickTouchTimer);
 
-        if(!(mobileDevice === 'false')){
-            rightClickTouchTimer = setTimeout(()=>{
-                    createRightClickMenu();
+        if (!(mobileDevice === 'false')) {
+            rightClickTouchTimer = setTimeout(() => {
+                createRightClickMenu();
             }, rightClickTouchTimerDelta);
-         }
+        }
 
         if (e.target.findAncestor('.layerTransform')) {
             return;
@@ -11967,9 +12004,9 @@ function addListeners(stage) {
         clearTimeout(rightClickTouchTimer);
 
         /* update right-click menu if already exisiting to capture updated TR node options */
-        setTimeout(()=>{
-            if(document.getElementById(rightClickMenuDialogId)){
-                     createRightClickMenu(true);
+        setTimeout(() => {
+            if (document.getElementById(rightClickMenuDialogId)) {
+                createRightClickMenu(true);
             }
         }, 500)
 
@@ -14180,6 +14217,7 @@ function importJson(jsonFile) {
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
             document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
 
+            document.getElementById('changeThemeCheckBox').checked = roomObj.workspace.theme || false;
             document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
             drawRoom(true, false, false);
         }, 1500);
@@ -14557,11 +14595,31 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     }
 
-    // alertDialog('Importing Workspace Designer File', 'Please wait');
+    if(workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.workspace && workspaceObj.data.vrc.workspace.theme){
+        roomObj.workspace.theme = workspaceObj.data.vrc.workspace.theme;
+        console.info('roomObj.workspace.theme: ', roomObj.workspace.theme);
+    }
+
+    if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc && 'backgroundImageFile' in workspaceObj.data.vrc) {
+        roomObj2.backgroundImageFile = workspaceObj.data.vrc.backgroundImageFile;
+        roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
+    }
 
     setTimeout(() => {
         roomObj = structuredClone(roomObj2);
+
         roomObj.trNodes = [];
+
+        isBackgroundImageFloorFileLoad = true;
+
+        if('backgroundImageFile' in roomObj){
+            console.info('importing workspaceObj.data.vrc.backgroundImage');
+            backgroundImageFloor.src = roomObj.backgroundImageFile;
+            insertKonvaBackgroundImageFloor();
+            turnOnBackgroundImageButtons();
+            setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
+        }
+
         drawRoom(true, false, false);
 
         setTimeout(() => {
@@ -15307,6 +15365,9 @@ function postMessageToWorkspace() {
 
     message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
+
+    message.roomdesigner.plan.theme = roomObj.workspace.theme || 'regular';
+
     // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
     // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
 
@@ -15393,6 +15454,7 @@ function exportRoomObjToWorkspace() {
     workspaceObj.title = '';
     workspaceObj.roomShape = {};
     workspaceObj.roomShape.manual = true;
+
     if (swapXY) {
         workspaceObj.roomShape.width = roomObj2.room.roomWidth;
         workspaceObj.roomShape.length = roomObj2.room.roomLength;
@@ -15440,6 +15502,15 @@ function exportRoomObjToWorkspace() {
     workspaceObj.source.url = fullShareLinkCollabExpBase;
     workspaceObj.source.version = version;
 
+    workspaceObj.data = {};
+    workspaceObj.data.vrc = {};
+    workspaceObj.data.vrc.workspace = {};
+    workspaceObj.data.vrc.workspace.theme = roomObj.workspace.theme || 'regular';
+
+    if ('backgroundImageFile' in roomObj && 'backgroundImage' in roomObj2) {
+        workspaceObj.data.vrc.backgroundImageFile = roomObj.backgroundImageFile;
+        workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
+    }
 
 
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
@@ -16587,7 +16658,7 @@ function createRightClickMenu(usePreviousPosition = false) {
     let bottomBuffer = 177;
     let rightBuffer = 277;
 
-    if(mobileDevice === 'RoomOS'){
+    if (mobileDevice === 'RoomOS') {
         bottomBuffer = 380;
     }
 
@@ -16622,9 +16693,9 @@ function createRightClickMenu(usePreviousPosition = false) {
     let newX = mouseX;
     let newY = mouseY;
 
-    if(usePreviousPosition){
+    if (usePreviousPosition) {
         newX = rightClickMenuDialogLastPosition.x;
-        newY =  rightClickMenuDialogLastPosition.y;
+        newY = rightClickMenuDialogLastPosition.y;
     }
 
     const pos = stage.getPointerPosition();
@@ -16637,7 +16708,7 @@ function createRightClickMenu(usePreviousPosition = false) {
     rightClickMenuDiv.textContent = '';
 
     createMenuItem('copyMenuDiv', 'Copy', 'ctrl+c', tr.nodes().length < 1);
-    createMenuItem('pasteMenuDiv', 'Paste', 'ctrl+p', !Object.keys(canvasClipBoard).length);
+    createMenuItem('pasteMenuDiv', 'Paste', 'ctrl+p', !Object.keys(canvasClipBoard).length || false);
     createMenuItem('deleteMenuDiv', 'Delete', 'delete', tr.nodes().length < 1);
     createMenuItem('duplicateMenuDiv', 'Duplicate', 'ctrl+d', tr.nodes().length < 1);
     rightClickMenuDiv.appendChild(hr.cloneNode(true));
@@ -16749,12 +16820,12 @@ function createRightClickMenu(usePreviousPosition = false) {
 
 }
 
-window.addEventListener('touchstart', (e) =>{
-      const touch = e.touches[0]; // Get the first touch point
-      logMouseMovements(touch);
+window.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0]; // Get the first touch point
+    logMouseMovements(touch);
 });
 
-window.addEventListener('touchmove', (e)=>{
+window.addEventListener('touchmove', (e) => {
     clearTimeout(rightClickTouchTimer);
 });
 

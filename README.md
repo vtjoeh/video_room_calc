@@ -11,6 +11,8 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.632**
 - Improvements to the configurable walls.
 - On touch devices open right click menu by holding down for 2 seconds.
+- Added data.vrc object on export to Workspace Designer JSON file.
+- Support to turn on/off holiday theme when exporting to the Workspace Designer.
 
 ***v0.1.631**
 - Support for designer.cisco.com configurable walls. The Video Room Calculator refers to these walls as Default Walls.
