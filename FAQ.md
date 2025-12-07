@@ -13,6 +13,9 @@ There are two ways to start the room:
 2) **Drag and Drop** - Just go to the **Equipment tab** select devices and drag and drop.
 Double click on any object on the canvas to get details and to edit.
 
+### How to export a designer for the Workspace Designer?
+In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Import the file in the Video Room Calculator by clicking **New** --> **Open File**.  
+
 ### What are the short cut keys?
 The following list is also found under the help menu:
 ctrl-c / cmd-c = copy
