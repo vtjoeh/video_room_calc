@@ -2680,6 +2680,7 @@ function getQueryString() {
             testNew = true;
         } else {
             testNew = false;
+            localStorage.removeItem('testNew');
         }
     }
 
@@ -10561,10 +10562,10 @@ function updateDefaultWallsMenuAndCanvas() {
 
     let wall = currentDefaultWall;
     let wallType = document.getElementById('drpWallType').value;
-    let accousicTreatment = document.getElementById('acousticTreatment').checked;
+    let accousticTreatment = document.getElementById('acousticTreatment').checked;
 
     roomObj.roomSurfaces[wall].type = wallType;
-    roomObj.roomSurfaces[wall].acousticTreatment = accousicTreatment;
+    roomObj.roomSurfaces[wall].acousticTreatment = accousticTreatment;
 
     if (wallType === 'window') {
         delete roomObj.roomSurfaces[wall].door;
@@ -14314,8 +14315,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
             roomSurfaces[wdItem.id] = {};
 
             if ('model' in wdItem) {
-
                 roomSurfaces[wdItem.id].type = wdItem.model;
+            } else {
+                roomSurfaces[wdItem.id].type = 'regular'; 
             }
 
             if ('acousticTreatment' in wdItem) {
@@ -15308,7 +15310,7 @@ function openWorkspaceWindow(fromButton = true) {
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
     if (currentSite != 'https://collabexperience.com/') {
         newWorkspaceTab = defaultWorkspaceTestSite;
-        testNew = true;
+    //    testNew = true;
         console.info('WD site: ', newWorkspaceTab);
     }
 
@@ -15496,6 +15498,83 @@ function exportRoomObjToWorkspace() {
         ]
     }
 
+    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */ 
+    let altDefaultWall = true; 
+
+    if(testNew && altDefaultWall === true){
+
+        let backwall = {}; 
+        let leftwall = {}; 
+        let rightwall = {}; 
+        let videowall = {}; 
+
+        backwall.id = 'backwall'; 
+        backwall.x = -0.1; 
+        backwall.y = roomObj2.room.roomLength + 0.1; 
+        backwall.data_zPosition = -0.10; 
+        backwall.data_vHeight = roomObj2.room.roomHeight + 0.10; 
+        backwall.rotation = -90; 
+        backwall.width =  0.10;
+        backwall.height = roomObj2.room.roomWidth + 2 * 0.10;
+
+        videowall.id = 'videowall'; 
+        videowall.x = roomObj2.room.roomWidth + 0.10;
+        videowall.y = -0.1; 
+        videowall.data_zPosition = -0.10; 
+        videowall.data_vHeight = roomObj2.room.roomHeight + 0.10; 
+        videowall.rotation = 90; 
+        videowall.width =  0.10;
+        videowall.height = roomObj2.room.roomWidth + 2 * 0.10; 
+
+        leftwall.id = 'leftwall'; 
+        leftwall.x = -0.1; 
+        leftwall.y = 0; 
+        leftwall.data_zPosition = 0; 
+        leftwall.data_vHeight = roomObj2.room.roomHeight; 
+        leftwall.rotation = 0; 
+        leftwall.width = 0.10; 
+        leftwall.height = roomObj2.room.roomLength; 
+
+        rightwall.id = 'rightwall'; 
+        rightwall.x = roomObj2.room.roomWidth + 0.1; 
+        rightwall.y = roomObj2.room.roomLength; 
+        rightwall.data_zPosition = 0; 
+        rightwall.data_vHeight = roomObj2.room.roomHeight; 
+        rightwall.rotation = 180; 
+        rightwall.width = 0.1; 
+        rightwall.height = roomObj2.room.roomLength; 
+
+        console.log('roomSurfaces',roomObj.roomSurfaces); 
+        [backwall, leftwall, rightwall, videowall].forEach(wall=>{
+            let jsonLabel = {}
+            console.log('wall', wall); 
+            if (roomObj.roomSurfaces[wall.id].type === 'regular'){
+                wall.data_deviceid = 'wallStd'; 
+            }
+            else if (roomObj.roomSurfaces[wall.id].type === 'glass') {
+                wall.data_deviceid = 'wallGlass'; 
+            }
+            else if (roomObj.roomSurfaces[wall.id].type === 'window') {
+                 wall.data_deviceid = 'wallWindow'; 
+            }
+
+            if('acousticTreatment' in roomObj.roomSurfaces[wall.id]){
+                jsonLabel.acousticTreatment = roomObj.roomSurfaces[wall.id].acousticTreatment;  
+            }
+
+            if('door' in roomObj.roomSurfaces[wall.id]){
+                jsonLabel.door = roomObj.roomSurfaces[wall.id].door;  
+            }
+
+            wall.data_labelField = JSON.stringify(jsonLabel); 
+
+            roomObj2.items.tables.push(wall); 
+
+        }); 
+
+
+    }
+
     if ('roomHeight' in roomObj2.room) {
         if ((roomObj2.room.roomHeight == 0 || roomObj2.room.roomHeight == '')) {
             workspaceObj.roomShape.height = 2.5;
@@ -15528,6 +15607,24 @@ function exportRoomObjToWorkspace() {
         workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
     }
 
+
+    if(((altDefaultWall && testNew) && document.getElementById('removeDefaultWallsCheckBox').checked === false)){
+        delete workspaceObj.roomShape;
+        let floor = {
+            x: roomObj2.room.roomWidth + 0.1,
+            y: 0,
+            rotation: 90,
+            data_deviceid: "floor",
+            id: "primaryFloor",
+            data_zPosition: -0.1,
+            data_vHeight: 0.1,
+            width: roomObj2.room.roomLength,
+            height: roomObj2.room.roomWidth + 0.2,
+        };
+
+
+        workspaceObjWallPush(floor);
+    }
 
     if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
         delete workspaceObj.roomShape;
@@ -15567,14 +15664,14 @@ function exportRoomObjToWorkspace() {
 
     }
 
-    if ((roomObj.workspace.addCeiling === true && testNew === false) || (roomObj.workspace.addCeiling === true && testNew && roomObj.workspace.removeDefaultWalls)) {
+    if ((roomObj.workspace.addCeiling === true && testNew === false) || (roomObj.workspace.addCeiling === true && testNew && roomObj.workspace.removeDefaultWalls) || (testNew && altDefaultWall && roomObj.workspace.removeDefaultWalls === false)) {
         let wallWidth = 0;
         let ceiling = {
             "x": 0 - wallWidth,
             "y": 0 - wallWidth,
             "rotation": 0,
             "data_deviceid": "ceiling",
-            "id": "primaryCeiling",
+            "id": "ceiling",
             "data_zPosition": roomObj2.room.roomHeight || defaultWallHeight,
             "data_vHeight": 0.01,
             "width": roomObj2.room.roomWidth + (wallWidth * 2),
