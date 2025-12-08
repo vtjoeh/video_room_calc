@@ -1,4 +1,4 @@
-const version = "v0.1.633";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.633a";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -14317,7 +14317,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
             if ('model' in wdItem) {
                 roomSurfaces[wdItem.id].type = wdItem.model;
             } else {
-                roomSurfaces[wdItem.id].type = 'regular'; 
+                roomSurfaces[wdItem.id].type = 'regular';
             }
 
             if ('acousticTreatment' in wdItem) {
@@ -15498,79 +15498,78 @@ function exportRoomObjToWorkspace() {
         ]
     }
 
-    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */ 
-    let altDefaultWall = true; 
+    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */
+    let altDefaultWall = true;
 
-    if(testNew && altDefaultWall === true){
+    if(testNew && altDefaultWall === true && !roomObj.workspace.removeDefaultWalls){
 
-        let backwall = {}; 
-        let leftwall = {}; 
-        let rightwall = {}; 
-        let videowall = {}; 
+        let backwall = {};
+        let leftwall = {};
+        let rightwall = {};
+        let videowall = {};
 
-        backwall.id = 'backwall'; 
-        backwall.x = -0.1; 
-        backwall.y = roomObj2.room.roomLength + 0.1; 
-        backwall.data_zPosition = -0.10; 
-        backwall.data_vHeight = roomObj2.room.roomHeight + 0.10; 
-        backwall.rotation = -90; 
+        backwall.id = 'backwall';
+        backwall.x = -0.1;
+        backwall.y = roomObj2.room.roomLength + 0.1;
+        backwall.data_zPosition = -0.10;
+        backwall.data_vHeight = roomObj2.room.roomHeight + 0.10;
+        backwall.rotation = -90;
         backwall.width =  0.10;
         backwall.height = roomObj2.room.roomWidth + 2 * 0.10;
 
-        videowall.id = 'videowall'; 
+        videowall.id = 'videowall';
         videowall.x = roomObj2.room.roomWidth + 0.10;
-        videowall.y = -0.1; 
-        videowall.data_zPosition = -0.10; 
-        videowall.data_vHeight = roomObj2.room.roomHeight + 0.10; 
-        videowall.rotation = 90; 
+        videowall.y = -0.1;
+        videowall.data_zPosition = -0.10;
+        videowall.data_vHeight = roomObj2.room.roomHeight + 0.10;
+        videowall.rotation = 90;
         videowall.width =  0.10;
-        videowall.height = roomObj2.room.roomWidth + 2 * 0.10; 
+        videowall.height = roomObj2.room.roomWidth + 2 * 0.10;
 
-        leftwall.id = 'leftwall'; 
-        leftwall.x = -0.1; 
-        leftwall.y = 0; 
-        leftwall.data_zPosition = 0; 
-        leftwall.data_vHeight = roomObj2.room.roomHeight; 
-        leftwall.rotation = 0; 
-        leftwall.width = 0.10; 
-        leftwall.height = roomObj2.room.roomLength; 
+        leftwall.id = 'leftwall';
+        leftwall.x = -0.1;
+        leftwall.y = 0;
+        leftwall.data_zPosition = 0;
+        leftwall.data_vHeight = roomObj2.room.roomHeight;
+        leftwall.rotation = 0;
+        leftwall.width = 0.10;
+        leftwall.height = roomObj2.room.roomLength;
 
-        rightwall.id = 'rightwall'; 
-        rightwall.x = roomObj2.room.roomWidth + 0.1; 
-        rightwall.y = roomObj2.room.roomLength; 
-        rightwall.data_zPosition = 0; 
-        rightwall.data_vHeight = roomObj2.room.roomHeight; 
-        rightwall.rotation = 180; 
-        rightwall.width = 0.1; 
-        rightwall.height = roomObj2.room.roomLength; 
+        rightwall.id = 'rightwall';
+        rightwall.x = roomObj2.room.roomWidth + 0.1;
+        rightwall.y = roomObj2.room.roomLength;
+        rightwall.data_zPosition = 0;
+        rightwall.data_vHeight = roomObj2.room.roomHeight;
+        rightwall.rotation = 180;
+        rightwall.width = 0.1;
+        rightwall.height = roomObj2.room.roomLength;
 
-        console.log('roomSurfaces',roomObj.roomSurfaces); 
         [backwall, leftwall, rightwall, videowall].forEach(wall=>{
             let jsonLabel = {}
-            console.log('wall', wall); 
+
             if (roomObj.roomSurfaces[wall.id].type === 'regular'){
-                wall.data_deviceid = 'wallStd'; 
+                wall.data_deviceid = 'wallStd';
             }
             else if (roomObj.roomSurfaces[wall.id].type === 'glass') {
-                wall.data_deviceid = 'wallGlass'; 
+                wall.data_deviceid = 'wallGlass';
             }
             else if (roomObj.roomSurfaces[wall.id].type === 'window') {
-                 wall.data_deviceid = 'wallWindow'; 
+                 wall.data_deviceid = 'wallWindow';
             }
 
             if('acousticTreatment' in roomObj.roomSurfaces[wall.id]){
-                jsonLabel.acousticTreatment = roomObj.roomSurfaces[wall.id].acousticTreatment;  
+                jsonLabel.acousticTreatment = roomObj.roomSurfaces[wall.id].acousticTreatment;
             }
 
             if('door' in roomObj.roomSurfaces[wall.id]){
-                jsonLabel.door = roomObj.roomSurfaces[wall.id].door;  
+                jsonLabel.door = roomObj.roomSurfaces[wall.id].door;
             }
 
-            wall.data_labelField = JSON.stringify(jsonLabel); 
+            wall.data_labelField = JSON.stringify(jsonLabel);
 
-            roomObj2.items.tables.push(wall); 
+            roomObj2.items.tables.push(wall);
 
-        }); 
+        });
 
 
     }
