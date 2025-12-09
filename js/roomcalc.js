@@ -267,8 +267,8 @@ workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit
 
 workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', mount: "wall", color: 'light' };
 
-workspaceKey.boardPro55 = { objectType: 'VRC Custom', model: 'Board Pro 55 G1', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
-workspaceKey.boardPro75 = { objectType: 'VRC Custom', model: 'Board Pro 75 G2', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+workspaceKey.boardPro55 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 , scale: [1.4,7,0.5]};
+workspaceKey.boardPro75 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475, scale: [1.8,9.1,0.5] };
 
 workspaceKey.brdPro55G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro55G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
@@ -285,14 +285,14 @@ workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk', role: 'sing
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
 // workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12, role: 'singleScreen' };
 workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Mini', role: 'singleScreen' };
-workspaceKey.room55 = { objectType: 'VRC Custom', model: 'room55' };
-workspaceKey.rmKitMini = { objectType: 'VRC Custom', model: 'rmKitMini' };
-workspaceKey.roomKit = { objectType: 'VRC Custom', model: 'roomKit' };
+workspaceKey.room55 = { objectType: 'videoDevice', model: 'Legacy', scale: [1.5,12,0.5] };
+workspaceKey.rmKitMini = { objectType: 'videoDevice', model: 'Legacy', scale: [0.55, 0.9, 0.9] };
+workspaceKey.roomKit = { objectType: 'videoDevice', model: 'Legacy', scale: [0.75, 0.95, 0.95] };
 
 workspaceKey.roomKitEqxFS = { objectType: 'videoDevice', model: 'EQX', mount: 'floor', yOffset: 0.44 };
 workspaceKey.roomKitEqxWS = { objectType: 'videoDevice', model: 'EQX', mount: 'wallstand', yOffset: 0.062 };
 
-workspaceKey.cameraP60 = { objectType: 'VRC Custom', model: 'cameraP60' };
+workspaceKey.cameraP60 = { objectType: 'videoDevice', model: 'Legacy', scale: [0.25, 1.5, 1] };
 
 workspaceKey.quadCam = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadCamExt = { objectType: 'quadcam', role: 'crossview', yOffset: 0.076 };
@@ -772,13 +772,13 @@ let videoDevices = [
 
     { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam", frontImage: 'roomKitEqQuadCam-menu.png' },
 
-    { name: "Board Pro 55*", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 923 },
+    { name: "Board Pro 55*", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 974 },
 
-    { name: "Board Pro 75*", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 763 },
+    { name: "Board Pro 75*", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 760 },
 
-    { name: "Board Pro 55 G2: Wall Mount", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 974 },
+    { name: "Board Pro 55 G2: Wall Mount", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 970 },
 
-    { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 763 },
+    { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
     { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
@@ -15333,7 +15333,7 @@ function openWorkspaceWindow(fromButton = true) {
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         // iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
 
-        iFrameWorkspaceWindow.src = newWorkspaceTab
+        iFrameWorkspaceWindow.src = newWorkspaceTab;
     }
 
 
