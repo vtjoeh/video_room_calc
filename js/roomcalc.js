@@ -1,4 +1,4 @@
-const version = "v0.1.633a";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.633";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -3253,6 +3253,7 @@ function deleteBackgroundImage() {
 }
 
 function resetRoomObj() {
+    console.trace();
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
@@ -15502,7 +15503,6 @@ function exportRoomObjToWorkspace() {
     let altDefaultWall = true;
 
     if(testNew && altDefaultWall === true && !roomObj.workspace.removeDefaultWalls){
-
         let backwall = {};
         let leftwall = {};
         let rightwall = {};
