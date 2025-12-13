@@ -303,8 +303,10 @@ button:not(:disabled) {
 }
 
 .inputFieldRow {
-  flex-direction: column;
+  flex-direction: row;
+  max-width: 280px;
 }
+
 
 .inputField label {
   font-size: 14px;
