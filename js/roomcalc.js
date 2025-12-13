@@ -4992,9 +4992,6 @@ function measuringToolOn(event = true) {
     let turnOn;
     tr.nodes([]);
 
-    canvasPixel.x = pxOffset;
-    canvasPixel.y = pyOffset;
-
     enableCopyDelBtn();
     if (typeof event === 'boolean') {
         turnOn = event;
@@ -5021,8 +5018,6 @@ function measuringToolOn(event = true) {
         isSelectingTwoPointsOn = true;
         select2PointsRect.show();
         document.getElementById('measureTool').checked = true;
-        canvasPixel.x = pxOffset;
-        canvasPixel.y = pyOffset;
     } else {
         hideMeasuringTool();
         document.getElementById('measureTool').checked = false;
