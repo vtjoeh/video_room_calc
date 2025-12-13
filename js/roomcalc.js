@@ -16886,7 +16886,7 @@ function closeRightClickMenu() {
 /* createas a right click menu */
 function createRightClickMenu(usePreviousPosition = false) {
 
-    if (measuringToolOn) return;
+    if (isMeasuringToolOn) return;
 
     let previousXY = {};
     quickAddMouse.x = mouseUnit.x;
