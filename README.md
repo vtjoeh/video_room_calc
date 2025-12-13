@@ -8,6 +8,14 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.634**
+- Configurable default walls are now supported on the production Workspace Designer site. 🎨
+- Christmas theme support is now available on the production Workspace Designer site. 🎄
+- A new Measuring Tool has been added, found under the ellipses (…) 📏
+
+**v0.1.633**
+- Improvements to configuraable default walls.
+
 **v0.1.632**
 - Improvements to the configurable walls.
 - On touch devices open right click menu by holding down for 2 seconds.

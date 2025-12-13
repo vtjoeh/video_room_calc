@@ -1006,6 +1006,15 @@
   <div id="menuMoreDiv" class="menuMore" style="display: none;">
     <div style="padding: 10px; padding-bottom: 5px; ">
       <div class="menuMoreInputField">
+        <label class="tooltipBottom">Measure tool:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Use to measure between two points. Short cut key `ctrl-m` and `esc` to exit.</span></label>
+        <label class="switch">
+          <input id="measureTool" type="checkbox" onclick="measuringToolOn(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
         <label class="tooltipBottom">Highlight small devices:
           <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptextBottom">Highlight smaller devices like mics, touch panels or PTZ cameras. Allows the
@@ -1464,7 +1473,8 @@
         ctrl-y / cmd-y = redo<br>
         shift + [ctrl-z / cmd-z] = redo<br>
         ctrl-r / cmd-r = rotate 90 degrees<br>
-        esc = unselect items <br>
+        ctrl-m = turn on Measuring Tool <br>
+        esc = unselect items (or turn off Measuring Tool) <br>
         Delete / Backspace = delete items<br>
         &larr;,&uarr;,&rarr;,&darr; arrows = move selected items <br>
         [shift / ctrl / cmd] + click = select/unselect item<br>

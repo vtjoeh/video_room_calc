@@ -1,4 +1,4 @@
-const version = "v0.1.633";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.634";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -22,7 +22,7 @@ const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-de
 let newWorkspaceTab = defaultWorkspaceTab;
 let defaultWorkspaceTestSite = 'https://designer.cisco.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
-let iFrameWorkspaceWindow; /* Windwo reprsenting the iframe */
+let iFrameWorkspaceWindow; /* Window reprsenting the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
 let zoomValue = 100;
 let smallItemsHighlight = false; /* keep track if small items have a highlight */
@@ -185,7 +185,9 @@ let panScrollableOn = false; /* Keeps state if the canvas is scrollable */
 let selecting = false; /* keeps state if in the process of selecting 2 points */
 let clickedOnItemId = ''; /* keeps track of single clicked on items */
 
-let selectingTwoPoints = false; /* Keeps state if selecting 2 points to scale background image */
+let isSelectingTwoPointsOn = false; /* Keeps state if selecting 2 points to scale background image */
+
+let isMeasuringToolOn = false; /* keeps state of the measuring tool when selecting two points */
 
 let selectingOuterWall = false; /* if an outerwall is clicked on, turn true to keep selectionRectangle from happening */
 
@@ -267,8 +269,8 @@ workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit
 
 workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', mount: "wall", color: 'light' };
 
-workspaceKey.boardPro55 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 , scale: [1.4,7,0.5]};
-workspaceKey.boardPro75 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475, scale: [1.8,9.1,0.5] };
+workspaceKey.boardPro55 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046, scale: [1.4, 7, 0.5] };
+workspaceKey.boardPro75 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475, scale: [1.8, 9.1, 0.5] };
 
 workspaceKey.brdPro55G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro55G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
@@ -285,7 +287,7 @@ workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk', role: 'sing
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
 // workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Pro', scale: [0.55, 0.6, 0.55], vertOffset: 0.12, role: 'singleScreen' };
 workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Mini', role: 'singleScreen' };
-workspaceKey.room55 = { objectType: 'videoDevice', model: 'Legacy', scale: [1.5,12,0.5] };
+workspaceKey.room55 = { objectType: 'videoDevice', model: 'Legacy', scale: [1.5, 12, 0.5] };
 workspaceKey.rmKitMini = { objectType: 'videoDevice', model: 'Legacy', scale: [0.55, 0.9, 0.9] };
 workspaceKey.roomKit = { objectType: 'videoDevice', model: 'Legacy', scale: [0.75, 0.95, 0.95] };
 
@@ -302,7 +304,7 @@ workspaceKey.chair = { objectType: 'chair' };
 workspaceKey.chairSwivel = { objectType: 'chair', model: 'swivel' };
 workspaceKey.chairHigh = { objectType: 'chair', model: 'high' };
 workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
-workspaceKey.tree = { objectType: 'tree', scale: [0.533, 0.533, 0.533]}
+workspaceKey.tree = { objectType: 'tree', scale: [0.533, 0.533, 0.533] }
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
 workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
@@ -619,8 +621,8 @@ let groupBackground = new Konva.Group(
 let select2PointsRect = new Konva.Rect({
     x: 0,
     y: 0,
-    fill: 'purple',
-    opacity: 0.1,
+    fill: 'white',
+    opacity: 0.01,
 })
 
 /* panRectangle is the highest level shape used to make panning work. It is hidden until pan is enabled. Opacity always = 0 */
@@ -675,6 +677,52 @@ layerSelectionBox.add(distanceLine);
 
 distanceLine.hide();
 
+
+// let measuringToolText = 'DIST m/f';
+
+const measuringToolLabel = new Konva.Label({
+    x: 30,
+    y: 30,
+    opacity: 1,
+    id: 'measuringToolLabel',
+    name: 'measuringToolLabel',
+    listening: false,
+});
+
+
+
+measuringToolLabel.add(
+    new Konva.Tag({
+        fill: 'lightgrey',
+        stroke: 'black',
+        strokeWidth: 1,
+        pointerDirection: 'down',
+        pointerWidth: 0,
+        pointerHeight: 0,
+        lineJoin: 'round',
+        shadowColor: 'black',
+        shadowBlur: 7,
+        shadowOffsetX: 5,
+        shadowOffsetY: 5,
+        shadowOpacity: 0.5,
+        cornerRadius: 5,
+    })
+);
+
+const measuringToolText = new Konva.Text({
+    text: 'DIST m/f',
+    fontSize: 16,
+    padding: 5,
+    fill: 'black',
+})
+
+measuringToolLabel.add(measuringToolText);
+
+layerSelectionBox.add(measuringToolLabel);
+
+measuringToolLabel.hide();
+
+
 select2PointsRect.on('click', function select2PointsRectOnClick(event) {
 
 });
@@ -683,26 +731,86 @@ panRectangle.on('click', function panRectangleOnClick(event) {
 
 });
 
-select2PointsRect.on('mousedown', function select2PointsRectOnMousedown(mouse) {
+select2PointsRect.on('pointerdown', function select2PointsRectOnMousedown(mouse) {
     distanceLine.hide();
     circleStart.show();
     circleEnd.hide();
+    measuringToolLabel.hide();
     circleStart.x(canvasPixel.x);
     circleStart.y(canvasPixel.y);
+
+
 });
 
-select2PointsRect.on('mousemove', function select2PointsRectOnMousemove(mouse) {
+select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse) {
     if (circleStart.isVisible() && !(circleEnd.isVisible())) {
+        if(isMeasuringToolOn){
+            measuringToolLabel.show();
+        }
+
         distanceLine.show();
         distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
+
+        if (mouseUnit.x < 0) {
+            measuringToolLabel.x(pxOffset);
+        }
+        else if (mouseUnit.x > roomObj.room.roomWidth) {
+            measuringToolLabel.x(pxOffset + roomObj.room.roomWidth * scale)
+        } else {
+            measuringToolLabel.x(canvasPixel.x);
+        }
+
+        if (mouseUnit.y > 0.1) {
+            measuringToolLabel.y(canvasPixel.y - 25);
+        } else {
+            measuringToolLabel.y(canvasPixel.y + 40);
+        }
+
+
+        let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
+        lineDistance = round(lineDistance / scale);
+        let txtUnit = 'ft';
+        if (roomObj.unit === 'meters') {
+            txtUnit = 'm';
+        }
+        measuringToolText.text(lineDistance + ' ' + txtUnit);
     }
 });
 
-select2PointsRect.on('mouseup', function select2PointsRectOnMouseup(mouse) {
+select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
     circleEnd.show();
     circleEnd.x(canvasPixel.x);
     circleEnd.y(canvasPixel.y);
-    document.getElementById('btnUpdateImageScale').disabled = false;
+
+    distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
+
+    measuringToolLabel.x(canvasPixel.x);
+
+    if (mouseUnit > 0.1) {
+        measuringToolLabel.y(canvasPixel.y - 25);
+    } else {
+        measuringToolLabel.y(canvasPixel.y + 25);
+    }
+
+    if (mouseUnit.x < 0) {
+        measuringToolLabel.x(pxOffset);
+    }
+    else if (mouseUnit.x > roomObj.room.roomWidth) {
+        measuringToolLabel.x(pxOffset + roomObj.room.roomWidth * scale)
+    } else {
+        measuringToolLabel.x(canvasPixel.x);
+    }
+
+    if (mouseUnit.y > 0.1) {
+        measuringToolLabel.y(canvasPixel.y - 25);
+    } else {
+        measuringToolLabel.y(canvasPixel.y + 40);
+    }
+
+
+    if (isSelectingTwoPointsOn && !isMeasuringToolOn) {
+        document.getElementById('btnUpdateImageScale').disabled = false;
+    }
 });
 
 panRectangle.on('mousedown', function panRectangleOnMousedown(mouse) {
@@ -2320,7 +2428,7 @@ function convertToMeters(roomObj2) {
         roomObjTemp.room.roomHeight = 2.5;
     }
 
-    if('backgroundImage' in roomObj2){
+    if ('backgroundImage' in roomObj2) {
         roomObjTemp.backgroundImage = {};
         roomObjTemp.backgroundImage.x = roomObj2.backgroundImage.x * ratio;
         roomObjTemp.backgroundImage.y = roomObj2.backgroundImage.y * ratio;
@@ -2430,6 +2538,7 @@ function updateFeetMetersToggleBtn() {
 }
 
 function convertMetersFeet(isDrawRoom, newUnit = null) {
+    measuringToolOn(false); /* turn off the measuring tool if on */
 
     if (newUnit === null) {
         roomObj.unit = document.getElementById('drpMetersFeet').value;
@@ -3253,7 +3362,7 @@ function deleteBackgroundImage() {
 }
 
 function resetRoomObj() {
-    console.trace();
+
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
@@ -4130,8 +4239,6 @@ function drawOutsideWall(grOuterWall) {
 
         function addListeners(wallItem) {
 
-            if (!testNew) return;
-
             wallItem.on('mousedown touchstart', function outsideWallOnMouseDownTouchstart(e) {
                 /* tempWall is just for flashing purple when the wall is selected */
                 let tempWall = stage.findOne('#tempWall');
@@ -4143,7 +4250,7 @@ function drawOutsideWall(grOuterWall) {
                 tr.nodes([]);
 
                 e.evt.preventDefault();
-                if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
+                if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage) {
                     e.evt.preventDefault();
                     return;
                 }
@@ -4857,11 +4964,44 @@ function changeTransparency(value = 50) {
 }
 
 function select2Points() {
+    measuringToolOn(false);
     resetBackgroundImageFloorSettings();
     document.getElementById("canvasDiv").style.cursor = "crosshair";
     tr.nodes([]);
-    selectingTwoPoints = true;
+    enableCopyDelBtn();
+    isSelectingTwoPointsOn = true;
     select2PointsRect.show();
+}
+
+function measuringToolOn(event = true) {
+    let turnOn;
+    tr.nodes([]);
+    enableCopyDelBtn();
+    if (typeof event === 'boolean') {
+        turnOn = event;
+    }
+    else {
+        turnOn = event.target.checked;
+    }
+
+    if(isSelectingTwoPointsOn && !isMeasuringToolOn && turnOn === true){
+        alert('Measuring Tool not allowed at this step. Use Select 2 Points button.');
+        document.getElementById('measureTool').checked = false;
+        return;
+    }
+
+    if (turnOn) {
+        document.getElementById("canvasDiv").style.cursor = "crosshair";
+        tr.nodes([]);
+        isMeasuringToolOn = true;
+        isSelectingTwoPointsOn = true;
+        select2PointsRect.show();
+        document.getElementById('measureTool').checked = true;
+    } else {
+        hideMeasuringTool();
+        document.getElementById('measureTool').checked = false;
+    }
+
 }
 
 function insertKonvaBackgroundImageFloor() {
@@ -4970,12 +5110,20 @@ function updateBackgroundImageScale() {
     }
 }
 
+function hideMeasuringTool() {
+    hideSelect2PointsShapes();
+}
+
 function hideSelect2PointsShapes() {
     select2PointsRect.hide();
     circleEnd.hide();
     circleStart.hide();
     distanceLine.hide();
-    selectingTwoPoints = false;
+    measuringToolLabel.hide();
+    isSelectingTwoPointsOn = false;
+    isMeasuringToolOn = false;
+    document.getElementById('measureTool').checked = false;
+    document.getElementById("canvasDiv").style.cursor = "auto";
 }
 
 function resetBackgroundImageFloorSettings() {
@@ -9477,7 +9625,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('mousedown touchstart', function imageItemOnMouseDownTouchstart(e) {
 
-            if (panScrollableOn || selectingTwoPoints || movingBackgroundImage) {
+            if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage) {
                 e.evt.preventDefault();
                 return;
             }
@@ -10501,17 +10649,17 @@ function updateRemoveDefaultWallsCheckBox() {
         document.getElementById('changeThemeCheckBox').checked = false;
     }
 
-    if (testNew && roomObj.workspace.removeDefaultWalls === false) {
+    if (roomObj.workspace.removeDefaultWalls === false) {
         document.getElementById('addCeilingCheckBox').checked = true;
-        roomObj.workspace.addCeiling = true;
-        document.getElementById('addCeilingCheckBox').disabled = true;
+        //  roomObj.workspace.addCeiling = true;
+        //  document.getElementById('addCeilingCheckBox').disabled = true;
         document.getElementById('addCeilingDiv').style.display = 'none';
         document.getElementById('addCeilingAutoDiv').style.display = '';
         document.getElementById('defaultWallSettings').style.display = "";
 
     } else {
         document.getElementById('addCeilingCheckBox').disabled = false;
-        document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
+        //    document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
         document.getElementById('defaultWallSettings').style.display = "none";
         document.getElementById('addCeilingDiv').style.display = '';
         document.getElementById('addCeilingAutoDiv').style.display = 'none';
@@ -11949,7 +12097,7 @@ function addListeners(stage) {
 
     stage.on('mousedown touchstart', function stageOnMousedownTouchstart(e) {
 
-        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage || selectingOuterWall) {
+        if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall) {
             return;
         }
 
@@ -11988,7 +12136,7 @@ function addListeners(stage) {
             return;
         }
 
-        if (panScrollableOn || selectingTwoPoints || movingBackgroundImage || selectingOuterWall) {
+        if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall) {
             return;
         }
 
@@ -13643,6 +13791,10 @@ function onKeyDown(e) {
         downloadRoomObj();
     }
 
+    if(key === 'm' && (e.ctrlKey)){
+        measuringToolOn(true);
+    }
+
 
     if (((key === 'o') || (key === 'i')) && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -13694,6 +13846,9 @@ function onKeyDown(e) {
         isShortCutKeyUsed = true;
     }
     else if ((key === 'Escape' || key === 'Esc')) {
+        if(isMeasuringToolOn){
+            hideMeasuringTool()
+        }
         e.preventDefault();
         toggleQuickAdd(false);
         tr.nodes([]);
@@ -14458,7 +14613,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
-            if(wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false){
+            if (wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
                 wdItem.objectType = 'plant';
                 roomObj2.workspace.theme = 'christmas';
             }
@@ -14614,7 +14769,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     }
 
-    if(workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.workspace && workspaceObj.data.vrc.workspace.theme){
+    if (workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.workspace && workspaceObj.data.vrc.workspace.theme) {
         roomObj2.workspace.theme = workspaceObj.data.vrc.workspace.theme;
         console.info('roomObj.workspace.theme: ', roomObj2.workspace.theme);
     }
@@ -14631,7 +14786,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         isBackgroundImageFloorFileLoad = true;
 
-        if('backgroundImageFile' in roomObj){
+        if ('backgroundImageFile' in roomObj) {
             console.info('importing workspaceObj.data.vrc.backgroundImage');
             backgroundImageFloor.src = roomObj.backgroundImageFile;
             insertKonvaBackgroundImageFloor();
@@ -15311,7 +15466,6 @@ function openWorkspaceWindow(fromButton = true) {
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
     if (currentSite != 'https://collabexperience.com/') {
         newWorkspaceTab = defaultWorkspaceTestSite;
-    //    testNew = true;
         console.info('WD site: ', newWorkspaceTab);
     }
 
@@ -15482,27 +15636,24 @@ function exportRoomObjToWorkspace() {
         workspaceObj.roomShape.length = roomObj2.room.roomWidth;
     }
 
-    if (testNew) {
+    ['leftwall', 'videowall', 'rightwall', 'backwall'].forEach(roomSurfaceId => {
+        if (roomObj.roomSurfaces[roomSurfaceId].door === 'none') {
+            delete roomObj.roomSurfaces[roomSurfaceId].door;
+        }
+    })
 
-        ['leftwall', 'videowall', 'rightwall', 'backwall'].forEach(roomSurfaceId => {
-            if (roomObj.roomSurfaces[roomSurfaceId].door === 'none') {
-                delete roomObj.roomSurfaces[roomSurfaceId].door;
-            }
-        })
+    workspaceObj.roomShape.roomSurfaces = [
+        { ...{ objectId: 'leftwall' }, ...roomObj.roomSurfaces.leftwall },
+        { ...{ objectId: 'videowall' }, ...roomObj.roomSurfaces.videowall },
+        { ...{ objectId: 'rightwall' }, ...roomObj.roomSurfaces.rightwall },
+        { ...{ objectId: 'backwall' }, ...roomObj.roomSurfaces.backwall },
 
-        workspaceObj.roomShape.roomSurfaces = [
-            { ...{ objectId: 'leftwall' }, ...roomObj.roomSurfaces.leftwall },
-            { ...{ objectId: 'videowall' }, ...roomObj.roomSurfaces.videowall },
-            { ...{ objectId: 'rightwall' }, ...roomObj.roomSurfaces.rightwall },
-            { ...{ objectId: 'backwall' }, ...roomObj.roomSurfaces.backwall },
-
-        ]
-    }
+    ]
 
     /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */
-    let altDefaultWall = true;
+    let altDefaultWall = false;
 
-    if(testNew && altDefaultWall === true && !roomObj.workspace.removeDefaultWalls){
+    if (altDefaultWall === true && !roomObj.workspace.removeDefaultWalls) {
         let backwall = {};
         let leftwall = {};
         let rightwall = {};
@@ -15514,7 +15665,7 @@ function exportRoomObjToWorkspace() {
         backwall.data_zPosition = -0.10;
         backwall.data_vHeight = roomObj2.room.roomHeight + 0.10;
         backwall.rotation = -90;
-        backwall.width =  0.10;
+        backwall.width = 0.10;
         backwall.height = roomObj2.room.roomWidth + 2 * 0.10;
 
         videowall.id = 'videowall';
@@ -15523,7 +15674,7 @@ function exportRoomObjToWorkspace() {
         videowall.data_zPosition = -0.10;
         videowall.data_vHeight = roomObj2.room.roomHeight + 0.10;
         videowall.rotation = 90;
-        videowall.width =  0.10;
+        videowall.width = 0.10;
         videowall.height = roomObj2.room.roomWidth + 2 * 0.10;
 
         leftwall.id = 'leftwall';
@@ -15544,24 +15695,24 @@ function exportRoomObjToWorkspace() {
         rightwall.width = 0.1;
         rightwall.height = roomObj2.room.roomLength;
 
-        [backwall, leftwall, rightwall, videowall].forEach(wall=>{
+        [backwall, leftwall, rightwall, videowall].forEach(wall => {
             let jsonLabel = {}
 
-            if (roomObj.roomSurfaces[wall.id].type === 'regular'){
+            if (roomObj.roomSurfaces[wall.id].type === 'regular') {
                 wall.data_deviceid = 'wallStd';
             }
             else if (roomObj.roomSurfaces[wall.id].type === 'glass') {
                 wall.data_deviceid = 'wallGlass';
             }
             else if (roomObj.roomSurfaces[wall.id].type === 'window') {
-                 wall.data_deviceid = 'wallWindow';
+                wall.data_deviceid = 'wallWindow';
             }
 
-            if('acousticTreatment' in roomObj.roomSurfaces[wall.id]){
+            if ('acousticTreatment' in roomObj.roomSurfaces[wall.id]) {
                 jsonLabel.acousticTreatment = roomObj.roomSurfaces[wall.id].acousticTreatment;
             }
 
-            if('door' in roomObj.roomSurfaces[wall.id]){
+            if ('door' in roomObj.roomSurfaces[wall.id]) {
                 jsonLabel.door = roomObj.roomSurfaces[wall.id].door;
             }
 
@@ -15607,7 +15758,7 @@ function exportRoomObjToWorkspace() {
     }
 
 
-    if(((altDefaultWall && testNew) && document.getElementById('removeDefaultWallsCheckBox').checked === false)){
+    if (altDefaultWall && document.getElementById('removeDefaultWallsCheckBox').checked === false) {
         delete workspaceObj.roomShape;
         let floor = {
             x: roomObj2.room.roomWidth + 0.1,
@@ -15663,7 +15814,7 @@ function exportRoomObjToWorkspace() {
 
     }
 
-    if ((roomObj.workspace.addCeiling === true && testNew === false) || (roomObj.workspace.addCeiling === true && testNew && roomObj.workspace.removeDefaultWalls) || (testNew && altDefaultWall && roomObj.workspace.removeDefaultWalls === false)) {
+    if ((roomObj.workspace.addCeiling === true && roomObj.workspace.removeDefaultWalls)) {
         let wallWidth = 0;
         let ceiling = {
             "x": 0 - wallWidth,
@@ -15899,7 +16050,7 @@ function exportRoomObjToWorkspace() {
         let item = structuredClone(newItem);
 
         /* plants will be converted to christmas trees. Note: scale is different */
-        if(item.data_deviceid === 'plant' && roomObj.workspace.theme === 'christmas'){
+        if (item.data_deviceid === 'plant' && roomObj.workspace.theme === 'christmas') {
             item.data_deviceid = 'tree';
         }
 
@@ -16106,6 +16257,7 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid === 'display21_9') {
             z = displayHeight21_9 / 1000;
             displayScale = item.data_diagonalInches / diagonalInches21_9;
+            item.role = 'ultrawide';
 
         }
 
@@ -16160,44 +16312,6 @@ function exportRoomObjToWorkspace() {
 
         workspaceItem = { ...attr, ...workspaceItem };
         delete workspaceItem.idRegex;
-
-        // if (item.data_deviceid === 'display21_9') {
-        //     let tilt = workspaceItem.rotation[0];
-        //     let slant = workspaceItem.rotation[2];
-        //     workspaceItem.rotation[2] = tilt;
-        //     workspaceItem.rotation[0] = -slant;
-        //     workspaceItem.objectType = 'wall';
-        //     workspaceItem.color = 'black';
-        //     workspaceItem.height = displayHeight21_9 * displayScale / 1000;
-        //     workspaceItem.width = displayDepth21_9 / 1000 / 2;
-        //     workspaceItem.length = displayWidth21_9 * displayScale / 1000;
-
-        //     /* for exported and then imported devices, don't modify ID */
-        //     if (!workspaceItem.id.startsWith('display21_9-')) {
-        //         workspaceItem.id = 'display21_9-' + workspaceItem.id;
-        //     }
-
-        //     workspaceItem.rotation[1] = ((item.rotation - 90) * -(Math.PI / 180));
-
-
-        //     delete workspaceItem.size;
-
-        //     let screenInside = structuredClone(workspaceItem);
-        //     screenInside.color = "#0a0abc";
-        //     screenInside.height = screenInside.height * 0.95;
-        //     screenInside.length = screenInside.length * 0.98;
-        //     screenInside.id = 'secondary-InsideScreen-' + screenInside.id;
-
-        //     let newXY = findNewTransformationCoordinate(item, 0, -0.005);
-
-        //     let newX = (newXY.x - (roomObj2.room.roomWidth) / 2);
-        //     let newY = (newXY.y - (roomObj2.room.roomLength) / 2);
-
-        //     screenInside.position = [newX, screenInside.position[1], newY];
-
-        //     workspaceObj.customObjects.push(screenInside);
-
-        // }
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;
@@ -16751,6 +16865,8 @@ function closeRightClickMenu() {
 /* createas a right click menu */
 function createRightClickMenu(usePreviousPosition = false) {
 
+    if (measuringToolOn) return;
+
     let previousXY = {};
     quickAddMouse.x = mouseUnit.x;
     quickAddMouse.y = mouseUnit.y;
@@ -16825,19 +16941,23 @@ function createRightClickMenu(usePreviousPosition = false) {
 
     rightClickMenuDiv.textContent = '';
 
-    createMenuItem('copyMenuDiv', 'Copy', 'ctrl+c', tr.nodes().length < 1);
-    createMenuItem('pasteMenuDiv', 'Paste', 'ctrl+p', !Object.keys(canvasClipBoard).length || false);
-    createMenuItem('deleteMenuDiv', 'Delete', 'delete', tr.nodes().length < 1);
-    createMenuItem('duplicateMenuDiv', 'Duplicate', 'ctrl+d', tr.nodes().length < 1);
-    rightClickMenuDiv.appendChild(hr.cloneNode(true));
-    createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
-    rightClickMenuDiv.appendChild(hr.cloneNode(true));
-    createMenuItem('zoomResetDiv', 'Zoom 100%', '', (zoomValue === 100));
-    rightClickMenuDiv.appendChild(hr.cloneNode(true));
-    createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
-    rightClickMenuDiv.appendChild(hr.cloneNode(true));
-    createMenuItem('undoDiv', 'Undo', 'ctrl+z', !(undoArray.length > 1));
-    createMenuItem('redoDiv', 'Redo', 'ctrl+y', !(redoArray.length > 0));
+    if (!isMeasuringToolOn) {
+        createMenuItem('copyMenuDiv', 'Copy', 'ctrl+c', tr.nodes().length < 1);
+        createMenuItem('pasteMenuDiv', 'Paste', 'ctrl+p', !Object.keys(canvasClipBoard).length || false);
+        createMenuItem('deleteMenuDiv', 'Delete', 'delete', tr.nodes().length < 1);
+        createMenuItem('duplicateMenuDiv', 'Duplicate', 'ctrl+d', tr.nodes().length < 1);
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        createMenuItem('zoomResetDiv', 'Zoom 100%', '', (zoomValue === 100));
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        createMenuItem('undoDiv', 'Undo', 'ctrl+z', !(undoArray.length > 1));
+        createMenuItem('redoDiv', 'Redo', 'ctrl+y', !(redoArray.length > 0));
+    }
+
+
 
 
     rightClickMenuDialog.style.top = newY + 'px'; /* Distance from the top of the viewport, moved to center */
