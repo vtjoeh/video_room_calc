@@ -739,12 +739,14 @@ select2PointsRect.on('pointerdown', function select2PointsRectOnMousedown(mouse)
     circleStart.x(canvasPixel.x);
     circleStart.y(canvasPixel.y);
 
-
 });
 
 select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse) {
+
+    if (mobileDevice === 'RoomOS') return;
+
     if (circleStart.isVisible() && !(circleEnd.isVisible())) {
-        if(isMeasuringToolOn){
+        if (isMeasuringToolOn) {
             measuringToolLabel.show();
         }
 
@@ -779,6 +781,11 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
 
 select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
     circleEnd.show();
+    distanceLine.show();
+
+    if (isMeasuringToolOn) {
+        measuringToolLabel.show();
+    }
     circleEnd.x(canvasPixel.x);
     circleEnd.y(canvasPixel.y);
 
@@ -806,6 +813,14 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
     } else {
         measuringToolLabel.y(canvasPixel.y + 40);
     }
+
+    let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
+    lineDistance = round(lineDistance / scale);
+    let txtUnit = 'ft';
+    if (roomObj.unit === 'meters') {
+        txtUnit = 'm';
+    }
+    measuringToolText.text(lineDistance + ' ' + txtUnit);
 
 
     if (isSelectingTwoPointsOn && !isMeasuringToolOn) {
@@ -4976,6 +4991,10 @@ function select2Points() {
 function measuringToolOn(event = true) {
     let turnOn;
     tr.nodes([]);
+
+    canvasPixel.x = pxOffset;
+    canvasPixel.y = pyOffset;
+
     enableCopyDelBtn();
     if (typeof event === 'boolean') {
         turnOn = event;
@@ -4984,7 +5003,12 @@ function measuringToolOn(event = true) {
         turnOn = event.target.checked;
     }
 
-    if(isSelectingTwoPointsOn && !isMeasuringToolOn && turnOn === true){
+    if(turnOn && mobileDevice === 'RoomOS') {
+        hideMeasuringTool();
+        alert('Click two points to measure. The last point clicked is the starting of the first point.');
+    }
+
+    if (isSelectingTwoPointsOn && !isMeasuringToolOn && turnOn === true) {
         alert('Measuring Tool not allowed at this step. Use Select 2 Points button.');
         document.getElementById('measureTool').checked = false;
         return;
@@ -4997,6 +5021,8 @@ function measuringToolOn(event = true) {
         isSelectingTwoPointsOn = true;
         select2PointsRect.show();
         document.getElementById('measureTool').checked = true;
+        canvasPixel.x = pxOffset;
+        canvasPixel.y = pyOffset;
     } else {
         hideMeasuringTool();
         document.getElementById('measureTool').checked = false;
@@ -13791,7 +13817,7 @@ function onKeyDown(e) {
         downloadRoomObj();
     }
 
-    if(key === 'm' && (e.ctrlKey)){
+    if (key === 'm' && (e.ctrlKey)) {
         measuringToolOn(true);
     }
 
@@ -13846,7 +13872,7 @@ function onKeyDown(e) {
         isShortCutKeyUsed = true;
     }
     else if ((key === 'Escape' || key === 'Esc')) {
-        if(isMeasuringToolOn){
+        if (isMeasuringToolOn) {
             hideMeasuringTool()
         }
         e.preventDefault();
