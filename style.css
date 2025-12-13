@@ -308,6 +308,10 @@ button:not(:disabled) {
 }
 
 
+.inputFieldMaxWdith {
+  max-width: 380px;
+}
+
 .inputField label {
   font-size: 14px;
   display: flex;
