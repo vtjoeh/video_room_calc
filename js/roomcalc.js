@@ -7565,6 +7565,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         enableCopyDelBtn();
         /* add delay before updateFormatDetails to give time for object to be inserted and roomObj JSON to be updated */
         setTimeout(() => {
+            tr.nodes([tblWallFlr]);
             resizeTableOrWall();
             updateFormatDetails(uuid)
         }, 250);
@@ -12343,7 +12344,7 @@ function dragStart(event) {
     event.dataTransfer.setData("text/plain", event.target.id)
     event.dataTransfer.effectAllowed = "copy";
     draggedElementId = event.target.id;
-
+    console.log('dragStart');
     /* Safari drags the whole DIV by default and doesn't like event.dataTransfer.setDragImage, therefore temporarily removing the CSS class and then adding back in ondrag. */
 
     /*  come back to this later;
@@ -12402,6 +12403,7 @@ function dragEnd(event) {
         /*  event.target.id is just an empty string.  Abort! */
         return;
     }
+
     let canvas = document.getElementById('canvasDiv');
     let canvasBound = canvas.getBoundingClientRect();
 
@@ -12426,9 +12428,19 @@ function dragEnd(event) {
 
     let attrs = { x: unitX, y: unitY };
 
-    /* on drag end insert the default height */
-    if ('defaultVert' in allDeviceTypes[deviceIdGroupName[1]]) {
-        let defaultVert = allDeviceTypes[deviceIdGroupName[1]].defaultVert / 1000;
+    insertItemFromMenu(deviceIdGroupName[1], attrs);
+
+
+    dragClientX = 0;
+    dragClientY = 0;
+
+}
+
+/* insertItemFromMenu() will: 1) set the defeaultVert height, 2) show the Roles dialog if applicable and 3) show multi-video device warning if applicable */
+function insertItemFromMenu(data_deviceid, attrs) {
+
+     if ('defaultVert' in allDeviceTypes[data_deviceid]) {
+        let defaultVert = allDeviceTypes[data_deviceid].defaultVert / 1000;
         if (roomObj.unit === 'feet') {
             defaultVert = round(defaultVert * 3.28084)
         }
@@ -12436,26 +12448,18 @@ function dragEnd(event) {
     }
 
 
+    if (allDeviceTypes[data_deviceid].rolesDialog) {
 
-
-    if (allDeviceTypes[deviceIdGroupName[1]].rolesDialog) {
-
-        let itemDataDeviceid = deviceIdGroupName[1];
-        showRoleOptions(itemDataDeviceid, attrs);
+        showRoleOptions(data_deviceid, attrs);
 
     } else {
-        insertShapeItem(deviceIdGroupName[1], deviceIdGroupName[0], attrs, uuid = '', true);
+        insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, createUuid(), true);
 
-        checkForMultipleCodecsOnDragEnd(deviceIdGroupName[1]);
+        checkForMultipleCodecsOnDragEnd(data_deviceid);
 
         setTimeout(() => { canvasToJson() }, 100);
 
     }
-
-
-    dragClientX = 0;
-    dragClientY = 0;
-
 
 }
 
@@ -12651,6 +12655,10 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         flexItemDiv.addEventListener('touchstart', touchStart);
         flexItemDiv.addEventListener('touchmove', touchMove);
         flexItemDiv.addEventListener('touchend', touchEnd);
+
+        flexItemDiv.addEventListener('pointerup', ()=>{
+
+        })
 
     });
 
@@ -14040,21 +14048,10 @@ function onQuickAddChange(e) {
                 attrs.y = roomLength / 2;
             }
 
-            if ('defaultVert' in allDeviceTypes[m.id]) {
-                let defaultVert = allDeviceTypes[m.id].defaultVert / 1000;
-                if (roomObj.unit === 'feet') {
-                    defaultVert = round(defaultVert * 3.28084)
-                }
-                attrs.data_zPosition = defaultVert;
-            }
+            insertItemFromMenu(m.id, attrs);
 
-            let uuid = createUuid();
-            insertShapeItem(m.id, group, attrs, uuid, true);
-
-            // updateFormatDetails(uuid);
             toggleQuickAdd(false);
 
-            trNodesFromUuids([uuid]);
         }
         gallery.appendChild(item);
     })
