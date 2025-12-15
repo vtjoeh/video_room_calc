@@ -12,6 +12,8 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - Configurable default walls are now supported on the production Workspace Designer site. 🎨
 - Christmas theme support is now available on the production Workspace Designer site. 🎄
 - A new Measuring Tool has been added, found under the ellipses (…) 📏
+- Room Bar BYOD and Web Cam 1080p now supported.
+- Display 21:9 improvements to Workspace Designer.
 
 **v0.1.633**
 - Improvements to configuraable default walls.

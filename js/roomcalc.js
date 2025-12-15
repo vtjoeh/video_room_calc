@@ -262,6 +262,7 @@ workspaceKey.phone9871 = { objectType: 'phone', model: "9871", role: "phone", yO
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
+workspaceKey.roomBarByod = { objectType: 'videoDevice', model: 'Room Bar BYOD', color: 'light', mount: "wall", yOffset: 0.032 };
 
 workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
 workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
@@ -408,7 +409,9 @@ workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach
 
 workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
 
-workspaceKey.webcam4k = { objectType: 'webcam', model: 'webcam' };
+workspaceKey.webcam4k = { objectType: 'webcam', model: '4k' };
+
+workspaceKey.webcam1080p = { objectType: 'webcam', model: '1080p'};
 
 
 workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
@@ -933,6 +936,7 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Stand", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
+    { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 ]
 
 
@@ -1302,7 +1306,18 @@ let microphones = [
         defaultVert: 2500,
         speakerRadius: 1500,
         speakerDeg: 360,
-    }
+    },
+    {
+        name: "Desk Camera 1080p (webcam)",
+        id: "webcam1080p",
+        key: "MY",
+        topImage: 'webcam-top.png',
+        frontImage: 'webcam4k-menu.png',
+        width: 92,
+        depth: 67,
+        height: 73,
+        defaultVert: 1180,
+    },
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -1429,6 +1444,7 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 1,
+    opacity: 0.4,
 },
 {
     name: 'Custom Path Shape',
@@ -6981,7 +6997,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             id: uuid,
             cornerRadius: radius,
             draggable: true,
-            opacity: opacity,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
         });
     }
 
@@ -6999,6 +7015,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             dash: allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke,
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
         });
     }
 
@@ -7016,7 +7033,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: 1,
             id: uuid,
             draggable: true,
-            opacity: opacity,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
             sceneFunc: (context, shape) => {
                 context.beginPath();
                 /* don't need to set position of ellipse, Konva will handle it */
@@ -7039,7 +7056,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: allDeviceTypes['sphere'].strokeWidth,
             id: uuid,
             draggable: true,
-            opacity: opacity,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
 
             sceneFunc: (context, shape) => {
                 context.beginPath();
@@ -7069,7 +7086,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: allDeviceTypes['cylinder'].strokeWidth,
             id: uuid,
             draggable: true,
-            opacity: 0.4,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
             sceneFunc: (context, shape) => {
                 context.beginPath();
                 /* don't need to set position of ellipse, Konva will handle it */
@@ -12044,7 +12061,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[17] = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'shareCableUsbcHdmi', 'shareCableUsbcMulti', 'shareCableHdmiMulti', 'shareCableUsbcHdmiMulti'];
 
-
+    deviceGroups[18] = ['webcam4k', 'webcam1080p']
 
 
     deviceGroups.forEach((devices, index) => {
@@ -12676,7 +12693,7 @@ function createEquipmentMenu() {
 
     let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
-    let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
+    let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini', 'roomBarByod'];
 
     let cameraDevicesMenu = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
 
