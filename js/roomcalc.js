@@ -768,7 +768,7 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
         if (mouseUnit.y > 0.1) {
             measuringToolLabel.y(canvasPixel.y - 25);
         } else {
-            measuringToolLabel.y(canvasPixel.y + 40);
+            measuringToolLabel.y(canvasPixel.y + 60);
         }
 
 
@@ -796,12 +796,6 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
 
     measuringToolLabel.x(canvasPixel.x);
 
-    if (mouseUnit > 0.1) {
-        measuringToolLabel.y(canvasPixel.y - 25);
-    } else {
-        measuringToolLabel.y(canvasPixel.y + 25);
-    }
-
     if (mouseUnit.x < 0) {
         measuringToolLabel.x(pxOffset);
     }
@@ -814,7 +808,7 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
     if (mouseUnit.y > 0.1) {
         measuringToolLabel.y(canvasPixel.y - 25);
     } else {
-        measuringToolLabel.y(canvasPixel.y + 40);
+        measuringToolLabel.y(canvasPixel.y + 60);
     }
 
     let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
@@ -4937,7 +4931,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         setTimeout(() => {
 
-            resetSelect2Points();
+            clearSelect2Points();
             deleteNegativeShapes();
 
         }, 250);
@@ -4951,7 +4945,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
 
     } else {
-        resetSelect2Points();
+        clearSelect2Points();
         updateShapesBasedOnNewScale();
     }
 
@@ -5165,7 +5159,8 @@ function hideSelect2PointsShapes() {
     document.getElementById("canvasDiv").style.cursor = "auto";
 }
 
-function resetSelect2Points() {
+/* Reset the 2 select points if the page is resized */
+function clearSelect2Points() {
     if (isSelectingTwoPointsOn) {
         circleEnd.hide();
         circleStart.hide();
