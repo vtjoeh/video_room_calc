@@ -411,7 +411,7 @@ workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extende
 
 workspaceKey.webcam4k = { objectType: 'webcam', model: '4k' };
 
-workspaceKey.webcam1080p = { objectType: 'webcam', model: '1080p'};
+workspaceKey.webcam1080p = { objectType: 'webcam', model: '1080p' };
 
 
 workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
@@ -4936,6 +4936,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         insertKonvaBackgroundImageFloor();
 
         setTimeout(() => {
+
+            resetSelect2Points();
             deleteNegativeShapes();
 
         }, 250);
@@ -4949,7 +4951,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
 
     } else {
-
+        resetSelect2Points();
         updateShapesBasedOnNewScale();
     }
 
@@ -5016,7 +5018,7 @@ function measuringToolOn(event = true) {
         turnOn = event.target.checked;
     }
 
-    if(turnOn && mobileDevice === 'RoomOS') {
+    if (turnOn && mobileDevice === 'RoomOS') {
         hideMeasuringTool();
         alert('Click two points to measure. The last point clicked is the starting of the first point.');
     }
@@ -5161,6 +5163,16 @@ function hideSelect2PointsShapes() {
     isMeasuringToolOn = false;
     document.getElementById('measureTool').checked = false;
     document.getElementById("canvasDiv").style.cursor = "auto";
+}
+
+function resetSelect2Points() {
+    if (isSelectingTwoPointsOn) {
+        circleEnd.hide();
+        circleStart.hide();
+        distanceLine.hide();
+        measuringToolLabel.hide();
+        document.getElementById("canvasDiv").style.cursor = "auto";
+    }
 }
 
 function resetBackgroundImageFloorSettings() {
@@ -12361,7 +12373,7 @@ function dragStart(event) {
     event.dataTransfer.setData("text/plain", event.target.id)
     event.dataTransfer.effectAllowed = "copy";
     draggedElementId = event.target.id;
-    console.log('dragStart');
+
     /* Safari drags the whole DIV by default and doesn't like event.dataTransfer.setDragImage, therefore temporarily removing the CSS class and then adding back in ondrag. */
 
     /*  come back to this later;
@@ -12456,7 +12468,7 @@ function dragEnd(event) {
 /* insertItemFromMenu() will: 1) set the defeaultVert height, 2) show the Roles dialog if applicable and 3) show multi-video device warning if applicable */
 function insertItemFromMenu(data_deviceid, attrs) {
 
-     if ('defaultVert' in allDeviceTypes[data_deviceid]) {
+    if ('defaultVert' in allDeviceTypes[data_deviceid]) {
         let defaultVert = allDeviceTypes[data_deviceid].defaultVert / 1000;
         if (roomObj.unit === 'feet') {
             defaultVert = round(defaultVert * 3.28084)
@@ -12673,7 +12685,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         flexItemDiv.addEventListener('touchmove', touchMove);
         flexItemDiv.addEventListener('touchend', touchEnd);
 
-        flexItemDiv.addEventListener('pointerup', ()=>{
+        flexItemDiv.addEventListener('pointerup', () => {
 
         })
 
