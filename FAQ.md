@@ -19,23 +19,41 @@ In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Im
 ### What are the short cut keys?
 The following list is also found under the help menu:
 `ctrl-c / cmd-c` = copy
+
 `ctrl-v / cmd-v` = paste (at location of arrow click)
+
 `ctrl-d / cmd-d` = duplicate
+
 `ctrl-z / cmd-z` = undo
+
 `ctrl-y / cmd-y` = redo
+
 `shift + [ctrl-z / cmd-z]` = redo
+
 `ctrl-r / cmd-r` = rotate 90 degrees
+
 `ctrl-m` = turn on the Measuring Tool
+
 `esc` = unselect items (or turn off Measuring Tool)
+
 `Delete` / `Backspace` = delete items
+
 `←,↑,→,↓` arrows = move selected items
+
 `[shift / ctrl / cmd] + click` = select/unselect item
+
 `ctrl-s` = Save (download) Video Room Calculator JSON file.
+
 `ctrl-e` = Export to Workspace Designer file format.
+
 `ctrl-i` = Import Video Room Calculator or Workspace Designer file.
+
 `c` = Camera coverage toggle
+
 `m` = Microphone coverage toggle
+
 `d` = Display coverage toggle
+
 __`ctrl-3` = open iFrame window if enabled__
 
 From the Workspace Designer, use `ctrl-e` to export a file to the Video Room Calculator.
