@@ -2584,7 +2584,7 @@ function updateFeetMetersToggleBtn() {
 }
 
 function convertMetersFeet(isDrawRoom, newUnit = null) {
-    measuringToolOn(false)
+
     if (newUnit === null) {
         roomObj.unit = document.getElementById('drpMetersFeet').value;
         zoomInOut('reset');
@@ -3445,7 +3445,7 @@ function resetRoomObj() {
 
     roomObj.roomSurfaces =
     {
-        leftwall: { type: 'regular', acousticTreatment: true },
+        leftwall: { type: 'regular', acousticTreatment: false },
         videowall: { type: 'regular', acousticTreatment: false },
         rightwall: { type: 'regular', acousticTreatment: false },
         backwall: { type: 'regular', acousticTreatment: false }
@@ -4783,10 +4783,21 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         scale = yScale;
     }
 
+
+    /* redo scale based on pxOffset ratio */
     if (pxOffset < (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3)) {
         pxOffset = (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3);
         pyOffset = pxOffset;
-        scale = scale * 0.85;
+
+        let xScale2 = (divRmContainerDOMRect.width - pxOffset * 2) / roomWidth;
+
+        let yScale2 = (canvasWindowHeight - pyOffset * 2) / roomLength;
+
+        if (xScale2 < yScale2) {
+            scale = xScale;
+        } else {
+            scale = yScale;
+        }
     }
 
     clipShadingBorder.x = pxOffset;
@@ -4994,7 +5005,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         if (isMeasuringToolOn) {
             clearSelect2Points();
             measuringToolOn(true);
-        } else if(isSelectingTwoPointsOn) {
+        } else if (isSelectingTwoPointsOn) {
 
             document.getElementById('btnUpdateImageScale').disabled = true;
             select2Points();
@@ -5049,7 +5060,6 @@ function measuringToolOn(event = true) {
 
     if (turnOn && mobileDevice === 'RoomOS') {
         hideMeasuringTool();
-        alert('Press finger down on one point then drag to second point to measure.');
     }
 
     if (isSelectingTwoPointsOn && !isMeasuringToolOn && turnOn === true) {
