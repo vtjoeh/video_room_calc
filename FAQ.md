@@ -13,34 +13,38 @@ There are two ways to start the room:
 2) **Drag and Drop** - Just go to the **Equipment tab** select devices and drag and drop.
 Double click on any object on the canvas to get details and to edit.
 
-### How to export a designer for the Workspace Designer?
-In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Import the file in the Video Room Calculator by clicking **New** --> **Open File**.  
+### How do I export a design from the Workspace Designer?
+In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Import the file in the Video Room Calculator by clicking **New** --> **Open File**.
 
 ### What are the short cut keys?
 The following list is also found under the help menu:
-ctrl-c / cmd-c = copy
-ctrl-v / cmd-v = paste (at location of arrow click)
-ctrl-d / cmd-d = duplicate
-ctrl-z / cmd-z = undo
-ctrl-y / cmd-y = redo
-shift + [ctrl-z / cmd-z] = redo
-ctrl-r / cmd-r = rotate 90 degrees
-esc = unselect items
-Delete / Backspace = delete items
-←,↑,→,↓ arrows = move selected items
-[shift / ctrl / cmd] + click = select/unselect item
-ctrl-s = Save (download) Video Room Calculator JSON file.
-ctrl-e = Export to Workspace Designer file format.
-ctrl-i = Import Video Room Calculator or Workspace Designer file.
-__ctrl-w = open iFrame window if enabled__
+`ctrl-c / cmd-c` = copy
+`ctrl-v / cmd-v` = paste (at location of arrow click)
+`ctrl-d / cmd-d` = duplicate
+`ctrl-z / cmd-z` = undo
+`ctrl-y / cmd-y` = redo
+`shift + [ctrl-z / cmd-z]` = redo
+`ctrl-r / cmd-r` = rotate 90 degrees
+`ctrl-m` = turn on the Measuring Tool
+`esc` = unselect items (or turn off Measuring Tool)
+`Delete` / `Backspace` = delete items
+`←,↑,→,↓` arrows = move selected items
+`[shift / ctrl / cmd] + click` = select/unselect item
+`ctrl-s` = Save (download) Video Room Calculator JSON file.
+`ctrl-e` = Export to Workspace Designer file format.
+`ctrl-i` = Import Video Room Calculator or Workspace Designer file.
+`c` = Camera coverage toggle
+`m` = Microphone coverage toggle
+`d` = Display coverage toggle
+__`ctrl-3` = open iFrame window if enabled__
 
-From the Workspace Designer, use ctrl-e to export a file to the Video Room Calculator.
+From the Workspace Designer, use `ctrl-e` to export a file to the Video Room Calculator.
 
 ### What browsers does the Video Room Calculator work in?
 The goal is to support the following:
 - Windows/Mac: Chrome, Edge, Firefox and Safari (Mac)
-- iOS: Safari
-- Android: Not tested (but Chrome should work)
+- iOS: Safari, but not mobile
+- Android: Not typically tested on updates, but Chrome should work.
 - RoomOS: Cisco Board Pro and Desk Pro web app
 
 If you see any issue with any of the above please let me know.
@@ -104,33 +108,6 @@ From top to bottom, here are the different implicit levels of the objects:
 
 **Pro-tip:** A Box and Stage Floor are the same type of Workspace Designer object, but they appear on different levels in the Video Room Calculator. Therefore, you can swap between these two objects to change the level when these objects overlap.
 
-### Why does the Room Bar Pro and Board Pro G2 with an external mic pickup range look different in the Workspace Designer than the Video Room Calculator?
-This is a configurable setting and works differntly depending on products and configurations, so it is hard to say what the correct default pickup range should be in the Video Room Calculator. There is an important setting:
-Configuration--> Audio--> BeamMix--> Inputs: **Auto** or **BeamsAndExtMics**
-
-According to page 141 of the [RoomOS Administrative](https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/roomos-1124/desk-room-board-administration-guide-roomos-1124.pdf#page=141) guide, dated Feb 2025:
->When connecting an analog or digital (Ethernet) microphone to the device, the internal microphone array's three beams are automatically disabled. Whether the near talker zone is enabled depends on the product:
->- Board Pro, Board Pro G2: The near talker zone is activated when someone is inside this zone; hence, it picks up audio from people standing by the device.
->- Room Bar Pro: The near talker zone is disabled.
->
->If you want to enable the three beams when using external microphones, you must set the following:
->Audio > Microphones > BeamMix > Inputs: BeamsAndExtMics
->_NOTE: When using Ceiling Microphone Pro, we recommend using the Auto setting as it provides a smarter audio mixer, taking into account the placement of the Ceiling Microphone Pro_
-![image](https://github.com/user-attachments/assets/663bda79-f2bc-40bb-8619-cacce4cf2c50)
-
-According to the [December 2024](https://help.webex.com/en-us/article/6ger7db/Release-notes-for-RoomOS-software#sx10_r_whats_new_2024)(Release notes for RoomOS software):
->**Room Bar Pro, Board Pro, and Board Pro G2 external and internal microphones**
->We've made changes to the Audio Microphones BeamMix Inputs setting for Room Bar Pro, Board Pro, and Board Pro G2. For these devices, the new options for this setting are:
->  - **Auto (new behaviour):**  If a Ceiling Microphone Pro is connected and the Ceiling Microphone Pro voice tracking wizard has been run, the new smart audio mixer uses both internal beams and > the Ceiling Mic Pro.
-  For other external microphones, the internal beams are disabled.
->  -  **BeamsAndExtMics:** The audio mixer uses internal beams and external microphones for voice pickup at all times. When using Ceiling Microphone Pro, we recommend using the Auto setting as it provides a smarter audio mixer, taking into account the placement of the Ceiling Microphone Pro.
->  - **OnlyExtMixs (New):** Uses only external microphones for voice pickup and falls back to internal beams if no external microphones are connected.
-
-The Workspace Designer gives the following view when a Cisco Table Microphone Pro is used with a Room Bar Pro:
-![image](https://github.com/user-attachments/assets/06f47f0e-3e2b-4d44-b8da-9311c040d002)
-
-_**Note:** The above information could change at a later date based on new features._
-
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
 - **Duplicate chairs** Use ctrl-d to copy a row of chairs evenly and quickly.
@@ -142,15 +119,6 @@ _**Note:** The above information could change at a later date based on new featu
   - The QR code is limited to 2950 characters.
   - To see the QR code on a PC add 'qr' to the querystring parameter, **Save** tab --> **Load QR Code Script** button. For example: https://collabexperience.com/?qr
 - Checkout other useful (but not easy to find) tools and links on the Video Room Calculator **Resources** tab.
-
-## How to use Workspace Designer Custom Rooms (beta)
-1) Be on the Cisco network or VPN.
-2) Draw your room or use a template to get started.
-3) Click on the cube icon in the upper right corner.
-![image](https://github.com/user-attachments/assets/dd2250c3-7711-42c3-91d8-15c05491da14)
-- An items _Role_ and _Color_ are settings that change the object in the Workspace Designer.
-- _Color_ does not change the color of the Video Room Calc device, only in the Workspace Designer.
-**Caution:** It is possible to create unsupported video device Role combinations of displays and cameras.
 
 ### Item Label field, JSON and the Workspace Designer
 
