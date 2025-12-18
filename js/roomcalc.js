@@ -1,4 +1,4 @@
-const version = "v0.1.634";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.635";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -735,18 +735,22 @@ panRectangle.on('click', function panRectangleOnClick(event) {
 });
 
 select2PointsRect.on('pointerdown', function select2PointsRectOnMousedown(mouse) {
-    distanceLine.hide();
-    circleStart.show();
-    circleEnd.hide();
-    measuringToolLabel.hide();
-    circleStart.x(canvasPixel.x);
-    circleStart.y(canvasPixel.y);
+
+    /* RoomOS touch likes time for logMouseMovements() to update to canvasPixel.x/.y  */
+    setTimeout(() => {
+        distanceLine.hide();
+        circleStart.show();
+        circleEnd.hide();
+        measuringToolLabel.hide();
+        circleStart.x(canvasPixel.x);
+        circleStart.y(canvasPixel.y);
+    }, 1)
 
 });
 
 select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse) {
 
-    if (mobileDevice === 'RoomOS') return;
+    // if (mobileDevice === 'RoomOS') return;
 
     if (circleStart.isVisible() && !(circleEnd.isVisible())) {
         if (isMeasuringToolOn) {
@@ -782,9 +786,14 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
     }
 });
 
-select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
+select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(event) {
+
     circleEnd.show();
     distanceLine.show();
+
+    if (event.clientX) {
+
+    }
 
     if (isMeasuringToolOn) {
         measuringToolLabel.show();
@@ -823,6 +832,7 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(mouse) {
     if (isSelectingTwoPointsOn && !isMeasuringToolOn) {
         document.getElementById('btnUpdateImageScale').disabled = false;
     }
+
 });
 
 panRectangle.on('mousedown', function panRectangleOnMousedown(mouse) {
@@ -2256,13 +2266,24 @@ function determineMobileDevice() {
 setMouseEventListeners();
 
 function setMouseEventListeners() {
-    document.addEventListener('mousemove', (event) => {
+
+    document.addEventListener('pointerdown', (event) => {
+        logMouseMovements(event);
+    });
+
+    document.addEventListener('pointermove', (event) => {
         logMouseMovements(event);
     });
 
     document.addEventListener('click', (event) => {
         logMouseMovements(event);
-    })
+    });
+
+    document.addEventListener('pointerup', (event) => {
+        logMouseMovements(event);
+    });
+
+
 }
 
 let mouse = {}; /* mouse.x .y position pixels */
@@ -2563,8 +2584,7 @@ function updateFeetMetersToggleBtn() {
 }
 
 function convertMetersFeet(isDrawRoom, newUnit = null) {
-    measuringToolOn(false); /* turn off the measuring tool if on */
-
+    measuringToolOn(false)
     if (newUnit === null) {
         roomObj.unit = document.getElementById('drpMetersFeet').value;
         zoomInOut('reset');
@@ -4929,12 +4949,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         insertKonvaBackgroundImageFloor();
 
-        setTimeout(() => {
 
-            clearSelect2Points();
-            deleteNegativeShapes();
-
-        }, 250);
 
         if (!dontSaveUndo) {
             /* canvasToJSON() needs a little time before running or else it won't capture the recenlty drawn room */
@@ -4945,10 +4960,14 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
 
     } else {
-        clearSelect2Points();
         updateShapesBasedOnNewScale();
     }
 
+    setTimeout(() => {
+
+        deleteNegativeShapes();
+
+    }, 250);
 
     tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
 
@@ -4967,6 +4986,22 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     }
 
     postMessageToWorkspace();
+
+    clearSelect2Points();
+    /* turn off the measuring tool if on */
+    setTimeout(() => {
+
+        if (isMeasuringToolOn) {
+            clearSelect2Points();
+            measuringToolOn(true);
+        } else if(isSelectingTwoPointsOn) {
+
+            document.getElementById('btnUpdateImageScale').disabled = true;
+            select2Points();
+        }
+    }, 300);
+
+
 
 }
 
@@ -5014,7 +5049,7 @@ function measuringToolOn(event = true) {
 
     if (turnOn && mobileDevice === 'RoomOS') {
         hideMeasuringTool();
-        alert('Click two points to measure. The last point clicked is the starting of the first point.');
+        alert('Press finger down on one point then drag to second point to measure.');
     }
 
     if (isSelectingTwoPointsOn && !isMeasuringToolOn && turnOn === true) {
@@ -17099,6 +17134,11 @@ function createRightClickMenu(usePreviousPosition = false) {
     }
 
 }
+
+window.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0]; // Get the first touch point
+    logMouseMovements(touch);
+});
 
 window.addEventListener('touchstart', (e) => {
     const touch = e.touches[0]; // Get the first touch point
