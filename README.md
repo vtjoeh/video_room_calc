@@ -8,6 +8,15 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.636**
+- Added **Draw Simple Path** feature to Custom Path Shapes.
+- Enabled copying items between tabs of different units.
+- Improved help icon for tooltips.
+- Refactored code.
+
+**v0.1.635**
+- scale updates
+
 **v0.1.634**
 - Configurable default walls are now supported on the production Workspace Designer site. 🎨
 - Christmas theme support is now available on the production Workspace Designer site. 🎄

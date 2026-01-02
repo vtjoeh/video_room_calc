@@ -929,15 +929,12 @@ input:placeholder-shown {
 }
 
 
-
-/* based on tool tip example from https://www.w3schools.com/css/css_tooltip.asp */
 .tooltip {
   position: relative;
   display: inline-block;
-  /* border-bottom: 1px dotted black; */
 }
 
-.tooltip .tooltiptext {
+.tooltiptext {
   visibility: hidden;
   width: 200px;
   background-color: black;
@@ -953,11 +950,11 @@ input:placeholder-shown {
   transition: opacity 1.4s 0.2s;
 }
 
-a.tooltip a.tooltiptext {
+a.tooltiptext {
   color: lightblue;
 }
 
-.tooltip .tooltiptext::after {
+.tooltiptext::after {
   content: "";
   position: absolute;
   top: 100%;
@@ -968,26 +965,13 @@ a.tooltip a.tooltiptext {
   border-color: black transparent transparent transparent;
 }
 
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-  opacity: 1;
-  transition-delay: 1s;
-}
-
-.tooltip:hover .tooltiptextLeft {
-  left: 17px;
-  width: 180px;
-  transition-delay: 1s;
-}
-
-/* tool tips for icons */
 
 .tooltipIcon {
   position: relative;
   display: inline-block;
 }
 
-.tooltipIcon .tooltiptextIcon {
+.tooltiptextIcon {
   visibility: hidden;
   width: 200px;
   background-color: black;
@@ -1006,7 +990,7 @@ a.tooltip a.tooltiptext {
 
 
 
-.tooltipIcon .tooltiptextIcon::after {
+.tooltiptextIcon::after {
   content: "";
   position: absolute;
   top: 100%;
@@ -1017,18 +1001,6 @@ a.tooltip a.tooltiptext {
   border-color: black transparent transparent transparent;
 }
 
-a.tooltipIcon a.tooltiptextIcon {
-  color: lightblue;
-}
-
-.tooltipIcon:hover .tooltiptextIcon {
-  visibility: visible;
-  opacity: 1;
-  transition-delay: 1s;
-}
-
-/* tooltip bottom */
-
 .tooltipBottom {
   position: relative;
   display: flex;
@@ -1037,7 +1009,7 @@ a.tooltipIcon a.tooltiptextIcon {
   width: fit-content;
 }
 
-.tooltipBottom .tooltiptextBottom {
+.tooltiptextBottom {
   visibility: hidden;
   width: 200px;
   background-color: black;
@@ -1054,7 +1026,7 @@ a.tooltipIcon a.tooltiptextIcon {
   transition: opacity 1.4s 0.2s;
 }
 
-.tooltipBottom .tooltiptextBottom::after {
+.tooltiptextBottom::after {
   content: "";
   position: absolute;
   bottom: 100%;
@@ -1065,24 +1037,14 @@ a.tooltipIcon a.tooltiptextIcon {
   border-color: transparent transparent black transparent;
 }
 
-.tooltipBottom:hover .tooltiptextBottom {
-  visibility: visible;
-  opacity: 1;
-  transition-delay: 1s;
-}
-
-.tooltipBottom:hover .tooltiptextLeft {
+.tooltiptextLeft {
   left: 17px;
   width: 180px;
-  transition-delay: 1s;
 }
-
-/* tooltipTitle mimics the title attribute feature */
 
 .tooltipTitle {
   position: relative;
   display: inline-block;
-  /* border-bottom: 1px dotted black; */
 }
 
 .tooltiptextTitle {
@@ -1107,18 +1069,12 @@ a.tooltipIcon a.tooltiptextIcon {
   opacity: 1;
   border: black;
   transition: opacity 200ms 2s;
-  height: 28px; /* Firefox ignoes the min-height, so putting in a minimum height */
+  height: 28px; /* Firefox ignores the min-height, so putting in a minimum height */
   min-height: fit-content;
-  /* transition: opacity 2s 1s ease-in, visibility 3s 1s ease-in 2ms; */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 
-.tooltipTitle:hover .tooltiptextTitle {
-  /* visibility: visible;
-  opacity: 1; */
-
-}
 
 
 .sliderB {
@@ -1286,6 +1242,15 @@ dialog main {
   max-height: 70vh;
   overflow-y: auto;
 
+}
+
+.dialogAlertModal {
+  padding: 10px 20px;
+  border: 1px solid rgb(32, 32, 32)
+}
+.dialogAlertMain {
+  padding: 1em;
+  font-size: small;
 }
 
 #dialogQuestions main {

@@ -129,10 +129,10 @@
               <option value="mtr">Microsoft Teams Rooms</option>
             </select>
           </div>
-          <div >
+          <div>
             <div class="inputField" s>
               <label>Remove Default Walls:</label>
-              <label class="switch" >
+              <label class="switch">
                 <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
                 <span class="slider round"></span>
               </label>
@@ -375,11 +375,12 @@
                 <input type="text" id="labelField" size="45" class="textInput">
               </div>
               <div class="inputField" id="labelPathId">
-                <label class="tooltipBottom">Path Shape:<i class="icon icon-info-circle-bold"></i><span
+                <label class="tooltipBottom">Path Shape: <i class="icon icon-info-circle-bold"></i> <span
                     class="tooltiptextBottom">Path Shape are objects using SVG paths to create your own shapes in the
                     Video Room Calculator and Workspace Designer. Useful for table tops or curved walls. For more
-                    information, see the FAQ.</span></label>
+                    information, see the FAQ.</span><button class="button" style="font-size: xx-small; padding: 4px 12px; align-self: inherit;" onclick="simplePathEditor()">Draw Simple Path</button></label>
                 <input type="text" id="labelPath" size="45" class="textInput">
+
               </div>
               <div class="inputRow">
                 <div class="inputField" id="itemXY">
@@ -634,7 +635,7 @@
             <div id="defaultWallSettings">
 
               <div class="inputRow">
-                <div class="inputField inputFieldMaxWdith" >
+                <div class="inputField inputFieldMaxWdith">
                   <label class="tooltipBottom">Choose Wall:
                     <!-- <i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span> --></label>
@@ -660,7 +661,8 @@
                 <div class="inputField inputFieldRow">
                   <label class="tooltipBottom">Material:
                     <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Material or wall type: Wall Standard, Glass Wall or Wall with Windows.</span></label>
+                    <span class="tooltiptextBottom">Material or wall type: Wall Standard, Glass Wall or Wall with
+                      Windows.</span></label>
                   <select id="drpWallType" class="drpDown" onchange="updateDefaultWallsMenuAndCanvas()">
                     <option value="regular">Wall Standard</option>
                     <option value="glass">Glass Wall</option>
@@ -671,8 +673,9 @@
 
               <div class="inputRow">
                 <div class="inputField inputFieldRow">
-                  <label class="tooltip">Acoustic Treatment:  <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">Acoustic treatment only shows up on the Workspace Designer.</span> </label>
+                  <label class="tooltip">Acoustic Treatment: <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Acoustic treatment only shows up on the Workspace Designer.</span>
+                  </label>
                   <label class="switch">
                     <input id="acousticTreatment" type="checkbox" onchange="updateDefaultWallsMenuAndCanvas()">
                     <span class="slider round"></span>
@@ -681,15 +684,17 @@
               </div>
 
 
-              <div class="inputField inputFieldMaxWdith" id="pickDoorSelection"><label class="tooltip">Default Door Location:  <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">Door location for the default wall that renders in the Workspace Designer. Manual walls can also be dragged and dropped at any location.</span></label>
+              <div class="inputField inputFieldMaxWdith" id="pickDoorSelection"><label class="tooltip">Default Door
+                  Location: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Door location for the default wall that renders in the Workspace Designer.
+                    Manual walls can also be dragged and dropped at any location.</span></label>
                 <div class="parentWallSelection">
 
 
                   <div id="doorSelectionDiv" class="doorSelection">
 
                     <button id="doorNone" class="doorButton" style="left: 48px; bottom: 60px; position:absolute;"
-                        onclick="doorSelected('none')">None</button>
+                      onclick="doorSelected('none')">None</button>
                     <img id="rightDoor" class="doors doorSelected" src="./assets/images/doorLeft-top.png"
                       style="left: 5px; bottom: -6.5px;" onclick="doorSelected('right')">
                     <img id="centerDoor" class="doors" src="./assets/images/doorLeft-top.png"
@@ -701,7 +706,8 @@
 
               </div>
 
-              <div id="noDoorSelectionDiv" class="inputRow"><span style="font-size: 14px;">Default Door Location: <br><span style="font-size: 12px;">Not supported with a wall with windows.</span></span></div>
+              <div id="noDoorSelectionDiv" class="inputRow"><span style="font-size: 14px;">Default Door Location:
+                  <br><span style="font-size: 12px;">Not supported with a wall with windows.</span></span></div>
 
 
               <br>
@@ -855,6 +861,11 @@
   <div id="ContainerForContainerRoom">
     <div id="ContainerRoomSvg" class="floatColumns" style="width: 100%; ">
       <div id="controlButtons" class="hideScroll">
+        <div class="button-group" id="btnBackToFloorPlan" style="display:none;">
+          <button class="btn" id="btnBackToFloorPlan" onclick="showEntireFloor()" title="Back to floor plan">
+            <i class="icon icon-back-bold"></i>
+          </button>
+        </div>
         <div class="button-group">
           <span class="tooltipTitle"><button style="width: 35px;" class="btn" id="btnCamShadeToggle"
               title="Toggle camera coverage">
@@ -1008,12 +1019,42 @@
       <div class="menuMoreInputField">
         <label class="tooltipBottom">Measure tool:
           <i class="icon icon-info-circle-bold"></i>
-          <span class="tooltiptextBottom">Use to measure between two points. Short cut key `ctrl-m` and `esc` to exit.</span></label>
+          <span class="tooltiptextBottom">Use to measure between two points. Short cut key `ctrl-m` and `esc` to
+            exit.</span></label>
         <label class="switch">
           <input id="measureTool" type="checkbox" onclick="measuringToolOn(event)">
           <span class="slider round"></span>
         </label>
       </div>
+      <!--
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Wall Builder:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Use to build walls. Use `esc` to exit.</span></label>
+        <label class="switch">
+          <input id="wallBuilderTool" type="checkbox" onclick="wallBuilderOn(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Poly-Wall Builder:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Use to build walls. Use `esc` to exit.</span></label>
+        <label class="switch">
+          <input id="polyBuilderTool" type="checkbox" onclick="polyBuilderOn(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Wall Builder 2:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Use to build walls. Use `esc` to exit.</span></label>
+        <label class="switch">
+          <input id="wallBuilderTool2" type="checkbox" onclick="wallBuilderOn2(event)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+-->
       <div class="menuMoreInputField">
         <label class="tooltipBottom">Highlight small devices:
           <i class="icon icon-info-circle-bold"></i>
@@ -1069,7 +1110,7 @@
         <div>
           <input type="text" id="snapToIncrement" value="0.25" maxlength="6" size="5" class="unitInput"
             style="width: 100%" onChange="updateSnapToIncrement()" disabled>
-          <div style="top: 195px; right:17px; position: absolute; " class="unitFeetMeters">ft</div>
+          <div style="top: -25px; left: 235px; position: relative; " class="unitFeetMeters">ft</div>
         </div>
       </div>
 
@@ -1781,16 +1822,20 @@
   </dialog>
 
 
-  <dialog id="dialogAlertModal" class='dialogWhiteBox' onclick="onDialogClick(event)">
+  <dialog id="dialogAlertModal" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">
       <div id="dialogAlertHeader"></div>
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
 
-    <main>
-      <div id="dialogAlertMain" style="font-size: small;">
+    <main class="dialogAlertMain">
+      <div id="dialogAlertMain">
       </div>
+
     </main>
+    <form method="dialog">
+    <button class="button">OK</button>
+  </form>
   </dialog>
 
   <dialog id="characterLimitWarning"
