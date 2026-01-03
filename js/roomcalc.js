@@ -1379,17 +1379,16 @@ function convertPointsToUnit(points, xyCenter = false) {
     /* convert the points to the local unit */
 
     points.forEach((point, i) => {
-        if (i % 2 !== 0) {
+        if (i % 2 === 0) {
             let pointX = ((point - pxOffset) / scale) + activeRoomX;
             newPoints[i] = pointX
 
-
             if (newPoints[i] < minX) {
-                minX = newPoints[i];
+                minX = pointX;
             }
 
-            if (newPoints[i] > minX) {
-                maxX = newPoints[i];
+            if (newPoints[i] > maxX) {
+                maxX = pointX;
             }
 
         } else {
@@ -1398,12 +1397,13 @@ function convertPointsToUnit(points, xyCenter = false) {
 
 
             if (newPoints[i] < minY) {
-                minY = newPoints[i];
+                minY = pointY;
 
             }
-            if (newPoints[i] > minY) {
-                maxY = newPoints[i];
+            if (newPoints[i] > maxY) {
+                maxY = pointY;
             }
+
         }
     });
 
@@ -1415,6 +1415,7 @@ function convertPointsToUnit(points, xyCenter = false) {
         x = minX;
         y = minY;
     }
+
 
 
     newPoints.forEach((newPoint, i) => {
@@ -6029,11 +6030,22 @@ function showEntireFloor() {
         boxRoomPart.show();
         boxRoomPart.listening(true);
     });
+
+
+    const polyRoom = stage.find('.polyRoom');
+    polyRoom.forEach(boxRoomPart => {
+        polyRoom.show();
+        polyRoom.listening(true);
+    });
+
+
+
     drawRoom(true);
 }
 
 function zoomRoomPart(roomPart) {
     document.getElementById('btnBackToFloorPlan').style.display = '';
+
     activeRoomLength = roomPart.height() / scale;
     activeRoomWidth = roomPart.width() / scale;
     activeRoomX = (roomPart.x() - pxOffset) / scale;
@@ -6237,16 +6249,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     stageOriginalWidth = canvasWidth * scale;
     stageOriginalLength = (canvasLength * scale);
-
-    // stage = new Konva.Stage(
-    //     {
-    //         container: 'canvasDiv',
-    //         width: canvasWidth * scale,
-    //         height: (canvasLength * scale),
-    //         id: roomCanvas,
-
-    //     }
-    // )
 
     stage.width(canvasWidth * scale);
     stage.height(canvasWidth * scale);
@@ -9591,7 +9593,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('dblclick', function doubleClick(e) {
-        if (tblWallFlr.data_deviceid === 'boxRoomPart') {
+        if (tblWallFlr.data_deviceid === 'boxRoomPart' || tblWallFlr.data_deviceid === 'polyRoom') {
             zoomRoomPart(tblWallFlr);
         }
     });
@@ -18747,7 +18749,7 @@ function exportRoomObjToWorkspace() {
             "width": item.height,
         }
 
-        if (item.data_deviceid === 'boxRoomPart') {
+        if (item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom') {
             workspaceItem.hidden = true;
             workspaceItem.opacity = 0.01;
         }
