@@ -12,10 +12,13 @@ let scale = 50; /* Scale of image. initial value.  Will be recalculated before d
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let isActiveRoomPart = false;
+let activeRoomPartItem; /* keep track of Node when isActiveRoomPart = true */
 let activeRoomLength; /* on zoom of a Room Part, keep track of the active Room Length or Room Width */
 let activeRoomWidth;
 let activeRoomY = 0;
 let activeRoomX = 0;
+let activeRoomAbsPoints; /* array of points defining the active room */
+
 let mobileDevice; /* Either 'true' / 'false' as a string */
 let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height for room zoom
 let windowOuterHeight = window.outerHeight;
@@ -116,6 +119,7 @@ roomObj.items.chairs = [];
 roomObj.items.tables = [];
 roomObj.items.stageFloors = [];
 roomObj.items.boxes = [];
+roomObj.items.rooms = [];
 roomObj.items.displays = [];
 roomObj.items.speakers = [];
 roomObj.items.microphones = [];
@@ -543,6 +547,12 @@ let groupTouchPanel = new Konva.Group({
 let groupBoxes = new Konva.Group(
     {
         name: 'boxes',
+    }
+)
+
+let groupRooms = new Konva.Group(
+    {
+        name: 'rooms',
     }
 )
 
@@ -1332,7 +1342,7 @@ function finishPolyBuilder() {
                 delete attrs.metersX;
                 delete attrs.metersY;
                 let uuid = createUuid();
-                insertShapeItem('polyRoom', 'tables', attrs, uuid, true);
+                insertShapeItem('polyRoom', allDeviceTypes['polyRoom'].parentGroup, attrs, uuid, true);
 
                 attrs.id = uuid;
                 attrs.data_deviceid = 'polyRoom';
@@ -1372,7 +1382,7 @@ function convertPointsToUnit(points, xyCenter = false) {
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    let x, y, metersX, metersY;
+    let x, y, metersX, metersY, width, height;
     let newPoints = [];
     let pointsInMeters = [];
     let factor = (roomObj.unit === 'meters') ? 1 : 3.28084;
@@ -1416,6 +1426,8 @@ function convertPointsToUnit(points, xyCenter = false) {
         y = minY;
     }
 
+    width = maxX - minX;
+    height = maxY - minY;
 
 
     newPoints.forEach((newPoint, i) => {
@@ -1451,7 +1463,7 @@ function convertPointsToUnit(points, xyCenter = false) {
 
     path = path.replaceAll(/\s-/g, '-');
 
-    return { x: x, y: y, points: newPoints, pointsInMeters: pointsInMeters, metersX: x, metersY: y, path: path };
+    return { x: x, y: y, points: newPoints, pointsInMeters: pointsInMeters, metersX: x, metersY: y, path: path, width: width, height: height };
 }
 
 function convertPointsToPixel(points) {
@@ -3172,13 +3184,17 @@ let boxes = [
         key: 'ZX',
         frontImage: 'wallBuilder-menu.png',
         strokeWidth: 1,
-    },
+    }
+]
+
+let rooms = [
     {
         name: 'Irregular Room (polyRoom) Experimental**',
         id: 'polyRoom',
         key: 'ZY',
         frontImage: 'pathShape-menu.png',
         strokeWidth: 1,
+        fill: 'lightblue'
     },
     {
         name: 'Room Part (Experimental)**',
@@ -3188,10 +3204,9 @@ let boxes = [
         family: 'wallBox',
         stroke: 'darkgrey',
         strokeWidth: 3,
+        fill: 'lightblue'
     }
-
 ]
-
 
 expandVideoDeviceArray();
 
@@ -4756,6 +4771,7 @@ function resetRoomObj() {
     roomObj.items.displays = [];
     roomObj.items.speakers = [];
     roomObj.items.microphones = [];
+    roomObj.items.rooms = [];
 
     roomObj.workspace.theme = 'standard';
 
@@ -5177,6 +5193,7 @@ function quickSetupUpdate() {
     roomObj.items.microphones = [];
     roomObj.items.stageFloors = [];
     roomObj.items.boxes = [];
+    roomObj.items.rooms = [];
     roomObj.room.roomWidth = document.getElementById('roomWidth2').value;
     roomObj.room.roomLength = document.getElementById('roomLength2').value;
     roomObj.name = document.getElementById('roomName2').value;
@@ -6024,6 +6041,7 @@ function showEntireFloor() {
     activeRoomX = 0;
     activeRoomY = 0;
     isActiveRoomPart = false;
+    activeRoomPartItem = null;
 
     const boxRoomParts = stage.find('.boxRoomPart');
     boxRoomParts.forEach(boxRoomPart => {
@@ -6043,25 +6061,49 @@ function showEntireFloor() {
     drawRoom(true);
 }
 
+
 function zoomRoomPart(roomPart) {
+
+    /* keep track of the activeRoomPartItem in the roomObj */
+    let data_deviceid = roomPart.data_deviceid;
+    let id = roomPart.id();
+
+    roomObj.items[allDeviceTypes[data_deviceid].parentGroup].forEach(item => {
+        if (item.id === id) {
+            activeRoomPartItem = item;
+        };
+    });
+
     document.getElementById('btnBackToFloorPlan').style.display = '';
 
-    activeRoomLength = roomPart.height() / scale;
-    activeRoomWidth = roomPart.width() / scale;
-    activeRoomX = (roomPart.x() - pxOffset) / scale;
-    activeRoomY = (roomPart.y() - pxOffset) / scale;
+    let boundingBox = getBoundingBoxInUnit(roomPart);
+
+    activeRoomLength = boundingBox.height;
+    activeRoomWidth = boundingBox.width;
+    activeRoomX = boundingBox.x;
+    activeRoomY = boundingBox.y;
+    if ('corners' in boundingBox) {
+        activeRoomAbsPoints = boundingBox.corners;
+    }
+
+
     isActiveRoomPart = true;
     tr.nodes([]);
-
-
 
     setTimeout(() => {
         tr.nodes([]);
         enableBtnUndoRedo();
-    }, 400
-    )
+    }, 500)
 
     drawRoom(true, true, true);
+
+    let newNode = stage.findOne('#' + id);
+    if (newNode) {
+        newNode.show();
+        newNode.listening(false);
+        newNode.draggable(false);
+        newNode.fill('');
+    }
 
     let oldScale = scale;
 
@@ -6372,8 +6414,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         insertKonvaBackgroundImageFloor();
 
-
-
         if (!dontSaveUndo) {
             /* canvasToJSON() needs a little time before running or else it won't capture the recenlty drawn room */
             setTimeout(() => {
@@ -6393,7 +6433,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     }, 250);
 
     tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
-
+    stage.off();
     addListeners(stage);
 
     /* the Canvas scroll visully gets reset to 0,0 on a redraw, but the scrollContainer.scrollLeft && scrollContainer.scrollTop keep the same value.
@@ -6912,6 +6952,7 @@ function creatArrayKeysTypes() {
     eachCategory(displays, 'displays');
     eachCategory(stageFloors, 'stageFloors');
     eachCategory(boxes, 'boxes');
+    eachCategory(rooms, 'rooms');
 
     function eachCategory(category, groupName) {
         category.forEach((item) => {
@@ -7671,7 +7712,7 @@ function copyToCanvasClipBoard(nodes) {
         let rotation = attrs.rotation;
         let center = {};
 
-        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes') {
+        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes' || node.getParent().name() === 'rooms') {
             center.x = node.x();
             center.y = node.y();
         } else {
@@ -7912,7 +7953,12 @@ function trNodesFromUuids(uuids, save = true) {
     setTimeout(() => {
         /* select newly copy items for tr nodes. Timeout is so canvas/Konva has time to update. */
         uuids.forEach((uuid) => {
-            trNodes.push(stage.find('#' + uuid)[0]);
+            let node = stage.find('#' + uuid)[0];
+       //      if (node && !(isActiveRoomPart && (node.data_deviceid === 'boxRoomPart' || node.data_deviced === 'polyRoom'))){
+            if(node){
+                trNodes.push(node);
+            }
+
         });
 
         tr.nodes(trNodes);
@@ -7943,6 +7989,7 @@ function stageAddLayers() {
     layerTransform.add(groupBoxes);
 
 
+
     layerTransform.add(grShadingMicrophone);
     layerTransform.add(grDisplayDistance);
     layerTransform.add(grShadingSpeaker);
@@ -7954,6 +8001,7 @@ function stageAddLayers() {
     layerTransform.add(groupVideoDevices);
     layerTransform.add(groupMicrophones);
 
+    layerTransform.add(groupRooms);
 
     layerTransform.add(grLabels);
 
@@ -8288,6 +8336,35 @@ function roomObjToCanvas(roomObjItems) {
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
 
+    if ('chairs' in roomObjItems) {
+        for (const device of roomObjItems.chairs) {
+            insertItem(device, device.id);
+        }
+    }
+
+    if ('stageFloors' in roomObjItems) {
+        for (const device of roomObjItems.stageFloors) {
+            insertItem(device, device.id);
+        }
+    }
+
+    if ('boxes' in roomObjItems) {
+        for (const device of roomObjItems.boxes) {
+            insertItem(device, device.id);
+        }
+    }
+
+    if ('rooms' in roomObjItems) {
+        for (const device of roomObjItems.rooms) {
+            insertItem(device, device.id);
+        }
+    }
+
+    if ('tables' in roomObjItems) {
+        for (const device of roomObjItems.tables) {
+            insertItem(device, device.id);
+        }
+    }
 
     if ('videoDevices' in roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
@@ -8310,31 +8387,6 @@ function roomObjToCanvas(roomObjItems) {
 
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
-            insertItem(device, device.id);
-        }
-    }
-
-    if ('chairs' in roomObjItems) {
-        for (const device of roomObjItems.chairs) {
-            insertItem(device, device.id);
-        }
-    }
-
-    if ('tables' in roomObjItems) {
-        for (const device of roomObjItems.tables) {
-            insertItem(device, device.id);
-        }
-    }
-
-    if ('stageFloors' in roomObjItems) {
-        for (const device of roomObjItems.stageFloors) {
-            insertItem(device, device.id);
-
-        }
-    }
-
-    if ('boxes' in roomObjItems) {
-        for (const device of roomObjItems.boxes) {
             insertItem(device, device.id);
         }
     }
@@ -8381,7 +8433,7 @@ function canvasToJson() {
 
             let rotation = attrs.rotation;
 
-            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
+            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
                 x = attrs.x;
                 y = attrs.y;
             } else {
@@ -8422,7 +8474,7 @@ function canvasToJson() {
                 itemAttr.data_vHeight = node.data_vHeight;
             }
 
-            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
+            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
                 itemAttr.width = (attrs.width / scale);
                 itemAttr.height = (attrs.height / scale);
             }
@@ -8527,7 +8579,7 @@ function updateRoomObjFromTrNode() {
             return;
         }
 
-        if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
+        if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
             x = attrs.x;
             y = attrs.y;
         } else {
@@ -8582,7 +8634,7 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_vHeight = node.data_vHeight;
         }
 
-        if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
+        if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
             itemAttr.width = (attrs.width / scale);
             itemAttr.height = (attrs.height / scale);
         }
@@ -8922,21 +8974,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     }
 
-    if (insertDevice.id === 'polyRoom') {
-        tblWallFlr = new Konva.Line({
-            x: pixelX,
-            y: pixelY,
-            rotation: rotation,
-            points: points,
-            fill: '#ADD8E655',
-            stroke: 'black' || strokeColor,
-            id: uuid,
-            strokeWidth: 1,
-            draggable: true,
-            opacity: opacity,
-            closed: true,
-        })
-    }
 
     if (insertDevice.id === 'tblSchoolDesk') {
         tblWallFlr = new Konva.Rect({
@@ -9497,15 +9534,30 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 1,
         });
-
-        if (isActiveRoomPart) {
-            tblWallFlr.listening(false);
-            tblWallFlr.hide();
-
-        }
     }
 
 
+    if (insertDevice.id === 'polyRoom') {
+        tblWallFlr = new Konva.Line({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            points: points,
+            fill: '#ADD8E655',
+            stroke: 'black' || strokeColor,
+            id: uuid,
+            strokeWidth: 1,
+            draggable: true,
+            opacity: opacity,
+            closed: true,
+        })
+    }
+
+    if (isActiveRoomPart && (insertDevice.id === 'polyRoom' || insertDevice.id === 'boxRoomPart')) {
+        tblWallFlr.hide();
+        tblWallFlr.listening(false);
+        tblWallFlr.draggable(false);
+    }
 
     tblWallFlr.data_deviceid = insertDevice.id;
 
@@ -9553,7 +9605,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         tblWallFlr.name(insertDevice.name);
     }
 
-    /* if statement to add incase in future  */
     if (groupName === 'tables') {
         groupTables.add(tblWallFlr);
     }
@@ -9562,6 +9613,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
     else if (groupName === 'boxes') {
         groupBoxes.add(tblWallFlr);
+    } else if (groupName === 'rooms') {
+        groupRooms.add(tblWallFlr);
     }
 
     if (allDeviceTypes[tblWallFlr.data_deviceid].parentGroup === 'tables') {
@@ -9609,7 +9662,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             tr.nodes([e.target]);
             enableCopyDelBtn();
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -9730,14 +9783,19 @@ function findUpperLeftXY(shape) {
     };
 }
 
-/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.  SVG path shapes are more simplified and use the bounding getClientRect(). All other objects uese center for x,y */
+/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.
+SVG path shapes are more simplified and use the bounding getClientRect(). All other objects use center for x,y.
+
+boudingBox = true means use the getClientRect() bounding box.
+
+*/
 function findFourCorners(item) {
 
     let shapeCorners = [];
     let width, height;
 
     /* for pathshape, determine if it is on the canvas by using the Node object and Konva .getClientRect to get four corners. */
-    if (item.data_deviceid === 'pathShape') {
+    if (item.data_deviceid === 'pathShape' || item.data_deviceid === 'polyRoom') {
         const node = stage.findOne('#' + item.id);
         if (node) {
             let b = node.getClientRect();
@@ -9786,6 +9844,115 @@ function findFourCorners(item) {
     }
 
     return shapeCorners;
+}
+
+/* returns the bounding box of a node in the local unit (meters/feet) */
+function getBoundingBoxInUnit(node) {
+
+
+    if (node instanceof Konva.Line) {
+
+        return getAbsolutePoints(node);
+
+    } else {
+        let item;
+        let shapeCorners = [];
+        roomObj.items[allDeviceTypes[node.data_deviceid].parentGroup].forEach(shape => {
+            if (shape.id === node.id()) {
+                item = shape;
+            }
+        });
+
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+
+
+        shapeCorners[0] = { x: item.x, y: item.y };
+        shapeCorners[1] = findNewTransformationCoordinate(item, -item.width, 0);
+        shapeCorners[2] = findNewTransformationCoordinate(item, -item.width, -item.height);
+        shapeCorners[3] = findNewTransformationCoordinate(item, 0, -item.height);
+
+        shapeCorners.forEach(point => {
+
+            if (point.x < minX) {
+                minX = point.x;
+            }
+
+            if (point.y < minY) {
+                minY = point.y;
+            }
+
+            if (point.x > maxX) {
+                maxX = point.x;
+            }
+
+            if (point.y > maxY) {
+                maxY = point.y;
+            }
+
+        });
+
+
+
+
+
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY, corners: shapeCorners };
+    }
+
+}
+
+// Function to get absolute positions of all points in a line for konva.
+function getAbsolutePoints(node) {
+    const localPoints = node.points();
+    const absoluteTransform = node.getAbsoluteTransform(); // Get the combined transform
+    const absolutePoints = [];
+    const unitPoints = [];
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    // Konva points array is flat: [x1, y1, x2, y2, ...]
+    for (let i = 0; i < localPoints.length; i += 2) {
+        const localPoint = {
+            x: localPoints[i],
+            y: localPoints[i + 1]
+        };
+
+        // Apply the absolute transform to the local point to get the stage position
+        const absolutePoint = absoluteTransform.point(localPoint);
+        absolutePoints.push(absolutePoint);
+    }
+
+
+    absolutePoints.forEach((point, index) => {
+        let x = (point.x - pxOffset) / scale;
+        let y = (point.y - pyOffset) / scale;
+
+        if (x > maxX) {
+            maxX = x;
+        }
+
+        if (y > maxY) {
+            maxY = y;
+        }
+
+        if (x < minX) {
+            minX = x;
+        }
+
+        if (y < minY) {
+            minY = y;
+        }
+
+        unitPoints[index] = { x: x, y: y };
+    });
+
+
+    return { corners: unitPoints, x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
 function findNewTransformationCoordinate(item, deltaX, deltaY) {
@@ -11241,10 +11408,11 @@ function doPolygonsIntersect(a, b) {
 /* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
 function listItemsOffStage() {
 
-
     itemsOffStageId = [];
 
     let xBoundMin, xBoundMax, yBoundMin, yBoundMax;
+
+    let border = [];
 
     /* get the bounds in scale (feet/meters) */
 
@@ -11253,39 +11421,209 @@ function listItemsOffStage() {
         yBoundMin = -pyOffset / scale;
         xBoundMax = roomObj.room.roomWidth + pxOffset / scale;
         yBoundMax = roomObj.room.roomLength + (pyOffset + 30) / scale;
-    } else {
+        border[0] = { x: xBoundMin, y: yBoundMin };
+        border[1] = { x: xBoundMax, y: yBoundMin };
+        border[2] = { x: xBoundMax, y: yBoundMax };
+        border[3] = { x: xBoundMin, y: yBoundMax };
+
+    } else if (activeRoomPartItem) {
+        let x1 = activeRoomPartItem.x;
+        let y1 = activeRoomPartItem.y;
+        let points = activeRoomPartItem.points;
+
+        // for (i = 0, j = 0; i < points.length; i = i + 2) {
+        //     border[j] = { x: points[i] + x1, y: points[i + 1] + y1 };
+        //     j = j + 1;
+        // };
 
         xBoundMin = activeRoomX;
         yBoundMin = activeRoomY;
         xBoundMax = activeRoomX + activeRoomWidth;
         yBoundMax = activeRoomY + activeRoomLength;
+
+
+        border = activeRoomAbsPoints;
+
+
+
+    } else {
+
+
+        xBoundMin = activeRoomX;
+        yBoundMin = activeRoomY;
+        xBoundMax = activeRoomX + activeRoomWidth;
+        yBoundMax = activeRoomY + activeRoomLength;
+
+
+        border[0] = { x: xBoundMin, y: yBoundMin };
+        border[1] = { x: xBoundMax, y: yBoundMin };
+        border[2] = { x: xBoundMax, y: yBoundMax };
+        border[3] = { x: xBoundMin, y: yBoundMax };
+
     }
 
-
-
-    let border = [];
-    border[0] = { x: xBoundMin, y: yBoundMin };
-    border[1] = { x: xBoundMax, y: yBoundMin };
-    border[2] = { x: xBoundMax, y: yBoundMax };
-    border[3] = { x: xBoundMin, y: yBoundMax };
 
     for (const category in roomObj.items) {
         for (const i in roomObj.items[category]) {
             let item = structuredClone(roomObj.items[category][i]);
+            if (!(item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom')) {
 
-            if (!(xBoundMin < item.x && item.x < xBoundMax && yBoundMin < item.y && item.y < yBoundMax)) {  /* check first if the main point is in the border, as this is simpler than the SAT poly check methord */
 
                 let fourCorners = findFourCorners(item);
-                if (!doPolygonsIntersect(fourCorners, border)) {
+
+                if (!doPolygonsIntersect2(border, fourCorners)) {
                     itemsOffStageId.push(item.id);
+                }
 
-                };
             }
-
         }
     }
 
 }
+
+
+
+/**
+ * Determines if two polygons intersect
+ * @param {Array<{x: number, y: number}>} polygon1 - First polygon (can be concave)
+ * @param {Array<{x: number, y: number}>} polygon2 - Second polygon (convex)
+ * @returns {boolean} - True if polygons intersect, false otherwise
+ */
+function doPolygonsIntersect2(polygon1, polygon2) {
+    // Early validation
+    if (!polygon1 || !polygon2 || polygon1.length < 3 || polygon2.length < 3) {
+        return false;
+    }
+
+    // Method 1: Bounding Box Check (fastest preliminary test)
+    if (!boundingBoxesIntersect(polygon1, polygon2)) {
+        return false;
+    }
+
+    // Method 2: Check if any vertex of one polygon is inside the other
+    if (isPointInPolygon(polygon1[0], polygon2) || isPointInPolygon(polygon2[0], polygon1)) {
+        return true;
+    }
+
+    // Method 3: Check if any edges intersect (Separating Axis Theorem optimization)
+    if (doEdgesIntersect(polygon1, polygon2)) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Method 1: Check if bounding boxes intersect (O(n) complexity)
+ */
+function boundingBoxesIntersect(polygon1, polygon2) {
+    const bbox1 = getBoundingBox(polygon1);
+    const bbox2 = getBoundingBox(polygon2);
+
+    return !(bbox1.maxX < bbox2.minX ||
+        bbox1.minX > bbox2.maxX ||
+        bbox1.maxY < bbox2.minY ||
+        bbox1.minY > bbox2.maxY);
+}
+
+function getBoundingBox(polygon) {
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const point of polygon) {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minY = Math.min(minY, point.y);
+        maxY = Math.max(maxY, point.y);
+    }
+
+    return { minX, maxX, minY, maxY };
+}
+
+/**
+ * Method 2: Point-in-polygon test using ray casting algorithm
+ * Works correctly for concave polygons
+ */
+function isPointInPolygon(point, polygon) {
+    let inside = false;
+    const n = polygon.length;
+
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+
+        const intersect = ((yi > point.y) !== (yj > point.y)) &&
+            (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+}
+
+/**
+ * Method 3: Check if any edges of the two polygons intersect
+ */
+function doEdgesIntersect(polygon1, polygon2) {
+    const n1 = polygon1.length;
+    const n2 = polygon2.length;
+
+    // Check all edge pairs
+    for (let i = 0; i < n1; i++) {
+        const p1 = polygon1[i];
+        const p2 = polygon1[(i + 1) % n1];
+
+        for (let j = 0; j < n2; j++) {
+            const p3 = polygon2[j];
+            const p4 = polygon2[(j + 1) % n2];
+
+            if (lineSegmentsIntersect(p1, p2, p3, p4)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Check if two line segments intersect using cross product method
+ */
+function lineSegmentsIntersect(p1, p2, p3, p4) {
+    const d1 = direction(p3, p4, p1);
+    const d2 = direction(p3, p4, p2);
+    const d3 = direction(p1, p2, p3);
+    const d4 = direction(p1, p2, p4);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+        return true;
+    }
+
+    // Check for collinear cases
+    if (d1 === 0 && onSegment(p3, p4, p1)) return true;
+    if (d2 === 0 && onSegment(p3, p4, p2)) return true;
+    if (d3 === 0 && onSegment(p1, p2, p3)) return true;
+    if (d4 === 0 && onSegment(p1, p2, p4)) return true;
+
+    return false;
+}
+
+/**
+ * Calculate direction using cross product
+ */
+function direction(p1, p2, p3) {
+    return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
+}
+
+/**
+ * Check if point p lies on segment (p1, p2)
+ */
+function onSegment(p1, p2, p) {
+    return Math.min(p1.x, p2.x) <= p.x && p.x <= Math.max(p1.x, p2.x) &&
+        Math.min(p1.y, p2.y) <= p.y && p.y <= Math.max(p1.y, p2.y);
+}
+
 
 /*
     insert(item)
@@ -11334,7 +11672,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
         if in tables/stageFloors break out of this and go to insertTable.
     */
-    if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes') {
+    if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
         for (const device of tables) {
             if (device.id === deviceId) {
                 insertDevice = device;
@@ -11359,9 +11697,19 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             }
         }
 
+        for (const device of rooms) {
+            if (device.id === deviceId) {
+                insertDevice = device;
+                group = groupRooms;
+                break;
+            }
+        }
+
         insertTable(insertDevice, groupName, attrs, uuid, selectTrNode)
         return;
     }
+
+
 
     /* check dragId in microphones */
     if (groupName === 'microphones') {
@@ -11405,11 +11753,23 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
     }
 
+
+
     if (groupName === 'boxes') {
         for (const device of boxes) {
             if (device.id === deviceId) {
                 insertDevice = device;
                 group = groupBoxes;
+                break;
+            }
+        }
+    }
+
+    if (groupName === 'rooms') {
+        for (const device of rooms) {
+            if (device.id === deviceId) {
+                insertDevice = device;
+                group = groupRooms;
                 break;
             }
         }
@@ -11700,7 +12060,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 tr.nodes([e.target]);
                 enableCopyDelBtn();
                 /* tables and other objects maybe resizable. */
-                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
+                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
                     resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
@@ -13710,7 +14070,7 @@ function updateFormatDetails(eventOrShapeId) {
 
     document.getElementById('itemVheight').disabled = false;
 
-    if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
+    if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
         document.getElementById('itemWidth').disabled = false;
         document.getElementById('itemLength').disabled = false;
     } else {
@@ -13803,7 +14163,7 @@ function updateFormatDetails(eventOrShapeId) {
             isPrimaryCheckBox.checked = false;
             isPrimaryDiv.style.display = 'none';
 
-            if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
+            if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
                 x = shape.x();
                 y = shape.y();
 
@@ -13905,7 +14265,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             }
 
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes') {
+            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
                 document.getElementById('itemVheightDiv').style.display = '';
             } else {
                 document.getElementById('itemVheightDiv').style.display = 'none';
@@ -14189,6 +14549,7 @@ function countConsectiveTouches() {
     }, timeBetweenTouches);
 }
 
+let count = 0;
 
 function addListeners(stage) {
 
@@ -14196,6 +14557,7 @@ function addListeners(stage) {
 
 
     stage.on('click tap', function stageOnDblclickDbltap(e) {
+
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
             countConsectiveTouches();
         }
@@ -14247,7 +14609,6 @@ function addListeners(stage) {
     });
 
     stage.on('mousemove touchmove', function stageOnMousemoveTouchmove(e) {
-
 
         if (!selecting) {
             return;
@@ -14313,6 +14674,8 @@ function addListeners(stage) {
 
         shapes = shapes.concat(groupBoxes.getChildren());
 
+        shapes = shapes.concat(groupRooms.getChildren());
+
         shapes = shapes.concat(groupSpeakers.getChildren());
 
         shapes = shapes.concat(groupTables.getChildren());
@@ -14330,7 +14693,7 @@ function addListeners(stage) {
 
         tr.nodes(selected);
 
-        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes')) {
+        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes' || selected[0].getParent().name() === 'rooms')) {
             /* if there is a single table, make it resizable */
             resizeTableOrWall();
         }
@@ -14341,8 +14704,11 @@ function addListeners(stage) {
         enableCopyDelBtn();
     });
 
+
+
     /* clicks should select/deselect shapes */
     stage.on('click tap', function stageOnClickTap(e) {
+        count = count + 1;
         if (e.target.attrs.id) {
             if (tr.nodes().length === 1) {
                 updateFormatDetails(e);
@@ -14375,7 +14741,7 @@ function addListeners(stage) {
             tr.nodes([e.target]);
 
             /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes) {
+            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
                 resizeTableOrWall();
             } else {
                 tr.resizeEnabled(false);
@@ -16176,7 +16542,7 @@ function searchQuickItem(items, word = '') {
 }
 
 function onQuickAddChange(e) {
-    const allItems = [].concat(tables, videoDevices, microphones, chairs, displays, boxes, stageFloors);
+    const allItems = [].concat(tables, videoDevices, microphones, chairs, displays, boxes, stageFloors, rooms);
 
     const word = e.target.value;
     const matches = searchQuickItem(allItems, word);
@@ -16571,6 +16937,34 @@ function importJson(jsonFile) {
             if (!('roomSurfaces' in roomObj)) {
                 roomObj.roomSurfaces = structuredClone(defaultRoomSurfaces);
             }
+
+            /* update roomObj items so they can be moved between parentGroups */
+            let items = {};
+            items.videoDevices = [];
+            items.chairs = [];
+            items.tables = [];
+            items.stageFloors = [];
+            items.boxes = [];
+            items.rooms = [];
+            items.displays = [];
+            items.speakers = [];
+            items.microphones = [];
+            items.touchPanels = [];
+
+
+            for (const parentGroup in roomObj.items) {
+                roomObj.items[parentGroup].forEach(item => {
+                    if (!(allDeviceTypes[item.data_deviceid].parentGroup in items)) {
+                        items[allDeviceTypes[item.data_deviceid].parentGroup] = [];
+                    }
+
+                    items[allDeviceTypes[item.data_deviceid].parentGroup].push(item);
+                });
+            }
+
+            roomObj.items = items;
+
+
 
             document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
             document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
@@ -18153,6 +18547,11 @@ function exportRoomObjToWorkspace() {
     });
 
     roomObj2.items.boxes.forEach((item) => {
+        workspaceObjWallPush(item);
+    });
+
+
+    roomObj2.items.rooms.forEach((item) => {
         workspaceObjWallPush(item);
     });
 
