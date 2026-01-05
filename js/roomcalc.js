@@ -10330,11 +10330,17 @@ function updateItem() {
         really gets deleted and rebuilt versus updated */
 
 
+    let deleteDuplicateItemsArray = [];
+
 
     roomObj.items[parentGroup].forEach((item, index) => {
 
         if (item.id === id) {
             /*once found, incoroprate the new parentGroup based on changes */
+
+            if(parentGroup !== allDeviceTypes[data_deviceid].parentGroup){
+                deleteDuplicateItemsArray.push( {oldParentGroup: parentGroup, id: item.id });
+            }
 
             parentGroup = allDeviceTypes[data_deviceid].parentGroup;
 
@@ -10526,6 +10532,7 @@ function updateItem() {
 
             }
 
+
             /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
             if (item.data_deviceid === 'displayTrpl' || item.data_deviceid === 'displayDbl') {
                 delete item.data_role;
@@ -10545,6 +10552,21 @@ function updateItem() {
 
 
         }
+    });
+
+
+    deleteDuplicateItemsArray.forEach(duplicateItem=>{
+
+        let length = roomObj.items[duplicateItem.oldParentGroup].length;
+
+        for (let i = length - 1; i >= 0; i--){
+
+            if(duplicateItem.id === roomObj.items[duplicateItem.oldParentGroup][i].id  ){
+                roomObj.items[duplicateItem.oldParentGroup].splice(i,1);
+            }
+
+            break; /* assuumig only one match, break early */
+        };
     });
 
 }
@@ -13723,6 +13745,7 @@ function enableCopyDelBtn() {
 
     updateTrNodesShadingTimer();
 };
+
 
 
 
