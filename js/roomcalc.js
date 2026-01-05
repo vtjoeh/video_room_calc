@@ -3058,7 +3058,7 @@ let chairs = [
         roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
     },
     {
-        name: "Christmas Tree",
+        name: "Christmas Tree**",
         id: "tree",
         key: "UJ",
         topImage: 'tree.png',
