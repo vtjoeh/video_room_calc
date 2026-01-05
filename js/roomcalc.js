@@ -6122,6 +6122,8 @@ function zoomRoomPart(roomPart) {
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
 function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false) {
 
+    stage.off();
+
     layerGrid.destroyChildren();
 
     unit = roomObj.unit;
@@ -6433,7 +6435,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     }, 250);
 
     tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
-    stage.off();
+
     addListeners(stage);
 
     /* the Canvas scroll visully gets reset to 0,0 on a redraw, but the scrollContainer.scrollLeft && scrollContainer.scrollTop keep the same value.
@@ -9792,6 +9794,7 @@ boudingBox = true means use the getClientRect() bounding box.
 function findFourCorners(item) {
 
     let shapeCorners = [];
+
     let width, height;
 
     /* for pathshape, determine if it is on the canvas by using the Node object and Konva .getClientRect to get four corners. */
@@ -9841,6 +9844,44 @@ function findFourCorners(item) {
         shapeCorners[2] = findNewTransformationCoordinate(item, - width / 2, - height / 2);
         shapeCorners[3] = findNewTransformationCoordinate(item, width / 2, - height / 2);
 
+    }
+
+    return shapeCorners;
+}
+
+function findFourCornersOfNode(node){
+    let width = node.width();
+    let height = node.height();
+    let x = node.x();
+    let y = node.y();
+    let rotation = node.rotation();
+    let shapeCorners = [];
+
+    if(!rotation){
+        rotation = 0;
+    }
+
+    if (width === null || height === null){
+            let b = node.getClientRect();
+            let x = (b.x - pxOffset) / scale;
+            let y = (b.y - pxOffset) / scale;
+            let width = b.width / scale;
+            let height = b.height / scale;
+
+            shapeCorners[0] = { x: x, y: y };
+            shapeCorners[1] = { x: x + width, y: y };
+            shapeCorners[2] = { x: x + width, y: y + height };
+            shapeCorners[3] = { x: x, y: y + height };
+    } else {
+        let attrs = {};
+        attrs.x = x;
+        attrs.y = y;
+        attrs.rotation = rotation;
+
+        shapeCorners[0] = { x: x, y: y };
+        shapeCorners[1] = findNewTransformationCoordinate(attrs, -width, 0);
+        shapeCorners[2] = findNewTransformationCoordinate(attrs, -width, -height);
+        shapeCorners[3] = findNewTransformationCoordinate(attrs, 0, -height);
     }
 
     return shapeCorners;
@@ -14555,7 +14596,6 @@ function addListeners(stage) {
 
     let x1, y1, x2, y2;
 
-
     stage.on('click tap', function stageOnDblclickDbltap(e) {
 
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
@@ -14684,14 +14724,28 @@ function addListeners(stage) {
 
         shapes = shapes.concat(groupChairs.getChildren());
 
-        var box = selectionRectangle.getClientRect();
+        // let box = selectionRectangle.getClientRect();
 
-        var selected = shapes.filter((node) => {
-            return Konva.Util.haveIntersection(box, node.getClientRect()) && node.listening();
-        }
-        );
+
+        // let selected = shapes.filter((node) => {
+        //     return Konva.Util.haveIntersection(box, node.getClientRect()) && node.listening();
+        // }
+        // );
+
+
+        let box = findFourCornersOfNode(selectionRectangle);
+
+        let selected = shapes.filter((node)=>{
+            if(node.listening()){
+                let nodeBox = findFourCornersOfNode(node);
+
+                return doPolygonsIntersect(box, nodeBox);
+
+            }
+        });
 
         tr.nodes(selected);
+
 
         if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes' || selected[0].getParent().name() === 'rooms')) {
             /* if there is a single table, make it resizable */
@@ -14773,12 +14827,21 @@ function addListeners(stage) {
         enableCopyDelBtn();
     });
 
+    let trNodesLength;
+
+    tr.on('transformstart', function onTrNodeTransformStart(e){
+        trNodesLength = tr.nodes().length;
+
+    });
+
     tr.on('transform', function onTransform(e) {
+
+        if (trNodesLength !== 1) return;
 
         let scaleX = e.target.scaleX();
         let scaleY = e.target.scaleY();
 
-        if (tr.nodes().length === 1 && !(scaleX === 1 || scaleY === 1) && e.target.data_deviceid != 'pathShape') {
+        if (trNodesLength === 1 && !(scaleX === 1 || scaleY === 1) && e.target.data_deviceid != 'pathShape') {
 
             let width = e.target.width();
             let height = e.target.height();
@@ -14791,9 +14854,9 @@ function addListeners(stage) {
             e.target.height(height);
             e.target.draw();
 
-        }
+            updateFormatDetails(e);
 
-        updateFormatDetails(e);
+        }
 
     });
 
@@ -16449,7 +16512,7 @@ function onKeyDown(e) {
             isShortCutKeyUsed = true;
         } else if (key === 'r') {
             e.preventDefault();
-            rotateItems();
+            rotateTrNodeItems();
             isShortCutKeyUsed = true;
         }
         // else if (key === 'f'){
@@ -16753,9 +16816,7 @@ function flipItems() {
     })
 }
 
-function rotateItems() {
-
-    let rotationAmount = 90;
+function rotateTrNodeItems(rotationAmount = 90) {
 
     let trCenter = getShapeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
 
@@ -19693,7 +19754,7 @@ function createRightClickMenu(usePreviousPosition = false) {
                 toggleQuickAdd(true);
             }
             else if (e.target.id === 'rotateDiv') {
-                rotateItems();
+                rotateTrNodeItems();
 
                 tr.nodes().forEach(node => {
                     updateShading(node);
