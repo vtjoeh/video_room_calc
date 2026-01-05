@@ -7956,8 +7956,8 @@ function trNodesFromUuids(uuids, save = true) {
         /* select newly copy items for tr nodes. Timeout is so canvas/Konva has time to update. */
         uuids.forEach((uuid) => {
             let node = stage.find('#' + uuid)[0];
-       //      if (node && !(isActiveRoomPart && (node.data_deviceid === 'boxRoomPart' || node.data_deviced === 'polyRoom'))){
-            if(node){
+            //      if (node && !(isActiveRoomPart && (node.data_deviceid === 'boxRoomPart' || node.data_deviced === 'polyRoom'))){
+            if (node) {
                 trNodes.push(node);
             }
 
@@ -9849,7 +9849,7 @@ function findFourCorners(item) {
     return shapeCorners;
 }
 
-function findFourCornersOfNode(node){
+function findFourCornersOfNode(node) {
     let width = node.width();
     let height = node.height();
     let x = node.x();
@@ -9857,21 +9857,21 @@ function findFourCornersOfNode(node){
     let rotation = node.rotation();
     let shapeCorners = [];
 
-    if(!rotation){
+    if (!rotation) {
         rotation = 0;
     }
 
-    if (width === null || height === null){
-            let b = node.getClientRect();
-            let x = (b.x - pxOffset) / scale;
-            let y = (b.y - pxOffset) / scale;
-            let width = b.width / scale;
-            let height = b.height / scale;
+    if (width === null || height === null || node.data_deviceid === 'pathShape') {
+        let b = node.getClientRect();
+        let x = b.x;
+        let y = b.y;
+        let width = b.width;
+        let height = b.height;
 
-            shapeCorners[0] = { x: x, y: y };
-            shapeCorners[1] = { x: x + width, y: y };
-            shapeCorners[2] = { x: x + width, y: y + height };
-            shapeCorners[3] = { x: x, y: y + height };
+        shapeCorners[0] = { x: x, y: y };
+        shapeCorners[1] = { x: x + width, y: y };
+        shapeCorners[2] = { x: x + width, y: y + height };
+        shapeCorners[3] = { x: x, y: y + height };
     } else {
         let attrs = {};
         attrs.x = x;
@@ -9893,7 +9893,7 @@ function getBoundingBoxInUnit(node) {
 
     if (node instanceof Konva.Line) {
 
-        return getAbsolutePoints(node);
+        return getAbsolutePointsOfLine(node);
 
     } else {
         let item;
@@ -9946,7 +9946,7 @@ function getBoundingBoxInUnit(node) {
 }
 
 // Function to get absolute positions of all points in a line for konva.
-function getAbsolutePoints(node) {
+function getAbsolutePointsOfLine(node, pixelUnit = false) {
     const localPoints = node.points();
     const absoluteTransform = node.getAbsoluteTransform(); // Get the combined transform
     const absolutePoints = [];
@@ -9970,8 +9970,17 @@ function getAbsolutePoints(node) {
 
 
     absolutePoints.forEach((point, index) => {
-        let x = (point.x - pxOffset) / scale;
-        let y = (point.y - pyOffset) / scale;
+
+        let x, y;
+
+        if (pixelUnit) {
+            x = point.x;
+            y = point.y;
+        } else {
+            x = (point.x - pxOffset) / scale;
+            y = (point.y - pyOffset) / scale;
+        }
+
 
         if (x > maxX) {
             maxX = x;
@@ -14733,13 +14742,27 @@ function addListeners(stage) {
         // );
 
 
+
         let box = findFourCornersOfNode(selectionRectangle);
 
-        let selected = shapes.filter((node)=>{
-            if(node.listening()){
+        let selected = shapes.filter((node) => {
+            if (node.listening()) {
+
                 let nodeBox = findFourCornersOfNode(node);
 
-                return doPolygonsIntersect(box, nodeBox);
+                if (node.data_deviceid === 'polyRoom') {
+                    if (doPolygonsIntersect(box, nodeBox)) {
+                        /* TODO: may need another check if nodeBox fourcorners or X,Y is absolutely inside box */
+                        let points = getAbsolutePointsOfLine(node, true);
+                        return doPolygonsIntersect2(points.corners, box);
+
+                    } else {
+                        return false;
+                    }
+
+                } else {
+                    return doPolygonsIntersect(box, nodeBox);
+                }
 
             }
         });
@@ -14829,7 +14852,7 @@ function addListeners(stage) {
 
     let trNodesLength;
 
-    tr.on('transformstart', function onTrNodeTransformStart(e){
+    tr.on('transformstart', function onTrNodeTransformStart(e) {
         trNodesLength = tr.nodes().length;
 
     });
