@@ -6752,6 +6752,8 @@ function wallBuilderOn(event) {
 
     if (turnOn) {
 
+
+
         document.getElementById('ContainerInputs').style.display = 'none';
         document.getElementById('wallBuilderDiv').style.display = '';
 
@@ -6767,13 +6769,7 @@ function wallBuilderOn(event) {
 
         let btnWallBuilderWall = document.querySelectorAll('.btnWallBuilderWall');
 
-        btnWallBuilderWall.forEach(element => {
-            element.classList.remove('wallBuilderWallSelected');
-        });
-
-        document.getElementById('btnWallBuilderStd').classList.add('wallBuilderWallSelected');
-
-
+        changeWallBuilderWall('s');
 
     } else {
 
