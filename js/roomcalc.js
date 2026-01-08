@@ -1040,9 +1040,6 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
 
 });
 
-wallBuilderRect.on('pointerup', function wallBuilderRectPointerDown(pointer) {
-
-});
 
 wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
 
@@ -6752,8 +6749,6 @@ function wallBuilderOn(event) {
 
     if (turnOn) {
 
-
-
         document.getElementById('ContainerInputs').style.display = 'none';
         document.getElementById('wallBuilderDiv').style.display = '';
 
@@ -6767,7 +6762,6 @@ function wallBuilderOn(event) {
             wallBuilderToolCheckBox.checked = true;
         }
 
-        let btnWallBuilderWall = document.querySelectorAll('.btnWallBuilderWall');
 
         changeWallBuilderWall('s');
 
@@ -15242,6 +15236,7 @@ let draggedElement;
 let tempClass; /* used for Safari.  When dragStart, remove the class on the target item, then add back in on drop. */
 
 function dragStart(event) {
+
     /** Firefox on Windows requires the event.originalEvent.dataTransfer.setData be used. The following command really doesn't do anything except allow for drag to work. */
     event.dataTransfer.setData("text/plain", event.target.id)
     event.dataTransfer.effectAllowed = "copy";
@@ -15572,6 +15567,14 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         labelDiv.innerText = name;
         flexItemDiv.appendChild(labelDiv);
 
+        if(menuItem === 'wallBuilder'){
+            flexItemDiv.classList.add('flexItemsWallBuilder');
+            flexItemDiv.addEventListener('pointerdown', ()=>{
+                wallBuilderOn(true);
+
+            });
+        }
+
         flexItemDiv.addEventListener('dragstart', dragStart);
         flexItemDiv.addEventListener('drag', drag);
         flexItemDiv.addEventListener('dragend', dragEnd);
@@ -15580,9 +15583,6 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         flexItemDiv.addEventListener('touchmove', touchMove);
         flexItemDiv.addEventListener('touchend', touchEnd);
 
-        flexItemDiv.addEventListener('pointerup', () => {
-
-        })
 
     });
 

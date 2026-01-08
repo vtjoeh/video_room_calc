@@ -877,6 +877,11 @@ input:placeholder-shown {
   opacity: 0.9;
 }
 
+.flexItemsWallBuilder:hover{
+  cursor: pointer;
+  background-color: #d2d2d2;
+}
+
 .flexSubItemImage {
   margin: auto;
   width: 100%;
