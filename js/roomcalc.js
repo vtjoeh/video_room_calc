@@ -1,4 +1,4 @@
-const version = "v0.1.636";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.637";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -18,6 +18,7 @@ let activeRoomWidth;
 let activeRoomY = 0;
 let activeRoomX = 0;
 let activeRoomAbsPoints; /* array of points defining the active room */
+let multiUpdateMode = false;
 
 let mobileDevice; /* Either 'true' / 'false' as a string */
 let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height for room zoom
@@ -943,26 +944,37 @@ function setWallBuilderHelperDefaults() {
 
 
 function changeWallBuilderWall(key) {
+
+    let btnWallBuilderWall = document.querySelectorAll('.btnWallBuilderWall');
+
+    btnWallBuilderWall.forEach(element => {
+            element.classList.remove('wallBuilderWallSelected');
+    });
+
     if (key === 's') {
         wallBuilderType = 'wallStd';
         wallBuilderConnectorLine.stroke('grey');
         wallBuilderConnectorLine.dash([]);
         wallBuilderLabelField = '';
+        document.getElementById('btnWallBuilderStd').classList.add('wallBuilderWallSelected');
     }
     else if (key === 'w') {
         wallBuilderType = 'wallWindow';
         wallBuilderConnectorLine.stroke('#8993ff');
         wallBuilderLabelField = '';
+        document.getElementById('btnWallBuilderWindow').classList.add('wallBuilderWallSelected');
     } else if (key === 'g') {
         wallBuilderType = 'wallGlass';
         wallBuilderConnectorLine.stroke('#ADD8E6');
         wallBuilderConnectorLine.dash([]);
         wallBuilderLabelField = '';
+        document.getElementById('btnWallBuilderGlass').classList.add('wallBuilderWallSelected');
     } else if (key === 'c') {
         wallBuilderType = 'wallStd';
         wallBuilderConnectorLine.stroke('#5e3b50cc');
         wallBuilderConnectorLine.dash([]);
         wallBuilderLabelField = `{"color":"#9DD9F3", "opacity":"0.4"}`;
+        document.getElementById('btnWallBuilderCustom').classList.add('wallBuilderWallSelected');
     }
 
 }
@@ -1005,6 +1017,8 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
         lastWallBuilderNode.x(points[2]);
         lastWallBuilderNode.y(points[3]);
         //   lastWallBuilderNode.show();
+
+        document.getElementById('btnNextWallBuilderSegment').disabled = false;
 
         canvasToJson();
 
@@ -2558,6 +2572,7 @@ let tables = [{
     key: 'TA',
     frontImage: 'tblRect-front.png',
     family: 'resizeItem',
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Table Ellipse',
@@ -2565,6 +2580,7 @@ let tables = [{
     key: 'TB',
     frontImage: 'tblEllip-front.png',
     family: 'resizeItem',
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Table Tapered (trapezoid)',
@@ -2572,6 +2588,7 @@ let tables = [{
     key: 'TC',
     frontImage: 'tblTrap-front.png',
     family: 'resizeItem',
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Table U-Shaped',
@@ -2579,6 +2596,7 @@ let tables = [{
     key: 'TD',
     frontImage: 'tblShapeU-menu.png',
     family: 'tableBox',
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Desk',
@@ -2587,6 +2605,7 @@ let tables = [{
     depth: 590,
     frontImage: 'tblSchoolDesk-menu.png',
     family: 'resizeItem',
+    resizeable: ['width', 'vheight']
 },
 {
     name: 'Podium, round',
@@ -2594,6 +2613,7 @@ let tables = [{
     key: 'TF',
     frontImage: 'tblPodium-menu.png',
     family: 'resizeItem',
+    resizeable: ['width', 'vheight']
 },
 {
     name: 'Wall Standard (10 cm / 3.9")',
@@ -2601,6 +2621,7 @@ let tables = [{
     key: 'WA',
     frontImage: 'wallStd-front.png',
     family: 'wallBox',
+    resizeable: ['depth', 'vheight']
 },
 {
     name: 'Glass Wall',
@@ -2608,6 +2629,7 @@ let tables = [{
     key: 'WB',
     frontImage: 'wallGlass-front.png',
     family: 'wallBox',
+    resizeable: ['depth', 'vheight']
 },
 
 {
@@ -2616,6 +2638,7 @@ let tables = [{
     key: 'WC',
     frontImage: 'columnRect-front.png',
     family: 'wallBox',
+    resizeable: ['width', 'depth', 'vheight']
 },
 
 {
@@ -2625,6 +2648,7 @@ let tables = [{
     frontImage: 'wallWindow-front.png',
     topImage: 'wallWindow-top.png',
     family: 'wallBox',
+    resizeable: ['depth', 'vheight']
 },
 {
     name: 'Row of Chairs',
@@ -2633,6 +2657,7 @@ let tables = [{
     topImage: 'chair-top.png',
     frontImage: 'wallChairs-menu.png',
     family: 'resizeItem',
+    resizeable: ['depth']
 },
 {
     name: 'Table Curved',
@@ -2640,6 +2665,7 @@ let tables = [{
     key: 'WG',
     frontImage: 'tblCurved-menu.png',
     family: 'resizeItem',
+    resizeable: []
 },
 {
     name: 'Couch',
@@ -2647,6 +2673,7 @@ let tables = [{
     key: 'WH',
     frontImage: 'couch-menu.png',
     family: 'resizeItem',
+    resizeable: ['depth']
 },
 {
     name: 'Unknown Resizeable Workspace* Designer Object*',
@@ -2657,6 +2684,7 @@ let tables = [{
     stroke: 'purple',
     strokeWidth: 3,
     dash: [4, 4],
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Sphere',
@@ -2666,6 +2694,8 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 0.5,
+    resizeable: []
+
 },
 {
     name: 'Column / Cylinder',
@@ -2676,6 +2706,7 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 1,
     opacity: 0.4,
+    resizeable: []
 },
 {
     name: 'Custom Path Shape',
@@ -2683,6 +2714,7 @@ let tables = [{
     key: 'WL',
     frontImage: 'pathShape-menu.png',
     strokeWidth: 1 / scale,
+    resizeable: []
 }
 ]
 
@@ -3152,6 +3184,7 @@ let stageFloors = [
         stroke: 'black',
         strokeWidth: 2,
         dash: [4, 8],
+        resizeable: ['width', 'depth', 'vheight']
     },
     {
         name: 'Carpet*',
@@ -3162,6 +3195,7 @@ let stageFloors = [
         stroke: 'grey',
         strokeWidth: 4,
         dash: [8, 3],
+        resizeable: ['width', 'depth', 'vheight']
     }
 ]
 
@@ -3177,13 +3211,15 @@ let boxes = [
         stroke: 'black',
         strokeWidth: 2,
         dash: [7, 5],
+        resizeable: ['width', 'depth', 'vheight']
     },
     {
-        name: 'Wall Builder. Experimental. Draw Multiple walls**',
+        name: 'Wall Builder - Multiple walls',
         id: 'wallBuilder',
         key: 'ZX',
         frontImage: 'wallBuilder-menu.png',
         strokeWidth: 1,
+        resizeable: []
     }
 ]
 
@@ -3194,7 +3230,8 @@ let rooms = [
         key: 'ZY',
         frontImage: 'pathShape-menu.png',
         strokeWidth: 1,
-        fill: 'lightblue'
+        fill: 'lightblue',
+        resizeable: []
     },
     {
         name: 'Room Part (Experimental)**',
@@ -3204,7 +3241,8 @@ let rooms = [
         family: 'wallBox',
         stroke: 'darkgrey',
         strokeWidth: 3,
-        fill: 'lightblue'
+        fill: 'lightblue',
+        resizeable: ['width', 'depth', 'vheight']
     }
 ]
 
@@ -3361,7 +3399,9 @@ function addOnBlurUnitInputListener() {
 
             }
 
-            updateItem();
+            if (!multiUpdateMode) {
+                updateItem();
+            }
 
         })
     }
@@ -3439,8 +3479,9 @@ function addOnNumberInputListener() {
 
         inputs[i].addEventListener("blur", () => {
 
-            updateItem();
-
+            if (!multiUpdateMode) {
+                updateItem();
+            }
         })
     }
 
@@ -3453,7 +3494,9 @@ function addOnNumberInputListener() {
 
         degreeInputs[i].addEventListener("blur", () => {
 
-            updateItem();
+            if (!multiUpdateMode) {
+                updateItem();
+            }
         })
     }
 
@@ -3480,7 +3523,10 @@ function addOnNumberInputListener() {
                 roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
             }
 
-            updateItem();
+            if (!multiUpdateMode) {
+                updateItem();
+            }
+
 
 
         })
@@ -3648,8 +3694,42 @@ function windowResizeEventName() {
     }, 550);
 
 
+    positionCloseArrow();
 }
 
+positionCloseArrow();
+
+
+function positionCloseArrow() {
+    let element = document.getElementById('ContainerRoomSvg');
+    let closeOpenMenu = document.getElementById('closeOpenMenu');
+
+    const rect = element.getBoundingClientRect();
+
+    let position = {
+        x: rect.left + window.pageXOffset,
+        y: rect.top + window.pageYOffset
+    };
+
+
+    if (position.x < 120) {
+        closeOpenMenu.style.transform = 'translate(0px,0px)';
+    } else {
+        closeOpenMenu.style.transform = 'translate(25px,140px)';
+    }
+
+
+}
+
+
+function blurRoom() {
+    let blurryDiv = document.getElementById('scroll-container');
+    blurryDiv.classList.add('my-blurred-div');
+
+    setTimeout(() => {
+        blurryDiv.classList.remove('my-blurred-div');
+    }, 500);
+}
 
 
 function hasScrollbar(element) {
@@ -6035,7 +6115,10 @@ function getKonvaBackgroundImageFloor() {
 }
 
 function showEntireFloor() {
+    blurRoom();
+    disableRoomSettings(false);
     document.getElementById('btnBackToFloorPlan').style.display = 'none';
+    zoomInOut('reset');
     activeRoomLength = roomObj.room.roomLength;
     activeRoomWidth = roomObj.room.roomWidth;
     activeRoomX = 0;
@@ -6063,6 +6146,8 @@ function showEntireFloor() {
 
 
 function zoomRoomPart(roomPart) {
+    blurRoom();
+    disableRoomSettings(true);
 
     /* keep track of the activeRoomPartItem in the roomObj */
     let data_deviceid = roomPart.data_deviceid;
@@ -6090,12 +6175,12 @@ function zoomRoomPart(roomPart) {
     isActiveRoomPart = true;
     tr.nodes([]);
 
-    setTimeout(() => {
-        tr.nodes([]);
-        enableBtnUndoRedo();
-    }, 500)
+    // setTimeout(() => {
+    //     tr.nodes([]);
+    //     enableBtnUndoRedo();
+    // }, 1000)
 
-    drawRoom(true, true, true);
+    drawRoom(true, true, true, true);
 
     let newNode = stage.findOne('#' + id);
     if (newNode) {
@@ -6120,7 +6205,7 @@ function zoomRoomPart(roomPart) {
 }
 
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
-function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false) {
+function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false, isZoomingRoomPart = false) {
 
     stage.off();
 
@@ -6412,7 +6497,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         roomObjToCanvas(roomObj.items);
 
-        trNodesFromUuids(roomObj.trNodes, false);
+        if (isZoomingRoomPart) {
+            roomObj.trNodes = [];
+        } else {
+            trNodesFromUuids(roomObj.trNodes, false);
+        }
 
         insertKonvaBackgroundImageFloor();
 
@@ -6600,6 +6689,7 @@ function wallBuilderRestart() {
     wallBuilderWritingState = 'none';
     wallBuilderLineArray.points([]);
     document.getElementById("canvasDiv").style.cursor = "crosshair";
+    document.getElementById('btnNextWallBuilderSegment').disabled = true;
 }
 
 
@@ -6646,17 +6736,24 @@ function wallBuilderRestart2() {
 function wallBuilderOn(event) {
     let turnOn;
 
+
     if (typeof event === 'boolean') {
         turnOn = event;
     }
     else {
         turnOn = event.target.checked;
     }
+
+
+
     lastWallBuilderNode.hide();
 
     let wallBuilderToolCheckBox = document.getElementById('wallBuilderTool')
 
     if (turnOn) {
+
+        document.getElementById('ContainerInputs').style.display = 'none';
+        document.getElementById('wallBuilderDiv').style.display = '';
 
         wallBuilderRestart();
 
@@ -6668,7 +6765,21 @@ function wallBuilderOn(event) {
             wallBuilderToolCheckBox.checked = true;
         }
 
+        let btnWallBuilderWall = document.querySelectorAll('.btnWallBuilderWall');
+
+        btnWallBuilderWall.forEach(element => {
+            element.classList.remove('wallBuilderWallSelected');
+        });
+
+        document.getElementById('btnWallBuilderStd').classList.add('wallBuilderWallSelected');
+
+
+
     } else {
+
+        document.getElementById('ContainerInputs').style.display = '';
+        document.getElementById('wallBuilderDiv').style.display = 'none';
+
         wallBuilderRestart();
 
         isWallBuilderOn = false;
@@ -7718,7 +7829,7 @@ function copyToCanvasClipBoard(nodes) {
             center.x = node.x();
             center.y = node.y();
         } else {
-            center = getShapeCenter(node);
+            center = getNodeCenter(node);
         }
 
         x2Offset = 0;
@@ -8439,7 +8550,7 @@ function canvasToJson() {
                 x = attrs.x;
                 y = attrs.y;
             } else {
-                let center = getShapeCenter(node);
+                let center = getNodeCenter(node);
                 x = center.x;
                 y = center.y;
             }
@@ -8585,7 +8696,7 @@ function updateRoomObjFromTrNode() {
             x = attrs.x;
             y = attrs.y;
         } else {
-            let center = getShapeCenter(node);
+            let center = getNodeCenter(node);
             x = center.x;
             y = center.y;
         }
@@ -10276,6 +10387,199 @@ function updateTrNodesShading() {
 
 }
 
+function setDefaultBlankElements() {
+    const elementsWithClass = document.querySelectorAll(".defaultBlank");
+
+    // You can use forEach directly on the NodeList
+    elementsWithClass.forEach(element => {
+        element.value = "";
+    });
+
+
+};
+
+function isNumeric(value) {
+    return !(typeof value === 'string' && value.trim() === '') && Number.isFinite(Number(value));
+}
+
+function updateMultipleItems() {
+
+
+
+    let width = document.getElementById('itemWidth2').value;
+    let height = document.getElementById('itemLength2').value;
+    let x = document.getElementById('itemX2').value;
+    let y = document.getElementById('itemY2').value;
+    let labelField = document.getElementById('labelField2').value;
+
+    let rotation = document.getElementById('itemRotation2').value;
+
+    let data_vHeight = document.getElementById('itemVheight2').value;
+
+    let data_labelField = DOMPurify.sanitize(document.getElementById('labelField2').value);
+
+    let data_zPosition = document.getElementById('itemZposition2').value;
+
+    document.getElementById("btnMultiUpdateItemId").disabled = true;
+
+
+    setTimeout(() => {
+        document.getElementById("btnMultiUpdateItemId").disabled = false;
+
+    }, 700);
+
+    tr.nodes().forEach(node => {
+
+        let parentGroup = node.getParent().name();
+        let length = roomObj.items[parentGroup].length;
+
+        for (let i = 0; i < length; i++) {
+
+            if (node.id() === roomObj.items[parentGroup][i].id) {
+
+                let item = roomObj.items[parentGroup][i];
+
+                let xyUpdated = false;
+
+                if (isNumeric(x) || isNumeric(y)) {
+                    xyUpdated = true;
+                }
+
+                if (data_labelField && item.data_deviceid !== 'pathShape') {
+                    updateLabel(node, { data_labelField: data_labelField });
+                    redraw = true;
+                }
+
+
+                if (xyUpdated) {
+
+                    let rotation;
+                    if ('rotation' in item && item.rotation) {
+                        rotation = item.rotation;
+                    } else {
+                        rotation = 0;
+                    }
+
+
+                    if (('width' in allDeviceTypes[item.data_deviceid])) {
+
+                        let x2, y2;
+
+                        if (isNumeric(x)) {
+                            x2 = Number(x);
+
+                        } else {
+                            x2 = item.x - activeRoomX;
+                        }
+
+
+                        if (isNumeric(y)) {
+                            y2 = Number(y);
+
+                        } else {
+                            y2 = item.y - activeRoomY;
+                        }
+
+                        let pixelX = scale * x2 + pxOffset;
+                        let pixelY = scale * y2 + pyOffset;
+                        let width = allDeviceTypes[item.data_deviceid].width / 1000 * scale;
+                        let height = allDeviceTypes[item.data_deviceid].depth / 1000 * scale;
+
+                        if (roomObj.unit === 'feet') {
+                            width = width * 3.28084;
+                            height = height * 3.28084;
+                        }
+
+
+                        let cornerXY = findUpperLeftXY({ x: pixelX, y: pixelY, rotation: rotation, width: width, height: height });
+
+                        node.x(cornerXY.x);
+                        node.y(cornerXY.y);
+
+                    } else {
+
+                        let x2, y2;
+                        let center = getItemCenter(item);
+
+
+                        let deltaX = item.x - center.x;
+                        let deltaY = item.y - center.y;
+
+                        if (isNumeric(x)) {
+                            x2 = Number(x) + deltaX;
+                        } else {
+                            x2 = item.x - activeRoomX;
+                        }
+
+                        if (isNumeric(y)) {
+                            y2 = Number(y) + deltaY;
+                        } else {
+                            y2 = item.y - activeRoomY;
+                        }
+
+                        let pixelX = scale * x2 + pxOffset;
+                        let pixelY = scale * y2 + pyOffset;
+
+                        node.x(pixelX);
+                        node.y(pixelY);
+
+                    }
+                }
+
+                if (isNumeric(rotation)) {
+                    rotation = normalizeDegree(rotation);
+                    rotateAroundCenter2(node, rotation);
+
+                }
+
+                if (isNumeric(data_vHeight)) {
+                    if (!('width' in allDeviceTypes[item.data_deviceid]) && 'resizeable' in allDeviceTypes[item.data_deviceid] && allDeviceTypes[item.data_deviceid].resizeable.includes('vheight')) {
+
+                        item.data_vHeight = Number(data_vHeight);
+                        node.data_vHeight = item.data_vHeight;
+                    }
+
+                }
+
+                if (isNumeric(data_zPosition)) {
+                    item.data_zPosition = Number(data_zPosition);
+                    node.data_zPosition = item.data_zPosition;
+                }
+
+                if (isNumeric(width) && 'resizeable' in allDeviceTypes[item.data_deviceid] && allDeviceTypes[item.data_deviceid].resizeable.includes('width')) {
+                    node.width(width * scale);
+                }
+
+                if (isNumeric(height) && 'resizeable' in allDeviceTypes[item.data_deviceid] && allDeviceTypes[item.data_deviceid].resizeable.includes('depth')) {
+                    node.height(height * scale);
+                }
+
+                if (labelField !== '' && item.data_deviceid !== 'pathShape') {
+                    node.data_labelField = labelField;
+                    item.data_labelField = labelField;
+                }
+
+
+
+                updateShading(node);
+
+
+            }
+        }
+
+
+
+    });
+
+
+    tr.nodes().forEach(node => {
+        updateShading(node);
+    });
+
+    canvasToJson();
+
+
+}
 
 
 /* Item is updated after clicking Update item on web page from Details tab */
@@ -10338,8 +10642,8 @@ function updateItem() {
         if (item.id === id) {
             /*once found, incoroprate the new parentGroup based on changes */
 
-            if(parentGroup !== allDeviceTypes[data_deviceid].parentGroup){
-                deleteDuplicateItemsArray.push( {oldParentGroup: parentGroup, id: item.id });
+            if (parentGroup !== allDeviceTypes[data_deviceid].parentGroup) {
+                deleteDuplicateItemsArray.push({ oldParentGroup: parentGroup, id: item.id });
             }
 
             parentGroup = allDeviceTypes[data_deviceid].parentGroup;
@@ -10555,14 +10859,14 @@ function updateItem() {
     });
 
 
-    deleteDuplicateItemsArray.forEach(duplicateItem=>{
+    deleteDuplicateItemsArray.forEach(duplicateItem => {
 
         let length = roomObj.items[duplicateItem.oldParentGroup].length;
 
-        for (let i = length - 1; i >= 0; i--){
+        for (let i = length - 1; i >= 0; i--) {
 
-            if(duplicateItem.id === roomObj.items[duplicateItem.oldParentGroup][i].id  ){
-                roomObj.items[duplicateItem.oldParentGroup].splice(i,1);
+            if (duplicateItem.id === roomObj.items[duplicateItem.oldParentGroup][i].id) {
+                roomObj.items[duplicateItem.oldParentGroup].splice(i, 1);
             }
 
             break; /* assuumig only one match, break early */
@@ -10706,7 +11010,7 @@ function closeDeviceMenu(attributeType) {
 
 function closeOpenSidebar(tabToOpen) {
 
-
+    let closeOpenMenu = document.getElementById('closeOpenMenu');
     let sideBar = document.getElementById('sidebar');
     let openSidebarDiv = document.getElementById('openSideBar');
     let containerRoomSvg = document.getElementById('ContainerRoomSvg');
@@ -10714,16 +11018,18 @@ function closeOpenSidebar(tabToOpen) {
         sideBar.style.display = '';
         openSidebarDiv.style.display = 'none';
         containerRoomSvg.style.paddingLeft = '';
+
+
     } else {
         sideBar.style.display = 'none';
         openSidebarDiv.style.display = '';
         containerRoomSvg.style.paddingLeft = '0px';
+
     }
 
     if (tabToOpen) {
 
         document.getElementById(tabToOpen).click();
-
 
     }
 
@@ -12066,55 +12372,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             canvasToJson();
         });
 
-        imageItem.on('transformstart', function imageItemOnTransformStart() {
-
-        });
-
-        // if (deviceId === 'shareCableHdmi') {
-        //     let hitFunction = function (context, shape) {
-        //         context.beginPath();
-        //         context.rect(shape.width() * 0.073, shape.height() * 0.231, shape.width() * 0.857, shape.height() * 0.156);
-        //         context.closePath();
-        //         context.fillStrokeShape(shape);
-        //     }
-
-        //     imageItem.hitFunc(hitFunction);
-        // }
-
-
-        // if (deviceId === 'shareCableLid') {
-        //     let hitFunction = function (context, shape) {
-        //         context.beginPath();
-        //         context.rect(shape.width() * 0.323, shape.height() * 0.404, shape.width() * 0.303, shape.height() * 0.200);
-        //         context.closePath();
-        //         context.fillStrokeShape(shape);
-        //     }
-
-        //     imageItem.hitFunc(hitFunction);
-        // }
-
-        // if (deviceId === 'shareCableUsbc') {
-        //     let hitFunction = function (context, shape) {
-        //         context.beginPath();
-        //         context.rect(shape.width() * 0.073, shape.height() * 0.622, shape.width() * 0.857, shape.height() * 0.164);
-        //         context.closePath();
-        //         context.fillStrokeShape(shape);
-        //     }
-
-        //     imageItem.hitFunc(hitFunction);
-        // }
-
-
-        // if (deviceId === 'shareCableMultiHead') {
-        //     let hitFunction = function (context, shape) {
-        //         context.beginPath();
-        //         context.rect(shape.width() * 0.073, shape.height() * 0.791, shape.width() * 0.857, shape.height() * 0.169);
-        //         context.closePath();
-        //         context.fillStrokeShape(shape);
-        //     }
-
-        //     imageItem.hitFunc(hitFunction);
-        // }
 
 
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
@@ -12168,13 +12425,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             updateShading(imageItem);
         });
 
-        imageItem.on('transformend', function imageItemOnTransformed() {
-
-        });
-
-        imageItem.on('mousemove touchmove', function imageItemOnMousemoveTouchmove(e) {
-
-        });
 
         /* add the shape to the layer */
         group.add(imageItem);
@@ -12681,6 +12931,42 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 }
 
+function updateLabel(node, attrs) {
+    let label = stage.findOne('#label~' + node.id())
+    let text;
+    let textCandidate = '';
+
+
+    node.data_labelField = attrs.data_labelField;
+
+    if ('data_labelField' in attrs) {
+        textCandidate = attrs.data_labelField.replace(/{.*?}/g, '');
+        if (textCandidate) {
+            text = textCandidate;
+        }
+    }
+
+    if (label && textCandidate.trim() === '') {
+        label.destroy();
+    } else if (label && textCandidate) {
+
+        let children = label.getChildren();
+
+
+        children.forEach(child => {
+            if (child instanceof Konva.Text) {
+
+                child.text(text);
+            }
+        });
+
+
+    } else if (textCandidate) {
+        addLabel(node, attrs);
+    }
+
+}
+
 
 function addLabel(node, attrs, alwaysLabel = false) {
     let text = node.name();
@@ -12698,7 +12984,7 @@ function addLabel(node, attrs, alwaysLabel = false) {
     let fontSize = 10;
 
     let boundingBox = node.getClientRect();
-    let center = getShapeCenter(node);
+    let center = getNodeCenter(node);
     let bottomY = center.y + boundingBox.height / 2 * (100 / zoomValue);
     let centerX = center.x;
 
@@ -12758,7 +13044,7 @@ function snapCenterToIncrement(node) {
         if (snapIncrementCheckBox.checked) {
 
             /* get the center of the node in pixels */
-            let pixelXY = getShapeCenter(node);
+            let pixelXY = getNodeCenter(node);
 
             /* convert pixels to feet/meters */
             let x = (pixelXY.x - pxOffset) / scale;
@@ -13599,7 +13885,7 @@ function updateSnapToIncrement() {
 
 function moveLabel(imageItem, labelTip) {
     let boundingBox = imageItem.getClientRect();
-    let center = getShapeCenter(imageItem);
+    let center = getNodeCenter(imageItem);
     let bottomY = center.y + boundingBox.height / 2 * (100 / zoomValue);
     let centerX = center.x;
 
@@ -13644,7 +13930,7 @@ function updateShading(node) {
 
     function moveShading(imageItem, shadingItem) {
 
-        let center = getShapeCenter(imageItem);
+        let center = getNodeCenter(imageItem);
         let centerY = center.y;
         let centerX = center.x;
 
@@ -13680,18 +13966,18 @@ function updateShading(node) {
 
 
 /* Get center of a shape from upper left x, upper right y cooridnate. A shape comes from Canvas / Konva.js */
-function getShapeCenter(shape) {
+function getNodeCenter(node) {
 
     return {
 
         x:
-            shape.x()
-            + (shape.width() / 2) * Math.cos(Math.PI / 180 * shape.rotation())
-            + (shape.height() / 2) * Math.sin(Math.PI / 180 * (-shape.rotation())),
+            node.x()
+            + (node.width() / 2) * Math.cos(Math.PI / 180 * node.rotation())
+            + (node.height() / 2) * Math.sin(Math.PI / 180 * (-node.rotation())),
         y:
-            shape.y() +
-            (shape.height() / 2) * Math.cos(Math.PI / 180 * shape.rotation()) +
-            (shape.width() / 2) * Math.sin(Math.PI / 180 * shape.rotation())
+            node.y() +
+            (node.height() / 2) * Math.cos(Math.PI / 180 * node.rotation()) +
+            (node.width() / 2) * Math.sin(Math.PI / 180 * node.rotation())
     };
 }
 
@@ -13717,6 +14003,11 @@ function enableCopyDelBtn() {
 
     let divItemDetailsVisible = document.getElementById('itemDetailsVisible');
     let txtItemsDetailNote = document.getElementById('txtItemsDetailNote');
+    let multiItemsVisible = document.getElementById('multiItemDetailsVisible');
+
+    divItemDetailsVisible.style.display = 'none';
+    txtItemsDetailNote.style.display = 'none';
+    multiItemsVisible.style.display = 'none';
 
     if (tr.nodes().length > 0) {
         document.getElementById('btnDuplicate').disabled = false;
@@ -13726,22 +14017,47 @@ function enableCopyDelBtn() {
     else {
         document.getElementById('btnDuplicate').disabled = true;
         document.getElementById('btnDelete').disabled = true;
+        multiUpdateMode = false;
 
     }
 
     if (tr.nodes().length === 1) {
-        divItemDetailsVisible.style.display = 'initial';
+        divItemDetailsVisible.style.display = '';
         txtItemsDetailNote.style.display = 'none';
+        multiItemsVisible.style.display = 'none';
 
-    } else {
-        divItemDetailsVisible.style.display = 'none';
-        txtItemsDetailNote.style.display = 'initial';
-    }
-
-
-    if (tr.nodes().length === 1) {
+        multiUpdateMode = false
         updateFormatDetails(tr.nodes()[0].id());
+
+
+
+    } else if (tr.nodes().length > 1) {
+
+        multiUpdateMode = true;
+
+        divItemDetailsVisible.style.display = 'none';
+        txtItemsDetailNote.style.display = 'none';
+        multiItemsVisible.style.display = '';
+
+        document.getElementById('multiItemDetailsVisible').style.display = '';
+
+
+        document.getElementById("tabItem").click();
+        document.getElementById("subTabItemDetails").click();
+
+        setDefaultBlankElements();
+
+
     }
+    else {
+
+        divItemDetailsVisible.style.display = 'none';
+        txtItemsDetailNote.style.display = '';
+        divItemDetailsVisible.style.display = 'none';
+
+        multiUpdateMode = false;
+    }
+
 
     updateTrNodesShadingTimer();
 };
@@ -14113,11 +14429,25 @@ function fillInTopElevationDisplay(item, updateTextBox = true) {
     return round(topElevation);
 }
 
+function disableRoomSettings(disable = true) {
+
+    ['drpMetersFeet', 'roomWidth', 'roomHeight', 'roomLength', 'drpSoftware', 'authorVersion', 'removeDefaultWallsCheckBox', 'updateButtonId', 'roomName'].forEach(elementId => {
+        let element = document.getElementById(elementId);
+        if (element) {
+            element.disabled = disable;
+        }
+    })
+};
+
 function updateFormatDetails(eventOrShapeId) {
+
+    if (multiUpdateMode) return;
 
     let shape; /* shape is direct from canvas, 'item' is in roomObj JSON. */
 
     let itemTopElevationDiv = document.getElementById('itemTopElevationDiv');
+
+    multiUpdateMode = false;
 
     itemTopElevationDiv.style.display = 'none'; /* make this div invisible, only show for video devices or TV displays */
 
@@ -14141,7 +14471,19 @@ function updateFormatDetails(eventOrShapeId) {
 
     let parentGroup = shape.getParent().name();
 
+    document.getElementById('itemXdiv').style.display = '';
+    document.getElementById('itemYdiv').style.display = '';
+    document.getElementById('itemNameDiv').style.display = '';
+    document.getElementById('labelFieldDiv').style.display = '';
+    document.getElementById('updateItemDiv').style.display = '';
+
     document.getElementById('itemVheight').disabled = false;
+
+    if (['polyRoom', 'boxRoomPart'].includes(shape.data_deviceid)) {
+        document.getElementById('itemLabeldiv').textContent = 'Room Name:'
+    } else {
+        document.getElementById('itemLabeldiv').textContent = 'Item Label:'
+    }
 
     if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
         document.getElementById('itemWidth').disabled = false;
@@ -14241,7 +14583,7 @@ function updateFormatDetails(eventOrShapeId) {
                 y = shape.y();
 
             } else {
-                let xy = getShapeCenter(shape);
+                let xy = getNodeCenter(shape);
                 x = xy.x;
                 y = xy.y;
             }
@@ -14641,6 +14983,7 @@ function addListeners(stage) {
         if (e.target.findAncestor('.layerTransform')) {
             document.getElementById("tabItem").click();
             document.getElementById("subTabItemDetails").click();
+
             updateFormatDetails(e);
         }
 
@@ -14755,16 +15098,6 @@ function addListeners(stage) {
         shapes = shapes.concat(groupTouchPanel.getChildren());
 
         shapes = shapes.concat(groupChairs.getChildren());
-
-        // let box = selectionRectangle.getClientRect();
-
-
-        // let selected = shapes.filter((node) => {
-        //     return Konva.Util.haveIntersection(box, node.getClientRect()) && node.listening();
-        // }
-        // );
-
-
 
         let box = findFourCornersOfNode(selectionRectangle);
 
@@ -15302,7 +15635,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
 
-    let wallsMenu = ['wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -16819,11 +17152,11 @@ comeback to flipItems
 function flipItems() {
     let rotationAmount = 90;
 
-    let trCenter = getShapeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+    let trCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
 
     tr.nodes().forEach(node => {
 
-        let nodeCenter = getShapeCenter(node);
+        let nodeCenter = getNodeCenter(node);
 
         let rotation = normalizeDegree(node.rotation())
         let rotationAmount;
@@ -16864,11 +17197,11 @@ function flipItems() {
 
 function rotateTrNodeItems(rotationAmount = 90) {
 
-    let trCenter = getShapeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+    let trCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
 
     tr.nodes().forEach(node => {
 
-        let nodeCenter = getShapeCenter(node);
+        let nodeCenter = getNodeCenter(node);
         let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, trCenter.x, trCenter.y, rotationAmount);
 
         let totalRotation = normalizeDegree(node.rotation() + rotationAmount);
@@ -16885,7 +17218,59 @@ function rotateTrNodeItems(rotationAmount = 90) {
         node.offsetX(0); /* reset the offsetX and offsetY back to zero */
         node.offsetY(0);
 
+        updateShading(node);
+
     })
+
+}
+
+
+
+const rotatePoint = ({ x, y }, rad) => {
+    const rcos = Math.cos(rad);
+    const rsin = Math.sin(rad);
+    return { x: x * rcos - y * rsin, y: y * rcos + x * rsin };
+};
+
+function rotateAroundCenter2(node, rotation) {
+    const topLeft = { x: -node.width() / 2, y: -node.height() / 2 };
+    const current = rotatePoint(topLeft, Konva.getAngle(node.rotation()));
+    const rotated = rotatePoint(topLeft, Konva.getAngle(rotation));
+    const dx = rotated.x - current.x;
+    const dy = rotated.y - current.y;
+    node.rotation(rotation);
+    node.x(node.x() + dx);
+    node.y(node.y() + dy);
+}
+
+function rotateAroundCenter(node, deg) {
+
+    const w = node.width();
+    const h = node.height();
+
+    node.offset({ x: w / 2, y: h / 2 });
+    node.rotate(deg);
+
+    // node.offset({x: 0, y: 0});
+
+}
+
+function rotateNodeAroundCenter(node, rotationAmount) {
+    let nodeCenter = getNodeCenter(node);
+
+    // let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, nodeCenter.x,nodeCenter.y, rotationAmount);
+
+    let nodeCornerXY = findUpperLeftXY({ x: nodeCenter.x, y: nodeCenter.y, rotation: rotation, width: node.width(), height: node.height() })
+    node.x(nodeCornerXY.x);
+    node.y(nodeCornerXY.y);
+
+    node.offsetX(nodeCenter.x - node.x());
+    node.offsetY(nodeCenter.y - node.y());
+
+    node.rotation(rotationAmount);
+
+    node.offsetX(0); /* reset the offsetX and offsetY back to zero */
+    node.offsetY(0);
 
 }
 

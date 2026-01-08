@@ -132,14 +132,14 @@ a:active {
   padding-left: 0px;
   margin-left: 0px;
   width: 30px;
-  height: 200px;
+  height: 400px;
   margin-right: 10px;
   border-radius: 0px 10px 10px 0px;
 }
 
 #openSideBarBtn {
   position: absolute;
-  left: 7px;
+  left: -10px;
   top: 80px;
   padding-left: 0px;
 }
@@ -435,6 +435,26 @@ input:placeholder-shown {
 
 }
 
+.wallBuilderButton {
+  font-size: 12px;
+}
+
+.wallBuilderButtonDiv {
+    position: relative;
+    display: flex;
+    /* flex-direction: column; */
+    gap: 10px;
+    flex-grow: 1;
+    align-items: stretch;
+    justify-content: center;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+
+
+
+
+
 .wallButton {
   border: 0px;
   border-radius: 12px;
@@ -467,6 +487,8 @@ input:placeholder-shown {
 .wallButton:hover:disabled {
   background-color: black;
 }
+
+
 
 .wallButtonSelected {
   background-color: #000000;
@@ -1171,7 +1193,7 @@ input:checked+.slider:before {
   padding: 0px;
   padding-right: 0px;
   float: right;
-  transform: translate(0px, 0px);
+  transform: translate(25px, 140px);
 
 }
 
@@ -1300,6 +1322,18 @@ body:has(dialog.rightClickMenu[open]) {
 
 .closeDialogX:hover {
   color: rgb(255, 255, 255);
+}
+
+.closeWallBuilderX {
+  position: absolute;
+  top: -3px;
+  right: 2px;
+  cursor: pointer;
+  color: rgb(110, 110, 110);
+}
+
+.closeWallBuilderX:hover {
+  color: rgb(0, 0, 0);
 }
 
 #btnToggleUnit {
@@ -1824,6 +1858,58 @@ hr.rightClickHorizontalLine {
   background-color: #ccc;
 }
 
+
+
+.wallBuilder {
+    display: flex;
+    flex-wrap: nowrap;
+    margin: 0;
+    padding: 0;
+    max-height: 70vh;
+    gap: 5px;
+    flex-direction: row;
+    align-content: stretch;
+    justify-content: center;
+}
+
+
+.wallBuilder button {
+  list-style: none;
+  /* width: 7em; */
+  width: 9em;
+  padding: 7px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 0.3em;
+  color: #000000;
+  background-color: #f4f4f4;
+  border: 1px solid transparent;
+}
+
+
+.wallBuilder button img {
+  object-fit: contain;
+  max-width: 100%;
+  height: 40px;
+}
+
+.wallBuilder button label {
+  text-align: center;
+}
+
+.wallBuilder button:hover {
+  background-color: #ccc;
+}
+
+.wallBuilderWallSelected {
+  border: 2px solid #000000 !important;
+  background-color: #d0d0d0 !important;
+}
+
+
 /* On screens that are 1180px wide or less, go from four columns to two columns */
 @media screen and (max-width: 900px) {
 
@@ -1932,7 +2018,7 @@ hr.rightClickHorizontalLine {
     padding-right: 0px;
     transform: rotate(90deg);
     position: absolute;
-    right: 30px;
+    right: 35px;
     top: 75px;
     left:unset;
 

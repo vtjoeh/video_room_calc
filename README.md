@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.637**
+- 🛠️ A new Wall Builder tool is now available under Equipment ➔ Furniture ➔ Walls / Objects. The Wall Builder allows you to quickly draw multiple walls, which are positioned at "miter" angles to one another.
+- ✏️ Update multiple selected items for item label, x, y, z, width, length, height, or item rotation.
+
 **v0.1.636**
 - Added **Draw Simple Path** feature to Custom Path Shapes.
 - Enabled copying items between tabs of different units.

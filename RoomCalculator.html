@@ -63,12 +63,50 @@
     </button>
     <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button>
     <button id="openSideBarBtn" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
-        style="font-size: 18px" class="icon icon-arrow-circle-right-bold"></i></button>
+        style="font-size: 20px; color: #abaaaa;" class="icon icon-arrow-circle-right-filled"></i></button>
     <div class="displayWhenLessThan900" id="0">
     </div>
   </div>
 
   <div id="sidebar" class="floatColumns">
+
+    <div id="wallBuilderDiv" style="display: none;" class="ContainerInputsFeedback" >
+
+
+      <div class="inputField" style="position: relative; " >
+       <label class="tooltipBottom">&nbsp;Wall Builder Mode<i class="icon icon-info-circle-bold"></i>
+        <span class="tooltiptextBottom"> Wall Builder allows you to draw walls quickly. Use the shortcut keys displayed on the buttons. Hold the shift key to create vertical or horizontal walls. </span>
+
+       </label>
+         <div class="closeWallBuilderX" onclick="wallBuilderOn(false);">✕</div>
+      </div>
+
+
+      <ul class="wallBuilder" >
+
+
+      <button title="Wall Standard" id="btnWallBuilderStd" class="btnWallBuilderWall" onclick="changeWallBuilderWall('s');"><img src="./assets/images/wallStd-front.png"><label>Wall Standard (s)</label>
+      </button>
+
+      <button title="Glass Wall" id="btnWallBuilderGlass" class="btnWallBuilderWall" onclick="changeWallBuilderWall('g');"><img src="./assets/images/wallGlass-front.png"><label>Glass Wall (g)</label>
+      </button>
+
+      <button title="Wall with Windows" id="btnWallBuilderWindow" class="btnWallBuilderWall" onclick="changeWallBuilderWall('w');"><img src="./assets/images/wallWindow-front.png"><label>Wall with Windows (w)</label>
+      </button>
+
+      <!-- <button title="Wall with Windows" id="btnWallBuilderCustom"  class="btnWallBuilderWall" onclick="changeWallBuilderWall('c');"><img src="./assets/images/wallStd-front.png"><label>Custom wall (c)</label>
+      </button> -->
+
+      </ul>
+
+      <div class="wallBuilderButtonDiv">
+
+        <button id="btnNextWallBuilderSegment" class="button wallBuilderButton" onclick="wallBuilderRestart();">Next Wall Segment (esc)</button>
+
+        <button class="button wallBuilderButton" onclick="wallBuilderOn(false);">Close Wall Builder (esc-esc)</button>
+      </div>
+
+    </div>
 
     <div id="ContainerInputs" class="ContainerInputsFeedback">
       <div class="tab">
@@ -76,7 +114,7 @@
         <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
         <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
-            style="font-size: 18px" id="closeOpenIcon" class="icon icon-arrow-circle-left-bold"></i>
+            style="font-size: 20px; color: #abaaaa;" id="closeOpenIcon" class="icon icon-arrow-circle-left-filled"></i>
         </button>
       </div>
       <div id="containerInputTabContent">
@@ -358,32 +396,41 @@
                 Double click item on the room canvas.
               </div>
             </div>
+
+
             <div id="itemDetailsVisible" style="display: none;">
-              <div class="inputField">
+              <div class="inputField" id="itemNameDiv">
                 <label class="tooltipBottom">Item Type:</label>
                 <!-- <input disabled type="text" id="itemName" size="45" class=""> -->
                 <select disabled id="itemName" class="drpDown" onchange="updateItem()">
 
                 </select>
               </div>
-              <div class="inputField">
-                <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
-                    class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the
-                    URL.
-                    They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
-                    inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
+
+              <div class="inputField" id="labelFieldDiv">
+                <label class="tooltipBottom"><span id="itemLabeldiv">Item Label:</span><i
+                    class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels the item. Should be
+                    kept short to prevent lengthening the URL. The label also enables direct JSON insertion into the
+                    Workspace Designer using curly brackets { }. Text inside { } does not appear in naming fields. For
+                    more information, see the FAQ.</span></label>
                 <input type="text" id="labelField" size="45" class="textInput">
               </div>
+
               <div class="inputField" id="labelPathId">
                 <label class="tooltipBottom">Path Shape: <i class="icon icon-info-circle-bold"></i> <span
                     class="tooltiptextBottom">Path Shape are objects using SVG paths to create your own shapes in the
-                    Video Room Calculator and Workspace Designer. Useful for table tops or curved walls. Use the <b>Draw Simple Path</b> tool for straight lines only. For curves, use a 3rd party tool like SvgPathEditor. For more
-                    information, see the FAQ.</span><button class="button" style="font-size: xx-small; padding: 4px 12px; align-self: inherit;" onclick="simplePathEditor()">Draw Simple Path</button></label>
+                    Video Room Calculator and Workspace Designer. Useful for table tops or curved walls. Use the <b>Draw
+                      Simple Path</b> tool for straight lines only. For curves, use a 3rd party tool like SvgPathEditor.
+                    For more
+                    information, see the FAQ.</span><button class="button"
+                    style="font-size: xx-small; padding: 4px 12px; align-self: inherit;"
+                    onclick="simplePathEditor()">Draw Simple Path</button></label>
                 <input type="text" id="labelPath" size="45" class="textInput">
 
               </div>
+
               <div class="inputRow">
-                <div class="inputField" id="itemXY">
+                <div class="inputField" id="itemXdiv">
                   <label class="tooltipBottom">X:<i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptextBottom">Coordinates X &
                       Y are the upper left hand corner of tables and walls but are the center of all
@@ -391,7 +438,7 @@
                   <input type="text" id="itemX" maxlength="12" size="5" class="unitInput">
                   <label class="unitFeetMeters">ft</label>
                 </div>
-                <div class="inputField">
+                <div class="inputField" id="itemYdiv">
                   <label>Y:</label>
                   <input type="text" id="itemY" maxlength="12" size="5" class="unitInput">
                   <label class="unitFeetMeters">ft</label>
@@ -467,6 +514,7 @@
                 <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
                 <label class="classDegree">&deg;</label>
               </div>
+
 
               <div class="inputField" id="tblRectRadiusDiv">
                 <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
@@ -587,7 +635,7 @@
                     used for future features.</span>
                 </label>
               </div>
-              <div class="inputRow" style="margin-top: 1.5em;">
+              <div class="inputRow" style="margin-top: 1.5em;" id="updateItemDiv">
                 <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
                 <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
                   <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
@@ -604,7 +652,6 @@
                     title="Toggle Display Reach">
                     <i class="icon icon-display-bold"></i>
                   </button>
-
                 </div>
               </div>
 
@@ -617,6 +664,222 @@
                 <label>- Group: </label>
                 <label id="itemGroup"></label>
               </div>
+            </div>
+
+
+
+            <div id="multiItemDetailsVisible" style="display: none;">
+
+
+
+              <div class="inputField" id="itemNameDiv2">
+                <label class="tooltipBottom">Multiple Items selected: </label>
+                <!-- <input disabled type="text" id="itemName" size="45" class=""> -->
+              </div>
+
+              <div class="inputField" id="labelFieldDiv2">
+                <label class="tooltipBottom">Item Label:<i class="icon icon-info-circle-bold"></i><span
+                    class="tooltiptextBottom">Labels name objects and should be kept short to prevent lengthening the
+                    URL.
+                    They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
+                    inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
+                <input type="text" id="labelField2" size="45" class="textInput allowBlank defaultBlank">
+              </div>
+
+
+
+              <div class="inputRow">
+                <div class="inputField" id="itemXdiv2" style="width: 64px;">
+                  <label class="tooltipBottom">Center X:
+                    <span class="tooltiptextBottom">Coordinates X &
+                      Y are the upper left hand corner of tables and walls but are the center of all
+                      other objects.</span></label>
+                  <input type="text" id="itemX2" maxlength="12" size="5" class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField" id="itemYdiv2">
+                  <label>Center Y:</label>
+                  <input type="text" id="itemY2" maxlength="12" size="5" class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField" id="itemZpositionDiv2">
+                  <label class="tooltipBottom">Z:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom tooltiptextLeft">[Optional]
+                      Base elevation (Z) is the vertical measurement from the floor to
+                      the base of the object. Used in the Workspace Designer custom rooms.</span></label>
+                  <input type="text" id="itemZposition2" maxlength="6" size="5"
+                    class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+              </div>
+
+              <div class="inputRow" id="itemWidthLengthDiv2">
+                <div class="inputField" id="itemWidthDiv2">
+                  <label class="tooltip">Width:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Only tables,
+                      walls, and columns have adjustable widths and lengths. All other objects are
+                      fixed in size. Walls have a a fixed width of 0.10 m / 0.33 ft.
+                    </span></label>
+                  <input type="text" id="itemWidth2" maxlength="12" size="5" class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+                <div class="inputField" id="itemLengthDiv2">
+                  <label> Length:</label>
+                  <input type="text" id="itemLength2" maxlength="12" size="5" class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+
+                <div class="inputField" id="itemVheightDiv2">
+                  <label class="tooltip">Height:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">[Optional] Vertical height of the object in the Workspace
+                      Designer. Only applies to devices with height like walls, columns and some tables.</span></label>
+                  <input type="text" id="itemVheight2" maxlength="6" size="5" class="unitInput allowBlank defaultBlank">
+                  <label class="unitFeetMeters">ft</label>
+                </div>
+              </div>
+
+              <div class="inputField" id="trapNarrowWidthDiv2" style="display: none">
+                <label class="tooltip">Narrow Width:
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">For tappered/trapezoid
+                    shape tables, the narrow width at the head of the table.</span></label>
+                <input type="text" id="trapNarrowWidth2" maxlength="6" size="5"
+                  class="unitInput allowBlank defaultBlank" value="0.5">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+
+
+              <div class="inputField" id="itemRotationDiv2">
+                <label class="tooltip">Item Rotation:
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Rotation in degrees from
+                    0 to 360. Positive or negative values.</span></label>
+                <input type="text" id="itemRotation2" maxlength="6" size="5"
+                  class="degreeInput allowBlank defaultBlank">
+                <label class="classDegree">&deg;</label>
+              </div>
+
+              <div class="inputField" id="tblRectRadiusDiv2" style="display: none">
+                <label class="tooltip">Corner Radius:<span class="tooltiptext">Radius of the all 4 table
+                    corners unless the Corner Radius Front Half has a value, in which case it is
+                    only two corners. The value should be no more than 1/2 of the length or width,
+                    whichever is smaller.</span></label>
+                <input type="text" id="tblRectRadius2" maxlength="12" size="5" class="unitInput allowBlank">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+
+              <div class="inputField" id="tblRectRadiusRightDiv2" style="display: none">
+                <label class="tooltip">Corner Radius Front Half
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Radius of the
+                    front 2 table corners. If blank, the Corner Radius above is used for all 4
+                    corners. The value should be no more than 1/2 of the length or width, whichever
+                    is smaller.</span></label>
+                <input type="text" id="tblRectRadiusRight2" maxlength="12" size="5" class="unitInput allowBlank">
+                <label class="unitFeetMeters">ft</label>
+              </div>
+
+              <div class="inputField" id="itemDiagonalTvDiv2" style="display: none">
+                <label class="tooltip">Display Diagonal Inches:
+                  <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">The
+                    width & length of the display is calculated automatically based on the display
+                    diagonal
+                    inches.</span></label>
+                <input type="text" id="itemDiagonalTv2" maxlength="6" size="5"
+                  class="numberInput updateWidthOfDisplay allowBlank defaultBlank">
+                <label class="unitInches">in</label>
+              </div>
+              <!-- <div id="testB" style="display: none;"> -->
+              <div id="testB" style="display: none">
+
+
+
+                <div class="inputField" id="roleDiv2" style="display: none">
+                  <label for="drpRole" class="tooltip">Role:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Role is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas. The PTZ 4K
+                      camera FOV angle will change based on the Role.</span>
+                  </label>
+                  <select name="drpRole" id="drpRole2" class="selectRole drpDown">
+                  </select>
+                </div>
+
+
+                <div class="inputField" id="mountDiv2" style="display: none">
+                  <label for="drpRole" class="tooltip">Mount Method:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Mount is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas.</span>
+                  </label>
+                  <select name="drpMount" id="drpMount2" class="selectRole drpDown">
+                  </select>
+                </div>
+
+                <div class="inputField" id="colorDiv2">
+                  <label for="drpColor" class="tooltip">Color:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Color is used in the Workspace Designer export and may
+                      not reflect any changes in the Video Room Calculator canvas objects. </span>
+                  </label>
+                  <select name="drpColor" id="drpColor2" class="selectRole drpDown">
+                  </select>
+                </div>
+              </div>
+
+              <div class="inputRow" id="itemTiltSlantDiv2" style="display: none;">
+                <div class="inputField" id="itemTiltDiv2" style="display: none;">
+                  <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">[Optional] Tilt and Lean are Workspace Designer settings and are not
+                      reflected in the Video Room Calculator. Therefore, objects may appear in the wrong location when
+                      comparing the Video Room Calculator to the Workspace Designer. Certain complex objects may yield
+                      unexpected results.</span></label>
+                  <input type="text" id="itemTilt2" maxlength="12" size="5" class="degreeInput allowBlank defaultBlank">
+                  <label class="classDegree">&deg;</label>
+                </div>
+
+                <div class="inputField" id="itemSlantDiv2" style="display: none;">
+                  <label class="tooltip">Lean:<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">[Optional] Tilt and Lean are Workspace Designer settings
+                      and are not reflected in the Video Room Calculator. Therefore, objects may appear in the wrong
+                      location when comparing the Video Room Calculator to the Workspace Designer. Certain complex
+                      objects may yield unexpected results.</span></label>
+                  <input type="text" id="itemSlant2" maxlength="12" size="5"
+                    class="degreeInput allowBlank defaultBlank">
+                  <label class="classDegree">&deg;</label>
+                </div>
+              </div>
+
+              <div class="inputRow" id="itemOffsetDiv2" style="display: none;">
+                <div class="inputField">
+                  <label class="tooltip">X offset (m):<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">X & Y offset are used for calibrating setting between Video Room Calc and
+                      Workspace Designer</span></label>
+                  <input type="text" id="itemXoffset2" maxlength="12" size="5"
+                    class="unitInput allowBlank defaultBlank">
+
+                </div>
+
+                <div class="inputField">
+                  <label class="tooltip">Y offset (m):<i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext tooltiptextLeft">X & Y offset are used for calibrating setting between
+                      Video Room Calc and Workspace Designer</span></label>
+                  <input type="text" id="itemYoffset2" maxlength="12" size="5"
+                    class="unitInput allowBlank defaultBlank">
+
+                </div>
+              </div>
+
+
+              <div class="inputRow" style="margin-top: 1.5em;" id="updateMultiItemDiv">
+                <input type="submit" value="Update Mulitiple Items" onclick="updateMultipleItems()" class="button"
+                  id="btnMultiUpdateItemId">
+              </div>
+
             </div>
 
           </div>
@@ -1834,8 +2097,8 @@
 
     </main>
     <form method="dialog">
-    <button class="button">OK</button>
-  </form>
+      <button class="button">OK</button>
+    </form>
   </dialog>
 
   <dialog id="characterLimitWarning"
