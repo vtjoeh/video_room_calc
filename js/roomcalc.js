@@ -11,6 +11,8 @@ let outerwallPyOffset = pxOffset;
 let scale = 50; /* Scale of image. initial value.  Will be recalculated before drawing image */
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
+let isRotatingRoom = false; /* keep track if the room is being rotated */
+let isFreezeKeys = false; /* keep key inputs from happening */
 let isActiveRoomPart = false;
 let activeRoomPartItem; /* keep track of Node when isActiveRoomPart = true */
 let activeRoomLength; /* on zoom of a Room Part, keep track of the active Room Length or Room Width */
@@ -948,7 +950,7 @@ function changeWallBuilderWall(key) {
     let btnWallBuilderWall = document.querySelectorAll('.btnWallBuilderWall');
 
     btnWallBuilderWall.forEach(element => {
-            element.classList.remove('wallBuilderWallSelected');
+        element.classList.remove('wallBuilderWallSelected');
     });
 
     if (key === 's') {
@@ -8655,13 +8657,17 @@ function canvasToJson() {
 
 
     clearTimeout(undoArrayTimer);
-    undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
-        saveToUndoArray();
-        createShareableLink();
 
-        document.title = roomObj.name ? `VRC: ${roomObj.name}` : 'Video Room Calculator by Joe Hughes';
+    if (!isRotatingRoom) {
+        undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
+            saveToUndoArray();
+            createShareableLink();
 
-    }, undoArrayTimeDelta)
+            document.title = roomObj.name ? `VRC: ${roomObj.name}` : 'Video Room Calculator by Joe Hughes';
+
+        }, undoArrayTimeDelta)
+    }
+
 
 }
 
@@ -8836,6 +8842,7 @@ function setItemForLocalStorage(key, value) {
 }
 
 function saveToUndoArray() {
+
     let strUndoArrayLastItem;
     let roomObj2 = structuredClone(roomObj);
     delete roomObj2.backgroundImageFile;
@@ -15567,9 +15574,9 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         labelDiv.innerText = name;
         flexItemDiv.appendChild(labelDiv);
 
-        if(menuItem === 'wallBuilder'){
+        if (menuItem === 'wallBuilder') {
             flexItemDiv.classList.add('flexItemsWallBuilder');
-            flexItemDiv.addEventListener('pointerdown', ()=>{
+            flexItemDiv.addEventListener('pointerdown', () => {
                 wallBuilderOn(true);
 
             });
@@ -16730,6 +16737,8 @@ function onKeyDown(e) {
     const DELTA = 1; /* change in key movement in Canvas pixel */
     let isShortCutKeyUsed = false;
 
+    if(isFreezeKeys) return;
+
     if ((key === 'r') && e.shiftKey && (e.ctrlKey || e.metaKey)) return; /* allow for a hard refresh. */
 
     /* export to the Workspace Designer */
@@ -16809,6 +16818,8 @@ function onKeyDown(e) {
     if (key === 'Shift') {
         isShiftKeyDown = true;
     }
+
+
 
     /* duplicate item takes time, so prevent default anytime the D key is pressed */
     if (key === 'd') {
@@ -16896,6 +16907,18 @@ function onKeyDown(e) {
         //     isShortCutKeyUsed = true;
         // }
     }
+
+    else if (e.altKey) {
+
+        if (key === 'r') {
+
+            rotateRoom();
+        } else if (e.code === 'KeyR') {
+
+            rotateRoom();
+        }
+    }
+
 
     tr.nodes().forEach(shape => {
         if (e.keyCode === 37) {
@@ -17191,14 +17214,150 @@ function flipItems() {
     })
 }
 
-function rotateTrNodeItems(rotationAmount = 90) {
 
-    let trCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+function selectAllTrNodes() {
+    let shapes = groupVideoDevices.getChildren();
+
+    shapes = shapes.concat(groupStageFloors.getChildren());
+
+    shapes = shapes.concat(groupDisplays.getChildren());
+
+    shapes = shapes.concat(groupMicrophones.getChildren());
+
+    shapes = shapes.concat(groupBoxes.getChildren());
+
+    shapes = shapes.concat(groupRooms.getChildren());
+
+    shapes = shapes.concat(groupSpeakers.getChildren());
+
+    shapes = shapes.concat(groupTables.getChildren());
+
+    shapes = shapes.concat(groupTouchPanel.getChildren());
+
+    shapes = shapes.concat(groupChairs.getChildren());
+
+    tr.nodes(shapes);
+};
+
+function rotateBackgroundImage(rotationAmount, rotationCenter){
+    let node = stage.findOne('#konvaBackgroundImageFloor');
+
+    if(node){
+        let nodeCenter = getNodeCenter(node);
+        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, rotationCenter.x, rotationCenter.y, rotationAmount);
+
+        let totalRotation = normalizeDegree(node.rotation() + rotationAmount);
+
+        let nodeCornerXY = findUpperLeftXY({ x: newNodeXY.x, y: newNodeXY.y, rotation: totalRotation, width: node.width(), height: node.height() })
+        node.x(nodeCornerXY.x);
+        node.y(nodeCornerXY.y);
+
+        node.offsetX(nodeCenter.x - node.x());
+        node.offsetY(nodeCenter.y - node.y());
+
+        node.rotation(totalRotation);
+
+        node.offsetX(0); /* reset the offsetX and offsetY back to zero */
+        node.offsetY(0);
+
+    }
+}
+
+function rotateRoom() {
+
+    document.getElementById('dialogLoadingTemplate').showModal();
+    isRotatingRoom = true;
+    isFreezeKeys = true;
+
+    let rotationAmount = 90;
+
+    selectAllTrNodes();
+
+    let trNodesLength = tr.nodes().length;
+    let timeForEachStage = (300 + trNodesLength / 10);
+
+    setTimeout(()=>{
+        isRotatingRoom = false;
+        canvasToJson();
+    }, 3 * timeForEachStage);
+
+    setTimeout(()=>{
+        document.getElementById('dialogLoadingTemplate').close();
+        isFreezeKeys = false;
+    }, 4 * timeForEachStage + 500);
+
+
+    let roomWidth = roomObj.room.roomWidth;
+    let roomLength = roomObj.room.roomLength;
+    let roomSurfaces = {...roomObj.roomSurfaces};
+
+    /* make the room the larger of roomWidth or roomLenght on both sides */
+    let roomWidthLength;
+    if (roomWidth > roomLength) {
+        roomWidthLength = roomWidth;
+    } else {
+        roomWidthLength = roomLength
+    }
+
+
+    roomObj.room.roomLength = roomWidthLength;
+    roomObj.room.roomWidth = roomWidthLength;
+
+    drawRoom(true, true, false);
+
+    setTimeout(function nowRotateTrNodeItems() {
+
+        let rotationCenter = {};
+
+        rotationCenter.x = ((roomWidth) / 2) * scale + pxOffset;
+        rotationCenter.y = ((roomLength)) * scale / 2 + pyOffset;
+
+        /* flip for counter clockwise */
+        rotationCenter.x = rotationCenter.y;
+
+
+
+
+        selectAllTrNodes();
+        rotateTrNodeItems(rotationAmount, rotationCenter);
+        rotateBackgroundImage(rotationAmount,rotationCenter);
+        canvasToJson();
+    }, timeForEachStage);
+
+
+    /* reset room dimensions */
+    setTimeout(function nowResizeRoom() {
+        tr.nodes([]);
+        roomObj.trNodes = [];
+        roomObj.room.roomLength = roomWidth;
+        roomObj.room.roomWidth = roomLength;
+
+        /* use if counterclockwise
+        roomObj.roomSurfaces.leftwall = roomSurfaces.videowall;
+        roomObj.roomSurfaces.backwall = roomSurfaces.leftwall;
+        roomObj.roomSurfaces.rightwall = roomSurfaces.backwall;
+        roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
+        */
+
+        roomObj.roomSurfaces.leftwall = roomSurfaces.backwall;
+        roomObj.roomSurfaces.backwall = roomSurfaces.rightwall;
+        roomObj.roomSurfaces.rightwall = roomSurfaces.videowall;
+        roomObj.roomSurfaces.videowall = roomSurfaces.leftwall;
+
+        drawRoom(true, true, false);
+    }, timeForEachStage * 2);
+}
+
+function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
+
+    if (!rotationCenter) {
+        rotationCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+    }
 
     tr.nodes().forEach(node => {
 
         let nodeCenter = getNodeCenter(node);
-        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, trCenter.x, trCenter.y, rotationAmount);
+        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, rotationCenter.x, rotationCenter.y, rotationAmount);
 
         let totalRotation = normalizeDegree(node.rotation() + rotationAmount);
 

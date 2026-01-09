@@ -70,38 +70,52 @@
 
   <div id="sidebar" class="floatColumns">
 
-    <div id="wallBuilderDiv" style="display: none;" class="ContainerInputsFeedback" >
+    <div id="wallBuilderDiv" style="display: none;" class="ContainerInputsFeedback">
 
 
-      <div class="inputField" style="position: relative; " >
-       <label class="tooltipBottom">&nbsp;Wall Builder Mode<i class="icon icon-info-circle-bold"></i>
-        <span class="tooltiptextBottom"> Wall Builder allows you to draw walls quickly. Use the shortcut keys displayed on the buttons. Hold the shift key to create vertical or horizontal walls. </span>
+      <div class="inputField" style="position: relative; ">
+        <label class="tooltipBottom">&nbsp;Wall Builder Mode<i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom"> Wall Builder allows you to draw walls quickly. Use the shortcut keys
+            displayed on the buttons. Hold the shift key to create vertical or horizontal walls. </span>
 
-       </label>
-         <div class="closeWallBuilderX" onclick="wallBuilderOn(false);">✕</div>
+        </label>
+        <div class="closeWallBuilderX" onclick="wallBuilderOn(false);">✕</div>
       </div>
 
+      <div class="inputField" style="position: relative; ">
+        <label>Select a wall:</label>
+      </div>
 
-      <ul class="wallBuilder" >
+      <ul class="wallBuilder">
 
 
-      <button title="Wall Standard" id="btnWallBuilderStd" class="btnWallBuilderWall" onclick="changeWallBuilderWall('s');"><img src="./assets/images/wallStd-front.png"><label>Wall Standard (s)</label>
-      </button>
+        <button title="Wall Standard" id="btnWallBuilderStd" class="btnWallBuilderWall"
+          onclick="changeWallBuilderWall('s');"><img src="./assets/images/wallStd-front.png"><label>Wall Standard
+            (s)</label>
+        </button>
 
-      <button title="Glass Wall" id="btnWallBuilderGlass" class="btnWallBuilderWall" onclick="changeWallBuilderWall('g');"><img src="./assets/images/wallGlass-front.png"><label>Glass Wall (g)</label>
-      </button>
+        <button title="Glass Wall" id="btnWallBuilderGlass" class="btnWallBuilderWall"
+          onclick="changeWallBuilderWall('g');"><img src="./assets/images/wallGlass-front.png"><label>Glass Wall
+            (g)</label>
+        </button>
 
-      <button title="Wall with Windows" id="btnWallBuilderWindow" class="btnWallBuilderWall" onclick="changeWallBuilderWall('w');"><img src="./assets/images/wallWindow-front.png"><label>Wall with Windows (w)</label>
-      </button>
+        <button title="Wall with Windows" id="btnWallBuilderWindow" class="btnWallBuilderWall"
+          onclick="changeWallBuilderWall('w');"><img src="./assets/images/wallWindow-front.png"><label>Wall with Windows
+            (w)</label>
+        </button>
 
-      <!-- <button title="Wall with Windows" id="btnWallBuilderCustom"  class="btnWallBuilderWall" onclick="changeWallBuilderWall('c');"><img src="./assets/images/wallStd-front.png"><label>Custom wall (c)</label>
+        <!-- <button title="Wall with Windows" id="btnWallBuilderCustom"  class="btnWallBuilderWall" onclick="changeWallBuilderWall('c');"><img src="./assets/images/wallStd-front.png"><label>Custom wall (c)</label>
       </button> -->
 
       </ul>
 
+      <div class="inputField" style="position: relative; ">
+
+      </div>
       <div class="wallBuilderButtonDiv">
 
-        <button id="btnNextWallBuilderSegment" class="button wallBuilderButton" onclick="wallBuilderRestart();">Next Wall Segment (esc)</button>
+        <button id="btnNextWallBuilderSegment" class="button wallBuilderButton" onclick="wallBuilderRestart();">Next
+          Wall Segment (esc)</button>
 
         <button class="button wallBuilderButton" onclick="wallBuilderOn(false);">Close Wall Builder (esc-esc)</button>
       </div>
