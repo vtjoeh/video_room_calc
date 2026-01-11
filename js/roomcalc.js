@@ -5388,6 +5388,7 @@ function quickSetupInsert() {
     tblAttrs.height = tableLength;
     tblAttrs.data_deviceid = 'tblRect';
     tblAttrs.id = tableUuid;
+    tblAttrs.rotation = 0;
     insertItem(tblAttrs, tableUuid);
     addItemToRoomObj(tblAttrs);
 
