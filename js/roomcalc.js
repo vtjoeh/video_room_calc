@@ -9,6 +9,7 @@ let pyOffset = pxOffset;
 let outerwallPxOffset = pxOffset;
 let outerwallPyOffset = pxOffset;
 let scale = 50; /* Scale of image. initial value.  Will be recalculated before drawing image */
+let divRmContainerDOMRectwidth;
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let isRotatingRoom = false; /* keep track if the room is being rotated */
@@ -2188,7 +2189,7 @@ let videoDevicesNoCameras = structuredClone(videoDevices);
 
 let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { presentertrack2: 'Manual Camera' }]
 
-let roomVisionRoles = [...ptzCameraRoles, {crossviewPresenterTrack: 'Cross-View & PresenterTrack'}]
+let roomVisionRoles = [...ptzCameraRoles, { crossviewPresenterTrack: 'Cross-View & PresenterTrack' }]
 
 /*
     camera key starts with C
@@ -2215,7 +2216,7 @@ let cameras = [
 
     { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles:  ptzCameraRoles },
+    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
 ]
 
@@ -3515,7 +3516,7 @@ function addOnNumberInputListener() {
 
         txtInputs[i].addEventListener("blur", (event) => {
 
-            if (event.target.value == ' ' && event.target.id === 'labelField2'){
+            if (event.target.value == ' ' && event.target.id === 'labelField2') {
                 event.target.value = '{}'; /* set this value so it will delete in the multiItemUpdate*/
             }
             event.target.value = event.target.value.replace(/^[\s_]+|[\s_]+$/g, '');  /* trim spaces or _ */
@@ -5326,8 +5327,9 @@ function createTableChairs(table, tableUuid) {
         chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-L-' + i + '-' + baseUuid;
         chairAttr.id = chairUuid;
-        insertItem(chairAttr, chairUuid);
         addItemToRoomObj(chairAttr);
+        insertItem(chairAttr, chairUuid);
+
 
 
 
@@ -10616,7 +10618,7 @@ function updateMultipleItems() {
 
     canvasToJson();
 
-    if(data_labelField === '{}'){
+    if (data_labelField === '{}') {
         document.getElementById('labelField2').value = '';
     }
 
@@ -11885,7 +11887,7 @@ function listItemsOffStage() {
     for (const category in roomObj.items) {
         for (const i in roomObj.items[category]) {
             let item = structuredClone(roomObj.items[category][i]);
-            if (!(item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom')) {
+            if (!(item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom') && 'data_deviceid' in item) {
 
 
                 let fourCorners = findFourCorners(item);
@@ -14478,6 +14480,7 @@ function disableRoomSettings(disable = true) {
     })
 };
 
+
 function updateFormatDetails(eventOrShapeId) {
 
     if (multiUpdateMode) return;
@@ -14601,7 +14604,7 @@ function updateFormatDetails(eventOrShapeId) {
         if (item.id === id) {
 
             if (!('data_deviceid' in item)) {
-                console.error('No data_deviceid found in item: ', item);
+                console.info('No data_deviceid found in item: ', item);
                 return;
             }
             let x, y;
@@ -15306,7 +15309,12 @@ function dragStart(event) {
     if (navigator.userAgent.match(/Chrome/i) || navigator.userAgent.match(/Firefox/i)) {
         const img = new Image();
         img.id = 'dragging-image';
-        img.src = event.target.children[0].src;
+        if (event.target.children.length > 0) {
+            img.src = event.target.children[0].src;
+        } else {
+            img.src = event.target.src;
+        }
+
         img.draggable = true;
         event.dataTransfer.setDragImage(img, img.width / 2, img.height / 2);
     }
@@ -15381,6 +15389,26 @@ function dragEnd(event) {
 
 }
 
+
+function pointerupInsertMenu(event) {
+    const { roomWidth, roomLength } = roomObj.room;
+
+    const attrs = {};
+
+    let data_deviceid = event.target.id.split('-');
+
+    attrs.x = (roomWidth / 2) * (1 + (Math.random() - 0.5)/5 );
+    attrs.y = (roomLength / 2) *  (1 + (Math.random() - 0.5)/5 );
+
+    insertItemFromMenu(data_deviceid[1], attrs);
+
+
+    toggleQuickAdd(false);
+
+    blockAndMessage('Item inserted in center.', 1300);
+}
+
+
 /* insertItemFromMenu() will: 1) set the defeaultVert height, 2) show the Roles dialog if applicable and 3) show multi-video device warning if applicable */
 function insertItemFromMenu(data_deviceid, attrs) {
 
@@ -15414,16 +15442,19 @@ function insertItemFromMenu(data_deviceid, attrs) {
     } else {
         let uuid = createUuid();
 
+        attrs.data_deviceid = data_deviceid;
+        attrs.id = uuid;
+
         insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
+
+        roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(attrs);
 
         checkForMultipleCodecsOnDragEnd(data_deviceid);
 
         setTimeout(() => { canvasToJson() }, 100);
 
-        attrs.id = uuid;
-
         /* add device to roomObj */
-        roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(attrs);
+
         canvasToJson();
 
     }
@@ -15452,9 +15483,13 @@ function checkForMultipleCodecsOnDragEnd(droppedItem) {
             let videoDeviceCount = 0;
 
             roomObj.items.videoDevices.forEach((item) => {
-                if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
-                    videoDeviceCount++;
+
+                if ('data_deviceid' in item) {
+                    if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
+                        videoDeviceCount++;
+                    }
                 }
+
             })
 
             if (videoDeviceCount === 2) {
@@ -15613,6 +15648,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         let labelDiv = document.createElement("div");
         labelDiv.classList.add('flexSubItemLabel');
         labelDiv.innerText = name;
+        labelDiv.id = `${parentGroup}-${menuItem}-label`;
         flexItemDiv.appendChild(labelDiv);
 
         if (menuItem === 'wallBuilder') {
@@ -15631,10 +15667,14 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         flexItemDiv.addEventListener('touchmove', touchMove);
         flexItemDiv.addEventListener('touchend', touchEnd);
 
+        flexItemDiv.addEventListener('pointerup', pointerupInsertMenu);
+
+
 
     });
 
 }
+
 
 
 function createEquipmentMenu() {
@@ -15777,6 +15817,8 @@ function touchEnd(e) {
     dragEnd(e)
     document.body.removeChild(newInsertItem);
 }
+
+
 
 function addItemListeners(itemArray) {
 
@@ -17021,6 +17063,16 @@ function onKeyDown(e) {
     })
 }
 
+function quickAddFromButton(){
+
+    quickAddMouse.x = -1000;
+    quickAddMouse.y = -1000;
+    toggleQuickAdd(true);
+
+}
+
+
+
 function toggleQuickAdd(show) {
     const dialog = document.querySelector('.quick-dialog');
 
@@ -17086,18 +17138,27 @@ function onQuickAddChange(e) {
     matches.forEach((m, n) => {
         const item = document.createElement('button');
 
+        const parentGroup = allDeviceTypes[m.id]?.parentGroup;
+
         const img = m.frontImage || m.topImage;
         if (img) {
             const i = document.createElement('img');
             i.src = `./assets/images/${img}`;
+            i.draggable = false;
             item.appendChild(i);
+            i.id = `${parentGroup}-${m.id}-img`;
         }
         const label = document.createElement('label');
         label.innerText = m.name?.slice(0, 30);
         item.title = `${m.name} - Tap to add to room`;
         item.appendChild(label);
 
-        const group = allDeviceTypes[m.id]?.parentGroup;
+
+
+        item.classList.add('flexItems');
+        item.classList.add('equipmentItemOnMenu');
+        item.id = `${parentGroup}-${m.data_deviceid}-div`;
+        item.draggable = false;
 
         item.onclick = () => {
             const { roomWidth, roomLength } = roomObj.room;
@@ -17119,6 +17180,14 @@ function onQuickAddChange(e) {
             toggleQuickAdd(false);
 
         }
+
+        // item.addEventListener('dragstart', dragStart);
+        // item.addEventListener('drag', drag);
+        // item.addEventListener('dragend', dragEnd);
+        // item.addEventListener('touchstart', touchStart);
+        // item.addEventListener('touchmove', touchMove);
+        // item.addEventListener('touchend', touchEnd);
+
         gallery.appendChild(item);
     })
 
@@ -17333,6 +17402,22 @@ function rotateBackgroundImage(rotationAmount, rotationCenter) {
         node.offsetY(0);
 
     }
+}
+
+
+function blockAndMessage(message = 'Please Wait', time = 2000){
+    let dialog = document.getElementById('waitMessageDialog');
+
+    dialog.textContent = message;
+
+    dialog.showModal();
+    blockKeyActions = true;
+
+    setTimeout(()=>{
+        dialog.close();
+        blockKeyActions = false;
+    }, time)
+
 }
 
 function rotateRoom(rotationAmount) {
@@ -18588,7 +18673,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     if ('role' in wdItem) {
 
-        if(wdItem.role === 'crossview+presentertrack'){
+        if (wdItem.role === 'crossview+presentertrack') {
             wdItem.role = 'crossviewPresenterTrack';
         }
 
@@ -19621,7 +19706,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.role = item.data_role.value;
             if (workspaceItem.role === 'presentertrack2') {
                 workspaceItem.role = 'presentertrack';
-            } else if (workspaceItem.role = 'crossviewPresenterTrack'){
+            } else if (workspaceItem.role = 'crossviewPresenterTrack') {
                 workspaceItem.role = 'crossview+presentertrack'
             }
         }

@@ -616,6 +616,19 @@ input:placeholder-shown {
   margin: 0 auto;
 }
 
+.tip2 {
+  font-size: 10px;
+  background-color: #eee;
+  border-radius: 1.5em;
+  padding: 0.5em 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  text-align: center;
+  margin: 0 auto;
+}
+
 .tab {
   border-bottom: 1px solid #ddd;
   margin-bottom: 1em;
@@ -747,6 +760,28 @@ input:placeholder-shown {
   border-radius: 20px;
   color: #000;
 
+}
+
+
+.btnItemSearch {
+  align-items: center;
+  background-color: transparent;
+  border: 0;
+  touch-action: manipulation;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  color: #323131a5;
+  z-index: 1000;
+  background-color: #ffffff;
+  border-radius: 30px;
+}
+
+.btnItemSearch:hover{
+  background-color: #6e6e6e18;
+  border-radius: 30px;
+  color: black;
+  font-weight: bolder;
 }
 
 .roleSelectButton {
@@ -881,6 +916,9 @@ input:placeholder-shown {
   cursor: pointer;
   background-color: #d2d2d2;
 }
+
+
+
 
 .flexSubItemImage {
   margin: auto;
@@ -1403,6 +1441,8 @@ body:has(dialog.rightClickMenu[open]) {
   border-radius: 5px;
   font-size: smaller;
   min-width: 250px;
+  text-align: center;
+  border-radius: 20px;
   box-shadow: 4.0px 8.0px 8.0px hsl(0deg 0% 0% / 0.38);
 }
 
@@ -1546,6 +1586,8 @@ hr.rightClickHorizontalLine {
   min-width: fit-content;
   min-height: fit-content;
   padding: 12px;
+  padding-left: 30px;
+  padding-right: 30px;
 }
 
 .scrollButtonContainer {
@@ -1844,10 +1886,10 @@ hr.rightClickHorizontalLine {
   border: 2px solid transparent;
 }
 
-.gallery button:focus {
+/* .gallery button:focus {
   border: 2px solid #52adc7;
   background-color: #296679;
-}
+} */
 
 .gallery button img {
   object-fit: contain;

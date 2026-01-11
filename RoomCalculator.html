@@ -213,15 +213,23 @@
 
         <!-- Equipment tab is below -->
         <div id="Insert" class="tabcontent">
+          <div>
+
+          </div>
           <div class="tab">
+
             <button class="subtablinks active" onclick="openSubTab(event, 'Cameras')">Video Devices</button>
             <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Peripherals&nbsp;&nbsp;</button>
             <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Displays </button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture</button>
+            <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture&nbsp;&nbsp;&nbsp;</button>
+
+
+
           </div>
           <div id="Cameras" class="subtabcontent" style="display: block;">
+              <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <div class="tip2">
 
-            <div class="tip">
               <i class="icon icon-room-lights-bold"></i>
               <b>Tip:</b>
               &nbsp;Drag and drop to room canvas
@@ -278,7 +286,9 @@
           </div>
           <div id="Microphones" class="subtabcontent">
 
-            <div class="tip">
+  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <div class="tip2">
+
               <i class="icon icon-room-lights-bold"></i>
               <b>Tip:</b>
               &nbsp;Drag and drop to room canvas
@@ -334,7 +344,9 @@
           </div>
 
           <div id="Tables" class="subtabcontent">
-            <div class="tip">
+  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <div class="tip2">
+
               <i class="icon icon-room-lights-bold"></i>
               <b>Tip:</b>
               &nbsp;Drag and drop to room canvas
@@ -375,7 +387,9 @@
           </div>
 
           <div id="Panels" class="subtabcontent">
-            <div class="tip">
+  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <div class="tip2">
+
               <i class="icon icon-room-lights-bold"></i>
               <b>Tip:</b>
               &nbsp;Drag and drop to room canvas
@@ -1179,7 +1193,7 @@
 
         <div class="button-group">
           <button class="btn" onclick="labelsVisible()" id="btnLabelsToggle" title="Toggle Labels">
-            <i class="icon icon-tag-bold"></i>
+            <i class="icon icon-tag-bold" style="transform: scaleX(-1)"></i>
           </button>
         </div>
 
@@ -1756,6 +1770,10 @@
     Reloading room. Please wait.
   </dialog>
 
+  <dialog id="waitMessageDialog" class="pleaseWaitDialog">
+    Reloading room. Please wait.
+  </dialog>
+
   <dialog id="dialogUndoRedo" class="pleaseWaitDialog pleaseWaitDialogNoBackdrop" style="width: 50px">
     <i class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content"></i>
   </dialog>
@@ -2067,7 +2085,7 @@
   </dialog>
 
   <div id="dialogQuickAdd" class="quick-dialog" onclick="onDialogClick(event)">
-    <div class="closeDialogX" onclick="toggleQuickAdd(false);">x</div>
+    <div class="closeDialogX" onclick="toggleQuickAdd(false);">X</div>
     <h2>Quick Add</h2>
     <div>What do you want to quickly add to the scene?</div>
     <input type="search" placeholder="Board Pro, Table Mic, tapered table, plant, ..." id="quick-add-input"
