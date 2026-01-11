@@ -11,6 +11,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.637**
 - 🛠️ A new Wall Builder tool is now available under Equipment ➔ Furniture ➔ Walls or use the Quick Add menu. The Wall Builder allows you to quickly draw multiple walls, which are positioned at "miter" angles to one another when exported to the Workspace Designer.
 - ✏️ Update multiple selected items for the attributes: item label, x, y, z, width, length, height, or item rotation.
+- Quick Add button (search icon) added under Equipment tab. 🔎
 
 **v0.1.636**
 - Added **Draw Simple Path** feature to Custom Path Shapes.

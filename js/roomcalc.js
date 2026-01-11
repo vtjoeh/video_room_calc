@@ -19707,7 +19707,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.role = item.data_role.value;
             if (workspaceItem.role === 'presentertrack2') {
                 workspaceItem.role = 'presentertrack';
-            } else if (workspaceItem.role = 'crossviewPresenterTrack') {
+            } else if (workspaceItem.role === 'crossviewPresenterTrack') {
                 workspaceItem.role = 'crossview+presentertrack'
             }
         }
