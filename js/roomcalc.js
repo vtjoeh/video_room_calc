@@ -2188,6 +2188,8 @@ let videoDevicesNoCameras = structuredClone(videoDevices);
 
 let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { presentertrack2: 'Manual Camera' }]
 
+let roomVisionRoles = [...ptzCameraRoles, {crossviewPresenterTrack: 'Cross-View & PresenterTrack'}]
+
 /*
     camera key starts with C
 
@@ -2211,9 +2213,9 @@ let cameras = [
 
     { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles:  ptzCameraRoles },
 
 ]
 
@@ -16776,7 +16778,7 @@ function onKeyDown(e) {
     const DELTA = 1; /* change in key movement in Canvas pixel */
     let isShortCutKeyUsed = false;
 
-    if ((key === '[' || key === ']') && (e.ctrlKey || e.metaKey)) {
+    if ((key === ',' || key === '.') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
     }
 
@@ -16790,11 +16792,11 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
-    if ((key === '[' || key === ']') && (e.ctrlKey || e.metaKey)) {
-        if (key === '[') {
+    if ((key === ',' || key === '.') && (e.ctrlKey || e.metaKey)) {
+        if (key === ',') {
 
             rotateRoom(-90);
-        } else if (key === ']') {
+        } else if (key === '.') {
 
             rotateRoom(90);
         }
@@ -18582,7 +18584,15 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
+
+
     if ('role' in wdItem) {
+
+        if(wdItem.role === 'crossview+presentertrack'){
+            wdItem.role = 'crossviewPresenterTrack';
+        }
+
+
         if (deviceType.roles) {
             deviceType.roles.forEach((roleKey, index) => {
                 let roleObj = Object.keys(roleKey);
@@ -19611,6 +19621,8 @@ function exportRoomObjToWorkspace() {
             workspaceItem.role = item.data_role.value;
             if (workspaceItem.role === 'presentertrack2') {
                 workspaceItem.role = 'presentertrack';
+            } else if (workspaceItem.role = 'crossviewPresenterTrack'){
+                workspaceItem.role = 'crossview+presentertrack'
             }
         }
 
