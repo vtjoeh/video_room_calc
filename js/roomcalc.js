@@ -12,7 +12,7 @@ let scale = 50; /* Scale of image. initial value.  Will be recalculated before d
 let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let isRotatingRoom = false; /* keep track if the room is being rotated */
-let isFreezeKeys = false; /* keep key inputs from happening */
+let blockKeyActions = false; /* keep key inputs from happening */
 let isActiveRoomPart = false;
 let activeRoomPartItem; /* keep track of Node when isActiveRoomPart = true */
 let activeRoomLength; /* on zoom of a Room Part, keep track of the active Room Length or Room Width */
@@ -3512,6 +3512,10 @@ function addOnNumberInputListener() {
         })
 
         txtInputs[i].addEventListener("blur", (event) => {
+
+            if (event.target.value == ' ' && event.target.id === 'labelField2'){
+                event.target.value = '{}'; /* set this value so it will delete in the multiItemUpdate*/
+            }
             event.target.value = event.target.value.replace(/^[\s_]+|[\s_]+$/g, '');  /* trim spaces or _ */
 
             event.target.value = event.target.value.replace(/[<]/gi, '\uFF1C');  /* don't allow scripting tags be typed, replace with similar unicode. */
@@ -3525,8 +3529,6 @@ function addOnNumberInputListener() {
             if (!multiUpdateMode) {
                 updateItem();
             }
-
-
 
         })
     }
@@ -4131,7 +4133,7 @@ function getQueryString() {
 
         keepDefaultUnit();
 
-        drawRoom(true, true, true);
+        drawRoom(true, true, false);
 
     }
 
@@ -4979,7 +4981,7 @@ function onLoad() {
     postHeartbeat();
     setTimeout(() => {
         addressBarUpdate = true;
-        canvasToJson();
+        //  canvasToJson();
     }, pageLoadTimeBeforeAddresBarUpdate);
 
     if (localStorage.getItem('snapGuidelinesCheckBox') === 'true') {
@@ -5282,6 +5284,14 @@ function quickSetupUpdate() {
 }
 
 
+function addItemToRoomObj(attrs) {
+    if ('x' in attrs && 'y' in attrs && 'id' in attrs && 'data_deviceid' in attrs) {
+        roomObj.items[allDeviceTypes[attrs.data_deviceid].parentGroup].push(attrs);
+    } else {
+        console.error('Attrs missing x, y, id or data_deviceid');
+    }
+}
+
 function createTableChairs(table, tableUuid) {
     let baseUuid;
     let chairWidth = 2.35; /* width in feet */
@@ -5313,7 +5323,14 @@ function createTableChairs(table, tableUuid) {
         chairAttr.rotation = -90;
         chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-L-' + i + '-' + baseUuid;
+        chairAttr.id = chairUuid;
         insertItem(chairAttr, chairUuid);
+        addItemToRoomObj(chairAttr);
+
+
+
+
+
     }
 
     /* Chairs on right site of table */
@@ -5324,7 +5341,9 @@ function createTableChairs(table, tableUuid) {
         chairAttr.rotation = 90;
         chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-R-' + i + '-' + baseUuid;
+        chairAttr.id = chairUuid;
         insertItem(chairAttr, chairUuid);
+        addItemToRoomObj(chairAttr);
     }
 
     /* Chairs head of table */
@@ -5337,7 +5356,9 @@ function createTableChairs(table, tableUuid) {
         chairAttr.rotation = 180;
         chairAttr.data_deviceid = 'chair';
         chairUuid = 'autoChair-H-' + i + '-' + baseUuid;
+        chairAttr.id = chairUuid;
         insertItem(chairAttr, chairUuid);
+        addItemToRoomObj(chairAttr);
     }
 
 }
@@ -5362,8 +5383,10 @@ function quickSetupInsert() {
     tblAttrs.width = tableWidth;
     tblAttrs.height = tableLength;
     tblAttrs.data_deviceid = 'tblRect';
-
+    tblAttrs.id = tableUuid;
     insertItem(tblAttrs, tableUuid);
+    addItemToRoomObj(tblAttrs);
+
 
     createTableChairs(tblAttrs, tableUuid);
 
@@ -5423,8 +5446,6 @@ function quickSetupInsert() {
                     displayId = 'displayTrpl';
                 }
 
-                updateTxtPrimaryDeviceNameLabel(item.name);
-
                 /* get defaultVert if available */
                 if ('defaultVert' in allDeviceTypes[displayId]) {
                     let defaultVert = allDeviceTypes[displayId].defaultVert / 1000;
@@ -5436,14 +5457,25 @@ function quickSetupInsert() {
                     displayAttr.data_zPosition = defaultVert;
                 }
 
-                insertShapeItem(displayId, 'displays', displayAttr, displayUuid, false);
+                displayAttr.data_deviceid = displayId;
+                displayAttr.id = displayUuid;
+
+                // insertShapeItem(displayId, 'displays', displayAttr, displayUuid, false);
+                insertItem(displayAttr, displayUuid);
+
+                addItemToRoomObj(displayAttr);
 
                 videoAttr.data_zPosition = fillInTopElevationDisplay(displayAttr, false);
             }
         }
     });
 
-    insertShapeItem(videoDeviceId, 'videoDevices', videoAttr, videoDeviceUuid, false);
+    // insertShapeItem(videoDeviceId, 'videoDevices', videoAttr, videoDeviceUuid, false);
+
+    videoAttr.id = videoDeviceId;
+    videoAttr.data_deviceid = videoDeviceId;
+    insertItem(videoAttr, videoDeviceId);
+    addItemToRoomObj(videoAttr);
 
 
     setTimeout(() => {
@@ -5453,9 +5485,7 @@ function quickSetupInsert() {
 
 };
 
-function updateTxtPrimaryDeviceNameLabel(primaryDevieName) {
 
-}
 
 function quickUpdateButton() {
 
@@ -6146,6 +6176,10 @@ function showEntireFloor() {
 
 function zoomRoomPart(roomPart) {
     blurRoom();
+    if (zoomValue !== 100) { } {
+        zoomInOut('reset');
+    }
+
     disableRoomSettings(true);
 
     /* keep track of the activeRoomPartItem in the roomObj */
@@ -6173,11 +6207,6 @@ function zoomRoomPart(roomPart) {
 
     isActiveRoomPart = true;
     tr.nodes([]);
-
-    // setTimeout(() => {
-    //     tr.nodes([]);
-    //     enableBtnUndoRedo();
-    // }, 1000)
 
     drawRoom(true, true, true, true);
 
@@ -7074,6 +7103,7 @@ function creatArrayKeysTypes() {
 }
 
 function createShareableLink() {
+
     listItemsOffStage();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
@@ -7368,7 +7398,7 @@ function createShareableLinkItem(item) {
 
 
     if ('data_labelField' in item) {
-        if (item.data_labelField) {
+        if (item.data_labelField && item.data_labelField.trim() !== '{}') {
             /* Trim all starting/trailing spaces or _underscores, then encode, then replace all spaces (%20) with + */
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
         }
@@ -8436,7 +8466,6 @@ function deleteTrNodes(save = true) {
 
 
 function roomObjToCanvas(roomObjItems) {
-
     layerTransform.data_scale = scale;
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
@@ -8589,7 +8618,7 @@ function canvasToJson() {
             }
 
             if ('data_labelField' in node) {
-                if (node.data_labelField != '') {
+                if (node.data_labelField !== '' && node.data_labelField.trim() !== '{}') {
                     itemAttr.data_labelField = node.data_labelField;
                 }
             }
@@ -8666,6 +8695,11 @@ function canvasToJson() {
             document.title = roomObj.name ? `VRC: ${roomObj.name}` : 'Video Room Calculator by Joe Hughes';
 
         }, undoArrayTimeDelta)
+    } else {
+        isRotatingRoom = false;
+        tr.nodes([]);
+        roomObj.trNodes = [];
+        drawRoom(true, true, true);
     }
 
 
@@ -9044,7 +9078,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         let jsonScaleY = 1;
         let path = "M-0.5-0.5 h1.2 l0.1 1 l-0.5 -0.4 L-0.5 0.5z";
 
-        if ('data_labelField' in attrs && attrs.data_labelField) {
+        if ('data_labelField' in attrs && attrs.data_labelField && attrs.data_labelField.trim() !== '{}') {
             label = attrs.data_labelField;
         }
         else {
@@ -10442,10 +10476,15 @@ function updateMultipleItems() {
                     xyUpdated = true;
                 }
 
+
+
                 if (data_labelField && item.data_deviceid !== 'pathShape') {
+
                     updateLabel(node, { data_labelField: data_labelField });
                     redraw = true;
                 }
+
+
 
 
                 if (xyUpdated) {
@@ -10575,6 +10614,9 @@ function updateMultipleItems() {
 
     canvasToJson();
 
+    if(data_labelField === '{}'){
+        document.getElementById('labelField2').value = '';
+    }
 
 }
 
@@ -12327,7 +12369,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             imageItem.data_slant = data_slant;
         }
 
-        if ('data_labelField' in attrs) {
+        if ('data_labelField' in attrs && attrs.data_labelField.trim() !== '{}') {
             imageItem.data_labelField = attrs.data_labelField;
         }
 
@@ -12933,7 +12975,6 @@ function updateLabel(node, attrs) {
     let text;
     let textCandidate = '';
 
-
     node.data_labelField = attrs.data_labelField;
 
     if ('data_labelField' in attrs) {
@@ -12943,7 +12984,7 @@ function updateLabel(node, attrs) {
         }
     }
 
-    if (label && textCandidate.trim() === '') {
+    if (label && (textCandidate.trim() === '' || textCandidate.trim() === '{}')) {
         label.destroy();
     } else if (label && textCandidate) {
 
@@ -12952,7 +12993,6 @@ function updateLabel(node, attrs) {
 
         children.forEach(child => {
             if (child instanceof Konva.Text) {
-
                 child.text(text);
             }
         });
@@ -14399,11 +14439,11 @@ function updateFormatDetailsUpdate() {
 }
 
 /* Estimates the top elevation of a display and populates the itemTopElevation text box */
-function fillInTopElevationDisplay(item, updateTextBox = true) {
+function fillInTopElevationDisplay(shape, updateTextBox = true) {
     let zHeightOfDisplay, topElevation, zPosition;
     let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
 
-    if (item.data_deviceid === 'display21_9') {
+    if (shape.data_deviceid === 'display21_9') {
         defaultDisplayHeight = displayHeight21_9 / 1000;
     }
 
@@ -14411,12 +14451,12 @@ function fillInTopElevationDisplay(item, updateTextBox = true) {
         defaultDisplayHeight = defaultDisplayHeight * 3.28084;
     }
 
-    zPosition = item.data_zPosition || 0;
+    zPosition = shape.data_zPosition || 0;
 
-    if (item.data_deviceid === 'display21_9') {
-        zHeightOfDisplay = defaultDisplayHeight * (item.data_diagonalInches / diagonalInches21_9);
+    if (shape.data_deviceid === 'display21_9') {
+        zHeightOfDisplay = defaultDisplayHeight * (shape.data_diagonalInches / diagonalInches21_9);
     } else {
-        zHeightOfDisplay = defaultDisplayHeight * (item.data_diagonalInches / diagonalInches);
+        zHeightOfDisplay = defaultDisplayHeight * (shape.data_diagonalInches / diagonalInches);
     }
 
     topElevation = zPosition + zHeightOfDisplay;
@@ -14594,7 +14634,7 @@ function updateFormatDetails(eventOrShapeId) {
                 document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
                 itemTopElevationDiv.style.display = '';
                 if (parentGroup === 'displays') {
-                    fillInTopElevationDisplay(item);
+                    fillInTopElevationDisplay(shape);
                 }
 
             } else {
@@ -14617,7 +14657,7 @@ function updateFormatDetails(eventOrShapeId) {
                     deviceVertHeight = deviceVertHeight * 3.28084;
                 }
 
-                document.getElementById('itemTopElevation').value = round((item.data_zPosition || 0) + deviceVertHeight);
+                document.getElementById('itemTopElevation').value = round((shape.data_zPosition || 0) + deviceVertHeight);
 
                 // if (roomObj.layersVisible.grShadingCamera) {
                 //     document.getElementById('btnCamShadeToggleSingleItem').disabled = false;
@@ -14775,9 +14815,8 @@ function updateFormatDetails(eventOrShapeId) {
             if ('rotation' in shape.attrs) {
                 document.getElementById('itemRotation').value = round(shape.rotation(), -1);
             }
-
-            if ('data_zPosition' in item) {
-                document.getElementById('itemZposition').value = item.data_zPosition;
+            if ('data_zPosition' in shape) {
+                document.getElementById('itemZposition').value = shape.data_zPosition;
             } else {
                 document.getElementById('itemZposition').value = "";
             }
@@ -14813,7 +14852,7 @@ function updateFormatDetails(eventOrShapeId) {
             }
 
 
-            if ('data_labelField' in item && item.data_labelField) {
+            if ('data_labelField' in item && item.data_labelField && item.data_labelField.trim() !== '{}') {
 
                 if (shape.data_deviceid === 'pathShape') {
 
@@ -16737,7 +16776,11 @@ function onKeyDown(e) {
     const DELTA = 1; /* change in key movement in Canvas pixel */
     let isShortCutKeyUsed = false;
 
-    if(isFreezeKeys) return;
+    if ((key === '[' || key === ']') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+    }
+
+    if (blockKeyActions) return;
 
     if ((key === 'r') && e.shiftKey && (e.ctrlKey || e.metaKey)) return; /* allow for a hard refresh. */
 
@@ -16747,6 +16790,15 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
+    if ((key === '[' || key === ']') && (e.ctrlKey || e.metaKey)) {
+        if (key === '[') {
+
+            rotateRoom(-90);
+        } else if (key === ']') {
+
+            rotateRoom(90);
+        }
+    }
 
     /* save / download VRC JSON file */
     if (key === 's' && (e.ctrlKey || e.metaKey)) {
@@ -16908,31 +16960,49 @@ function onKeyDown(e) {
         // }
     }
 
-    else if (e.altKey) {
 
-        if (key === 'r') {
-
-            rotateRoom();
-        } else if (e.code === 'KeyR') {
-
-            rotateRoom();
-        }
-    }
 
 
     tr.nodes().forEach(shape => {
-        if (e.keyCode === 37) {
-            shape.x(shape.x() - DELTA);
-            isShortCutKeyUsed = true;
-        } else if (e.keyCode === 38) {
-            shape.y(shape.y() - DELTA);
-            isShortCutKeyUsed = true;
-        } else if (e.keyCode === 39) {
-            shape.x(shape.x() + DELTA);
-            isShortCutKeyUsed = true;
-        } else if (e.keyCode === 40) {
-            shape.y(shape.y() + DELTA);
-            isShortCutKeyUsed = true;
+
+        if (e.ctrlKey || e.metaKey) {
+
+            if (e.keyCode === 37) {
+                // rotateNodeAroundCenter(shape, DELTA);
+            } else if (e.keyCode === 38) {
+                if (!shape.data_zPosition) {
+                    shape.data_zPosition = 0;
+                }
+                shape.data_zPosition = round(shape.data_zPosition + DELTA * 0.01);
+
+                isShortCutKeyUsed = true;
+            } else if (e.keyCode === 39) {
+                //
+            } else if (e.keyCode === 40) {
+
+                if (!shape.data_zPosition) {
+                    shape.data_zPosition = 0;
+                }
+                shape.data_zPosition = round(shape.data_zPosition - DELTA * 0.01);
+
+                isShortCutKeyUsed = true;
+            }
+        } else {
+
+            if (e.keyCode === 37) {
+                shape.x(shape.x() - DELTA);
+                isShortCutKeyUsed = true;
+            } else if (e.keyCode === 38) {
+                shape.y(shape.y() - DELTA);
+                isShortCutKeyUsed = true;
+            } else if (e.keyCode === 39) {
+                shape.x(shape.x() + DELTA);
+                isShortCutKeyUsed = true;
+            } else if (e.keyCode === 40) {
+                shape.y(shape.y() + DELTA);
+                isShortCutKeyUsed = true;
+            }
+
         }
 
 
@@ -17239,10 +17309,10 @@ function selectAllTrNodes() {
     tr.nodes(shapes);
 };
 
-function rotateBackgroundImage(rotationAmount, rotationCenter){
+function rotateBackgroundImage(rotationAmount, rotationCenter) {
     let node = stage.findOne('#konvaBackgroundImageFloor');
 
-    if(node){
+    if (node) {
         let nodeCenter = getNodeCenter(node);
         let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, rotationCenter.x, rotationCenter.y, rotationAmount);
 
@@ -17263,25 +17333,129 @@ function rotateBackgroundImage(rotationAmount, rotationCenter){
     }
 }
 
-function rotateRoom() {
+function rotateRoom(rotationAmount) {
+
+    if (isActiveRoomPart) {
+        alertDialog('Room Rotate Not Available.', 'First go back to the floorplan overview, then rotate entire floorplan.')
+        return;
+    }
+
+    if (!addressBarUpdate) {
+        alertDialog('Room initializing. Please wait', 'Trying rotating the room again in 3 seconds.');
+        return;
+    }
+
+    if (blockKeyActions) return;
+
+    if (isRotatingRoom) return;
 
     document.getElementById('dialogLoadingTemplate').showModal();
+
     isRotatingRoom = true;
-    isFreezeKeys = true;
+    blockKeyActions = true;
 
-    let rotationAmount = 90;
+    /* use setTimeOut so that the .showModal() abobe renders before the page is shown */
+    setTimeout(function startRotateRoom() {
 
-    selectAllTrNodes();
+        if (zoomValue !== 100) {
+            zoomInOut('reset');
+        }
 
-    let trNodesLength = tr.nodes().length;
-    let timeForEachStage = (300 + trNodesLength / 10);
 
-    setTimeout(()=>{
+
+        selectAllTrNodes();
+
+        let trNodesLength = tr.nodes().length;
+        let timeForEachStage = (300 + trNodesLength / 10);
+
+
+        setTimeout(() => {
+            isRotatingRoom = false;
+            canvasToJson();
+        }, 1 * timeForEachStage + 200);
+
+        setTimeout(() => {
+            document.getElementById('dialogLoadingTemplate').close();
+            blockKeyActions = false;
+        }, 1 * timeForEachStage + 200);
+
+
+        let roomWidth = roomObj.room.roomWidth;
+        let roomLength = roomObj.room.roomLength;
+        let roomSurfaces = { ...roomObj.roomSurfaces };
+
+        /* make the room the larger of roomWidth or roomLenght on both sides */
+
+        let stageWidth = stage.width();
+        let stageHeight = stage.height();
+
+
+
+        let roomWidthLength;
+        if (roomWidth > roomLength) {
+            roomWidthLength = roomWidth;
+            stage.height(stageWidth);
+        } else {
+            roomWidthLength = roomLength
+            stage.width(stageHeight);
+        }
+
+
+        roomObj.room.roomLength = roomWidthLength;
+        roomObj.room.roomWidth = roomWidthLength;
+
+
+        let rotationCenter = {};
+
+        rotationCenter.x = ((roomWidth) / 2) * scale + pxOffset;
+        rotationCenter.y = ((roomLength)) * scale / 2 + pyOffset;
+
+        // flip for counter clockwise
+        if (rotationAmount === 90) {
+            rotationCenter.x = rotationCenter.y;
+        }
+        else {
+            rotationCenter.y = rotationCenter.x;
+        }
+
+
+        selectAllTrNodes();
+        rotateTrNodeItems(rotationAmount, rotationCenter);
+        rotateBackgroundImage(rotationAmount, rotationCenter);
+
+        roomObj.room.roomLength = roomWidth;
+        roomObj.room.roomWidth = roomLength;
+
+        if (rotationAmount === 90) {
+
+            roomObj.roomSurfaces.leftwall = roomSurfaces.backwall;
+            roomObj.roomSurfaces.backwall = roomSurfaces.rightwall;
+            roomObj.roomSurfaces.rightwall = roomSurfaces.videowall;
+            roomObj.roomSurfaces.videowall = roomSurfaces.leftwall;
+
+        }
+        else {
+            roomObj.roomSurfaces.leftwall = roomSurfaces.videowall;
+            roomObj.roomSurfaces.backwall = roomSurfaces.leftwall;
+            roomObj.roomSurfaces.rightwall = roomSurfaces.backwall;
+            roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
+        }
+
+        canvasToJson();
+
+    }, 1);
+
+    //drawRoom(true, true, false);
+
+
+
+    /*
+    setTimeout(() => {
         isRotatingRoom = false;
         canvasToJson();
     }, 3 * timeForEachStage);
 
-    setTimeout(()=>{
+    setTimeout(() => {
         document.getElementById('dialogLoadingTemplate').close();
         isFreezeKeys = false;
     }, 4 * timeForEachStage + 500);
@@ -17289,9 +17463,9 @@ function rotateRoom() {
 
     let roomWidth = roomObj.room.roomWidth;
     let roomLength = roomObj.room.roomLength;
-    let roomSurfaces = {...roomObj.roomSurfaces};
+    let roomSurfaces = { ...roomObj.roomSurfaces };
 
-    /* make the room the larger of roomWidth or roomLenght on both sides */
+    // make the room the larger of roomWidth or roomLenght on both sides
     let roomWidthLength;
     if (roomWidth > roomLength) {
         roomWidthLength = roomWidth;
@@ -17312,40 +17486,49 @@ function rotateRoom() {
         rotationCenter.x = ((roomWidth) / 2) * scale + pxOffset;
         rotationCenter.y = ((roomLength)) * scale / 2 + pyOffset;
 
-        /* flip for counter clockwise */
-        rotationCenter.x = rotationCenter.y;
+        // flip for counter clockwise
+        if (rotationAmount === 90) {
+            rotationCenter.x = rotationCenter.y;
+        }
+        else {
+            rotationCenter.y = rotationCenter.x;
+        }
 
 
 
 
         selectAllTrNodes();
         rotateTrNodeItems(rotationAmount, rotationCenter);
-        rotateBackgroundImage(rotationAmount,rotationCenter);
+        rotateBackgroundImage(rotationAmount, rotationCenter);
         canvasToJson();
     }, timeForEachStage);
 
 
-    /* reset room dimensions */
+    // reset room dimensions
     setTimeout(function nowResizeRoom() {
         tr.nodes([]);
         roomObj.trNodes = [];
         roomObj.room.roomLength = roomWidth;
         roomObj.room.roomWidth = roomLength;
 
-        /* use if counterclockwise
-        roomObj.roomSurfaces.leftwall = roomSurfaces.videowall;
-        roomObj.roomSurfaces.backwall = roomSurfaces.leftwall;
-        roomObj.roomSurfaces.rightwall = roomSurfaces.backwall;
-        roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
-        */
+        if (rotationAmount === 90) {
 
-        roomObj.roomSurfaces.leftwall = roomSurfaces.backwall;
-        roomObj.roomSurfaces.backwall = roomSurfaces.rightwall;
-        roomObj.roomSurfaces.rightwall = roomSurfaces.videowall;
-        roomObj.roomSurfaces.videowall = roomSurfaces.leftwall;
+            roomObj.roomSurfaces.leftwall = roomSurfaces.backwall;
+            roomObj.roomSurfaces.backwall = roomSurfaces.rightwall;
+            roomObj.roomSurfaces.rightwall = roomSurfaces.videowall;
+            roomObj.roomSurfaces.videowall = roomSurfaces.leftwall;
 
+        }
+        else {
+            roomObj.roomSurfaces.leftwall = roomSurfaces.videowall;
+            roomObj.roomSurfaces.backwall = roomSurfaces.leftwall;
+            roomObj.roomSurfaces.rightwall = roomSurfaces.backwall;
+            roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
+        }
         drawRoom(true, true, false);
     }, timeForEachStage * 2);
+    */
+
 }
 
 function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
