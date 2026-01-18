@@ -516,6 +516,38 @@ input:placeholder-shown {
   /* transform: rotate(90deg) translate(10px, 10px); */
 }
 
+.rotateButton {
+  border: 0px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 4px 12px;
+  background-color: rgba(199, 199, 199, 0.683);
+  color: black;
+  width: max-content;
+  touch-action: manipulation;
+  cursor: pointer;
+  align-self: center;
+}
+
+/* .rotateButton:hover {
+  background-color: #575757;
+  color: rgb(199, 199, 199);
+} */
+
+/* .rotateButton:active {
+  box-shadow: 0 1px #777;
+  color: white;
+} */
+
+/* .rotateButton:disabled {
+  opacity: 0.6;
+  cursor: auto;
+}
+
+.rotateButton:hover:disabled {
+  background-color: black;
+} */
+
 .doorSelectionOuter {
   position: absolute;
 }

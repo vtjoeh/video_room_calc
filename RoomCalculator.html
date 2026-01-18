@@ -181,15 +181,30 @@
               <option value="mtr">Microsoft Teams Rooms</option>
             </select>
           </div>
-          <div>
-            <div class="inputField" s>
+          <div class="inputRow">
+
+            <div class="inputField" >
               <label>Remove Default Walls:</label>
               <label class="switch">
                 <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
                 <span class="slider round"></span>
               </label>
             </div>
+
+            <div class="inputField" >
+              <label>Rotate Room:</label>
+              <label>
+                  <button class="rotateButton" title="Rotate Room Clockwise [ctrl- . ]" onclick="rotateRoom(-90)"> <i class="icon icon-rotate-content-bold" style="transform: scaleX(-1);" ></i></button>
+
+                  <button class="rotateButton" title="Rotate Room Clockwise [ctrl- , ]" onclick="rotateRoom(90)"> <i class="icon icon-rotate-content-bold"></i></button>
+
+
+              </label>
+
+            </div>
+
           </div>
+
           <div class="inputField">
             <label class="tooltip">Version / Author:
               <i class="icon icon-info-circle-bold"></i>
@@ -665,7 +680,7 @@
               </div>
               <div class="inputRow" style="margin-top: 1.5em;" id="updateItemDiv">
                 <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
-                <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
+                <!-- <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
                   <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
                     title="Toggle Camera Shading">
                     <i class="icon icon-camera-bold"></i>
@@ -680,7 +695,7 @@
                     title="Toggle Display Reach">
                     <i class="icon icon-display-bold"></i>
                   </button>
-                </div>
+                </div> -->
               </div>
 
               <div class="inputField debug-info">
@@ -2197,7 +2212,7 @@
       </div>
 
     </div>
-    <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
+    <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black" ></iframe>
   </div>
 
 

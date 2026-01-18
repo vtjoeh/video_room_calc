@@ -14,7 +14,7 @@ let roomWidth = 20;  /* initial values */
 let roomLength = 20;  /* inital values */
 let isRotatingRoom = false; /* keep track if the room is being rotated */
 let blockKeyActions = false; /* keep key inputs from happening */
-let isActiveRoomPart = false;
+let isActiveRoomPart = false; /* keep track if the VRC is in an Active Room Part */
 let activeRoomPartItem; /* keep track of Node when isActiveRoomPart = true */
 let activeRoomLength; /* on zoom of a Room Part, keep track of the active Room Length or Room Width */
 let activeRoomWidth;
@@ -23,12 +23,17 @@ let activeRoomX = 0;
 let activeRoomAbsPoints; /* array of points defining the active room */
 let multiUpdateMode = false;
 
+let itemCount = 0; /* Keeps track of number of items in the roomObj when writing to the canvas, used for troubleshooting */
+let trNodesLength = 0; /* Keep track of the active trNodeLength */
+
 let mobileDevice; /* Either 'true' / 'false' as a string */
 let windowOuterWidth = window.outerWidth;  //  keep track of outer width/height for room zoom
 let windowOuterHeight = window.outerHeight;
 let pxLastGridLineY;
 let roomName = '';
 let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
+
+let copyTrNodes = []; /* used to told holde copy of trNodes during manipulation of the tr.nodes() */
 
 
 const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
@@ -162,6 +167,8 @@ let undoArrayTimer; /* timer pepare for saving to the undoArray so that undoArra
 let undoArrayTimeDelta = 500; /* ms between saves to undoArray after changes to roomObj */
 let touchConsecutiveCount = 0; /* Holds consecutive tapping to zoom out on mobile devices when stuck on the canvas.  Needed if user zooms web page on canvas. Ignored on RoomOS and non-touch devices. */
 let touchConsectiveCoutTimer; /* timer to hold consective taps */
+
+let rotateResetTrNodeTimer; /* Timer to reset the tr node after rotation. The tr node does not like items moved manually, so detach nodes first, then reattach after change. */
 
 let defaultWallHighlightTimer; /* timer to make sure default walls highlight gets turned of */
 
@@ -423,6 +430,8 @@ workspaceKey.pouf = { objectType: 'pouf' };
 
 workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 };
 
+workspaceKey.credenza = { objectType: 'credenza' }
+
 workspaceKey.sphere = { objectType: 'sphere' };
 workspaceKey.cylinder = { objectType: 'cylinder' };
 
@@ -439,6 +448,10 @@ workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_
 workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
 
 workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
+
+workspaceKey.webcam4k_2 = { objectType: 'webcam', model: '4k' };
+
+workspaceKey.webcam1080p_2 = { objectType: 'webcam', model: '1080p' };
 
 workspaceKey.webcam4k = { objectType: 'webcam', model: '4k' };
 
@@ -508,9 +521,14 @@ let grShadingCamera = new Konva.Group({
     clip: clipShadingBorder,
 });
 
+
 let grLabels = new Konva.Group({
     name: 'grLabels',
 });
+
+let allCoverageGroups = [grShadingMicrophone, grDisplayDistance, grShadingCamera, grShadingSpeaker, grLabels];
+
+let isAllCoverageGroupHidden = false; /* keep track if the coverGroups is hidden */
 
 let layerTransform = new Konva.Layer(
     { name: 'layerTransform' },
@@ -544,7 +562,7 @@ let groupSpeakers = new Konva.Group({
     name: 'speakers',
 })
 
-let groupTouchPanel = new Konva.Group({
+let groupTouchPanels = new Konva.Group({
     name: 'touchPanels',
 })
 
@@ -559,6 +577,8 @@ let groupRooms = new Konva.Group(
         name: 'rooms',
     }
 )
+
+let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices];
 
 let titleGroup = new Konva.Group(
     {
@@ -612,7 +632,7 @@ function createKonvaBackgroundImageFloor(x = pxOffset - 5, y = pyOffset - 5, hei
 }
 
 
-/* tr is the Transformer that does the selection and rotation magic for Konva.  It is exists in its own group. */
+/* tr is the Transformer that does the selection and rotation magic for Konva.  It exists in its own group. */
 let tr = new Konva.Transformer({
     resizeEnabled: false,
     flipEnabled: false,
@@ -621,6 +641,21 @@ let tr = new Konva.Transformer({
     rotateAnchorOffset: 25,
 });
 
+tr.on('dragstart', function trDragStart() {
+
+
+    if (tr.nodes().length > 150) {
+
+        hideAllCoverageGroups(true);
+    }
+
+
+});
+
+tr.on('dragend', function trDragStart() {
+
+    hideAllCoverageGroups(false);
+});
 
 /* Customize the rotation / rotater anchor */
 const rotateImageObj = new Image();
@@ -2717,6 +2752,16 @@ let tables = [{
     frontImage: 'pathShape-menu.png',
     strokeWidth: 1 / scale,
     resizeable: []
+},
+{
+    name: 'Credenza',
+    id: 'credenza',
+    key: 'WM',
+    frontImage: 'credenza-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 2,
+    resizeable: ['width', 'depth', 'vheight']
 }
 ]
 
@@ -3101,7 +3146,6 @@ let chairs = [
         depth: 800,
         opacity: 1,
     },
-
 ]
 
 /* displays key starts with D */
@@ -3687,14 +3731,14 @@ function windowResizeEventName() {
     clearTimeout(resizeWindowTimer);
 
     resizeWindowTimer = setTimeout(function resizingCanvas() {
-        zoomInOut('reset');
-        drawRoom(true, false, true);
+        // zoomInOut('reset');
+        drawRoom(false, false, true);
 
         setTimeout(() => {
             blurryDiv.classList.remove('my-blurred-div');
-        }, 500);
+        }, 200);
 
-        // setTimeout(updatWallChairsOnResize, 100);
+        setTimeout(updatWallChairsOnResize, 100);
     }, 550);
 
 
@@ -5736,10 +5780,10 @@ function drawOutsideWall(grOuterWall) {
 
         grOuterWall.add(outsideWallLower);
 
-        addListeners(outsideWallLeft);
-        addListeners(outsideWallRight);
-        addListeners(outsideWallUpper);
-        addListeners(outsideWallLower);
+        addOutsideWallListeners(outsideWallLeft);
+        addOutsideWallListeners(outsideWallRight);
+        addOutsideWallListeners(outsideWallUpper);
+        addOutsideWallListeners(outsideWallLower);
 
         ['leftwall', 'videowall', 'backwall', 'rightwall'].forEach(type => {
             updateDefaultWallTypeOnCanvas(type);
@@ -5747,7 +5791,7 @@ function drawOutsideWall(grOuterWall) {
 
         insertDefaultDoorsOnCanvas();
 
-        function addListeners(wallItem) {
+        function addOutsideWallListeners(wallItem) {
 
             wallItem.on('mousedown touchstart', function outsideWallOnMouseDownTouchstart(e) {
                 /* tempWall is just for flashing purple when the wall is selected */
@@ -5800,6 +5844,7 @@ function drawOutsideWall(grOuterWall) {
                 if (tempWall) {
                     tempWall.destroy();
                 }
+
             });
 
         }
@@ -6215,6 +6260,7 @@ function zoomRoomPart(roomPart) {
 
     drawRoom(true, true, true, true);
 
+    /* hade the activeRoomPartItem */
     let newNode = stage.findOne('#' + id);
     if (newNode) {
         newNode.show();
@@ -6418,6 +6464,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     stage.on('contextmenu', function (event) {
         event.evt.preventDefault(); /* Prevent the default context menu */
         createRightClickMenu();
+        trNodesLength = tr.nodes().length;
     });
 
     zoomInOut(0); // update Stage based on values
@@ -6548,6 +6595,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     } else {
         updateShapesBasedOnNewScale();
+        insertKonvaBackgroundImageFloor();
     }
 
     setTimeout(() => {
@@ -8136,7 +8184,7 @@ function stageAddLayers() {
 
     layerTransform.add(groupDisplays);
     layerTransform.add(groupSpeakers);
-    layerTransform.add(groupTouchPanel);
+    layerTransform.add(groupTouchPanels);
 
     layerTransform.add(groupVideoDevices);
     layerTransform.add(groupMicrophones);
@@ -8417,7 +8465,11 @@ layerTransform.draw();
 
 function deleteTrNodes(save = true) {
 
-    tr.nodes().forEach(node => {
+    const copyTrNodes = tr.nodes().slice();
+
+    tr.nodes([]);
+
+    copyTrNodes.forEach(node => {
 
         let parentGroup = allDeviceTypes[node.data_deviceid].parentGroup;
         let id = node.id();
@@ -8471,6 +8523,9 @@ function deleteTrNodes(save = true) {
 
 
 function roomObjToCanvas(roomObjItems) {
+
+    itemCount = 0;
+
     layerTransform.data_scale = scale;
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
@@ -8478,30 +8533,35 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('stageFloors' in roomObjItems) {
         for (const device of roomObjItems.stageFloors) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('boxes' in roomObjItems) {
         for (const device of roomObjItems.boxes) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('rooms' in roomObjItems) {
         for (const device of roomObjItems.rooms) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
@@ -8509,31 +8569,46 @@ function roomObjToCanvas(roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
 
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
             insertItem(device, device.id);
+            itemCount++;
         }
     }
+
+    console.log('total Items Inserted or Updated', itemCount);
 
 }
 
 function canvasToJson() {
     if (!addressBarUpdate) return;
+
+    let overlapItemOutlines = layerTransform.find('#overlapItemOutline');
+
+    overlapItemOutlines.forEach(node => {
+        console.log('overlapItemOutlines', node);
+        node.destroy();
+    });
+
+    document.getElementById('itemZposition').style.backgroundColor = '';
 
     updateRoomObjFromTrNode();
 
@@ -8712,6 +8787,7 @@ function canvasToJson() {
 
 
 function updateRoomObjFromTrNode() {
+    console.log('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
         let x, y;
         let attrs = node.attrs;
@@ -8873,6 +8949,7 @@ function trNodesUuidToRoomObj() {
 
 /* Try and catch wrapper for setting local storage */
 function setItemForLocalStorage(key, value) {
+
     try {
         localStorage.setItem(key, value);
     } catch (e) {
@@ -8966,6 +9043,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     } else if (insertDevice.id.startsWith('tblCurved')) {
         width = 4.26 * scale;
         height = 1.01 * scale;
+    } else if (insertDevice.id.startsWith('credenza')) {
+        width = 1.83 * scale;
+        height = 0.61 * scale;
     }
     else if (insertDevice.id.startsWith('couch')) {
         width = 0.9 * scale;
@@ -8990,7 +9070,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         } else {
             data_vHeight = 1;
         }
+    }
 
+    if ((insertDevice.id.startsWith('credenza')) && !data_vHeight) {
+        if (unit === 'feet') {
+            data_vHeight = Math.round(0.71 / 3.28084);
+        } else {
+            data_vHeight = 0.71;
+        }
     }
 
     if (insertDevice.id === 'carpet') {
@@ -9176,6 +9263,39 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
     }
 
+    if (insertDevice.id === 'credenza') {
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#8d8d8d99',
+            id: uuid,
+            draggable: true,
+            stroke: allDeviceTypes[insertDevice.id].stroke,
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
+            sceneFunc: (ctx, shape) => {
+                ctx.beginPath();
+                let width = shape.width();
+                let height = shape.height();
+                let frontLine = height - (((roomObj.unit === 'meters') ? 0.09144 : 0.3) * scale);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(width, 0);
+                ctx.lineTo(width, height);
+                ctx.lineTo(0, height);
+                // ctx.lineTo((width / 2) + (width2 / 2), height);
+                // ctx.lineTo((width / 2) - (width2 / 2), height);
+                ctx.closePath(0, 0);
+                ctx.moveTo(0, frontLine);
+                ctx.lineTo(width, frontLine)
+
+                ctx.fillStrokeShape(shape);
+            }
+        });
+    }
 
 
     if (insertDevice.id === 'tblEllip') {
@@ -9788,6 +9908,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     tblWallFlr.on('transform', function tableOnTransform(e) {
+
+        if (isAllCoverageGroupHidden) return;
+
         snapToGuideLines(e, true);
         if (tblWallFlr.data_labelField) {
             updateShading(tblWallFlr);
@@ -9801,6 +9924,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
+
+
+        if (isAllCoverageGroupHidden) return;
+
         snapToGuideLines(e);
 
         snapCenterToIncrement(tblWallFlr);
@@ -10374,7 +10501,10 @@ function removeShadingTrNodes() {
 }
 
 function updateTrNodesShadingTimer() {
-    setTimeout(updateTrNodesShading, 40);
+    if (tr.nodes().length < 150) {
+        setTimeout(updateTrNodesShading, 40);
+    }
+
 }
 
 
@@ -10382,14 +10512,16 @@ function updateTrNodesShadingTimer() {
 function updateTrNodesShading() {
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
 
-    let trNodes = tr.nodes();
+    let copyTrNodes = tr.nodes().slice();
 
-    if (trNodes.length === 1) {
-        lastSelectedNodePosition = trNodes[0].clone();
+    tr.nodes([]);
+
+    if (copyTrNodes.length === 1) {
+        lastSelectedNodePosition = copyTrNodes[0].clone();
     }
 
     removeShadingTrNodes();
-    trNodes.forEach(node => {
+    copyTrNodes.forEach(node => {
 
         node.strokeEnabled(true);
         node.strokeWidth(2);
@@ -10420,6 +10552,7 @@ function updateTrNodesShading() {
         }
     })
 
+    tr.nodes(copyTrNodes);
 
 }
 
@@ -11702,6 +11835,175 @@ function arrayMove(arr, old_index, new_index) {
 
 
 
+function changeZheightOfItem(dragItem, dragNode) {
+
+    let overlapItemOutlines = layerTransform.find('#overlapItemOutline');
+    let compareToGroups = [];
+
+    overlapItemOutlines.forEach(node => {
+        node.destroy();
+    });
+
+    console.log(dragNode.getParent().name());
+
+    if (!(dragNode.getParent().name() === 'videoDevices' || dragItem.data_deviceid.startsWith('webcam')) || ((dragNode.getParent().name() === 'videoDevices') && 'data_diagonalInches' in dragItem )){
+
+        return;
+    }
+
+    if ('defaultVert' in allDeviceTypes[dragNode.data_deviceid]) {
+
+        console.log('allDeviceTypes[dragNode.data_deviceid].defaultVert', allDeviceTypes[dragNode.data_deviceid].defaultVert);
+    }
+
+    if (dragNode.getParent().name() === 'videoDevices' && allDeviceTypes[dragNode.data_deviceid].defaultVert > 0) {
+        compareToGroups = [groupDisplays];
+    } else {
+        compareToGroups = allNodeShapeGroups;
+    }
+
+
+
+
+
+    //  let dragItemFourCorners = findFourCorners(dragItem);
+
+    let dragNodeFourCorners = findFourCornersOfNode(dragNode);
+
+    outerLoop: for (let i = 0; i < compareToGroups.length; i++) {
+        let children = compareToGroups[i].getChildren();
+        for (let j = 0; j < children.length; j++) {
+            let node = children[j];
+            if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && 'data_deviceid' in node) {
+                //  console.log('item to check against:', item);
+                let fourCorners = findFourCornersOfNode(node);
+
+                if (doPolygonsIntersect2(fourCorners, dragNodeFourCorners)) {
+                    console.log('item intersects:', node.data_deviceid, node);
+                    let newPoints = [];
+                    fourCorners.forEach(corner => {
+                        newPoints.push(corner.x);
+                        newPoints.push(corner.y);
+                    });
+
+                    if (newPoints.length > 0) {
+
+                        let overlapItemOutline = new Konva.Line({
+                            points: newPoints, // A flat array of x, y coordinates
+                            stroke: 'orange',
+                            strokeWidth: 3,
+                            closed: true,
+                            id: 'overlapItemOutline',
+                            opacity: 0.9,
+                            listening: false,
+                        });
+
+
+
+                        node.getParent().add(overlapItemOutline);
+
+                        //     let height = round((node.data_zPosition || 0) + (node.data_vHeight || 0) + ((allDeviceTypes[node.data_deviceid].height || 0) / 100 / ((roomObj.unit === 'feet') ? 3.8084 : 1)));
+
+                        let height = node.data_zPosition || 0;
+                        console.log('node.data_zPosition', node.data_zPosition)
+                        height = height + (node.data_vHeight || 0);
+
+                        console.log('node.data_vHeight', node.data_vHeight);
+
+                        if (node.getParent().name() === 'tables' && !node.data_vHeight) {
+                            height = height + 0.71 * ((roomObj.unit === 'feet') ? 3.8084 : 1);
+
+                            console.log('tables dfault height:', 0.71 * ((roomObj.unit === 'feet') ? 3.8084 : 1));
+                        }
+                        else if (!node.data_vHeight) {
+
+                            let deviceVertHeight = (allDeviceTypes[node.data_deviceid].height || 0) / 1000; /* device height in meters */
+
+                            if (roomObj.unit === 'feet') {
+                                deviceVertHeight = deviceVertHeight * 3.28084;
+                            }
+
+                            height = height + deviceVertHeight;
+                        }
+
+
+                        if ('data_diagonalInches' in node && !node.data_deviceid?.match(/brdPro|boardPro|webexDesk/)) {
+
+                            if (node.getParent().name() === 'displays') {
+                                height = (fillInTopElevationDisplay(node, false) || 0);
+                                console.log('node', node);
+                                console.log('height of display:', (fillInTopElevationDisplay(node, false) || 0))
+                            }
+
+                        }
+
+
+                        height = round(height);
+
+                        document.getElementById('itemZposition').value = height;
+                        document.getElementById('itemTopElevation').value = '';
+                        dragItem.data_zPosition = round(height);
+                        document.getElementById('itemZposition').style.backgroundColor = '#ffcc54b5';
+
+                        overlapItemOutline.data_dragNode = dragNode;
+
+                        overlapItemOutline.data_dragItem = dragItem;
+
+                        overlapItemOutline.data_dragItem_zPosition = height;
+
+                        break outerLoop;
+                    }
+                }
+
+            }
+        }
+
+        document.getElementById('itemZposition').style.backgroundColor = '';
+    }
+
+    return;
+    allNodeShapeGroups.forEach(group => {
+        group.getChildren().forEach(node => {
+
+            if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && 'data_deviceid' in node) {
+                //  console.log('item to check against:', item);
+                let fourCorners = findFourCornersOfNode(node);
+
+                if (doPolygonsIntersect2(fourCorners, dragNodeFourCorners)) {
+                    console.log('item intersects:', node.data_deviceid, node);
+                    let newPoints = [];
+                    fourCorners.forEach(corner => {
+                        newPoints.push(corner.x);
+                        newPoints.push(corner.y);
+                    });
+
+                    if (newPoints.length > 0) {
+
+
+
+
+                        let overlapItemOutline = new Konva.Line({
+                            points: newPoints, // A flat array of x, y coordinates
+                            stroke: 'orange',
+                            strokeWidth: 3,
+                            closed: true,
+                            id: 'overlapItemOutline',
+                            opacity: 0.9,
+                            listening: false,
+                        });
+
+                        node.getParent().add(overlapItemOutline);
+                    }
+                }
+
+            }
+        });
+    })
+
+
+
+}
+
 /* shapes that have x: or y: less than 0 for all four corners will be deleted */
 function deleteNegativeShapes() {
 
@@ -11849,14 +12151,6 @@ function listItemsOffStage() {
         border[3] = { x: xBoundMin, y: yBoundMax };
 
     } else if (activeRoomPartItem) {
-        let x1 = activeRoomPartItem.x;
-        let y1 = activeRoomPartItem.y;
-        let points = activeRoomPartItem.points;
-
-        // for (i = 0, j = 0; i < points.length; i = i + 2) {
-        //     border[j] = { x: points[i] + x1, y: points[i + 1] + y1 };
-        //     j = j + 1;
-        // };
 
         xBoundMin = activeRoomX;
         yBoundMin = activeRoomY;
@@ -11865,7 +12159,6 @@ function listItemsOffStage() {
 
 
         border = activeRoomAbsPoints;
-
 
 
     } else {
@@ -12412,6 +12705,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         imageItem.on('dragend', function imageItemOnDragEnd() {
+            if (trNodesLength > 1) return;
             layerTransform.find('.guide-line').forEach((l) => l.destroy());
             canvasToJson();
         });
@@ -12419,6 +12713,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
+
+            if (isAllCoverageGroupHidden) return;
+
             snapCenterToIncrement(imageItem);
 
             snapToGuideLines(e);
@@ -12442,7 +12739,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
             if (e.target.attrs.id) {
                 if (tr.nodes().length === 1) {
-                    updateFormatDetails(e);
+                    updateFormatDetails(e,true);
                 }
             }
 
@@ -12455,16 +12752,33 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 return;
             }
 
+
             updateShading(imageItem);
             clickedOnItemId = imageItem.id();
         });
 
         imageItem.on('mouseup touchend', function imageItemMouseUpTouchend(e) {
 
+            // e.target.data_zPosition = document.getElementById('itemZposition').value;
             clickedOnItemId = '';
+
+            let overlapItemOutlines = layerTransform.find('#overlapItemOutline');
+
+
+            overlapItemOutlines.forEach(overlapItemOutline => {
+
+                overlapItemOutline.data_dragNode.data_zPosition = overlapItemOutline.data_dragItem_zPosition;
+
+                overlapItemOutline.data_dragItem.data_zPosition = overlapItemOutline.data_dragItem_zPosition;
+
+                overlapItemOutline.destroy();
+
+            });
         });
 
         imageItem.on('transform', function imageItemOnTrasform() {
+
+            if (isAllCoverageGroupHidden) return;
 
             updateShading(imageItem);
         });
@@ -12472,9 +12786,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         /* add the shape to the layer */
         group.add(imageItem);
+
         updateShading(imageItem);
-
-
 
         if (selectTrNode) {
 
@@ -13935,8 +14248,47 @@ function moveLabel(imageItem, labelTip) {
     labelTip.y(bottomY);
 }
 
+function trNodesListening(listening = true) {
+    console.log('trNodesListening():', listening);
+    tr.nodes().forEach(node => {
+        node.listening(listening);
+        console.log('node', node, 'listening', listening);
+    });
+}
+
+/* used to hide temporarily hide all coverage groups and labels on large moves */
+function hideAllCoverageGroups(hide = true, minimumNodeCount = 150) {
+
+
+    isAllCoverageGroupHidden = hide;
+
+    /* if show coverage groups, first update the locations */
+    if (!hide) {
+        [groupDisplays, groupMicrophones, groupSpeakers, groupVideoDevices].forEach(group => {
+            group.getChildren().forEach(child => {
+
+                updateShading(child);
+            });
+        });
+    }
+
+    allCoverageGroups.forEach(group => {
+        if (hide) {
+            group.hide();
+        } else {
+            if (roomObj.layersVisible[group.name()] === true) {
+                group.show();
+            }
+        }
+    });
+
+
+
+}
+
 function updateShading(node) {
 
+    if (isAllCoverageGroupHidden) return;
 
     let uuid = node.id();
     let fovShading = stage.find(`#fov~${uuid}`);
@@ -14447,7 +14799,7 @@ function updateFormatDetailsUpdate() {
 function fillInTopElevationDisplay(shape, updateTextBox = true) {
     let zHeightOfDisplay, topElevation, zPosition;
     let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
-
+    console.log('displayHeight', displayHeight);
     if (shape.data_deviceid === 'display21_9') {
         defaultDisplayHeight = displayHeight21_9 / 1000;
     }
@@ -14456,6 +14808,8 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
         defaultDisplayHeight = defaultDisplayHeight * 3.28084;
     }
 
+    console.log('shape.data_zPosition', shape.data_zPosition);
+
     zPosition = shape.data_zPosition || 0;
 
     if (shape.data_deviceid === 'display21_9') {
@@ -14463,14 +14817,16 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
     } else {
         zHeightOfDisplay = defaultDisplayHeight * (shape.data_diagonalInches / diagonalInches);
     }
+    console.log('zHeightDisplay', zHeightOfDisplay);
+    topElevation = Number(zPosition) + Number(zHeightOfDisplay);
 
-    topElevation = zPosition + zHeightOfDisplay;
-
+    console.log('topElevation = zPosition + zHeightOfDisplay;', topElevation);
     if (updateTextBox) document.getElementById("itemTopElevation").value = round(topElevation);
 
     return round(topElevation);
 }
 
+/* When in an active room, disable the main menu for the room (which has now become the floor plan) */
 function disableRoomSettings(disable = true) {
 
     ['drpMetersFeet', 'roomWidth', 'roomHeight', 'roomLength', 'drpSoftware', 'authorVersion', 'removeDefaultWallsCheckBox', 'updateButtonId', 'roomName'].forEach(elementId => {
@@ -14482,7 +14838,7 @@ function disableRoomSettings(disable = true) {
 };
 
 
-function updateFormatDetails(eventOrShapeId) {
+function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     if (multiUpdateMode) return;
 
@@ -14514,11 +14870,6 @@ function updateFormatDetails(eventOrShapeId) {
 
     let parentGroup = shape.getParent().name();
 
-    document.getElementById('itemXdiv').style.display = '';
-    document.getElementById('itemYdiv').style.display = '';
-    document.getElementById('itemNameDiv').style.display = '';
-    document.getElementById('labelFieldDiv').style.display = '';
-    document.getElementById('updateItemDiv').style.display = '';
 
     document.getElementById('itemVheight').disabled = false;
 
@@ -14600,7 +14951,7 @@ function updateFormatDetails(eventOrShapeId) {
         document.getElementById('itemWidthLengthDiv').style.display = '';
     }
 
-    roomObj.items[parentGroup].forEach((item, index) => {
+    roomObj.items[parentGroup].forEach((item) => {
 
         if (item.id === id) {
 
@@ -14610,16 +14961,16 @@ function updateFormatDetails(eventOrShapeId) {
             }
             let x, y;
 
+
+
             let isPrimaryDiv = document.getElementById('isPrimaryDiv');
             let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
-            let singleShadingDiv = document.getElementById('singleShadingDiv');
-            let itemWidthLength = document.getElementById('itemWidthLengthDiv');
-
-            singleShadingDiv.style.visibility = 'hidden'; /* start as hidden, but make visible if item supports shading guidances */
 
             isPrimaryCheckBox.disabled = true;
             isPrimaryCheckBox.checked = false;
             isPrimaryDiv.style.display = 'none';
+
+
 
             if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
                 x = shape.x();
@@ -14648,9 +14999,6 @@ function updateFormatDetails(eventOrShapeId) {
 
             }
 
-            if (!('data_diagonalInches' in item)) {
-                document.getElementById('btnDisplayDistanceSingleItem').disabled = true;
-            }
 
 
             if ('data_deviceid' in item && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
@@ -14665,49 +15013,10 @@ function updateFormatDetails(eventOrShapeId) {
 
                 document.getElementById('itemTopElevation').value = round((shape.data_zPosition || 0) + deviceVertHeight);
 
-                // if (roomObj.layersVisible.grShadingCamera) {
-                //     document.getElementById('btnCamShadeToggleSingleItem').disabled = false;
-                // } else {
-                //     document.getElementById('btnCamShadeToggleSingleItem').disabled = true;
-                // }
 
-                if (item.data_fovHidden) {
-                    // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
-                } else {
-                    // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
-                }
-            } else {
-                document.getElementById('btnCamShadeToggleSingleItem').disabled = true;
-                document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'do_not_disturb_on';
             }
 
 
-
-
-
-            if ('micRadius' in allDeviceTypes[item.data_deviceid]) {
-                //    singleShadingDiv.style.visibility = 'visible';
-
-                // if (roomObj.layersVisible.grShadingMicrophone) {
-                //     document.getElementById('btnMicShadeToggleSingleItem').disabled = false;
-                // } else {
-                //     document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
-                // }
-
-                if (item.data_audioHidden) {
-                    // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic_off';
-                } else {
-                    // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
-                }
-
-            } else {
-                document.getElementById('btnMicShadeToggleSingleItem').disabled = true;
-            }
-
-            if (!('micRadius' in allDeviceTypes[item.data_deviceid])) {
-
-                document.getElementById('btnSpeakerShadeToggleSingleItem').disabled = true;
-            }
 
             if (shape.data_deviceid === 'tblRect') {
                 document.getElementById('tblRectRadiusDiv').style.display = '';
@@ -14752,8 +15061,10 @@ function updateFormatDetails(eventOrShapeId) {
 
             }
 
+
             document.getElementById('itemX').value = round((x - pxOffset) / scale);
 
+          //  item.y = round((y - pyOffset) / scale);
             document.getElementById('itemY').value = round((y - pyOffset) / scale);
 
             document.getElementById('itemId').innerText = item.id;
@@ -14819,8 +15130,10 @@ function updateFormatDetails(eventOrShapeId) {
             }
 
             if ('rotation' in shape.attrs) {
-                document.getElementById('itemRotation').value = round(shape.rotation(), -1);
+                item.rotation = round(shape.rotation(), -1);
+                document.getElementById('itemRotation').value = item.rotation;
             }
+
             if ('data_zPosition' in shape) {
                 document.getElementById('itemZposition').value = shape.data_zPosition;
             } else {
@@ -14906,7 +15219,11 @@ function updateFormatDetails(eventOrShapeId) {
                     document.getElementById('tblRectRadiusRight').value = '';
                 }
             }
+            if(updateAutoZvalue){
+                changeZheightOfItem(item, shape);
+            }
 
+            /* stop searching for the device */
             return;
         }
     })
@@ -15018,6 +15335,7 @@ function addListeners(stage) {
             countConsectiveTouches();
         }
 
+        trNodesLength = tr.nodes().length;
 
         if (document.getElementById('resizeBackgroundImageCheckBox').checked) return; /* exit out if resizing the background image */
 
@@ -15036,6 +15354,8 @@ function addListeners(stage) {
         if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall || isWallBuilderOn || isWallWriterOn2 || isPolyBuilderOn) {
             return;
         }
+
+        trNodesLength = tr.nodes().length;
 
         clearTimeout(rightClickTouchTimer);
 
@@ -15082,6 +15402,8 @@ function addListeners(stage) {
             tr.resizeEnabled(false);
         }
 
+        trNodesLength = tr.nodes().length;
+
         x2 = stage.getPointerPosition().x / zoomScaleX;
         y2 = stage.getPointerPosition().y / zoomScaleY;
 
@@ -15108,7 +15430,7 @@ function addListeners(stage) {
             }
         }, 500)
 
-
+        trNodesLength = tr.nodes().length;
 
         selecting = false;
 
@@ -15137,7 +15459,7 @@ function addListeners(stage) {
 
         shapes = shapes.concat(groupTables.getChildren());
 
-        shapes = shapes.concat(groupTouchPanel.getChildren());
+        shapes = shapes.concat(groupTouchPanels.getChildren());
 
         shapes = shapes.concat(groupChairs.getChildren());
 
@@ -15184,6 +15506,7 @@ function addListeners(stage) {
     /* clicks should select/deselect shapes */
     stage.on('click tap', function stageOnClickTap(e) {
         count = count + 1;
+        trNodesLength = tr.nodes().length;
         if (e.target.attrs.id) {
             if (tr.nodes().length === 1) {
                 updateFormatDetails(e);
@@ -15248,10 +15571,17 @@ function addListeners(stage) {
         enableCopyDelBtn();
     });
 
-    let trNodesLength;
 
+    trNodesLength = tr.nodes().length;
     tr.on('transformstart', function onTrNodeTransformStart(e) {
         trNodesLength = tr.nodes().length;
+
+        if (trNodesLength > 0) {
+            hideAllCoverageGroups(true);
+
+        }
+
+
 
     });
 
@@ -15279,6 +15609,10 @@ function addListeners(stage) {
 
         }
 
+    });
+
+    tr.on('transformend', () => {
+        hideAllCoverageGroups(false);
     });
 
 }
@@ -15398,8 +15732,8 @@ function pointerupInsertMenu(event) {
 
     let data_deviceid = event.target.id.split('-');
 
-    attrs.x = (roomWidth / 2) * (1 + (Math.random() - 0.5)/5 );
-    attrs.y = (roomLength / 2) *  (1 + (Math.random() - 0.5)/5 );
+    attrs.x = (roomWidth / 2) * (1 + (Math.random() - 0.5) / 5);
+    attrs.y = (roomLength / 2) * (1 + (Math.random() - 0.5) / 5);
 
     insertItemFromMenu(data_deviceid[1], attrs);
 
@@ -15718,7 +16052,7 @@ function createEquipmentMenu() {
         desktopMenu = desktopMenu.concat('unknownObj', 'tblUnknownObj');
     }
 
-    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved'];
+    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'credenza'];
 
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape'];
 
@@ -15888,6 +16222,11 @@ function addItemListeners(itemArray) {
  */
 function zoomInOut(zoomChange) {
     let scrollContainer = document.getElementById('scroll-container');
+
+    /* when there is a large number of nodes, tr nodes take too much screen rewrite time. Temporarily move tr.nodes */
+    const nodesCopy = tr.nodes().slice();
+    tr.nodes([]);
+
     zoomValue = document.getElementById('zoomValue').textContent;
     zoomValue = zoomValue.replace(/%/, '');
     zoomValue = Number(zoomValue);
@@ -15992,6 +16331,7 @@ function zoomInOut(zoomChange) {
     }
 
     tr.borderStrokeWidth(1);
+    tr.nodes(nodesCopy);
     updateTrNodesShadingTimer();
 }
 
@@ -16624,13 +16964,13 @@ function resizeTableOrWall() {
             tr.enabledAnchors(['top-center', 'bottom-center']);
             changeWallAnchors(true);
             tr.resizeEnabled(true);
-        } else if (nodes[0].data_deviceid.startsWith('tblSchoolDesk') || nodes[0].data_deviceid.startsWith('tblPodium')) {
+        } else if (nodes[0].data_deviceid.startsWith('tblSchoolDesk') || nodes[0].data_deviceid.startsWith('tblPodium') || nodes[0].data_deviceid.startsWith('tblPodium')) {
             tr.enabledAnchors(['middle-right', 'middle-left']);
             tr.resizeEnabled(true);
         } else if (nodes[0].data_deviceid.startsWith('tblCurved')) {
             tr.resizeEnabled(false);
         }
-        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor') || nodes[0].data_deviceid.startsWith('carpet')) {
+        else if (nodes[0].data_deviceid.startsWith('tbl') || nodes[0].data_deviceid.startsWith('box') || nodes[0].data_deviceid.startsWith('stageFloor') || nodes[0].data_deviceid.startsWith('carpet') || nodes[0].data_deviceid.startsWith('credenza')) {
             tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
             tr.resizeEnabled(true);
         } else {
@@ -16829,6 +17169,10 @@ function onKeyDown(e) {
 
     if ((key === 'r') && e.shiftKey && (e.ctrlKey || e.metaKey)) return; /* allow for a hard refresh. */
 
+    if ((key === 'r') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+    }
+
     /* export to the Workspace Designer */
     if (key === 'e' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -17005,10 +17349,12 @@ function onKeyDown(e) {
         // }
     }
 
+    /* make a copy of the tr node for speed. After changes, restore tr.nodes([]) */
+    const trNodesCopy = tr.nodes().slice();
 
+    tr.nodes([]);
 
-
-    tr.nodes().forEach(shape => {
+    trNodesCopy.forEach(shape => {
 
         if (e.ctrlKey || e.metaKey) {
 
@@ -17062,9 +17408,12 @@ function onKeyDown(e) {
             updateFormatDetails(shape.id());
         }
     })
+    tr.nodes(trNodesCopy);
 }
 
-function quickAddFromButton(){
+
+
+function quickAddFromButton() {
 
     quickAddMouse.x = -1000;
     quickAddMouse.y = -1000;
@@ -17374,12 +17723,36 @@ function selectAllTrNodes() {
 
     shapes = shapes.concat(groupTables.getChildren());
 
-    shapes = shapes.concat(groupTouchPanel.getChildren());
+    shapes = shapes.concat(groupTouchPanels.getChildren());
 
     shapes = shapes.concat(groupChairs.getChildren());
 
     tr.nodes(shapes);
 };
+
+function selectAllNodes() {
+    let shapes = groupVideoDevices.getChildren();
+
+    shapes = shapes.concat(groupStageFloors.getChildren());
+
+    shapes = shapes.concat(groupDisplays.getChildren());
+
+    shapes = shapes.concat(groupMicrophones.getChildren());
+
+    shapes = shapes.concat(groupBoxes.getChildren());
+
+    shapes = shapes.concat(groupRooms.getChildren());
+
+    shapes = shapes.concat(groupSpeakers.getChildren());
+
+    shapes = shapes.concat(groupTables.getChildren());
+
+    shapes = shapes.concat(groupTouchPanels.getChildren());
+
+    shapes = shapes.concat(groupChairs.getChildren());
+
+    return shapes;
+}
 
 function rotateBackgroundImage(rotationAmount, rotationCenter) {
     let node = stage.findOne('#konvaBackgroundImageFloor');
@@ -17406,7 +17779,7 @@ function rotateBackgroundImage(rotationAmount, rotationCenter) {
 }
 
 
-function blockAndMessage(message = 'Please Wait', time = 2000){
+function blockAndMessage(message = 'Please Wait', time = 2000) {
     let dialog = document.getElementById('waitMessageDialog');
 
     dialog.textContent = message;
@@ -17414,7 +17787,7 @@ function blockAndMessage(message = 'Please Wait', time = 2000){
     dialog.showModal();
     blockKeyActions = true;
 
-    setTimeout(()=>{
+    setTimeout(() => {
         dialog.close();
         blockKeyActions = false;
     }, time)
@@ -17422,6 +17795,7 @@ function blockAndMessage(message = 'Please Wait', time = 2000){
 }
 
 function rotateRoom(rotationAmount) {
+
 
     if (isActiveRoomPart) {
         alertDialog('Room Rotate Not Available.', 'First go back to the floorplan overview, then rotate entire floorplan.')
@@ -17437,10 +17811,15 @@ function rotateRoom(rotationAmount) {
 
     if (isRotatingRoom) return;
 
-    document.getElementById('dialogLoadingTemplate').showModal();
+    // document.getElementById('dialogLoadingTemplate').showModal();
+
+    document.getElementById('dialogUndoRedo').showModal();
 
     isRotatingRoom = true;
     blockKeyActions = true;
+
+    hideAllCoverageGroups(true);
+
 
     /* use setTimeOut so that the .showModal() abobe renders before the page is shown */
     setTimeout(function startRotateRoom() {
@@ -17451,21 +17830,29 @@ function rotateRoom(rotationAmount) {
 
 
 
-        selectAllTrNodes();
 
-        let trNodesLength = tr.nodes().length;
-        let timeForEachStage = (300 + trNodesLength / 10);
+        // selectAllTrNodes();
+
+        let allNodes = selectAllNodes();
+
+        let allNodesLength = allNodes.length;
+        let timeForEachStage = (allNodesLength / 20);
 
 
         setTimeout(() => {
             isRotatingRoom = false;
             canvasToJson();
-        }, 1 * timeForEachStage + 200);
+        }, 1 * timeForEachStage + 100);
 
         setTimeout(() => {
-            document.getElementById('dialogLoadingTemplate').close();
+            //   document.getElementById('dialogLoadingTemplate').close();
+            closeAllDialogModals();
             blockKeyActions = false;
-        }, 1 * timeForEachStage + 200);
+            hideAllCoverageGroups(false);
+
+
+
+        }, 1 * timeForEachStage + 600);
 
 
         let roomWidth = roomObj.room.roomWidth;
@@ -17529,9 +17916,14 @@ function rotateRoom(rotationAmount) {
             roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
         }
 
+
+
         canvasToJson();
 
+
     }, 1);
+
+
 
     //drawRoom(true, true, false);
 
@@ -17619,11 +18011,14 @@ function rotateRoom(rotationAmount) {
 
 }
 
-function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
+function rotateTrNodeItemsOriginal(rotationAmount = 90, rotationCenter) {
+
+
 
     if (!rotationCenter) {
         rotationCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
     }
+
 
     tr.nodes().forEach(node => {
 
@@ -17651,6 +18046,91 @@ function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
 }
 
 
+
+function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
+
+
+    clearTimeout(rotateResetTrNodeTimer);
+
+
+    if (tr.nodes().length === 0) {
+
+        return;
+    }
+
+    if (tr.nodes().length > 50) {
+        hideAllCoverageGroups(true);
+    }
+
+
+    // Get rotation center from transformer if not provided
+    if (!rotationCenter) {
+        rotationCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
+    }
+
+    // Copy nodes array and DETACH from transformer (speed optimization)
+    const nodesCopy = tr.nodes().slice();
+    tr.nodes([]);
+
+    for (let i = 0; i < nodesCopy.length; i++) {
+        const node = nodesCopy[i];
+        //  node.listening(false);
+
+        let nodeCenter = getNodeCenter(node);
+
+        let newNodeXY = rotatePointAroundOrigin(
+            nodeCenter.x,
+            nodeCenter.y,
+            rotationCenter.x,
+            rotationCenter.y,
+            rotationAmount
+        );
+
+        let totalRotation = normalizeDegree(node.rotation() + rotationAmount);
+
+        let nodeCornerXY = findUpperLeftXY({
+            x: newNodeXY.x,
+            y: newNodeXY.y,
+            rotation: totalRotation,
+            width: node.width(),
+            height: node.height(),
+
+        });
+
+        node.x(nodeCornerXY.x);
+        node.y(nodeCornerXY.y);
+
+        node.offsetX(nodeCenter.x - node.x());
+        node.offsetY(nodeCenter.y - node.y());
+
+
+
+        node.rotation(totalRotation);
+
+        node.offsetX(0);
+        node.offsetY(0);
+
+
+
+    }
+
+    //   tr.nodes(nodesCopy);
+
+    //   hideAllCoverageGroups(false);
+    // Reattach nodes to transformer
+    tr.nodes(nodesCopy);
+    rotateResetTrNodeTimer = setTimeout(() => {
+
+
+
+
+        hideAllCoverageGroups(false);
+
+    }, 10);
+
+
+
+}
 
 const rotatePoint = ({ x, y }, rad) => {
     const rcos = Math.cos(rad);
@@ -17683,8 +18163,6 @@ function rotateAroundCenter(node, deg) {
 
 function rotateNodeAroundCenter(node, rotationAmount) {
     let nodeCenter = getNodeCenter(node);
-
-    // let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, nodeCenter.x,nodeCenter.y, rotationAmount);
 
     let nodeCornerXY = findUpperLeftXY({ x: nodeCenter.x, y: nodeCenter.y, rotation: rotation, width: node.width(), height: node.height() })
     node.x(nodeCornerXY.x);
@@ -19090,6 +19568,8 @@ function returnStringOfDefaultRoleColor(keyValue) {
     return defaultRole;
 }
 
+
+
 function addDefaultsToWorkspaceObj() {
     compareAdd(videoDevices);
     compareAdd(microphones);
@@ -19165,7 +19645,7 @@ function exportRoomObjToWorkspace() {
     ]
 
     /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */
-    let altDefaultWall = true;
+    let altDefaultWall = false;
 
     if (altDefaultWall === true && !roomObj.workspace.removeDefaultWalls) {
         let backwall = {};
@@ -19431,13 +19911,16 @@ function exportRoomObjToWorkspace() {
     roomObj2.items.tables.forEach((item) => {
 
         if (item.data_deviceid) {
-            if (item.data_deviceid.startsWith('tbl') || item.data_deviceid.startsWith('couch')) {
+            if (item.data_deviceid.startsWith('tbl') || item.data_deviceid.startsWith('couch') || item.data_deviceid.startsWith('credenza')) {
                 workspaceObjTablePush(item);
             }
             else if (item.data_deviceid.startsWith('wallChairs')) {
 
                 let chairs = expandChairs(item, 'meters');
                 chairs.forEach(chair => {
+                    if ('data_isItemOnStage' in item) {
+                        chair.data_isItemOnStage = item.data_isItemOnStage;
+                    }
                     workspaceObjItemPush(chair);
                 });
             }
