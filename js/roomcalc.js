@@ -1,4 +1,4 @@
-const version = "v0.1.637";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.638";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -644,7 +644,7 @@ let tr = new Konva.Transformer({
 tr.on('dragstart', function trDragStart() {
 
 
-    if (tr.nodes().length > 150) {
+    if (tr.nodes().length > 100) {
 
         hideAllCoverageGroups(true);
     }
@@ -663,9 +663,10 @@ const rotateImageObj = new Image();
 rotateImageObj.onload = function rotateImageObjOnload() {
 
     tr.anchorStyleFunc((anchor) => {
-        updateRotaterAnchor(anchor); /* update v0.1.517 */
+        updateRotaterAnchor(anchor);
     })
 };
+
 function updateRotaterAnchor(anchor) {
     if (anchor.attrs.name.startsWith('rotater')) {
 
@@ -678,7 +679,6 @@ function updateRotaterAnchor(anchor) {
         anchor.fill('');
         anchor.fillPatternImage(rotateImageObj);
         anchor.fillPatternOffset({ x: 0, y: 0 });
-        // anchor.fillPatternImage('no-repeat');
 
     }
 }
@@ -4652,7 +4652,8 @@ function parseShortenedXYUrl(parameters) {
                 }
 
                 if (shadeArray[8] === '1') {
-                    roomObj.workspace.theme = 'christmas';
+                   /* roomObj.workspace.theme = 'christmas'; */
+                   roomObj.workspace.theme = 'regular';
                 } else {
                     roomObj.workspace.theme = 'regular';
                 }
@@ -4882,6 +4883,9 @@ function deleteBackgroundImage() {
 
 function resetRoomObj() {
 
+
+
+
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
@@ -4926,7 +4930,16 @@ function resetRoomObj() {
         backwall: { type: 'regular', acousticTreatment: false }
     }
 
+
     deleteBackgroundImage();
+
+    disableRoomSettings(false);
+    document.getElementById('btnBackToFloorPlan').style.display = 'none';
+
+    activeRoomX = 0;
+    activeRoomY = 0;
+    isActiveRoomPart = false;
+    activeRoomPartItem = null;
 
     /* reset fields */
 
@@ -5033,6 +5046,9 @@ function onLoad() {
 
     if (localStorage.getItem('snapGuidelinesCheckBox') === 'true') {
         document.getElementById('snapGuidelinesCheckBox').checked = true;
+    }
+    else if(localStorage.getItem('snapGuidelinesCheckBox') === null){
+        document.getElementById('snapGuidelinesCheckBox').checked = true;
     } else {
         document.getElementById('snapGuidelinesCheckBox').checked = false;
     }
@@ -5076,6 +5092,20 @@ function onLoad() {
         document.getElementById('snapRotationOffCheckBox').checked = false;
         tr.rotationSnaps([0, 45, 90, 135, 180, 225, 270, 315, 360]);
     }
+
+    if (localStorage.getItem('autoZposition') === 'true') {
+        document.getElementById('autoZposition').checked = true;
+
+    } else if(localStorage.getItem('autoZposition') === null){
+        document.getElementById('autoZposition').checked = true;
+    }
+    else {
+        document.getElementById('autoZposition').checked = false;
+
+    }
+
+
+
 
     if (localStorage.getItem('snapToIncrement')) {
         document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
@@ -6195,6 +6225,7 @@ function getKonvaBackgroundImageFloor() {
 
 function showEntireFloor() {
     blurRoom();
+
     disableRoomSettings(false);
     document.getElementById('btnBackToFloorPlan').style.display = 'none';
     zoomInOut('reset');
@@ -6212,8 +6243,8 @@ function showEntireFloor() {
     });
 
 
-    const polyRoom = stage.find('.polyRoom');
-    polyRoom.forEach(boxRoomPart => {
+    const polyRooms = stage.find('.polyRoom');
+    polyRooms.forEach(polyRoom => {
         polyRoom.show();
         polyRoom.listening(true);
     });
@@ -6575,6 +6606,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         updateShapesBasedOnNewScale(true);
 
+
+        insertKonvaBackgroundImageFloor();
+
         roomObjToCanvas(roomObj.items);
 
         if (isZoomingRoomPart) {
@@ -6583,7 +6617,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
             trNodesFromUuids(roomObj.trNodes, false);
         }
 
-        insertKonvaBackgroundImageFloor();
 
         if (!dontSaveUndo) {
             /* canvasToJSON() needs a little time before running or else it won't capture the recenlty drawn room */
@@ -6594,8 +6627,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
 
     } else {
+
         updateShapesBasedOnNewScale();
-        insertKonvaBackgroundImageFloor();
+        insertKonvaBackgroundImageFloor(true);
     }
 
     setTimeout(() => {
@@ -6714,7 +6748,7 @@ function measuringToolOn(event = true) {
 
 }
 
-function insertKonvaBackgroundImageFloor() {
+function insertKonvaBackgroundImageFloor(includeActiveRoomPart = false) {
 
     let tempKonvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
@@ -6723,11 +6757,15 @@ function insertKonvaBackgroundImageFloor() {
     }
 
     if ('backgroundImage' in roomObj) {
-
         let pixelX = scale * roomObj.backgroundImage.x + pxOffset;
         let pixelY = scale * roomObj.backgroundImage.y + pyOffset;
         let heightPixel = scale * roomObj.backgroundImage.height;
         let widthPixel = scale * roomObj.backgroundImage.width;
+
+        if(includeActiveRoomPart){
+            pixelX = pixelX - activeRoomX * scale;
+            pixelY = pixelY - activeRoomY * scale;
+        }
 
         let konvaBackgroundImageFloor = new Konva.Image({
             image: backgroundImageFloor,
@@ -8594,7 +8632,7 @@ function roomObjToCanvas(roomObjItems) {
         }
     }
 
-    console.log('total Items Inserted or Updated', itemCount);
+    console.info('total Items Inserted or Updated', itemCount);
 
 }
 
@@ -8604,7 +8642,6 @@ function canvasToJson() {
     let overlapItemOutlines = layerTransform.find('#overlapItemOutline');
 
     overlapItemOutlines.forEach(node => {
-        console.log('overlapItemOutlines', node);
         node.destroy();
     });
 
@@ -8787,7 +8824,7 @@ function canvasToJson() {
 
 
 function updateRoomObjFromTrNode() {
-    console.log('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
+    console.info('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
         let x, y;
         let attrs = node.attrs;
@@ -9918,7 +9955,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('dblclick', function doubleClick(e) {
-        if (tblWallFlr.data_deviceid === 'boxRoomPart' || tblWallFlr.data_deviceid === 'polyRoom') {
+        if ('data_deviceid' in tblWallFlr && (tblWallFlr.data_deviceid === 'boxRoomPart' || tblWallFlr.data_deviceid === 'polyRoom')) {
             zoomRoomPart(tblWallFlr);
         }
     });
@@ -9967,7 +10004,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         lastSelectedNodePosition = deepCopyNode(tblWallFlr);
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
             tr.nodes()[0].shadowColor('grey').shadowBlur(10).shadowOpacity(0.5).shadowEnabled(true).opacity(0.4);
-
         }
     });
 
@@ -9995,7 +10031,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         layerTransform.find('.guide-line').forEach((l) => l.destroy());
 
-        if (tr.nodes().length === 1)
+        if (tr.nodes().length === 1) {
+            updateTransformedWall(tblWallFlr);
 
             setTimeout((theDeviceId) => {
 
@@ -10004,6 +10041,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 }
 
             }, 100, theDeviceId);
+        }
         layerTransform.draw()
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
@@ -10013,6 +10051,21 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
 }
+
+/* todo: fix slipping of when stretching walls or tables */
+function updateTransformedWall(node) {
+    return;
+
+    let fourCorners = findFourCornersOfNode(node);
+
+
+    let fourCornersOriginal = findFourCornersOfNode(lastSelectedNodePosition);
+
+    fourCorners.forEach((corner, index) => {
+        console.log('corners:', corner, fourCornersOriginal[index]);
+    });
+
+};
 
 /* returns a clone of the node include the data_  items */
 function deepCopyNode(node) {
@@ -10076,6 +10129,7 @@ function findFourCorners(item) {
         const node = stage.findOne('#' + item.id);
         if (node) {
             let b = node.getClientRect();
+
             let x = (b.x - pxOffset) / scale;
             let y = (b.y - pxOffset) / scale;
             let width = b.width / scale;
@@ -10468,32 +10522,36 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 function removeShadingTrNodes() {
 
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
+
     lastTrNodesWithShading.forEach(node => {
+        if (('data_deviceid' in node)) {
 
-        if ('image' in node.attrs) {
-            node.strokeEnabled(false);
-            node.stroke();
-        } else {
 
-            node.strokeEnabled(true);
-            node.stroke('#000000');
-            node.strokeWidth(1);
+            if ('image' in node.attrs) {
+                node.strokeEnabled(false);
+                node.stroke();
+            } else {
 
-            if (node.data_deviceid.startsWith('wallChairs')) {
-                node.stroke('#aaaaaa');
+                node.strokeEnabled(true);
+                node.stroke('#000000');
+                node.strokeWidth(1);
+
+                if (node.data_deviceid.startsWith('wallChairs')) {
+                    node.stroke('#aaaaaa');
+                }
+                if ('stroke' in allDeviceTypes[node.data_deviceid]) {
+                    node.stroke(allDeviceTypes[node.data_deviceid].stroke);
+                }
+
+                if ('strokeWidth' in allDeviceTypes[node.data_deviceid]) {
+                    node.strokeWidth(allDeviceTypes[node.data_deviceid].strokeWidth);
+                }
+
+                if ('dash' in allDeviceTypes[node.data_deviceid]) {
+                    node.dash(allDeviceTypes[node.data_deviceid].dash);
+                }
+
             }
-            if ('stroke' in allDeviceTypes[node.data_deviceid]) {
-                node.stroke(allDeviceTypes[node.data_deviceid].stroke);
-            }
-
-            if ('strokeWidth' in allDeviceTypes[node.data_deviceid]) {
-                node.strokeWidth(allDeviceTypes[node.data_deviceid].strokeWidth);
-            }
-
-            if ('dash' in allDeviceTypes[node.data_deviceid]) {
-                node.dash(allDeviceTypes[node.data_deviceid].dash);
-            }
-
         }
     });
 
@@ -10501,9 +10559,9 @@ function removeShadingTrNodes() {
 }
 
 function updateTrNodesShadingTimer() {
-    if (tr.nodes().length < 150) {
-        setTimeout(updateTrNodesShading, 40);
-    }
+
+    setTimeout(updateTrNodesShading, 40);
+
 
 }
 
@@ -10514,13 +10572,22 @@ function updateTrNodesShading() {
 
     let copyTrNodes = tr.nodes().slice();
 
+    removeShadingTrNodes();
+
+    if (tr.nodes().length > 400) {
+        return;
+    }
+
     tr.nodes([]);
 
     if (copyTrNodes.length === 1) {
         lastSelectedNodePosition = copyTrNodes[0].clone();
     }
 
-    removeShadingTrNodes();
+
+    tr.shouldOverdrawWholeArea(false);
+
+
     copyTrNodes.forEach(node => {
 
         node.strokeEnabled(true);
@@ -11844,29 +11911,20 @@ function changeZheightOfItem(dragItem, dragNode) {
         node.destroy();
     });
 
-    console.log(dragNode.getParent().name());
 
-    if (!(dragNode.getParent().name() === 'videoDevices' || dragItem.data_deviceid.startsWith('webcam')) || ((dragNode.getParent().name() === 'videoDevices') && 'data_diagonalInches' in dragItem )){
+
+    if (!(dragNode.getParent().name() === 'videoDevices' || dragItem.data_deviceid.startsWith('webcam')) || ((dragNode.getParent().name() === 'videoDevices') && 'data_diagonalInches' in dragItem)) {
 
         return;
     }
 
-    if ('defaultVert' in allDeviceTypes[dragNode.data_deviceid]) {
-
-        console.log('allDeviceTypes[dragNode.data_deviceid].defaultVert', allDeviceTypes[dragNode.data_deviceid].defaultVert);
-    }
-
-    if (dragNode.getParent().name() === 'videoDevices' && allDeviceTypes[dragNode.data_deviceid].defaultVert > 0) {
-        compareToGroups = [groupDisplays];
+    if (dragItem.data_deviceid.startsWith('ptz')) {
+        compareToGroups = [groupVideoDevices, groupDisplays];
     } else {
-        compareToGroups = allNodeShapeGroups;
+        compareToGroups = [groupDisplays];
     }
 
 
-
-
-
-    //  let dragItemFourCorners = findFourCorners(dragItem);
 
     let dragNodeFourCorners = findFourCornersOfNode(dragNode);
 
@@ -11875,11 +11933,11 @@ function changeZheightOfItem(dragItem, dragNode) {
         for (let j = 0; j < children.length; j++) {
             let node = children[j];
             if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && 'data_deviceid' in node) {
-                //  console.log('item to check against:', item);
+
                 let fourCorners = findFourCornersOfNode(node);
 
                 if (doPolygonsIntersect2(fourCorners, dragNodeFourCorners)) {
-                    console.log('item intersects:', node.data_deviceid, node);
+
                     let newPoints = [];
                     fourCorners.forEach(corner => {
                         newPoints.push(corner.x);
@@ -11898,22 +11956,18 @@ function changeZheightOfItem(dragItem, dragNode) {
                             listening: false,
                         });
 
-
-
                         node.getParent().add(overlapItemOutline);
 
-                        //     let height = round((node.data_zPosition || 0) + (node.data_vHeight || 0) + ((allDeviceTypes[node.data_deviceid].height || 0) / 100 / ((roomObj.unit === 'feet') ? 3.8084 : 1)));
 
                         let height = node.data_zPosition || 0;
-                        console.log('node.data_zPosition', node.data_zPosition)
+
                         height = height + (node.data_vHeight || 0);
 
-                        console.log('node.data_vHeight', node.data_vHeight);
+
 
                         if (node.getParent().name() === 'tables' && !node.data_vHeight) {
                             height = height + 0.71 * ((roomObj.unit === 'feet') ? 3.8084 : 1);
 
-                            console.log('tables dfault height:', 0.71 * ((roomObj.unit === 'feet') ? 3.8084 : 1));
                         }
                         else if (!node.data_vHeight) {
 
@@ -11931,10 +11985,14 @@ function changeZheightOfItem(dragItem, dragNode) {
 
                             if (node.getParent().name() === 'displays') {
                                 height = (fillInTopElevationDisplay(node, false) || 0);
-                                console.log('node', node);
-                                console.log('height of display:', (fillInTopElevationDisplay(node, false) || 0))
+
                             }
 
+                        }
+
+
+                        if (dragNode.data_deviceid.startsWith('webcam')) {
+                            height = height + 0.08 / ((roomObj.unit === 'feet') ? 1 : 3.28084);
                         }
 
 
@@ -11943,7 +12001,7 @@ function changeZheightOfItem(dragItem, dragNode) {
                         document.getElementById('itemZposition').value = height;
                         document.getElementById('itemTopElevation').value = '';
                         dragItem.data_zPosition = round(height);
-                        document.getElementById('itemZposition').style.backgroundColor = '#ffcc54b5';
+                        document.getElementById('itemZposition').style.backgroundColor = '#ffcc5449';
 
                         overlapItemOutline.data_dragNode = dragNode;
 
@@ -11960,47 +12018,6 @@ function changeZheightOfItem(dragItem, dragNode) {
 
         document.getElementById('itemZposition').style.backgroundColor = '';
     }
-
-    return;
-    allNodeShapeGroups.forEach(group => {
-        group.getChildren().forEach(node => {
-
-            if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && 'data_deviceid' in node) {
-                //  console.log('item to check against:', item);
-                let fourCorners = findFourCornersOfNode(node);
-
-                if (doPolygonsIntersect2(fourCorners, dragNodeFourCorners)) {
-                    console.log('item intersects:', node.data_deviceid, node);
-                    let newPoints = [];
-                    fourCorners.forEach(corner => {
-                        newPoints.push(corner.x);
-                        newPoints.push(corner.y);
-                    });
-
-                    if (newPoints.length > 0) {
-
-
-
-
-                        let overlapItemOutline = new Konva.Line({
-                            points: newPoints, // A flat array of x, y coordinates
-                            stroke: 'orange',
-                            strokeWidth: 3,
-                            closed: true,
-                            id: 'overlapItemOutline',
-                            opacity: 0.9,
-                            listening: false,
-                        });
-
-                        node.getParent().add(overlapItemOutline);
-                    }
-                }
-
-            }
-        });
-    })
-
-
 
 }
 
@@ -12739,7 +12756,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
             if (e.target.attrs.id) {
                 if (tr.nodes().length === 1) {
-                    updateFormatDetails(e,true);
+                    updateFormatDetails(e, true);
                 }
             }
 
@@ -13634,7 +13651,7 @@ function snapToGuideLines(e, resize = false) {
 
     let absPos = e.target.absolutePosition();
     if (resize === true) {
-        return;
+
         let original = lastSelectedNodePosition;
         let moved = e.target;
         /* make sure it is a resize transformation and not a rotation, and is 0, 90, 180, 270 */
@@ -13809,11 +13826,15 @@ function updateRemoveDefaultWallsCheckBox() {
 
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
 
+    /* save until next year
+
     if (roomObj.workspace.theme === 'christmas') {
         document.getElementById('changeThemeCheckBox').checked = true;
     } else {
         document.getElementById('changeThemeCheckBox').checked = false;
     }
+
+    */
 
     if (roomObj.workspace.removeDefaultWalls === false) {
         document.getElementById('addCeilingCheckBox').checked = true;
@@ -13843,7 +13864,7 @@ function removeDefaultWallsChange(e) {
     updateRemoveDefaultWallsCheckBox();
 
     zoomInOut('reset');
-    drawRoom(true, true, false);
+    drawRoom(false, true, false);
 
 
     // saveToUndoArray();
@@ -14230,6 +14251,14 @@ function snapRotationOffChange(e) {
     }
 }
 
+function autoZpositionOn(e){
+    if(e.srcElement.checked){
+        setItemForLocalStorage('autoZposition', 'true');
+    } else {
+        setItemForLocalStorage('autoZposition', 'false');
+    }
+}
+
 function updateSnapToIncrement() {
     let snapIncrement = document.getElementById('snapToIncrement').value;
     if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
@@ -14249,10 +14278,8 @@ function moveLabel(imageItem, labelTip) {
 }
 
 function trNodesListening(listening = true) {
-    console.log('trNodesListening():', listening);
     tr.nodes().forEach(node => {
         node.listening(listening);
-        console.log('node', node, 'listening', listening);
     });
 }
 
@@ -14799,7 +14826,7 @@ function updateFormatDetailsUpdate() {
 function fillInTopElevationDisplay(shape, updateTextBox = true) {
     let zHeightOfDisplay, topElevation, zPosition;
     let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
-    console.log('displayHeight', displayHeight);
+
     if (shape.data_deviceid === 'display21_9') {
         defaultDisplayHeight = displayHeight21_9 / 1000;
     }
@@ -14808,7 +14835,7 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
         defaultDisplayHeight = defaultDisplayHeight * 3.28084;
     }
 
-    console.log('shape.data_zPosition', shape.data_zPosition);
+
 
     zPosition = shape.data_zPosition || 0;
 
@@ -14817,10 +14844,8 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
     } else {
         zHeightOfDisplay = defaultDisplayHeight * (shape.data_diagonalInches / diagonalInches);
     }
-    console.log('zHeightDisplay', zHeightOfDisplay);
     topElevation = Number(zPosition) + Number(zHeightOfDisplay);
 
-    console.log('topElevation = zPosition + zHeightOfDisplay;', topElevation);
     if (updateTextBox) document.getElementById("itemTopElevation").value = round(topElevation);
 
     return round(topElevation);
@@ -15061,10 +15086,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
             }
 
-
             document.getElementById('itemX').value = round((x - pxOffset) / scale);
 
-          //  item.y = round((y - pyOffset) / scale);
             document.getElementById('itemY').value = round((y - pyOffset) / scale);
 
             document.getElementById('itemId').innerText = item.id;
@@ -15219,7 +15242,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
                     document.getElementById('tblRectRadiusRight').value = '';
                 }
             }
-            if(updateAutoZvalue){
+            if (updateAutoZvalue && document.getElementById('autoZposition').checked === true) {
                 changeZheightOfItem(item, shape);
             }
 
@@ -15330,6 +15353,7 @@ function addListeners(stage) {
     let x1, y1, x2, y2;
 
     stage.on('click tap', function stageOnDblclickDbltap(e) {
+
 
         if (!(mobileDevice === 'false' || mobileDevice === 'RoomOS' || mobileDevice === 'Tesla')) {
             countConsectiveTouches();
@@ -15505,6 +15529,10 @@ function addListeners(stage) {
 
     /* clicks should select/deselect shapes */
     stage.on('click tap', function stageOnClickTap(e) {
+
+        if(e.target.getParent() === tr) return;
+
+
         count = count + 1;
         trNodesLength = tr.nodes().length;
         if (e.target.attrs.id) {
@@ -15576,7 +15604,7 @@ function addListeners(stage) {
     tr.on('transformstart', function onTrNodeTransformStart(e) {
         trNodesLength = tr.nodes().length;
 
-        if (trNodesLength > 0) {
+        if (trNodesLength > 100) {
             hideAllCoverageGroups(true);
 
         }
@@ -17404,7 +17432,7 @@ function onKeyDown(e) {
             lastKeyDownMovement = true;
         }
 
-        if (tr.nodes().length === 1) {
+        if (tr.nodes().length === 1 || trNodesCopy.length === 1) {
             updateFormatDetails(shape.id());
         }
     })
@@ -17811,9 +17839,14 @@ function rotateRoom(rotationAmount) {
 
     if (isRotatingRoom) return;
 
-    // document.getElementById('dialogLoadingTemplate').showModal();
+    document.getElementById('dialogRotateRoom').showModal();
 
-    document.getElementById('dialogUndoRedo').showModal();
+    if (rotationAmount < 0) {
+        document.getElementById('iconDialogRotateRoom').style.transform = 'scaleX(1)';
+
+    } else {
+        document.getElementById('iconDialogRotateRoom').style.transform = 'scaleX(-1)';
+    }
 
     isRotatingRoom = true;
     blockKeyActions = true;
@@ -18593,7 +18626,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             if (wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
                 wdItem.objectType = 'plant';
-                roomObj2.workspace.theme = 'christmas';
+
+            /* save for next year */
+            /*     roomObj2.workspace.theme = 'christmas'; */
             }
 
             /* export and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */

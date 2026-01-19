@@ -1332,6 +1332,15 @@
           <span class="slider round"></span>
         </label>
       </div>
+      <div class="menuMoreInputField">
+        <label class="tooltipBottom">Auto Z Position:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">AThe Auto Z Position will position video devices and cameras on top of displays, as well as cameras on top of other video devices. Drag camera or video device onto display. </span></label>
+        <label class="switch">
+          <input id="autoZposition" type="checkbox" onclick="autoZpositionOn(event)" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
       <!--
       <div class="menuMoreInputField">
         <label class="tooltipBottom">Wall Builder:
@@ -1388,7 +1397,7 @@
             objects or the room. Only one item can be selected. Does not work with Snap Center
             to Increment.</span></label>
         <label class="switch">
-          <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)">
+          <input id="snapGuidelinesCheckBox" type="checkbox" onclick="snapChange(event)" checked>
           <span class="slider round"></span>
         </label>
       </div>
@@ -1755,7 +1764,7 @@
       </div>
 
 
-      <div class="inputRow" id="changeThemeDiv">
+      <!-- <div class="inputRow" id="changeThemeDiv">
         <div class="inputField">
           <label>Holiday Theme (if available): </label>
           <label class="switch">
@@ -1764,7 +1773,7 @@
           </label>
 
         </div>
-      </div>
+      </div> -->
       <div class="inputRow" id="addCeilingAutoDiv">
         <div class="inputField">
           <label>(Note: Ceiling now included with Default Walls)</label>
@@ -1791,6 +1800,10 @@
 
   <dialog id="dialogUndoRedo" class="pleaseWaitDialog pleaseWaitDialogNoBackdrop" style="width: 50px">
     <i class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content"></i>
+  </dialog>
+
+  <dialog id="dialogRotateRoom" class="pleaseWaitDialog pleaseWaitDialogNoBackdrop" style="width: 50px">
+    <i id="iconDialogRotateRoom" class="icon icon-recurring-bold" style="font-size: x-large; width:fit-content"></i>
   </dialog>
 
   <dialog id="dialogQuestions" onclick="onDialogClick(event)">
