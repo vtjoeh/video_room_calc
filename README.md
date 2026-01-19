@@ -9,12 +9,13 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 
-**v0.1.638**
-- **Auto Z-Position:** places cameras and selected video devices on top of displays after dragging the camera onto the display by adjusting the z-position to align with the top of the display. Default value is On, but can be turned off by clicking the Ellipse [...] and toggle **Auto Z Position** to off.
-- **Rotate Room:** Rotate the entire room either clockwise or counter-clockwise.
-- Updated the default **Snap to Objects** as on if no saved setting found.
-- Disabled Christmas theme.
-- Bug fixes and optimization.
+**v0.1.638 release**
+- **Auto Z-Position:** Automatically places cameras and selected video devices on top of displays after dragging the camera onto the display by adjusting the z-position to align with the top of the display. The default value is On, but it can be turned off by clicking the Ellipse [...] and toggling **Auto Z Position** to off. 📸🖥️
+- **Rotate Room:** Rotate the entire room either clockwise or counter-clockwise. 🔄
+- Updated the default **Snap to Objects** setting to on if no saved setting is found. 📏
+- New **Credenza / Cabinet** item added. 🪑
+- Disabled the Christmas theme. 🎄
+- Bug fixes and optimization. 🐞✨
 
 **v0.1.637**
 - 🛠️ A new Wall Builder tool is now available under Equipment ➔ Furniture ➔ Walls or use the Quick Add menu. The Wall Builder allows you to quickly draw multiple walls, which are positioned at "miter" angles to one another when exported to the Workspace Designer.

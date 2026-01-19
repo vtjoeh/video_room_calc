@@ -2754,7 +2754,7 @@ let tables = [{
     resizeable: []
 },
 {
-    name: 'Credenza',
+    name: 'Credenza / Cabinet',
     id: 'credenza',
     key: 'WM',
     frontImage: 'credenza-menu.png',
