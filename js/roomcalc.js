@@ -18338,7 +18338,7 @@ fileInputImage.addEventListener('change', function (e) {
 
 function importJson(jsonFile) {
     let jsonFileType = false;
-    console.log('uploading file');
+    console.info('uploading file....');
     roomObj.roomId = createRoomId();
 
     if ('room' in jsonFile) {
@@ -18385,7 +18385,6 @@ function importJson(jsonFile) {
                 turnOnBackgroundImageButtons();
                 setTimeout(() => {
                     isBackgroundImageFloorFileLoad = false;
-                    console.log('isBackgroundImageFloorFileLoad', isBackgroundImageFloorFileLoad);
 
                  }, 1000);
             } else {
