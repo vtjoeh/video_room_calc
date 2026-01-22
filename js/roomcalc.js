@@ -18338,7 +18338,7 @@ fileInputImage.addEventListener('change', function (e) {
 
 function importJson(jsonFile) {
     let jsonFileType = false;
-
+    console.log('uploading file');
     roomObj.roomId = createRoomId();
 
     if ('room' in jsonFile) {
@@ -18383,7 +18383,13 @@ function importJson(jsonFile) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
-                setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
+                setTimeout(() => {
+                    isBackgroundImageFloorFileLoad = false;
+                    console.log('isBackgroundImageFloorFileLoad', isBackgroundImageFloorFileLoad);
+
+                 }, 1000);
+            } else {
+                isBackgroundImageFloorFileLoad = false;
             }
 
             if (!('roomSurfaces' in roomObj)) {
@@ -18836,6 +18842,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
             insertKonvaBackgroundImageFloor();
             turnOnBackgroundImageButtons();
             setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
+        } else {
+            isBackgroundImageFloorFileLoad = false;
         }
 
         drawRoom(true, false, false);
