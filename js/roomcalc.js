@@ -1,4 +1,4 @@
-const version = "v0.1.638";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.639";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -24,6 +24,7 @@ let activeRoomAbsPoints; /* array of points defining the active room */
 let multiUpdateMode = false;
 
 let itemCount = 0; /* Keeps track of number of items in the roomObj when writing to the canvas, used for troubleshooting */
+let postMessageToWorkspaceCount = 0; /* for troubleshooting, count the number of times to send the postMessateToWorkspace message */
 let trNodesLength = 0; /* Keep track of the active trNodeLength */
 
 let mobileDevice; /* Either 'true' / 'false' as a string */
@@ -35,6 +36,7 @@ let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 
 let copyTrNodes = []; /* used to told holde copy of trNodes during manipulation of the tr.nodes() */
 
+let roomObjItemsMap = new Map();
 
 const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
@@ -182,6 +184,8 @@ let characterLimitWarningShow = true;
 
 let vpnTestTimer; /* time to see if the VPN is working */
 
+let postMessageToWorkspaceTimer; /* timer to wait until postingMessage to workspace designer */
+
 let currentDefaultWall = 'leftwall'; /* 'leftwall', 'rightwall', 'videowall', backwall' */
 
 let stageOriginalWidth;
@@ -303,6 +307,9 @@ workspaceKey.phone9861 = { objectType: 'phone', model: "9861", role: "phone", yO
 
 workspaceKey.phone9871 = { objectType: 'phone', model: "9871", role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
+
+workspaceKey.unknownVideoDevice = { objectType: 'videoDevice' }
+
 workspaceKey.roomBar = { objectType: 'videoDevice', model: 'Room Bar', color: 'light', mount: "wall", yOffset: 0.032 };
 workspaceKey.roomBarPro = { objectType: 'videoDevice', model: 'Room Bar Pro', color: 'light', mount: "wall", yOffset: 0.045 };
 workspaceKey.roomKitEqx = { objectType: 'videoDevice', model: 'EQX', mount: 'wall', color: 'dark', mount: "wall", yOffset: 0.076 };
@@ -356,6 +363,7 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+
 workspaceKey.carpet = { objectType: 'carpet', color: "#aaa" };
 
 workspaceKey.ceilingMicPro = { objectType: 'microphone', model: 'Ceiling Mic Pro' };
@@ -437,6 +445,9 @@ workspaceKey.cylinder = { objectType: 'cylinder' };
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
+
+workspaceKey.unknownCamera = { objectType: 'camera' }
+
 /* newer PTZ mount cameras will change the base when flipped */
 workspaceKey.ptz4kMount2 = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.144 };
 
@@ -448,10 +459,6 @@ workspaceKey.ptz4kMount = { objectType: 'camera', model: 'ptz', role: 'extended_
 workspaceKey.ptz4k = { objectType: 'camera', model: 'ptz', role: 'extended_reach', yOffset: 0.183 };
 
 workspaceKey.ptzVision = { objectType: 'camera', model: 'vision', role: 'extended_reach', yOffset: 0.121 };
-
-workspaceKey.webcam4k_2 = { objectType: 'webcam', model: '4k' };
-
-workspaceKey.webcam1080p_2 = { objectType: 'webcam', model: '1080p' };
 
 workspaceKey.webcam4k = { objectType: 'webcam', model: '4k' };
 
@@ -796,20 +803,39 @@ const measuringToolLabel = new Konva.Label({
 
 
 
+// measuringToolLabel.add(
+//     new Konva.Tag({
+//         fill: 'lightgrey',
+//         stroke: 'black',
+//         strokeWidth: 1,
+//         pointerDirection: 'down',
+//         pointerWidth: 0,
+//         pointerHeight: 0,
+//         lineJoin: 'round',
+//         shadowColor: 'black',
+//         shadowBlur: 7,
+//         shadowOffsetX: 5,
+//         shadowOffsetY: 5,
+//         shadowOpacity: 0.5,
+//         cornerRadius: 5,
+//         name: 'tagMeasuringToolLabel',
+//     })
+// );
+
 measuringToolLabel.add(
     new Konva.Tag({
-        fill: 'lightgrey',
-        stroke: 'black',
+        fill: '#588ce5ff',
+        stroke: 'white',
         strokeWidth: 1,
         pointerDirection: 'down',
         pointerWidth: 0,
         pointerHeight: 0,
         lineJoin: 'round',
-        shadowColor: 'black',
-        shadowBlur: 7,
-        shadowOffsetX: 5,
-        shadowOffsetY: 5,
-        shadowOpacity: 0.5,
+        // shadowColor: 'black',
+        // shadowBlur: 7,
+        // shadowOffsetX: 5,
+        // shadowOffsetY: 5,
+        // shadowOpacity: 0.5,
         cornerRadius: 5,
         name: 'tagMeasuringToolLabel',
     })
@@ -819,7 +845,8 @@ const measuringToolText = new Konva.Text({
     text: 'DIST m/f',
     fontSize: 16,
     padding: 5,
-    fill: 'black',
+    // fill: 'black',
+    fill: 'white',
     name: 'measuringToolText',
 })
 
@@ -1396,6 +1423,7 @@ function finishPolyBuilder() {
                 attrs.id = uuid;
                 attrs.data_deviceid = 'polyRoom';
                 roomObj.items[allDeviceTypes['polyRoom'].parentGroup].push(attrs);
+                console.log('attrs', attrs);
 
                 polyBuilderOn(false);
 
@@ -2217,6 +2245,8 @@ let videoDevices = [
     { name: "Board Pro 75 G2: Wall Stand", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
     { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+
+     { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-top.png', width: 350, depth: 350, opacity: 0.6,}
 ]
 
 
@@ -2252,6 +2282,8 @@ let cameras = [
     { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+
+    { name: "Unkown Camera**", id: 'unknownCamera', key: 'CJ', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-top.png', width: 350, depth: 350, opacity: 0.6,},
 
 ]
 
@@ -4652,8 +4684,8 @@ function parseShortenedXYUrl(parameters) {
                 }
 
                 if (shadeArray[8] === '1') {
-                   /* roomObj.workspace.theme = 'christmas'; */
-                   roomObj.workspace.theme = 'regular';
+                    /* roomObj.workspace.theme = 'christmas'; */
+                    roomObj.workspace.theme = 'regular';
                 } else {
                     roomObj.workspace.theme = 'regular';
                 }
@@ -5047,7 +5079,7 @@ function onLoad() {
     if (localStorage.getItem('snapGuidelinesCheckBox') === 'true') {
         document.getElementById('snapGuidelinesCheckBox').checked = true;
     }
-    else if(localStorage.getItem('snapGuidelinesCheckBox') === null){
+    else if (localStorage.getItem('snapGuidelinesCheckBox') === null) {
         document.getElementById('snapGuidelinesCheckBox').checked = true;
     } else {
         document.getElementById('snapGuidelinesCheckBox').checked = false;
@@ -5096,7 +5128,7 @@ function onLoad() {
     if (localStorage.getItem('autoZposition') === 'true') {
         document.getElementById('autoZposition').checked = true;
 
-    } else if(localStorage.getItem('autoZposition') === null){
+    } else if (localStorage.getItem('autoZposition') === null) {
         document.getElementById('autoZposition').checked = true;
     }
     else {
@@ -6314,6 +6346,12 @@ function zoomRoomPart(roomPart) {
 
 }
 
+
+
+
+
+
+
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
 function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false, isZoomingRoomPart = false) {
 
@@ -6740,6 +6778,7 @@ function measuringToolOn(event = true) {
         isSelectingTwoPointsOn = true;
         select2PointsRect.show();
         document.getElementById('measureTool').checked = true;
+        toggleMoreMenu('close')
 
     } else {
         hideMeasuringTool();
@@ -6762,7 +6801,7 @@ function insertKonvaBackgroundImageFloor(includeActiveRoomPart = false) {
         let heightPixel = scale * roomObj.backgroundImage.height;
         let widthPixel = scale * roomObj.backgroundImage.width;
 
-        if(includeActiveRoomPart){
+        if (includeActiveRoomPart) {
             pixelX = pixelX - activeRoomX * scale;
             pixelY = pixelY - activeRoomY * scale;
         }
@@ -7193,7 +7232,16 @@ function creatArrayKeysTypes() {
 
 }
 
+
+
 function createShareableLink() {
+
+    if (itemCount > 750) {
+        fullShareLink = 'https://collabexperience.com/'
+        fullShareLink = location.origin + location.pathname;
+        document.getElementById('shareLink').style.display = 'none'
+        return;
+    }
 
     listItemsOffStage();
     let strUrlQuery2;
@@ -7478,7 +7526,7 @@ function createShareableLinkItem(item) {
         }
     }
 
-    if ('points' in item && item.points.length > 0) {
+    if (item.points && item.points.length > 0) {
 
         const points = item.points.map(point => {
             return Math.round(round(point) * 100)
@@ -7563,6 +7611,7 @@ function createShareableLinkItemShading() {
 
     if (roomObj.workspace.theme === 'christmas') {
         shadeArray[8] = 1;
+
     } else {
         shadeArray[8] = 0;
     }
@@ -8152,8 +8201,10 @@ function pasteItems(duplicate = true) {
         uuids.push(uuid);
         item.newAttr.x = item.newAttr.x + xOffset;
         item.newAttr.y = item.newAttr.y + yOffset;
-
+        itemCount++;
         insertShapeItem(item.deviceId, item.parent, item.newAttr, uuid);
+
+
 
     })
 
@@ -8544,8 +8595,11 @@ function deleteTrNodes(save = true) {
         for (let index = roomObj.items[parentGroup].length - 1; index >= 0; index--) {
             if (roomObj.items[parentGroup][index].id === id) {
                 roomObj.items[parentGroup].splice(index, 1);
+                roomObjItemsMap.delete(id);
             }
         }
+
+        itemCount--;
 
     });
 
@@ -8560,7 +8614,19 @@ function deleteTrNodes(save = true) {
 }
 
 
+function initializeMap() {
+    mapItems.clear();
+    for (const category in roomObj.items) {
+        roomObj.items[category].forEach(item => {
+            mapItems.set(item.id, item);
+        });
+    }
+}
+
+/* draws the roomObjToCanvas and caches the canvas */
 function roomObjToCanvas(roomObjItems) {
+
+    roomObjItemsMap.clear();
 
     itemCount = 0;
 
@@ -8571,6 +8637,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('chairs' in roomObjItems) {
         for (const device of roomObjItems.chairs) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8578,6 +8645,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('stageFloors' in roomObjItems) {
         for (const device of roomObjItems.stageFloors) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8585,6 +8653,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('boxes' in roomObjItems) {
         for (const device of roomObjItems.boxes) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8592,6 +8661,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('rooms' in roomObjItems) {
         for (const device of roomObjItems.rooms) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8599,6 +8669,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('tables' in roomObjItems) {
         for (const device of roomObjItems.tables) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8607,6 +8678,7 @@ function roomObjToCanvas(roomObjItems) {
         for (const device of roomObjItems.videoDevices) {
 
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8614,6 +8686,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('microphones' in roomObjItems) {
         for (const device of roomObjItems.microphones) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8621,6 +8694,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('speakers' in roomObjItems) {
         for (const device of roomObjItems.speakers) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8628,6 +8702,7 @@ function roomObjToCanvas(roomObjItems) {
     if ('displays' in roomObjItems) {
         for (const device of roomObjItems.displays) {
             insertItem(device, device.id);
+            roomObjItemsMap.set(device.id, device);
             itemCount++;
         }
     }
@@ -8824,6 +8899,8 @@ function canvasToJson() {
 
 
 function updateRoomObjFromTrNode() {
+
+    console.time('fullRotateDone')
     console.info('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
         let x, y;
@@ -8950,22 +9027,81 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_slant = node.data_slant;
         }
 
-        let found = false;
 
-        roomObj.items[parentGroup].forEach((item, index) => {
+        let item = roomObjItemsMap.get(node.id());
 
-            if (item.id === node.id()) {
-                found = true;
-                item = itemAttr;
-                roomObj.items[parentGroup][index] = itemAttr;
+        if (item) {
+            item.x = itemAttr.x;
+            item.y = itemAttr.y;
+            item.rotation = itemAttr.rotation;
+            if ('width' in item) {
+                item.width = itemAttr.width;
             }
-        });
+            if ('height' in item) {
+                item.height = itemAttr.height;
+            }
 
-        if (!found) {
-            roomObj.items[parentGroup].push(itemAttr);
+            if (item.itemAttr && itemAttr.points.length > 0) {
+                item.points = itemAttr.points;
+            }
+
+            if ('cornerRadius' in attrs) {
+                item.points = itemAttr.cornerRadius;
+            }
+
+        } else {
+            // console.log('Item not found line 8987, adding to cache:', itemAttr)
+            // roomObj.items[parentGroup].push(itemAttr);
+            // roomObjItemsCache.set(itemAttr.id, itemAttr);
+            let found = false;
+
+            roomObj.items[parentGroup].forEach((item, index) => {
+
+                if (item.id === node.id()) {
+                    found = true;
+                    item = itemAttr;
+                    roomObj.items[parentGroup][index] = itemAttr;
+                    roomObjItemsMap.set(itemAttr.id, itemAttr);
+                    console.log('line 9035');
+                }
+            });
+
+            if (!found) {
+                roomObj.items[parentGroup].push(itemAttr);
+                roomObjItemsMap.set(itemAttr.id, itemAttr);
+                console.log('line 9042');
+
+
+            }
+
+
+
         }
+
+
+
+        // let found = false;
+
+        // roomObj.items[parentGroup].forEach((item, index) => {
+
+        //     if (item.id === node.id()) {
+        //         found = true;
+        //         item = itemAttr;
+        //         roomObj.items[parentGroup][index] = itemAttr;
+        //     }
+        // });
+
+        // if (!found) {
+        //     roomObj.items[parentGroup].push(itemAttr);
+
+        // }
     });
+
+
 };
+
+
+
 
 /*
     Save the tr.nodes() UUIDs to roomObj.trNodes[] array for the purpose of undo/redo shape items being shown selected.
@@ -9035,7 +9171,7 @@ function saveToUndoArray() {
 
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
-
+    console.log('attrs', attrs);
     let tblWallFlr, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
     let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
     let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
@@ -9136,6 +9272,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         unitScale = scale;
     }
 
+
+
     if ('tblRectRadius' in attrs) {
         let tblRectRadius = attrs.tblRectRadius * scale;
         radius[0] = tblRectRadius;
@@ -9190,6 +9328,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         rotation = 0;
     }
 
+    attrs.width = width / scale;
+    attrs.height = height / scale;
+
     if ('data_zPosition' in attrs) {
         data_zPosition = attrs.data_zPosition;
 
@@ -9197,7 +9338,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         data_zPosition = '';
     }
 
-    if ('points' in attrs) {
+    if ('points' in attrs && attrs.points && attrs.points.length > 0) {
         points = convertPointsToPixel(attrs.points);
     }
 
@@ -9859,6 +10000,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         })
     }
 
+    console.log('polyRoom', tblWallFlr);
     if (isActiveRoomPart && (insertDevice.id === 'polyRoom' || insertDevice.id === 'boxRoomPart')) {
         tblWallFlr.hide();
         tblWallFlr.listening(false);
@@ -10049,6 +10191,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     if (attrs.data_labelField) {
         addLabel(tblWallFlr, attrs);
     }
+
+    console.log('roomObjItemsCache', roomObjItemsMap);
 
 }
 
@@ -11046,7 +11190,7 @@ function updateItem() {
             /*
             right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
             */
-
+            console.log('updateItem()', item)
             let node = stage.find('#' + id)[0];
 
             let audioShading = stage.find('#audio~' + node.id())[0];
@@ -12376,9 +12520,10 @@ function insertItem(item, uuid, selectTrNode) {
 
 }
 
+
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
 
-    let hitStrokeWidth = 10; /* px:  allows the user to be close within X pixels to click on shape */
+    let hitStrokeWidth = 0; /* px:  allows the user to be close within X pixels to click on shape */
 
     /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
     if (uuid === '') {
@@ -12398,139 +12543,19 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         abbrUnit = 'ft'
     }
 
-
+    group = stage.findOne('.' + allDeviceTypes[deviceId].parentGroup);
+    insertDevice = allDeviceTypes[deviceId];
+    // groupName = allDeviceTypes[deviceId].parentGroup;
 
     /*
         Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
         if in tables/stageFloors break out of this and go to insertTable.
     */
     if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
-        for (const device of tables) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupTables;
-                break;
-            }
-        }
-
-        for (const device of stageFloors) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupStageFloors;
-                break;
-            }
-        }
-
-        for (const device of boxes) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupBoxes;
-                break;
-            }
-        }
-
-        for (const device of rooms) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupRooms;
-                break;
-            }
-        }
-
         insertTable(insertDevice, groupName, attrs, uuid, selectTrNode)
         return;
     }
 
-
-
-    /* check dragId in microphones */
-    if (groupName === 'microphones') {
-        for (const device of microphones) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupMicrophones;
-                break;
-            }
-        }
-    }
-
-    /* check dragId in videoDevices */
-    if (groupName === 'videoDevices') {
-        for (const device of videoDevices) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupVideoDevices;
-                break;
-            }
-        }
-    }
-
-    if (groupName === 'displays') {
-        for (const device of displays) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupDisplays;
-                break;
-            }
-        }
-    }
-
-    if (groupName === 'chairs') {
-        for (const device of chairs) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupChairs;
-                break;
-            }
-        }
-    }
-
-
-
-    if (groupName === 'boxes') {
-        for (const device of boxes) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupBoxes;
-                break;
-            }
-        }
-    }
-
-    if (groupName === 'rooms') {
-        for (const device of rooms) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupRooms;
-                break;
-            }
-        }
-    }
-
-    if (groupName === 'speakers') {
-        /*
-        for (const device of speakers) {
-            if (device.id === deviceId) {
-                insertDevice = device;
-                group = groupSpeakers;
-                break;
-            }
-        }
-        */
-    }
-
-
-    if (groupName === 'touchPanels') {
-        /*
-         for (const device of touchPan) {
-             if (device.id === deviceId) {
-                 insertDevice = device;
-                 group = groupTouchPanel;
-                 break;
-             }
-         }
-         */
-    }
 
     tr.resizeEnabled(false);
 
@@ -13290,6 +13315,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             padding: 3,
             align: 'center',
         });
+
 
         groupItemDisplayDistance.add(redLine);
         groupItemDisplayDistance.add(greenLine);
@@ -14251,8 +14277,8 @@ function snapRotationOffChange(e) {
     }
 }
 
-function autoZpositionOn(e){
-    if(e.srcElement.checked){
+function autoZpositionOn(e) {
+    if (e.srcElement.checked) {
         setItemForLocalStorage('autoZposition', 'true');
     } else {
         setItemForLocalStorage('autoZposition', 'false');
@@ -15530,7 +15556,7 @@ function addListeners(stage) {
     /* clicks should select/deselect shapes */
     stage.on('click tap', function stageOnClickTap(e) {
 
-        if(e.target.getParent() === tr) return;
+        if (e.target.getParent() === tr) return;
 
 
         count = count + 1;
@@ -15811,6 +15837,8 @@ function insertItemFromMenu(data_deviceid, attrs) {
         insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
 
         roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(attrs);
+
+        roomObjItemsMap.set(attrs.id, attrs);
 
         checkForMultipleCodecsOnDragEnd(data_deviceid);
 
@@ -16254,7 +16282,7 @@ function zoomInOut(zoomChange) {
     /* when there is a large number of nodes, tr nodes take too much screen rewrite time. Temporarily move tr.nodes */
     const nodesCopy = tr.nodes().slice();
     tr.nodes([]);
-
+    let originalZoomValue = zoomValue;
     zoomValue = document.getElementById('zoomValue').textContent;
     zoomValue = zoomValue.replace(/%/, '');
     zoomValue = Number(zoomValue);
@@ -16326,7 +16354,8 @@ function zoomInOut(zoomChange) {
     }
 
     /* resend message to Workspace Designer as orphaned objects can appear if you are zoomed in, so remove zoomed in */
-    if (zoomValue < 102) {
+    if (zoomValue < 102 && zoomValue !== originalZoomValue) {
+
         setTimeout(() => { postMessageToWorkspace(); }, 250);
     }
 
@@ -17296,6 +17325,7 @@ function onKeyDown(e) {
     }
 
     if (key === 'Backspace' || key === 'Delete') {
+        e.preventDefault();
         deleteTrNodes();
         isShortCutKeyUsed = true;
     }
@@ -17826,7 +17856,7 @@ function rotateRoom(rotationAmount) {
 
 
     if (isActiveRoomPart) {
-        alertDialog('Room Rotate Not Available.', 'First go back to the floorplan overview, then rotate entire floorplan.')
+        alertDialog('Rotate Room Not Available.', 'First go back to the floorplan overview, then rotate entire floorplan.')
         return;
     }
 
@@ -18627,8 +18657,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
             if (wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
                 wdItem.objectType = 'plant';
 
-            /* save for next year */
-            /*     roomObj2.workspace.theme = 'christmas'; */
+                /* save for next year */
+                /*     roomObj2.workspace.theme = 'christmas'; */
             }
 
             /* export and import of the simulated display is not fully supported, therefore convert it from a wall into a column to keep the object */
@@ -18664,10 +18694,16 @@ function importWorkspaceDesignerFile(workspaceObj) {
                         }
                     }
 
+
                     if ('model' in keyItem && 'model' in wdItem) {
+                        console.log
                         if (keyItem.model === wdItem.model) {
                             hits = hits + 40;
                             delete modifiedWdItem.model;
+                        } else {
+
+                           if (keyItem.objectType === 'videoDevice' || keyItem.objectType === 'camera') continue;
+
                         }
                     }
 
@@ -18784,6 +18820,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     if (workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.workspace && workspaceObj.data.vrc.workspace.theme) {
         roomObj2.workspace.theme = workspaceObj.data.vrc.workspace.theme;
+
+
         console.info('roomObj.workspace.theme: ', roomObj2.workspace.theme);
     }
 
@@ -19548,12 +19586,24 @@ function openDetailsRoomTab() {
 
 function postMessageToWorkspace() {
 
+    let time = Math.round(itemCount / 50) + 100;
+
+    clearTimeout(postMessageToWorkspaceTimer)
+
+    postMessageToWorkspaceTimer = setTimeout(postMessageToWorkspacNow, time)
+}
+
+
+function postMessageToWorkspacNow() {
+
     let unit = 'meter';
     let message = {};
 
     if (roomObj.unit === 'feet') {
         unit = 'foot'
     }
+    postMessageToWorkspaceCount++;
+    console.log('postMessageToWorkspaceCount', postMessageToWorkspaceCount);
 
     message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
@@ -19562,6 +19612,8 @@ function postMessageToWorkspace() {
 
     // message.roomdesigner.settings.roomView = 'farEnd'; // overview | farEnd | tableEnd | above | cameraCoverage | micCoverage | displayCoverage | accessibility | cables
     // message.roomdesigner.settings.occupancy = 'medium';  // empty | medium | full
+
+
 
     if (workspaceWindow) {
         workspaceWindow.postMessage(message, '*');
@@ -20088,9 +20140,11 @@ function exportRoomObjToWorkspace() {
         let item = structuredClone(newItem);
 
         /* plants will be converted to christmas trees. Note: scale is different */
+        /*
         if (item.data_deviceid === 'plant' && roomObj.workspace.theme === 'christmas') {
             item.data_deviceid = 'tree';
         }
+         */
 
         if ((item.data_deviceid in workspaceKey)) {
             attr = workspaceKey[item.data_deviceid];

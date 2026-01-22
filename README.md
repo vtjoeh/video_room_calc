@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.639**
+- fixed bug on import of webcams from Workspace Designer file introduced in v0.1.638.
+- Optimization for larger files.
 
 **v0.1.638 release**
 - **Auto Z-Position:** Automatically places cameras and selected video devices on top of displays after dragging the camera onto the display by adjusting the z-position to align with the top of the display. The default value is On, but it can be turned off by clicking the Ellipse [...] and toggling **Auto Z Position** to off. 📸🖥️
