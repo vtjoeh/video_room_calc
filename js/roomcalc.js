@@ -1423,7 +1423,7 @@ function finishPolyBuilder() {
                 attrs.id = uuid;
                 attrs.data_deviceid = 'polyRoom';
                 roomObj.items[allDeviceTypes['polyRoom'].parentGroup].push(attrs);
-                console.log('attrs', attrs);
+
 
                 polyBuilderOn(false);
 
@@ -2080,7 +2080,7 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
 
 
         let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
-        lineDistance = round(lineDistance / scale);
+        lineDistance = round(lineDistance / scale).toFixed(2);
         let txtUnit = 'ft';
         if (roomObj.unit === 'meters') {
             txtUnit = 'm';
@@ -8900,7 +8900,6 @@ function canvasToJson() {
 
 function updateRoomObjFromTrNode() {
 
-    console.time('fullRotateDone')
     console.info('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
         let x, y;
@@ -9050,9 +9049,7 @@ function updateRoomObjFromTrNode() {
             }
 
         } else {
-            // console.log('Item not found line 8987, adding to cache:', itemAttr)
-            // roomObj.items[parentGroup].push(itemAttr);
-            // roomObjItemsCache.set(itemAttr.id, itemAttr);
+
             let found = false;
 
             roomObj.items[parentGroup].forEach((item, index) => {
@@ -9062,15 +9059,13 @@ function updateRoomObjFromTrNode() {
                     item = itemAttr;
                     roomObj.items[parentGroup][index] = itemAttr;
                     roomObjItemsMap.set(itemAttr.id, itemAttr);
-                    console.log('line 9035');
+
                 }
             });
 
             if (!found) {
                 roomObj.items[parentGroup].push(itemAttr);
                 roomObjItemsMap.set(itemAttr.id, itemAttr);
-                console.log('line 9042');
-
 
             }
 
@@ -9171,7 +9166,7 @@ function saveToUndoArray() {
 
 
 function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
-    console.log('attrs', attrs);
+
     let tblWallFlr, data_zPosition, data_vHeight, data_trapNarrowWidth, width2;
     let width = 1220 / 1000 * scale; /* default width:  is about 4 feet */
     let height = 2440 / 1000 * scale; /* default table:  height is about 8 feet */
@@ -10000,7 +9995,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         })
     }
 
-    console.log('polyRoom', tblWallFlr);
     if (isActiveRoomPart && (insertDevice.id === 'polyRoom' || insertDevice.id === 'boxRoomPart')) {
         tblWallFlr.hide();
         tblWallFlr.listening(false);
@@ -10192,7 +10186,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         addLabel(tblWallFlr, attrs);
     }
 
-    console.log('roomObjItemsCache', roomObjItemsMap);
 
 }
 
@@ -11190,7 +11183,7 @@ function updateItem() {
             /*
             right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
             */
-            console.log('updateItem()', item)
+
             let node = stage.find('#' + id)[0];
 
             let audioShading = stage.find('#audio~' + node.id())[0];
@@ -18696,7 +18689,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
 
                     if ('model' in keyItem && 'model' in wdItem) {
-                        console.log
+
                         if (keyItem.model === wdItem.model) {
                             hits = hits + 40;
                             delete modifiedWdItem.model;
@@ -19603,7 +19596,6 @@ function postMessageToWorkspacNow() {
         unit = 'foot'
     }
     postMessageToWorkspaceCount++;
-    console.log('postMessageToWorkspaceCount', postMessageToWorkspaceCount);
 
     message = { roomdesigner: { plan: exportRoomObjToWorkspace(), settings: { unit: unit } } }
 
