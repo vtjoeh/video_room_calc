@@ -3382,9 +3382,10 @@ function expandVideoDeviceArray() {
 creatArrayKeysTypes();
 /* UUUID is used for unique IDs for each shape and session. */
 function createUuid() {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    );
+    // return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    //     (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    // );
+    return crypto.randomUUID();
 }
 
 function createRoomId() {
@@ -15773,6 +15774,8 @@ function dragEnd(event) {
 
 
 function pointerupInsertMenu(event) {
+
+    return;
     const { roomWidth, roomLength } = roomObj.room;
 
     const attrs = {};
