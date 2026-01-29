@@ -2029,6 +2029,8 @@ hr.rightClickHorizontalLine {
     width: 100%;
     padding: 0px;
     max-width: unset;
+    position: absolute;
+    z-index: 99;
   }
 
   #controlButtons {

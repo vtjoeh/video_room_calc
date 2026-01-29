@@ -36,7 +36,9 @@ let defaultWallHeight = 2.5; /* meters. Overwirtten by Wall Height field */
 
 let copyTrNodes = []; /* used to told holde copy of trNodes during manipulation of the tr.nodes() */
 
-let roomObjItemsMap = new Map();
+let roomObjItemsMap = new Map();  /* keep track of all roomObj.items with a map for faster finding */
+
+let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding roomObj.items with a map for faster finding */
 
 const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
@@ -2214,11 +2216,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
-    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
 
@@ -2246,7 +2248,7 @@ let videoDevices = [
 
     { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-     { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-top.png', width: 350, depth: 350, opacity: 0.6,}
+    { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, }
 ]
 
 
@@ -2283,7 +2285,7 @@ let cameras = [
 
     { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Unkown Camera**", id: 'unknownCamera', key: 'CJ', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-top.png', width: 350, depth: 350, opacity: 0.6,},
+    { name: "Unkown Camera**", id: 'unknownCamera', key: 'CJ', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
 
 ]
 
@@ -2619,6 +2621,7 @@ let microphones = [
         height: 10,
         defaultVert: 2500,
         speakerRadius: 1500,
+        innerSpeakerRadius: 0,
         speakerDeg: 360,
     },
     {
@@ -3222,7 +3225,7 @@ let displays = [
     },
 
     {
-        name: 'Single 21:9 (MTR Only) display',
+        name: 'Single 21:9 display',
         id: 'display21_9',
         key: 'DD',
         frontImage: 'display21_9-front.png',
@@ -3755,6 +3758,8 @@ function windowResizeEventName() {
 
     let blurryDiv = document.getElementById('scroll-container');
     blurryDiv.classList.add('my-blurred-div');
+
+    zoomInOut('reset');
 
     trNodesUuidToRoomObj();
     toggleMoreMenu('close');
@@ -4916,9 +4921,6 @@ function deleteBackgroundImage() {
 
 function resetRoomObj() {
 
-
-
-
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
     roomObj.layersVisible.grShadingCamera = true;  /* true or false */
@@ -4998,6 +5000,8 @@ function resetRoomObj() {
 
     wallBuilderOn(false);
     polyBuilderOn(false);
+
+    canvasNodesMap.clear();
 }
 
 
@@ -5436,12 +5440,6 @@ function createTableChairs(table, tableUuid) {
         chairAttr.id = chairUuid;
         addItemToRoomObj(chairAttr);
         insertItem(chairAttr, chairUuid);
-
-
-
-
-
-
     }
 
     /* Chairs on right site of table */
@@ -5572,7 +5570,6 @@ function quickSetupInsert() {
                 displayAttr.data_deviceid = displayId;
                 displayAttr.id = displayUuid;
 
-                // insertShapeItem(displayId, 'displays', displayAttr, displayUuid, false);
                 insertItem(displayAttr, displayUuid);
 
                 addItemToRoomObj(displayAttr);
@@ -5581,8 +5578,6 @@ function quickSetupInsert() {
             }
         }
     });
-
-    // insertShapeItem(videoDeviceId, 'videoDevices', videoAttr, videoDeviceUuid, false);
 
     videoAttr.id = videoDeviceId;
     videoAttr.data_deviceid = videoDeviceId;
@@ -5769,13 +5764,9 @@ function drawOutsideWall(grOuterWall) {
 
         let outsideWallLeft = new Konva.Rect({
             x: pxOffset - outsideWallThickness * scale,
-            //   y: pyOffset - outsideWallThickness * scale,
             y: pyOffset,
             width: outsideWallThickness * scale,
-            //   height: (roomLength + outsideWallThickness * 2) * scale,
             height: roomLength * scale,
-            // stroke: '#8f8d8d',
-            // strokeWidth: 1,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
             id: 'defaultOutsideWallLeft',
@@ -5794,8 +5785,6 @@ function drawOutsideWall(grOuterWall) {
             rotation: 180,
             width: outsideWallThickness * scale,
             height: roomLength * scale,
-            // stroke: '#8f8d8d',
-            // strokeWidth: 1,
             fill: defaultWallColor,
             opacity: defaultWallOpacity,
             id: 'defaultOutsideWallRight',
@@ -6267,25 +6256,26 @@ function showEntireFloor() {
     activeRoomX = 0;
     activeRoomY = 0;
     isActiveRoomPart = false;
+
+
+    let activeRoomNode = stage.findOne('#' + activeRoomPartItem.id);
+
     activeRoomPartItem = null;
 
-    const boxRoomParts = stage.find('.boxRoomPart');
-    boxRoomParts.forEach(boxRoomPart => {
-        boxRoomPart.show();
-        boxRoomPart.listening(true);
-    });
+    if (activeRoomNode) {
 
-
-    const polyRooms = stage.find('.polyRoom');
-    polyRooms.forEach(polyRoom => {
-        polyRoom.show();
-        polyRoom.listening(true);
-    });
-
-
+        activeRoomNode.fill('#ADD8E655');
+        activeRoomNode.listening(true);
+        activeRoomNode.draggable(true);
+    }
 
     drawRoom(true);
+
+
 }
+
+
+
 
 
 function zoomRoomPart(roomPart) {
@@ -6297,14 +6287,9 @@ function zoomRoomPart(roomPart) {
     disableRoomSettings(true);
 
     /* keep track of the activeRoomPartItem in the roomObj */
-    let data_deviceid = roomPart.data_deviceid;
     let id = roomPart.id();
 
-    roomObj.items[allDeviceTypes[data_deviceid].parentGroup].forEach(item => {
-        if (item.id === id) {
-            activeRoomPartItem = item;
-        };
-    });
+    activeRoomPartItem = roomObjItemsMap.get(id);
 
     document.getElementById('btnBackToFloorPlan').style.display = '';
 
@@ -6393,8 +6378,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
     }
 
-
-
     let windowWidth = window.innerWidth;
 
 
@@ -6439,8 +6422,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
-    // pxOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomWidth + 40;
-    // pyOffset = ((roomObj.unit === 'feet') ? 3.28084 : 1) * 68 / roomLength + 40;
 
     updateDefaultWallsMenu(currentDefaultWall);
 
@@ -6612,7 +6593,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let kGrid = kDrawGrid(pxOffset, pxOffset, (activeRoomWidth * scale) + pxOffset, (activeRoomLength * scale) + pxOffset, scale, increment);
 
-    titleGroup = drawTitleGroup();
+    // titleGroup = drawTitleGroup();
 
     layerGrid.add(titleGroup);
 
@@ -6648,7 +6629,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         insertKonvaBackgroundImageFloor();
 
-        roomObjToCanvas(roomObj.items);
+        roomObjToCanvas(isZoomingRoomPart);
 
         if (isZoomingRoomPart) {
             roomObj.trNodes = [];
@@ -6668,6 +6649,13 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     } else {
 
         updateShapesBasedOnNewScale();
+
+        if (isZoomingRoomPart) {
+            roomObj.trNodes = [];
+        } else {
+            trNodesFromUuids(roomObj.trNodes, false);
+        }
+
         insertKonvaBackgroundImageFloor(true);
     }
 
@@ -8262,14 +8250,14 @@ function stageAddLayers() {
     layerGrid.add(layerBackgroundImageFloor);
     layerTransform.add(groupStageFloors);
     layerTransform.add(grShadingCamera);
+    layerTransform.add(grDisplayDistance);
     layerTransform.add(groupTables);
     layerTransform.add(groupChairs);
     layerTransform.add(groupBoxes);
 
 
-
     layerTransform.add(grShadingMicrophone);
-    layerTransform.add(grDisplayDistance);
+
     layerTransform.add(grShadingSpeaker);
 
     layerTransform.add(groupDisplays);
@@ -8334,6 +8322,9 @@ function displayDistanceVisible(state = 'buttonPress') {
 
 
 function labelsVisible(state = 'buttonPress') {
+
+    testSearchShapeToNode();
+
     let saveToUndo = false;
     let button = document.getElementById('btnLabelsToggle');
 
@@ -8530,20 +8521,20 @@ function toggleLabels(button) {
     if (button.children[0].textContent === 'label') {
         button.children[0].textContent = 'label_off';
         button.style["color"] = toggleButtonOffColor;
-        roomObj.layersVisible.labels = false;
+        roomObj.layersVisible.grLabels = false;
     } else {
         button.children[0].textContent = 'label'
         button.style["color"] = toggleButtonOnColor;
-        roomObj.layersVisible.labels = true;
+        roomObj.layersVisible.grLabels = true;
     }
-
 
 }
 
 let selectionRectangle = new Konva.Rect({
-    fill: 'rgba(0,0,255,0.5)',
+    fill: 'rgba(0, 110, 255, 0.3)',
+    strokeWidth: 1,
+    stroke: 'rgba(0, 110, 255)',
     visible: false,
-    /*  disable listening to not interrupt other events */
     listening: false,
 });
 
@@ -8597,6 +8588,7 @@ function deleteTrNodes(save = true) {
             if (roomObj.items[parentGroup][index].id === id) {
                 roomObj.items[parentGroup].splice(index, 1);
                 roomObjItemsMap.delete(id);
+                canvasNodesMap.delete(id);
             }
         }
 
@@ -8624,10 +8616,14 @@ function initializeMap() {
     }
 }
 
-/* draws the roomObjToCanvas and caches the canvas */
-function roomObjToCanvas(roomObjItems) {
 
-    roomObjItemsMap.clear();
+/* draws the roomObjToCanvas and caches the canvas */
+function roomObjToCanvas(updateExisting = false) {
+
+    if (!updateExisting) {
+        roomObjItemsMap.clear();
+        // canvasNodesMap.clear();
+    }
 
     itemCount = 0;
 
@@ -8635,80 +8631,21 @@ function roomObjToCanvas(roomObjItems) {
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
 
-    if ('chairs' in roomObjItems) {
-        for (const device of roomObjItems.chairs) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
+    for (const category in roomObj.items) {
+        for (const i in roomObj.items[category]) {
+            let item = roomObj.items[category][i];
+
+            insertItem(item, item.id);
+            if (!updateExisting) {
+                roomObjItemsMap.set(item.id, item);
+            }
+
             itemCount++;
         }
     }
 
-    if ('stageFloors' in roomObjItems) {
-        for (const device of roomObjItems.stageFloors) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
+    console.info('total Items Inserted or Updated:', itemCount);
 
-    if ('boxes' in roomObjItems) {
-        for (const device of roomObjItems.boxes) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('rooms' in roomObjItems) {
-        for (const device of roomObjItems.rooms) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('tables' in roomObjItems) {
-        for (const device of roomObjItems.tables) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('videoDevices' in roomObjItems) {
-        for (const device of roomObjItems.videoDevices) {
-
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('microphones' in roomObjItems) {
-        for (const device of roomObjItems.microphones) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('speakers' in roomObjItems) {
-        for (const device of roomObjItems.speakers) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    if ('displays' in roomObjItems) {
-        for (const device of roomObjItems.displays) {
-            insertItem(device, device.id);
-            roomObjItemsMap.set(device.id, device);
-            itemCount++;
-        }
-    }
-
-    console.info('total Items Inserted or Updated', itemCount);
 
 }
 
@@ -9060,6 +8997,7 @@ function updateRoomObjFromTrNode() {
                     item = itemAttr;
                     roomObj.items[parentGroup][index] = itemAttr;
                     roomObjItemsMap.set(itemAttr.id, itemAttr);
+                    canvasNodesMap.set(itemAttr.id, itemAttr);
 
                 }
             });
@@ -9067,6 +9005,7 @@ function updateRoomObjFromTrNode() {
             if (!found) {
                 roomObj.items[parentGroup].push(itemAttr);
                 roomObjItemsMap.set(itemAttr.id, itemAttr);
+                canvasNodesMap.set(itemAttr.id, itemAttr);
 
             }
 
@@ -9183,6 +9122,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     let fillColor = 'white'; /* default color */
     let strokeColor = 'black'; /* default width */
+
+
+    /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
+    if (uuid === '') {
+        uuid = createUuid();
+    }
+    // else {
+    //     updateNode = canvasNodesMap.get(uuid);
+    // }
 
     /* default width of columns 1 ft x 1 ft */
     if (insertDevice.id.startsWith('column')) {
@@ -9400,9 +9348,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
         });
-    }
-
-    if (insertDevice.id === 'tblRect') {
+    } else if (insertDevice.id === 'tblRect') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9417,9 +9363,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
         });
-    }
-
-    if (insertDevice.id === 'tblUnknownObj') {
+    } else if (insertDevice.id === 'tblUnknownObj') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9435,9 +9379,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
             opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
         });
-    }
-
-    if (insertDevice.id === 'credenza') {
+    } else if (insertDevice.id === 'credenza') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9469,10 +9411,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-
-    if (insertDevice.id === 'tblEllip') {
+    } else if (insertDevice.id === 'tblEllip') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9523,9 +9462,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         });
 
-    }
-
-    if (insertDevice.id === 'cylinder') {
+    } else if (insertDevice.id === 'cylinder') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9546,10 +9483,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.fillStrokeShape(shape);
             }
         });
-    }
-
-    /* a podium in s just an ellipse with a set width & height (length) */
-    if (insertDevice.id === 'tblPodium') {
+    } else if (insertDevice.id === 'tblPodium') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9566,16 +9500,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 let podWidth = shape.width() * 0.8;
                 let podHeight = shape.height() * 0.8;
                 context.beginPath();
-                /* don't need to set position of ellipse, Konva will handle it */
+
                 context.ellipse(shape.width() / 2, shape.height() / 2, podWidth / 2, podHeight / 2, 0, 0, 2 * Math.PI);
-                /* (!) Konva specific method, it is very important - it will apply are required styles */
+
                 context.fillStrokeShape(shape);
             }
         });
-    }
-
-
-    if (insertDevice.id === 'tblTrap') {
+    } else if (insertDevice.id === 'tblTrap') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9601,10 +9532,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-
-    if (insertDevice.id === 'tblShapeU') {
+    } else if (insertDevice.id === 'tblShapeU') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9645,11 +9573,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-
-
-    if (insertDevice.id === 'tblCurved') {
+    } else if (insertDevice.id === 'tblCurved') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9682,9 +9606,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-    if (insertDevice.id === 'box') {
+    } else if (insertDevice.id === 'box') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9699,10 +9621,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
         });
-    }
-
-
-    if (insertDevice.id === 'carpet') {
+    } else if (insertDevice.id === 'carpet') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9718,9 +9637,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
             opacity: 1,
         });
-    }
-
-    if (insertDevice.id === 'stageFloor') {
+    } else if (insertDevice.id === 'stageFloor') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9736,9 +9653,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
             opacity: 1,
         });
-    }
-
-    if (insertDevice.id === 'wallStd') {
+    } else if (insertDevice.id === 'wallStd') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9764,9 +9679,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-    if (insertDevice.id === 'wallGlass') {
+    } else if (insertDevice.id === 'wallGlass') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9792,11 +9705,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-
-
-    if (insertDevice.id === 'wallWindow') {
+    } else if (insertDevice.id === 'wallWindow') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9832,9 +9741,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
 
 
-    }
-
-    if (insertDevice.id === 'wallChairs') {
+    } else if (insertDevice.id === 'wallChairs') {
         let chairScale = scale / 24 * 0.65;
         if (roomObj.unit === 'meters') {
             chairScale = chairScale / 3.28084;
@@ -9875,8 +9782,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         windowBackgroundObj.src = './assets/images/chairs-top.png';
 
     }
-
-    if (insertDevice.id === 'couch') {
+    else if (insertDevice.id === 'couch') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -9941,11 +9847,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    }
-
-
-
-    if (insertDevice.id === 'columnRect') {
+    } else if (insertDevice.id === 'columnRect') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9960,9 +9862,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             opacity: opacity,
         });
 
-    }
-
-    if (insertDevice.id === 'boxRoomPart') {
+    } else if (insertDevice.id === 'boxRoomPart') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -9977,10 +9877,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 1,
         });
-    }
-
-
-    if (insertDevice.id === 'polyRoom') {
+    } else if (insertDevice.id === 'polyRoom') {
         tblWallFlr = new Konva.Line({
             x: pixelX,
             y: pixelY,
@@ -10039,7 +9936,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     };
 
     if ('scaleY' in attrs) {
-        tblWallFlr.scaleX = attrs.scaleX;
+        tblWallFlr.scaleY = attrs.scaleY;
     };
 
     if ('name' in attrs) {
@@ -10085,7 +9982,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         if (isAllCoverageGroupHidden) return;
 
-        snapToGuideLines(e, true);
+        //  snapToGuideLines(e);
         if (tblWallFlr.data_labelField) {
             updateShading(tblWallFlr);
         }
@@ -10099,14 +9996,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
 
-
         if (isAllCoverageGroupHidden) return;
 
         snapToGuideLines(e);
 
         snapCenterToIncrement(tblWallFlr);
-
-
 
         if (!tr.nodes().includes(e.target)) {
             tr.nodes([e.target]);
@@ -10187,7 +10081,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         addLabel(tblWallFlr, attrs);
     }
 
-
+    canvasNodesMap.set(tblWallFlr.id(), tblWallFlr);
 }
 
 /* todo: fix slipping of when stretching walls or tables */
@@ -10657,13 +10551,15 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
 }
 
+
 function removeShadingTrNodes() {
 
     if (mobileDevice === 'iOS' || mobileDevice === 'Android') return;
 
+    let copyTrNodes = tr.nodes().slice();
+
     lastTrNodesWithShading.forEach(node => {
         if (('data_deviceid' in node)) {
-
 
             if ('image' in node.attrs) {
                 node.strokeEnabled(false);
@@ -10694,6 +10590,7 @@ function removeShadingTrNodes() {
     });
 
     lastTrNodesWithShading = [];
+    tr.nodes(copyTrNodes);
 }
 
 function updateTrNodesShadingTimer() {
@@ -10712,7 +10609,7 @@ function updateTrNodesShading() {
 
     removeShadingTrNodes();
 
-    if (tr.nodes().length > 400) {
+    if (tr.nodes().length > 1500) {
         return;
     }
 
@@ -11549,10 +11446,6 @@ function createDeviceMenu(parentButton, attributeType) {
             hightlightOverlayForDevice(opt, attributeType, false, checkbox);
         });
 
-        // menuReachItem.addEventListener('touchend', () => {
-        //     menuReachItem.style.backgroundColor = 'transparent';
-        //     hightlightOverlayForDevice(opt, attributeType, false, checkbox);
-        // } )
 
         menuReach.appendChild(menuReachItem);
     });
@@ -12515,14 +12408,72 @@ function insertItem(item, uuid, selectTrNode) {
 }
 
 
+function testSearchShapeToNode() {
+    return;
+    console.log('*****************************')
+    console.time('findNodes');
+    let nodeCount = 0;
+    let itemCount = 0;
+    for (const category in roomObj.items) {
+        for (const i in roomObj.items[category]) {
+            itemCount++;
+            let item = roomObj.items[category][i];
+
+            let node = stage.findOne('#' + item.id);
+
+            if (node) {
+                nodeCount++;
+            }
+        }
+    }
+
+    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
+    console.timeEnd('findNodes');
+
+    console.time('findAllItems2');
+
+    nodeCount = 0;
+    itemCount = 0;
+
+
+    selectAllNodes().forEach(node => {
+        nodeCount++;
+        if (roomObjItemsMap.get(node.attrs.id)) {
+            itemCount++;
+        }
+    });
+
+    console.timeEnd('findAllItems2');
+    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
+
+
+
+
+    nodeCount = 0;
+    itemCount = 0;
+    for (const category in roomObj.items) {
+        for (const i in roomObj.items[category]) {
+            itemCount++;
+            let item = roomObj.items[category][i];
+
+            let node = canvasNodesMap.get(item.id);
+
+            if (node) {
+                nodeCount++;
+                console.log(node.id(), node.data_deviceid);
+            }
+        }
+    }
+
+    console.timeEnd('findAllNodes2');
+    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
+
+}
+
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
 
     let hitStrokeWidth = 0; /* px:  allows the user to be close within X pixels to click on shape */
-
-    /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
-    if (uuid === '') {
-        uuid = createUuid();
-    }
+    let updateNode;
 
     /* scale the attrs to fit grid */
     let pixelX = scale * attrs.x + pxOffset - activeRoomX * scale;
@@ -12537,9 +12488,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         abbrUnit = 'ft'
     }
 
-    group = stage.findOne('.' + allDeviceTypes[deviceId].parentGroup);
+
+    allNodeShapeGroups.forEach(shapeGroup => {
+        if (shapeGroup.name() === allDeviceTypes[deviceId].parentGroup) {
+            group = shapeGroup;
+        }
+    });
+
     insertDevice = allDeviceTypes[deviceId];
-    // groupName = allDeviceTypes[deviceId].parentGroup;
+    groupName = group.name();
 
     /*
         Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
@@ -12550,6 +12507,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         return;
     }
 
+    /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
+    if (uuid === '') {
+        uuid = createUuid();
+    }
+    // else {
+    //     updateNode = canvasNodesMap.get(uuid);
+    // }
 
     tr.resizeEnabled(false);
 
@@ -12655,6 +12619,88 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     /* convert to upper left pixel position before conversion */
     let cornerXY = findUpperLeftXY({ x: pixelX, y: pixelY, rotation: rotation, width: width, height: height });
 
+    if (updateNode) {
+        updateNodeAttributes(updateNode);
+        return;
+    }
+
+    function updateNodeAttributes(node) {
+        node.x(cornerXY.x);
+        node.y(cornerXY.y);
+        node.width(width);
+        node.height(height);
+        node.rotation(rotation);
+
+
+        if ('scaleX' in attrs) {
+            node.scaleX = attrs.scaleX;
+        };
+
+        if ('scaleY' in attrs) {
+            node.scaleX = attrs.scaleX;
+        };
+
+        if ('data_diagonalInches' in attrs) {
+            node.data_diagonalInches = data_diagonalInches;
+        }
+
+        if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
+            node.data_zPosition = data_zPosition;
+        }
+
+        if ('data_vHeight' in attrs && attrs.data_vHeight != '') {
+            node.data_vHeight = data_vHeight;
+        }
+
+        if ('data_tilt' in attrs && attrs.data_tilt != '') {
+            node.data_tilt = data_tilt;
+        }
+
+        if ('data_slant' in attrs && attrs.data_slant != '') {
+            node.data_slant = data_slant;
+        }
+
+        if ('data_labelField' in attrs && attrs.data_labelField.trim() !== '{}') {
+            node.data_labelField = attrs.data_labelField;
+        }
+
+        if (attrs.data_fovHidden) {
+            node.data_fovHidden = attrs.data_fovHidden;
+        }
+
+        if (attrs.data_audioHidden) {
+            node.data_audioHidden = attrs.data_audioHidden;
+        }
+
+        if (attrs.data_dispDistHidden) {
+            node.data_dispDistHidden = attrs.data_dispDistHidden;
+        }
+
+        if ('data_role' in attrs) {
+            node.data_role = attrs.data_role; /* data_role.value & data_role.index */
+        }
+
+        if ('data_color' in attrs) {
+            node.data_color = attrs.data_color; /* data_color.value & data_color.index */
+        }
+
+
+        if ('data_mount' in attrs) {
+            node.data_mount = attrs.data_mount; /* data_mount.value & data_mount.index */
+        }
+
+        if ('name' in insertDevice) {
+            node.name(insertDevice.name);
+        }
+
+        if ('opacity' in insertDevice) {
+            node.opacity(insertDevice.opacity);
+        }
+
+        // updateShading(node);
+
+        console.timeEnd('stage3_updateNodeAttributes');
+    }
 
     let imageObj = new Image();
 
@@ -12674,71 +12720,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.data_deviceid = deviceId;
 
-
-        if ('scaleX' in attrs) {
-            imageItem.scaleX = attrs.scaleX;
-        };
-
-        if ('scaleY' in attrs) {
-            imageItem.scaleX = attrs.scaleX;
-        };
-
-        if ('data_diagonalInches' in attrs) {
-            imageItem.data_diagonalInches = data_diagonalInches;
-        }
-
-        if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
-            imageItem.data_zPosition = data_zPosition;
-        }
-
-        if ('data_vHeight' in attrs && attrs.data_vHeight != '') {
-            imageItem.data_vHeight = data_vHeight;
-        }
-
-        if ('data_tilt' in attrs && attrs.data_tilt != '') {
-            imageItem.data_tilt = data_tilt;
-        }
-
-        if ('data_slant' in attrs && attrs.data_slant != '') {
-            imageItem.data_slant = data_slant;
-        }
-
-        if ('data_labelField' in attrs && attrs.data_labelField.trim() !== '{}') {
-            imageItem.data_labelField = attrs.data_labelField;
-        }
-
-        if (attrs.data_fovHidden) {
-            imageItem.data_fovHidden = attrs.data_fovHidden;
-        }
-
-        if (attrs.data_audioHidden) {
-            imageItem.data_audioHidden = attrs.data_audioHidden;
-        }
-
-        if (attrs.data_dispDistHidden) {
-            imageItem.data_dispDistHidden = attrs.data_dispDistHidden;
-        }
-
-        if ('data_role' in attrs) {
-            imageItem.data_role = attrs.data_role; /* data_role.value & data_role.index */
-        }
-
-        if ('data_color' in attrs) {
-            imageItem.data_color = attrs.data_color; /* data_color.value & data_color.index */
-        }
-
-
-        if ('data_mount' in attrs) {
-            imageItem.data_mount = attrs.data_mount; /* data_mount.value & data_mount.index */
-        }
-
-        if ('name' in insertDevice) {
-            imageItem.name(insertDevice.name);
-        }
-
-        if ('opacity' in insertDevice) {
-            imageItem.opacity(insertDevice.opacity);
-        }
+        updateNodeAttributes(imageItem);
 
         imageItem.on('dragend', function imageItemOnDragEnd() {
             if (trNodesLength > 1) return;
@@ -12863,6 +12845,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             }
 
         }
+
+        canvasNodesMap.set(imageItem.id(), imageItem);
 
 
     };
@@ -13050,6 +13034,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             groupFov.add(txtTwoPersonFov);
         }
 
+
         groupFov.add(teleOnePersonFOV);
         groupFov.add(wideFOV);
         groupFov.add(teleTwoPersonFOV);
@@ -13138,6 +13123,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     if ('speakerRadius' in insertDevice && 'speakerDeg' in insertDevice) {
 
+
         let groupSpeakerCoverage = new Konva.Group({
             id: 'speaker~' + uuid,
             x: pixelX,
@@ -13157,14 +13143,23 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         let lblSpeakerRadius = insertDevice.speakerRadius / 1000;
 
+
+        let innerRadius = speakerRadius * 0.2;
+
+        if ('innerSpeakerRadius' in insertDevice) {
+            innerRadius = insertDevice.innerSpeakerRadius * scale;
+        }
+
         if (unit === 'feet') {
+            innerRadius = innerRadius * 3.28084;
             speakerRadius = speakerRadius * 3.28084;
             lblSpeakerRadius = lblSpeakerRadius * 3.28084;
         }
 
-        let speakerShadingLine = new Konva.Wedge({
+        let speakerShadingLine = new Konva.Arc({
             /* x and y should be tracked in the group only */
-            radius: speakerRadius,
+            innerRadius: innerRadius,
+            outerRadius: speakerRadius,
             angle: insertDevice.speakerDeg,
             name: 'speaker-' + deviceId + '-' + groupName,
             rotation: 90 - insertDevice.speakerDeg / 2,
@@ -13177,11 +13172,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
         /* audioShadingLine & audioShadingShade combine to form the coverage */
-        let speakerShadingShade = new Konva.Wedge({
+        let speakerShadingShade = new Konva.Arc({
             /* x and y should be tracked in the group only */
-            radius: speakerRadius * 1.2,
+            innerRadius: innerRadius,
+            outerRadius: speakerRadius * 1.2,
             angle: insertDevice.speakerDeg,
-            stroke: '',
             strokeWidth: 3,
             name: 'speaker-' + deviceId + '-' + groupName,
             rotation: 90 - insertDevice.speakerDeg / 2,
@@ -13194,6 +13189,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             fillRadialGradientEndPoint: { x: 0, y: 0 },
             fillRadialGradientEndRadius: speakerRadius * 1.2,
             fillRadialGradientColorStops: [0, 'blue', 0.6, '#001c80ee', 0.8, '#02629da8', 1, 'rgba(36, 0, 128, 0)'],
+
         });
 
 
@@ -13214,6 +13210,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         grShadingSpeaker.add(groupSpeakerCoverage);
     }
 
+
+
+
     /* Add shading lines for a display */
     if (data_diagonalInches > 0) {
 
@@ -13226,15 +13225,18 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
         })
 
+
+
         if (attrs.data_dispDistHidden) {
             groupItemDisplayDistance.visible(false);
         } else {
             groupItemDisplayDistance.visible(true);
         }
+        groupItemDisplayDistance.visible(true);
 
-        /* closest distance line */
         let widthRatio = 1 * displayNumber;
         let diagonalUnit = data_diagonalInches / 12;
+
         if (unit === 'meters') {
             diagonalUnit = diagonalUnit / 3.28084;
         }
@@ -13244,83 +13246,147 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let distance1unit = diagonalUnit;
         let xc2 = diagonalUnit * scale * widthRatio;
 
+        let angle = 145;
         if (deviceId === 'display21_9') {
-            distance1 = distance1 * 1.07 / 1.33;
-            distance1unit = distance1unit * 1.07 / 1.33;
+            distance1 = distance1 * 1.13;
+            distance1unit = distance1unit * 1.13;
         }
 
-        let purpleLine = new Konva.Line({
-            points: [xc1, distance1, xc2, distance1],
-            stroke: 'purple',
+        let outerRadius = distance1 * 3.2;
+
+        if (displayNumber > 1) {
+            outerRadius = distance1 * 3.4;
+            angle = 132;
+        }
+
+        let displayDistanceWedge1 = new Konva.Arc({
+            /* x and y should be tracked in the group only */
+            innerRadius: distance1,
+            outerRadius: outerRadius,
+            angle: angle,
+            rotation: (90 - angle / 2),
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.5,
+            stroke: '#96969680',
             strokeWidth: 2,
-            lineJoin: 'round',
-            dash: [5, 5],
+            name: 'shading_group',
+            fill: '#0080004d',
+            visibile: true,
         });
 
-        let txt1xFromDisplay = new Konva.Text({
-            x: -1000,
-            y: distance1,
-            text: 'Ideal closest participant to display: ' + distance1unit.toFixed(1) + ' ' + abbrUnit,
-            fontSize: 12,
-            fill: 'purple',
-            align: 'center',
-            width: 2000,
-            padding: 3,
-            align: 'center',
+        /* audioShadingLine & audioShadingShade combine to form the coverage */
+        let displayDistanceWedge2 = new Konva.Arc({
+            /* x and y should be tracked in the group only */
+            innerRadius: distance1 * 3.2,
+            outerRadius: distance1 * 4,
+            angle: angle,
+            rotation: (90 - angle / 2),
+            opacity: 0.3,
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.7,
+            fillRadialGradientStartPoint: { x: 0, y: 0 },
+            fillRadialGradientStartRadius: distance1 * 3.2,
+            fillRadialGradientEndPoint: { x: 0, y: 0 },
+            fillRadialGradientEndRadius: distance1 * 4,
+            fillRadialGradientColorStops: [0, '#0080004d', 1, 'rgba(0, 124, 128, 0.12)'],
+
         });
 
-        let greenLine = new Konva.Line({
-
-            points: [xc1 * 3, distance1 * 3, xc2 * 3, distance1 * 3],
-            stroke: 'green',
-            strokeWidth: 2,
-            lineJoin: 'round',
-            dash: [5, 5],
-        });
-
-        let txt3xFromDisplay = new Konva.Text({
-            x: -1000,
-            y: distance1 * 3,
-            text: 'Ideal farthest participant from display: ' + (distance1unit * 3).toFixed(1) + ' ' + abbrUnit,
-            fontSize: 12,
-            fill: 'green',
-            align: 'center',
-            width: 2000,
-            padding: 3,
-            align: 'center',
-        });
-
-        let redLine = new Konva.Line({
-            points: [xc1 * 4, distance1 * 4, xc2 * 4, distance1 * 4],
-            stroke: 'red',
-            strokeWidth: 2,
-            lineJoin: 'round',
-            dash: [5, 5],
-        });
-
-        let txt4xFromDisplay = new Konva.Text({
-            x: -1000,
-            y: distance1 * 4,
-            text: 'Max farthest participant from display: ' + (distance1unit * 4).toFixed(1) + ' ' + abbrUnit,
-            fontSize: 12,
-            fill: '#C41E3A',
-            align: 'center',
-            width: 2000,
-            padding: 3,
-            align: 'center',
-        });
-
-
-        groupItemDisplayDistance.add(redLine);
-        groupItemDisplayDistance.add(greenLine);
-        groupItemDisplayDistance.add(purpleLine);
-        groupItemDisplayDistance.add(txt1xFromDisplay);
-        groupItemDisplayDistance.add(txt3xFromDisplay);
-        groupItemDisplayDistance.add(txt4xFromDisplay);
-        //       imageDataUrl = groupItemDisplayDistance.toDataURL();
+        // groupItemDisplayDistance.add(displayDistanceWedge2);
+        groupItemDisplayDistance.add(displayDistanceWedge1);
         grDisplayDistance.add(groupItemDisplayDistance);
-    }
 
+
+        /* closest distance line */
+        // let widthRatio = 1 * displayNumber;
+        // let diagonalUnit = data_diagonalInches / 12;
+        // if (unit === 'meters') {
+        //     diagonalUnit = diagonalUnit / 3.28084;
+        // }
+
+        // let xc1 = -diagonalUnit * scale * widthRatio;
+        // let distance1 = diagonalUnit * scale;
+        // let distance1unit = diagonalUnit;
+        // let xc2 = diagonalUnit * scale * widthRatio;
+
+        // if (deviceId === 'display21_9') {
+        //     distance1 = distance1 * 1.07 / 1.33;
+        //     distance1unit = distance1unit * 1.07 / 1.33;
+        // }
+
+        // let purpleLine = new Konva.Line({
+        //     points: [xc1, distance1, xc2, distance1],
+        //     stroke: 'purple',
+        //     strokeWidth: 2,
+        //     lineJoin: 'round',
+        //     dash: [5, 5],
+        // });
+
+        // let txt1xFromDisplay = new Konva.Text({
+        //     x: -1000,
+        //     y: distance1,
+        //     text: 'Ideal closest participant to display: ' + distance1unit.toFixed(1) + ' ' + abbrUnit,
+        //     fontSize: 12,
+        //     fill: 'purple',
+        //     align: 'center',
+        //     width: 2000,
+        //     padding: 3,
+        //     align: 'center',
+        // });
+
+        // let greenLine = new Konva.Line({
+
+        //     points: [xc1 * 3, distance1 * 3, xc2 * 3, distance1 * 3],
+        //     stroke: 'green',
+        //     strokeWidth: 2,
+        //     lineJoin: 'round',
+        //     dash: [5, 5],
+        // });
+
+        // let txt3xFromDisplay = new Konva.Text({
+        //     x: -1000,
+        //     y: distance1 * 3,
+        //     text: 'Ideal farthest participant from display: ' + (distance1unit * 3).toFixed(1) + ' ' + abbrUnit,
+        //     fontSize: 12,
+        //     fill: 'green',
+        //     align: 'center',
+        //     width: 2000,
+        //     padding: 3,
+        //     align: 'center',
+        // });
+
+        // let redLine = new Konva.Line({
+        //     points: [xc1 * 4, distance1 * 4, xc2 * 4, distance1 * 4],
+        //     stroke: 'red',
+        //     strokeWidth: 2,
+        //     lineJoin: 'round',
+        //     dash: [5, 5],
+        // });
+
+        // let txt4xFromDisplay = new Konva.Text({
+        //     x: -1000,
+        //     y: distance1 * 4,
+        //     text: 'Max farthest participant from display: ' + (distance1unit * 4).toFixed(1) + ' ' + abbrUnit,
+        //     fontSize: 12,
+        //     fill: '#C41E3A',
+        //     align: 'center',
+        //     width: 2000,
+        //     padding: 3,
+        //     align: 'center',
+        // });
+
+
+        // groupItemDisplayDistance.add(redLine);
+        // groupItemDisplayDistance.add(greenLine);
+        // groupItemDisplayDistance.add(purpleLine);
+        // groupItemDisplayDistance.add(txt1xFromDisplay);
+        // groupItemDisplayDistance.add(txt3xFromDisplay);
+        // groupItemDisplayDistance.add(txt4xFromDisplay);
+        // //       imageDataUrl = groupItemDisplayDistance.toDataURL();
+        // grDisplayDistance.add(groupItemDisplayDistance);
+    }
 
 
 }
@@ -13497,15 +13563,22 @@ function getLineGuideStops(skipShape, resize = false) {
 
 
     /* Go through objects on the primary layer.  Only return draggable() items.  and we snap over edges and center of each object on the canvas */
-    layerTransform.find(
-        node => {
-            let groupName = node.getParent().name();
-            /* ignore the shading and the temporary groups */
-            if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
-                return node.draggable();
+    layerTransform.find(node => {
+        let groupName = node.getParent().name();
+        /* ignore the shading and the temporary groups */
+        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+
+            if (node.draggable() && Konva.Util.haveIntersection(outerBox, node.getClientRect())) {
+                return true;
+            } else {
+                return false;
             }
 
+
+
         }
+
+    }
     ).forEach((guideItem) => {
         if (guideItem === skipShape) {
             return;
@@ -14996,280 +15069,277 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemWidthLengthDiv').style.display = '';
     }
 
-    roomObj.items[parentGroup].forEach((item) => {
 
-        if (item.id === id) {
+    let item = roomObjItemsMap.get(id);
 
-            if (!('data_deviceid' in item)) {
-                console.info('No data_deviceid found in item: ', item);
-                return;
-            }
-            let x, y;
+    if(!item) return;
 
+    if (!('data_deviceid' in item)) {
+        console.info('No data_deviceid found in item: ', item);
+        return;
+    }
+    let x, y;
 
 
-            let isPrimaryDiv = document.getElementById('isPrimaryDiv');
-            let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
 
-            isPrimaryCheckBox.disabled = true;
-            isPrimaryCheckBox.checked = false;
-            isPrimaryDiv.style.display = 'none';
+    let isPrimaryDiv = document.getElementById('isPrimaryDiv');
+    let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
 
+    isPrimaryCheckBox.disabled = true;
+    isPrimaryCheckBox.checked = false;
+    isPrimaryDiv.style.display = 'none';
 
 
-            if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-                x = shape.x();
-                y = shape.y();
 
-            } else {
-                let xy = getNodeCenter(shape);
-                x = xy.x;
-                y = xy.y;
-            }
+    if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
+        x = shape.x();
+        y = shape.y();
 
-            if (testOffset) {
-                document.getElementById('itemOffsetDiv').style.display = '';
-            }
+    } else {
+        let xy = getNodeCenter(shape);
+        x = xy.x;
+        y = xy.y;
+    }
 
-            if ('data_diagonalInches' in item && !item.data_deviceid?.match(/brdPro|boardPro|webexDesk/)) {
-                document.getElementById('itemDiagonalTvDiv').style.display = '';
-                document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
-                itemTopElevationDiv.style.display = '';
-                if (parentGroup === 'displays') {
-                    fillInTopElevationDisplay(shape);
-                }
+    if (testOffset) {
+        document.getElementById('itemOffsetDiv').style.display = '';
+    }
 
-            } else {
-                document.getElementById('itemDiagonalTvDiv').style.display = 'none';
-
-            }
-
-
-
-            if ('data_deviceid' in item && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
-
-                itemTopElevationDiv.style.display = '';
-
-                let deviceVertHeight = allDeviceTypes[item.data_deviceid].height / 1000; /* device height in meters */
-
-                if (roomObj.unit === 'feet') {
-                    deviceVertHeight = deviceVertHeight * 3.28084;
-                }
-
-                document.getElementById('itemTopElevation').value = round((shape.data_zPosition || 0) + deviceVertHeight);
-
-
-            }
-
-
-
-            if (shape.data_deviceid === 'tblRect') {
-                document.getElementById('tblRectRadiusDiv').style.display = '';
-                document.getElementById('tblRectRadiusRightDiv').style.display = '';
-            } else {
-                document.getElementById('tblRectRadiusDiv').style.display = 'none';
-                document.getElementById('tblRectRadiusRightDiv').style.display = 'none';
-            }
-
-            if (shape.data_deviceid === 'tblTrap') {
-                document.getElementById('trapNarrowWidthDiv').style.display = '';
-            } else {
-                document.getElementById('trapNarrowWidthDiv').style.display = 'none';
-            }
-
-            if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-                document.getElementById('itemVheightDiv').style.display = '';
-            } else {
-                document.getElementById('itemVheightDiv').style.display = 'none';
-            }
-
-            if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder') && !shape.data_deviceid.startsWith('wallChairs')) {
-                let itemVheight = document.getElementById('itemVheight');
-                let defaultHeight = defaultWallHeight;
-
-
-                if (unit === 'feet') {
-                    defaultHeight = round(defaultHeight * 3.28084);
-                } else {
-                    defaultHeight = round(defaultHeight);
-                }
-
-                if (document.getElementById('roomHeight').value) {
-                    defaultHeight = document.getElementById('roomHeight').value;
-                }
-
-                itemVheight.placeholder = round(defaultHeight);
-
-            } else {
-                let itemVheight = document.getElementById('itemVheight');
-                itemVheight.placeholder = '';
-
-            }
-
-            document.getElementById('itemX').value = round((x - pxOffset) / scale);
-
-            document.getElementById('itemY').value = round((y - pyOffset) / scale);
-
-            document.getElementById('itemId').innerText = item.id;
-
-            document.getElementById('itemType').innerText = item.data_deviceid;
-
-            document.getElementById('itemGroup').innerText = parentGroup;
-
-            populateDrpRole(item);
-
-            populateDrpColor(item);
-
-            populateDrpMount(item);
-
-            if ('data_role' in item && item.data_role) {
-                document.getElementById('drpRole').value = item.data_role.value;
-            }
-
-
-            if ('data_color' in item && item.data_color) {
-                document.getElementById('drpColor').value = item.data_color.value;
-            }
-
-            if ('data_model' in item && item.data_model) {
-                document.getElementById('drpModel').value = item.data_model.value;
-            }
-
-
-            if ('data_mount' in item && item.data_mount) {
-                document.getElementById('drpMount').value = item.data_mount.value;
-            }
-
-            if ('name' in item || allDeviceTypes[item.data_deviceid].name) {
-                let itemNameSelect = document.getElementById('itemName');
-                itemNameSelect.options.length = 0;
-
-                if (allDeviceTypes[item.data_deviceid].name) {
-                    item.name = allDeviceTypes[item.data_deviceid].name;
-                }
-
-                const newOption = new Option(item.name, item.data_deviceid);
-                itemNameSelect.add(newOption);
-                itemNameSelect.value = item.data_deviceid;
-
-                updateDevicesDropDown(itemNameSelect, item);
-
-
-            } else {
-
-                document.getElementById('itemName').value = '';
-            }
-
-            if ('width' in item) {
-                document.getElementById('itemWidth').value = round(shape.width() / scale);
-            } else {
-                document.getElementById('itemWidth').value = 0;
-            }
-
-            if ('height' in item) {
-                document.getElementById('itemLength').value = round(shape.height() / scale);
-            } else {
-                document.getElementById('itemLength').value = 0;
-            }
-
-            if ('rotation' in shape.attrs) {
-                item.rotation = round(shape.rotation(), -1);
-                document.getElementById('itemRotation').value = item.rotation;
-            }
-
-            if ('data_zPosition' in shape) {
-                document.getElementById('itemZposition').value = shape.data_zPosition;
-            } else {
-                document.getElementById('itemZposition').value = "";
-            }
-
-            if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices') {
-                document.getElementById('itemTiltSlantDiv').style.display = '';
-                document.getElementById('itemTiltDiv').style.display = '';
-                document.getElementById('itemSlantDiv').style.display = '';
-            }
-            else {
-                document.getElementById('itemTiltDiv').style.display = 'none';
-                document.getElementById('itemTiltDiv').style.display = 'none';
-                document.getElementById('itemTiltSlantDiv').style.display = 'none';
-            }
-
-            if (item.data_tilt || item.data_slant) {
-                document.getElementById('itemTiltDiv').style.display = '';
-                document.getElementById('itemSlantDiv').style.display = '';
-                document.getElementById('itemTiltSlantDiv').style.display = '';
-            }
-
-            if (item.data_tilt) {
-                document.getElementById('itemTilt').value = Math.round(item.data_tilt * 10) / 10;
-            } else {
-                document.getElementById('itemTilt').value = "";
-            }
-
-
-            if (item.data_slant) {
-                document.getElementById('itemSlant').value = Math.round(item.data_slant * 10) / 10;
-            } else {
-                document.getElementById('itemSlant').value = "";
-            }
-
-
-            if ('data_labelField' in item && item.data_labelField && item.data_labelField.trim() !== '{}') {
-
-                if (shape.data_deviceid === 'pathShape') {
-
-                    let pathLabel = parsePathShapeLabelFieldJson(item);
-
-                    document.getElementById('labelField').value = pathLabel.label.trim();
-                    document.getElementById('labelPath').value = pathLabel.path.trim();
-
-                } else {
-                    document.getElementById('labelField').value = item.data_labelField;
-                }
-
-
-            } else {
-                document.getElementById('labelField').value = "";
-            }
-
-            if ('data_trapNarrowWidth' in item && (item.data_trapNarrowWidth === 0 || item.data_trapNarrowWidth)) {
-                document.getElementById('trapNarrowWidth').value = item.data_trapNarrowWidth;
-            } else {
-                document.getElementById('trapNarrowWidth').value = (roomObj.unit === 'feet') ? 2.5 : 0.75;
-            }
-
-            if ('data_vHeight' in item && item.data_vHeight) {
-                document.getElementById('itemVheight').value = item.data_vHeight;
-            } else {
-                document.getElementById('itemVheight').value = "";
-            }
-
-
-            if ('cornerRadius' in shape.attrs) {
-
-
-                if (shape.cornerRadius().length > 0) {
-
-                    document.getElementById('tblRectRadius').value = round(shape.attrs.cornerRadius[2] / scale);
-
-                    if (shape.attrs.cornerRadius[2] === shape.attrs.cornerRadius[0]) {
-                        document.getElementById('tblRectRadiusRight').value = '';
-                    } else {
-                        document.getElementById('tblRectRadiusRight').value = round(shape.attrs.cornerRadius[0] / scale);
-                    }
-                } else {
-                    document.getElementById('tblRectRadius').value = '';
-                    document.getElementById('tblRectRadiusRight').value = '';
-                }
-            }
-            if (updateAutoZvalue && document.getElementById('autoZposition').checked === true) {
-                changeZheightOfItem(item, shape);
-            }
-
-            /* stop searching for the device */
-            return;
+    if ('data_diagonalInches' in item && !item.data_deviceid?.match(/brdPro|boardPro|webexDesk/)) {
+        document.getElementById('itemDiagonalTvDiv').style.display = '';
+        document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
+        itemTopElevationDiv.style.display = '';
+        if (parentGroup === 'displays') {
+            fillInTopElevationDisplay(shape);
         }
-    })
+
+    } else {
+        document.getElementById('itemDiagonalTvDiv').style.display = 'none';
+
+    }
+
+
+
+    if ('data_deviceid' in item && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
+
+        itemTopElevationDiv.style.display = '';
+
+        let deviceVertHeight = allDeviceTypes[item.data_deviceid].height / 1000; /* device height in meters */
+
+        if (roomObj.unit === 'feet') {
+            deviceVertHeight = deviceVertHeight * 3.28084;
+        }
+
+        document.getElementById('itemTopElevation').value = round((shape.data_zPosition || 0) + deviceVertHeight);
+
+
+    }
+
+
+
+    if (shape.data_deviceid === 'tblRect') {
+        document.getElementById('tblRectRadiusDiv').style.display = '';
+        document.getElementById('tblRectRadiusRightDiv').style.display = '';
+    } else {
+        document.getElementById('tblRectRadiusDiv').style.display = 'none';
+        document.getElementById('tblRectRadiusRightDiv').style.display = 'none';
+    }
+
+    if (shape.data_deviceid === 'tblTrap') {
+        document.getElementById('trapNarrowWidthDiv').style.display = '';
+    } else {
+        document.getElementById('trapNarrowWidthDiv').style.display = 'none';
+    }
+
+    if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
+        document.getElementById('itemVheightDiv').style.display = '';
+    } else {
+        document.getElementById('itemVheightDiv').style.display = 'none';
+    }
+
+    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder') && !shape.data_deviceid.startsWith('wallChairs')) {
+        let itemVheight = document.getElementById('itemVheight');
+        let defaultHeight = defaultWallHeight;
+
+
+        if (unit === 'feet') {
+            defaultHeight = round(defaultHeight * 3.28084);
+        } else {
+            defaultHeight = round(defaultHeight);
+        }
+
+        if (document.getElementById('roomHeight').value) {
+            defaultHeight = document.getElementById('roomHeight').value;
+        }
+
+        itemVheight.placeholder = round(defaultHeight);
+
+    } else {
+        let itemVheight = document.getElementById('itemVheight');
+        itemVheight.placeholder = '';
+
+    }
+
+    document.getElementById('itemX').value = round((x - pxOffset) / scale);
+
+    document.getElementById('itemY').value = round((y - pyOffset) / scale);
+
+    document.getElementById('itemId').innerText = item.id;
+
+    document.getElementById('itemType').innerText = item.data_deviceid;
+
+    document.getElementById('itemGroup').innerText = parentGroup;
+
+    populateDrpRole(item);
+
+    populateDrpColor(item);
+
+    populateDrpMount(item);
+
+    if ('data_role' in item && item.data_role) {
+        document.getElementById('drpRole').value = item.data_role.value;
+    }
+
+
+    if ('data_color' in item && item.data_color) {
+        document.getElementById('drpColor').value = item.data_color.value;
+    }
+
+    if ('data_model' in item && item.data_model) {
+        document.getElementById('drpModel').value = item.data_model.value;
+    }
+
+
+    if ('data_mount' in item && item.data_mount) {
+        document.getElementById('drpMount').value = item.data_mount.value;
+    }
+
+    if ('name' in item || allDeviceTypes[item.data_deviceid].name) {
+        let itemNameSelect = document.getElementById('itemName');
+        itemNameSelect.options.length = 0;
+
+        if (allDeviceTypes[item.data_deviceid].name) {
+            item.name = allDeviceTypes[item.data_deviceid].name;
+        }
+
+        const newOption = new Option(item.name, item.data_deviceid);
+        itemNameSelect.add(newOption);
+        itemNameSelect.value = item.data_deviceid;
+
+        updateDevicesDropDown(itemNameSelect, item);
+
+
+    } else {
+
+        document.getElementById('itemName').value = '';
+    }
+
+    if ('width' in item) {
+        document.getElementById('itemWidth').value = round(shape.width() / scale);
+    } else {
+        document.getElementById('itemWidth').value = 0;
+    }
+
+    if ('height' in item) {
+        document.getElementById('itemLength').value = round(shape.height() / scale);
+    } else {
+        document.getElementById('itemLength').value = 0;
+    }
+
+    if ('rotation' in shape.attrs) {
+        item.rotation = round(shape.rotation(), -1);
+        document.getElementById('itemRotation').value = item.rotation;
+    }
+
+    if ('data_zPosition' in shape) {
+        document.getElementById('itemZposition').value = shape.data_zPosition;
+    } else {
+        document.getElementById('itemZposition').value = "";
+    }
+
+    if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices') {
+        document.getElementById('itemTiltSlantDiv').style.display = '';
+        document.getElementById('itemTiltDiv').style.display = '';
+        document.getElementById('itemSlantDiv').style.display = '';
+    }
+    else {
+        document.getElementById('itemTiltDiv').style.display = 'none';
+        document.getElementById('itemTiltDiv').style.display = 'none';
+        document.getElementById('itemTiltSlantDiv').style.display = 'none';
+    }
+
+    if (item.data_tilt || item.data_slant) {
+        document.getElementById('itemTiltDiv').style.display = '';
+        document.getElementById('itemSlantDiv').style.display = '';
+        document.getElementById('itemTiltSlantDiv').style.display = '';
+    }
+
+    if (item.data_tilt) {
+        document.getElementById('itemTilt').value = Math.round(item.data_tilt * 10) / 10;
+    } else {
+        document.getElementById('itemTilt').value = "";
+    }
+
+
+    if (item.data_slant) {
+        document.getElementById('itemSlant').value = Math.round(item.data_slant * 10) / 10;
+    } else {
+        document.getElementById('itemSlant').value = "";
+    }
+
+
+    if ('data_labelField' in item && item.data_labelField && item.data_labelField.trim() !== '{}') {
+
+        if (shape.data_deviceid === 'pathShape') {
+
+            let pathLabel = parsePathShapeLabelFieldJson(item);
+
+            document.getElementById('labelField').value = pathLabel.label.trim();
+            document.getElementById('labelPath').value = pathLabel.path.trim();
+
+        } else {
+            document.getElementById('labelField').value = item.data_labelField;
+        }
+
+
+    } else {
+        document.getElementById('labelField').value = "";
+    }
+
+    if ('data_trapNarrowWidth' in item && (item.data_trapNarrowWidth === 0 || item.data_trapNarrowWidth)) {
+        document.getElementById('trapNarrowWidth').value = item.data_trapNarrowWidth;
+    } else {
+        document.getElementById('trapNarrowWidth').value = (roomObj.unit === 'feet') ? 2.5 : 0.75;
+    }
+
+    if ('data_vHeight' in item && item.data_vHeight) {
+        document.getElementById('itemVheight').value = item.data_vHeight;
+    } else {
+        document.getElementById('itemVheight').value = "";
+    }
+
+
+    if ('cornerRadius' in shape.attrs) {
+
+
+        if (shape.cornerRadius().length > 0) {
+
+            document.getElementById('tblRectRadius').value = round(shape.attrs.cornerRadius[2] / scale);
+
+            if (shape.attrs.cornerRadius[2] === shape.attrs.cornerRadius[0]) {
+                document.getElementById('tblRectRadiusRight').value = '';
+            } else {
+                document.getElementById('tblRectRadiusRight').value = round(shape.attrs.cornerRadius[0] / scale);
+            }
+        } else {
+            document.getElementById('tblRectRadius').value = '';
+            document.getElementById('tblRectRadiusRight').value = '';
+        }
+    }
+    if (updateAutoZvalue && document.getElementById('autoZposition').checked === true) {
+        changeZheightOfItem(item, shape);
+    }
+
 
 }
 
@@ -15487,25 +15557,7 @@ function addListeners(stage) {
             selectionRectangle.visible(false);
         }, 1);
 
-        let shapes = groupVideoDevices.getChildren();
-
-        shapes = shapes.concat(groupStageFloors.getChildren());
-
-        shapes = shapes.concat(groupDisplays.getChildren());
-
-        shapes = shapes.concat(groupMicrophones.getChildren());
-
-        shapes = shapes.concat(groupBoxes.getChildren());
-
-        shapes = shapes.concat(groupRooms.getChildren());
-
-        shapes = shapes.concat(groupSpeakers.getChildren());
-
-        shapes = shapes.concat(groupTables.getChildren());
-
-        shapes = shapes.concat(groupTouchPanels.getChildren());
-
-        shapes = shapes.concat(groupChairs.getChildren());
+        let shapes = selectAllNodes();
 
         let box = findFourCornersOfNode(selectionRectangle);
 
@@ -16058,6 +16110,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
 
 
 
+
     });
 
 }
@@ -16197,6 +16250,8 @@ function touchMove(e) {
         }
         );
     }
+
+
 }
 
 function touchEnd(e) {
@@ -17407,6 +17462,7 @@ function onKeyDown(e) {
     const trNodesCopy = tr.nodes().slice();
 
     tr.nodes([]);
+    hideAllCoverageGroups(true);
 
     trNodesCopy.forEach(shape => {
 
@@ -17462,6 +17518,8 @@ function onKeyDown(e) {
             updateFormatDetails(shape.id());
         }
     })
+
+    hideAllCoverageGroups(false);
     tr.nodes(trNodesCopy);
 }
 
@@ -17734,8 +17792,6 @@ function flipItems() {
         let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, node.x(), node.y(), rotationAmount);
 
 
-        // let totalRotation = normalizeDegree(rotationAmount);
-
         let nodeCornerXY = findUpperLeftXY({ x: newNodeXY.x, y: newNodeXY.y, rotation: rotationAmount, width: node.width(), height: node.height() })
         node.x(newNodeXY.x);
         node.y(newNodeXY.y);
@@ -17761,27 +17817,7 @@ function flipItems() {
 
 
 function selectAllTrNodes() {
-    let shapes = groupVideoDevices.getChildren();
-
-    shapes = shapes.concat(groupStageFloors.getChildren());
-
-    shapes = shapes.concat(groupDisplays.getChildren());
-
-    shapes = shapes.concat(groupMicrophones.getChildren());
-
-    shapes = shapes.concat(groupBoxes.getChildren());
-
-    shapes = shapes.concat(groupRooms.getChildren());
-
-    shapes = shapes.concat(groupSpeakers.getChildren());
-
-    shapes = shapes.concat(groupTables.getChildren());
-
-    shapes = shapes.concat(groupTouchPanels.getChildren());
-
-    shapes = shapes.concat(groupChairs.getChildren());
-
-    tr.nodes(shapes);
+    tr.nodes(selectAllNodes());
 };
 
 function selectAllNodes() {
@@ -17888,10 +17924,6 @@ function rotateRoom(rotationAmount) {
         }
 
 
-
-
-        // selectAllTrNodes();
-
         let allNodes = selectAllNodes();
 
         let allNodesLength = allNodes.length;
@@ -17904,15 +17936,12 @@ function rotateRoom(rotationAmount) {
         }, 1 * timeForEachStage + 100);
 
         setTimeout(() => {
-            //   document.getElementById('dialogLoadingTemplate').close();
+
             closeAllDialogModals();
             blockKeyActions = false;
             hideAllCoverageGroups(false);
 
-
-
         }, 1 * timeForEachStage + 600);
-
 
         let roomWidth = roomObj.room.roomWidth;
         let roomLength = roomObj.room.roomLength;
@@ -17922,7 +17951,6 @@ function rotateRoom(rotationAmount) {
 
         let stageWidth = stage.width();
         let stageHeight = stage.height();
-
 
 
         let roomWidthLength;
@@ -18389,7 +18417,7 @@ function importJson(jsonFile) {
                 setTimeout(() => {
                     isBackgroundImageFloorFileLoad = false;
 
-                 }, 1000);
+                }, 1000);
             } else {
                 isBackgroundImageFloorFileLoad = false;
             }
@@ -18703,7 +18731,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                             delete modifiedWdItem.model;
                         } else {
 
-                           if (keyItem.objectType === 'videoDevice' || keyItem.objectType === 'camera') continue;
+                            if (keyItem.objectType === 'videoDevice' || keyItem.objectType === 'camera') continue;
 
                         }
                     }

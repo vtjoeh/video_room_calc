@@ -183,7 +183,7 @@
           </div>
           <div class="inputRow">
 
-            <div class="inputField" >
+            <div class="inputField">
               <label>Remove Default Walls:</label>
               <label class="switch">
                 <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
@@ -191,12 +191,14 @@
               </label>
             </div>
 
-            <div class="inputField" >
+            <div class="inputField">
               <label>Rotate Room:</label>
               <label>
-                  <button class="rotateButton" title="Rotate Room Clockwise [ctrl- . ]" onclick="rotateRoom(-90)"> <i class="icon icon-rotate-content-bold" style="transform: scaleX(-1);" ></i></button>
+                <button class="rotateButton" title="Rotate Room Clockwise [ctrl- . ]" onclick="rotateRoom(-90)"> <i
+                    class="icon icon-rotate-content-bold" style="transform: scaleX(-1);"></i></button>
 
-                  <button class="rotateButton" title="Rotate Room Clockwise [ctrl- , ]" onclick="rotateRoom(90)"> <i class="icon icon-rotate-content-bold"></i></button>
+                <button class="rotateButton" title="Rotate Room Clockwise [ctrl- , ]" onclick="rotateRoom(90)"> <i
+                    class="icon icon-rotate-content-bold"></i></button>
 
 
               </label>
@@ -242,7 +244,8 @@
 
           </div>
           <div id="Cameras" class="subtabcontent" style="display: block;">
-              <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
+                class="icon icon-search-bold"></i></button>
             <div class="tip2">
 
               <i class="icon icon-room-lights-bold"></i>
@@ -301,7 +304,8 @@
           </div>
           <div id="Microphones" class="subtabcontent">
 
-  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
+                class="icon icon-search-bold"></i></button>
             <div class="tip2">
 
               <i class="icon icon-room-lights-bold"></i>
@@ -359,7 +363,8 @@
           </div>
 
           <div id="Tables" class="subtabcontent">
-  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
+                class="icon icon-search-bold"></i></button>
             <div class="tip2">
 
               <i class="icon icon-room-lights-bold"></i>
@@ -402,7 +407,8 @@
           </div>
 
           <div id="Panels" class="subtabcontent">
-  <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i class="icon icon-search-bold"></i></button>
+            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
+                class="icon icon-search-bold"></i></button>
             <div class="tip2">
 
               <i class="icon icon-room-lights-bold"></i>
@@ -1335,7 +1341,9 @@
       <div class="menuMoreInputField">
         <label class="tooltipBottom">Auto Z Position:
           <i class="icon icon-info-circle-bold"></i>
-          <span class="tooltiptextBottom">AThe Auto Z Position will position video devices and cameras on top of displays, as well as cameras on top of other video devices. Drag camera or video device onto display. </span></label>
+          <span class="tooltiptextBottom">AThe Auto Z Position will position video devices and cameras on top of
+            displays, as well as cameras on top of other video devices. Drag camera or video device onto display.
+          </span></label>
         <label class="switch">
           <input id="autoZposition" type="checkbox" onclick="autoZpositionOn(event)" checked>
           <span class="slider round"></span>
@@ -1904,34 +1912,17 @@
             <div>The following values are based on the diagonal display of <label id="lblvDiag"
                 class="dynamicText">55</label>"</div>
           </div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke:orchid;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Closest Person to Display - 1x diagonal display
-          <div style="display: none;"><label id="displayClosestParticipant" class="dynamicText">xx</label>
-            <label class="unitFeetMeters">ft</label>
-          </div>
+
         </div>
-        <div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke: green;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Optimal Farthest Dist - 3x diagonal display <div style="display: none;"><label
-              id="displayOptimalFarthestParticipant" class="dynamicText">xx</label>
-            <label class="unitFeetMeters">ft</label>
-          </div>
-        </div>
-        <div>
-          <svg height="20" width="40" id="line-key-1x-from-display" style="display:inline">
-            <line x1="0" y1="10" x2="40" y2="10" style="stroke: red;stroke-width:2" stroke-dasharray="6 4" />
-          </svg>
-          Max Viewing Distance - 4x diagonal display <div style="display: none;"><label id="displayFarthestParticipant"
-              class="dynamicText">xx</label> <label class="unitFeetMeters">ft</label></div>
+
+        <div class="keyFOVitem">
+          <span style="border-style: solid; border-color: rgb(126, 203, 154); border-width: 1px; "><span
+              id="keyWideZoom" style="background-color: rgba(126, 203, 154, 0.55);"> &nbsp; &nbsp;&nbsp; &nbsp;
+              &nbsp;</span></span> <b>Display Viewing</b> coverage area<br>
         </div>
         <br>
-        <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance shown is 1x-3x
-          the diagonal
-          measurement of the display. The farthest participant should be no farther than 4x. Other industry guideline
+        <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance shown is 1x-3.2x
+          the diagonal measurement of a single 16:9 display. If dual displays are used, then the value is increased to 1x-3.5x. The Video Room Calculator shows an average of the two displays coverage.  This reflects the values in the Workspace Designer. Other industry guideline
           ranges will be somewhat different. See <a
             href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#how-is-the-display-coverage-for-the-closest-and-farthest-participants-determined"
             target="_blank">FAQ: How is the display coverage for the closest and farthest participants determined?</a>
@@ -2164,7 +2155,7 @@
   <dialog id="characterLimitWarning"
     style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 0px; ">
     <header>
-      ⚠️ Warning URL Length Alert ⚠️
+      Warning URL Length Alert
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
@@ -2225,7 +2216,7 @@
       </div>
 
     </div>
-    <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black" ></iframe>
+    <iframe title="Workspace Designer" id="iFrameFloatingWorkspace" style="overflow: auto; border: 1px black"></iframe>
   </div>
 
 
