@@ -19729,8 +19729,8 @@ function deletePossibleRoomKitEqxDisplays(roomObj) {
             let largeEqx = structuredClone(videoDevice);
 
 
-            smallEqx.data_diagonalInches = 60;
-            largeEqx.data_diagonalInches = 90;
+            smallEqx.data_diagonalInches = 10;
+            largeEqx.data_diagonalInches = 140;
 
             smallDisplays = getLocationOfRoomKitEqxDisplay(smallEqx);
             largeDisplays = getLocationOfRoomKitEqxDisplay(largeEqx);
@@ -19756,14 +19756,14 @@ function isDisplayInArea(display, smallDisp, largeDisp) {
     let smallDispZ = smallDisp.data_zPosition || 0;
     let largeDispZ = largeDisp.data_zPosition || 0;
     let displayZ = display.data_zPosition || 0;
-    let minX = Math.min(smallDisp.x, largeDisp.x);
-    let maxX = Math.max(smallDisp.x, largeDisp.x);
-    let minY = Math.min(smallDisp.y, largeDisp.y);
-    let maxY = Math.max(smallDisp.y, largeDisp.y);
-    let minZ = Math.min(smallDispZ, largeDispZ);
-    let maxZ = Math.max(smallDispZ, largeDispZ);
-    minZ = minZ - 0.20;
-    maxZ = maxZ + 0.2;
+    let minX = Math.min(smallDisp.x, largeDisp.x) - 0.5;
+    let maxX = Math.max(smallDisp.x, largeDisp.x) + 0.5;
+    let minY = Math.min(smallDisp.y, largeDisp.y) - 0.5;
+    let maxY = Math.max(smallDisp.y, largeDisp.y) + 0.5;
+    let minZ = Math.min(smallDispZ, largeDispZ) - 0.5;
+    let maxZ = Math.max(smallDispZ, largeDispZ) +0.5;
+    minZ = minZ - 0.5;
+    maxZ = maxZ + 0.5;
 
     if ((minX < display.x && display.x < maxX) && (minY < display.y && display.y < maxY) && (minZ < displayZ && displayZ < maxZ)) {
         inBounds = true;
@@ -19790,11 +19790,11 @@ function getLocationOfRoomKitEqxDisplay(item) {
 
         let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
 
-        let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
+        let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight_2 / 1000;
 
         if (item.data_deviceid === 'roomKitEqxFS') {
             newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
-            deltaY = -0.07;
+            deltaY = -0.40;
         }
         else if (item.data_deviceid === 'roomKitEqxWS') {
             newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
@@ -20555,7 +20555,7 @@ function exportRoomObjToWorkspace() {
             let newData_zPosition, deltaY;
             let leftDisplay = structuredClone(item);
             let rightDisplay = structuredClone(item);
-            let displayRatio = 1.02;
+            let displayRatio = 0.98;
 
             /* if the data_zPosition (height) is blank or null, set to 0 */
             if (!item.data_zPosition) {
@@ -20564,7 +20564,7 @@ function exportRoomObjToWorkspace() {
 
             let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
 
-            let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight / 1000;
+            let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight_2 / 1000;
 
             if (item.data_deviceid === 'roomKitEqxFS') {
                 // newData_zPosition = 1.8 + Number(item.data_zPosition) - newDisplayHeight;
