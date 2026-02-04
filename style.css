@@ -440,15 +440,15 @@ input:placeholder-shown {
 }
 
 .wallBuilderButtonDiv {
-    position: relative;
-    display: flex;
-    /* flex-direction: column; */
-    gap: 10px;
-    flex-grow: 1;
-    align-items: stretch;
-    justify-content: center;
-    margin-bottom: 20px;
-    margin-top: 20px;
+  position: relative;
+  display: flex;
+  /* flex-direction: column; */
+  gap: 10px;
+  flex-grow: 1;
+  align-items: stretch;
+  justify-content: center;
+  margin-bottom: 20px;
+  margin-top: 20px;
 }
 
 
@@ -529,25 +529,6 @@ input:placeholder-shown {
   align-self: center;
 }
 
-/* .rotateButton:hover {
-  background-color: #575757;
-  color: rgb(199, 199, 199);
-} */
-
-/* .rotateButton:active {
-  box-shadow: 0 1px #777;
-  color: white;
-} */
-
-/* .rotateButton:disabled {
-  opacity: 0.6;
-  cursor: auto;
-}
-
-.rotateButton:hover:disabled {
-  background-color: black;
-} */
-
 .doorSelectionOuter {
   position: absolute;
 }
@@ -588,25 +569,20 @@ input:placeholder-shown {
 
 .noDoorSelected {
   border: 3px solid white;
-  outline:  3px solid rgb(69, 85, 230);
+  outline: 3px solid rgb(69, 85, 230);
   background-color: black;
   color: white;
 }
 
 .parentWallSelection {
   display: flex;
-  justify-content: center; /* Centers horizontally */
-  height: 100px; /* height for the parent */
+  justify-content: center;
+  /* Centers horizontally */
+  height: 100px;
+  /* height for the parent */
 }
 
 
-/* .holdIndicator {
-  font-size: 5px;
-  position: relative;
-  bottom: -6px;
-  left: 3px;
-  background-color: transparent;
-} */
 
 .underlineHeader {
   font-weight: bold;
@@ -709,7 +685,12 @@ input:placeholder-shown {
   min-height: 400px;
 }
 
-.subtabcontent, .subtabcontent2, .button-group, .menuReach-item, .menuReach, .menuReachClearButton {
+.subtabcontent,
+.subtabcontent2,
+.button-group,
+.menuReach-item,
+.menuReach,
+.menuReachClearButton {
   -webkit-user-select: none;
   /* Safari */
   -ms-user-select: none;
@@ -809,7 +790,7 @@ input:placeholder-shown {
   border-radius: 30px;
 }
 
-.btnItemSearch:hover{
+.btnItemSearch:hover {
   background-color: #6e6e6e18;
   border-radius: 30px;
   color: black;
@@ -936,20 +917,20 @@ input:placeholder-shown {
   justify-content: space-between;
   align-items: flex-start;
   margin-top: 1em;
-  /* border: 1px solid purple; */
+  position: relative;
 }
+
+
 
 .flexItems:hover {
   background-color: #ADD8E6;
   opacity: 0.9;
 }
 
-.flexItemsWallBuilder:hover{
+.flexItemsWallBuilder:hover {
   cursor: pointer;
   background-color: #d2d2d2;
 }
-
-
 
 
 .flexSubItemImage {
@@ -971,6 +952,16 @@ input:placeholder-shown {
   text-align: center;
 }
 
+.newBadge {
+  background-color: #1170cf;
+  border-radius: 25px;
+  color: #fff;
+  font-size: 9px;
+  padding: 3px 5px;
+  position: absolute;
+  right: 3px;
+  top: 3px;
+}
 .menuDivider {
   width: 100%;
   margin-top: 2em;
@@ -1166,7 +1157,8 @@ a.tooltiptext {
   opacity: 1;
   border: black;
   transition: opacity 200ms 2s;
-  height: 28px; /* Firefox ignores the min-height, so putting in a minimum height */
+  height: 28px;
+  /* Firefox ignores the min-height, so putting in a minimum height */
   min-height: fit-content;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
@@ -1345,6 +1337,7 @@ dialog main {
   padding: 10px 20px;
   border: 1px solid rgb(32, 32, 32)
 }
+
 .dialogAlertMain {
   padding: 1em;
   font-size: small;
@@ -1610,7 +1603,7 @@ hr.rightClickHorizontalLine {
 
 }
 
-.tablinksfake{
+.tablinksfake {
   display: none;
 }
 
@@ -1648,14 +1641,14 @@ hr.rightClickHorizontalLine {
 }
 
 
- .displayWhenLessThan900{
-    display: none;
-    background-color: red;
-  }
+.displayWhenLessThan900 {
+  display: none;
+  background-color: red;
+}
 
 /* specificaly for the iPhone SE */
 @media screen and (max-width: 405px) {
-  dialog header button{
+  dialog header button {
     padding: 1em 1em;
   }
 
@@ -1702,45 +1695,47 @@ hr.rightClickHorizontalLine {
     font-size: 16px;
   }
 
-  dialog header button{
+  dialog header button {
     font-size: 10px;
   }
 
 
 }
 
-.dropDownJSON, .dropDownPNG {
-    position: relative;
-    display: inline-flex;
-    overflow: visible;
+.dropDownJSON,
+.dropDownPNG {
+  position: relative;
+  display: inline-flex;
+  overflow: visible;
 
-    gap: 2px;
+  gap: 2px;
 }
 
 .drpDownBtnMain {
-    padding-left: 70px;
-    border-top-right-radius: 0px;
-    border-bottom-right-radius: 0px;
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
-    width: 300px;
-    margin-bottom: 20px;
-    border: 1px solid black;
-    outline: none;
+  padding-left: 70px;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  width: 300px;
+  margin-bottom: 20px;
+  border: 1px solid black;
+  outline: none;
 }
 
 .dropDownBtnWhite {
-    outline: none;
-    box-shadow: none;
-    border: 1px solid black;
-    background-color: white;
-    color: black;
+  outline: none;
+  box-shadow: none;
+  border: 1px solid black;
+  background-color: white;
+  color: black;
 }
 
 .dropDownBtnWhite:hover {
   background-color: #ddd;
 }
-.drpDownBtnMainFull{
+
+.drpDownBtnMainFull {
   border-top-right-radius: 12px;
   border-bottom-right-radius: 12px;
   border-top-left-radius: 12px;
@@ -1751,67 +1746,80 @@ hr.rightClickHorizontalLine {
 }
 
 .drpDownBtnArrow {
-    border-top-left-radius: 0px;
-    border-bottom-left-radius: 0px;
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
-    padding: 8px 10px;
-    border: 1px solid black;
-    outline: none;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  padding: 8px 10px;
+  border: 1px solid black;
+  outline: none;
 }
 
 .dropDownBtnMenu {
-    display: none;
-    /* hide until toggled */
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background-color: #ffffff;
-    color: #000000;
-    z-index: 1000;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    text-align: left;
-    padding: 0;
-    margin-top: -20px;
-    border-radius: 0.25rem;
-    border:#000 solid 0.3px;
+  display: none;
+  /* hide until toggled */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #ffffff;
+  color: #000000;
+  z-index: 1000;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  text-align: left;
+  padding: 0;
+  margin-top: -20px;
+  border-radius: 0.25rem;
+  border: #000 solid 0.3px;
 }
 
 
 .dropDownMenuItem {
-    display: block;
-    white-space: nowrap;
-    padding: 8px 12px;
-    cursor: pointer;
-    min-width: 338px;
-    font-size: small;
+  display: block;
+  white-space: nowrap;
+  padding: 8px 12px;
+  cursor: pointer;
+  min-width: 338px;
+  font-size: small;
 
 }
 
 .dropDownMenuItem:hover,
 .dropDownMenuItem:focus {
-    background-color: #dddddd;
-    color: #222222;
+  background-color: #dddddd;
+  color: #222222;
 
 }
 
-.iconLeftOfText{
-  position:absolute;
+.iconLeftOfText {
+  position: absolute;
   left: -23px;
   top: -4px;
 }
 
 .showJSONDropDown,
 .showPNGDropDown {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 3px;
-    width: max-content;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
 }
 
-#floatingWorkspace { display:flex; margin:0; padding:0; resize:both; overflow:hidden; flex-direction: column;}
-#floatingWorkspace > #iFrameFloatingWorkspace { flex-grow:1; margin:0; padding:0; border:0 }
+#floatingWorkspace {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  resize: both;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+#floatingWorkspace>#iFrameFloatingWorkspace {
+  flex-grow: 1;
+  margin: 0;
+  padding: 0;
+  border: 0
+}
 
 @media screen and (max-width: 783px) {
 
@@ -1940,15 +1948,15 @@ hr.rightClickHorizontalLine {
 
 
 .wallBuilder {
-    display: flex;
-    flex-wrap: nowrap;
-    margin: 0;
-    padding: 0;
-    max-height: 70vh;
-    gap: 5px;
-    flex-direction: row;
-    align-content: stretch;
-    justify-content: center;
+  display: flex;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  max-height: 70vh;
+  gap: 5px;
+  flex-direction: row;
+  align-content: stretch;
+  justify-content: center;
 }
 
 
@@ -2011,12 +2019,12 @@ hr.rightClickHorizontalLine {
   }
 
   .subtabcontent,
-.subtabcontent2 {
-  position: relative;
-  height: 490px;
-}
+  .subtabcontent2 {
+    position: relative;
+    height: 490px;
+  }
 
-  .classOpenMenuClosed{
+  .classOpenMenuClosed {
     transform: rotate(-90deg);
   }
 
@@ -2082,17 +2090,17 @@ hr.rightClickHorizontalLine {
 
   }
 
-  .tablinksfake{
+  .tablinksfake {
     padding-bottom: 0px;
-    color:#838282;
-    display:inline;
+    color: #838282;
+    display: inline;
   }
 
   #closeOpenIcon {
     transform: rotate(90deg);
   }
 
- #openSideBarBtn {
+  #openSideBarBtn {
 
     display: inline;
     padding: 0px;
@@ -2101,14 +2109,14 @@ hr.rightClickHorizontalLine {
     position: absolute;
     right: 35px;
     top: 75px;
-    left:unset;
+    left: unset;
 
-}
+  }
 
 
-  .displayWhenLessThan900{
-    display:contents;
-    color:#888;
+  .displayWhenLessThan900 {
+    display: contents;
+    color: #888;
   }
 
 }

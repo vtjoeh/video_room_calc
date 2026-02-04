@@ -8,6 +8,16 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.640 release notes**
+- **New Products:** 🎉 **Desk Pro G2** & **Room Kit Pro G2** are now supported. 🎉
+- **New Item:** Huddle Table (bullet) Table for huddle rooms.
+- **Display Coverage Update:** Updated display coverage now better align with the visuals in the Workspace Designer.
+- The Room Kit Pro (G1) and Desk Pro (G1) have been removed from the main menu but remain accessible in the Quick Add search menu.
+**Known issues:**
+-- Workspace Designer (WD) custom rooms API inadvertently changed how Tilt works for displays. Tilted displays in the WD might appear with "Lean" depending on Rotation. For definitions of Tilt, Lean, and Rotation, see [Workspace Designer: Custom Rooms](https://www.webex.com/us/en/workspaces/workspace-designer.html?#/article/CustomRooms) This will be fixed in a later release.
+-- Half Round (bullet) Table does not fully support "Rectangular Corners" in the Workspace Designer custom rooms API.
+-- Dual PTZ is not yet supported in the Workspace Designer custom rooms API. Imported designs imported from the WD will show cameras, but there are no camera button views in the WD.
+
 **v0.1.639**
 - fixed bug on import of webcams from Workspace Designer file introduced in v0.1.638.
 - Optimization for larger files.

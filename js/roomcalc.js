@@ -1,4 +1,4 @@
-const version = "v0.1.639";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.640";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -39,6 +39,8 @@ let copyTrNodes = []; /* used to told holde copy of trNodes during manipulation 
 let roomObjItemsMap = new Map();  /* keep track of all roomObj.items with a map for faster finding */
 
 let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding roomObj.items with a map for faster finding */
+
+let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
 const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
@@ -298,6 +300,9 @@ workspaceKey.codec = { objectType: 'codec' };
 workspaceKey.codecEQX = { objectType: 'codec', model: 'EQX' };
 workspaceKey.codecEQ = { objectType: 'codec', model: 'Room Kit EQ' };
 workspaceKey.codecPro = { objectType: 'codec', model: 'Room Kit Pro' };
+workspaceKey.codecProG2QuadCam = { objectType: 'codec', model: 'Room Kit Pro G2' };
+workspaceKey.codecProG2RoomVision = { objectType: 'codec', model: 'Vision Kit Pro G2' };
+
 
 workspaceKey.phoneUnknown = { objectType: 'phone', role: "phone", yOffset: -0.1, xOffset: -0.04 };
 
@@ -320,8 +325,12 @@ workspaceKey.roomBarByod = { objectType: 'videoDevice', model: 'Room Bar BYOD', 
 workspaceKey.roomKitEqQuadCam = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
 workspaceKey.roomKitEqQuadCamExt = { objectType: 'videoDevice', model: 'Room Kit EQ', color: 'light', mount: "wall", yOffset: 0.051 };
 
+workspaceKey.roomKitProG2QuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro G2', mount: "wall", color: 'dark', yOffset: 0.051 };
 
-workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', mount: "wall", color: 'light' };
+workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit Pro', mount: "wall", color: 'light', yOffset: 0.051 };
+
+
+
 
 workspaceKey.boardPro55 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046, scale: [1.4, 7, 0.5] };
 workspaceKey.boardPro75 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475, scale: [1.8, 9.1, 0.5] };
@@ -337,6 +346,7 @@ workspaceKey.brdPro55G2WS = { objectType: 'videoDevice', model: 'Board Pro', mou
 workspaceKey.brdPro75G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
 
 workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk', role: 'singleScreen', yOffset: -0.08 };
+workspaceKey.webexDeskProG2 = { objectType: 'videoDevice', model: 'Desk Pro G2', role: 'singleScreen' };
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
 workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Mini', role: 'singleScreen' };
 
@@ -365,6 +375,8 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+
+workspaceKey.tblBullet = { objectType: 'table', model: 'bullet' }
 
 workspaceKey.carpet = { objectType: 'carpet', color: "#aaa" };
 
@@ -441,6 +453,7 @@ workspaceKey.pouf = { objectType: 'pouf' };
 workspaceKey.couch = { objectType: 'couch', xOffset: -0.05 };
 
 workspaceKey.credenza = { objectType: 'credenza' }
+
 
 workspaceKey.sphere = { objectType: 'sphere' };
 workspaceKey.cylinder = { objectType: 'cylinder' };
@@ -2206,7 +2219,7 @@ let videoDevices = [
 
     { name: "_Room Kit EQ: Quad Cam + PTZ 4K Extended", key: 'AH', id: 'roomKitEqQuadPtz4k', cameraParent: 'quadPtz4kExt', topImage: 'roomKitEqQuadPtz4k-top.png', frontImage: 'roomKitEqQuadPtz4k-front.png', defaultVert: 1900 },
 
-    { name: "Room Kit Pro: Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam", frontImage: 'roomKitEqQuadCam-menu.png' },
+    { name: "Room Kit Pro (G1): Quad Camera", id: 'roomKitProQuadCam', key: 'AI', cameraParent: "quadCam", frontImage: 'roomKitEqQuadCam-menu.png' },
 
     { name: "Board Pro 55*", id: 'boardPro55', key: 'AJ', codecParent: "boardPro75", topImage: 'boardPro55-top.png', frontImage: 'boardPro55-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, defaultVert: 974 },
 
@@ -2218,7 +2231,7 @@ let videoDevices = [
 
     { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
@@ -2248,13 +2261,19 @@ let videoDevices = [
 
     { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, }
+    { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
+
+    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
+
+    { name: "Room Kit Pro G2: Quad Camera", key: 'BF', id: 'roomKitProG2QuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitProG2QuadCam-menu.png', newItem: true },
 ]
 
 
 let videoDevicesNoCameras = structuredClone(videoDevices);
 
 let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended Speaker View' }, { presentertrack: 'PresenterTrack' }, { presentertrack2: 'Manual Camera' }]
+
+// let roomVisionRoles = [...ptzCameraRoles, { crossviewPresenterTrack: 'Cross-View & PresenterTrack' }, { mainCamera: 'Main Camera (requires 2 cameras)' }]
 
 let roomVisionRoles = [...ptzCameraRoles, { crossviewPresenterTrack: 'Cross-View & PresenterTrack' }]
 
@@ -2281,9 +2300,9 @@ let cameras = [
 
     { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Room Vision PTZ Cam & Bracket", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ Camera & Bracket ", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "PTZ 4K Cam & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
+    { name: "PTZ 4K Camera & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
     { name: "Unkown Camera**", id: 'unknownCamera', key: 'CJ', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
 
@@ -2331,6 +2350,12 @@ videoDevices[1].multiLensReach = [
     { rotation: (180 - videoDevices[1].wideHorizontalFOV) / 2, teleAngle: 20, onePersonDistance: 1.4, twoPersonDistance: 4 },
 ]
 
+/* Desk Pro G2 */
+let deskProG2WiderAngle = 105;
+videoDevices[29].multiLensReach = [
+    { rotation: videoDevices[29].teleHorizontalFOV / 2 + 90, teleAngle: 17, onePersonDistance: 1.3, twoPersonDistance: 2.7 },
+    { rotation: 37.5, teleAngle: 17, onePersonDistance: 1.3, twoPersonDistance: 2.75 },
+];
 
 /* Microphone & Navigators - key starts with M */
 let microphones = [
@@ -2797,7 +2822,20 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 2,
     resizeable: ['width', 'depth', 'vheight']
+},
+{
+    name: 'Huddle (Bullet) Table',
+    id: 'tblBullet',
+    key: 'WN',
+    frontImage: 'tblBullet-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
+    resizeable: ['width', 'depth', 'vheight'],
+    // TODO: Come back to this one the JSON API is set.
+    //  roles: [{ roundSide: 'One Side Rounded' }, { rectSide: 'Rectangular Corners' }]
 }
+
 ]
 
 /* Chair, doors and people. Key ID start with S or U */
@@ -3180,6 +3218,26 @@ let chairs = [
         width: 800,
         depth: 800,
         opacity: 1,
+    },
+    {
+        name: "codec: Kit Pro G2 (Quad Cam)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codecProG2QuadCam",
+        key: "UK",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
+    },
+    {
+        name: "codec: Kit Pro G2 (Room Vision Cam)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        id: "codecProG2RoomVision",
+        key: "UL",
+        topImage: 'codec-top.png',
+        frontImage: 'codec-top.png',
+        width: 720,
+        depth: 300,
+        opacity: 0.8,
     },
 ]
 
@@ -6593,7 +6651,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let kGrid = kDrawGrid(pxOffset, pxOffset, (activeRoomWidth * scale) + pxOffset, (activeRoomLength * scale) + pxOffset, scale, increment);
 
-    // titleGroup = drawTitleGroup();
+    titleGroup = drawTitleGroup();
 
     layerGrid.add(titleGroup);
 
@@ -9164,6 +9222,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 1.83 * scale;
         height = 0.61 * scale;
     }
+    else if (insertDevice.id.startsWith('tblBullet')) {
+        width = 0.8 * scale;
+        height = 1.05 * scale;
+    }
     else if (insertDevice.id.startsWith('couch')) {
         width = 0.9 * scale;
         height = 2.2 * scale;
@@ -9218,7 +9280,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
 
-    if ('tblRectRadius' in attrs) {
+    if ('tblRectRadius' in attrs && insertDevice.id === 'tblRect') {
         let tblRectRadius = attrs.tblRectRadius * scale;
         radius[0] = tblRectRadius;
         radius[1] = tblRectRadius;
@@ -9402,8 +9464,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.lineTo(width, 0);
                 ctx.lineTo(width, height);
                 ctx.lineTo(0, height);
-                // ctx.lineTo((width / 2) + (width2 / 2), height);
-                // ctx.lineTo((width / 2) - (width2 / 2), height);
                 ctx.closePath(0, 0);
                 ctx.moveTo(0, frontLine);
                 ctx.lineTo(width, frontLine)
@@ -9411,7 +9471,77 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    } else if (insertDevice.id === 'tblEllip') {
+    } else if (insertDevice.id === 'tblBullet') {
+
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: fillColor,
+            id: uuid,
+            draggable: true,
+            stroke: allDeviceTypes[insertDevice.id].stroke || strokeWidth,
+            strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || 1,
+            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
+
+
+
+        });
+
+        if ('data_role' in attrs && attrs.data_role.index === 1) {
+            tblWallFlr.sceneFunc((context, shape) => {
+
+                let width = shape.width();
+                let height = shape.height();
+
+                context.beginPath();
+
+                context.moveTo(0, 0);
+                context.lineTo(width, 0);
+                context.lineTo(width, height);
+                context.lineTo(0, height);
+                context.lineTo(0, 0);
+
+                context.closePath();
+                context.fillStrokeShape(shape);
+            });
+        } else {
+            tblWallFlr.sceneFunc((context, shape) => {
+
+                let width = shape.width();
+                let height = shape.height();
+
+                // Enforce minimum width (prevent zero/negative)
+                width = Math.max(width, 1);
+
+                const radius = width / 2;
+
+                if ('tblRectRadius' in insertDevice) {
+                    radius = insertDevice.tblRectRadius * scale;
+                }
+
+                height = Math.max(height, radius);
+                shape.width(width);
+                shape.height(height);
+
+                context.beginPath();
+
+                const rectHeight = height - radius;
+                context.moveTo(0, 0);
+                context.lineTo(width, 0);
+                context.lineTo(width, rectHeight);
+                context.arc(radius, rectHeight, radius, 0, Math.PI, false);
+                context.lineTo(0, 0);
+
+
+                context.closePath();
+                context.fillStrokeShape(shape);
+            });
+        }
+    }
+    else if (insertDevice.id === 'tblEllip') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -10028,7 +10158,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
 
-        layerTransform.find('.guide-line').forEach((l) => l.destroy());
+        allGuideLines.forEach(guideLine => {
+            guideLine.destroy();
+        });
+        allGuideLines = [];
+
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
@@ -10060,20 +10194,23 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         }
 
-        layerTransform.find('.guide-line').forEach((l) => l.destroy());
+        allGuideLines.forEach(guideLine => {
+            guideLine.destroy();
+        });
+        allGuideLines = [];
 
         if (tr.nodes().length === 1) {
             updateTransformedWall(tblWallFlr);
 
             setTimeout((theDeviceId) => {
 
-                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere') {
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
                     updateItem();
                 }
 
             }, 100, theDeviceId);
         }
-        layerTransform.draw()
+        // layerTransform.draw()
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
@@ -10915,227 +11052,232 @@ function updateItem() {
 
     let deleteDuplicateItemsArray = [];
 
-
-    roomObj.items[parentGroup].forEach((item, index) => {
-
-        if (item.id === id) {
-            /*once found, incoroprate the new parentGroup based on changes */
-
-            if (parentGroup !== allDeviceTypes[data_deviceid].parentGroup) {
-                deleteDuplicateItemsArray.push({ oldParentGroup: parentGroup, id: item.id });
-            }
-
-            parentGroup = allDeviceTypes[data_deviceid].parentGroup;
-
-            item.data_deviceid = data_deviceid;
-
-            if ('x' in item) {
-                item.x = x + activeRoomX;
-            }
-
-            if ('y' in item) {
-                item.y = y + activeRoomY;
-            }
-
-            if ('width' in item) {
-                item.width = width;
-            }
+    let item = roomObjItemsMap.get(id);
 
 
-            if ('height' in item) {
-                item.height = height;
-            }
 
-            if (data_deviceid === 'sphere' || data_deviceid === 'cylinder') {
-                item.height = width;
-            }
+    if (item) {
+        /*once found, incoroprate the new parentGroup based on changes */
 
-            if (data_deviceid === 'sphere') {
-                item.data_vHeight = width;
-                data_vHeight = width;
+        if (parentGroup !== allDeviceTypes[data_deviceid].parentGroup) {
+            deleteDuplicateItemsArray.push({ oldParentGroup: parentGroup, id: item.id });
+        }
 
-            }
+        parentGroup = allDeviceTypes[data_deviceid].parentGroup;
 
-            if (parentGroup === 'displays') {
-                item.data_diagonalInches = data_diagonalInches;
-            };
+        item.data_deviceid = data_deviceid;
 
-            if ('data_diagonalInches' in item) {
+        if ('x' in item) {
+            item.x = x + activeRoomX;
+        }
 
-                item.data_diagonalInches = data_diagonalInches;
+        if ('y' in item) {
+            item.y = y + activeRoomY;
+        }
 
-                if (data_diagonalInches === '' || data_diagonalInches < 5) {
+        if ('width' in item) {
+            item.width = width;
+        }
+
+
+        if ('height' in item) {
+            item.height = height;
+        }
+
+        if (data_deviceid === 'sphere' || data_deviceid === 'cylinder') {
+            item.height = width;
+        }
+
+        if (data_deviceid === 'sphere') {
+            item.data_vHeight = width;
+            data_vHeight = width;
+
+        }
+
+        if (parentGroup === 'displays') {
+            item.data_diagonalInches = data_diagonalInches;
+        };
+
+        if ('data_diagonalInches' in item) {
+
+            item.data_diagonalInches = data_diagonalInches;
+
+            if (data_diagonalInches === '' || data_diagonalInches < 5) {
+
+                if ('diagonalInches' in allDeviceTypes[item.data_deviceid]) {
+                    item.data_diagonalInches = allDeviceTypes[item.data_deviceid].diagonalInches;
+                } else {
                     item.data_diagonalInches = 75
                 }
 
-                if (item.data_deviceid.startsWith('roomKitEqx') && ((Number(data_diagonalInches) > 85) || Number(data_diagonalInches) < 65)) {
-                    item.data_diagonalInches = 75;
+            }
+
+            if (item.data_deviceid.startsWith('roomKitEqx') && ((Number(data_diagonalInches) > 85) || Number(data_diagonalInches) < 65)) {
+                item.data_diagonalInches = 75;
+            }
+        }
+
+        if (document.getElementById('drpRole').options.length > 0) {
+
+            item.data_role = {};
+            item.data_role.value = document.getElementById('drpRole').value;
+            item.data_role.index = document.getElementById('drpRole').selectedIndex;
+        }
+
+        if (document.getElementById('drpColor').options.length > 0) {
+
+            item.data_color = {};
+            item.data_color.value = document.getElementById('drpColor').value;
+            item.data_color.index = document.getElementById('drpColor').selectedIndex;
+        }
+
+        if (document.getElementById('drpMount').options.length > 0) {
+
+            item.data_mount = {};
+            item.data_mount.value = document.getElementById('drpMount').value;
+            item.data_mount.index = document.getElementById('drpMount').selectedIndex;
+        }
+
+        if (item.data_deviceid === 'tblRect') {
+            if (tblRectRadius != '') {
+                item.tblRectRadius = tblRectRadius;
+            }
+            else if ('tblRectRadius' in item) {
+                delete item.tblRectRadius;
+            }
+
+            if (tblRectRadiusRight != '') {
+                item.tblRectRadiusRight = tblRectRadiusRight;
+                if (tblRectRadius === '') {
+                    item.tblRectRadius = 0;
                 }
             }
-
-            if (document.getElementById('drpRole').options.length > 0) {
-
-                item.data_role = {};
-                item.data_role.value = document.getElementById('drpRole').value;
-                item.data_role.index = document.getElementById('drpRole').selectedIndex;
+            else if ('tblRectRadiusRight' in item) {
+                delete item.tblRectRadiusRight;
             }
+        }
 
-            if (document.getElementById('drpColor').options.length > 0) {
+        if (item.data_deviceid === 'pathShape') {
+            data_labelField = combinePathShapeLabel(data_labelField, document.getElementById('labelPath').value);
+        }
 
-                item.data_color = {};
-                item.data_color.value = document.getElementById('drpColor').value;
-                item.data_color.index = document.getElementById('drpColor').selectedIndex;
-            }
+        if (data_labelField) {
+            item.data_labelField = data_labelField;
+        } else if ('data_labelField' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
+            delete item.data_labelField;
+        }
 
-            if (document.getElementById('drpMount').options.length > 0) {
+        if (item.data_deviceid === 'tblTrap') {
 
-                item.data_mount = {};
-                item.data_mount.value = document.getElementById('drpMount').value;
-                item.data_mount.index = document.getElementById('drpMount').selectedIndex;
-            }
-
-            if (item.data_deviceid === 'tblRect') {
-                if (tblRectRadius != '') {
-                    item.tblRectRadius = tblRectRadius;
-                }
-                else if ('tblRectRadius' in item) {
-                    delete item.tblRectRadius;
-                }
-
-                if (tblRectRadiusRight != '') {
-                    item.tblRectRadiusRight = tblRectRadiusRight;
-                    if (tblRectRadius === '') {
-                        item.tblRectRadius = 0;
-                    }
-                }
-                else if ('tblRectRadiusRight' in item) {
-                    delete item.tblRectRadiusRight;
-                }
-            }
-
-            if (item.data_deviceid === 'pathShape') {
-                data_labelField = combinePathShapeLabel(data_labelField, document.getElementById('labelPath').value);
-            }
-
-            if (data_labelField) {
-                item.data_labelField = data_labelField;
-            } else if ('data_labelField' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
-                delete item.data_labelField;
-            }
-
-            if (item.data_deviceid === 'tblTrap') {
-
-                if (data_trapNarrowWidth) {
-                    item.data_trapNarrowWidth = data_trapNarrowWidth;
-                    if (data_trapNarrowWidth == 0) {
-                        data_trapNarrowWidth = 0.01;
-                        item.data_trapNarrowWidth = data_trapNarrowWidth;
-                    }
-                } else {
+            if (data_trapNarrowWidth) {
+                item.data_trapNarrowWidth = data_trapNarrowWidth;
+                if (data_trapNarrowWidth == 0) {
                     data_trapNarrowWidth = 0.01;
                     item.data_trapNarrowWidth = data_trapNarrowWidth;
                 }
+            } else {
+                data_trapNarrowWidth = 0.01;
+                item.data_trapNarrowWidth = data_trapNarrowWidth;
             }
+        }
 
-            if (!(data_zPosition === '')) {
-                item.data_zPosition = data_zPosition;
-            }
-            else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
-                delete item.data_zPosition;
-            }
+        if (!(data_zPosition === '')) {
+            item.data_zPosition = data_zPosition;
+        }
+        else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
+            delete item.data_zPosition;
+        }
 
-            if (data_vHeight) {
-                item.data_vHeight = data_vHeight;
-            }
-            else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
-                delete item.data_vHeight;
-            }
-
-
-
-            if (!(data_tilt === '')) {
-                item.data_tilt = Math.round(data_tilt * 10) / 10;
-            }
-            else if ('data_tilt' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
-                delete item.data_tilt;
-            }
-
-            if (!(data_slant === '')) {
-                item.data_slant = Math.round(data_slant * 10) / 10;
-            }
-            else if ('data_slant' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
-                delete item.data_slant;
-            }
-
-            if (testOffset) {
-                workspaceKey[item.data_deviceid].xOffset = document.getElementById('itemXoffset').value;
-                workspaceKey[item.data_deviceid].yOffset = document.getElementById('itemYoffset').value;
-            }
-
-            item.rotation = rotation;
-
-            if (document.getElementById('isPrimaryCheckBox').disabled === false && document.getElementById('isPrimaryCheckBox').checked === true) {
-                arrayMove(roomObj.items[parentGroup], index, 0);
-            }
-
-            /*
-            right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
-            */
-
-            let node = stage.find('#' + id)[0];
-
-            let audioShading = stage.find('#audio~' + node.id())[0];
-            let speakerShading = stage.find('#speaker~' + node.id())[0];
-            let videoShading = stage.find('#fov~' + node.id())[0];
-            let displayShading = stage.find('#dispDist~' + node.id())[0];
-            let labelText = stage.find('#label~' + node.id());
-
-            node.destroy();
-
-            if (audioShading) {
-                audioShading.destroy();
-            }
-
-            if (speakerShading) {
-                speakerShading.destroy();
-            }
-
-            if (videoShading) {
-                videoShading.destroy();
-            }
-
-            if (displayShading) {
-                displayShading.destroy();
-            }
-
-            if (labelText) {
-                labelText.forEach(label => {
-                    label.destroy();
-                })
-
-            }
+        if (data_vHeight) {
+            item.data_vHeight = data_vHeight;
+        }
+        else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+            delete item.data_vHeight;
+        }
 
 
-            /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
-            if (item.data_deviceid === 'displayTrpl' || item.data_deviceid === 'displayDbl') {
-                delete item.data_role;
-            }
 
-            insertShapeItem(item.data_deviceid, parentGroup, item, id, false);
+        if (!(data_tilt === '')) {
+            item.data_tilt = Math.round(data_tilt * 10) / 10;
+        }
+        else if ('data_tilt' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+            delete item.data_tilt;
+        }
 
-            /* give the canvas some time to be updated before updating */
-            setTimeout(() => {
-                // updateFormatDetails(id);  /* value is contained in enableCopyDelBtn */
-                tr.nodes([stage.find('#' + id)[0]]);
-                enableCopyDelBtn();
-                canvasToJson();
-            }, 100);
+        if (!(data_slant === '')) {
+            item.data_slant = Math.round(data_slant * 10) / 10;
+        }
+        else if ('data_slant' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
+            delete item.data_slant;
+        }
 
-            return;
+        if (testOffset) {
+            workspaceKey[item.data_deviceid].xOffset = document.getElementById('itemXoffset').value;
+            workspaceKey[item.data_deviceid].yOffset = document.getElementById('itemYoffset').value;
+        }
 
+        item.rotation = rotation;
+
+        if (document.getElementById('isPrimaryCheckBox').disabled === false && document.getElementById('isPrimaryCheckBox').checked === true) {
+            arrayMove(roomObj.items[parentGroup], index, 0);
+        }
+
+        /*
+        right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
+        */
+
+        let node = stage.find('#' + id)[0];
+
+        let audioShading = stage.find('#audio~' + node.id())[0];
+        let speakerShading = stage.find('#speaker~' + node.id())[0];
+        let videoShading = stage.find('#fov~' + node.id())[0];
+        let displayShading = stage.find('#dispDist~' + node.id())[0];
+        let labelText = stage.find('#label~' + node.id());
+
+        node.destroy();
+
+        if (audioShading) {
+            audioShading.destroy();
+        }
+
+        if (speakerShading) {
+            speakerShading.destroy();
+        }
+
+        if (videoShading) {
+            videoShading.destroy();
+        }
+
+        if (displayShading) {
+            displayShading.destroy();
+        }
+
+        if (labelText) {
+            labelText.forEach(label => {
+                label.destroy();
+            })
 
         }
-    });
+
+
+        /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
+        if (item.data_deviceid === 'displayTrpl' || item.data_deviceid === 'displayDbl') {
+            delete item.data_role;
+        }
+
+        insertShapeItem(item.data_deviceid, parentGroup, item, id, false);
+
+        /* give the canvas some time to be updated before updating */
+        setTimeout(() => {
+            // updateFormatDetails(id);  /* value is contained in enableCopyDelBtn */
+            tr.nodes([stage.find('#' + id)[0]]);
+            enableCopyDelBtn();
+            canvasToJson();
+        }, 100);
+
+
+
+    };
 
 
     deleteDuplicateItemsArray.forEach(duplicateItem => {
@@ -12697,9 +12839,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             node.opacity(insertDevice.opacity);
         }
 
-        // updateShading(node);
-
-        console.timeEnd('stage3_updateNodeAttributes');
     }
 
     let imageObj = new Image();
@@ -12724,7 +12863,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('dragend', function imageItemOnDragEnd() {
             if (trNodesLength > 1) return;
-            layerTransform.find('.guide-line').forEach((l) => l.destroy());
+            allGuideLines.forEach(guideLine => {
+                guideLine.destroy();
+            });
+
+            allGuideLines = [];
+
             canvasToJson();
         });
 
@@ -13248,16 +13392,24 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         let angle = 145;
         if (deviceId === 'display21_9') {
-            distance1 = distance1 * 1.13;
-            distance1unit = distance1unit * 1.13;
+            distance1 = distance1 * 0.8;
+            distance1unit = distance1unit * 0.8;
         }
+
 
         let outerRadius = distance1 * 3.2;
 
         if (displayNumber > 1) {
-            outerRadius = distance1 * 3.4;
-            angle = 132;
+            outerRadius = distance1 * 3.65;
+            angle = 138;
         }
+
+        if ('data_role' in attrs && !attrs.data_role.value.startsWith('single')) {
+            outerRadius = distance1 * 3.65;
+        }
+
+
+
 
         let displayDistanceWedge1 = new Konva.Arc({
             /* x and y should be tracked in the group only */
@@ -13602,6 +13754,76 @@ function getLineGuideStops(skipShape, resize = false) {
     };
 }
 
+/* were can we snap our objects? If resize = true, ignore center */
+function getLineGuideStops2(skipShape, resize = false) {
+    /* we can snap to stage borders and the center of the stage */
+
+    let outerWall = stage.find("#cOuterWall")[0];
+    let outerBox = outerWall.getClientRect();
+    let outsideBox;
+    let vertical = [outerBox.x, outerBox.x + outerBox.width / 2, outerBox.x + outerBox.width];
+    let horizontal = [outerBox.y, outerBox.y + outerBox.height / 2, outerBox.y + outerBox.height];
+
+    /* remove center items*/
+    if (resize) {
+        vertical.splice(1, 1);
+        horizontal.splice(1, 1);
+    }
+
+
+    let outsideWall = stage.find("#outsideWall")[0];
+    if (outsideWall) {
+        outsideBox = outsideWall.getClientRect();
+        if (resize) {
+            vertical.push([outsideBox.x, outsideBox.x + outsideBox.width]);
+            horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height])
+        } else {
+            vertical.push([outsideBox.x, outsideBox.x + outsideBox.width / 2, outsideBox.x + outsideBox.width]);
+            horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height / 2, outsideBox.y + outsideBox.height]);
+        }
+    }
+
+
+
+    /* Go through objects on the primary layer.  Only return draggable() items.  and we snap over edges and center of each object on the canvas */
+    layerTransform.find(node => {
+        let groupName = node.getParent().name();
+        /* ignore the shading and the temporary groups */
+        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+            /* only snap to objects inside the current room part */
+            if (node.draggable() && Konva.Util.haveIntersection(outerBox, node.getClientRect())) {
+                return true;
+            } else {
+                return false;
+            }
+
+
+
+        }
+
+    }
+    ).forEach((guideItem) => {
+        if (guideItem === skipShape) {
+            return;
+        }
+        let box = guideItem.getClientRect();
+        /* and we can snap to all edges of shapes. If resize equals true, don't grab center values */
+        if (resize) {
+            vertical.push([box.x, box.x + box.width]);
+            horizontal.push([box.y, box.y + box.height]);
+        } else {
+            vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
+            horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
+        }
+
+    });
+
+
+    return {
+        vertical: vertical.flat(),
+        horizontal: horizontal.flat(),
+    };
+}
 
 
 /* what points of the object will trigger to snapping?
@@ -13694,9 +13916,35 @@ function getGuides(lineGuideStops, itemBounds) {
         });
     });
 
-    let guides = [];
+
+   // let guides = [];
+    // let minV = getObjectsWithLowestDiff(resultV);
+
+    // let minH = getObjectsWithLowestDiff(resultH);
+
+    // minV.forEach(guide => {
+    //     guides.push({
+    //         lineGuide: guide.lineGuide,
+    //         offset: guide.offset,
+    //         orientation: 'V',
+    //         snap: guide.snap,
+    //     });
+    // })
+
+    // minH.forEach(guide => {
+    //     guides.push({
+    //         lineGuide: guide.lineGuide,
+    //         offset: guide.offset,
+    //         orientation: 'H',
+    //         snap: guide.snap,
+    //     });
+    // })
+
+
 
     /* find closest snap */
+
+    let guides = [];
     let minV = resultV.sort((a, b) => a.diff - b.diff)[0];
     let minH = resultH.sort((a, b) => a.diff - b.diff)[0];
     if (minV) {
@@ -13706,6 +13954,8 @@ function getGuides(lineGuideStops, itemBounds) {
             orientation: 'V',
             snap: minV.snap,
         });
+
+
     }
     if (minH) {
         guides.push({
@@ -13718,6 +13968,18 @@ function getGuides(lineGuideStops, itemBounds) {
     return guides;
 }
 
+function getObjectsWithLowestDiff(resultV) {
+    // Edge case: return empty array if input is empty
+    if (!resultV || resultV.length === 0) {
+        return [];
+    }
+
+    // 1. Find the minimum value among all items, rounding to the nearest integer
+    const minRoundedDiff = Math.min(...resultV.map(item => Math.round(item.diff)));
+
+    // 2. Filter the array to return only objects that match this minimum rounded value
+    return resultV.filter(item => Math.round(item.diff) === minRoundedDiff);
+}
 
 function snapToGuideLinesResize(moved) {
     let original = lastSelectedNodePosition;
@@ -13735,7 +13997,10 @@ function snapToGuideLines(e, resize = false) {
 
     if (tr.nodes().length != 1) return;  /* only work if one node */
 
-    layerTransform.find('.guide-line').forEach((l) => l.destroy());
+    allGuideLines.forEach(guideLine => {
+        guideLine.destroy();
+    });
+    allGuideLines = [];
 
     /* find possible snapping lines */
     let lineGuideStops = getLineGuideStops(e.target, resize);
@@ -13752,8 +14017,6 @@ function snapToGuideLines(e, resize = false) {
 
             /* find snapping points of current object .guide, .offset, .snap: start & end */
             let itemBounds = getObjectSnappingEdges(e.target, resize);
-            let cf = 0.01; /* ccoefficient factor */
-
 
             let itemOriginalBounds = getObjectSnappingEdges(original, resize);
             // console.log('itemBounds', JSON.stringify(itemBounds));
@@ -13852,6 +14115,7 @@ function drawSnapGuides(guides, direction = 'both') {
                 dash: [4, 6],
             });
             layerTransform.add(line);
+            allGuideLines.push(line);
             line.absolutePosition({
                 x: 0,
                 y: lg.lineGuide,
@@ -13866,6 +14130,7 @@ function drawSnapGuides(guides, direction = 'both') {
                 dash: [4, 6],
             });
             layerTransform.add(line);
+            allGuideLines.push(line);
             line.absolutePosition({
                 x: lg.lineGuide,
                 y: 0,
@@ -14700,89 +14965,66 @@ function parseShadingDecimalToBinary(newItem, decimalInput) {
 function populateColorFromUrl(newItem, place = -1) {
     let index = Number(place) + 1; /* by default index = 0 is the default, */
 
-    videoDevices.forEach(indexToColor);
-    chairs.forEach(indexToColor);
-    displays.forEach(indexToColor);
-    microphones.forEach(indexToColor);
+    let device = allDeviceTypes[newItem.data_deviceid]
 
-    function indexToColor(device) {
-        if (newItem.data_deviceid === device.id) {
-            if ('colors' in device && device.colors) {
-                let color = device.colors[index];
-                newItem.data_color = {};
+    if ('colors' in device && device.colors) {
+        let color = device.colors[index];
+        newItem.data_color = {};
 
-                /* determine if the object is a string or an object.  */
-                if (typeof (color) === 'string') {
-                    newItem.data_color.value = color;
+        if (typeof (color) === 'string') {
+            newItem.data_color.value = color;
 
-                } else {
-                    for (const [key, value] of Object.entries(color)) {
-                        newItem.data_color.value = key;
-                    }
-                }
-                newItem.data_color.index = index;
+        } else {
+            for (const [key, value] of Object.entries(color)) {
+                newItem.data_color.value = key;
             }
         }
+        newItem.data_color.index = index;
     }
 }
 
 function populateRoleFromUrl(newItem, place = -1) {
     let index = Number(place) + 1; /* by default index = 0 is the default, */
 
-    videoDevices.forEach(indexToRole);
-    chairs.forEach(indexToRole);
-    displays.forEach(indexToRole);
-    microphones.forEach(indexToRole);
+    let device = allDeviceTypes[newItem.data_deviceid]
 
-    function indexToRole(device) {
-        if (newItem.data_deviceid === device.id) {
-            if ('roles' in device && device.roles) {
-                let role = device.roles[index];
+    if ('roles' in device && device.roles) {
+        let role = device.roles[index];
 
-                newItem.data_role = {};
+        newItem.data_role = {};
 
-                /* determine if the object is a string or an object.  */
-                if (typeof (role) === 'string') {
-                    newItem.data_role.value = role;
+        if (typeof (role) === 'string') {
+            newItem.data_role.value = role;
 
-                } else {
-                    for (const [key, value] of Object.entries(role)) {
-                        newItem.data_role.value = key;
-                    }
-                }
-                newItem.data_role.index = index;
+        } else {
+            for (const [key, value] of Object.entries(role)) {
+                newItem.data_role.value = key;
             }
         }
+        newItem.data_role.index = index;
     }
 }
 
 function populateMountFromUrl(newItem, place = -1) {
     let index = Number(place) + 1; /* by default index = 0 is the default, */
 
-    videoDevices.forEach(indexToMount);
-    chairs.forEach(indexToMount);
-    displays.forEach(indexToMount);
-    microphones.forEach(indexToMount);
+    let device = allDeviceTypes[newItem.data_deviceid]
 
-    function indexToMount(device) {
-        if (newItem.data_deviceid === device.id) {
-            if ('mounts' in device && device.mounts) {
-                let mount = device.mounts[index];
-                newItem.data_mount = {};
+    if ('mounts' in device && device.mounts) {
+        let mount = device.mounts[index];
+        newItem.data_mount = {};
 
-                /* determine if the object is a string or an object.  */
-                if (typeof (mount) === 'string') {
-                    newItem.data_mount.value = mount;
+        if (typeof (mount) === 'string') {
+            newItem.data_mount.value = mount;
 
-                } else {
-                    for (const [key, value] of Object.entries(mount)) {
-                        newItem.data_mount.value = key;
-                    }
-                }
-                newItem.data_mount.index = index;
+        } else {
+            for (const [key, value] of Object.entries(mount)) {
+                newItem.data_mount.value = key;
             }
         }
+        newItem.data_mount.index = index;
     }
+
 }
 
 
@@ -14794,37 +15036,28 @@ function populateDrpColor(item) {
 
     document.getElementById('colorDiv').style.display = 'none';
 
-    videoDevices.forEach(populate);
+    let device = allDeviceTypes[item.data_deviceid];
 
-    microphones.forEach(populate);
+    if ('colors' in device && device.colors) {
+        document.getElementById('colorDiv').style.display = '';
 
-    chairs.forEach(populate);
+        device.colors.forEach(color => {
+            let drpOption = new Option();
 
-    displays.forEach(populate);
-
-    function populate(device) {
-        if (item.data_deviceid === device.id) {
-            if ('colors' in device && device.colors) {
-                document.getElementById('colorDiv').style.display = '';
-
-                device.colors.forEach(color => {
-                    let drpOption = new Option();
-
-                    /* determine if the object is a string or an object.  */
-                    if (typeof (color) === 'string') {
-                        drpOption.text = color;
-                        drpOption.value = color;
-                    } else {
-                        for (const [key, value] of Object.entries(color)) {
-                            drpOption.text = value;
-                            drpOption.value = key;
-                        }
-                    }
-                    document.getElementById('drpColor').add(drpOption, undefined);
-                })
+            /* determine if the object is a string or an object.  */
+            if (typeof (color) === 'string') {
+                drpOption.text = color;
+                drpOption.value = color;
+            } else {
+                for (const [key, value] of Object.entries(color)) {
+                    drpOption.text = value;
+                    drpOption.value = key;
+                }
             }
-        }
+            document.getElementById('drpColor').add(drpOption, undefined);
+        })
     }
+
 }
 
 
@@ -14835,35 +15068,26 @@ function populateDrpRole(item) {
 
     document.getElementById('roleDiv').style.display = 'none';
 
-    videoDevices.forEach(populate);
+    let device = allDeviceTypes[item.data_deviceid];
 
-    microphones.forEach(populate);
+    if ('roles' in device) {
+        document.getElementById('roleDiv').style.display = '';
 
-    chairs.forEach(populate);
-
-    displays.forEach(populate);
-
-    function populate(device) {
-        if (item.data_deviceid === device.id) {
-            if ('roles' in device) {
-                document.getElementById('roleDiv').style.display = '';
-
-                device.roles.forEach(role => {
-                    let drpOption = new Option();
-                    /* determine if the object is a string or an object.  */
-                    if (typeof (role) === 'string') {
-                        drpOption.text = role;
-                        drpOption.value = role;
-                    } else {
-                        for (const [key, value] of Object.entries(role)) {
-                            drpOption.text = value;
-                            drpOption.value = key;
-                        }
-                    }
-                    document.getElementById('drpRole').add(drpOption, undefined);
-                })
+        device.roles.forEach(role => {
+            let drpOption = new Option();
+            /* determine if the object is a string or an object.  */
+            if (typeof (role) === 'string') {
+                drpOption.text = role;
+                drpOption.value = role;
+            } else {
+                for (const [key, value] of Object.entries(role)) {
+                    drpOption.text = value;
+                    drpOption.value = key;
+                }
             }
-        }
+            document.getElementById('drpRole').add(drpOption, undefined);
+        })
+
     }
 }
 
@@ -14876,35 +15100,25 @@ function populateDrpMount(item) {
 
     document.getElementById('mountDiv').style.display = 'none';
 
-    videoDevices.forEach(populate);
+    let device = allDeviceTypes[item.data_deviceid];
 
-    microphones.forEach(populate);
+    if ('mounts' in device) {
+        document.getElementById('mountDiv').style.display = '';
 
-    chairs.forEach(populate);
-
-    displays.forEach(populate);
-
-    function populate(device) {
-        if (item.data_deviceid === device.id) {
-            if ('mounts' in device) {
-                document.getElementById('mountDiv').style.display = '';
-
-                device.mounts.forEach(mount => {
-                    let drpOption = new Option();
-                    /* determine if the object is a string or an object.  */
-                    if (typeof (mount) === 'string') {
-                        drpOption.text = mount;
-                        drpOption.value = mount;
-                    } else {
-                        for (const [key, value] of Object.entries(mount)) {
-                            drpOption.text = value;
-                            drpOption.value = key;
-                        }
-                    }
-                    document.getElementById('drpMount').add(drpOption, undefined);
-                })
+        device.mounts.forEach(mount => {
+            let drpOption = new Option();
+            /* determine if the object is a string or an object.  */
+            if (typeof (mount) === 'string') {
+                drpOption.text = mount;
+                drpOption.value = mount;
+            } else {
+                for (const [key, value] of Object.entries(mount)) {
+                    drpOption.text = value;
+                    drpOption.value = key;
+                }
             }
-        }
+            document.getElementById('drpMount').add(drpOption, undefined);
+        })
     }
 }
 
@@ -15072,7 +15286,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     let item = roomObjItemsMap.get(id);
 
-    if(!item) return;
+    if (!item) return;
 
     if (!('data_deviceid' in item)) {
         console.info('No data_deviceid found in item: ', item);
@@ -15350,7 +15564,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     selectElement.disabled = true;
 
-    deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProQuadCam'];
+    deviceGroups[0] = ['roomBar', 'roomBarPro', 'roomKitEqQuadCam', 'roomKitProG2QuadCam', 'roomKitProQuadCam'];
 
     deviceGroups[1] = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
 
@@ -15360,7 +15574,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[4] = ['wallGlass', 'wallWindow', 'wallStd'];
 
-    deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU'];
+    deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
     deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9', 'displayScreen'];
 
@@ -15378,7 +15592,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[13] = ['phone9841', 'phone9851', 'phone9861', 'phone9871'];
 
-    deviceGroups[14] = ['webexDeskPro', 'webexDesk', 'webexDeskMini'];
+    deviceGroups[14] = ['webexDeskProG2', 'webexDeskPro', 'webexDesk', 'webexDeskMini'];
 
     deviceGroups[15] = ['chair', 'chairSwivel', 'chairHigh'];
 
@@ -16090,6 +16304,13 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         labelDiv.id = `${parentGroup}-${menuItem}-label`;
         flexItemDiv.appendChild(labelDiv);
 
+        if (item.newItem && item.newItem === true) {
+            let newBadgeDiv = document.createElement("div");
+            newBadgeDiv.classList.add('newBadge');
+            newBadgeDiv.innerText = 'New';
+            flexItemDiv.appendChild(newBadgeDiv);
+        }
+
         if (menuItem === 'wallBuilder') {
             flexItemDiv.classList.add('flexItemsWallBuilder');
             flexItemDiv.addEventListener('pointerdown', () => {
@@ -16122,13 +16343,13 @@ function createEquipmentMenu() {
     /* remove previous menu, then add a menu */
     removeElementsByClass('equipmentItemOnMenu');
 
-    let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProQuadCam'];
+    let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProG2QuadCam'];
 
     let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
 
     let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
 
-    let personalVideoDevicesMenu = ['webexDeskPro', 'webexDesk', 'webexDeskMini', 'roomBarByod'];
+    let personalVideoDevicesMenu = ['webexDeskProG2', 'webexDesk', 'webexDeskMini', 'roomBarByod'];
 
     let cameraDevicesMenu = ['ptzVision2', 'ptz4kMount2', 'quadCam'];
 
@@ -16157,7 +16378,7 @@ function createEquipmentMenu() {
         desktopMenu = desktopMenu.concat('unknownObj', 'tblUnknownObj');
     }
 
-    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'credenza'];
+    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza'];
 
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape'];
 
@@ -17598,7 +17819,7 @@ function onQuickAddChange(e) {
 
     gallery.innerHTML = '';
     matches.forEach((m, n) => {
-        const item = document.createElement('button');
+        const btnItem = document.createElement('button');
 
         const parentGroup = allDeviceTypes[m.id]?.parentGroup;
 
@@ -17607,22 +17828,29 @@ function onQuickAddChange(e) {
             const i = document.createElement('img');
             i.src = `./assets/images/${img}`;
             i.draggable = false;
-            item.appendChild(i);
+            btnItem.appendChild(i);
             i.id = `${parentGroup}-${m.id}-img`;
         }
         const label = document.createElement('label');
         label.innerText = m.name?.slice(0, 30);
-        item.title = `${m.name} - Tap to add to room`;
-        item.appendChild(label);
+        btnItem.title = `${m.name} - Tap to add to room`;
+        btnItem.appendChild(label);
 
 
 
-        item.classList.add('flexItems');
-        item.classList.add('equipmentItemOnMenu');
-        item.id = `${parentGroup}-${m.data_deviceid}-div`;
-        item.draggable = false;
+        btnItem.classList.add('flexItems');
+        btnItem.classList.add('equipmentItemOnMenu');
+        btnItem.id = `${parentGroup}-${m.data_deviceid}-div`;
+        btnItem.draggable = false;
 
-        item.onclick = () => {
+        if (allDeviceTypes[m.id] && allDeviceTypes[m.id].newItem === true) {
+            let newBadgeDiv = document.createElement("div");
+            newBadgeDiv.classList.add('newBadge');
+            newBadgeDiv.innerText = 'New';
+            btnItem.appendChild(newBadgeDiv);
+        }
+
+        btnItem.onclick = () => {
             const { roomWidth, roomLength } = roomObj.room;
 
             const attrs = {};
@@ -17650,7 +17878,7 @@ function onQuickAddChange(e) {
         // item.addEventListener('touchmove', touchMove);
         // item.addEventListener('touchend', touchEnd);
 
-        gallery.appendChild(item);
+        gallery.appendChild(btnItem);
     })
 
     if (!matches.length) {
@@ -18807,18 +19035,12 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             if (Object.keys(candidateKey).length === 0) {
                 console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
-                /*
 
-                Do something with unknow objects....
-
-                 */
                 unknownObjects.push(wdItem);
 
             } else {
                 console.info('Import Workspace Designer - Insert into RoomObj', JSON.stringify(wdItem));
                 console.info('Import Workspace Designer use key: ', candidateKeyName, candidateKey);
-
-                // wdItem = simplifyWdItem(wdItem);
 
                 wdItemToRoomObjItem(candidateWdItem, candidateKeyName, roomObj2, workspaceObj);
 
@@ -19214,10 +19436,19 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     /* tblRect radius & radiusRight*/
-    if ('radius' in wdItem && data_deviceid === 'tblRect') {
+    if ('radius' in wdItem && (data_deviceid === 'tblRect')) {
+
         item.tblRectRadius = wdItem.radius;
         delete wdItem.radius;
     }
+    // TODO: come back to this once the WD json API is set
+    // if ('radius' in wdItem && (data_deviceid === 'tblBullet') && wdItem.radius === 0) {
+
+    //     item.data_role = {}
+    //     item.data_role.value = "rectSide";
+    //     item.data_role.index = 1;
+    //     delete wdItem.radius;
+    // }
 
     if ('radiusRight' in wdItem && data_deviceid === 'tblRect') {
         item.tblRectRadiusRight = wdItem.radiusRight;
@@ -19225,13 +19456,22 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     /* A chair may have color:#fff, which is the default therefore remove */
-    if ('color' in wdItem && wdItem.color === '#fff' && (data_deviceid === 'chair' || data_deviceid.startsWith('tbl'))) {
+    if ('color' in wdItem && wdItem.color === '#fff' && (data_deviceid.startsWith('chair') || data_deviceid.startsWith('tbl'))) {
         delete wdItem.color;
     }
 
     /* default role of the laptop is role:laptop, therefore remove */
     if (data_deviceid === 'laptop' && wdItem.role && wdItem.role === 'laptop') {
         delete wdItem.role;
+    }
+
+    if (data_deviceid === 'display21_9' && wdItem.role === 'ultrawide') {
+        delete wdItem.role;
+    }
+
+    /* ignore:false is the default, therefore delete */
+    if ('ignore' in wdItem && wdItem.ignore === false) {
+        delete wdItem.ignore;
     }
 
     if ('color' in wdItem) {
@@ -19256,6 +19496,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     if ('role' in wdItem) {
 
+        /* remove the plus symbol */
         if (wdItem.role === 'crossview+presentertrack') {
             wdItem.role = 'crossviewPresenterTrack';
         }
@@ -20463,6 +20704,16 @@ function exportRoomObjToWorkspace() {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
+        if ('model' in workspaceItem && 'size' in workspaceItem) {
+
+            if (!validateDisplaySizeAndModel(workspaceItem.model, workspaceItem.size)) {
+                console.info('Model and size inches mismatch:', workspaceItem.model, workspaceItem.size, 'Removing model from display.');
+                delete workspaceItem.model;
+            }
+        }
+
+
+
         if ('data_isItemOnStage' in item) {
             workspaceItem.ignore = !item.data_isItemOnStage;
         }
@@ -20480,9 +20731,9 @@ function exportRoomObjToWorkspace() {
 
     function workspaceObjTablePush(item) {
 
-        let x, y, z, vh, workspaceItem;
+        let x, y, z, verticalHeight, workspaceItem;
         z = 0;
-        vh = 0;
+        verticalHeight = 0;
 
         let xy = getItemCenter(item);
 
@@ -20520,9 +20771,9 @@ function exportRoomObjToWorkspace() {
 
         if ('data_vHeight' in item) {
             if (item.data_vHeight != "") {
-                vh = item.data_vHeight + vh;
+                verticalHeight = item.data_vHeight + verticalHeight;
             } else {
-                vh = null;
+                verticalHeight = null;
             }
         }
 
@@ -20542,8 +20793,15 @@ function exportRoomObjToWorkspace() {
             "length": item.height
         }
 
-        if (vh) {
-            workspaceItem.height = vh;
+        // TODO: come back to this once the WD json api is set
+        // if(item.data_deviceid === 'tblBullet' && 'data_role' in item && item.data_role.index === 1){
+        //
+        //     workspaceItem.radius = 0;
+        // }
+
+
+        if (verticalHeight) {
+            workspaceItem.height = verticalHeight;
         }
 
         /* tblSchoolDesk does not support radius or radiusRight in the Workspace Designer, remove if present */
@@ -20748,6 +21006,30 @@ function exportRoomObjToWorkspace() {
 
     return workspaceObj;
 
+}
+
+/* for a display with a model attribute, if the size attribute doesn't match the end of the of the model number, return False */
+function validateDisplaySizeAndModel(model, size) {
+    if (model === null || model === undefined) {
+        return false;
+    }
+
+    const regex = /-(\d+)$/;
+    const match = model.match(regex);
+
+    if (!match) {
+        return false;
+    }
+
+    const modelNumber = parseInt(match[1], 10);
+
+    const inchesNumber = Number(size);
+
+    if (isNaN(inchesNumber)) {
+        return false;
+    }
+
+    return modelNumber === inchesNumber;
 }
 
 function parseDataLabelFieldJson(item, workspaceItem) {
