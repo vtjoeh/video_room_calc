@@ -10,7 +10,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 **v0.1.640 release notes**
 - **New Products:** 🎉 **Desk Pro G2** & **Room Kit Pro G2** are now supported. 🎉
-- **New Item:** Huddle Table (bullet) Table for huddle rooms.
+- **New Item:** Huddle Table (bullet) - Table for huddle rooms.
 - **Display Coverage Update:** Updated display coverage now better align with the visuals in the Workspace Designer.
 - The Room Kit Pro (G1) and Desk Pro (G1) have been removed from the main menu but remain accessible in the Quick Add search menu.
 **Known issues:**
