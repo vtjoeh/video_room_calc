@@ -250,14 +250,24 @@ let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 let scrollContainer = document.getElementById('scroll-container');
 
 /* mm - displayDepth, DisplayHeight, displayWidth, diagonalInches are used as a ratio to determine size of display based on diagonal inches */
+
+let updatedDisplayRation = 0.985;
 let displayDepth = 90;
 let displayHeight = 695;
 let displayWidth = 1223;
+let displayDepth_2 = 90;
+let displayHeight_2 = 695 * updatedDisplayRation ;
+let displayWidth_2 = 1223 * updatedDisplayRation ;
 let diagonalInches = 55; /* inches */
 
 let displayDepth21_9 = 90;
 let displayHeight21_9 = 1073;
 let displayWidth21_9 = 2490;
+
+let displayDepth21_9_2 = 90;
+let displayHeight21_9_2 = 1073 * updatedDisplayRation ;
+let displayWidth21_9_2 = 2490 * updatedDisplayRation ;
+
 let diagonalInches21_9 = 105;
 
 /*************************************************/
@@ -398,11 +408,20 @@ workspaceKey.shareCableUsbcHdmiMulti = { objectType: 'sharelid', shareSettings: 
 
 workspaceKey.mouse = { objectType: 'mouse' };
 
-workspaceKey.displaySngl = { objectType: 'screen', yOffset: 0.045 };
+workspaceKey.displaySngl_2 = { objectType: 'screen', yOffset: -0.01 };
 
-workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: 0.02 };
+workspaceKey.displayScreen_2 = { objectType: 'screen', model: 'canvas', yOffset: -0.02};
 
-workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: 0.045 };
+workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 };
+
+workspaceKey.displayMonitor = { objectType: "monitor" }
+
+
+workspaceKey.displaySngl = { objectType: 'screen', yOffset: -0.01 };
+
+workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: -0.01 };
+
+workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 };
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
@@ -3244,7 +3263,7 @@ let chairs = [
 /* displays key starts with D */
 let displays = [
     {
-        name: 'Single Display',
+        name: '_Single Display',
         id: 'displaySngl',
         key: 'DA',
         frontImage: 'displaySngl-front.png',
@@ -3257,7 +3276,7 @@ let displays = [
         roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
     },
     {
-        name: 'Dual Displays',
+        name: '_Dual Displays',
         id: 'displayDbl',
         key: 'DB',
         frontImage: 'displayDbl-front.png',
@@ -3269,7 +3288,7 @@ let displays = [
         defaultVert: 1010,
     },
     {
-        name: 'Triple Displays',
+        name: '_Triple Displays',
         id: 'displayTrpl',
         key: 'DC',
         frontImage: 'displayTrpl-front.png',
@@ -3283,7 +3302,7 @@ let displays = [
     },
 
     {
-        name: 'Single 21:9 display',
+        name: '_Single 21:9 display',
         id: 'display21_9',
         key: 'DD',
         frontImage: 'display21_9-front.png',
@@ -3295,18 +3314,85 @@ let displays = [
         defaultVert: 1010,
     },
     {
-        name: 'Projector Screen',
+        name: '_Projector Screen',
         id: 'displayScreen',
         key: 'DE',
         frontImage: 'displayScreen-menu.png',
         topImage: 'displayScreen-top.png',
         width: displayWidth * 2,
         depth: displayDepth * 0.7,
-        height: displayHeight & 2,
+        height: displayHeight * 2,
         diagonalInches: diagonalInches * 2,
         defaultVert: 1010,
         roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
     },
+
+
+    {
+        name: 'Single Display',
+        id: 'displaySngl_2',
+        key: 'DF',
+        frontImage: 'displaySngl-front.png',
+        topImage: 'displaySngl-top.png',
+        width: displayWidth_2 * 1,
+        depth: displayDepth_2,
+        height: displayHeight_2,
+        diagonalInches: diagonalInches,
+        defaultVert: 1010,
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
+    },
+    {
+        name: 'Dual Displays',
+        id: 'displayDbl_2',
+        key: 'DG',
+        frontImage: 'displayDbl-front.png',
+        topImage: 'displayDbl-top.png',
+        width: displayWidth_2 * 2,
+        depth: displayDepth_2,
+        height: displayHeight_2,
+        diagonalInches: diagonalInches,
+        defaultVert: 1010,
+    },
+    {
+        name: 'Triple Displays',
+        id: 'displayTrpl_2',
+        key: 'DH',
+        frontImage: 'displayTrpl-front.png',
+        topImage: 'displayTrpl-top.png',
+        width: displayWidth_2 * 3,
+        depth: displayDepth_2,
+        height: displayHeight_2,
+        diagonalInches: diagonalInches,
+        defaultVert: 1010,
+
+    },
+    {
+        name: 'Single 21:9 display',
+        id: 'display21_9_2',
+        key: 'DI',
+        frontImage: 'display21_9-front.png',
+        topImage: 'displaySngl-top.png',
+        width: displayWidth21_9_2,
+        depth: displayDepth21_9_2,
+        height: displayHeight21_9_2,
+        diagonalInches: diagonalInches21_9,
+        defaultVert: 1010,
+    },
+    {
+        name: 'Projector Screen',
+        id: 'displayScreen_2',
+        key: 'DJ',
+        frontImage: 'displayScreen-menu.png',
+        topImage: 'displayScreen-top.png',
+        width: displayWidth_2 * 2,
+        depth: displayDepth_2 * 0.7,
+        height: displayHeight_2 * 2,
+        diagonalInches: diagonalInches * 2,
+        defaultVert: 1010,
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
+    },
+
+
 
 
 
@@ -3560,10 +3646,10 @@ function updateWidthOfDisplay(inches) {
         let displayNumber, width;
         let unitRatio = 1;
 
-        if (data_deviceid === 'displayDbl') {
+        if (data_deviceid.startsWith('displayDbl')) {
             displayNumber = 2;
         }
-        else if (data_deviceid === 'displayTrpl') {
+        else if (data_deviceid.startsWith('displayTrpl')) {
             displayNumber = 3;
         }
         else {
@@ -3575,8 +3661,17 @@ function updateWidthOfDisplay(inches) {
             unitRatio = 3.28084;
         }
 
+        const newDisplayRegex = /display.*_2$/;
+
+
+
         if (data_deviceid === 'display21_9') {
             width = (displayWidth21_9 / diagonalInches21_9) * inches / 1000 * displayNumber * unitRatio;
+        }
+        else if (data_deviceid === 'display21_9_2') {
+            width = (displayWidth21_9_2 / diagonalInches21_9) * inches / 1000 * displayNumber * unitRatio;
+        } else if (newDisplayRegex.test(data_deviceid)) {
+            width = (displayWidth_2 / diagonalInches) * inches / 1000 * displayNumber * unitRatio;
         } else {
             width = (displayWidth / diagonalInches) * inches / 1000 * displayNumber * unitRatio;
         }
@@ -5605,13 +5700,13 @@ function quickSetupInsert() {
                 displayAttr.rotation = 0;
 
                 if (drpTvNum == 1) {
-                    displayId = 'displaySngl';
+                    displayId = 'displaySngl_2';
                 } else if (drpTvNum == 2) {
-                    displayId = 'displayDbl';
+                    displayId = 'displayDbl_2';
                 }
                 else if (drpTvNum == 3) {
                     /* triple */
-                    displayId = 'displayTrpl';
+                    displayId = 'displayTrpl_3';
                 }
 
                 /* get defaultVert if available */
@@ -11261,7 +11356,7 @@ function updateItem() {
 
 
         /* if the displaySngl is swapped with displayTrpl or displayDbl, then those objects get an incorrect .data_role, so remove */
-        if (item.data_deviceid === 'displayTrpl' || item.data_deviceid === 'displayDbl') {
+        if (item.data_deviceid.startsWith('displayTrpl') || item.data_deviceid.startsWith('displayDbl')) {
             delete item.data_role;
         }
 
@@ -12728,17 +12823,28 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         if (deviceId === 'displaySngl') {
             displayNumber = 1;
         }
-        else if (deviceId === 'displayDbl' || deviceId.startsWith('roomKitEqx')) {
+        else if (deviceId.startsWith('displayDbl') || deviceId.startsWith('roomKitEqx')) {
             displayNumber = 2;
         }
-        else if (deviceId === 'displayTrpl') {
+        else if (deviceId.startsWith('displayTrpl')) {
             displayNumber = 3;
         }
 
+        // if (deviceId === 'display21_9') {
+        //     width = (displayWidth21_9 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
+        // } else {
+        //     width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
+        // }
+
         if (deviceId === 'display21_9') {
             width = (displayWidth21_9 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
+        }
+        else if (deviceId === 'display21_9_2') {
+            width = (displayWidth21_9_2 / diagonalInches21_9) *  data_diagonalInches / 1000* scale * displayNumber;
+        } else if (/display.*_2$/.test(deviceId)) {
+            width = (displayWidth_2 / diagonalInches) *  data_diagonalInches / 1000 * scale * displayNumber;
         } else {
-            width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
+            width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber;
         }
 
         if (deviceId.startsWith('displayScreen')) {
@@ -13917,7 +14023,7 @@ function getGuides(lineGuideStops, itemBounds) {
     });
 
 
-   // let guides = [];
+    // let guides = [];
     // let minV = getObjectsWithLowestDiff(resultV);
 
     // let minH = getObjectsWithLowestDiff(resultH);
@@ -14924,14 +15030,14 @@ function updateQuickSetupItems() {
 
                         document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches;
 
-                        if (primaryDisplay.data_deviceid === 'displaySngl') {
+                        if (primaryDisplay.data_deviceid.startsWith('displaySngl')) {
                             document.getElementById('drpTvNum').value = '1';
                         }
-                        else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                        else if (primaryDisplay.data_deviceid.startsWith('displayDbl')) {
                             document.getElementById('drpTvNum').value = '2';
 
                         }
-                        else if (primaryDisplay.data_deviceid === 'displayDbl') {
+                        else if (primaryDisplay.data_deviceid.startsWith('displayDbl')) {
                             document.getElementById('drpTvNum').value = '3';
                         }
                     }
@@ -15132,11 +15238,21 @@ function updateFormatDetailsUpdate() {
 /* Estimates the top elevation of a display and populates the itemTopElevation text box */
 function fillInTopElevationDisplay(shape, updateTextBox = true) {
     let zHeightOfDisplay, topElevation, zPosition;
-    let defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
+    let defaultDisplayHeight;
+
 
     if (shape.data_deviceid === 'display21_9') {
         defaultDisplayHeight = displayHeight21_9 / 1000;
+    } else if (shape.data_deviceid === 'display21_9_2'){
+        defaultDisplayHeight = displayHeight21_9_2 / 1000;
     }
+    else if(/display.*_2$/.test(shape.data_deviceid)){
+           defaultDisplayHeight = displayHeight_2 / 1000; /* convert to meters */
+    } else {
+           defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
+    }
+
+
 
     if (roomObj.unit === 'feet') {
         defaultDisplayHeight = defaultDisplayHeight * 3.28084;
@@ -15151,6 +15267,7 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
     } else {
         zHeightOfDisplay = defaultDisplayHeight * (shape.data_diagonalInches / diagonalInches);
     }
+
     topElevation = Number(zPosition) + Number(zHeightOfDisplay);
 
     if (updateTextBox) document.getElementById("itemTopElevation").value = round(topElevation);
@@ -15576,7 +15693,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
-    deviceGroups[6] = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9', 'displayScreen'];
+    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9_2', 'displayScreen_2'];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -16364,7 +16481,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl', 'displayDbl', 'displayTrpl', 'display21_9', 'projector', 'displayScreen'];
+    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9_2', 'projector', 'displayScreen_2'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
@@ -19398,12 +19515,12 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         /* calculate Z elevation of displays. Display 29. height of display */
 
         if (item.data_deviceid === 'display21_9') {
-            let display219Height = displayHeight21_9 / 1000;
+            let display219Height = displayHeight21_9_2 / 1000;
             let displayScale = (wdItem.size || 105) / 105;
             z = z - (display219Height * displayScale) / 2;
         }
         else if (wdItem.objectType === 'screen') {
-            let stdDisplayHeight = displayHeight / 1000;
+            let stdDisplayHeight = displayHeight_2 / 1000;
             let displayScale = (wdItem.size || 55) / diagonalInches;
             z = z - (stdDisplayHeight * displayScale) / 2;
         }
@@ -20361,14 +20478,21 @@ function exportRoomObjToWorkspace() {
 
     roomObj2.items.displays.forEach((item) => {
 
-        let displayRatio = 1.02;
+        let displayRatio = 0.995;
 
-        if (item.data_deviceid === 'displayDbl' || item.data_deviceid === 'displayTrpl') {
+        if (item.data_deviceid.startsWith('displayDbl') || item.data_deviceid.startsWith('displayTrpl')) {
+
+            if (!(/display.*_2$/.test(item.data_deviceid))){
+                console.log('line 20484')
+                item.data_diagonalInches = item.data_diagonalInches / 0.98; /* workspace designer changed screen size by 0.989 */
+            };
             let leftDisplay = structuredClone(item);
             let rightDisplay = structuredClone(item);
             let centerDisplay = structuredClone(item);
-            let deltaX = (item.data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
-            if (item.data_deviceid === 'displayTrpl') {
+            let data_diagonalInches = item.data_diagonalInches;
+
+            let deltaX = (data_diagonalInches / 12 / 3.804 * displayRatio) / 2; /* convert inches to meters, multiply by ratio and take half */
+            if (item.data_deviceid.startsWith('displayTrpl')) {
                 deltaX = deltaX * 1.98;
                 centerDisplay.data_deviceid = 'displaySngl';
                 centerDisplay.id = 'centerScreen~' + centerDisplay.id;
