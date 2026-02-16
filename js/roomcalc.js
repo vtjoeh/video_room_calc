@@ -5255,6 +5255,14 @@ function onLoad() {
         document.getElementById('useNonWorkspaceItemsCheckBox').checked = false;
     }
 
+    if(localStorage.getItem('showDisplayCoverage4x') === 'true'){
+
+        document.getElementById('showDisplayCoverage4x').checked = true;
+    } else {
+
+        document.getElementById('showDisplayCoverage4x').checked = false;
+    }
+
     if (localStorage.getItem('showTiltSlant') === 'true') {
         document.getElementById('showTiltSlantCheckBox').checked = true;
     } else {
@@ -11149,13 +11157,18 @@ function updateItem() {
 
     let item = roomObjItemsMap.get(id);
 
-
-
     if (item) {
         /*once found, incoroprate the new parentGroup based on changes */
 
         if (parentGroup !== allDeviceTypes[data_deviceid].parentGroup) {
             deleteDuplicateItemsArray.push({ oldParentGroup: parentGroup, id: item.id });
+
+            item = structuredClone(item);
+
+            roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(item);
+
+            roomObjItemsMap.set(item.id, item);
+
         }
 
         parentGroup = allDeviceTypes[data_deviceid].parentGroup;
@@ -11361,6 +11374,8 @@ function updateItem() {
         }
 
         insertShapeItem(item.data_deviceid, parentGroup, item, id, false);
+
+
 
         /* give the canvas some time to be updated before updating */
         setTimeout(() => {
@@ -13534,27 +13549,34 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
         /* audioShadingLine & audioShadingShade combine to form the coverage */
-        let displayDistanceWedge2 = new Konva.Arc({
+        let displayCoverage4x = new Konva.Arc({
             /* x and y should be tracked in the group only */
-            innerRadius: distance1 * 3.2,
+            innerRadius: outerRadius,
             outerRadius: distance1 * 4,
             angle: angle,
             rotation: (90 - angle / 2),
             opacity: 0.3,
             listening: false,
             perfectDrawEnabled: perfectDrawEnabled,
-            opacity: 0.7,
+            opacity: 0.6,
             fillRadialGradientStartPoint: { x: 0, y: 0 },
             fillRadialGradientStartRadius: distance1 * 3.2,
             fillRadialGradientEndPoint: { x: 0, y: 0 },
             fillRadialGradientEndRadius: distance1 * 4,
-            fillRadialGradientColorStops: [0, '#0080004d', 1, 'rgba(0, 124, 128, 0.12)'],
+            fillRadialGradientColorStops: [0, '#00805a4d', 1, 'rgba(0, 124, 128, 0.18)'],
+            name: 'displayCoverage4x',
 
         });
 
-        // groupItemDisplayDistance.add(displayDistanceWedge2);
+        groupItemDisplayDistance.add(displayCoverage4x);
         groupItemDisplayDistance.add(displayDistanceWedge1);
         grDisplayDistance.add(groupItemDisplayDistance);
+
+        if(document.getElementById('showDisplayCoverage4x').checked === true){
+            displayCoverage4x.show();
+        } else {
+            displayCoverage4x.hide();
+        }
 
 
         /* closest distance line */
@@ -14264,6 +14286,25 @@ function showNonWorkspaceItems(e) {
         setItemForLocalStorage('useNonWorkspaceItems', 'false');
     }
     createEquipmentMenu();
+}
+
+function showDisplayCoverage4x(e){
+    if (e.srcElement.checked) {
+        setItemForLocalStorage('showDisplayCoverage4x', 'true');
+    } else {
+        setItemForLocalStorage('showDisplayCoverage4x', 'false');
+    }
+
+    let displayCoverage4xs = grDisplayDistance.find('.displayCoverage4x');
+
+    displayCoverage4xs.forEach(displayCoverage=>{
+        if(e.srcElement.checked){
+            displayCoverage.show();
+        } else {
+            displayCoverage.hide();
+        }
+    });
+
 }
 
 function showTiltSlant(e) {
@@ -20483,7 +20524,7 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid.startsWith('displayDbl') || item.data_deviceid.startsWith('displayTrpl')) {
 
             if (!(/display.*_2$/.test(item.data_deviceid))){
-                console.log('line 20484')
+
                 item.data_diagonalInches = item.data_diagonalInches / 0.98; /* workspace designer changed screen size by 0.989 */
             };
             let leftDisplay = structuredClone(item);

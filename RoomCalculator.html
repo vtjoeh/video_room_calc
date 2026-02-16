@@ -1143,12 +1143,23 @@
             <div class="inputField" id="convertDefaultWallsDiv">
               <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
                 <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">By default, when Workspace Designer files are imported, the three walls seen
+                <span class="tooltiptext">By default, when Workspace Designer files are imported, the default walls seen
                   in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable
                   this feature.
                 </span></label>
               <label class="switch">
                 <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="displayCoverage4xDiv" style="display: none;">
+              <label class="tooltip">Show 4x the diagonal display coverage
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">Show wider display coverage for 4x the digonal distance of a 16:9 display.
+                </span></label>
+              <label class="switch">
+                <input id="showDisplayCoverage4x" type="checkbox" onclick="showDisplayCoverage4x(event)">
                 <span class="slider round"></span>
               </label>
             </div>
@@ -1922,7 +1933,9 @@
         </div>
         <br>
         <div style="font-size: small;"> <b>Explanation:</b> The optimum viewing distance shown is 1x-3.2x
-          the diagonal measurement of a single 16:9 display. If dual displays are used, then the value is increased to 1x-3.5x. The Video Room Calculator shows an average of the two displays coverage.  This reflects the values in the Workspace Designer. Other industry guideline
+          the diagonal measurement of a single 16:9 display. If dual displays are used, then the value is increased to
+          1x-3.5x. The Video Room Calculator shows an average of the two displays coverage. This reflects the values in
+          the Workspace Designer. Other industry guideline
           ranges will be somewhat different. See <a
             href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#how-is-the-display-coverage-for-the-closest-and-farthest-participants-determined"
             target="_blank">FAQ: How is the display coverage for the closest and farthest participants determined?</a>
