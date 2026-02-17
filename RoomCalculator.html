@@ -55,15 +55,15 @@
 
   </div>
 
-  <div id="openSideBar" class="button-group" style="display: none;">
+  <div id="openSideBar" class="button-group" style="display: none;" onpointerdown="closeOpenSidebar()">
 
-    <button id="1" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('defaultOpenTab')"
+    <!-- <button id="1" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('defaultOpenTab')"
       style="padding-left: 22px;">Room</button>
     <button id="2" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabEquipment')">Equipment&nbsp;&nbsp;
     </button>
-    <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button>
-    <button id="openSideBarBtn" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
-        style="font-size: 20px; color: #abaaaa;" class="icon icon-arrow-circle-right-filled"></i></button>
+    <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button> -->
+    <button id="openSideBarBtn" class="btn closeOpenButton" ><i
+        style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;" class="icon icon-arrow-circle-right-regular"></i></button>
     <div class="displayWhenLessThan900" id="0">
     </div>
   </div>
@@ -127,8 +127,8 @@
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
-        <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()"><i
-            style="font-size: 20px; color: #abaaaa;" id="closeOpenIcon" class="icon icon-arrow-circle-left-filled"></i>
+        <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()">
+          <i style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;" id="closeOpenIcon" class="icon icon-arrow-circle-left-regular"></i>
         </button>
       </div>
       <div id="containerInputTabContent">
@@ -1182,7 +1182,7 @@
     </div>
   </div>
   <div id="ContainerForContainerRoom">
-    <div id="ContainerRoomSvg" class="floatColumns" style="width: 100%; ">
+    <div id="ContainerRoomSvg" class="floatColumns">
       <div id="controlButtons" class="hideScroll">
         <div class="button-group" id="btnBackToFloorPlan" style="display:none;">
           <button class="btn" id="btnBackToFloorPlan" onclick="showEntireFloor()" title="Back to floor plan">

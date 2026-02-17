@@ -3933,10 +3933,10 @@ function windowResizeEventName() {
     }, 550);
 
 
-    positionCloseArrow();
+ //   positionCloseArrow();
 }
 
-positionCloseArrow();
+// positionCloseArrow();
 
 
 function positionCloseArrow() {
@@ -4263,7 +4263,7 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.tblRectRadius = round(item.tblRectRadius * ratio);
     }
 
-    if ('points' in item) {
+    if ('points' in item && item.points) {
         item.points.forEach((point, index) => {
             item.points[index] = round(point * ratio);
         });
@@ -6539,7 +6539,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
     }
 
-    let windowWidth = window.innerWidth;
+    let windowWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+
 
 
     let containerHeaderHeight = getFullHeightIncludingMargin(document.getElementById('ContainerHeader'));
@@ -9340,6 +9341,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     else if (insertDevice.id.startsWith('sphere')) {
         width = 1 * scale;
         height = 1 * scale;
+        data_zPosition = 1;
     }
 
     if ('data_vHeight' in attrs) {
@@ -11548,13 +11550,13 @@ function closeOpenSidebar(tabToOpen) {
     if (sideBar.style.display === 'none') {
         sideBar.style.display = '';
         openSidebarDiv.style.display = 'none';
-        containerRoomSvg.style.paddingLeft = '';
+     //  containerRoomSvg.style.paddingLeft = '';
 
 
     } else {
         sideBar.style.display = 'none';
         openSidebarDiv.style.display = '';
-        containerRoomSvg.style.paddingLeft = '0px';
+      //  containerRoomSvg.style.paddingLeft = '0px';
 
     }
 
@@ -11564,8 +11566,12 @@ function closeOpenSidebar(tabToOpen) {
 
     }
 
+    const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 
-    windowResizeEventName();
+    if(width > 900){
+            windowResizeEventName();
+    }
+
 
 }
 
@@ -21072,7 +21078,13 @@ function exportRoomObjToWorkspace() {
         }
 
         if (item.data_deviceid === 'sphere') {
-            z = item.data_zPosition + (item.width / 2);
+            if(item.data_zPosition){
+                z = item.data_zPosition + (item.width / 2);
+            }
+            else {
+                z =  (item.width / 2);
+            }
+
         }
 
 

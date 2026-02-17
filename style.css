@@ -1247,20 +1247,20 @@ input:checked+.slider:before {
   display: none;
 }
 
-.close-button {
+/* .close-button {
   position: absolute;
   top: 1em;
   right: 1em;
   border: 0;
   background: transparent;
-}
+} */
 
 .closeOpenButton {
   display: inline;
   padding: 0px;
   padding-right: 0px;
   float: right;
-  transform: translate(25px, 140px);
+  transform: translate(25px, 120px);
 
 }
 
@@ -1894,6 +1894,7 @@ hr.rightClickHorizontalLine {
   flex-direction: column;
   gap: 1em;
   border-radius: 1em;
+  z-index: 999;
 }
 
 .quick-dialog input {
@@ -2006,16 +2007,21 @@ hr.rightClickHorizontalLine {
   }
 
   #ContainerRoomSvg {
-    width: 97.5%;
-    padding: 0px;
+    width: calc(100% - 40px);
+    /* padding: 0px; */
     border-color: #000000;
-    display: inline-block;
+    display: inline;
     vertical-align: top;
     margin-top: 0px;
     margin-right: 0px;
     margin-bottom: 10px;
-    margin-left: 0px;
+    margin-left: 30px;
 
+  }
+
+
+  #openSideBar {
+    position: absolute;
   }
 
   .subtabcontent,
@@ -2024,9 +2030,9 @@ hr.rightClickHorizontalLine {
     height: 490px;
   }
 
-  .classOpenMenuClosed {
+  /* .classOpenMenuClosed {
     transform: rotate(-90deg);
-  }
+  } */
 
   #ContainerForContainerRoom {
     float: unset;
@@ -2039,6 +2045,7 @@ hr.rightClickHorizontalLine {
     max-width: unset;
     position: absolute;
     z-index: 99;
+
   }
 
   #controlButtons {
@@ -2066,6 +2073,10 @@ hr.rightClickHorizontalLine {
     margin-right: -30px;
     margin-bottom: 10px;
     margin-left: -5xpx;
+    max-width: 370px;
+    min-width: 320px;
+    border-style: solid;
+    border-width: thin;
   }
 
 
@@ -2082,13 +2093,13 @@ hr.rightClickHorizontalLine {
     box-shadow: 0 1px #777;
   }
 
-  #openSideBar {
+  /* #openSideBar {
     height: 45px;
     width: 97%;
     margin-top: 30px;
     padding-top: 10px;
 
-  }
+  } */
 
   .tablinksfake {
     padding-bottom: 0px;
@@ -2096,11 +2107,11 @@ hr.rightClickHorizontalLine {
     display: inline;
   }
 
-  #closeOpenIcon {
+  /* #closeOpenIcon {
     transform: rotate(90deg);
-  }
+  } */
 
-  #openSideBarBtn {
+  /* #openSideBarBtn {
 
     display: inline;
     padding: 0px;
@@ -2111,7 +2122,7 @@ hr.rightClickHorizontalLine {
     top: 75px;
     left: unset;
 
-  }
+  } */
 
 
   .displayWhenLessThan900 {
