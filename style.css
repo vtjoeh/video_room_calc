@@ -2008,6 +2008,7 @@ hr.rightClickHorizontalLine {
 
   #ContainerRoomSvg {
     width: calc(100% - 40px);
+    min-width: 340px;
     /* padding: 0px; */
     border-color: #000000;
     display: inline;
