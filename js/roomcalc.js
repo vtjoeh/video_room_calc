@@ -412,7 +412,7 @@ workspaceKey.displaySngl_2 = { objectType: 'screen', yOffset: -0.01 };
 
 workspaceKey.displayScreen_2 = { objectType: 'screen', model: 'canvas', yOffset: -0.02};
 
-workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 };
+
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
@@ -422,6 +422,8 @@ workspaceKey.displaySngl = { objectType: 'screen', yOffset: -0.01 };
 workspaceKey.displayScreen = { objectType: 'screen', model: 'canvas', yOffset: -0.01 };
 
 workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 };
+
+workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 }; /* display21_9 is now the primary option */
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
@@ -3302,7 +3304,7 @@ let displays = [
     },
 
     {
-        name: '_Single 21:9 display',
+        name: 'Single 21:9 display',
         id: 'display21_9',
         key: 'DD',
         frontImage: 'display21_9-front.png',
@@ -3367,7 +3369,7 @@ let displays = [
 
     },
     {
-        name: 'Single 21:9 display',
+        name: '_Single 21:9 display',
         id: 'display21_9_2',
         key: 'DI',
         frontImage: 'display21_9-front.png',
@@ -15740,7 +15742,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
-    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9_2', 'displayScreen_2'];
+    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'displayScreen_2'];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -16528,7 +16530,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9_2', 'projector', 'displayScreen_2'];
+    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'projector', 'displayScreen_2'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
