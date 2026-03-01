@@ -1,4 +1,4 @@
-const version = "v0.1.640";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.641";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -42,7 +42,7 @@ let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding
 
 let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
-const defaultWorkspaceTab = "https://www.webex.com/us/en/workspaces/workspace-designer.html#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
+const defaultWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
 let defaultWorkspaceTestSite = 'https://designer.cisco.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
@@ -256,8 +256,8 @@ let displayDepth = 90;
 let displayHeight = 695;
 let displayWidth = 1223;
 let displayDepth_2 = 90;
-let displayHeight_2 = 695 * updatedDisplayRation ;
-let displayWidth_2 = 1223 * updatedDisplayRation ;
+let displayHeight_2 = 695 * updatedDisplayRation;
+let displayWidth_2 = 1223 * updatedDisplayRation;
 let diagonalInches = 55; /* inches */
 
 let displayDepth21_9 = 90;
@@ -265,8 +265,8 @@ let displayHeight21_9 = 1073;
 let displayWidth21_9 = 2490;
 
 let displayDepth21_9_2 = 90;
-let displayHeight21_9_2 = 1073 * updatedDisplayRation ;
-let displayWidth21_9_2 = 2490 * updatedDisplayRation ;
+let displayHeight21_9_2 = 1073 * updatedDisplayRation;
+let displayWidth21_9_2 = 2490 * updatedDisplayRation;
 
 let diagonalInches21_9 = 105;
 
@@ -410,7 +410,7 @@ workspaceKey.mouse = { objectType: 'mouse' };
 
 workspaceKey.displaySngl_2 = { objectType: 'screen', yOffset: -0.01 };
 
-workspaceKey.displayScreen_2 = { objectType: 'screen', model: 'canvas', yOffset: -0.02};
+workspaceKey.displayScreen_2 = { objectType: 'screen', model: 'canvas', yOffset: -0.02 };
 
 
 
@@ -3935,7 +3935,7 @@ function windowResizeEventName() {
     }, 550);
 
 
- //   positionCloseArrow();
+    //   positionCloseArrow();
 }
 
 // positionCloseArrow();
@@ -5257,7 +5257,7 @@ function onLoad() {
         document.getElementById('useNonWorkspaceItemsCheckBox').checked = false;
     }
 
-    if(localStorage.getItem('showDisplayCoverage4x') === 'true'){
+    if (localStorage.getItem('showDisplayCoverage4x') === 'true') {
 
         document.getElementById('showDisplayCoverage4x').checked = true;
     } else {
@@ -6355,7 +6355,7 @@ function drawTitleGroup() {
     // })
 
 
-    // var txtName = new Konva.Label({
+    // let txtName = new Konva.Label({
     //     x: pxOffset,
     //     y: pyOffset + roomLength * scale + 22,
     //     opacity: 1,
@@ -7808,7 +7808,7 @@ function downloadCanvasPNG2(isSolidBackground = true) {
         }
 
         function downloadURI(uri, name) {
-            var link = document.createElement('a');
+            let link = document.createElement('a');
             link.download = name;
             link.href = uri;
             document.body.appendChild(link);
@@ -7875,7 +7875,7 @@ async function postHeartbeat() {
 }
 
 function openTab(evt, tabName) {
-    var i, tabcontent, tablinks;
+    let i, tabcontent, tablinks;
     /* Get all elements with class="tabcontent" and hide them */
     tabcontent = document.getElementsByClassName("tabcontent");
     for (i = 0; i < tabcontent.length; i++) {
@@ -7948,7 +7948,7 @@ function openSubTab2(evt, tabName) {
 }
 
 function openTabBottom(evt, tabName) {
-    var i, tabcontent, tablinks;
+    let i, tabcontent, tablinks;
     /* Get all elements with class="tabcontent" and hide them */
     tabcontent = document.getElementsByClassName("tabcontent2");
     for (i = 0; i < tabcontent.length; i++) {
@@ -9757,9 +9757,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
             sceneFunc: (ctx, shape) => {
+
+
                 ctx.beginPath();
                 let width = shape.width();
                 let height = shape.height();
+                let width2 = attrs.data_trapNarrowWidth * scale; 
+
+                if (width2 > width) {
+                        width2 = width;
+                }
+
+
+
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(width, 0);
@@ -9786,6 +9796,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.beginPath();
                 let width = shape.width();
                 let height = shape.height();
+                let uShapeWidth = 0.85 * scale;
+                if (roomObj.unit === 'feet') {
+                    uShapeWidth = uShapeWidth * 3.28084;
+                }
 
                 if (width < unitScale * 1.85) {
                     width = 1.85 * unitScale;
@@ -10678,6 +10692,7 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
         updateLayerSelection(layerSelectionBox);
 
+        layerTransform.batchDraw();
 
         function updateNodeScaleLayer(layer) {
 
@@ -10722,6 +10737,9 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 node.scaleX(newScaleX);
                 node.scaleY(newScaleY);
             }
+
+
+
 
             if ('x' in attrs) {
 
@@ -10786,6 +10804,21 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 let newFillRadialGradientEndRadius = scale / oldScale * node.fillRadialGradientEndRadius();
                 node.fillRadialGradientEndRadius(newFillRadialGradientEndRadius);
             }
+
+
+            // if('data_deviceid' in node && node.data_deviceid.startsWith('tbl') && node.getClassName() === 'Shape'){;
+            //     let tempNode = node.clone(); 
+            //     node.sceneFunc(()=>{}); 
+
+            //     node.scaleX(1);
+            //     node.scaleY(1);
+            //     layerTransform.batchDraw(); 
+            //     node.draw()
+            //     // node.sceneFunc(tempNode.sceneFunc()); 
+            //     layerTransform.batchDraw(); 
+            // }
+
+
         }
     }
 
@@ -11552,13 +11585,13 @@ function closeOpenSidebar(tabToOpen) {
     if (sideBar.style.display === 'none') {
         sideBar.style.display = '';
         openSidebarDiv.style.display = 'none';
-     //  containerRoomSvg.style.paddingLeft = '';
+        //  containerRoomSvg.style.paddingLeft = '';
 
 
     } else {
         sideBar.style.display = 'none';
         openSidebarDiv.style.display = '';
-      //  containerRoomSvg.style.paddingLeft = '0px';
+        //  containerRoomSvg.style.paddingLeft = '0px';
 
     }
 
@@ -11570,8 +11603,8 @@ function closeOpenSidebar(tabToOpen) {
 
     const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 
-    if(width > 900){
-            windowResizeEventName();
+    if (width > 900) {
+        windowResizeEventName();
     }
 
 
@@ -12183,7 +12216,7 @@ function dragElement(element) {
 */
 function arrayMove(arr, old_index, new_index) {
     if (new_index >= arr.length) {
-        var k = new_index - arr.length + 1;
+        let k = new_index - arr.length + 1;
         while (k--) {
             arr.push(undefined);
         }
@@ -12863,9 +12896,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             width = (displayWidth21_9 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
         }
         else if (deviceId === 'display21_9_2') {
-            width = (displayWidth21_9_2 / diagonalInches21_9) *  data_diagonalInches / 1000* scale * displayNumber;
+            width = (displayWidth21_9_2 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
         } else if (/display.*_2$/.test(deviceId)) {
-            width = (displayWidth_2 / diagonalInches) *  data_diagonalInches / 1000 * scale * displayNumber;
+            width = (displayWidth_2 / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber;
         } else {
             width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber;
         }
@@ -13580,7 +13613,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         groupItemDisplayDistance.add(displayDistanceWedge1);
         grDisplayDistance.add(groupItemDisplayDistance);
 
-        if(document.getElementById('showDisplayCoverage4x').checked === true){
+        if (document.getElementById('showDisplayCoverage4x').checked === true) {
             displayCoverage4x.show();
         } else {
             displayCoverage4x.hide();
@@ -14296,7 +14329,7 @@ function showNonWorkspaceItems(e) {
     createEquipmentMenu();
 }
 
-function showDisplayCoverage4x(e){
+function showDisplayCoverage4x(e) {
     if (e.srcElement.checked) {
         setItemForLocalStorage('showDisplayCoverage4x', 'true');
     } else {
@@ -14305,8 +14338,8 @@ function showDisplayCoverage4x(e){
 
     let displayCoverage4xs = grDisplayDistance.find('.displayCoverage4x');
 
-    displayCoverage4xs.forEach(displayCoverage=>{
-        if(e.srcElement.checked){
+    displayCoverage4xs.forEach(displayCoverage => {
+        if (e.srcElement.checked) {
             displayCoverage.show();
         } else {
             displayCoverage.hide();
@@ -15292,13 +15325,13 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
 
     if (shape.data_deviceid === 'display21_9') {
         defaultDisplayHeight = displayHeight21_9 / 1000;
-    } else if (shape.data_deviceid === 'display21_9_2'){
+    } else if (shape.data_deviceid === 'display21_9_2') {
         defaultDisplayHeight = displayHeight21_9_2 / 1000;
     }
-    else if(/display.*_2$/.test(shape.data_deviceid)){
-           defaultDisplayHeight = displayHeight_2 / 1000; /* convert to meters */
+    else if (/display.*_2$/.test(shape.data_deviceid)) {
+        defaultDisplayHeight = displayHeight_2 / 1000; /* convert to meters */
     } else {
-           defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
+        defaultDisplayHeight = displayHeight / 1000; /* convert to meters */
     }
 
 
@@ -17254,7 +17287,7 @@ function preLoadTopImages() {
                 imageObj.src = imageLocation;
 
                 imageObj.onload = function imageObjOnloadPreLoad() {
-                    var img = new Konva.Image({
+                    let img = new Konva.Image({
                         x: 1,
                         y: 1,
                         image: imageObj,
@@ -17700,10 +17733,14 @@ function onKeyDown(e) {
         document.getElementById('fileUpload').click();
     }
 
-    if (testiFrame && ((key === 'w' || key === '3') && (e.ctrlKey || e.metaKey))) {
 
+    /* ctrl-3 and ctrl-w now open/toggle Split View for all users.                  */
+    /* Note: ctrl-w is the browser close-tab shortcut; preventDefault() works in    */
+    /* Chromium/WebKit but may not suppress it in all browsers.                     */
+
+    if ((key === 'w' || key === '3') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        testiFrameToggle(true);
+        splitViewToggle();
     }
 
     const inputElements = ['input', 'textarea']
@@ -19810,7 +19847,7 @@ function isDisplayInArea(display, smallDisp, largeDisp) {
     let minY = Math.min(smallDisp.y, largeDisp.y) - 0.5;
     let maxY = Math.max(smallDisp.y, largeDisp.y) + 0.5;
     let minZ = Math.min(smallDispZ, largeDispZ) - 0.5;
-    let maxZ = Math.max(smallDispZ, largeDispZ) +0.5;
+    let maxZ = Math.max(smallDispZ, largeDispZ) + 0.5;
     minZ = minZ - 0.5;
     maxZ = maxZ + 0.5;
 
@@ -19961,10 +19998,10 @@ function openWorkspaceWindow(fromButton = true) {
     console.info('Current WD site:', currentSite);
 
     /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
-    if (currentSite != 'https://collabexperience.com/') {
-        newWorkspaceTab = defaultWorkspaceTestSite;
-        console.info('WD site: ', newWorkspaceTab);
-    }
+    // if (currentSite != 'https://collabexperience.com/') {
+    //     newWorkspaceTab = defaultWorkspaceTestSite;
+    //     console.info('WD site: ', newWorkspaceTab);
+    // }
 
     lastAction = "btnClick Workspace Designer";
 
@@ -20060,6 +20097,17 @@ function postMessageToWorkspacNow() {
         iFrameWorkspaceWindow.contentWindow.postMessage(message, '*');
     }
 
+    /* Also send room state to the split view iframe when it is loaded */
+    if (splitViewState.iframeLoaded) {
+        let splitIframe = document.getElementById('splitViewIframe');
+        if (splitIframe && splitIframe.contentWindow) {
+            try {
+                splitIframe.contentWindow.postMessage(message, '*');
+            } catch (splitPostErr) {
+                console.warn('splitView postMessage failed:', splitPostErr);
+            }
+        }
+    }
 
 }
 
@@ -20531,7 +20579,7 @@ function exportRoomObjToWorkspace() {
 
         if (item.data_deviceid.startsWith('displayDbl') || item.data_deviceid.startsWith('displayTrpl')) {
 
-            if (!(/display.*_2$/.test(item.data_deviceid))){
+            if (!(/display.*_2$/.test(item.data_deviceid))) {
 
                 item.data_diagonalInches = item.data_diagonalInches / 0.98; /* workspace designer changed screen size by 0.989 */
             };
@@ -21080,11 +21128,11 @@ function exportRoomObjToWorkspace() {
         }
 
         if (item.data_deviceid === 'sphere') {
-            if(item.data_zPosition){
+            if (item.data_zPosition) {
                 z = item.data_zPosition + (item.width / 2);
             }
             else {
-                z =  (item.width / 2);
+                z = (item.width / 2);
             }
 
         }
@@ -21874,9 +21922,37 @@ document.addEventListener("DOMContentLoaded", () => {
     pngItems.forEach((item) => {
         item.addEventListener("click", () => {
             pngMenu.classList.remove("showPNGDropDown");
-            // …your “download PNG” logic here…
         });
     });
+
+
+    let wsdArrowBtn = document.getElementById("drpDownBtnArrowWSD");
+    let wsdMenu = document.getElementById("drpDownWSDContent");
+    if (wsdArrowBtn && wsdMenu) {
+        let wsdItems = wsdMenu.querySelectorAll(".dropDownMenuItem");
+
+        wsdArrowBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            jsonMenu.classList.remove("showJSONDropDown");
+            pngMenu.classList.remove("showPNGDropDown");
+            wsdMenu.classList.toggle("showJSONDropDown");
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!wsdArrowBtn.contains(e.target) && !wsdMenu.contains(e.target)) {
+                wsdMenu.classList.remove("showJSONDropDown");
+            }
+        });
+
+        wsdItems.forEach(function (item) {
+            item.addEventListener("click", function () {
+                wsdMenu.classList.remove("showJSONDropDown");
+            });
+        });
+    }
+
+    /* Initialise drag-bar mouse/touch events for the split view panel */
+    splitViewInitDragBar();
 });
 
 
@@ -21911,6 +21987,309 @@ function isObjectEmpty(obj) {
     return Object.keys(obj).length === 0;
 }
 
+
+/* ================================================================ */
+/* Split View Panel — state, constants, and all functions           */
+/* ================================================================ */
+
+var splitViewState = {
+    isActive: false,
+    isDragging: false,
+    rightWidthPct: 0,
+    iframeLoaded: false
+};
+
+
+/* New snap zones (right panel %):                              */
+/*   0  - 12%  -> close                                         */
+/*   12 - 25%  -> snap to 25%                                   */
+/*   25 - 75%  -> stay at dragged value                         */
+/*   75 - 88%  -> snap back to 75%                              */
+/*   88 - 100% -> snap to 100%                                  */
+var SPLIT_VIEW_CLOSE_PCT = 12;
+var SPLIT_VIEW_MIN_PCT = 25;
+var SPLIT_VIEW_MAX_PCT = 75;
+var SPLIT_VIEW_FULL_PCT = 88;
+var SPLIT_VIEW_DEFAULT_PCT = 33;
+
+function splitViewOpen() {
+    if (splitViewState.isActive && splitViewState.rightWidthPct > 0) {
+        splitViewClose();
+        return;
+    }
+    splitViewState.isActive = true;
+
+    document.getElementById('txtOpenWorkspaceDesigner').innerText = "Toggle Workspace Designer";
+
+    let container = document.getElementById('splitViewContainer');
+    let reopenTab = document.getElementById('splitViewReopenTab');
+    if (container) { container.style.display = 'flex'; }
+    if (reopenTab) { reopenTab.style.display = 'none'; }
+    splitViewSetWidth(SPLIT_VIEW_DEFAULT_PCT);
+}
+
+/* splitViewToggle(): called by ctrl-3 / ctrl-w. Opens if closed, closes if open. */
+function splitViewToggle() {
+    if (splitViewState.isActive && splitViewState.rightWidthPct > 0) {
+        splitViewClose();
+    } else {
+        splitViewOpen();
+    }
+}
+
+/* splitViewClose(): hides the panel, resets widths.
+    fromDrag=false (Preview toggle) hides it completely. */
+function splitViewClose(fromDrag) {
+    let container = document.getElementById('splitViewContainer');
+    // let iframe = document.getElementById('splitViewIframe');
+    let expandBtn = document.getElementById('splitViewExpandBtn');
+
+    let reopenTab = document.getElementById('splitViewReopenTab');
+
+    if (container) { container.style.display = 'none'; }
+    if (expandBtn) { expandBtn.style.display = 'none'; }
+
+    let header = document.getElementById('ContainerHeader');
+    if (header) { header.style.width = ''; }
+    /* Reset body content constraint */
+    document.body.style.maxWidth = '';
+
+
+    /* show reopen tab only when drag-closed */
+    if (fromDrag) {
+        if (reopenTab) { reopenTab.style.display = 'flex'; }
+    } else {
+        if (reopenTab) { reopenTab.style.display = 'none'; }
+    }
+    splitViewState.isActive = false;
+
+    document.getElementById('txtOpenWorkspaceDesigner').innerText = "Open Workspace Designer";
+
+    splitViewState.rightWidthPct = 0;
+
+    if (typeof windowResizeEventName === 'function') { windowResizeEventName(); }
+    splitViewUpdateBreakpointClasses();
+
+}
+
+/* splitViewSetWidth(pct): sets right-panel width with snap rules.
+   pct < 25  → close
+   pct 25-75 → keep value
+   pct > 75  → fullscreen (100%)
+   Loads the iframe on the first non-zero call. */
+function splitViewSetWidth(pct) {
+    /* Apply snap zones on explicit set (e.g. restore button at 50%) */
+    if (pct < SPLIT_VIEW_CLOSE_PCT) { splitViewClose(true); return; }
+    if (pct < SPLIT_VIEW_MIN_PCT) { pct = SPLIT_VIEW_MIN_PCT; }
+    if (pct > SPLIT_VIEW_FULL_PCT) { pct = 100; }
+    else if (pct > SPLIT_VIEW_MAX_PCT) { pct = SPLIT_VIEW_MAX_PCT; }
+
+
+    splitViewState.rightWidthPct = pct;
+
+    let container = document.getElementById('splitViewContainer');
+    let right = document.getElementById('splitViewRight');
+    let expandBtn = document.getElementById('splitViewExpandBtn');
+    let iframe = document.getElementById('splitViewIframe');
+    let reopenTab = document.getElementById('splitViewReopenTab');
+    let leftPct = 100 - pct;
+
+    if (container) { container.style.display = 'flex'; }
+    if (reopenTab) { reopenTab.style.display = 'none'; } /* hide reopen tab while open */
+
+    /* Set left pane + right panel widths */
+    let left = document.getElementById('splitViewLeft');
+    if (left) { left.style.width = 'calc(' + leftPct + '% - 10px)'; }
+    if (right) { right.style.width = pct + '%'; }
+    let header = document.getElementById('ContainerHeader');
+    if (header) { header.style.width = leftPct + '%'; }
+    /* Constrain body content width so sidebar/canvas reflow properly */
+    document.body.style.maxWidth = leftPct + '%';
+
+    if (!splitViewState.iframeLoaded && iframe) {
+        let wdUrl = newWorkspaceTab;
+        if (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl) {
+            wdUrl = workspaceDesignerTestUrl;
+        }
+        iframe.src = wdUrl + '?preview=1';
+        splitViewState.iframeLoaded = true;
+        setTimeout(function () { postMessageToWorkspace(); }, 1500);
+        setTimeout(function () { postMessageToWorkspace(); }, 3500);
+        setTimeout(function () { postMessageToWorkspace(); }, 6000);
+    }
+
+    if (expandBtn) { expandBtn.style.display = (pct === 100) ? 'flex' : 'none'; }
+    splitViewState.isActive = true;
+    /* switch label text at 100% */
+    let labelFull = document.getElementById('splitViewLabelFull');
+    let labelShort = document.getElementById('splitViewLabelShort');
+    let labelVRC = document.getElementById('splitViewLabelVRC');
+    if (pct === 100) {
+        if (labelFull) { labelFull.style.display = 'none'; }
+        if (labelShort) { labelShort.style.display = 'none'; }
+        if (labelVRC) { labelVRC.style.display = 'inline'; }
+    } else {
+        if (labelVRC) { labelVRC.style.display = 'none'; }
+        if (labelFull) { labelFull.style.display = ''; }
+        if (labelShort) { labelShort.style.display = ''; }
+    }
+
+    /* Canvas resize: redraw room after width change */
+    if (typeof windowResizeEventName === 'function') { windowResizeEventName(); }
+
+    splitViewUpdateBreakpointClasses();
+
+}
+
+/* splitViewInitDragBar(): attaches mouse/touch events to the bar.
+   Called once from DOMContentLoaded.
+   IMPORTANT: mousemove and mouseup are on window at CAPTURE phase so they
+   fire before Konva.js canvas listeners can swallow them during drag. */
+function splitViewInitDragBar() {
+    let bar = document.getElementById('splitViewBar');
+    if (!bar) { return; }
+
+    /* ── Mouse ── */
+    bar.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        splitViewState.isDragging = true;
+        bar.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        /* Disable iframe pointer-events so mouse can leave the bar area */
+        let iframe = document.getElementById('splitViewIframe');
+        if (iframe) { iframe.style.pointerEvents = 'none'; }
+    });
+
+    /* Capture phase on window — fires before Konva canvas handlers */
+    window.addEventListener('mousemove', function (e) {
+        if (!splitViewState.isDragging) { return; }
+        e.preventDefault();
+        splitViewApplyDrag(e.clientX);
+    }, true);
+
+    window.addEventListener('mouseup', function (e) {
+        if (!splitViewState.isDragging) { return; }
+        splitViewState.isDragging = false;
+        bar.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        let iframe = document.getElementById('splitViewIframe');
+        if (iframe) { iframe.style.pointerEvents = ''; }
+        splitViewSnapOnRelease();
+    }, true);
+
+    /* ── Touch (iPad / touchscreen Mac) ── */
+    bar.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) { return; }
+        e.preventDefault();   /* stops scroll and long-press */
+        e.stopPropagation();
+        splitViewState.isDragging = true;
+        bar.classList.add('dragging');
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchmove', function (e) {
+        if (!splitViewState.isDragging || e.touches.length !== 1) { return; }
+        e.preventDefault();
+        splitViewApplyDrag(e.touches[0].clientX);
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchend', function (e) {
+        if (!splitViewState.isDragging) { return; }
+        splitViewState.isDragging = false;
+        bar.classList.remove('dragging');
+        splitViewSnapOnRelease();
+    }, { passive: true, capture: true });
+}
+
+/* splitViewApplyDrag(clientX): updates pane widths and vrcWrapper live. */
+function splitViewApplyDrag(clientX) {
+    let totalW = window.innerWidth;
+    let rightPx = totalW - clientX;
+    let rightPct = Math.max(0, Math.min(100, (rightPx / totalW) * 100));
+    let leftPct = 100 - rightPct;
+
+    splitViewState.rightWidthPct = rightPct;
+
+    let left = document.getElementById('splitViewLeft');
+    let right = document.getElementById('splitViewRight');
+
+
+    if (left) { left.style.width = 'calc(' + leftPct + '% - 10px)'; }
+    if (right) { right.style.width = rightPct + '%'; }
+
+    /*  set header width directly */
+    let header = document.getElementById('ContainerHeader');
+    if (header) { header.style.width = leftPct + '%'; }
+    /* Constrain body content width so sidebar/canvas reflow during drag */
+    document.body.style.maxWidth = leftPct + '%';
+
+    let expandBtn = document.getElementById('splitViewExpandBtn');
+    if (expandBtn) { expandBtn.style.display = (rightPct >= 98) ? 'flex' : 'none'; }
+
+    splitViewUpdateBreakpointClasses();
+
+}
+
+/* splitViewSnapOnRelease(): applies new snap zones on mouseup/touchend. */
+function splitViewSnapOnRelease() {
+    let pct = splitViewState.rightWidthPct;
+    let right = document.getElementById('splitViewRight');
+    let left = document.getElementById('splitViewLeft');
+
+    /* Brief CSS transition for snap animation on both panels */
+    if (right) { right.style.transition = 'width 0.15s ease'; }
+    if (left) { left.style.transition = 'width 0.15s ease'; }
+    setTimeout(function () {
+        if (right) { right.style.transition = ''; }
+        if (left) { left.style.transition = ''; }
+    }, 200);
+
+    /* New snap zones:                                          */
+    /*   0  – 12%  → close                                     */
+    /*   12 – 25%  → snap to 25%                               */
+    /*   25 – 75%  → stay at value                             */
+    /*   75 – 88%  → snap to 75%                               */
+    /*   88 – 100% → snap to 100%                              */
+    if (pct < SPLIT_VIEW_CLOSE_PCT) {
+        splitViewClose(true);  /* fromDrag=true shows reopen tab */
+    } else if (pct < SPLIT_VIEW_MIN_PCT) {
+        splitViewSetWidth(SPLIT_VIEW_MIN_PCT);
+    } else if (pct > SPLIT_VIEW_FULL_PCT) {
+        splitViewSetWidth(100);
+    } else if (pct > SPLIT_VIEW_MAX_PCT) {
+        splitViewSetWidth(SPLIT_VIEW_MAX_PCT);
+    } else {
+        splitViewSetWidth(Math.round(pct));
+    }
+}
+
+
+/* responsive breakpoint classes on body     */
+/* Mirrors @media breakpoints based on actual content width during split    */
+/* view. Called from splitViewSetWidth, splitViewApplyDrag, splitViewClose.  */
+function splitViewUpdateBreakpointClasses() {
+    let bodyEl = document.body;
+    if (!splitViewState.isActive || splitViewState.rightWidthPct <= 0) {
+        bodyEl.classList.remove('svBp900', 'svBp783', 'svBp650', 'svBp405');
+        return;
+    }
+    /* Use the header width as proxy for available content width */
+    let header = document.getElementById('ContainerHeader');
+    let leftPxWidth = header ? header.offsetWidth : window.innerWidth;
+
+    // bodyEl.classList.toggle('svBp900', leftPxWidth <= 900);
+    // bodyEl.classList.toggle('svBp783', leftPxWidth <= 783);
+    // bodyEl.classList.toggle('svBp650', leftPxWidth <= 650);
+    // bodyEl.classList.toggle('svBp405', leftPxWidth <= 405);
+
+    bodyEl.classList.toggle('svBp900', leftPxWidth <= 1050);
+    bodyEl.classList.toggle('svBp783', leftPxWidth <= 800);
+    bodyEl.classList.toggle('svBp650', leftPxWidth <= 665);
+    bodyEl.classList.toggle('svBp405', leftPxWidth <= 455);
+}
+
 /*
     Attribution:
 
@@ -21919,4 +22298,3 @@ function isObjectEmpty(obj) {
     DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
 
 */
-

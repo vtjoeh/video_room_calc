@@ -19,6 +19,7 @@
 </head>
 
 <body>
+
   <div id="ContainerHeader" class="ContainerHeader">
 
     <label id="lblHeaderTitle">Video Room Calculator<label id="lblSubtitle">Beta</label>
@@ -48,9 +49,10 @@
     </button>
 
     <span class="spacer"></span>
+
     <button id="btnModalWorkspace" class="primary" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>
-      Preview
+      <span>3D<span style="color:white">_</span>View</span>
     </button>
 
   </div>
@@ -1751,22 +1753,23 @@
   </dialog>
 
   <dialog id="modalWorkspace" onclick="onDialogClick(event)">
-    <header>Preview in Cisco Workspace Designer</header>
+    <header><img id="workspaceIcon" width="32px" src="https://designer.cisco.com/images/appicon.png" style="transform: translate(-10px, 10px);"> 3D powered by Cisco Workspace Designer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      <img id="workspaceIcon" width="16px" src="https://www.webex.com/us/en/workspaces/images/appicon.png">
-      Workspace Designer Custom Rooms (beta)
-
-      <div class="inputField">
-        Opens a new tab in the Workspace Designer. Use the Video Room Calculator to update the open tab.
-      </div>
+      
       <div>
-        The following devices are not fully supported:
+        <label for="tvDiag" class="tooltipBottom">Opens a split view or new tab in the Workspace Designer.
+              <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptextBottom" style="width: 400px;">Opens in the Workspace Designer in Split View, or utilize the dropdown option to select "Open New Tab." To view the Workspace Designer Blueprint, please use the dropdown and select "Open New Tab." In Split View, please note that the Edit button in the Workspace Designer is non-functional.</span></label>
       </div>
+  
+      <br>
+      <!-- <div class="inputField">
+        <label>
+        Not fully supported: Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2)
+        </label>
+      </div> -->
 
-      <div class="inputField">
-        Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2)
-      </div>
       <!-- <div class="inputField">
         <b class="highlightRed" id="vpnRequiredLabel">&nbsp;&nbsp;Requires a Cisco network connection</b>
       </div> -->
@@ -1801,9 +1804,32 @@
 
       <form method="dialog">
         <div class="inputField">
-          <!-- <button id="btnModalWorkspace" onclick="openWorkspaceWindow()">Open New Tab</button> -->
-          <input type="submit" value="Open Workspace Designer in New Tab" onclick="openWorkspaceWindow2()"
-            class="button" id="btnModalWorkspace2">
+
+          <div style="display: flex; justify-content: center;">
+          <div class="dropDownJSON" id="wsdBtnGroup">
+            <button class="button drpDownBtnMain" type="button" id="btnModalWorkspace2"
+              onclick="closeModalWorkspace(); splitViewOpen();">
+              <span style="position: relative;">
+               <span id="txtOpenWorkspaceDesigner"> Open Workspace Designer</span>
+                <i class="icon icon-view-regular iconLeftOfText"></i></span>
+            </button>
+            <span>
+              <button class="button drpDownBtnArrow" type="button" id="drpDownBtnArrowWSD">▼</button>
+              <div class="dropDownBtnMenu" id="drpDownWSDContent">
+                <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdSplitViewMenuItem"
+                  onclick="closeModalWorkspace(); splitViewOpen();">
+                  <i class="icon icon-video-layout-equal-dual-regular"
+                    style="font-size: large; transform: translate(0px,5px);"></i>Split View
+                </div>
+                <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdNewTabMenuItem"
+                  onclick="openWorkspaceWindow2();">
+                  <i class="icon icon-pop-out-regular"
+                    style="font-size: large; transform: translate(0px,5px);"></i>Open New Tab
+                </div>
+              </div>
+            </span>
+          </div>
+          </div>
         </div>
       </form>
     </main>
@@ -1861,14 +1887,13 @@
         Delete / Backspace = delete items<br>
         &larr;,&uarr;,&rarr;,&darr; arrows = move selected items <br>
         [shift / ctrl / cmd] + click = select/unselect item<br>
-        ctrl-s = <b>S</b>ave (download) Video Room Calculator JSON file.<br>
-        ctrl-e = <b>E</b>xport to Workspace Designer file format.<br>
-        ctrl-i = <b>I</b>mport Video Room Calculator or Workspace Designer file.<br>
+        ctrl-s = <b>S</b>ave (download) Video Room Calculator JSON file<br>
+        ctrl-e = <b>E</b>xport to Workspace Designer file format<br>
+        ctrl-i = <b>I</b>mport Video Room Calculator or Workspace Designer file<br>
         c = Camera coverage toggle<br>
         m = Microphone coverage toggle<br>
-        d = Display coverage toggle <br><br>
-
-        <i>(ctrl-3 = open Workspace Designer floating iFrame if enabled. More details at bottom.)</i><br>
+        d = Display coverage toggle <br>
+        ctrl-3 = toggle Workspace Designer split view<br>
 
         <hr />
         <div><label class="underlineHeader">Field of View (FOV)</label></div>
@@ -2082,7 +2107,7 @@
           is advisable to seek guidance from a qualified AV expert.
 
           The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes
-          (joehughe@cisco.com).
+          (<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="97fdf8f2ffe2f0fff2d7f4fee4f4f8b9f4f8fa">[email&#160;protected]</a>).
           Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
             Calculator discussion (Webex
             Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
@@ -2094,13 +2119,14 @@
             </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
                 src="assets/images/pop-out-bold.svg" width="14px"> Webex
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
-
+<!-- 
           <hr>
           <b>Test settings:</b><br>
           <a href="/?wd=https://designer.cisco.com&testiFrame=1&testNew=1">Click to test against Workspace Designer beta
             site</a><br>
-          Use ctrl-3 to open iFrame for Workspace Designer.<br><br>
-          <a href="/?wd=0&testiFrame=0&testNew=0">Click to turn off Workspace Designer beta</a>
+          Use ctrl-3 or ctrl-w to open Split View Preview.<br><br>
+         
+          <a href="/?wd=0&testiFrame=0&testNew=0">Click to turn off Workspace Designer beta</a> -->
 
 
           <hr>
@@ -2184,7 +2210,7 @@
   <div id="ContainerFooter" class="HeaderFooter">
     <div>Version: <label id="lblVersion2">vx.x</label> - For more info join the <a href="https://eurl.io/#4d-kKP6l1"
         target="_blank" class="whiteUnderlinedLink" style="text-decoration: underline;">Video Room
-        Calculator discussion</a> Webex space or contact joehughe@cisco.com </div>
+        Calculator discussion</a> Webex space or contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="62080d070a17050a0722010b11010d4c010d0f">[email&#160;protected]</a> </div>
   </div>
 
   <div id="floatingWorkspace" class="menuMore"
@@ -2235,6 +2261,45 @@
 
   <div id="testLog" style="display: none; padding-left: 10px;">--------</div>
 
+  <button id="splitViewReopenTab" class="splitViewReopenTab" style="display:none;"
+    onclick="splitViewOpen()" title="Open Workspace Designer Split View">
+    <i class="icon icon-format-panel-control-left-bold"></i>
+  </button>
+
+  <div id="splitViewContainer" class="splitViewContainer" style="display:none;">
+
+    <div id="splitViewLeft" class="splitViewLeft"></div>
+
+    <div id="splitViewBar" class="splitViewBar" title="Drag to resize">
+      <span class="splitViewBarHandle"></span>
+    </div>
+
+    <div id="splitViewRight" class="splitViewRight">
+
+      <div class="splitViewLabel" id="splitViewLabel"
+        style="container-type: inline-size; container-name: splitRight;">
+        <span class="splitViewLabelFull" id="splitViewLabelFull">Powered by Cisco Workspace Designer</span>
+        <span class="splitViewLabelShort" id="splitViewLabelShort">Workspace Designer</span>
+        <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by Cisco Workspace Designer</span>
+      </div>
+
+
+      <!-- Restore button: only visible when right panel is 100% wide -->
+      <button id="splitViewExpandBtn" class="splitViewExpandBtn"
+        style="display:none;"
+        onclick="splitViewSetWidth(50)"
+        title="Restore Video Room Calculator panel">
+        <i class="icon icon-format-panel-control-right-bold" style="transform: translateX(5px);"></i>
+      </button>
+
+      <iframe id="splitViewIframe" class="splitViewIframe"
+        src="" title="Workspace Designer" allow="fullscreen">
+      </iframe>
+
+    </div>
+  </div>
+
+
   <script src="./js/konva.min.js"></script>
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
   <script src="./js/roomcalc.js"></script>
@@ -2243,12 +2308,12 @@
   <!--
         Attribution:
 
-        Konva.js: MIT license can be found at https://github.com/konvajs/konva/blob/master/LICENSE
+        Konva.js: https://konvajs.org/ - MIT license can be found at https://github.com/konvajs/konva/blob/master/LICENSE
 
         DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
 
-        kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator
-    -->
+  -->
+
 </body>
 
 </html>

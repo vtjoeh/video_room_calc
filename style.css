@@ -680,9 +680,9 @@ input:placeholder-shown {
   overflow: auto;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(100vh - 210px);
+  max-height: calc(90vh - 50px);
   position: relative;
-  min-height: 400px;
+  min-height: 580px;
 }
 
 .subtabcontent,
@@ -1330,6 +1330,7 @@ dialog main {
   padding: 2em;
   max-height: 70vh;
   overflow-y: auto;
+  min-height: 265px;
 
 }
 
@@ -1452,6 +1453,7 @@ body:has(dialog.rightClickMenu[open]) {
   cursor: default;
   padding: 0px;
   box-shadow: 4.0px 8.0px 8.0px hsl(0deg 0% 0% / 0.38);
+  z-index: 500;
 }
 
 /* former dark .rightClickMenu */
@@ -2132,3 +2134,269 @@ hr.rightClickHorizontalLine {
   }
 
 }
+
+/* ================================================================ */
+/* Split View panel & Preview dropdown button styles                 */
+/* ================================================================ */
+
+/* ------------------------------------------------------------------
+   Preview split-button group (ContainerHeader)
+   Matches the existing .primary pill button style.
+------------------------------------------------------------------ */
+.previewBtnGroup {
+  position: relative;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.previewBtnMain {
+  border-top-right-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+  border-top-left-radius: 30px !important;
+  border-bottom-left-radius: 30px !important;
+}
+
+.previewBtnArrow {
+  border-top-left-radius: 0px !important;
+  border-bottom-left-radius: 0px !important;
+  border-top-right-radius: 30px !important;
+  border-bottom-right-radius: 30px !important;
+  padding: 7px 10px !important;
+  min-width: 32px;
+  border-left: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+.previewDropDownMenu {
+  left: 0;
+  margin-top: -2px;
+  min-width: 220px;
+  z-index: 10000;
+}
+
+/* Toggle class — mirrors showJSONDropDown / showPNGDropDown */
+.showPreviewDropDown {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+}
+
+/* ------------------------------------------------------------------
+   Split view overlay container
+   Fixed panel covering the right portion of the viewport,
+   positioned below the 47px ContainerHeader.
+   Right panel width is set dynamically via JS.
+------------------------------------------------------------------ */
+.splitViewContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  z-index: 500;
+  pointer-events: none;
+}
+
+.splitViewLeft {
+  flex-shrink: 0;
+  pointer-events: none;
+  background: transparent;
+  padding-top: 47px;
+}
+
+.splitViewBar {
+  width: 13px;
+  border-style: solid;
+  border-color: lightgray; 
+  background-color: #ffffff;  
+  cursor: col-resize;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.1s;
+  z-index: 501;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.15);
+}
+
+.splitViewBar:hover,
+.splitViewBar.dragging {
+  background-color: #e8e8e8;
+}
+
+.splitViewBarHandle {
+  display: block;
+  width: 4px;
+  height: 40px;
+  border-left: 2px dotted #aaa;
+  border-right: 2px dotted #aaa;
+}
+
+.splitViewBar.dragging .splitViewBarHandle {
+  border-color: #888;
+}
+
+/* Reopen tab: fixed to right edge, shown when WSD is closed */
+.splitViewReopenTab {
+  position: fixed;
+  right: 0;
+  top: 20%;
+  transform: translateY(-50%);
+  z-index: 600;
+  width: 28px;
+  height: 56px;
+  background-color: var(--active, #0352a6);
+  border: none;
+  border-radius: 6px 0 0 6px;  /* rounded on left side only */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  box-shadow: -2px 0 6px rgba(0,0,0,0.3);
+  padding: 0;
+}
+
+.splitViewReopenTab:hover {
+  background-color: #0265c8;
+}
+
+.splitViewRight {
+  flex: 1;
+  position: relative;
+  background: #f0f0f0;
+  pointer-events: all;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* "Powered by Cisco Workspace Designer" label in top whitespace area */
+.splitViewLabel {
+  flex-shrink: 0;
+  height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  font-size: 16px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 8px;
+  pointer-events: none;
+  user-select: none;
+  border-bottom-color: #ccccccb6;
+  border-bottom-style: solid;
+}
+
+.splitViewLabel .splitViewLabelFull  { display: inline; }
+.splitViewLabel .splitViewLabelShort { display: none; }
+.splitViewLabel .splitViewLabelVRC   { display: none; }
+
+@container splitRight (max-width: 340px) {
+  .splitViewLabel .splitViewLabelFull  { display: none; }
+  .splitViewLabel .splitViewLabelShort { display: inline; }
+}
+
+.splitViewIframe {
+  display: block;
+  width: 100%;
+  flex: 1;        /* fills remaining height below the label */
+  border: none;
+  min-height: 0;  /* allows flex child to shrink below content size */
+}
+
+/* ------------------------------------------------------------------
+   Restore button: shown only when right panel is 100% (VRC hidden).
+   Anchored to the left edge of the right panel.
+------------------------------------------------------------------ */
+.splitViewExpandBtn {
+  position: absolute;
+  left: -7px;
+  top: 20%;
+  transform: translateY(-50%);
+  z-index: 600;
+  width: 30px;
+  height: 56px;
+  background-color: var(--active, #0352a6);
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.3);
+  padding: 0;
+}
+
+.splitViewExpandBtn:hover {
+  background-color: #0265c8;
+}
+
+
+/* Split-view responsive breakpoint classes                                  */
+/* These mirror @media queries but fire based on actual content width,       */
+/* not viewport width. JS adds svBp* classes to <body> during split view.    */
+
+/* Mirror @media (max-width: 900px) */
+body.svBp900 #ContainerRoomSvg {
+  width: calc(100% - 40px); min-width: 340px; display: inline;
+  vertical-align: top; margin: 0 0 10px 30px;
+}
+body.svBp900 #openSideBar { position: absolute; }
+body.svBp900 .subtabcontent, body.svBp900 .subtabcontent2 { position: relative; height: 490px; }
+
+body.svBp900 #ContainerForContainerRoom { float: unset; overflow: unset; }
+
+body.svBp900 #sidebar {
+  width: 100%; padding: 0; max-width: unset; position: absolute; z-index: 99;
+}
+
+/* body.svBp900 #sidebar {
+  padding: 0; max-width: 400px;
+} */
+
+body.svBp900 #controlButtons { gap: 5px; overflow-x: auto; }
+body.svBp900 #controlButtons .spacer { display: none; }
+body.svBp900 #Container2 { width: 100%; padding: 0; padding-bottom: 10px; margin: 0; }
+body.svBp900 .ContainerInputsFeedback { width: 97.5%; }
+body.svBp900 #ContainerInputs {
+  margin: 10px -30px 10px 0; max-width: 370px; min-width: 320px;
+  border-style: solid; border-width: thin;
+}
+body.svBp900 .displayWhenLessThan900 { display: contents; color: #888; }
+
+
+/* Mirror @media (max-width: 783px) */
+
+body.svBp783 .ContainerHeader { gap: 2px; }
+body.svBp783 #lblHeaderTitle { max-width: 145px; }
+
+
+/* Mirror @media (max-width: 650px) */
+body.svBp650 .ContainerHeader { gap: 2px; }
+
+
+body.svBp650 .ContainerHeader button span { display: none; }
+body.svBp650 .ContainerHeader i {
+  padding: 0; width: 28px; height: 28px; line-height: 28px; font-size: 24px;
+}
+body.svBp650 .primary i {
+  padding: 0; width: 20px; height: 20px; line-height: 20px; font-size: 16px;
+}
+
+/* Mirror @media (max-width: 405px) */
+body.svBp405 #lblHeaderTitle { display: none; }
+body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
+body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
+
