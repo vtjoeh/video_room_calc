@@ -2358,8 +2358,12 @@ body.svBp900 .subtabcontent, body.svBp900 .subtabcontent2 { position: relative; 
 
 body.svBp900 #ContainerForContainerRoom { float: unset; overflow: unset; }
 
-body.svBp900 #sidebar {
+/* body.svBp900 #sidebar {
   width: 100%; padding: 0; max-width: unset; position: absolute; z-index: 99;
+} */
+
+body.svBp900 #sidebar {
+  padding: 0; max-width: 370px; position: absolute; z-index: 99;
 }
 
 /* body.svBp900 #sidebar {

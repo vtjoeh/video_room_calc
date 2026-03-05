@@ -11601,7 +11601,9 @@ function closeOpenSidebar(tabToOpen) {
 
     }
 
-    const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    // const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+
+    const width = document.getElementById('ContainerHeader').offsetWidth; 
 
     if (width > 900) {
         windowResizeEventName();
