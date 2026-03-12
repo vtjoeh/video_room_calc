@@ -22113,7 +22113,7 @@ function splitViewSetWidth(pct) {
         if (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl) {
             wdUrl = workspaceDesignerTestUrl;
         }
-        iframe.src = wdUrl + '?preview=1';
+        iframe.src = wdUrl + '?preview=1&removeEditButton=1';
         splitViewState.iframeLoaded = true;
         setTimeout(function () { postMessageToWorkspace(); }, 1500);
         setTimeout(function () { postMessageToWorkspace(); }, 3500);
