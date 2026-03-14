@@ -42,9 +42,9 @@ let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding
 
 let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
-const defaultWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
+const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
-let defaultWorkspaceTestSite = 'https://designer.cisco.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
+let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Window reprsenting the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
@@ -9762,7 +9762,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.beginPath();
                 let width = shape.width();
                 let height = shape.height();
-                let width2 = attrs.data_trapNarrowWidth * scale; 
+                let width2 = attrs.data_trapNarrowWidth * scale;
 
                 if (width2 > width) {
                         width2 = width;
@@ -10807,15 +10807,15 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
 
             // if('data_deviceid' in node && node.data_deviceid.startsWith('tbl') && node.getClassName() === 'Shape'){;
-            //     let tempNode = node.clone(); 
-            //     node.sceneFunc(()=>{}); 
+            //     let tempNode = node.clone();
+            //     node.sceneFunc(()=>{});
 
             //     node.scaleX(1);
             //     node.scaleY(1);
-            //     layerTransform.batchDraw(); 
+            //     layerTransform.batchDraw();
             //     node.draw()
-            //     // node.sceneFunc(tempNode.sceneFunc()); 
-            //     layerTransform.batchDraw(); 
+            //     // node.sceneFunc(tempNode.sceneFunc());
+            //     layerTransform.batchDraw();
             // }
 
 
@@ -11603,7 +11603,7 @@ function closeOpenSidebar(tabToOpen) {
 
     // const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 
-    const width = document.getElementById('ContainerHeader').offsetWidth; 
+    const width = document.getElementById('ContainerHeader').offsetWidth;
 
     if (width > 900) {
         windowResizeEventName();
@@ -19999,7 +19999,7 @@ function openWorkspaceWindow(fromButton = true) {
     let currentSite = location.origin + location.pathname;
     console.info('Current WD site:', currentSite);
 
-    /* any site that is not https://collabexperience.com/ will redirect to designer.cisco.com */
+    /* any site that is not https://collabexperience.com/ will redirect to designer.webex.com */
     // if (currentSite != 'https://collabexperience.com/') {
     //     newWorkspaceTab = defaultWorkspaceTestSite;
     //     console.info('WD site: ', newWorkspaceTab);
@@ -20218,7 +20218,7 @@ function exportRoomObjToWorkspace() {
 
     ]
 
-    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.cisco.com */
+    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.webex.com */
     let altDefaultWall = false;
 
     if (altDefaultWall === true && !roomObj.workspace.removeDefaultWalls) {
