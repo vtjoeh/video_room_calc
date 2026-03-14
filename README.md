@@ -8,12 +8,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.641 pre-release notes**
-[Not published to main site yet]
-- **Split View** in Workspace Designer is here! 🎉 You can still open the WD in a new tab too!
-- Now using designer.cisco.com as the main site for Workspace Designer instead of webex.com 🌐
-- The **Preview** button got a new name: **3D View** 👀
-- Fixed those annoying scaling issues on window resize for trapezoid and U-shaped tables 🔧✨
+**v0.1.641 Pre-Release Notes** 🎉 🎉 🎉
+- The **Split View** feature in Workspace Designer is finally here! 🎉 You can still open the WD in a new tab as well!
+- We are now using designer.webex.com as the main site for Workspace Designer instead of the longer URL 🌐
+- The **Preview** button has been renamed to **3D View** 👀
+- Fixed those pesky scaling issues during browser resizing for trapezoid and U-shaped tables 🔧✨
+- If you were testing against designer.cisco.com, we recommend clicking on the following link to clear all cookies and reset defaults: https://collabexperience.com/?wd=0&testiFrame=0&testNew=0 🔃
 
 **v0.1.640 release notes**
 - **New Products:** 🎉 **Desk Pro G2** & **Room Kit Pro G2** are now supported. 🎉
