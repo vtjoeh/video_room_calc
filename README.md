@@ -13,7 +13,6 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - We are now using designer.webex.com as the main site for Workspace Designer instead of the longer URL 🌐
 - The **Preview** button has been renamed to **3D View** 👀
 - Fixed those pesky scaling issues during browser resizing for trapezoid and U-shaped tables 🔧✨
-- If you were testing against designer.cisco.com, we recommend clicking on the following link to clear all cookies and reset defaults: https://collabexperience.com/?wd=0&testiFrame=0&testNew=0 🔃
 
 **v0.1.640 release notes**
 - **New Products:** 🎉 **Desk Pro G2** & **Room Kit Pro G2** are now supported. 🎉
