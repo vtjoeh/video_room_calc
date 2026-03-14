@@ -64,8 +64,9 @@
     <button id="2" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabEquipment')">Equipment&nbsp;&nbsp;
     </button>
     <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button> -->
-    <button id="openSideBarBtn" class="btn closeOpenButton" ><i
-        style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;" class="icon icon-arrow-circle-right-regular"></i></button>
+    <button id="openSideBarBtn" class="btn closeOpenButton"><i
+        style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
+        class="icon icon-arrow-circle-right-regular"></i></button>
     <div class="displayWhenLessThan900" id="0">
     </div>
   </div>
@@ -130,7 +131,8 @@
         <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
         <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()">
-          <i style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;" id="closeOpenIcon" class="icon icon-arrow-circle-left-regular"></i>
+          <i style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
+            id="closeOpenIcon" class="icon icon-arrow-circle-left-regular"></i>
         </button>
       </div>
       <div id="containerInputTabContent">
@@ -1753,17 +1755,25 @@
   </dialog>
 
   <dialog id="modalWorkspace" onclick="onDialogClick(event)">
-    <header><img id="workspaceIcon" width="32px" src="https://designer.cisco.com/images/appicon.png" style="transform: translate(-10px, 10px);"> 3D powered by Cisco Workspace Designer</header>
+    <header><img id="workspaceIcon" width="32px" src="https://designer.cisco.com/images/appicon.png"
+        style="transform: translate(-10px, 10px);"> 3D powered by Cisco Workspace Designer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main>
-      
+
       <div>
         <label for="tvDiag" class="tooltipBottom">Opens a split view or new tab in the Workspace Designer.
-              <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom" style="width: 400px;">Opens in the Workspace Designer in Split View, or utilize the dropdown option to select "Open New Tab." To view the Workspace Designer Blueprint, please use the dropdown and select "Open New Tab."</span></label>
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom" style="width: 400px;">Opens in the Workspace Designer in Split View, or
+            utilize the dropdown option to select "Open New Tab." To view the Workspace Designer Blueprint, please use
+            the dropdown and select "Open New Tab."</span></label>
       </div>
-  
-      <br>
+  <br>
+      <div class="inputRow">
+        <div class="inputField">
+          <label>To view the Workspace Designer Blueprint, use the dropdown and select "Open New Tab."</label>
+        </div>
+      </div>
+
       <!-- <div class="inputField">
         <label>
         Not fully supported: Room Kit, Room Kit Mini, Room 55, Precision 60 camera, Board Pros (non-G2)
@@ -1806,29 +1816,29 @@
         <div class="inputField">
 
           <div style="display: flex; justify-content: center;">
-          <div class="dropDownJSON" id="wsdBtnGroup">
-            <button class="button drpDownBtnMain" type="button" id="btnModalWorkspace2"
-              onclick="closeModalWorkspace(); splitViewOpen();">
-              <span style="position: relative;">
-               <span id="txtOpenWorkspaceDesigner"> Open Workspace Designer</span>
-                <i class="icon icon-view-regular iconLeftOfText"></i></span>
-            </button>
-            <span>
-              <button class="button drpDownBtnArrow" type="button" id="drpDownBtnArrowWSD">▼</button>
-              <div class="dropDownBtnMenu" id="drpDownWSDContent">
-                <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdSplitViewMenuItem"
-                  onclick="closeModalWorkspace(); splitViewOpen();">
-                  <i class="icon icon-video-layout-equal-dual-regular"
-                    style="font-size: large; transform: translate(0px,5px);"></i>Split View
+            <div class="dropDownJSON" id="wsdBtnGroup">
+              <button class="button drpDownBtnMain" type="button" id="btnModalWorkspace2"
+                onclick="closeModalWorkspace(); splitViewOpen();">
+                <span style="position: relative;">
+                  <span id="txtOpenWorkspaceDesigner"> Open Workspace Designer</span>
+                  <i class="icon icon-view-regular iconLeftOfText"></i></span>
+              </button>
+              <span>
+                <button class="button drpDownBtnArrow" type="button" id="drpDownBtnArrowWSD">▼</button>
+                <div class="dropDownBtnMenu" id="drpDownWSDContent">
+                  <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdSplitViewMenuItem"
+                    onclick="closeModalWorkspace(); splitViewOpen();">
+                    <i class="icon icon-video-layout-equal-dual-regular"
+                      style="font-size: large; transform: translate(0px,5px);"></i>Split View
+                  </div>
+                  <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdNewTabMenuItem"
+                    onclick="openWorkspaceWindow2();">
+                    <i class="icon icon-pop-out-regular"
+                      style="font-size: large; transform: translate(0px,5px);"></i>Open New Tab
+                  </div>
                 </div>
-                <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdNewTabMenuItem"
-                  onclick="openWorkspaceWindow2();">
-                  <i class="icon icon-pop-out-regular"
-                    style="font-size: large; transform: translate(0px,5px);"></i>Open New Tab
-                </div>
-              </div>
-            </span>
-          </div>
+              </span>
+            </div>
           </div>
         </div>
       </form>
@@ -2107,7 +2117,8 @@
           is advisable to seek guidance from a qualified AV expert.
 
           The Collab Experience website (collabexperience.com) is owned and hosted by Joe Hughes
-          (<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="97fdf8f2ffe2f0fff2d7f4fee4f4f8b9f4f8fa">[email&#160;protected]</a>).
+          (<a href="/cdn-cgi/l/email-protection" class="__cf_email__"
+            data-cfemail="97fdf8f2ffe2f0fff2d7f4fee4f4f8b9f4f8fa">[email&#160;protected]</a>).
           Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
             Calculator discussion (Webex
             Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
@@ -2119,13 +2130,13 @@
             </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
                 src="assets/images/pop-out-bold.svg" width="14px"> Webex
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
-<!-- 
+          <!--
           <hr>
           <b>Test settings:</b><br>
           <a href="/?wd=https://designer.cisco.com&testiFrame=1&testNew=1">Click to test against Workspace Designer beta
             site</a><br>
           Use ctrl-3 or ctrl-w to open Split View Preview.<br><br>
-         
+
           <a href="/?wd=0&testiFrame=0&testNew=0">Click to turn off Workspace Designer beta</a> -->
 
 
@@ -2210,7 +2221,8 @@
   <div id="ContainerFooter" class="HeaderFooter">
     <div>Version: <label id="lblVersion2">vx.x</label> - For more info join the <a href="https://eurl.io/#4d-kKP6l1"
         target="_blank" class="whiteUnderlinedLink" style="text-decoration: underline;">Video Room
-        Calculator discussion</a> Webex space or contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="62080d070a17050a0722010b11010d4c010d0f">[email&#160;protected]</a> </div>
+        Calculator discussion</a> Webex space or contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__"
+        data-cfemail="62080d070a17050a0722010b11010d4c010d0f">[email&#160;protected]</a> </div>
   </div>
 
   <div id="floatingWorkspace" class="menuMore"
@@ -2261,8 +2273,8 @@
 
   <div id="testLog" style="display: none; padding-left: 10px;">--------</div>
 
-  <button id="splitViewReopenTab" class="splitViewReopenTab" style="display:none;"
-    onclick="splitViewOpen()" title="Open Workspace Designer Split View">
+  <button id="splitViewReopenTab" class="splitViewReopenTab" style="display:none;" onclick="splitViewOpen()"
+    title="Open Workspace Designer Split View">
     <i class="icon icon-format-panel-control-left-bold"></i>
   </button>
 
@@ -2276,24 +2288,21 @@
 
     <div id="splitViewRight" class="splitViewRight">
 
-      <div class="splitViewLabel" id="splitViewLabel"
-        style="container-type: inline-size; container-name: splitRight;">
+      <div class="splitViewLabel" id="splitViewLabel" style="container-type: inline-size; container-name: splitRight;">
         <span class="splitViewLabelFull" id="splitViewLabelFull">Powered by Cisco Workspace Designer</span>
         <span class="splitViewLabelShort" id="splitViewLabelShort">Workspace Designer</span>
-        <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by Cisco Workspace Designer</span>
+        <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by
+          Cisco Workspace Designer</span>
       </div>
 
 
       <!-- Restore button: only visible when right panel is 100% wide -->
-      <button id="splitViewExpandBtn" class="splitViewExpandBtn"
-        style="display:none;"
-        onclick="splitViewSetWidth(33)"
+      <button id="splitViewExpandBtn" class="splitViewExpandBtn" style="display:none;" onclick="splitViewSetWidth(33)"
         title="Restore Video Room Calculator panel">
         <i class="icon icon-format-panel-control-right-bold" style="transform: translateX(5px);"></i>
       </button>
 
-      <iframe id="splitViewIframe" class="splitViewIframe"
-        src="" title="Workspace Designer" allow="fullscreen">
+      <iframe id="splitViewIframe" class="splitViewIframe" src="" title="Workspace Designer" allow="fullscreen">
       </iframe>
 
     </div>
