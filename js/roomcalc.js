@@ -2842,7 +2842,8 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 2,
-    resizeable: ['width', 'depth', 'vheight']
+    resizeable: ['width', 'depth', 'vheight'],
+    default_vHeight: 710,
 },
 {
     name: 'Huddle (Bullet) Table',
@@ -3411,10 +3412,11 @@ let stageFloors = [
         stroke: 'black',
         strokeWidth: 2,
         dash: [4, 8],
-        resizeable: ['width', 'depth', 'vheight']
+        resizeable: ['width', 'depth', 'vheight'],
+        default_vHeight: 500,
     },
     {
-        name: 'Carpet*',
+        name: 'Carpet',
         id: 'carpet',
         key: 'FB',
         frontImage: 'box-front.png',
@@ -3422,7 +3424,9 @@ let stageFloors = [
         stroke: 'grey',
         strokeWidth: 4,
         dash: [8, 3],
-        resizeable: ['width', 'depth', 'vheight']
+        resizeable: ['width', 'depth', 'vheight'],
+        default_vHeight: 10,
+        defaultVert: 10,
     }
 ]
 
@@ -3438,7 +3442,8 @@ let boxes = [
         stroke: 'black',
         strokeWidth: 2,
         dash: [7, 5],
-        resizeable: ['width', 'depth', 'vheight']
+        resizeable: ['width', 'depth', 'vheight'],
+        default_vHeight: 1000,
     },
     {
         name: 'Wall Builder - Multiple walls',
@@ -9308,7 +9313,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 3 * scale;
         height = 3 * scale;
     }
-    else if (insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('carpet')) {
+    else if (insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor')) {
         width = 1 * scale;
         height = 1 * scale;
     }
@@ -9344,6 +9349,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 1 * scale;
         height = 1 * scale;
         data_zPosition = 1;
+    } else if (insertDevice.id === 'carpet'){
+        width = 2 * scale;
+        height = 2.5 * scale;
     }
 
     if ('data_vHeight' in attrs) {
@@ -9351,6 +9359,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if ((insertDevice.id.startsWith('box') || insertDevice.id.startsWith('stageFloor') || insertDevice.id.startsWith('sphere')) && !data_vHeight) {
+
         if (unit === 'feet') {
             data_vHeight = 3.28;
         } else {
@@ -9358,21 +9367,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     }
 
-    if ((insertDevice.id.startsWith('credenza')) && !data_vHeight) {
-        if (unit === 'feet') {
-            data_vHeight = Math.round(0.71 / 3.28084);
-        } else {
-            data_vHeight = 0.71;
-        }
-    }
-
-    if (insertDevice.id === 'carpet') {
-        if (unit === 'feet') {
-            data_vHeight = .03;
-        } else {
-            data_vHeight = .01;
-        }
-    }
 
     if (unit === 'feet') {
         width = width * 3.28084;
@@ -16286,6 +16280,14 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_zPosition = defaultVert;
     }
 
+    if('default_vHeight' in allDeviceTypes[data_deviceid]) {
+        let default_vHeight = allDeviceTypes[data_deviceid].default_vHeight / 1000;
+        if (roomObj.unit === 'feet') {
+            default_vHeight = round(default_vHeight * 3.28084)
+        }
+        attrs.data_vHeight = default_vHeight;
+    }
+
 
     if (allDeviceTypes[data_deviceid].rolesDialog) {
 
@@ -17485,7 +17487,8 @@ function resizeTableOrWall() {
             changeWallAnchors('wallChairs');
             tr.resizeEnabled(true);
         }
-        else if (nodes[0].data_deviceid.startsWith('sphere') || nodes[0].data_deviceid.startsWith('cylinder')) {
+        else if (nodes[0].data_deviceid.startsWith('sphere') || nodes[0].data_deviceid.startsWith('cylinder') || nodes[0].data_deviceid.startsWith('columnRect')) {
+
             tr.enabledAnchors(['bottom-right']);
             changeWallAnchors('wallChairs');
             tr.resizeEnabled(true);

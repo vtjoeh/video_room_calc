@@ -2290,12 +2290,18 @@
 
     <div id="splitViewRight" class="splitViewRight">
 
+      <!-- <button onclick="openWorkspaceWindow2();">
+                    <i class="icon icon-pop-out-regular" style="font-size: large; transform: translate(0px,5px);"></i>
+      </button> -->
+
       <div class="splitViewLabel" id="splitViewLabel" style="container-type: inline-size; container-name: splitRight;">
         <span class="splitViewLabelFull" id="splitViewLabelFull">Powered by Cisco Workspace Designer</span>
         <span class="splitViewLabelShort" id="splitViewLabelShort">Workspace Designer</span>
         <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by
           Cisco Workspace Designer</span>
+
       </div>
+
 
 
       <!-- Restore button: only visible when right panel is 100% wide -->
@@ -2304,7 +2310,7 @@
         <i class="icon icon-format-panel-control-right-bold" style="transform: translateX(5px);"></i>
       </button>
 
-      <iframe id="splitViewIframe" class="splitViewIframe" src="" title="Workspace Designer" allow="fullscreen">
+      <iframe id="splitViewIframe" class="splitViewIframe" src="" title="Workspace Designer" allow="fullscreen; clipboard-read; clipboard-write">
       </iframe>
 
     </div>
