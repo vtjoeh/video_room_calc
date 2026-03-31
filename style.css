@@ -2209,8 +2209,8 @@ hr.rightClickHorizontalLine {
 .splitViewBar {
   width: 13px;
   border-style: solid;
-  border-color: lightgray; 
-  background-color: #ffffff;  
+  border-color: lightgray;
+  background-color: #ffffff;
   cursor: col-resize;
   flex-shrink: 0;
   display: flex;
@@ -2332,7 +2332,7 @@ hr.rightClickHorizontalLine {
 .splitViewLabel .splitViewLabelVRC   { display: none; }
 
 
-@container splitRight (max-width: 340px) {
+@container splitRight (max-width: 420px) {
   .splitViewLabel .splitViewLabelFull  { display: none; }
   .splitViewLabel .splitViewLabelShort { display: inline; }
 }
