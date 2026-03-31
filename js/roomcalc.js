@@ -22011,13 +22011,14 @@ var splitViewState = {
 /*   25 - 75%  -> stay at dragged value                         */
 /*   75 - 88%  -> snap back to 75%                              */
 /*   88 - 100% -> snap to 100%                                  */
-var SPLIT_VIEW_CLOSE_PCT = 12;
-var SPLIT_VIEW_MIN_PCT = 25;
-var SPLIT_VIEW_MAX_PCT = 75;
-var SPLIT_VIEW_FULL_PCT = 88;
-var SPLIT_VIEW_DEFAULT_PCT = 33;
+let SPLIT_VIEW_CLOSE_PCT = 12;
+let SPLIT_VIEW_MIN_PCT = 25;
+let SPLIT_VIEW_MAX_PCT = 75;
+let  SPLIT_VIEW_FULL_PCT = 88;
+let SPLIT_VIEW_DEFAULT_PCT = 33;
 
 function splitViewOpen() {
+
     if (splitViewState.isActive && splitViewState.rightWidthPct > 0) {
         splitViewClose();
         return;
@@ -22030,7 +22031,13 @@ function splitViewOpen() {
     let reopenTab = document.getElementById('splitViewReopenTab');
     if (container) { container.style.display = 'flex'; }
     if (reopenTab) { reopenTab.style.display = 'none'; }
-    splitViewSetWidth(SPLIT_VIEW_DEFAULT_PCT);
+    
+
+    if(window.innerWidth < 800){
+        splitViewSetWidth(100);
+    } else {
+        splitViewSetWidth(SPLIT_VIEW_DEFAULT_PCT);
+    }
 }
 
 /* splitViewToggle(): called by ctrl-3 / ctrl-w. Opens if closed, closes if open. */
@@ -22129,7 +22136,7 @@ function splitViewSetWidth(pct) {
     let labelFull = document.getElementById('splitViewLabelFull');
     let labelShort = document.getElementById('splitViewLabelShort');
     let labelVRC = document.getElementById('splitViewLabelVRC');
-    if (pct === 100) {
+    if (pct === 100 && window.innerWidth > 500) {
         if (labelFull) { labelFull.style.display = 'none'; }
         if (labelShort) { labelShort.style.display = 'none'; }
         if (labelVRC) { labelVRC.style.display = 'inline'; }
