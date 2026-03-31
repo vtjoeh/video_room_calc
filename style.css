@@ -2284,7 +2284,7 @@ hr.rightClickHorizontalLine {
   height: 49px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between; /* was: center */
   background: #ffffff;
   font-size: 16px;
   color: #555;
@@ -2297,9 +2297,40 @@ hr.rightClickHorizontalLine {
   border-bottom-style: solid;
 }
 
+/* Center label text stretches to fill space between the two buttons */
+.splitViewLabel .splitViewLabelText {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Close (X) and Open New Tab buttons in the label bar */
+.splitViewLabelBtn {
+  pointer-events: all;   /* override parent pointer-events:none */
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.splitViewLabelBtn:hover {
+  background-color: #e8e8e8;
+  color: #000;
+}
+
 .splitViewLabel .splitViewLabelFull  { display: inline; }
 .splitViewLabel .splitViewLabelShort { display: none; }
 .splitViewLabel .splitViewLabelVRC   { display: none; }
+
 
 @container splitRight (max-width: 340px) {
   .splitViewLabel .splitViewLabelFull  { display: none; }

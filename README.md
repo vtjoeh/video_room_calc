@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.642 Release Notes**
+- Added a close (x) and pop-out button ⛶↗  to the split-view for the Workspace Designer. 
+
 **v0.1.641 Pre-Release Notes** 🎉 🎉 🎉
 - The **Split View** feature in Workspace Designer is finally here! 🎉 You can still open the WD in a new tab as well!
 - We are now using designer.webex.com as the main site for Workspace Designer instead of the longer URL 🌐

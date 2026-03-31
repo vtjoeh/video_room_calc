@@ -2290,19 +2290,24 @@
 
     <div id="splitViewRight" class="splitViewRight">
 
-      <!-- <button onclick="openWorkspaceWindow2();">
-                    <i class="icon icon-pop-out-regular" style="font-size: large; transform: translate(0px,5px);"></i>
-      </button> -->
-
       <div class="splitViewLabel" id="splitViewLabel" style="container-type: inline-size; container-name: splitRight;">
-        <span class="splitViewLabelFull" id="splitViewLabelFull">Powered by Cisco Workspace Designer</span>
-        <span class="splitViewLabelShort" id="splitViewLabelShort">Workspace Designer</span>
-        <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by
-          Cisco Workspace Designer</span>
+
+        <button class="splitViewLabelBtn" onclick="splitViewClose()" title="Close Split View">
+          <i class="icon icon-cancel-regular"></i>
+        </button>
+
+        <span class="splitViewLabelText">
+          <span class="splitViewLabelFull" id="splitViewLabelFull">Powered by Cisco Workspace Designer</span>
+          <span class="splitViewLabelShort" id="splitViewLabelShort">Workspace Designer</span>
+          <span class="splitViewLabelVRC" id="splitViewLabelVRC" style="display:none;">Video Room Calculator powered by
+            Cisco Workspace Designer</span>
+        </span>
+
+        <button class="splitViewLabelBtn" onclick="openWorkspaceWindow2()" title="Open in New Tab">
+          <i class="icon icon-pop-out-regular"></i>
+        </button>
 
       </div>
-
-
 
       <!-- Restore button: only visible when right panel is 100% wide -->
       <button id="splitViewExpandBtn" class="splitViewExpandBtn" style="display:none;" onclick="splitViewSetWidth(33)"
