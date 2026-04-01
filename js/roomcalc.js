@@ -5290,7 +5290,7 @@ function onLoad() {
         document.getElementById('snapToIncrement').disabled = true;
     }
 
-    if (localStorage.getItem('snapRotationOffCheckBox') === 'true') {
+    if (localStorage.getItem('snapRotationOffCheckBox') !== 'true') {
         document.getElementById('snapRotationOffCheckBox').checked = true;
         tr.rotationSnaps([]);
     } else {
@@ -6929,6 +6929,12 @@ function measuringToolOn(event = true) {
         return;
     }
 
+    if(movingBackgroundImage){
+        alert('Measuring Tool not allowed at this step. Toggle off Move Room Floor Plan.');
+        document.getElementById('measureTool').checked = false;
+        return;
+    }
+
     if (turnOn) {
         document.getElementById("canvasDiv").style.cursor = "crosshair";
         tr.nodes([]);
@@ -7318,6 +7324,11 @@ function updateBackgroundImageScale() {
         let imageWidth = konvaBackgroundImageFloor.width();
 
         let pointsActualDistance = pixelDistance / scale;
+
+        if (pointsActualDistance < 0.05){
+            alert('Please select two points by dragging the mouse');
+            return;
+        }
 
         konvaBackgroundImageFloor.height(imageHeight * measurement / pointsActualDistance);
 
@@ -14784,7 +14795,7 @@ function snapChange(e) {
 
 function snapRotationOffChange(e) {
 
-    if (e.srcElement.checked) {
+    if (e.srcElement.checked !== true) {
         setItemForLocalStorage('snapRotationOffCheckBox', 'true');
         tr.rotationSnaps([]);
     } else {
@@ -22029,6 +22040,15 @@ function splitViewOpen() {
 
     let container = document.getElementById('splitViewContainer');
     let reopenTab = document.getElementById('splitViewReopenTab');
+
+    let right = document.getElementById('splitViewRight');
+
+    if(mobileDevice === 'RoomOS'){
+        right.style.borderRightColor = 'black';
+        right.style.borderRightStyle = 'solid';
+        right.style.borderRightWidth = '25px';
+    }
+
     if (container) { container.style.display = 'flex'; }
     if (reopenTab) { reopenTab.style.display = 'none'; }
     
