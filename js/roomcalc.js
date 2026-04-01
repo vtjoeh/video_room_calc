@@ -5292,10 +5292,11 @@ function onLoad() {
 
     if (localStorage.getItem('snapRotationOffCheckBox') !== 'true') {
         document.getElementById('snapRotationOffCheckBox').checked = true;
-        tr.rotationSnaps([]);
+        tr.rotationSnaps([0, 45, 90, 135, 180, 225, 270, 315, 360]);
     } else {
         document.getElementById('snapRotationOffCheckBox').checked = false;
-        tr.rotationSnaps([0, 45, 90, 135, 180, 225, 270, 315, 360]);
+        tr.rotationSnaps([]);
+
     }
 
     if (localStorage.getItem('autoZposition') === 'true') {
