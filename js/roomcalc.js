@@ -1,4 +1,4 @@
-const version = "v0.1.642";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.643";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -395,6 +395,8 @@ workspaceKey.ceilingMount = { objectType: "ceilingMount" };
 workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
+
+workspaceKey.loudspeaker = { objectType: 'loudspeaker' };
 
 workspaceKey.projector = { objectType: 'projector' };
 
@@ -2657,14 +2659,14 @@ let microphones = [
         defaultVert: 2500,
     },
     {
-        name: "Ceiling Speaker Round**",
+        name: "_Ceiling Speaker Round",
         id: "speaker",
         key: "MX",
-        topImage: 'tblPodium-menu.png',
-        frontImage: 'tblPodium-menu.png',
-        width: 500,
-        depth: 500,
-        height: 10,
+        topImage: 'ceilingSpeaker-top.png',
+        frontImage: 'ceilingSpeaker-top.png',
+        width: 300,
+        depth: 300,
+        height: 6,
         defaultVert: 2500,
         speakerRadius: 1500,
         innerSpeakerRadius: 0,
@@ -2680,6 +2682,20 @@ let microphones = [
         depth: 67,
         height: 73,
         defaultVert: 1180,
+    },
+    {
+        name: "Ceiling Speaker Round**",
+        id: "loudspeaker",
+        key: "MZ",
+        topImage: 'ceilingSpeaker-top.png',
+        frontImage: 'ceilingSpeaker-top.png',
+        width: 300,
+        depth: 300,
+        height: 6,
+        defaultVert: 2500,
+        speakerRadius: 1500,
+        innerSpeakerRadius: 0,
+        speakerDeg: 360,
     },
 ]
 
@@ -22052,7 +22068,7 @@ function splitViewOpen() {
 
     if (container) { container.style.display = 'flex'; }
     if (reopenTab) { reopenTab.style.display = 'none'; }
-    
+
 
     if(window.innerWidth < 800){
         splitViewSetWidth(100);

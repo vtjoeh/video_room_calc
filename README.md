@@ -8,9 +8,12 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.642 Release Notes**  
-- Added a close (x) and pop-out button ⛶↗ to the split-view for the Workspace Designer.  
-- The toggle **Rototatin Snap Off** has been changed to **Rotation Snap** as the wording was confusing. The toggle is now reversed.  
+**v0.1.643 Release Notes**
+- Added new object Ceiling Speaker (objecType: 'loudspeaker').
+
+**v0.1.642 Release Notes**
+- Added a close (x) and pop-out button ⛶↗ to the split-view for the Workspace Designer.
+- The toggle **Rototatin Snap Off** has been changed to **Rotation Snap** as the wording was confusing. The toggle is now reversed.
 - Fixed an issue where selecting only 1 point for the Room Floor Plan wizard and clicking the update button caused the room floor plan to appear deleted.
 
 **v0.1.641 Pre-Release Notes** 🎉 🎉 🎉
