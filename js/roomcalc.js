@@ -2684,11 +2684,11 @@ let microphones = [
         defaultVert: 1180,
     },
     {
-        name: "Ceiling Speaker Round**",
+        name: "Ceiling Speaker Round*",
         id: "loudspeaker",
         key: "MZ",
         topImage: 'ceilingSpeaker-top.png',
-        frontImage: 'ceilingSpeaker-top.png',
+        frontImage: 'ceilingSpeaker-menu.png',
         width: 300,
         depth: 300,
         height: 6,
