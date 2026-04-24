@@ -20207,7 +20207,7 @@ function addDefaultsToWorkspaceObj() {
 
 
 function exportRoomObjToWorkspace() {
-
+    console.time('exportRoomObjToWorkspace()');
     let swapXY = true;
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
@@ -21263,7 +21263,7 @@ function exportRoomObjToWorkspace() {
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-
+    console.timeEnd('exportRoomObjToWorkspace()');
     return workspaceObj;
 
 }
