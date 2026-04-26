@@ -2435,3 +2435,148 @@ body.svBp405 #lblHeaderTitle { display: none; }
 body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
 body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
 
+/* ---- Layers Tab UI ---- */
+.layers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+  border-radius: 6px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.layer-row:hover {
+  background: #f0f4ff;
+}
+
+.layer-row.layer-header-row {
+  background: #f6f8fb;
+  border-bottom: 1px solid #d8dfe8;
+  margin-bottom: 4px;
+  padding-bottom: 6px;
+  border-radius: 6px 6px 0 0;
+}
+
+.layer-row.layer-header-row:hover {
+  background: #f6f8fb;
+}
+
+.layer-header-label {
+  font-weight: 600;
+  color: #333;
+  cursor: default !important;
+}
+
+.layer-header-label:hover {
+  background: transparent !important;
+}
+
+.layer-header-spacer {
+  /* Reserve space where the per-row delete button sits, so columns align */
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.layer-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  cursor: pointer;
+  color: #555;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.layer-icon-btn:hover {
+  background: #e2ebff;
+  border-color: #0352a6;
+  color: #0352a6;
+}
+
+.layer-icon-btn.layer-btn-active {
+  background: #dceeff;
+  border-color: #0352a6;
+  color: #0352a6;
+}
+
+.layer-icon-btn.layer-btn-locked {
+  background: #fff3dc;
+  border-color: #c07000;
+  color: #c07000;
+}
+
+.layer-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.layer-icon-btn:disabled:hover {
+  background: transparent;
+  border-color: #ccc;
+  color: #555;
+}
+
+.layer-name {
+  flex: 1;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.layer-name:hover {
+  background: #e8efff;
+}
+
+.layer-name-hidden {
+  color: #aaa;
+  font-style: italic;
+}
+
+.layer-name-reserved {
+  cursor: default;
+}
+
+.layer-name-reserved:hover {
+  background: transparent;
+}
+
+.layer-name-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 2px 4px;
+  border: 1px solid #0352a6;
+  border-radius: 4px;
+  outline: none;
+}
+
+.layer-delete-btn {
+  color: #999;
+}
+
+.layer-delete-btn:hover {
+  color: #cc0000;
+  border-color: #cc0000;
+  background: #ffeaea;
+}
+

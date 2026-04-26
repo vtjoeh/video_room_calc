@@ -1,4 +1,4 @@
-const version = "v0.1.643";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.644";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -99,6 +99,7 @@ const startTime = new Date(Date.now()); /* startTime is for statistics */
 const clientTimeStamp = startTime.toUTCString();
 let fullShareLink;
 let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
+let _layerUrlEncodeMap = {}; /* maps layerid → URL layer number (20+), rebuilt by createShareableLink() */
 let lastAction = "load";
 let isBackgroundImageFloorFileLoad = false; /* keep track if the backgroundImageFloor is being loaded as part of a JSON file */
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
@@ -143,6 +144,516 @@ roomObj.items.touchPanels = [];
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
 roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Workspace Designer */
+
+roomObj.layers = getDefaultLayers();
+
+function getDefaultLayers() {
+    return [
+        { name: 'Default', visible: true, locked: false, layerid: '0' },
+        { name: 'Ceiling', visible: true, locked: false, layerid: '1' }
+    ];
+}
+
+/* Ensure reserved layers '0' and '1' are always present in a layers array */
+function ensureDefaultLayers(layers) {
+    if (!layers.find(l => l.layerid === '0')) {
+        layers.unshift({ name: 'Default', visible: true, locked: false, layerid: '0' });
+    }
+    if (!layers.find(l => l.layerid === '1')) {
+        const idx = layers.findIndex(l => l.layerid === '0');
+        layers.splice(idx + 1, 0, { name: 'Ceiling', visible: true, locked: false, layerid: '1' });
+    }
+}
+
+function getLayerById(layerId) {
+    if (!roomObj.layers) return null;
+    return roomObj.layers.find(l => l.layerid === layerId) || null;
+}
+
+/* Returns true if the given item (or Konva node) is assigned to a hidden VRC layer. */
+function isItemInHiddenLayer(itemOrNode) {
+    if (!itemOrNode) return false;
+    const layerId = itemOrNode.data_layerId || '0';
+    const layer = getLayerById(layerId);
+    return !!(layer && layer.visible === false);
+}
+
+/* Walk the cloned roomObj used by exportRoomObjToWorkspace() and remove every item
+ * that belongs to a hidden VRC layer so it is not sent to the Workspace Designer.
+ * Mutates the passed object. */
+function removeHiddenLayerItemsForExport(roomObj2) {
+    if (!roomObj2 || !roomObj2.items || !roomObj.layers) return;
+    const hiddenLayerIds = new Set(
+        roomObj.layers.filter(l => l.visible === false).map(l => l.layerid)
+    );
+    if (hiddenLayerIds.size === 0) return;
+    for (const group in roomObj2.items) {
+        if (!Array.isArray(roomObj2.items[group])) continue;
+        roomObj2.items[group] = roomObj2.items[group].filter(item => {
+            const lid = item.data_layerId || '0';
+            return !hiddenLayerIds.has(lid);
+        });
+    }
+}
+
+/* Returns the next available URL layer number (20, 21, ...) for custom layers */
+function nextLayerUrlNumber() {
+    let used = roomObj.layers
+        .filter(l => l.layerid !== '0' && l.layerid !== '1' && l._urlNum != null)
+        .map(l => l._urlNum);
+    for (let n = 20; ; n++) {
+        if (!used.includes(n)) return n;
+    }
+}
+
+/* Apply a layer's visible/locked state to a Konva node and its coverage nodes
+ * (audio~id, speaker~id, fov~id, dispDist~id, label~id).
+ *
+ * When layer is HIDDEN: all coverage nodes for this item are hidden, regardless of per-item flags.
+ * When layer is VISIBLE: coverage nodes are restored according to their per-item flag (data_audioHidden, data_speakerHidden, data_fovHidden, data_dispDistHidden). Labels follow layer visibility (no per-item flag).
+ */
+function applyLayerStateToNode(node, layerId) {
+    if (!layerId || layerId === '') layerId = '0';
+    const layer = getLayerById(layerId);
+    if (!layer) return;
+    if (layer.visible) {
+        node.show();
+    } else {
+        node.hide();
+    }
+    node.listening(!layer.locked);
+    applyLayerLockOpacity(node, layer.locked);
+    applyLayerStateToCoverageNodes(node, layer.visible);
+}
+
+/* Dim a node to 0.7x of its original opacity when its layer is locked, and restore it
+ * to its original opacity when unlocked. The original opacity is captured the first time
+ * the node is dimmed (data_originalOpacity) so repeat-locks don't compound the dimming.
+ * data_lockOpacityApplied tracks whether we currently hold the dimmed state. */
+function applyLayerLockOpacity(node, locked) {
+    if (!node || typeof node.opacity !== 'function') return;
+    if (locked) {
+        if (node.data_lockOpacityApplied !== true) {
+            node.data_originalOpacity = node.opacity();
+            node.opacity(node.data_originalOpacity * 0.7);
+            node.data_lockOpacityApplied = true;
+        }
+    } else {
+        if (node.data_lockOpacityApplied === true) {
+            const original = (typeof node.data_originalOpacity === 'number')
+                ? node.data_originalOpacity
+                : 1;
+            node.opacity(original);
+            node.data_lockOpacityApplied = false;
+            delete node.data_originalOpacity;
+        }
+    }
+}
+
+/* Show/hide the per-item coverage nodes (audio, speaker, fov, dispDist, label)
+ * based on layer visibility AND existing per-item hidden flags. */
+function applyLayerStateToCoverageNodes(node, layerVisible) {
+    const id = node.id();
+    if (!id) return;
+
+    const audioNode = stage.findOne('#audio~' + id);
+    if (audioNode) {
+        audioNode.visible(layerVisible && node.data_audioHidden !== true);
+    }
+
+    const speakerNode = stage.findOne('#speaker~' + id);
+    if (speakerNode) {
+        speakerNode.visible(layerVisible && node.data_speakerHidden !== true);
+    }
+
+    const fovNode = stage.findOne('#fov~' + id);
+    if (fovNode) {
+        fovNode.visible(layerVisible && node.data_fovHidden !== true);
+    }
+
+    const dispDistNode = stage.findOne('#dispDist~' + id);
+    if (dispDistNode) {
+        dispDistNode.visible(layerVisible && node.data_dispDistHidden !== true);
+    }
+
+    const labelNode = stage.findOne('#label~' + id);
+    if (labelNode) {
+        /* Labels have no per-item hidden flag; just respect layer visibility */
+        labelNode.visible(layerVisible);
+    }
+}
+
+/* Re-apply all layer states to every canvas node (called after layer toggle).
+ * Also updates the coverage / label layers for each node. */
+function applyAllLayerStates() {
+    const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon');
+    allNodes.forEach(node => {
+        if (node.data_layerId) {
+            applyLayerStateToNode(node, node.data_layerId);
+        }
+    });
+    layerTransform.batchDraw();
+    /* Coverage and label nodes live on separate Konva layers; redraw them too */
+    if (typeof grShadingMicrophone !== 'undefined' && grShadingMicrophone.batchDraw) grShadingMicrophone.batchDraw();
+    if (typeof grShadingSpeaker !== 'undefined' && grShadingSpeaker.batchDraw) grShadingSpeaker.batchDraw();
+    if (typeof grShadingCamera !== 'undefined' && grShadingCamera.batchDraw) grShadingCamera.batchDraw();
+    if (typeof grDisplayDistance !== 'undefined' && grDisplayDistance.batchDraw) grDisplayDistance.batchDraw();
+    if (typeof grLabels !== 'undefined' && grLabels.batchDraw) grLabels.batchDraw();
+}
+
+/* ---- Layer CRUD ---- */
+
+function addLayer(name) {
+    if (!name || name.trim() === '') name = 'New Layer';
+    name = DOMPurify.sanitize(name.trim());
+
+    if (isLayerNameDuplicate(name)) {
+        name = makeUniqueLayerName(name);
+    }
+    const urlNum = nextLayerUrlNumber();
+    const newLayer = { name: name, visible: true, locked: false, layerid: createUuid(), _urlNum: urlNum };
+    roomObj.layers.push(newLayer);
+    renderLayersList();
+    canvasToJson();
+    return newLayer;
+}
+
+function deleteLayer(layerId) {
+    if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
+    /* move all items in this layer to Default */
+    getAllCanvasNodes().forEach(node => {
+        if (node.data_layerId === layerId) {
+            node.data_layerId = '0';
+            applyLayerStateToNode(node, '0');
+        }
+    });
+    /* update roomObj items */
+    for (const group in roomObj.items) {
+        roomObj.items[group].forEach(item => {
+            if (item.data_layerId === layerId) {
+                delete item.data_layerId;
+            }
+        });
+    }
+    roomObj.layers = roomObj.layers.filter(l => l.layerid !== layerId);
+    renderLayersList();
+    canvasToJson();
+}
+
+function renameLayer(layerId, newName) {
+    if (layerId === '0' || layerId === '1') return;
+    newName = DOMPurify.sanitize(newName.trim());
+    if (!newName) return;
+    if (isLayerNameDuplicate(newName, layerId)) {
+        alert('A layer with that name already exists. Please choose a unique name.');
+        return false;
+    }
+    const layer = getLayerById(layerId);
+    if (layer) {
+        layer.name = newName;
+        renderLayersList();
+        canvasToJson();
+    }
+    return true;
+}
+
+function toggleLayerVisible(layerId) {
+    const layer = getLayerById(layerId);
+    if (!layer) return;
+    layer.visible = !layer.visible;
+    applyAllLayerStates();
+    /* If the layer is now hidden or still locked, remove its items from current selection */
+    if (!layer.visible || layer.locked) {
+        removeLayerNodesFromSelection(layerId);
+    }
+    renderLayersList();
+    canvasToJson();
+}
+
+function toggleLayerLocked(layerId) {
+    const layer = getLayerById(layerId);
+    if (!layer) return;
+    layer.locked = !layer.locked;
+    applyAllLayerStates();
+    /* If the layer is now locked or still hidden, remove its items from current selection */
+    if (layer.locked || !layer.visible) {
+        removeLayerNodesFromSelection(layerId);
+    }
+    renderLayersList();
+    canvasToJson();
+}
+
+/* Remove all nodes belonging to the given layer from the current tr selection.
+ * Called from Layers-tab Hide/Lock toggles; uses refreshCopyDelBtnState() so the
+ * user is not switched off the Layers tab when more than one node remains. */
+function removeLayerNodesFromSelection(layerId) {
+    const remaining = tr.nodes().filter(n => (n.data_layerId || '0') !== layerId);
+    tr.nodes(remaining);
+    refreshCopyDelBtnState();
+    layerTransform.batchDraw();
+}
+
+/* Toggle visibility for ALL layers (used by global hide/unhide button).
+ * If any layer is hidden, show all. Otherwise hide all. */
+function toggleAllLayersVisible() {
+    if (!roomObj.layers) return;
+    const anyHidden = roomObj.layers.some(l => !l.visible);
+    const newVisible = anyHidden; /* if any hidden → show all; else hide all */
+    roomObj.layers.forEach(l => { l.visible = newVisible; });
+    applyAllLayerStates();
+    if (!newVisible) {
+        /* Hiding all → clear entire selection (stay on Layers tab) */
+        tr.nodes([]);
+        refreshCopyDelBtnState();
+        layerTransform.batchDraw();
+    }
+    renderLayersList();
+    canvasToJson();
+}
+
+/* Toggle lock for ALL layers (used by global lock/unlock button).
+ * If any layer is locked, unlock all. Otherwise lock all. */
+function toggleAllLayersLocked() {
+    if (!roomObj.layers) return;
+    const anyLocked = roomObj.layers.some(l => l.locked);
+    const newLocked = !anyLocked; /* if any locked → unlock all; else lock all */
+    roomObj.layers.forEach(l => { l.locked = newLocked; });
+    applyAllLayerStates();
+    if (newLocked) {
+        /* Locking all → clear entire selection (stay on Layers tab) */
+        tr.nodes([]);
+        refreshCopyDelBtnState();
+        layerTransform.batchDraw();
+    }
+    renderLayersList();
+    canvasToJson();
+}
+
+function isLayerNameDuplicate(name, excludeLayerId) {
+    return roomObj.layers.some(l => l.name.toLowerCase() === name.toLowerCase() && l.layerid !== excludeLayerId);
+}
+
+function makeUniqueLayerName(baseName) {
+    let n = 2;
+    let candidate = baseName + ' ' + n;
+    while (isLayerNameDuplicate(candidate)) {
+        n++;
+        candidate = baseName + ' ' + n;
+    }
+    return candidate;
+}
+
+/* Return every draggable/data-carrying Konva node from layerTransform */
+function getAllCanvasNodes() {
+    return layerTransform.find('Image, Rect, Circle, Shape, Line, RegularPolygon');
+}
+
+/* Change a single item's layer by node id */
+function updateItemLayer(nodeId, newLayerId) {
+    if (!newLayerId) newLayerId = '0';
+    const node = stage.find('#' + nodeId)[0];
+    if (!node) return;
+    node.data_layerId = newLayerId;
+    applyLayerStateToNode(node, newLayerId);
+    canvasToJson();
+    renderLayersList();
+}
+
+/* Change layer for all currently selected nodes.
+ * Treats "none" (or empty/undefined) as a no-op so users can select multiple items
+ * with mixed layers without forcing them all to a single layer until they pick one. */
+function updateMultipleItemsLayer(newLayerId) {
+    if (!newLayerId || newLayerId === 'none') return;
+    tr.nodes().forEach(node => {
+        node.data_layerId = newLayerId;
+        applyLayerStateToNode(node, newLayerId);
+    });
+    canvasToJson();
+    renderLayersList();
+}
+
+/* Select all canvas nodes belonging to a layer */
+function selectLayerItems(layerId) {
+    const nodes = getAllCanvasNodes().filter(node => {
+        const nLayerId = node.data_layerId || '0';
+        return nLayerId === layerId;
+    });
+    if (nodes.length > 0) {
+        tr.nodes(nodes);
+        enableCopyDelBtn();
+        if (nodes.length === 1) {
+            updateFormatDetails(nodes[0].id());
+        }
+    } else {
+        tr.nodes([]);
+    }
+    layerTransform.batchDraw();
+}
+
+/* Populate a <select> element with current layers.
+ * When includeNoneOption is true, a leading blank option with value "none" is added.
+ * Used for the multi-item layer dropdown (drpItemLayer2) so a mixed selection can
+ * show a blank value, and so picking "none" on update is treated as a no-op. */
+function populateLayerDropdown(selectId, selectedLayerId, includeNoneOption) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = '';
+
+    if (includeNoneOption) {
+        const none = document.createElement('option');
+        none.value = 'none';
+        none.textContent = '';
+        if (selectedLayerId === 'none' || selectedLayerId == null) none.selected = true;
+        sel.appendChild(none);
+    }
+
+    roomObj.layers.forEach(layer => {
+        const opt = document.createElement('option');
+        opt.value = layer.layerid;
+        opt.textContent = layer.name;
+        if (layer.layerid === selectedLayerId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+/* Render / refresh the Layers tab list and refresh open layer dropdowns */
+function renderLayersList() {
+    const container = document.getElementById('layersListContainer');
+    if (container) {
+        container.innerHTML = '';
+
+        /* ---- Global header row (global hide + global lock buttons) ---- */
+        const anyHidden = roomObj.layers.some(l => !l.visible);
+        const anyLocked = roomObj.layers.some(l => l.locked);
+
+        const headerRow = document.createElement('div');
+        headerRow.className = 'layer-row layer-header-row';
+        headerRow.dataset.layerid = '__header__';
+
+        /* Global visibility button */
+        const globalVisBtn = document.createElement('button');
+        globalVisBtn.className = 'layer-icon-btn' + (!anyHidden ? ' layer-btn-active' : '');
+        globalVisBtn.title = anyHidden ? 'Show all layers' : 'Hide all layers';
+        globalVisBtn.innerHTML = `<i class="icon ${anyHidden ? 'icon-hide-bold' : 'icon-show-bold'}"></i>`;
+        globalVisBtn.onclick = () => toggleAllLayersVisible();
+
+        /* Global lock button */
+        const globalLockBtn = document.createElement('button');
+        globalLockBtn.className = 'layer-icon-btn' + (anyLocked ? ' layer-btn-active layer-btn-locked' : '');
+        globalLockBtn.title = anyLocked ? 'Unlock all layers' : 'Lock all layers';
+        globalLockBtn.innerHTML = `<i class="icon ${anyLocked ? 'icon-secure-lock-bold' : 'icon-unsecure-unlocked-bold'}"></i>`;
+        globalLockBtn.onclick = () => toggleAllLayersLocked();
+
+        const headerLabel = document.createElement('span');
+        headerLabel.className = 'layer-name layer-header-label';
+        headerLabel.textContent = 'All Layers';
+
+        const headerSpacer = document.createElement('span');
+        headerSpacer.className = 'layer-header-spacer';
+
+        headerRow.appendChild(globalVisBtn);
+        headerRow.appendChild(globalLockBtn);
+        headerRow.appendChild(headerLabel);
+        headerRow.appendChild(headerSpacer);
+        container.appendChild(headerRow);
+
+        /* ---- Per-layer rows ---- */
+        roomObj.layers.forEach(layer => {
+            const isReserved = (layer.layerid === '0' || layer.layerid === '1');
+
+            const row = document.createElement('div');
+            row.className = 'layer-row';
+            row.dataset.layerid = layer.layerid;
+
+            /* visibility button */
+            const visBtn = document.createElement('button');
+            visBtn.className = 'layer-icon-btn' + (layer.visible ? ' layer-btn-active' : '');
+            visBtn.title = layer.visible ? 'Hide layer' : 'Show layer';
+            visBtn.innerHTML = `<i class="icon ${layer.visible ? 'icon-show-bold' : 'icon-hide-bold'}"></i>`;
+            visBtn.onclick = () => toggleLayerVisible(layer.layerid);
+
+            /* lock button */
+            const lockBtn = document.createElement('button');
+            lockBtn.className = 'layer-icon-btn' + (layer.locked ? ' layer-btn-active layer-btn-locked' : '');
+            lockBtn.title = layer.locked ? 'Unlock layer' : 'Lock layer';
+            lockBtn.innerHTML = `<i class="icon ${layer.locked ? 'icon-secure-lock-bold' : 'icon-unsecure-unlocked-bold'}"></i>`;
+            lockBtn.onclick = () => toggleLayerLocked(layer.layerid);
+
+            /* layer name — single-click to rename for custom layers */
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'layer-name' + (!layer.visible ? ' layer-name-hidden' : '');
+            nameSpan.textContent = layer.name;
+            if (isReserved) {
+                nameSpan.title = 'Reserved layer (cannot be renamed)';
+                nameSpan.classList.add('layer-name-reserved');
+            } else {
+                nameSpan.title = 'Click to rename';
+                nameSpan.onclick = (e) => startInlineRename(e, layer.layerid, nameSpan);
+            }
+
+            /* delete button */
+            const delBtn = document.createElement('button');
+            delBtn.className = 'layer-icon-btn layer-delete-btn';
+            delBtn.title = isReserved ? 'Reserved layer cannot be deleted' : 'Delete layer';
+            delBtn.disabled = isReserved;
+            delBtn.innerHTML = `<i class="icon icon-delete-bold"></i>`;
+            delBtn.onclick = () => {
+                if (confirm(`Delete layer "${layer.name}"? Items will move to Default.`)) {
+                    deleteLayer(layer.layerid);
+                }
+            };
+
+            row.appendChild(visBtn);
+            row.appendChild(lockBtn);
+            row.appendChild(nameSpan);
+            row.appendChild(delBtn);
+            container.appendChild(row);
+        });
+    } /* end if (container) */
+
+    /* refresh layer dropdowns in Details panels if visible */
+    const singleSel = document.getElementById('drpItemLayer');
+    if (singleSel) {
+        const cur = singleSel.value;
+        populateLayerDropdown('drpItemLayer', cur);
+    }
+    const multiSel = document.getElementById('drpItemLayer2');
+    if (multiSel) {
+        const cur2 = multiSel.value;
+        populateLayerDropdown('drpItemLayer2', cur2, true);
+    }
+}
+
+/* Inline rename via single-click on a custom layer's name span (reserved layers are not editable) */
+function startInlineRename(e, layerId, nameSpan) {
+    e.stopPropagation();
+    const currentName = nameSpan.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'layer-name-input';
+    nameSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    function commit() {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+            const ok = renameLayer(layerId, newName);
+            if (!ok) {
+                input.replaceWith(nameSpan);
+            }
+        } else {
+            input.replaceWith(nameSpan);
+        }
+    }
+
+    input.onblur = commit;
+    input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') { commit(); ev.preventDefault(); }
+        if (ev.key === 'Escape') { input.replaceWith(nameSpan); ev.preventDefault(); }
+    };
+}
 
 let defaultRoomSurfaces = {
     leftwall: { type: 'regular', acousticTreatment: true },
@@ -4880,6 +5391,40 @@ function parseShortenedXYUrl(parameters) {
                 roomObj.authorVersion = DOMPurify.sanitize(item.text);
             }
         }
+        else if (item.sid === "L" && 'value' in item) {
+            /* Layer definitions:
+             *   - L0[v0][k1]            → Reserved Default layer state (only present if non-default)
+             *   - L1[v0][k1]            → Reserved Ceiling layer state (only present if non-default)
+             *   - L20~name~ / L20v0~name~ (hidden) / L20k1~name~ (locked) → Custom layer
+             */
+            const urlNum = parseInt(item.value, 10);
+            if (!isNaN(urlNum)) {
+                const visible = !('v' in item && item.v === '0');
+                const locked = ('k' in item && item.k === '1');
+                if (!roomObj.layers) roomObj.layers = getDefaultLayers();
+
+                if (urlNum === 0 || urlNum === 1) {
+                    /* Reserved layer state update — name is fixed, only visible/locked flags */
+                    const reservedId = String(urlNum);
+                    const reserved = roomObj.layers.find(l => l.layerid === reservedId);
+                    if (reserved) {
+                        reserved.visible = visible;
+                        reserved.locked = locked;
+                    }
+                } else if (urlNum >= 20) {
+                    const layerName = DOMPurify.sanitize('text' in item ? decodeURIComponent(item.text.replaceAll('+', ' ')) : 'Layer ' + urlNum);
+                    /* avoid duplicates if already created by lazy fallback for item ll references */
+                    let existing = roomObj.layers.find(l => l._urlNum === urlNum);
+                    if (existing) {
+                        existing.name = layerName;
+                        existing.visible = visible;
+                        existing.locked = locked;
+                    } else {
+                        roomObj.layers.push({ name: layerName, visible: visible, locked: locked, layerid: createUuid(), _urlNum: urlNum });
+                    }
+                }
+            }
+        }
         else if (item.sid === "D" || item.sid === "E" || item.sid === "F" || item.sid === "G") {
             let roomSurface = {};
             let wall;
@@ -5040,6 +5585,25 @@ function parseShortenedXYUrl(parameters) {
                 newItem.points = parseUrlPoints(item.r)
             }
 
+            /* layer assignment: ll1=Ceiling, ll20+=custom layer */
+            if ('ll' in item) {
+                const urlNum = parseInt(item.ll, 10);
+                if (urlNum === 1) {
+                    newItem.data_layerId = '1';
+                } else {
+                    /* look up layer by URL number; it should have been parsed already */
+                    const matchedLayer = roomObj.layers ? roomObj.layers.find(l => l._urlNum === urlNum) : null;
+                    if (matchedLayer) {
+                        newItem.data_layerId = matchedLayer.layerid;
+                    } else {
+                        /* layer referenced but not defined: create it lazily */
+                        const fallbackLayer = { name: 'Layer ' + urlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: urlNum };
+                        if (!roomObj.layers) roomObj.layers = getDefaultLayers();
+                        roomObj.layers.push(fallbackLayer);
+                        newItem.data_layerId = fallbackLayer.layerid;
+                    }
+                }
+            }
 
             if ('text' in item) {
                 newItem.data_labelField = DOMPurify.sanitize(item.text);
@@ -5105,6 +5669,7 @@ function resetRoomObj() {
     roomObj.layersVisible.gridLines = true; /* true or false */
     roomObj.layersVisible.grShadingSpeaker = false;  /* true or false */
     roomObj.layersVisible.grLabels = false;
+    roomObj.layers = getDefaultLayers();
 
     roomObj.items.videoDevices = [];
     roomObj.items.chairs = [];
@@ -6869,6 +7434,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     postMessageToWorkspace();
 
+    renderLayersList();
+
     clearSelect2Points();
     /* turn off the measuring tool if on */
     setTimeout(() => {
@@ -7517,6 +8084,41 @@ function createShareableLink() {
         })
     }
 
+    /* Reserved layers (L0=Default, L1=Ceiling): only encode if non-default state
+     * (hidden or locked). When at default state (visible:true, locked:false) we skip
+     * them to keep the URL short — they are assumed to exist by the parser. */
+    if (roomObj.layers) {
+        roomObj.layers.forEach(layer => {
+            if (layer.layerid === '0' || layer.layerid === '1') {
+                if (!layer.visible || layer.locked) {
+                    let layerStr = 'L' + layer.layerid;
+                    if (!layer.visible) layerStr += 'v0';
+                    if (layer.locked) layerStr += 'k1';
+                    /* Reserved layer names are fixed — no ~name~ tilde block emitted */
+                    strUrlQuery2 += layerStr;
+                }
+            }
+        });
+    }
+
+    /* build layerId → URL number map for custom layers (skip '0'=Default and '1'=Ceiling) */
+    _layerUrlEncodeMap = {};
+    let urlLayerNum = 20;
+    if (roomObj.layers && roomObj.layers.length > 2) {
+        roomObj.layers.forEach(layer => {
+            if (layer.layerid !== '0' && layer.layerid !== '1') {
+                _layerUrlEncodeMap[layer.layerid] = urlLayerNum;
+                /* encode: L{num}[v0][k1]~name~ */
+                let layerStr = 'L' + urlLayerNum;
+                if (!layer.visible) layerStr += 'v0';
+                if (layer.locked) layerStr += 'k1';
+                layerStr += '~' + encodeURIComponent(layer.name).replaceAll('%20', '+') + '~';
+                strUrlQuery2 += layerStr;
+                urlLayerNum++;
+            }
+        });
+    }
+
     let items = roomObj.items;
     let i = 0;
     for (const category in items) {
@@ -7721,6 +8323,14 @@ function createShareableLinkItem(item) {
         strItem += 'r' + points.join(' ');
     }
 
+    /* encode layer reference: ll1 for Ceiling, ll20+ for custom layers; skip Default (ll0 not needed) */
+    if ('data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
+        if (item.data_layerId === '1') {
+            strItem += 'll1';
+        } else if (_layerUrlEncodeMap[item.data_layerId] != null) {
+            strItem += 'll' + _layerUrlEncodeMap[item.data_layerId];
+        }
+    }
 
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
@@ -8259,8 +8869,9 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_trapNarrowWidth = node.data_trapNarrowWidth;
         }
 
-
-
+        if ('data_layerId' in node && node.data_layerId) {
+            newAttr.data_layerId = node.data_layerId;
+        }
 
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
@@ -8382,6 +8993,13 @@ function pasteItems(duplicate = true) {
 
 
     itemsObj.items.forEach(item => {
+
+        /* if pasted item references a layer that no longer exists, assign to Default */
+        if (item.newAttr.data_layerId && item.newAttr.data_layerId !== '0' && item.newAttr.data_layerId !== '1') {
+            if (!getLayerById(item.newAttr.data_layerId)) {
+                item.newAttr.data_layerId = '0';
+            }
+        }
 
         let uuid = createUuid();
         uuids.push(uuid);
@@ -8539,6 +9157,8 @@ function labelsVisible(state = 'buttonPress') {
         grLabels.visible(true);
         button.classList.toggle('active', true);
         roomObj.layersVisible.grLabels = true;
+        /* When showing labels globally, hide the individual labels whose item is in a hidden VRC layer */
+        applyLabelLayerVisibility();
     }
     else {
         grLabels.visible(false);
@@ -8551,6 +9171,22 @@ function labelsVisible(state = 'buttonPress') {
     if (saveToUndo) {
         saveToUndoArray();
     }
+}
+
+/* For each label in grLabels, hide it if the parent item belongs to a hidden VRC layer */
+function applyLabelLayerVisibility() {
+    if (typeof grLabels === 'undefined' || !grLabels.find) return;
+    grLabels.find('Label').forEach(labelNode => {
+        const labelId = labelNode.id();
+        if (!labelId || !labelId.startsWith('label~')) return;
+        const itemId = labelId.substring('label~'.length);
+        const itemNode = stage.findOne('#' + itemId);
+        if (itemNode) {
+            const layerVisible = !isItemInHiddenLayer(itemNode);
+            labelNode.visible(layerVisible);
+        }
+    });
+    grLabels.batchDraw();
 }
 
 function gridLinesVisible(state = 'buttonPress') {
@@ -8990,6 +9626,10 @@ function canvasToJson() {
                 itemAttr.data_slant = node.data_slant;
             }
 
+            if ('data_layerId' in node && node.data_layerId && node.data_layerId !== '0') {
+                itemAttr.data_layerId = node.data_layerId;
+            }
+
             if ('points' in attrs) {
                 let points = attrs.points;
 
@@ -9161,6 +9801,9 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_slant = node.data_slant;
         }
 
+        if ('data_layerId' in node && node.data_layerId && node.data_layerId !== '0') {
+            itemAttr.data_layerId = node.data_layerId;
+        }
 
         let item = roomObjItemsMap.get(node.id());
 
@@ -9181,6 +9824,12 @@ function updateRoomObjFromTrNode() {
 
             if ('cornerRadius' in attrs) {
                 item.points = itemAttr.cornerRadius;
+            }
+
+            if (itemAttr.data_layerId) {
+                item.data_layerId = itemAttr.data_layerId;
+            } else {
+                delete item.data_layerId;
             }
 
         } else {
@@ -10211,6 +10860,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     if ('scaleY' in attrs) {
         tblWallFlr.scaleY = attrs.scaleY;
     };
+
+    tblWallFlr.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
+    applyLayerStateToNode(tblWallFlr, tblWallFlr.data_layerId);
 
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
@@ -11378,6 +12030,17 @@ function updateItem() {
             delete item.data_slant;
         }
 
+        /* layer assignment from Details dropdown */
+        const layerDropdown = document.getElementById('drpItemLayer');
+        if (layerDropdown) {
+            const selectedLayerId = layerDropdown.value;
+            if (selectedLayerId && selectedLayerId !== '0') {
+                item.data_layerId = selectedLayerId;
+            } else {
+                delete item.data_layerId;
+            }
+        }
+
         if (testOffset) {
             workspaceKey[item.data_deviceid].xOffset = document.getElementById('itemXoffset').value;
             workspaceKey[item.data_deviceid].yOffset = document.getElementById('itemYoffset').value;
@@ -12033,9 +12696,10 @@ function toggleMicShadingSingleItem() {
     roomObj.items[parentGroup].forEach((item, index) => {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
+            const layerHidden = isItemInHiddenLayer(node);
             if ('data_audioHidden' in item && item.data_audioHidden === true) {
-                // document.getElementById("btnMicShadeToggleSingleItem").children[0].textContent = 'mic';
-                stage.find('#audio~' + id)[0].visible(true);
+                /* Per-item flag clears, but actual node visibility still depends on layer */
+                stage.find('#audio~' + id)[0].visible(!layerHidden);
                 delete node.data_audioHidden;
                 delete item.data_audioHidden;
             } else {
@@ -12063,8 +12727,9 @@ function toggleSpeakerShadingSingleItem() {
     roomObj.items[parentGroup].forEach((item, index) => {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
+            const layerHidden = isItemInHiddenLayer(node);
             if ('data_speakerHidden' in item && item.data_speakerHidden === true) {
-                stage.find('#speaker~' + id)[0].visible(true);
+                stage.find('#speaker~' + id)[0].visible(!layerHidden);
                 delete node.data_speakerHidden;
                 delete item.data_speakerHidden;
             } else {
@@ -12093,14 +12758,12 @@ function toggleCamShadeSingleItem() {
 
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
+            const layerHidden = isItemInHiddenLayer(node);
             if ('data_fovHidden' in item && item.data_fovHidden === true) {
-                // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam';
-                stage.find('#fov~' + id)[0].visible(true);
-                /* insert value direct to canvas */
+                stage.find('#fov~' + id)[0].visible(!layerHidden);
                 delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
                 delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
             } else {
-                // document.getElementById("btnCamShadeToggleSingleItem").children[0].textContent = 'videocam_off';
                 stage.find('#fov~' + id)[0].visible(false);
                 node.data_fovHidden = true;
                 item.data_fovHidden = true;
@@ -12125,13 +12788,12 @@ function toggleDisplayDistanceSingleItem() {
     roomObj.items[parentGroup].forEach((item, index) => {
         if (item.id === id) {
             let node = stage.find('#' + id)[0];
+            const layerHidden = isItemInHiddenLayer(node);
             if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
-                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv';
-                stage.find('#dispDist~' + id)[0].visible(true);
+                stage.find('#dispDist~' + id)[0].visible(!layerHidden);
                 delete item.data_dispDistHidden;
                 delete node.data_dispDistHidden;
             } else {
-                // document.getElementById("btnDisplayDistanceSingleItem").children[0].textContent = 'tv_off';
                 stage.find('#dispDist~' + id)[0].visible(false);
                 item.data_dispDistHidden = true;
                 node.data_dispDistHidden = true;
@@ -13017,6 +13679,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             node.data_mount = attrs.data_mount; /* data_mount.value & data_mount.index */
         }
 
+        node.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
+        applyLayerStateToNode(node, node.data_layerId);
+
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
         }
@@ -13733,6 +14398,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         // grDisplayDistance.add(groupItemDisplayDistance);
     }
 
+    /* Coverage groups (fov~, audio~, speaker~, dispDist~) and label~ are created
+     * after applyLayerStateToNode() runs at the top of this function. Re-apply the
+     * layer state to those nodes now that they exist, so items in hidden layers
+     * also have their coverage hidden. */
+    const insertedNode = stage.findOne('#' + uuid);
+    if (insertedNode) {
+        const _layer = getLayerById(insertedNode.data_layerId || '0');
+        applyLayerStateToCoverageNodes(insertedNode, _layer ? _layer.visible : true);
+    }
 
 }
 
@@ -13828,6 +14502,11 @@ function addLabel(node, attrs, alwaysLabel = false) {
     );
 
     grLabels.add(labelTip);
+
+    /* If the parent item is in a hidden VRC layer, hide the label too. */
+    if (isItemInHiddenLayer(node)) {
+        labelTip.visible(false);
+    }
 
 }
 
@@ -14989,8 +15668,12 @@ function getItemCenter(item) {
 }
 
 
-/* enableCopyButton is enacted anywhere tr.nodes([]) is used and changes from length=0 to lenth >0 */
-function enableCopyDelBtn() {
+/* enableCopyButton is enacted anywhere tr.nodes([]) is used and changes from length=0 to lenth >0.
+ * Pass { suppressTabSwitch: true } when the call is a side-effect of a non-Items-tab action
+ * (e.g. Layers-tab Hide/Lock toggles) so the user is not yanked over to the Items tab. */
+function enableCopyDelBtn(opts) {
+
+    const suppressTabSwitch = !!(opts && opts.suppressTabSwitch);
 
     let divItemDetailsVisible = document.getElementById('itemDetailsVisible');
     let txtItemsDetailNote = document.getElementById('txtItemsDetailNote');
@@ -15033,10 +15716,19 @@ function enableCopyDelBtn() {
         document.getElementById('multiItemDetailsVisible').style.display = '';
 
 
-        document.getElementById("tabItem").click();
-        document.getElementById("subTabItemDetails").click();
+        if (!suppressTabSwitch) {
+            document.getElementById("tabItem").click();
+            document.getElementById("subTabItemDetails").click();
+        }
 
         setDefaultBlankElements();
+
+        /* populate layer dropdown for multi-select:
+         * - all selected items on the same layer → show that layer
+         * - mixed layers → show the leading blank "none" option */
+        const firstLayerId = tr.nodes()[0].data_layerId || '0';
+        const allSameLayer = tr.nodes().every(n => (n.data_layerId || '0') === firstLayerId);
+        populateLayerDropdown('drpItemLayer2', allSameLayer ? firstLayerId : 'none', true);
 
 
     }
@@ -15052,6 +15744,13 @@ function enableCopyDelBtn() {
 
     updateTrNodesShadingTimer();
 };
+
+/* Refreshes the Duplicate/Delete button state and right-panel content to match the current
+ * tr.nodes() selection, WITHOUT switching to the Items tab. Use this from Layers-tab handlers
+ * (e.g. Hide/Lock toggles) so the user stays on the Layers tab. */
+function refreshCopyDelBtnState() {
+    enableCopyDelBtn({ suppressTabSwitch: true });
+}
 
 
 
@@ -15777,6 +16476,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         changeZheightOfItem(item, shape);
     }
 
+    /* populate layer dropdown for single item */
+    populateLayerDropdown('drpItemLayer', item.data_layerId || '0');
 
 }
 
@@ -15999,7 +16700,7 @@ function addListeners(stage) {
         let box = findFourCornersOfNode(selectionRectangle);
 
         let selected = shapes.filter((node) => {
-            if (node.listening()) {
+            if (node.listening() && node.isVisible()) {
 
                 let nodeBox = findFourCornersOfNode(node);
 
@@ -18890,6 +19591,12 @@ function importJson(jsonFile) {
                 roomObj.roomSurfaces = structuredClone(defaultRoomSurfaces);
             }
 
+            if (!('layers' in roomObj) || !Array.isArray(roomObj.layers) || roomObj.layers.length === 0) {
+                roomObj.layers = getDefaultLayers();
+            } else {
+                ensureDefaultLayers(roomObj.layers);
+            }
+
             /* update roomObj items so they can be moved between parentGroups */
             let items = {};
             items.videoDevices = [];
@@ -20208,11 +20915,17 @@ function addDefaultsToWorkspaceObj() {
 
 function exportRoomObjToWorkspace() {
     console.time('exportRoomObjToWorkspace()');
+    /* drawRoom() calls postMessageToWorkspace() at the end of the same turn, while createShareableLink() -> listItemsOffStage() is debounced (see canvasToJson). Without this, itemsOffStageId can lag behind a resize redraw; pathShapes use live getClientRect() in findFourCorners and are the first to misclassify. */
+    listItemsOffStage();
+
     let swapXY = true;
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
 
-    roomObj2 = convertToMeters(roomObj2); /* convertToMeters() changes feet to meters and marks anything not on the canvas as data_hiddenInDesigner = true;  */
+    roomObj2 = convertToMeters(roomObj2); /* convertToMeters() converts feet to meters and omits items whose ids are in itemsOffStageId (unless isActiveRoomPart). */
+
+    /* Items in hidden VRC layers are omitted from the Workspace Designer export entirely. */
+    removeHiddenLayerItemsForExport(roomObj2);
 
     let activeRoomLength = roomObj2.activeRoomLength;
     let activeRoomWidth = roomObj2.activeRoomWidth;

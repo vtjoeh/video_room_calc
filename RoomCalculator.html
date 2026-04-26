@@ -130,6 +130,7 @@
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
         <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
+        <button class="tablinks" onclick="openTab(event, 'Layers')" id="tabLayers">Layers</button>
         <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()">
           <i style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
             id="closeOpenIcon" class="icon icon-arrow-circle-left-regular"></i>
@@ -469,6 +470,13 @@
                 <input type="text" id="labelField" size="45" class="textInput">
               </div>
 
+              <div class="inputField" id="itemLayerDiv">
+                <label class="tooltipBottom">Layer: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptextBottom">Assign this item to a layer. Layers can be shown, hidden, locked, or
+                    unlocked from the Layers tab.</span></label>
+                <select id="drpItemLayer" class="drpDown" onchange="updateItemLayer(document.getElementById('itemId').innerText, this.value)"></select>
+              </div>
+
               <div class="inputField" id="labelPathId">
                 <label class="tooltipBottom">Path Shape: <i class="icon icon-info-circle-bold"></i> <span
                     class="tooltiptextBottom">Path Shape are objects using SVG paths to create your own shapes in the
@@ -737,6 +745,12 @@
                     They also enable direct JSON insertion into the Workspace Designer using curly brackets { }. Text
                     inside { } does not appear in naming fields. For more info, see the FAQ.</span></label>
                 <input type="text" id="labelField2" size="45" class="textInput allowBlank defaultBlank">
+              </div>
+
+              <div class="inputField" id="itemLayerDiv2">
+                <label class="tooltipBottom">Layer: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptextBottom">Assign all selected items to a layer.</span></label>
+                <select id="drpItemLayer2" class="drpDown" onchange="updateMultipleItemsLayer(this.value)"></select>
               </div>
 
 
@@ -1183,6 +1197,24 @@
           </div>
         </div>
       </div>
+
+        <!-- Layers Tab -->
+        <div id="Layers" class="tabcontent">
+          <div class="inputField" style="padding-bottom: 4px;">
+            <label class="tooltipBottom">Layers (Experimental):<i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptextBottom" style="visibility: hidden; opacity: 0;">Organize items into layers. Lock layers to prevent
+                accidental edits, or hide layers to simplify the view. Layer information not saved in Workspace Designer eported file. When copying betwween tabs, only the Default and Ceiling layer info is copied.</span>
+                
+            
+          </div>
+          <div id="layersListContainer" class="layers-list"></div>
+          <div style="padding-top: 8px;">
+            <button class="button" style="width: 100%;" onclick="addLayer(prompt('Layer name:', 'New Layer') || '')">
+              + Add Layer
+            </button>
+          </div>
+        </div>
+
     </div>
   </div>
   <div id="ContainerForContainerRoom">
