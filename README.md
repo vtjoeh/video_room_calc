@@ -11,6 +11,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 **v0.1.644 Release Notes**
 - Added feature Layers to show/hide or lock/umlock layers. Feature is considered experimental and might change. 
 - Fixed bug with multiple large pathShapes (SVG path) not exporting to Workspace Designer consistently. 
+- Now using Claude to help manage product. 
 
 **v0.1.643 Release Notes**
 - Added new object Ceiling Speaker (objecType: 'loudspeaker').
