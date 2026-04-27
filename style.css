@@ -1330,7 +1330,7 @@ dialog main {
   padding: 2em;
   max-height: 70vh;
   overflow-y: auto;
-  min-height: 265px;
+  min-height: 100px;
 
 }
 

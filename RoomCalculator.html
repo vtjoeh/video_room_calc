@@ -1208,8 +1208,17 @@
             
           </div>
           <div id="layersListContainer" class="layers-list"></div>
+          <div class="inputField inputFieldRow" id="addItemLayerDiv"
+            style="padding-top: 12px; align-items: center; max-width: none; margin-bottom: 8px;">
+            <label class="tooltip" >Add Items to: <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">New items added to the canvas are placed in the layer selected here.
+  </span>
+            </label>
+            <select id="drpAddItemLayer" class="drpDown" style="flex: 1;"
+              onchange="setCurrentAddLayerId(this.value)"></select>
+          </div>
           <div style="padding-top: 8px;">
-            <button class="button" style="width: 100%;" onclick="addLayer(prompt('Layer name:', 'New Layer') || '')">
+            <button class="button" style="width: 100%;" onclick="openAddLayerDialog()">
               + Add Layer
             </button>
           </div>
@@ -2234,6 +2243,34 @@
     <form method="dialog">
       <button class="button">OK</button>
     </form>
+  </dialog>
+
+  <dialog id="dialogLayerAdd" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Add Layer</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div class="inputField" style="max-width: none;">
+        <label for="layerAddNameInput" style="margin-bottom: 6px; display: block;">Layer name:</label>
+        <input type="text" id="layerAddNameInput" maxlength="40" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmAddLayerFromDialog();}" />
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" onclick="confirmAddLayerFromDialog()">Add</button>
+    </div>
+  </dialog>
+
+  <dialog id="dialogLayerDelete" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Delete Layer</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div id="dialogLayerDeleteMain"></div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" id="dialogLayerDeleteConfirmBtn">Delete</button>
+    </div>
   </dialog>
 
   <dialog id="characterLimitWarning"

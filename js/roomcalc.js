@@ -320,18 +320,33 @@ function addLayer(name) {
 
 function deleteLayer(layerId) {
     if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
-    /* move all items in this layer to Default */
+
+    /* Per UX spec: items in the deleted layer move to the user's currently
+     * selected "Add Items to:" target. If that target IS the layer being
+     * deleted, reset the dropdown to Default ('0') and move items there. */
+    let targetLayerId = currentAddLayerId;
+    if (targetLayerId === layerId || !getLayerById(targetLayerId)) {
+        currentAddLayerId = '0';
+        targetLayerId = '0';
+    }
+
+    /* move all items in this layer to the target layer */
     getAllCanvasNodes().forEach(node => {
         if (node.data_layerId === layerId) {
-            node.data_layerId = '0';
-            applyLayerStateToNode(node, '0');
+            node.data_layerId = targetLayerId;
+            applyLayerStateToNode(node, targetLayerId);
         }
     });
     /* update roomObj items */
     for (const group in roomObj.items) {
         roomObj.items[group].forEach(item => {
             if (item.data_layerId === layerId) {
-                delete item.data_layerId;
+                if (targetLayerId === '0') {
+                    /* Default layer is implicit — omit data_layerId */
+                    delete item.data_layerId;
+                } else {
+                    item.data_layerId = targetLayerId;
+                }
             }
         });
     }
@@ -345,7 +360,7 @@ function renameLayer(layerId, newName) {
     newName = DOMPurify.sanitize(newName.trim());
     if (!newName) return;
     if (isLayerNameDuplicate(newName, layerId)) {
-        alert('A layer with that name already exists. Please choose a unique name.');
+        alertDialog('Duplicate Layer Name', 'A layer with that name already exists. Please choose a unique name.');
         return false;
     }
     const layer = getLayerById(layerId);
@@ -355,6 +370,101 @@ function renameLayer(layerId, newName) {
         canvasToJson();
     }
     return true;
+}
+
+/* ---- Layer dialog modals (replaces prompt()/confirm()/alert()) ---- */
+
+/* Counts the number of canvas items currently assigned to a given layer.
+ * Items without an explicit data_layerId are treated as the Default ('0') layer. */
+function countItemsInLayer(layerId) {
+    if (typeof layerTransform === 'undefined' || !layerTransform.find) return 0;
+    return getAllCanvasNodes().filter(node => {
+        const id = node.data_layerId || '0';
+        return id === layerId;
+    }).length;
+}
+
+/* Opens the "Add Layer" modal (replaces the legacy prompt()).
+ * Pre-fills the input with a unique default name and focuses it on open. */
+function openAddLayerDialog() {
+    const dlg = document.getElementById('dialogLayerAdd');
+    const input = document.getElementById('layerAddNameInput');
+    if (!dlg || !input) return;
+    let defaultName = 'New Layer';
+    if (typeof isLayerNameDuplicate === 'function' && isLayerNameDuplicate(defaultName)) {
+        defaultName = makeUniqueLayerName(defaultName);
+    }
+    input.value = defaultName;
+    dlg.showModal();
+    setTimeout(() => { input.focus(); input.select(); }, 0);
+}
+
+/* Called by the "Add" button inside dialogLayerAdd. Validates the name
+ * against existing layers (showing a follow-up alertDialog on conflict)
+ * and creates the layer on success. */
+function confirmAddLayerFromDialog() {
+    const input = document.getElementById('layerAddNameInput');
+    if (!input) return;
+    const name = (input.value || '').trim();
+    if (!name) {
+        alertDialog('Invalid Layer Name', 'Please enter a name for the new layer.');
+        return;
+    }
+    if (typeof isLayerNameDuplicate === 'function' && isLayerNameDuplicate(name)) {
+        alertDialog('Duplicate Layer Name', 'A layer with that name already exists. Please choose a unique name.');
+        return;
+    }
+    document.getElementById('dialogLayerAdd').close();
+    addLayer(name);
+}
+
+/* Opens the "Delete Layer" confirmation modal (replaces the legacy confirm()).
+ * Shows the layer's name, the number of items it currently contains, the
+ * destination layer they will move to, and a notice when the layer is hidden. */
+function openDeleteLayerDialog(layerId) {
+    if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
+    const layer = getLayerById(layerId);
+    if (!layer) return;
+
+    const itemCount = countItemsInLayer(layerId);
+
+    /* Empty layers are deleted immediately without a confirmation modal —
+     * there is nothing to move, so no destination/hidden info is relevant. */
+    if (itemCount === 0) {
+        deleteLayer(layerId);
+        return;
+    }
+
+    /* Mirror the destination logic in deleteLayer(): items move to currentAddLayerId,
+     * unless that IS the layer being deleted — in which case they go to Default. */
+    let destName = 'Default';
+    if (currentAddLayerId !== '0' && currentAddLayerId !== layerId) {
+        const dest = getLayerById(currentAddLayerId);
+        if (dest) destName = dest.name;
+    }
+
+    const itemWord = itemCount === 1 ? 'item' : 'items';
+
+    const layerNameSafe = DOMPurify.sanitize(layer.name);
+    const destNameSafe = DOMPurify.sanitize(destName);
+
+    let html = `<div>Delete layer <b>"${layerNameSafe}"</b>?</div>`;
+    html += `<div style="margin-top: 8px;">${itemCount} ${itemWord} will move to <b>${destNameSafe}</b>.</div>`;
+    if (!layer.visible) {
+        html += `<div style="margin-top: 8px; color: #b35900;"><i class="icon icon-hide-bold" style="vertical-align: middle;"></i> Note: this layer is currently <b>hidden</b>.</div>`;
+    }
+
+    const main = document.getElementById('dialogLayerDeleteMain');
+    if (main) main.innerHTML = html;
+
+    const btn = document.getElementById('dialogLayerDeleteConfirmBtn');
+    if (btn) {
+        btn.onclick = () => {
+            document.getElementById('dialogLayerDelete').close();
+            deleteLayer(layerId);
+        };
+    }
+    document.getElementById('dialogLayerDelete').showModal();
 }
 
 function toggleLayerVisible(layerId) {
@@ -490,6 +600,41 @@ function selectLayerItems(layerId) {
     layerTransform.batchDraw();
 }
 
+/* Layer ID that NEW items (added via the equipment menu, quick-add dialog,
+ * polyRoom builder, wall builder, quick-setup, etc.) are assigned to.
+ * Driven by the "Add Items to:" dropdown in the Layers tab.
+ *
+ * Per UX spec: this is a session-only preference — it is NOT persisted in
+ * roomObj or the shareable URL, and resets to '0' (Default) on page reload
+ * or whenever the selected layer is deleted. */
+let currentAddLayerId = '0';
+
+/* Setter wired to the "Add Items to:" dropdown's onchange handler. */
+function setCurrentAddLayerId(layerId) {
+    currentAddLayerId = (layerId && getLayerById(layerId)) ? layerId : '0';
+}
+
+/* Returns the layer id new items should be assigned to. Falls back to
+ * '0' (Default) and resets currentAddLayerId if the previously-selected
+ * layer no longer exists (e.g., it was just deleted). */
+function getDefaultLayerForNewItems() {
+    if (currentAddLayerId && getLayerById(currentAddLayerId)) {
+        return currentAddLayerId;
+    }
+    currentAddLayerId = '0';
+    return '0';
+}
+
+/* Populate the Layers-tab "Add Items to:" dropdown with the current set of
+ * layers and select currentAddLayerId. If currentAddLayerId no longer
+ * references an existing layer, reset it to '0' (Default) first. */
+function populateAddItemLayerDropdown() {
+    const sel = document.getElementById('drpAddItemLayer');
+    if (!sel) return;
+    if (!getLayerById(currentAddLayerId)) currentAddLayerId = '0';
+    populateLayerDropdown('drpAddItemLayer', currentAddLayerId);
+}
+
 /* Populate a <select> element with current layers.
  * When includeNoneOption is true, a leading blank option with value "none" is added.
  * Used for the multi-item layer dropdown (drpItemLayer2) so a mixed selection can
@@ -597,11 +742,7 @@ function renderLayersList() {
             delBtn.title = isReserved ? 'Reserved layer cannot be deleted' : 'Delete layer';
             delBtn.disabled = isReserved;
             delBtn.innerHTML = `<i class="icon icon-delete-bold"></i>`;
-            delBtn.onclick = () => {
-                if (confirm(`Delete layer "${layer.name}"? Items will move to Default.`)) {
-                    deleteLayer(layer.layerid);
-                }
-            };
+            delBtn.onclick = () => openDeleteLayerDialog(layer.layerid);
 
             row.appendChild(visBtn);
             row.appendChild(lockBtn);
@@ -622,6 +763,10 @@ function renderLayersList() {
         const cur2 = multiSel.value;
         populateLayerDropdown('drpItemLayer2', cur2, true);
     }
+
+    /* refresh the Layers-tab "Add Items to:" dropdown so it always reflects
+     * the current set of layers and the active currentAddLayerId */
+    populateAddItemLayerDropdown();
 }
 
 /* Inline rename via single-click on a custom layer's name span (reserved layers are not editable) */
@@ -1966,6 +2111,8 @@ function finishPolyBuilder() {
                 delete attrs.pointsInMeters;
                 delete attrs.metersX;
                 delete attrs.metersY;
+                /* New polyRoom goes into the user's selected "Add Items to:" layer */
+                attrs.data_layerId = getDefaultLayerForNewItems();
                 let uuid = createUuid();
                 insertShapeItem('polyRoom', allDeviceTypes['polyRoom'].parentGroup, attrs, uuid, true);
 
@@ -2328,7 +2475,7 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
 
     let XY = findEndPointCoordinates(x2, y2, width / 2, rotation);
 
-    let attrs = { x: XY.x, y: XY.y, rotation: rotation - 180, height: height, width: width, data_labelField: wallBuilderLabelField };
+    let attrs = { x: XY.x, y: XY.y, rotation: rotation - 180, height: height, width: width, data_labelField: wallBuilderLabelField, data_layerId: getDefaultLayerForNewItems() };
 
 
     wallCounter = wallCounter + 1;
@@ -6179,6 +6326,10 @@ function createTableChairs(table, tableUuid) {
         baseUuid = createUuid();
     }
 
+    /* Auto-generated chairs inherit the table's layer so the whole quick-setup
+     * group lands in the user's selected "Add Items to:" layer. */
+    const chairLayerId = (table && table.data_layerId) ? table.data_layerId : getDefaultLayerForNewItems();
+
     /* Chairs on left site of table */
     for (let i = 0; i < numberOfChairsLength; i++) {
         let chairAttr = {};
@@ -6186,6 +6337,7 @@ function createTableChairs(table, tableUuid) {
         chairAttr.y = startingPointY + chairWidth * i;
         chairAttr.rotation = -90;
         chairAttr.data_deviceid = 'chair';
+        chairAttr.data_layerId = chairLayerId;
         chairUuid = 'autoChair-L-' + i + '-' + baseUuid;
         chairAttr.id = chairUuid;
         addItemToRoomObj(chairAttr);
@@ -6199,6 +6351,7 @@ function createTableChairs(table, tableUuid) {
         chairAttr.y = startingPointY + chairWidth * i;
         chairAttr.rotation = 90;
         chairAttr.data_deviceid = 'chair';
+        chairAttr.data_layerId = chairLayerId;
         chairUuid = 'autoChair-R-' + i + '-' + baseUuid;
         chairAttr.id = chairUuid;
         insertItem(chairAttr, chairUuid);
@@ -6214,6 +6367,7 @@ function createTableChairs(table, tableUuid) {
 
         chairAttr.rotation = 180;
         chairAttr.data_deviceid = 'chair';
+        chairAttr.data_layerId = chairLayerId;
         chairUuid = 'autoChair-H-' + i + '-' + baseUuid;
         chairAttr.id = chairUuid;
         insertItem(chairAttr, chairUuid);
@@ -6234,6 +6388,9 @@ function quickSetupInsert() {
     let roomWidth = getNumberValue('roomWidth');
 
 
+    /* All quick-setup items go into the user's selected "Add Items to:" layer */
+    const newItemLayerId = getDefaultLayerForNewItems();
+
     /* insert Table */
     let tableUuid = createUuid();
     let tblAttrs = {};
@@ -6244,6 +6401,7 @@ function quickSetupInsert() {
     tblAttrs.data_deviceid = 'tblRect';
     tblAttrs.id = tableUuid;
     tblAttrs.rotation = 0;
+    tblAttrs.data_layerId = newItemLayerId;
     insertItem(tblAttrs, tableUuid);
     addItemToRoomObj(tblAttrs);
 
@@ -6319,6 +6477,7 @@ function quickSetupInsert() {
 
                 displayAttr.data_deviceid = displayId;
                 displayAttr.id = displayUuid;
+                displayAttr.data_layerId = newItemLayerId;
 
                 insertItem(displayAttr, displayUuid);
 
@@ -6331,6 +6490,7 @@ function quickSetupInsert() {
 
     videoAttr.id = videoDeviceId;
     videoAttr.data_deviceid = videoDeviceId;
+    videoAttr.data_layerId = newItemLayerId;
     insertItem(videoAttr, videoDeviceId);
     addItemToRoomObj(videoAttr);
 
@@ -16999,6 +17159,13 @@ function insertItemFromMenu(data_deviceid, attrs) {
     if (data_deviceid === 'wallBuilder') {
         wallBuilderOn(true);
         return;
+    }
+
+    /* Assign new item to the layer selected in the Layers-tab "Add Items to:"
+     * dropdown (defaults to Default '0'). Only set when caller hasn't already
+     * provided a layer, so role-dialog re-entries / programmatic flows win. */
+    if (!('data_layerId' in attrs)) {
+        attrs.data_layerId = getDefaultLayerForNewItems();
     }
 
     if ('defaultVert' in allDeviceTypes[data_deviceid]) {
