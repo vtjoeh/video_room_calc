@@ -1033,16 +1033,7 @@
             </div>
           </div>
           <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
-            <div class="tip">
-              <i class="icon icon-room-lights-bold"></i>
-              <label class="tooltipBottom">Experimental
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom"> Use a Room Floor Plan image as a background. This makes it easier to
-                  recreate the room dimensions precisely. Room Floor Plan images are
-                  not saved in the URL by design, but saved in the vrc.json file. Most web image formats are suppored
-                  like JPEG, PNG, GIF & SVG. </span>
-              </label>
-            </div>
+    
 
             <div style="text-align: left; font-size:12px; ">
               <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
@@ -1059,6 +1050,11 @@
               <span id="fileInputImageContainer">
                 <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
               </span>
+            </div>
+            <div class="inputField">
+              <input type="button" id="btnRecentFloorPlans" value="Recent Floor Plans"
+                onclick="openRecentFloorPlansPicker()" class="linkButton"
+                title="Up to 10 previously uploaded floor plan images are remembered in this browser. Click to pick one to re-apply without re-uploading. Oldest entries are removed when an 11th image is added.">
             </div>
 
             <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
@@ -2276,6 +2272,45 @@
     </div>
   </dialog>
 
+  <dialog id="dialogRecentFloorPlans" class='dialogWhiteBox' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Recent Floor Plans</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main>
+      <div style="font-size: 12px; color: #555; margin-bottom: 12px;">
+        Up to 10 previously uploaded floor plan images are remembered in this browser. Click a
+        thumbnail to apply it as the current room's background image. The oldest is removed when an
+        11th image is added.
+      </div>
+      <div id="recentFloorPlansScroll" class="recentFloorPlansScroll">
+        <div id="recentFloorPlansGrid" class="recentFloorPlansGrid">
+          <!-- Cards populated by openRecentFloorPlansDialog() -->
+        </div>
+      </div>
+      <div id="recentFloorPlansEmpty" style="display: none; padding: 24px; text-align: center; color: #666; font-style: italic;">
+        No saved floor plans yet. Upload an image above to start your library.
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="dialogFloorPlanScaleChoice" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Load the image:</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 220px;">
+        <button class="button" id="btnFloorPlanScaleFit"
+          onclick="loadPickedFloorPlanWithScaleChoice('fit')">Scale to fill the room</button>
+        <button class="button" id="btnFloorPlanScaleSaved"
+          onclick="loadPickedFloorPlanWithScaleChoice('saved')">Use last saved scale</button>
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+    </div>
+  </dialog>
+
   <dialog id="characterLimitWarning"
     style="position:fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 0px; ">
     <header>
@@ -2398,6 +2433,7 @@
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
   <script src="./js/dxfWriter.js"></script>
   <script src="./js/dxfBlockLibrary.js"></script>
+  <script src="./js/idbStorage.js"></script>
   <script src="./js/roomcalc.js"></script>
   <!-- <script src="./js/drpDownOverride.js"></script> -->
 

@@ -836,7 +836,7 @@ let undoArray = [];
 
 let redoArray = [];
 
-let priorUndoArrayHasData = false; /* set true at onLoad if localStorage 'undoArray' contained at least one saved design from a previous session — used to gate the "Reload last design" tile in the new-room dialog */
+let priorUndoArrayHasData = false; /* set true at onLoad if IndexedDB 'undoEntries' (or legacy localStorage 'undoArray') contained at least one saved design from a previous session — used to gate the "Reload last design" tile in the new-room dialog */
 let newRoomDialogOpenCount = 0;    /* incremented every time openNewRoomDialog() runs; used so the "Reload last design" tile only appears on the very first open after page load */
 let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `?x=` shareable-link querystring; suppresses the "Reload last design" tile so the user can't accidentally clobber a freshly-shared design with an unrelated previous-session restore */
 
@@ -5991,22 +5991,40 @@ function binaryToBase26(binary) {
 
 
 
-onLoad();
+/* Hydrate undo/redo from IndexedDB before running onLoad() so the
+ * "Reload last design" tile and the in-memory undo stack are populated
+ * before any user interaction. If IDB is unavailable (Safari private mode,
+ * disabled by policy, etc.) the wrapper resolves to safe defaults and
+ * onLoad() proceeds with an empty undo stack — equivalent to a first run. */
+(function bootHydrateThenOnLoad() {
+    const idbReady = (typeof window !== 'undefined' && window.idbStore && typeof window.idbStore.hydrateUndoRedoFromIdb === 'function')
+        ? window.idbStore.hydrateUndoRedoFromIdb()
+        : Promise.resolve({ undo: [], redo: [], priorHadData: false });
 
+    idbReady.then(function (state) {
+        undoArray = Array.isArray(state.undo) ? state.undo : [];
+        redoArray = Array.isArray(state.redo) ? state.redo : [];
+        priorUndoArrayHasData = !!state.priorHadData;
+        onLoad();
+        /* If onLoad's URL parsing produced a roomObj that references an
+         * image in the IDB library but doesn't have an inline data URL,
+         * fetch the Blob and re-apply it. Defined later in this file. */
+        if (typeof rehydrateBackgroundImageFromIdb === 'function') {
+            setTimeout(function () { rehydrateBackgroundImageFromIdb(); }, 250);
+        }
+    }).catch(function (err) {
+        console.warn('IDB hydrate failed; starting with empty undo/redo:', err && err.message);
+        undoArray = [];
+        redoArray = [];
+        priorUndoArrayHasData = false;
+        onLoad();
+    });
+})();
 
 
 function onLoad() {
 
     redirectToCollabExpereince();
-
-
-    undoArray = JSON.parse(localStorage.getItem('undoArray'));
-
-    if (!Array.isArray(undoArray)) undoArray = [];  /* for first run, if local storage not set */
-    /* Capture this BEFORE saveToUndoArray() pushes the freshly-loaded
-     * default room onto the array. We use it to decide whether to surface
-     * a "Reload last design" tile in the new-room dialog. */
-    priorUndoArrayHasData = undoArray.length > 0;
     updateSelectVideoDeviceOptions();
     getQueryString();
     saveToUndoArray();
@@ -8226,6 +8244,22 @@ function updateBackgroundImageScale() {
 
         konvaBackgroundImageFloor.width(imageWidth * measurement / pointsActualDistance);
 
+        /* Persist the user calibrated scale to the IndexedDB library entry
+         * so re-applying this image later via "Recent Floor Plans" can
+         * restore the same scale instead of auto fitting to the new room.
+         * Fire and forget. No effect if the image is not in the library
+         * (no bgImageId) or IDB is unavailable. */
+        if (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId
+            && typeof window !== 'undefined' && window.idbStore
+            && typeof window.idbStore.bgImagesUpdate === 'function') {
+            const scaledWidthMeters = konvaBackgroundImageFloor.width() / scale;
+            const scaledHeightMeters = konvaBackgroundImageFloor.height() / scale;
+            window.idbStore.bgImagesUpdate(roomObj.backgroundImage.bgImageId, {
+                scaledWidthMeters: scaledWidthMeters,
+                scaledHeightMeters: scaledHeightMeters
+            });
+        }
+
         document.getElementById('btnUpdateImageScale').disabled = true;
 
         hideSelect2PointsShapes();
@@ -9025,7 +9059,8 @@ function btnUndoClicked() {
 
     clearTimeout(undoArrayTimer);
     if (undoArray.length > 0) {
-        redoArray.push(undoArray.pop());
+        const movedEntry = undoArray.pop();
+        redoArray.push(movedEntry);
         roomObj = structuredClone(undoArray[undoArray.length - 1]);
         unit = roomObj.unit;
         drawRoom(true, true, true);
@@ -9034,6 +9069,19 @@ function btnUndoClicked() {
             createShareableLink();
         }, 750);
 
+        /* Mirror the in-memory pop onto IDB so a refresh resumes at the same
+         * position in the undo timeline. Fire-and-forget. */
+        if (typeof window !== 'undefined' && window.idbStore) {
+            window.idbStore.undoPopLast();
+            window.idbStore.redoAdd(structuredClone(movedEntry));
+        }
+
+        /* If this restored snapshot references a library image, fetch the
+         * Blob and re-apply it. No-op if the same image was already loaded
+         * or the snapshot has no image. */
+        if (typeof rehydrateBackgroundImageFromIdb === 'function') {
+            rehydrateBackgroundImageFromIdb();
+        }
     }
 }
 
@@ -9050,13 +9098,25 @@ function btnRedoClicked() {
     zoomInOut('reset');
 
     if (redoArray.length > 0) {
-        undoArray.push(redoArray.pop())
+        const movedEntry = redoArray.pop();
+        undoArray.push(movedEntry);
         roomObj = structuredClone(undoArray[undoArray.length - 1]);
         drawRoom(true, true, true);
         setTimeout(() => {
             createShareableLink();
 
         }, 500);
+
+        /* Mirror onto IDB so a refresh resumes at the same position. */
+        if (typeof window !== 'undefined' && window.idbStore) {
+            window.idbStore.redoPopLast();
+            window.idbStore.undoAdd(structuredClone(movedEntry));
+        }
+
+        /* See btnUndoClicked() — same rehydrate logic for redo. */
+        if (typeof rehydrateBackgroundImageFromIdb === 'function') {
+            rehydrateBackgroundImageFromIdb();
+        }
     }
     enableBtnUndoRedo();
 }
@@ -9816,6 +9876,10 @@ function canvasToJson() {
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
     if (konvaBackgroundImageFloor && konvaBackgroundImageFloor.attrs.name) {
+        /* Preserve bgImageId across the rebuild — it references the
+         * IndexedDB "Recent Floor Plans" record so the same image can be
+         * rehydrated on reload without needing the full data URL. */
+        const preservedBgImageId = (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId) || undefined;
         roomObj.backgroundImage = {};
         roomObj.backgroundImage.name = konvaBackgroundImageFloor.attrs.name;
         roomObj.backgroundImage.x = ((konvaBackgroundImageFloor.attrs.x - pxOffset) / scale) + activeRoomX;
@@ -9825,6 +9889,7 @@ function canvasToJson() {
         roomObj.backgroundImage.id = konvaBackgroundImageFloor.attrs.id;
         roomObj.backgroundImage.opacity = document.getElementById('transparencySlider').value;
         roomObj.backgroundImage.rotation = konvaBackgroundImageFloor.rotation();
+        if (preservedBgImageId) roomObj.backgroundImage.bgImageId = preservedBgImageId;
     }
 
     trNodesUuidToRoomObj();
@@ -10459,13 +10524,17 @@ function saveToUndoArray() {
     strRoomObj = strRoomObj.trim();
     strUndoArrayLastItem = strUndoArrayLastItem.trim();
 
+    let pushedNewEntry = false;
     if ((strRoomObj === strUndoArrayLastItem)) {
         /* do nothing */
     } else {
         undoArray.push(structuredClone(roomObj2));
+        pushedNewEntry = true;
         createShareableLink();
     }
 
+    /* New edits invalidate the redo history (matches in-memory behavior). */
+    const hadRedo = redoArray.length > 0;
     redoArray = [];
 
     enableBtnUndoRedo();
@@ -10474,8 +10543,16 @@ function saveToUndoArray() {
         undoArray.shift();
     }
 
-
-    setItemForLocalStorage('undoArray', JSON.stringify(undoArray.slice(-30)));  /* only store the last 30 items to local storage to save on space */
+    /* Persist to IndexedDB. Fire-and-forget — IDB failures must never break
+     * the in-memory undo stack. The wrapper itself enforces the per-store
+     * cap (MAX_UNDO_ENTRIES) via storeTrim() so we don't have to track the
+     * shift() above on the IDB side. */
+    if (pushedNewEntry && typeof window !== 'undefined' && window.idbStore) {
+        window.idbStore.undoAdd(structuredClone(roomObj2));
+        if (hadRedo) window.idbStore.redoClearAll();
+    } else if (hadRedo && typeof window !== 'undefined' && window.idbStore) {
+        window.idbStore.redoClearAll();
+    }
 
     postMessageToWorkspace();
 
@@ -18187,7 +18264,7 @@ repositionStage();
 /* the HTML.                                                          */
 /* ----------------------------------------------------------------- */
 
-const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2';
+const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2, .recentFloorPlansScroll';
 const SCROLL_HINT_OVERFLOW_SLOP_PX = 1;
 const SCROLL_HINT_PAGE_FRACTION = 0.8;
 
@@ -20027,9 +20104,22 @@ function turnOffBackgroundImageButtons() {
  * optional display name used to label the Konva node.
  *
  * Centralized so the file picker (fileInputImage 'change') and the
- * paste-image-from-clipboard handler below share the exact same load path. */
-function processBackgroundImageFile(file, displayName) {
+ * paste-image-from-clipboard handler below share the exact same load path.
+ *
+ * Optional `options` argument lets the "Recent Floor Plans" picker re-apply
+ * a library entry without creating a duplicate IDB record and (optionally)
+ * with a previously saved scale that overrides the default auto-fit:
+ *
+ *   options.skipBgImagesAdd     — true if the file is already in the IDB
+ *                                 library (re-applied from the picker)
+ *   options.existingBgImageId   — id to stamp onto roomObj.backgroundImage
+ *                                 instead of creating a new IDB record
+ *   options.scaledWidthMeters   — override the auto-fit width (in meters)
+ *   options.scaledHeightMeters  — override the auto-fit height (in meters)
+ */
+function processBackgroundImageFile(file, displayName, options) {
     if (!file) return;
+    options = options || {};
 
     const reader = new FileReader();
 
@@ -20073,6 +20163,16 @@ function processBackgroundImageFile(file, displayName) {
 
             konvaBackgroundImageFloor.height(backgroundImageFloor.height / scaleImage);
 
+            /* Apply a saved-scale override if the caller supplied one (the
+             * "Recent Floor Plans" picker does this when the user chooses
+             * "Use last saved scale"). This runs after the auto-fit so the
+             * Konva image is sized correctly even when the library entry's
+             * scale was calibrated against a differently-sized room. */
+            if (options.scaledWidthMeters > 0 && options.scaledHeightMeters > 0) {
+                konvaBackgroundImageFloor.width(options.scaledWidthMeters * scale);
+                konvaBackgroundImageFloor.height(options.scaledHeightMeters * scale);
+            }
+
             const nameForKonva = (typeof displayName === 'string' && displayName)
                 ? displayName.replace(/C:\\fakepath\\/gm, '')
                 : (file.name || 'pasted-image');
@@ -20080,6 +20180,40 @@ function processBackgroundImageFile(file, displayName) {
 
             document.getElementById('transparencySlider').value = 50;
             changeTransparency(50);
+
+            /* Persist this image into the IndexedDB "Recent Floor Plans"
+             * library (FIFO, capped at idbStore.bgImagesMax()). The Blob
+             * is stored natively, with no base64 overhead. The returned id
+             * is stamped onto roomObj.backgroundImage so reopening this
+             * room (or any room that references the same id) will
+             * rehydrate the same image without needing the data URL.
+             *
+             * Skipped when the caller is re-applying an existing library
+             * entry (options.skipBgImagesAdd); in that case we just stamp
+             * the existing id onto roomObj.backgroundImage. */
+            if (options.skipBgImagesAdd) {
+                if (options.existingBgImageId) {
+                    if (!roomObj.backgroundImage) roomObj.backgroundImage = {};
+                    roomObj.backgroundImage.bgImageId = options.existingBgImageId;
+                }
+                if (typeof refreshRecentFloorPlansDropdown === 'function') {
+                    refreshRecentFloorPlansDropdown();
+                }
+            } else if (typeof window !== 'undefined' && window.idbStore && file && file instanceof Blob) {
+                window.idbStore.bgImagesAdd({
+                    name: nameForKonva,
+                    mimeType: file.type || 'image/png',
+                    blob: file
+                }).then(function (newId) {
+                    if (newId) {
+                        if (!roomObj.backgroundImage) roomObj.backgroundImage = {};
+                        roomObj.backgroundImage.bgImageId = newId;
+                    }
+                    if (typeof refreshRecentFloorPlansDropdown === 'function') {
+                        refreshRecentFloorPlansDropdown();
+                    }
+                });
+            }
 
             setTimeout(() => {
                 canvasToJson();
@@ -20102,6 +20236,427 @@ fileInputImage.addEventListener('change', function (e) {
         processBackgroundImageFile(e.target.files[0], fileInputImage.value);
     }
 });
+
+
+/* === "Recent Floor Plans" library (IndexedDB-backed) =====================
+ *
+ * The IDB `bgImages` store keeps up to 5 previously-uploaded floor plan
+ * images as native Blobs. The "Recent Floor Plans" button in the
+ * BackgroundImage subtab opens a dialog with large thumbnails and
+ * filenames. Clicking a thumbnail rehydrates that image as the current
+ * room's background.
+ *
+ * Why a button (and not a <select>): a select that only ever has one
+ * non-default option doesn't fire `change` when the user re-clicks the
+ * same option, so the picker would silently fail. A button is also more
+ * compact (single line in the sidebar) and matches the surrounding
+ * "Select 2 Points" / "Update Room Floor Plan Image Scale" buttons.
+ *
+ * Object URLs returned by URL.createObjectURL() are tracked per-dialog-open
+ * so they can be revoked when the dialog closes (preventing memory leaks
+ * from blob references). */
+
+/* Tracks active blob: URLs created for the dialog so we can revoke them
+ * when the dialog is closed. */
+let _recentFloorPlansActiveObjectUrls = [];
+
+/* Refresh the link disabled state to reflect the current library size.
+ * The label is constant ("Recent Floor Plans"); only the enabled/disabled
+ * state changes. Called after every add/delete in the bgImages store. */
+function refreshRecentFloorPlansDropdown() {
+    const btn = document.getElementById('btnRecentFloorPlans');
+    if (!btn) return;
+    btn.value = 'Recent Floor Plans';
+    if (!window.idbStore || !window.idbStore.isAvailable()) {
+        btn.disabled = true;
+        return;
+    }
+    window.idbStore.bgImagesGetAll().then(function (images) {
+        const n = (images && images.length) || 0;
+        btn.disabled = (n === 0);
+    });
+}
+
+/* Click handler for the "Recent Floor Plans" button. Always fires (unlike
+ * the previous <select> which silently swallowed re-clicks). */
+function openRecentFloorPlansPicker() {
+    if (!window.idbStore || !window.idbStore.isAvailable()) {
+        openRecentFloorPlansDialog([]);
+        return;
+    }
+    window.idbStore.bgImagesGetAll().then(function (images) {
+        openRecentFloorPlansDialog(images || []);
+    });
+}
+
+function openRecentFloorPlansDialog(images) {
+    const dialog = document.getElementById('dialogRecentFloorPlans');
+    const grid = document.getElementById('recentFloorPlansGrid');
+    const empty = document.getElementById('recentFloorPlansEmpty');
+    if (!dialog || !grid || !empty) return;
+
+    revokeActiveRecentFloorPlanObjectUrls();
+    grid.innerHTML = '';
+
+    if (!images || images.length === 0) {
+        empty.style.display = '';
+        grid.style.display = 'none';
+    } else {
+        empty.style.display = 'none';
+        grid.style.display = '';
+        const currentBgImageId = roomObj && roomObj.backgroundImage && roomObj.backgroundImage.bgImageId;
+        images.forEach(function (img) {
+            grid.appendChild(buildRecentFloorPlanCard(img, currentBgImageId));
+        });
+    }
+
+    if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+    } else {
+        dialog.setAttribute('open', '');
+    }
+
+    /* The scroll-hint chevron is wired up at startup via initScrollHints()
+     * but the wrapper has zero dimensions while the dialog is closed, so
+     * the initial state is "no overflow". Re-evaluate now that the dialog
+     * is visible and the grid has its real cards. A second pass on the
+     * next frame catches any layout that's still settling. */
+    if (typeof updateAllScrollHints === 'function') {
+        updateAllScrollHints();
+        requestAnimationFrame(updateAllScrollHints);
+    }
+}
+
+function buildRecentFloorPlanCard(img, currentBgImageId) {
+    const card = document.createElement('div');
+    card.className = 'recentFloorPlanCard';
+    if (img.id === currentBgImageId) card.classList.add('isCurrent');
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', 'Apply ' + (img.name || 'floor plan'));
+
+    const thumb = document.createElement('div');
+    thumb.className = 'recentFloorPlanThumb';
+    let objUrl = '';
+    try {
+        objUrl = URL.createObjectURL(img.blob);
+        _recentFloorPlansActiveObjectUrls.push(objUrl);
+        /* CSS background-image keeps the file untouched (no DOM <img> with
+         * potential XSS via SVG scripts) — and lets us use object-fit:contain
+         * via background-size. */
+        thumb.style.backgroundImage = 'url("' + objUrl + '")';
+    } catch (e) {
+        thumb.textContent = '(thumbnail unavailable)';
+    }
+    card.appendChild(thumb);
+
+    const meta = document.createElement('div');
+    meta.className = 'recentFloorPlanMeta';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'recentFloorPlanName';
+    nameEl.textContent = img.name || 'untitled';
+    nameEl.title = img.name || 'untitled';
+    meta.appendChild(nameEl);
+
+    const subEl = document.createElement('div');
+    subEl.className = 'recentFloorPlanSub';
+    const kb = (img.sizeBytes && img.sizeBytes > 0) ? Math.round(img.sizeBytes / 1024) : null;
+    const ago = img.addedAt ? formatRecentFloorPlanDate(img.addedAt) : '';
+    subEl.textContent = [kb ? (kb + ' KB') : null, ago].filter(Boolean).join(' • ');
+    meta.appendChild(subEl);
+
+    card.appendChild(meta);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'recentFloorPlanDeleteBtn';
+    delBtn.type = 'button';
+    delBtn.setAttribute('aria-label', 'Delete ' + (img.name || 'floor plan') + ' from library');
+    delBtn.textContent = '\u2715';
+    delBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (confirm('Delete "' + (img.name || 'this floor plan') + '" from your saved floor plans?')) {
+            window.idbStore.bgImagesDelete(img.id).then(function () {
+                /* If the just-deleted image was applied to the current room,
+                 * clear the reference so reopening the room doesn't try to
+                 * rehydrate a missing entry. The on-canvas image stays as-is
+                 * until the user explicitly removes it. */
+                if (roomObj && roomObj.backgroundImage && roomObj.backgroundImage.bgImageId === img.id) {
+                    delete roomObj.backgroundImage.bgImageId;
+                }
+                refreshRecentFloorPlansDropdown();
+                window.idbStore.bgImagesGetAll().then(function (imgs) { openRecentFloorPlansDialog(imgs); });
+            });
+        }
+    });
+    card.appendChild(delBtn);
+
+    function activate() { applyFloorPlanFromLibrary(img.id); }
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            activate();
+        }
+    });
+
+    return card;
+}
+
+function formatRecentFloorPlanDate(ts) {
+    try {
+        const d = new Date(ts);
+        return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+
+function revokeActiveRecentFloorPlanObjectUrls() {
+    _recentFloorPlansActiveObjectUrls.forEach(function (u) {
+        try { URL.revokeObjectURL(u); } catch (e) { /* best-effort */ }
+    });
+    _recentFloorPlansActiveObjectUrls = [];
+}
+
+/* When the user picks an entry from the picker dialog we usually need to
+ * ask one more question: should the image be auto fit to the current
+ * room, or should the previously calibrated scale be restored?
+ *
+ * The flow:
+ *   1. User clicks a thumbnail in dialogRecentFloorPlans
+ *   2. applyFloorPlanFromLibrary(id) loads the IDB record
+ *   3a. If the record has no saved scale, we just load with the auto fit
+ *       (no extra dialog, no surprise to the user)
+ *   3b. If the record has a saved scale, we stash the pick on
+ *       _pendingFloorPlanPick and open dialogFloorPlanScaleChoice. The
+ *       user clicks one of the two buttons, which calls
+ *       loadPickedFloorPlanWithScaleChoice('fit' | 'saved'), which calls
+ *       loadPickedFloorPlan(rec, id, choice) to do the actual load.
+ */
+let _pendingFloorPlanPick = null;
+
+function applyFloorPlanFromLibrary(id) {
+    if (!id || !window.idbStore) return;
+    window.idbStore.bgImagesGetById(id).then(function (rec) {
+        if (!rec || !rec.blob) {
+            console.warn('[recentFloorPlans] entry not found:', id);
+            return;
+        }
+        const hasSavedScale = (rec.scaledWidthMeters > 0 && rec.scaledHeightMeters > 0);
+        if (hasSavedScale) {
+            _pendingFloorPlanPick = { rec: rec, id: id };
+            openFloorPlanScaleChoiceDialog();
+        } else {
+            revokeActiveRecentFloorPlanObjectUrls();
+            closeAllDialogModals();
+            loadPickedFloorPlan(rec, id, 'fit');
+        }
+    });
+}
+
+function openFloorPlanScaleChoiceDialog() {
+    const dialog = document.getElementById('dialogFloorPlanScaleChoice');
+    if (!dialog) return;
+    /* Close the picker first so the choice dialog is the only modal. */
+    revokeActiveRecentFloorPlanObjectUrls();
+    const picker = document.getElementById('dialogRecentFloorPlans');
+    if (picker && typeof picker.close === 'function' && picker.open) picker.close();
+    if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+    } else {
+        dialog.setAttribute('open', '');
+    }
+}
+
+function loadPickedFloorPlanWithScaleChoice(choice) {
+    const pick = _pendingFloorPlanPick;
+    _pendingFloorPlanPick = null;
+    closeAllDialogModals();
+    if (!pick) return;
+    loadPickedFloorPlan(pick.rec, pick.id, choice);
+}
+
+/* Hand the stored Blob to processBackgroundImageFile() with options that
+ * (a) skip the duplicate IDB add, (b) stamp the existing library id onto
+ * roomObj.backgroundImage, and (c) optionally override the auto fit
+ * with the saved scale. */
+function loadPickedFloorPlan(rec, id, choice) {
+    if (!rec || !rec.blob) return;
+
+    const existingKonva = getKonvaBackgroundImageFloor();
+    if (existingKonva) {
+        existingKonva.destroy();
+        delete roomObj.backgroundImage;
+        delete roomObj.backgroundImageFile;
+    }
+
+    const options = {
+        skipBgImagesAdd: true,
+        existingBgImageId: id
+    };
+    if (choice === 'saved' && rec.scaledWidthMeters > 0 && rec.scaledHeightMeters > 0) {
+        options.scaledWidthMeters = rec.scaledWidthMeters;
+        options.scaledHeightMeters = rec.scaledHeightMeters;
+    }
+
+    processBackgroundImageFile(rec.blob, rec.name, options);
+}
+
+/* Hook dialog close to free blob: URLs. We piggyback on closeAllDialogModals
+ * via a one-shot wrapper because closeAllDialogModals itself is shared. */
+(function wireRecentFloorPlansDialogClose() {
+    const dialog = document.getElementById('dialogRecentFloorPlans');
+    if (!dialog) return;
+    dialog.addEventListener('close', function () {
+        revokeActiveRecentFloorPlanObjectUrls();
+    });
+})();
+
+/* If the user cancels the scale-choice dialog (Cancel button, X, or Esc)
+ * without picking either option, drop the stashed pick so the next picker
+ * use starts clean. */
+(function wireFloorPlanScaleChoiceDialogClose() {
+    const dialog = document.getElementById('dialogFloorPlanScaleChoice');
+    if (!dialog) return;
+    dialog.addEventListener('close', function () {
+        _pendingFloorPlanPick = null;
+    });
+})();
+
+/* Populate the dropdown once IDB is ready (eager — runs even before the
+ * user opens the BackgroundImage subtab so the count is accurate the first
+ * time they look). Wrapped in a delay so the call stack at the bottom of
+ * roomcalc.js can finish first. */
+setTimeout(function () { refreshRecentFloorPlansDropdown(); }, 200);
+
+
+/* Convert a data URL string (e.g. "data:image/png;base64,iVBOR...") to a
+ * Blob with the right MIME type. Used to ingest legacy `backgroundImageFile`
+ * values into the IndexedDB bgImages library. Returns null on parse error. */
+function dataUrlToBlob(dataUrl) {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+    try {
+        const commaIdx = dataUrl.indexOf(',');
+        if (commaIdx < 0) return null;
+        const meta = dataUrl.substring(5, commaIdx); /* skip "data:" prefix */
+        const isBase64 = meta.endsWith(';base64');
+        const mime = (isBase64 ? meta.substring(0, meta.length - 7) : meta) || 'application/octet-stream';
+        const data = dataUrl.substring(commaIdx + 1);
+        let bytes;
+        if (isBase64) {
+            const bin = atob(data);
+            const len = bin.length;
+            bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+        } else {
+            bytes = new TextEncoder().encode(decodeURIComponent(data));
+        }
+        return new Blob([bytes], { type: mime });
+    } catch (e) {
+        console.warn('[recentFloorPlans] dataUrlToBlob failed:', e && e.message);
+        return null;
+    }
+}
+
+/* Persist a freshly-loaded background image (from a .vrc.json import or any
+ * other code path that sets `roomObj.backgroundImageFile` directly) into
+ * the IndexedDB bgImages library, unless the same id is already present.
+ * Called from the importJson() VRC branch so opening a saved file in a
+ * fresh browser session populates the "Recent Floor Plans" library and
+ * lets future "Reload last design" sessions rehydrate the image. */
+function persistImportedBackgroundImageToIdb() {
+    if (!roomObj || !roomObj.backgroundImageFile) return Promise.resolve(null);
+    if (!window.idbStore || !window.idbStore.isAvailable()) return Promise.resolve(null);
+    if (!roomObj.backgroundImage) roomObj.backgroundImage = {};
+
+    const existingId = roomObj.backgroundImage.bgImageId;
+    const existingCheck = existingId
+        ? window.idbStore.bgImagesGetById(existingId)
+        : Promise.resolve(null);
+
+    return existingCheck.then(function (rec) {
+        if (rec) {
+            /* The same library entry is still present in this browser (same
+             * machine, same browser as the last save). Nothing to do. */
+            return existingId;
+        }
+        const blob = dataUrlToBlob(roomObj.backgroundImageFile);
+        if (!blob) return null;
+        const name = (roomObj.backgroundImage && roomObj.backgroundImage.name) || 'imported-floor-plan';
+        return window.idbStore.bgImagesAdd({
+            name: name,
+            mimeType: blob.type,
+            blob: blob
+        }).then(function (newId) {
+            if (newId) {
+                roomObj.backgroundImage.bgImageId = newId;
+            }
+            refreshRecentFloorPlansDropdown();
+            return newId;
+        });
+    }).catch(function (e) {
+        console.warn('[recentFloorPlans] persistImportedBackgroundImageToIdb failed:', e && e.message);
+        return null;
+    });
+}
+
+/* If the current roomObj references an image in the IndexedDB library but
+ * the in-memory `backgroundImageFloor` Image hasn't been loaded yet (page
+ * reload, undo across an image-bearing snapshot, or imported JSON without
+ * an embedded data URL), fetch the Blob and re-apply it to the canvas.
+ *
+ * Returns a Promise<boolean> that resolves to true if the rehydrate ran
+ * (image was loaded), false if it was a no-op. Callers can ignore the
+ * promise — drawRoom() will pick up the image on its next redraw. */
+function rehydrateBackgroundImageFromIdb() {
+    if (!roomObj || !roomObj.backgroundImage) return Promise.resolve(false);
+    const bgImageId = roomObj.backgroundImage.bgImageId;
+    if (!bgImageId) return Promise.resolve(false);
+    if (!window.idbStore || !window.idbStore.isAvailable()) return Promise.resolve(false);
+
+    /* If a data URL is already present (e.g. just imported from a .vrc.json
+     * file), prefer that — it's already loaded and avoids an IDB round-trip. */
+    if (roomObj.backgroundImageFile) return Promise.resolve(false);
+
+    return window.idbStore.bgImagesGetById(bgImageId).then(function (rec) {
+        if (!rec || !rec.blob) {
+            /* The library entry was evicted (FIFO past 5 images). Drop the
+             * stale reference so future saves don't keep pointing at it. */
+            delete roomObj.backgroundImage.bgImageId;
+            return false;
+        }
+        const objUrl = URL.createObjectURL(rec.blob);
+
+        return new Promise(function (resolve) {
+            const onload = function () {
+                backgroundImageFloor.removeEventListener('load', onload);
+                /* Stamp the data URL onto roomObj so subsequent saves /
+                 * exports include the binary, matching the legacy path. */
+                try {
+                    /* Best-effort: read the blob as a data URL so the same
+                     * image survives a JSON file export. We swallow errors
+                     * because the canvas already has the image rendered. */
+                    const fr = new FileReader();
+                    fr.onload = function (ev) { roomObj.backgroundImageFile = ev.target.result; };
+                    fr.readAsDataURL(rec.blob);
+                } catch (e) { /* best-effort */ }
+                insertKonvaBackgroundImageFloor();
+                turnOnBackgroundImageButtons();
+                /* Don't revoke immediately — Konva.Image holds the underlying
+                 * <img>, which keeps the URL alive. We revoke on next idle. */
+                setTimeout(function () { try { URL.revokeObjectURL(objUrl); } catch (e) { /* best-effort */ } }, 5000);
+                resolve(true);
+            };
+            backgroundImageFloor.addEventListener('load', onload);
+            backgroundImageFloor.src = objUrl;
+        });
+    }).catch(function (e) {
+        console.warn('[recentFloorPlans] rehydrate failed:', e && e.message);
+        return false;
+    });
+}
+
 
 /* --- Paste-from-clipboard support for the Room Floor Plan background image ---
  *
@@ -20193,10 +20748,27 @@ function importJson(jsonFile) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
+                /* Persist the just-imported image to the IndexedDB
+                 * "Recent Floor Plans" library so future reloads (and
+                 * "Reload last design") can rehydrate it without needing
+                 * the data URL to ride along in undo snapshots. No-op if
+                 * the file already references an existing library entry. */
+                if (typeof persistImportedBackgroundImageToIdb === 'function') {
+                    persistImportedBackgroundImageToIdb();
+                }
                 setTimeout(() => {
                     isBackgroundImageFloorFileLoad = false;
 
                 }, 1000);
+            } else if (jsonFile.backgroundImage && jsonFile.backgroundImage.bgImageId
+                && typeof rehydrateBackgroundImageFromIdb === 'function') {
+                /* No embedded data URL but the file references an image in
+                 * this browser's IDB library — try to rehydrate. If the
+                 * library no longer has it (evicted, different machine),
+                 * the helper drops the stale reference. */
+                rehydrateBackgroundImageFromIdb().finally(function () {
+                    isBackgroundImageFloorFileLoad = false;
+                });
             } else {
                 isBackgroundImageFloorFileLoad = false;
             }
@@ -22379,6 +22951,12 @@ function importWorkspaceDesignerFile(workspaceObj) {
             backgroundImageFloor.src = roomObj.backgroundImageFile;
             insertKonvaBackgroundImageFloor();
             turnOnBackgroundImageButtons();
+            /* Mirror the .vrc.json import path: persist the freshly-loaded
+             * data URL to the IDB library so future page reloads can
+             * rehydrate the image. */
+            if (typeof persistImportedBackgroundImageToIdb === 'function') {
+                persistImportedBackgroundImageToIdb();
+            }
             setTimeout(() => { isBackgroundImageFloorFileLoad = false; }, 1000);
         } else {
             isBackgroundImageFloorFileLoad = false;
