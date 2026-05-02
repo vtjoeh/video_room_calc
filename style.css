@@ -28,17 +28,17 @@
 
 html,
 body {
-  margin: 0;
-  padding: 0;
   height: 100%;
-  background-color: #F0F2F3;
-
 }
 
 body {
-  font-family: Inter;
+  margin: 0;
+  padding: 0;
   padding-top: 30px;
-  /* overflow: hidden; */
+  box-sizing: border-box;
+  background-color: #F0F2F3;
+  font-family: Inter;
+  overflow: hidden;
 }
 
 body:has(dialog[open]) {
@@ -117,8 +117,12 @@ a:active {
   width: 40%;
   max-width: 400px;
   padding: 15px;
-  max-height: 100%;
+  padding-bottom: 7px;
+  height: calc(100vh - 60px);
   margin-top: 1.3rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebarNone {
@@ -187,6 +191,36 @@ img {
   background-color: white;
   border-radius: 10px;
   min-height: 520px;
+}
+
+/* ----------------------------------------------------------------- */
+/* Sidebar inputs panel: bound to viewport via #sidebar's flex column */
+/* The whole page must NOT scroll - each subtab handles its own       */
+/* scrolling internally.  See @media (max-width: 900px) for the       */
+/* mobile-stacked override that re-allows page scrolling.             */
+/* ----------------------------------------------------------------- */
+#ContainerInputs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* overflow: visible (default) so #closeOpenMenu, which uses
+     transform: translate(25px, 120px) to float at the right edge of
+     the sidebar, is not clipped.  Subtab scrolling is bounded one
+     level deeper at #containerInputTabContent. */
+  overflow: visible;
+}
+
+#ContainerInputs > .tab {
+  flex-shrink: 0;
+}
+
+#containerInputTabContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .ContainerHeader {
@@ -666,7 +700,21 @@ input:placeholder-shown {
 }
 
 /* Style the tab content */
-.tabcontent,
+.tabcontent {
+  display: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  /* When openTab() shows a tab it sets style="display: flex" so #Insert
+     and #Item act as flex columns whose .tab row stays at the top and
+     whose visible .subtabcontent fills the remaining height.  All other
+     tabs (Room, Layers) render their children as a vertical stack just
+     like display: block, courtesy of flex-direction: column. */
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .tabcontent2 {
   display: none;
   overflow-y: auto;
@@ -674,15 +722,32 @@ input:placeholder-shown {
   position: relative;
 }
 
+/* When #Insert / #Item are visible they become flex columns containing:
+     1. a .tab row with the sub-tab buttons (flex-shrink: 0)
+     2. one visible .subtabcontent / .subtabcontent2 (flex: 1 1 auto)   */
+.tabcontent > .tab {
+  flex-shrink: 0;
+}
+
+/* `.inputField` declares `flex-grow: 1` so multiple input fields share
+   the row evenly when nested inside `.inputRow`.  When the field is a
+   *direct* child of a flex-column .tabcontent (Room, Layers) that
+   grow factor instead spreads the fields vertically, leaving big gaps
+   between rows.  Reset grow at this level so each field keeps its
+   natural height; nested .inputRow > .inputField still grows. */
+.tabcontent > .inputField {
+  flex-grow: 0;
+}
+
 .subtabcontent,
 .subtabcontent2 {
   display: none;
-  overflow: auto;
-  overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(90vh - 50px);
+  overflow-x: hidden;
   position: relative;
-  min-height: 580px;
+  /* Fill remaining height inside its parent flex-column tab. */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .subtabcontent,
@@ -1006,6 +1071,30 @@ input:placeholder-shown {
 
 .templatelinks:hover {
   background-color: #ADD8E6;
+}
+
+/* "Reload last design" tile — surfaced as the first item in the new-room
+ * templates grid when the user has a saved design in localStorage and the
+ * new-room dialog is being opened for the first time after page load.
+ * The tile is sized to match `.room-template img` (120px square) so it
+ * lines up with the template thumbnails next to it. */
+#btnReloadLastDesign .reloadLastDesignIconWrap {
+  height: 120px;
+  width: 120px;
+  border: 1px solid var(--active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--active);
+  box-sizing: border-box;
+}
+
+#btnReloadLastDesign .reloadLastDesignIcon {
+  width: 80px;
+  height: 80px;
+  font-size: 80px;
+  line-height: 80px;
+  color: var(--active);
 }
 
 #singleShadingDiv button:hover {
@@ -1593,16 +1682,53 @@ hr.rightClickHorizontalLine {
 
 
 
-.scrollButton {
-  /* transform: translate(-50%, 100%); */
+/* ----------------------------------------------------------------- */
+/* Scroll-hint button: a sticky chevron that appears at the bottom of */
+/* an overflowing .subtabcontent / .subtabcontent2 panel.  Click      */
+/* scrolls the panel down by ~80% of its visible height; the button   */
+/* hides automatically when the user reaches the end of the panel.    */
+/* See initScrollHints() in roomcalc.js for the wiring.               */
+/* ----------------------------------------------------------------- */
+.scrollHintBtn {
+  position: sticky;
+  bottom: 8px;
+  margin: 8px auto 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #d4d4d4;
+  background: rgba(255, 255, 255, 0.96);
+  color: #555;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  z-index: 5;
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
 }
 
-.hideScrollButton {
-  background-color: rgb(255, 255, 255);
-  height: 100px;
-  z-index: 1000;
-  position: relative;
+.scrollHintBtn:hover {
+  background: #ffffff;
+  color: #111;
+  transform: translateY(-1px);
+}
 
+.scrollHintBtn:focus-visible {
+  outline: 2px solid #0352a6;
+  outline-offset: 2px;
+}
+
+.scrollHintBtn i {
+  font-size: 16px;
+  line-height: 1;
+  transform: translate(0px, 3px);
+}
+
+.subtabcontent.hasScrollHint > .scrollHintBtn,
+.subtabcontent2.hasScrollHint > .scrollHintBtn {
+  display: flex;
 }
 
 .tablinksfake {
@@ -1615,20 +1741,6 @@ hr.rightClickHorizontalLine {
   padding: 12px;
   padding-left: 30px;
   padding-right: 30px;
-}
-
-.scrollButtonContainer {
-  position: absolute;
-  bottom: 30px;
-  /* left: 130px; */
-  transform: translateX(-50%);
-  /* background-color: #007BFF;
- color: rgba(255, 255, 255, 0.862);
- padding: 5px 10px;
- border: 3px;
- cursor: pointer;
- font-size: 10px;
- border-radius: 3px; */
 }
 
 
@@ -2048,7 +2160,23 @@ hr.rightClickHorizontalLine {
     max-width: unset;
     position: absolute;
     z-index: 99;
+    /* Undo desktop viewport-bound flex layout: stack naturally so the
+       page can scroll when the sidebar is rendered below the canvas. */
+    height: auto;
+    display: block;
+  }
 
+  #ContainerInputs,
+  #containerInputTabContent {
+    display: block;
+    overflow: visible;
+    flex: none;
+    min-height: unset;
+  }
+
+  .tabcontent {
+    flex: none;
+    min-height: unset;
   }
 
   #controlButtons {

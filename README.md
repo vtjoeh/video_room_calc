@@ -8,6 +8,11 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.645 Release Notes**
+- Added export to DXF. Simple objects only.
+- Import xconfig.txt files with Cinematic Meeting features.
+- Updated Workspace Designer test site so end users can easily flip to designer.cisco.com (beta). Go to: Details → Settings → Workspace Designer Site.
+
 **v0.1.644 Release Notes**
 - Added feature Layers to show/hide or lock/umlock layers. Feature is considered experimental and might change. 
 - Fixed bug with multiple large pathShapes (SVG path) not exporting to Workspace Designer consistently. 

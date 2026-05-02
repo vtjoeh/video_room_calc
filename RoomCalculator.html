@@ -137,7 +137,7 @@
         </button>
       </div>
       <div id="containerInputTabContent">
-        <div id="Room" class="tabcontent" style="display: block;">
+        <div id="Room" class="tabcontent" style="display: flex;">
           <div class="inputField">
             <label>Room name:</label>
             <input type="text" id="roomName" name="roomName" class="textInput">
@@ -303,9 +303,6 @@
             <div id="cameraLegacyMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-            <div class="hideScrollButton">
-
-            </div>
           </div>
           <div id="Microphones" class="subtabcontent">
 
@@ -361,10 +358,6 @@
             <div id="desktopMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-
-            <div class="hideScrollButton">
-
-            </div>
           </div>
 
           <div id="Tables" class="subtabcontent">
@@ -406,9 +399,6 @@
             <div id="stageFloorMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-            <div class="hideScrollButton">
-
-            </div>
           </div>
 
           <div id="Panels" class="subtabcontent">
@@ -426,10 +416,6 @@
             <div id="displaysMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->
             </div>
-
-            <div class="hideScrollButton">
-
-            </div>
           </div>
 
         </div>
@@ -441,7 +427,7 @@
             <button class="subtablinks2" onclick="openSubTab2(event, 'DefaultWalls')" id="subTabDefaultWalls">Default
               Walls</button>
             <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')">Room Floor Plan</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')">Settings</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')" id="detailsSettings" >Settings</button>
           </div>
 
           <div id="ItemDetails" class="subtabcontent2 subtabcontent2a" style="display: block;">
@@ -1182,22 +1168,32 @@
               </label>
             </div>
 
-            <div class="inputField" id="wdSiteDiv" style="display: none;">
+            <div class="inputField" id="wdSiteDiv">
 
-              <label class="tooltip">Workspace Designer Site: <a href="/?wd=0">Disable</a>
+              <label class="tooltip">Workspace Designer Site:
                 <i class="icon icon-info-circle-bold"></i>
                 <span class="tooltiptext">
-                  Used for testing purposes. Activate with:<br> https://site/?wd=https://testsite.com
-                  Deactivate with<br> https://site/?wd=0 <br>or press the Disable link.
+                  Pick which Workspace Designer site is launched. The 
+                  <b>Custom:</b> points at any URL for testing.<br><br>
+                  Equivalent to the <code>?wd=&lt;url&gt;</code> query string parameter,
+                  but takes effect immediately without a page refresh. Note: /#/room/custom is appeneded to site on export. 
                 </span>
               </label>
 
-              <input type="text" id="wdSite" name="wdSite" class="textInput" disabled>
+              <select id="drpWdSite" class="drpDown" onchange="wdSiteChange()" data-drpDownName="Workspace Designer Site:">
+                <option value="default">designer.webex.com (default)</option>
+                <option value="beta">designer.cisco.com (beta)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div class="inputField" id="wdSiteCustomDiv" style="display: none;">
+              <input type="text" id="wdSiteCustom" name="wdSiteCustom" class="textInput"
+                placeholder="https://example.com" autocomplete="off"
+                oninput="wdSiteCustomChange()" onblur="wdSiteCustomBlur()">
             </div>
           </div>
         </div>
-      </div>
-
         <!-- Layers Tab -->
         <div id="Layers" class="tabcontent">
           <div class="inputField" style="padding-bottom: 4px;">
@@ -1224,6 +1220,7 @@
           </div>
         </div>
 
+      </div>
     </div>
   </div>
   <div id="ContainerForContainerRoom">
@@ -2180,13 +2177,13 @@
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
 
           <hr>
-          <b>Test settings:</b><br>
-          <a href="/?wd=https://designer.cisco.com&testiFrame=1&testNew=1">Click to test against Workspace Designer beta
-            site</a><br>
-          <br>
+          <b>Test settings:</b><br><br>
 
-          <a href="/?wd=0&testiFrame=0&testNew=0">Click to turn off Workspace Designer beta</a><br><br>
-          Use the undo button to recover your previous design after page refresh.
+          Beta test settings has been move to:
+          <a href="#"  onclick="closeAllDialogModals();document.getElementById('tabItem').click(); document.getElementById('detailsSettings').click(); ">
+            Details → Settings → Workspace Designer Site.
+            
+          </a>
 
 
           <hr>

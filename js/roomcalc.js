@@ -43,6 +43,7 @@ let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding
 let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
+const betaWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* Cisco's beta Workspace Designer site, surfaced as the "designer.cisco.com (beta)" choice in the Workspace Designer Site dropdown */
 let newWorkspaceTab = defaultWorkspaceTab;
 let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
@@ -834,6 +835,10 @@ let toggleButtonOffColor = '#800000';
 let undoArray = [];
 
 let redoArray = [];
+
+let priorUndoArrayHasData = false; /* set true at onLoad if localStorage 'undoArray' contained at least one saved design from a previous session — used to gate the "Reload last design" tile in the new-room dialog */
+let newRoomDialogOpenCount = 0;    /* incremented every time openNewRoomDialog() runs; used so the "Reload last design" tile only appears on the very first open after page load */
+let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `?x=` shareable-link querystring; suppresses the "Reload last design" tile so the user can't accidentally clobber a freshly-shared design with an unrelated previous-session restore */
 
 let itemsOffStageId; /* represents the ID of devices that are not on the stage and not visible to the user. They will not show up in the URL and will be hidden:true in the Workspace Designer.  They are kept during a session in case a room is being resized */
 
@@ -5068,6 +5073,12 @@ function getQueryString() {
 
         drawRoom(true, true, false);
 
+        /* Mark the room as loaded from a shareable link. The "Reload
+         * last design" tile in the new-room dialog is suppressed in
+         * this case so the user can't accidentally undo away from the
+         * design they just opened via the link — see
+         * `syncReloadLastDesignButton()`. */
+        roomLoadedFromXQuery = true;
     }
 
     else if (urlParams.has('ver')) {
@@ -5212,48 +5223,66 @@ function getQueryString() {
 
     }
 
+    /* Workspace Designer site selection.
+     *
+     * The WD site can be picked three ways, in order of precedence:
+     *   1. `?wd=` query string (legacy / shareable links).
+     *   2. The `drpWdSite` dropdown in Details > Settings (live, no page
+     *      refresh required — see `wdSiteChange()` below).
+     *   3. Persisted `localStorage.wd` value from a previous session.
+     *
+     * All three paths funnel through `applyWdSiteSelection()` so the
+     * dropdown UI, the in-memory `workspaceDesignerTestUrl`, the
+     * `testiFrame` flag, and `localStorage.wd` always stay in sync. */
     if (urlParams.has('wd')) {
-        let wd = urlParams.get('wd');
-        let testNewString = 'false';
+        const wd = urlParams.get('wd');
         if (wd == '0') {
             console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
-            localStorage.removeItem('wd');
-            workspaceDesignerTestUrl = null;
-        }
-        else {
-            /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
-            let base = decodeURIComponent(wd);
-            if (wd === '1') {
-                workspaceDesignerTestUrl = defaultWorkspaceTab;
-                testNew = false;
+            applyWdSiteSelection('default');
+        } else if (wd === '1') {
+            /* `?wd=1` is the legacy "reset to default Webex site" form,
+             * which also clears the experimental `testNew` flag. */
+            applyWdSiteSelection('default');
+            testNew = false;
+            setItemForLocalStorage('testNew', testNew);
+            console.info('urlParams wd=1, Workspace Designer reset to default site.');
+        } else {
+            const base = decodeURIComponent(wd);                /* ?wd=https%3A%2F%2Flocalhost%3A3000 */
+            const mode = detectWdSiteMode(base);
+            if (mode === 'default') {
+                applyWdSiteSelection('default');
+            } else if (mode === 'beta') {
+                applyWdSiteSelection('beta');
             } else {
-                workspaceDesignerTestUrl = `${base}/#/room/custom`;
+                applyWdSiteSelection('custom', base);
             }
-
+            setItemForLocalStorage('testNew', testNew);
             console.info('urlParams wd=', workspaceDesignerTestUrl, 'custom Workspace Designer tab is set.');
-            setItemForLocalStorage('wd', workspaceDesignerTestUrl);
-            setItemForLocalStorage('testNew', testNew)
         }
     } else {
-        workspaceDesignerTestUrl = localStorage.getItem('wd');
+        /* No `?wd=` — fall back to whatever the previous session stored
+         * in localStorage and reflect that selection in the dropdown. */
+        const stored = localStorage.getItem('wd');
+        const mode = detectWdSiteMode(stored);
+        if (mode === 'beta') {
+            applyWdSiteSelection('beta');
+        } else if (mode === 'custom') {
+            /* Show the bare user-entered URL in the textbox — strip the
+             * canonical `/#/room/custom` we appended on save. */
+            const display = String(stored).replace(/\/?#\/room\/custom$/, '');
+            applyWdSiteSelection('custom', display);
+        } else {
+            applyWdSiteSelection('default');
+        }
     }
+
+    /* If the active mode is default/beta but the user previously typed
+     * a Custom URL, pre-populate the textbox from `localStorage.wdCustom`
+     * so flipping the dropdown to Custom restores it instantly. */
+    preloadWdCustomFromStorage();
 
     if (urlParams.has('test2')) {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
-    }
-
-    if (workspaceDesignerTestUrl) {
-        let wdSite = document.getElementById('wdSite');
-        let wdSiteDiv = document.getElementById('wdSiteDiv');
-        let regex = /^https:\/\/www\.webex\.com\//i
-        if (!regex.test(workspaceDesignerTestUrl)) {
-            testiFrame = true;
-        }
-
-        wdSiteDiv.style.display = '';
-        wdSite.value = workspaceDesignerTestUrl;
-    } else {
-        document.getElementById('wdSiteDiv').style.display = 'none';
     }
 
 
@@ -5974,6 +6003,10 @@ function onLoad() {
     undoArray = JSON.parse(localStorage.getItem('undoArray'));
 
     if (!Array.isArray(undoArray)) undoArray = [];  /* for first run, if local storage not set */
+    /* Capture this BEFORE saveToUndoArray() pushes the freshly-loaded
+     * default room onto the array. We use it to decide whether to surface
+     * a "Reload last design" tile in the new-room dialog. */
+    priorUndoArrayHasData = undoArray.length > 0;
     updateSelectVideoDeviceOptions();
     getQueryString();
     saveToUndoArray();
@@ -6109,6 +6142,107 @@ function populateTemplates() {
     templates.forEach(template => {
         parent.appendChild(createTemplateButton(template));
     })
+    /* Add the "Reload last design" tile (if conditions are met) AFTER the
+     * templates are in the DOM, then move it to the very front so it is
+     * the first item the user sees. */
+    syncReloadLastDesignButton();
+}
+
+/* Show or hide the "Reload last design" tile in the new-room dialog's
+ * templates grid based on:
+ *   1. `newRoomDialogOpenCount <= 1` — this is still the very first time
+ *      the dialog is appearing on this page load. After the user closes
+ *      and reopens the dialog the tile is removed.
+ *   2. `priorUndoArrayHasData` — at page load the localStorage `undoArray`
+ *      held at least one design from a previous session, so undoing the
+ *      freshly-loaded default room actually restores something meaningful.
+ *   3. `!roomLoadedFromXQuery` — the room was NOT loaded from a `?x=`
+ *      shareable link. When the user opened a specific shared design we
+ *      don't want a one-click "undo" tile that would silently replace
+ *      that design with their own previous-session work.
+ *
+ * Clicking the tile closes the dialog and triggers `btnUndoClicked()` —
+ * since `saveToUndoArray()` already pushed the default room onto the
+ * stack at startup, the single undo pops the default and restores the
+ * user's previous design. */
+function syncReloadLastDesignButton() {
+    const parent = document.querySelector('#room-templates');
+    if (!parent) return;
+    const existing = document.getElementById('btnReloadLastDesign');
+
+    const shouldShow = (newRoomDialogOpenCount <= 1)
+        && priorUndoArrayHasData
+        && !roomLoadedFromXQuery;
+    if (!shouldShow) {
+        if (existing) existing.remove();
+        return;
+    }
+    if (existing) {
+        /* Already present — make sure it's at the front in case templates
+         * were appended after it. */
+        if (parent.firstChild !== existing) {
+            parent.insertBefore(existing, parent.firstChild);
+        }
+        return;
+    }
+
+    const box = document.createElement('div');
+    box.id = 'btnReloadLastDesign';
+    box.className = 'room-template';
+
+    const button = document.createElement('button');
+    button.className = 'templateLinks';
+    button.title = 'Reload last design';
+    button.onclick = () => {
+        closeNewRoomDialog();
+        reloadLastNonEmptyDesign();
+    };
+
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'reloadLastDesignIconWrap';
+    const i = document.createElement('i');
+    i.className = 'icon icon-undo-regular reloadLastDesignIcon';
+    iconWrap.appendChild(i);
+    button.appendChild(iconWrap);
+
+    const label = document.createElement('span');
+    label.innerText = 'Reload last design';
+    button.appendChild(label);
+
+    box.appendChild(button);
+    parent.insertBefore(box, parent.firstChild);
+}
+
+/* True iff `obj.items` exists and at least one of its array fields
+ * (videoDevices, chairs, tables, …) contains at least one entry.
+ * Iterating over the object's own keys keeps this future-proof: any new
+ * `roomObj.items.<group>` array added later is automatically covered. */
+function roomObjHasAnyItems(obj) {
+    if (!obj || !obj.items) return false;
+    for (const key in obj.items) {
+        if (!Object.prototype.hasOwnProperty.call(obj.items, key)) continue;
+        const arr = obj.items[key];
+        if (Array.isArray(arr) && arr.length > 0) return true;
+    }
+    return false;
+}
+
+/* Click handler for the "Reload last design" tile.
+ *
+ * One call to `btnUndoClicked()` pops the freshly-saved default room
+ * (pushed by `saveToUndoArray()` during `onLoad()`) and restores the
+ * previous design. If THAT design is itself empty (e.g. the user closed
+ * a brand-new tab without ever adding anything), keep walking back
+ * through `undoArray` until we find a design that actually contains
+ * items — or hit the same boundary the toolbar undo button does
+ * (`undoArray.length === 1`, beyond which there is nothing left to
+ * restore). The loop is bounded by `undoArray` shrinking by one each
+ * iteration, so it cannot run away. */
+function reloadLastNonEmptyDesign() {
+    btnUndoClicked();
+    while (undoArray.length > 1 && !roomObjHasAnyItems(roomObj)) {
+        btnUndoClicked();
+    }
 }
 
 function updateSelectVideoDeviceOptions() {
@@ -8705,13 +8839,16 @@ function openTab(evt, tabName) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
     }
 
-    /* Show the current tab, and add an "active" class to the button that opened the tab */
-    document.getElementById(tabName).style.display = "block";
+    /* Show the current tab, and add an "active" class to the button that opened
+       the tab.  display: flex (rather than block) keeps #Insert and #Item as
+       flex-column containers so their inner sub-tab bar stays at the top and
+       the active subtab fills the remaining height (CSS .tabcontent rule). */
+    document.getElementById(tabName).style.display = "flex";
 
     evt.currentTarget.className += " active";
 
     resetBackgroundImageFloorSettings();
-    checkIfScrollable();
+    updateAllScrollHints();
 }
 
 function openSubTab(evt, tabName) {
@@ -8735,7 +8872,7 @@ function openSubTab(evt, tabName) {
 
     evt.currentTarget.className += " active";
 
-    checkIfScrollable();
+    updateAllScrollHints();
 
 }
 
@@ -8761,6 +8898,7 @@ function openSubTab2(evt, tabName) {
     evt.currentTarget.className += " active";
 
     resetBackgroundImageFloorSettings();
+    updateAllScrollHints();
 
 }
 
@@ -8851,6 +8989,12 @@ function openNewRoomDialog() {
     document.getElementById('roomWidth2').value = roomObj.room.roomWidth;
     document.getElementById('roomLength2').value = roomObj.room.roomLength;
     document.getElementById('roomName2').value = roomObj.name;
+    /* Track every dialog open. The "Reload last design" tile is gated
+     * on `newRoomDialogOpenCount <= 1` so it only appears the very first
+     * time the dialog is shown on this page load (whether auto-shown
+     * during onLoad() or manually opened by the user). */
+    newRoomDialogOpenCount++;
+    syncReloadLastDesignButton();
     document.getElementById('newRoomDialog').showModal();
 }
 
@@ -10085,6 +10229,219 @@ function setItemForLocalStorage(key, value) {
     }
 }
 
+
+/* === Workspace Designer site dropdown helpers ===========================
+ *
+ * Surfaces the WD site picker (Details > Settings > "Workspace Designer
+ * Site") and keeps it in sync with `workspaceDesignerTestUrl`,
+ * `testiFrame`, and `localStorage.wd`. The dropdown supports three
+ * choices that mirror the legacy `?wd=` query string parameter:
+ *
+ *   - 'default' → designer.webex.com (production); equivalent to `?wd=0`
+ *                 — clears localStorage and uses the in-code default URL.
+ *   - 'beta'    → designer.cisco.com (Cisco beta site).
+ *   - 'custom'  → user-entered URL (typically a local dev server).
+ *
+ * Picking 'beta' or 'custom' enables `testiFrame` so the Workspace
+ * Designer is loaded inside an iframe (cross-origin postMessage works
+ * the same regardless of which window we render into, but the iframe
+ * path is what the rest of the codebase already relies on for non-prod
+ * sites — see `openWorkspaceWindow()`).
+ *
+ * All three handlers are safe to call before the DOM is fully built —
+ * missing elements are tolerated as no-ops so the bootstrap order in
+ * `getQueryString()` doesn't matter. */
+
+/** Append the canonical "/#/room/custom" hash if the caller only typed
+ *  an origin or a bare path. Idempotent — leaves any existing hash
+ *  alone so users can target a specific WD route if they want to. */
+function ensureRoomCustomPath(url) {
+    if (!url) return url;
+    const trimmed = String(url).trim().replace(/\/+$/, '');
+    if (!trimmed) return '';
+    if (/#\//.test(trimmed)) return trimmed;
+    return trimmed + '/#/room/custom';
+}
+
+/** Map a stored WD URL back to one of the three dropdown modes. */
+function detectWdSiteMode(url) {
+    if (!url) return 'default';
+    if (/^https?:\/\/designer\.webex\.com\b/i.test(url)) return 'default';
+    if (/^https?:\/\/designer\.cisco\.com\b/i.test(url)) return 'beta';
+    return 'custom';
+}
+
+/** Apply a dropdown selection to all related state at once.
+ *  @param {'default'|'beta'|'custom'} mode
+ *  @param {string} [customUrl] only meaningful when mode === 'custom'.
+ *      The bare URL the user typed; the canonical WD hash is appended
+ *      automatically by ensureRoomCustomPath().
+ *
+ *  localStorage keys touched:
+ *    - `wd`:       active WD URL (with `/#/room/custom` hash); removed
+ *                  for default mode.
+ *    - `wdCustom`: bare URL the user last typed in Custom mode. Persists
+ *                  even when the user flips to default/beta so flipping
+ *                  back to Custom restores the value without retyping.
+ *                  Only cleared when the user explicitly blanks the
+ *                  Custom textbox.
+ */
+function applyWdSiteSelection(mode, customUrl) {
+    const drp = document.getElementById('drpWdSite');
+    const customDiv = document.getElementById('wdSiteCustomDiv');
+    const customInput = document.getElementById('wdSiteCustom');
+
+    if (mode === 'beta') {
+        workspaceDesignerTestUrl = betaWorkspaceTab;
+        setItemForLocalStorage('wd', workspaceDesignerTestUrl);
+        testiFrame = true;
+        if (drp) drp.value = 'beta';
+        if (customDiv) customDiv.style.display = 'none';
+        /* Intentionally DO NOT clear customInput.value or
+         * localStorage.wdCustom — we keep the user's last-typed Custom
+         * URL remembered so flipping back to Custom is instant. */
+    } else if (mode === 'custom') {
+        const urlIn = (customUrl == null ? '' : String(customUrl)).trim();
+        const finalUrl = urlIn ? ensureRoomCustomPath(urlIn) : '';
+        if (finalUrl) {
+            workspaceDesignerTestUrl = finalUrl;
+            setItemForLocalStorage('wd', workspaceDesignerTestUrl);
+            setItemForLocalStorage('wdCustom', urlIn);
+            testiFrame = true;
+        } else {
+            /* User picked Custom and the textbox is empty — treat that
+             * as an explicit clear of both the active URL and the
+             * remembered Custom URL so a refresh shows the empty state
+             * instead of an old value. */
+            workspaceDesignerTestUrl = null;
+            localStorage.removeItem('wd');
+            localStorage.removeItem('wdCustom');
+        }
+        if (drp) drp.value = 'custom';
+        if (customDiv) customDiv.style.display = '';
+        if (customInput) customInput.value = urlIn;
+    } else {
+        /* mode === 'default' — also covers any unrecognized value, which
+         * is the safe production fallback. */
+        workspaceDesignerTestUrl = null;
+        localStorage.removeItem('wd');
+        /* Intentionally do NOT reset `testiFrame` here. Other code
+         * paths (RoomOS auto-detect, `?testiFrame=1`) may have set it
+         * for unrelated reasons and the user shouldn't lose those by
+         * picking the production WD site.
+         *
+         * Intentionally do NOT clear customInput.value or
+         * localStorage.wdCustom either — we keep the user's last-typed
+         * Custom URL remembered so flipping back to Custom is instant. */
+        if (drp) drp.value = 'default';
+        if (customDiv) customDiv.style.display = 'none';
+    }
+}
+
+/** Dropdown change handler — wired up in RoomCalculator.html.
+ *  For the two preset sites the embedded WD iframe (split-view) is
+ *  reloaded immediately so the user sees the new site without having
+ *  to close and reopen the split view. For 'custom' the iframe also
+ *  refreshes immediately when there is already a (typed or remembered)
+ *  URL to load — only an empty Custom selection waits for the textbox
+ *  blur (see `wdSiteCustomBlur` below) so the iframe doesn't churn
+ *  while the user is typing a brand-new URL from scratch. */
+function wdSiteChange() {
+    const drp = document.getElementById('drpWdSite');
+    if (!drp) return;
+    if (drp.value === 'custom') {
+        const customInput = document.getElementById('wdSiteCustom');
+        let urlIn = customInput ? customInput.value : '';
+        /* If the textbox is empty (e.g. dropdown switched to Custom for
+         * the first time this session), fall back to whatever we
+         * remembered from a previous session so the user doesn't have
+         * to retype. */
+        if (!urlIn) {
+            const remembered = localStorage.getItem('wdCustom');
+            if (remembered) urlIn = remembered;
+        }
+        applyWdSiteSelection('custom', urlIn);
+        if (urlIn) {
+            /* We already have a URL to load — refresh the iframe right
+             * away so the user sees the Custom site immediately. */
+            refreshSplitViewIframe();
+        }
+        /* When `urlIn` is empty we wait for `wdSiteCustomBlur()` to
+         * trigger the refresh once the user finishes typing. */
+    } else {
+        applyWdSiteSelection(drp.value);
+        refreshSplitViewIframe();
+    }
+}
+
+/** Pre-populate the Custom URL textbox from `localStorage.wdCustom` if
+ *  the textbox is currently empty. Called during bootstrap so the
+ *  user's last-typed Custom URL is restored across page refreshes —
+ *  even when the active mode is currently default or beta — and a
+ *  later flip to Custom shows the remembered value without retyping. */
+function preloadWdCustomFromStorage() {
+    const customInput = document.getElementById('wdSiteCustom');
+    if (!customInput || customInput.value) return;
+    const remembered = localStorage.getItem('wdCustom');
+    if (remembered) customInput.value = remembered;
+}
+
+/** Custom URL textbox `oninput` handler — re-applies the user's URL on
+ *  every keystroke so the WD button and any future split-view open
+ *  pick up changes without a page refresh. The split-view iframe is
+ *  intentionally NOT reloaded here (see `wdSiteCustomBlur`). */
+function wdSiteCustomChange() {
+    const customInput = document.getElementById('wdSiteCustom');
+    if (!customInput) return;
+    applyWdSiteSelection('custom', customInput.value);
+}
+
+/** Custom URL textbox `onblur` handler — applies the latest typed URL
+ *  and (only now) reloads the split-view iframe. Waiting until blur
+ *  avoids reloading the iframe on every character the user types. */
+function wdSiteCustomBlur() {
+    const customInput = document.getElementById('wdSiteCustom');
+    if (customInput) {
+        applyWdSiteSelection('custom', customInput.value);
+    }
+    refreshSplitViewIframe();
+}
+
+/** Force the split-view iframe to reload using the currently-selected
+ *  Workspace Designer site. Used by the WD-site dropdown and custom-URL
+ *  textbox so site changes propagate to the embedded WD without
+ *  requiring the user to close and reopen the split view.
+ *
+ *  Safe to call when the iframe doesn't exist or has never been loaded
+ *  — in those cases `setSplitViewToPercent()` will pick up the new URL
+ *  on its own the next time the split view is opened. */
+function refreshSplitViewIframe() {
+    if (typeof splitViewState === 'undefined' || !splitViewState
+        || !splitViewState.iframeLoaded) {
+        /* Iframe was never loaded — nothing to refresh. The next call
+         * to setSplitViewToPercent() will use the current URL. */
+        return;
+    }
+    const iframe = document.getElementById('splitViewIframe');
+    if (!iframe) return;
+
+    /* Mirror the URL composition used by setSplitViewToPercent() so the
+     * two paths can never drift. */
+    let wdUrl = (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl)
+        ? workspaceDesignerTestUrl
+        : newWorkspaceTab;
+    if (!wdUrl) return;
+
+    iframe.src = wdUrl + '?preview=1&removeEditButton=1';
+    /* Re-push room state once the new WD instance has had a chance to
+     * load and wire up its message listener. Same cadence as the
+     * initial load in setSplitViewToPercent(). */
+    setTimeout(function () { postMessageToWorkspace(); }, 1500);
+    setTimeout(function () { postMessageToWorkspace(); }, 3500);
+    setTimeout(function () { postMessageToWorkspace(); }, 6000);
+}
+
+
 function saveToUndoArray() {
 
     let strUndoArrayLastItem;
@@ -10327,17 +10684,32 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             jsonScaleY = matchScale[2];
         }
 
+        /* Honour {"color": "..."} and {"opacity": ...|"..."} keys in the
+         * label JSON so pathShapes with explicit fill/opacity render in
+         * those colours on the canvas (xConfig Arrows are the first
+         * caller, but this also matches what the Workspace Designer
+         * exporter already does via parseDataLabelFieldJson()). When the
+         * keys are absent, fall back to the historical gray (#D3D3D3)
+         * fill and the local default opacity, so existing pathShapes
+         * remain visually unchanged. Regex (rather than JSON.parse) is
+         * used to mirror the lenient parsing already applied above for
+         * "path" and "scale". */
+        let matchColor = label.match(/"color"\s*:\s*"([^"]+)"/);
+        let pathFillColor = matchColor ? matchColor[1] : '#D3D3D3';
+        let matchOpacity = label.match(/"opacity"\s*:\s*"?([\d.]+)"?/);
+        let pathOpacity = matchOpacity ? parseFloat(matchOpacity[1]) : opacity;
+
         tblWallFlr = new Konva.Path({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             data: path,
-            fill: '#D3D3D3' || fillColor,
+            fill: pathFillColor,
             stroke: strokeColor,
             id: uuid,
             strokeWidth: allDeviceTypes['pathShape'].strokeWidth,
             draggable: true,
-            opacity: opacity,
+            opacity: pathOpacity,
             scale: {
                 x: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1) * jsonScaleX,
                 y: scale * ((roomObj.unit === 'feet') ? 3.28084 : 1) * jsonScaleY,
@@ -17798,92 +18170,80 @@ scrollContainer.addEventListener('scroll', repositionStage);
 
 repositionStage();
 
-let scrollDivCounter = 0;
-// addScrollButtonsToClass();
+/* ----------------------------------------------------------------- */
+/* Scroll-hint button.                                                */
+/*                                                                    */
+/* For each .subtabcontent / .subtabcontent2 panel inside the sidebar */
+/* we append one sticky "scroll down" chevron button.  The button is  */
+/* shown via a `hasScrollHint` class on the panel only when the panel */
+/* is currently overflowing AND the user is not already scrolled to   */
+/* the bottom.  Click smoothly scrolls the panel by ~80% of its       */
+/* visible height.  Resize / scroll / tab switches re-evaluate the    */
+/* class via updateAllScrollHints().                                  */
+/*                                                                    */
+/* This replaces the old addScrollButton() / checkIfScrollable()      */
+/* implementation that used hard-coded panel ids, an absolutely-      */
+/* positioned overlay inside #Insert, and four kludgy spacer divs in  */
+/* the HTML.                                                          */
+/* ----------------------------------------------------------------- */
 
+const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2';
+const SCROLL_HINT_OVERFLOW_SLOP_PX = 1;
+const SCROLL_HINT_PAGE_FRACTION = 0.8;
 
-function addScrollButtonsToClass() {
-    let scrollDivs = document.querySelectorAll('.subtabcontent');
-
-    scrollDivs.forEach(scrollDiv => {
-        addScrollButton(scrollDiv, scrollDivCounter++);
-    });
-
-    checkIfScrollable();
+function isPanelOverflowing(panel) {
+    return panel.scrollHeight - panel.clientHeight > SCROLL_HINT_OVERFLOW_SLOP_PX;
 }
 
-addScrollButton();
-
-function addScrollButton() {
-    let tabContent = document.getElementById('Insert');
-    let scrollButtonContainer = document.createElement('div');
-    scrollButtonContainer = document.createElement('div');
-    scrollButtonContainer.id = 'scrollButtonContainer';
-    scrollButtonContainer.className = 'tip scrollButtonContainer';
-    tabContent.appendChild(scrollButtonContainer);
-
-    let scrollButtonDiv = document.createElement('div');
-    scrollButtonDiv.id = 'scrollButtonDiv';
-    scrollButtonDiv.className = 'scrollButton';
-    scrollButtonDiv.textContent = 'scroll down';
-    scrollButtonContainer.appendChild(scrollButtonDiv);
+function isPanelAtBottom(panel) {
+    return panel.scrollTop + panel.clientHeight
+        >= panel.scrollHeight - SCROLL_HINT_OVERFLOW_SLOP_PX;
 }
 
+function updateScrollHintForPanel(panel) {
+    const show = isPanelOverflowing(panel) && !isPanelAtBottom(panel);
+    panel.classList.toggle('hasScrollHint', show);
+}
 
-document.getElementById('Cameras').addEventListener("scroll", (event) => {
-    // console.log('.offsetTop', event.target.id.offsetTop);
-    // console.log('.scrollTop', event.target.scrollTop);
-    // console.log('scrollHeight', event.target.scrollHeight);
-    // console.log('clientHeight', event.target.clientHeight);
-});
+function updateAllScrollHints() {
+    document
+        .querySelectorAll(SCROLL_HINT_PANEL_SELECTOR)
+        .forEach(updateScrollHintForPanel);
+}
 
+function initScrollHints() {
+    document
+        .querySelectorAll(SCROLL_HINT_PANEL_SELECTOR)
+        .forEach((panel) => {
+            if (panel.dataset.scrollHintInit === '1') return;
+            panel.dataset.scrollHintInit = '1';
 
-function checkIfScrollable() {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'scrollHintBtn';
+            btn.title = 'Scroll down';
+            btn.setAttribute('aria-label', 'Scroll down');
+            btn.innerHTML = '<i class="icon icon-arrow-down-bold"></i>';
+            btn.addEventListener('click', () => {
+                panel.scrollBy({
+                    top: Math.round(panel.clientHeight * SCROLL_HINT_PAGE_FRACTION),
+                    behavior: 'smooth'
+                });
+            });
+            panel.appendChild(btn);
 
-    let scrollDivs = ['Tables', 'Microphones', 'Panels', 'Cameras'];
-    const scrollButton = document.querySelector('#scrollButtonContainer');
-
-    let width = document.getElementById('Insert').offsetWidth;
-
-    if (scrollButton) {
-        scrollButton.style.visibility = "hidden";
-    }
-
-    for (let i = 0; i < scrollDivs.length; i++) {
-        let scrollDiv = document.getElementById(scrollDivs[i]);
-
-        if (scrollButton) {
-
-            let rect = scrollDiv.getBoundingClientRect();
-
-            if (scrollDiv.offsetWidth > width) {
-                width = scrollDiv.offsetWidth;
+            const update = () => updateScrollHintForPanel(panel);
+            panel.addEventListener('scroll', update, { passive: true });
+            if (typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(update).observe(panel);
             }
+        });
 
-            const overflowYStyle = window.getComputedStyle(scrollDiv).overflowY;
-
-            const isOverflowHidden = overflowYStyle.indexOf('hidden') !== -1;
-            const insertDiv = document.querySelector('#Insert');
-
-            scrollButton.style.display = '';
-            if ((scrollDiv.scrollHeight > scrollDiv.offsetHeight)) {
-                scrollButton.style.visibility = "visible";
-            }
-
-            scrollButton.style.left = ((width / 2) + 10) + 'px';
-        }
-
-
-
-
-    };
-
+    updateAllScrollHints();
 }
 
-
-
-
-window.addEventListener('resize', checkIfScrollable);
+initScrollHints();
+window.addEventListener('resize', updateAllScrollHints);
 
 /* returns the type of object. Similar to typeof but more specific on objects */
 function type(value) {
@@ -20086,7 +20446,7 @@ function parseXConfigText(text) {
  *  - Quad Camera is always Camera 1 → imported as `quadCam` and placed at
  *    the center of the room on the back wall side (VRC y = 0.10 m).
  *  - Other cameras (Camera 2..N) → imported as `ptzVision2` (Room Vision PTZ).
- *  - Mics with xConfig Y < 1.5 m → `tableMicPro`, else `ceilingMicPro`.
+ *  - Mics with xConfig Y < 1.6 m → `tableMicPro`, else `ceilingMicPro`.
  *  - Devices with xConfig X=Y=Z=0 are treated as "not placed" and skipped
  *    (Camera 1's X/Z are 0 by definition but its Y is the mounting height,
  *    so Camera 1 is never skipped). */
@@ -20219,8 +20579,8 @@ function importXConfigFile(text, fileName) {
 
     microphones.forEach(mic => {
         const elevationM = mic.y / 1000;
-        /* >= 1.5 m → ceilingMicPro per spec; < 1.5 m → tableMicPro. */
-        const deviceId = elevationM >= 1.5 ? 'ceilingMicPro' : 'tableMicPro';
+        /* >= 1.6 m → ceilingMicPro per spec; < 1.6 m → tableMicPro. */
+        const deviceId = elevationM >= 1.6 ? 'ceilingMicPro' : 'tableMicPro';
         const idStr = (mic.id || '').trim();
         /* Always use the "Microphone N ID: <id>" form so the data_labelField
          * is consistent across both microphone types (ceilingMicPro and
@@ -20405,6 +20765,19 @@ function importXConfigFile(text, fileName) {
         if (p.elevationM && p.elevationM !== 0) {
             item.data_zPosition = Math.round(p.elevationM * 100) / 100;
         }
+        /* Default Table Microphone Pro and Room Vision PTZ to the
+         * "Carbon Black" colour finish on import. These two SKUs are
+         * almost always installed in the dark variant in real Cisco
+         * deployments, so picking it up-front saves the user from
+         * having to flip the colour dropdown for every imported item.
+         * Other device types (Quad Cam, Ceiling Mic Pro) keep the
+         * roomObj default so the user picks them explicitly. The
+         * shape `{value, index}` matches the dropdown handler at
+         * updateItem() and the workspace exporter that reads
+         * `item.data_color.value`. */
+        if (p.deviceId === 'tableMicPro' || p.deviceId === 'ptzVision2') {
+            item.data_color = { value: 'dark', index: 1 };
+        }
 
         const parentGroup = dev.parentGroup;
         if (!roomObj2.items[parentGroup]) roomObj2.items[parentGroup] = [];
@@ -20496,6 +20869,113 @@ function importXConfigFile(text, fileName) {
         data_zPosition: 0,
         data_labelField: '{"color":"red", "opacity":0.03}',
         data_layerId: xConfigLayerId,
+    });
+
+    /* xConfig Arrows layer: one arrow-shaped `pathShape` per imported
+     * camera or microphone, dropped at the device's center and sharing
+     * its rotation so the arrow tip points where the device "looks".
+     * Cameras render red, microphones blue, both at 0.5 opacity (read
+     * from the label JSON by the pathShape Konva.Path renderer above
+     * and by the Workspace Designer exporter via
+     * parseDataLabelFieldJson()).
+     *
+     * Geometry — symmetric clean-up of a hand-drawn arrow. Two
+     * variants are emitted; both have identical dimensions (~0.42 m
+     * wide × 0.82 m long) so they read consistently next to one
+     * another, and both close cleanly with `z`:
+     *
+     *   Default arrow (cameras + ceilingMicPro) — tip at +Y:
+     *     tip:        ( 0,     0.41)
+     *     wing tips:  (±0.21,  0.21)
+     *     shoulders:  (±0.06,  0.21)
+     *     shaft tail: (±0.06, -0.41)
+     *
+     *   tableMicPro arrow — tip at -Y (mirrored about the X axis):
+     *     tip:        ( 0,    -0.41)
+     *     wing tips:  (±0.21, -0.21)
+     *     shoulders:  (±0.06, -0.21)
+     *     shaft tail: (±0.06,  0.41)
+     *
+     * Total ~0.42 m wide × 0.82 m long — large enough to be obvious
+     * over a Table Mic Pro (80 mm) and visible over a Room Bar (~534
+     * mm wide) without overwhelming the room. The default arrow's tip
+     * is at +Y so an arrow sharing its parent device's rotation
+     * visually points the same direction the device's image faces
+     * (the device's "front" edge lives at +Y in the canvas frame at
+     * rotation 0). Table Mic Pros use the mirrored variant because
+     * their xConfig RY angle references the opposite side of the
+     * device (the cable side) — flipping the arrow makes the tip
+     * still visually face the talker. The layer is locked by default
+     * so the arrows act as a read-only orientation guide; the user
+     * can unlock it from the Layers tab if they want to delete or
+     * reposition them. */
+    const X_CONFIG_ARROW_LAYER_NAME = 'xConfig Arrows';
+    const X_CONFIG_ARROW_PATH_DEFAULT = 'M 0 0.41 L -0.21 0.21 L -0.06 0.21 L -0.06 -0.41 L 0.06 -0.41 L 0.06 0.21 L 0.21 0.21 z';
+    const X_CONFIG_ARROW_PATH_TABLE_MIC = 'M0-0.41 L0.21-0.21 L0.06-0.21 L0.06 0.41 L-0.06 0.41 L-0.06-0.21 L-0.21-0.21 z';
+    /* Thin "card" so the arrow sits as a near-flat plane in the WD 3D
+     * preview rather than a full-height extrusion (1 cm). */
+    const X_CONFIG_ARROW_VHEIGHT_M = 0.01;
+    /* Mic arrows sit 5 cm BELOW the mic so the mic body itself stays
+     * the topmost thing the user clicks on (tableMicPro especially
+     * lives at desk height where 5 cm of clearance is plenty). Camera
+     * arrows match the camera's elevation exactly — cameras are tall
+     * enough that the arrow plane tucks under the housing without
+     * z-fighting. Both offsets are in METERS; applied below by
+     * subtracting from the placement's `elevationM`. */
+    const MIC_ARROW_Z_OFFSET_M = 0.05;
+    const xConfigArrowsLayerId = createUuid();
+    /* Reserve the next available 20+ slot, after the XYZ layer's slot. */
+    usedUrlNums.add(xConfigUrlNum);
+    let xConfigArrowsUrlNum = 20;
+    while (usedUrlNums.has(xConfigArrowsUrlNum)) xConfigArrowsUrlNum++;
+    roomObj2.layers.push({
+        name: X_CONFIG_ARROW_LAYER_NAME,
+        visible: true,
+        locked: true,
+        layerid: xConfigArrowsLayerId,
+        _urlNum: xConfigArrowsUrlNum,
+    });
+
+    placements.forEach(p => {
+        /* Cameras → royal-blue-ish red (#FA5F55).
+         * Microphones (both tableMicPro and ceilingMicPro) → royal blue (#4169E1).
+         * No opacity key — let the shape render at full Konva opacity (1.0)
+         * so the arrows are always clearly visible on any background. */
+        const isMic = p.kind === 'mic';
+        const arrowColor = isMic ? '#4169E1' : '#FA5F55';
+        /* Pick the arrow path. Only tableMicPro flips to the mirrored
+         * variant (tip at -Y); cameras and ceilingMicPro share the
+         * default tip-at-+Y arrow so all overhead/wall devices read
+         * consistently. */
+        const arrowPath = (p.deviceId === 'tableMicPro')
+            ? X_CONFIG_ARROW_PATH_TABLE_MIC
+            : X_CONFIG_ARROW_PATH_DEFAULT;
+        /* Arrow elevation rules:
+         *   cameras      → same z as the device
+         *   tableMicPro  → same z as the device
+         *   ceilingMicPro → device z − 0.05 m (5 cm below, so the mic
+         *                   body itself stays the top-most clickable
+         *                   item; ceiling mics are small and would
+         *                   otherwise be buried under the arrow plane)
+         * All paths: clamp to 0 so data_zPosition is never negative or
+         * NaN when elevationM is 0 or undefined. Round to cm to match
+         * the precision used elsewhere for data_zPosition. */
+        const baseElevM = p.elevationM || 0;
+        const arrowElevM = (p.deviceId === 'ceilingMicPro')
+            ? Math.max(0, baseElevM - MIC_ARROW_Z_OFFSET_M)
+            : baseElevM;
+        roomObj2.items.tables.push({
+            id: createUuid(),
+            data_deviceid: 'pathShape',
+            name: 'Custom Path Shape',
+            x: Math.round((vrcOriginX + p.relX) * 1000) / 1000,
+            y: Math.round((vrcOriginY + p.relY) * 1000) / 1000,
+            rotation: Math.round(p.rotationDeg * 10) / 10,
+            data_zPosition: Math.round(arrowElevM * 100) / 100,
+            data_vHeight: X_CONFIG_ARROW_VHEIGHT_M,
+            data_labelField: `{"path":"${arrowPath}", "color":"${arrowColor}"}`,
+            data_layerId: xConfigArrowsLayerId,
+        });
     });
 
     zoomInOut('reset');
