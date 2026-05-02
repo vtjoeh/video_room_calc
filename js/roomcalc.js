@@ -1,4 +1,4 @@
-const version = "v0.1.644";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.645";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
 let perfectDrawEnabled = false; /* Konva setting. Turning off helps with performance but reduces image quality of canvas.  */
 let versionQueryString;
@@ -426,15 +426,6 @@ function openDeleteLayerDialog(layerId) {
     const layer = getLayerById(layerId);
     if (!layer) return;
 
-    const itemCount = countItemsInLayer(layerId);
-
-    /* Empty layers are deleted immediately without a confirmation modal —
-     * there is nothing to move, so no destination/hidden info is relevant. */
-    if (itemCount === 0) {
-        deleteLayer(layerId);
-        return;
-    }
-
     /* Mirror the destination logic in deleteLayer(): items move to currentAddLayerId,
      * unless that IS the layer being deleted — in which case they go to Default. */
     let destName = 'Default';
@@ -443,6 +434,7 @@ function openDeleteLayerDialog(layerId) {
         if (dest) destName = dest.name;
     }
 
+    const itemCount = countItemsInLayer(layerId);
     const itemWord = itemCount === 1 ? 'item' : 'items';
 
     const layerNameSafe = DOMPurify.sanitize(layer.name);
@@ -540,7 +532,17 @@ function toggleAllLayersLocked() {
 }
 
 function isLayerNameDuplicate(name, excludeLayerId) {
-    return roomObj.layers.some(l => l.name.toLowerCase() === name.toLowerCase() && l.layerid !== excludeLayerId);
+    if (!name) return false;
+    const lower = String(name).trim().toLowerCase();
+    if (!lower) return false;
+
+    /* Reserved built-in layer names — always considered "taken" so users
+     * cannot create or rename a custom layer to "Default" or "Ceiling",
+     * even if the reserved entries happen to be missing from roomObj.layers. */
+    if (lower === 'default' && excludeLayerId !== '0') return true;
+    if (lower === 'ceiling' && excludeLayerId !== '1') return true;
+
+    return roomObj.layers.some(l => l.name.toLowerCase() === lower && l.layerid !== excludeLayerId);
 }
 
 function makeUniqueLayerName(baseName) {
@@ -742,7 +744,19 @@ function renderLayersList() {
             delBtn.title = isReserved ? 'Reserved layer cannot be deleted' : 'Delete layer';
             delBtn.disabled = isReserved;
             delBtn.innerHTML = `<i class="icon icon-delete-bold"></i>`;
-            delBtn.onclick = () => openDeleteLayerDialog(layer.layerid);
+            delBtn.onclick = () => {
+                /* Determine the destination layer name for the confirm prompt:
+                 * items move to currentAddLayerId, unless that IS the layer
+                 * being deleted — in which case they move to Default. */
+                let destName = 'Default';
+                if (currentAddLayerId !== '0' && currentAddLayerId !== layer.layerid) {
+                    const dest = getLayerById(currentAddLayerId);
+                    if (dest) destName = dest.name;
+                }
+                if (confirm(`Delete layer "${layer.name}"? Items will move to ${destName}.`)) {
+                    deleteLayer(layer.layerid);
+                }
+            };
 
             row.appendChild(visBtn);
             row.appendChild(lockBtn);
@@ -3342,7 +3356,7 @@ let microphones = [
         defaultVert: 1180,
     },
     {
-        name: "Ceiling Speaker (generic)",
+        name: "Ceiling Speaker (generic)*",
         id: "loudspeaker",
         key: "MZ",
         topImage: 'ceilingSpeaker-top.png',
@@ -18535,11 +18549,12 @@ function setupDragAndDropImport() {
             const reader = new FileReader();
             reader.readAsText(file, 'UTF-8');
             reader.onload = function (evt) {
-                const text = evt.target.result;
+                /* Delegate to the shared file-text router so drag-drop and the
+                 * file picker behave identically — routeUploadedFileText()
+                 * decides between VRC JSON, Workspace Designer JSON, and
+                 * Cisco xConfiguration .txt dumps based on file content. */
                 try {
-                    const json = JSON.parse(text);
-                    importJson(json)
-
+                    routeUploadedFileText(evt.target.result, fileName);
                 } catch (error) {
                     console.error(error);
                     alert(`Error loading file '${fileName}':\n\n${error.message}`);
@@ -18602,10 +18617,28 @@ function onKeyDown(e) {
         e.preventDefault();
     }
 
+    /* export to a Cisco xConfiguration .txt file (must be checked before the
+     * Ctrl/Cmd+E branch below, otherwise Ctrl/Cmd+Shift+E would also trigger
+     * the Workspace Designer download). */
+    if (key === 'e' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        exportXConfigFile();
+        return;
+    }
+
     /* export to the Workspace Designer */
-    if (key === 'e' && (e.ctrlKey || e.metaKey)) {
+    if (key === 'e' && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         downloadFileWorkspace();
+    }
+
+    /* export to a CAD .dxf file. Must be checked before the plain Ctrl/Cmd+D
+     * branch below (which calls duplicateItems()) — Ctrl/Cmd+Shift+D would
+     * otherwise duplicate the selection. */
+    if (key === 'd' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        exportDxfFile();
+        return;
     }
 
     if ((key === ',' || key === '.') && (e.ctrlKey || e.metaKey)) {
@@ -19629,72 +19662,126 @@ function turnOffBackgroundImageButtons() {
 
 }
 
-fileInputImage.addEventListener('change', function (e) {
+/* Shared loader for the Room Floor Plan background image. Accepts either the
+ * File from <input type=file> or a Blob from a clipboard paste, plus an
+ * optional display name used to label the Konva node.
+ *
+ * Centralized so the file picker (fileInputImage 'change') and the
+ * paste-image-from-clipboard handler below share the exact same load path. */
+function processBackgroundImageFile(file, displayName) {
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    turnOnBackgroundImageButtons();
+
+    reader.onload = function (ev) {
+
+        backgroundImageFloor.onload = function () {
+
+            if (isBackgroundImageFloorFileLoad) {
+
+                return;
+            }
+
+            let konvaBackgroundImageFloor = createKonvaBackgroundImageFloor();
+
+            layerBackgroundImageFloor.add(konvaBackgroundImageFloor);
+
+            let roomPixelWidth = (scale * roomObj.room.roomWidth); // scale - pixels / roomwidth
+            let roomPixelLength = (scale * roomObj.room.roomLength);
+
+            let ratioRoomToImageWidth = backgroundImageFloor.width / roomPixelWidth;
+            let ratioRoomToImageLength = backgroundImageFloor.height / roomPixelLength;
 
 
-    if (e.target.files && e.target.files[0]) {
+            let scaleImage = 1;
 
-        const reader = new FileReader();
+            if (ratioRoomToImageWidth > ratioRoomToImageLength) {
+                console.debug('roomScale width is larger, use roomScaleLength');
+                scaleImage = ratioRoomToImageWidth;
+            } else {
+                console.debug('roomScaleLength is larger, use roomScaleWidth')
 
-        turnOnBackgroundImageButtons();
+                scaleImage = ratioRoomToImageLength;
 
-        reader.onload = function (e) {
+            }
 
-            backgroundImageFloor.onload = function () {
+            console.debug('scaleImage', scaleImage);
 
-                if (isBackgroundImageFloorFileLoad) {
+            konvaBackgroundImageFloor.width(backgroundImageFloor.width / scaleImage);
 
-                    return;
-                }
+            konvaBackgroundImageFloor.height(backgroundImageFloor.height / scaleImage);
 
-                let konvaBackgroundImageFloor = createKonvaBackgroundImageFloor();
+            const nameForKonva = (typeof displayName === 'string' && displayName)
+                ? displayName.replace(/C:\\fakepath\\/gm, '')
+                : (file.name || 'pasted-image');
+            konvaBackgroundImageFloor.name(nameForKonva);
 
-                layerBackgroundImageFloor.add(konvaBackgroundImageFloor);
+            document.getElementById('transparencySlider').value = 50;
+            changeTransparency(50);
 
-                let roomPixelWidth = (scale * roomObj.room.roomWidth); // scale - pixels / roomwidth
-                let roomPixelLength = (scale * roomObj.room.roomLength);
+            setTimeout(() => {
+                canvasToJson();
+            }, 2000);
 
-                let ratioRoomToImageWidth = backgroundImageFloor.width / roomPixelWidth;
-                let ratioRoomToImageLength = backgroundImageFloor.height / roomPixelLength;
-
-
-                let scaleImage = 1;
-
-                if (ratioRoomToImageWidth > ratioRoomToImageLength) {
-                    console.debug('roomScale width is larger, use roomScaleLength');
-                    scaleImage = ratioRoomToImageWidth;
-                } else {
-                    console.debug('roomScaleLength is larger, use roomScaleWidth')
-
-                    scaleImage = ratioRoomToImageLength;
-
-                }
-
-                console.debug('scaleImage', scaleImage);
-
-                konvaBackgroundImageFloor.width(backgroundImageFloor.width / scaleImage);
-
-                konvaBackgroundImageFloor.height(backgroundImageFloor.height / scaleImage);
-
-                konvaBackgroundImageFloor.name(fileInputImage.value.replace(/C:\\fakepath\\/gm, ''));
-
-                document.getElementById('transparencySlider').value = 50;
-                changeTransparency(50);
-
-                setTimeout(() => {
-                    canvasToJson();
-                }, 2000);
-
-
-            };
-            backgroundImageFloor.src = e.target.result;
-
-            roomObj.backgroundImageFile = backgroundImageFloor.src;
 
         };
-        reader.readAsDataURL(e.target.files[0]);
+        backgroundImageFloor.src = ev.target.result;
 
-        drawScaledLineMode = true;
+        roomObj.backgroundImageFile = backgroundImageFloor.src;
+
+    };
+    reader.readAsDataURL(file);
+
+    drawScaledLineMode = true;
+}
+
+fileInputImage.addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) {
+        processBackgroundImageFile(e.target.files[0], fileInputImage.value);
+    }
+});
+
+/* --- Paste-from-clipboard support for the Room Floor Plan background image ---
+ *
+ * When the Details > Room Floor Plan sub-tab is open AND the mouse is hovering
+ * over the sidebar (#ContainerInputs), pressing Ctrl/Cmd+V with an image in
+ * the clipboard uploads it as the background image — equivalent to picking
+ * the same image via the file input.
+ *
+ * Non-image pastes and pastes outside this scope are left untouched so normal
+ * text/clipboard behavior in inputs is unaffected. */
+let isMouseOverContainerInputs = false;
+const containerInputsEl = document.getElementById('ContainerInputs');
+if (containerInputsEl) {
+    containerInputsEl.addEventListener('pointerenter', () => { isMouseOverContainerInputs = true; });
+    containerInputsEl.addEventListener('pointerleave', () => { isMouseOverContainerInputs = false; });
+}
+
+document.addEventListener('paste', function (e) {
+    if (!isMouseOverContainerInputs) return;
+
+    const itemTab = document.getElementById('Item');
+    const backgroundSubtab = document.getElementById('BackgroundImage');
+    if (!itemTab || itemTab.style.display !== 'block') return;
+    if (!backgroundSubtab || backgroundSubtab.style.display !== 'block') return;
+
+    const cd = e.clipboardData || window.clipboardData;
+    if (!cd || !cd.items) return;
+
+    for (let i = 0; i < cd.items.length; i++) {
+        const it = cd.items[i];
+        if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+            const blob = it.getAsFile();
+            if (blob) {
+                e.preventDefault();
+                const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+                const pasteName = `pasted-image-${Date.now()}.${ext}`;
+                processBackgroundImageFile(blob, pasteName);
+                return;
+            }
+        }
     }
 });
 
@@ -19813,19 +19900,1628 @@ function importJson(jsonFile) {
 };
 
 
+/* Route raw uploaded file text to the correct importer.
+ *
+ * The file picker and drag-and-drop handlers both call this so the same
+ * detection logic applies to both upload paths.
+ *
+ * 1. If the text parses as JSON, hand it to importJson() (handles both VRC
+ *    and Workspace Designer JSON variants internally).
+ * 2. Otherwise, if any line begins with `xConfiguration` — optionally
+ *    preceded by the RoomOS shell prefix `*c ` — treat the file as a
+ *    Cisco xConfiguration dump and import via importXConfigFile().
+ *    xConfig files are not valid JSON so the order matters: JSON.parse
+ *    must be tried first.
+ * 3. Otherwise the file format is unrecognized — surface a friendly alert
+ *    rather than throwing. */
+function routeUploadedFileText(text, fileName) {
+    closeAllDialogModals();
+
+    let jsonFile = null;
+    try {
+        jsonFile = JSON.parse(text);
+    } catch (_e) {
+        jsonFile = null;
+    }
+
+    if (jsonFile && typeof jsonFile === 'object') {
+        importJson(jsonFile);
+        return;
+    }
+
+    /* Two flavours of xConfiguration text are accepted:
+     *  - raw RoomOS dump:  "*c xConfiguration ..."  (lines start with `*c `)
+     *  - exported file from this app: "xConfiguration ..."  (no prefix, ready
+     *    to paste straight into a RoomOS shell)
+     * Match either form by allowing an optional `*c ` before the keyword,
+     * anchored to the start of a line. */
+    if (typeof text === 'string' && /^(?:\*c )?xConfiguration\b/m.test(text)) {
+        importXConfigFile(text, fileName);
+        return;
+    }
+
+    console.info('Import: unrecognized file format', fileName);
+    alert(`Unable to import '${fileName || 'file'}'. The file is not a valid VRC/Workspace Designer JSON file or a Cisco xConfiguration .txt file.`);
+}
+
+
+/* Parse a Cisco xConfiguration .txt dump into structured device data.
+ *
+ * Returns an object with `cameras` and `microphones` arrays. Each entry is
+ * indexed by the device number (`n`) parsed out of the configuration line so
+ * that "Camera 7" survives even if Cameras 2..6 are absent.
+ *
+ * Only the fields VRC needs are extracted:
+ *  - Cameras: RX, RY, RZ (deci-degrees) + X, Y, Z (mm)
+ *  - Microphones: RY (deci-degrees) + X, Y, Z (mm) + ID (string, may be "")
+ *
+ * All numeric values are kept in their raw xConfig units; conversions to
+ * meters and degrees happen later in importXConfigFile() so this stays a
+ * pure parser. Lines that don't match the expected shape are ignored. */
+function parseXConfigText(text) {
+    const result = { cameras: {}, microphones: {} };
+    if (typeof text !== 'string' || !text) return { cameras: [], microphones: [] };
+
+    /* Split on any newline so CRLF and LF dumps both work. */
+    const lines = text.split(/\r?\n/);
+
+    /* The leading `*c ` is part of the RoomOS shell prompt format; xConfig
+     * dumps start every line with it. Files this app exports omit the
+     * prefix so they can be pasted straight into a RoomOS shell. We accept
+     * both shapes by making `*c ` an optional non-capturing group. */
+    /* Capture group 1 = camera number, group 2 = field (RX/RY/RZ/X/Y/Z), group 3 = signed integer */
+    const cameraRe = /^(?:\*c )?xConfiguration Cameras Camera (\d+) Placement (RX|RY|RZ|X|Y|Z):\s*(-?\d+)\s*$/;
+    /* New format (RoomOS 11+): Audio Peripherals Microphone N — only RY/X/Y/Z are used. */
+    const micPlacementRe = /^(?:\*c )?xConfiguration Audio Peripherals Microphone (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
+    /* Mic ID lines look like:  ... Microphone N ID: "50:00:e0:32:ec:cd"   (the value can be empty: "") */
+    const micIdRe = /^(?:\*c )?xConfiguration Audio Peripherals Microphone (\d+) ID:\s*"([^"]*)"\s*$/;
+    /* Legacy format: Audio Input Ethernet N — same Placement fields, plus
+     * a StreamName attribute that plays the same role as the new format's ID. */
+    const ethPlacementRe = /^(?:\*c )?xConfiguration Audio Input Ethernet (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
+    const ethStreamNameRe = /^(?:\*c )?xConfiguration Audio Input Ethernet (\d+) StreamName:\s*"([^"]*)"\s*$/;
+
+    function ensureCam(n) {
+        if (!result.cameras[n]) result.cameras[n] = { n: n, rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
+        return result.cameras[n];
+    }
+    /* Mics are tracked by mic-number (which is the Microphone N in the new
+     * format and the Ethernet N in the legacy format). When both formats
+     * appear for the same mic-number, the new format wins — it is the
+     * canonical source on RoomOS 11+. We tag each entry with `source` so the
+     * importer can pick the right label format ("Microphone N ID: ..." for
+     * 'new' vs "Microphone N <stream>" for 'old'). */
+    function ensureMic(n, source) {
+        const existing = result.microphones[n];
+        if (!existing) {
+            result.microphones[n] = { n: n, ry: 0, x: 0, y: 0, z: 0, id: '', source: source };
+        } else if (source === 'new' && existing.source === 'old') {
+            /* Upgrade: new format takes priority — reset values so legacy
+             * placement numbers don't bleed into the new-format mic. */
+            result.microphones[n] = { n: n, ry: 0, x: 0, y: 0, z: 0, id: '', source: 'new' };
+        } else if (source === 'old' && existing.source === 'new') {
+            /* Already have a new-format entry for this number — ignore the
+             * legacy line. */
+            return null;
+        }
+        return result.microphones[n];
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        let m = cameraRe.exec(line);
+        if (m) {
+            const cam = ensureCam(parseInt(m[1], 10));
+            const field = m[2];
+            const val = parseInt(m[3], 10);
+            if (field === 'RX') cam.rx = val;
+            else if (field === 'RY') cam.ry = val;
+            else if (field === 'RZ') cam.rz = val;
+            else if (field === 'X') cam.x = val;
+            else if (field === 'Y') cam.y = val;
+            else if (field === 'Z') cam.z = val;
+            continue;
+        }
+
+        m = micPlacementRe.exec(line);
+        if (m) {
+            const mic = ensureMic(parseInt(m[1], 10), 'new');
+            if (!mic) continue;
+            const field = m[2];
+            const val = parseInt(m[3], 10);
+            if (field === 'RY') mic.ry = val;
+            else if (field === 'X') mic.x = val;
+            else if (field === 'Y') mic.y = val;
+            else if (field === 'Z') mic.z = val;
+            continue;
+        }
+
+        m = micIdRe.exec(line);
+        if (m) {
+            const mic = ensureMic(parseInt(m[1], 10), 'new');
+            if (!mic) continue;
+            mic.id = m[2];
+            continue;
+        }
+
+        m = ethPlacementRe.exec(line);
+        if (m) {
+            const mic = ensureMic(parseInt(m[1], 10), 'old');
+            if (!mic) continue;
+            const field = m[2];
+            const val = parseInt(m[3], 10);
+            if (field === 'RY') mic.ry = val;
+            else if (field === 'X') mic.x = val;
+            else if (field === 'Y') mic.y = val;
+            else if (field === 'Z') mic.z = val;
+            continue;
+        }
+
+        m = ethStreamNameRe.exec(line);
+        if (m) {
+            const mic = ensureMic(parseInt(m[1], 10), 'old');
+            if (!mic) continue;
+            mic.id = m[2];
+            continue;
+        }
+    }
+
+    /* Convert the index-keyed maps into arrays sorted by device number so the
+     * downstream code can iterate predictably (Camera 1 first, etc.). */
+    const camArr = Object.values(result.cameras).sort((a, b) => a.n - b.n);
+    const micArr = Object.values(result.microphones).sort((a, b) => a.n - b.n);
+    return { cameras: camArr, microphones: micArr };
+}
+
+
+/* Import a Cisco xConfiguration .txt dump as a fresh VRC room.
+ *
+ * Coordinate model (see CLAUDE.md "xConfiguration Import" for full details):
+ *  - xConfig X / Z / Y are in mm; RX/RY/RZ are in deci-degrees (value/10 = degrees).
+ *  - All peripheral placements (mics, PTZ cameras) are reported relative to
+ *    the Quad Camera's reference origin, which is offset (+7 cm in X, +5 cm
+ *    in Z) from the actual camera lens center. We subtract those offsets to
+ *    get the position relative to the Quad Camera lens center.
+ *  - xConfig Y is height from the floor (== VRC data_zPosition / elevation).
+ *  - Quad Camera is always Camera 1 → imported as `quadCam` and placed at
+ *    the center of the room on the back wall side (VRC y = 0.10 m).
+ *  - Other cameras (Camera 2..N) → imported as `ptzVision2` (Room Vision PTZ).
+ *  - Mics with xConfig Y < 1.5 m → `tableMicPro`, else `ceilingMicPro`.
+ *  - Devices with xConfig X=Y=Z=0 are treated as "not placed" and skipped
+ *    (Camera 1's X/Z are 0 by definition but its Y is the mounting height,
+ *    so Camera 1 is never skipped). */
+function importXConfigFile(text, fileName) {
+    const parsed = parseXConfigText(text);
+
+    /* Camera 1 detection.
+     *
+     * Camera 1 in xConfig is conventionally the Quad Camera (which is the
+     * shared coordinate origin for every other peripheral). However it is
+     * legitimate for a customer to wire a Room Vision PTZ into the Camera 1
+     * slot when there is no Quad Cam present. Distinguish the two cases by
+     * how close Camera 1 sits to the (0, *, 0) reference frame:
+     *
+     *   |X| <= 10 mm  AND  |Z| <= 10 mm   -> Quad Camera (roomKitEqQuadCam)
+     *   anything else                      -> Room Vision PTZ (ptzVision2)
+     *
+     * The 10 mm tolerance accommodates real-world rounding/measurement
+     * jitter — a Quad Cam reported at "Camera 1 X: 0 / Z: 8" is still
+     * effectively at the origin.
+     *
+     * If Camera 1 is missing entirely, that's also valid — we now allow
+     * camera-only and microphone-only imports (see below). */
+    const QUAD_TOLERANCE_MM = 10;
+
+    /* Filter out unplaced cameras up-front. A camera with Placement Y = 0
+     * has no height-above-floor configured — that's the default for an
+     * empty xConfig camera slot, and it's also what the official Cisco
+     * placement tool treats as "not really placed". This catches both the
+     * fully-empty slots (X=Y=Z=0, like Cameras 2..6 in a Codec EQ config)
+     * and partially-configured ghosts that have non-zero X/Z but Y=0
+     * (e.g. a stale Camera 7 from a removed device). */
+    const placedCameras = parsed.cameras.filter(c => c.y !== 0);
+
+    let cam1 = placedCameras.find(c => c.n === 1) || null;
+    const cam1IsQuad = cam1 && Math.abs(cam1.x) <= QUAD_TOLERANCE_MM && Math.abs(cam1.z) <= QUAD_TOLERANCE_MM;
+    const otherCameras = placedCameras.filter(c => c.n !== 1);
+
+    /* If Camera 1 is *not* a Quad Camera, demote it to a PTZ entry so it
+     * gets the same treatment as Cameras 2..N (still labelled "Camera 1"). */
+    if (cam1 && !cam1IsQuad) {
+        otherCameras.unshift(cam1);
+        cam1 = null;
+    }
+
+    /* Mics: skip empty slots.
+     *  - New format ("Audio Peripherals Microphone N"): defaults are X=Y=Z=0,
+     *    so we drop entries where all three are zero.
+     *  - Legacy format ("Audio Input Ethernet N"): the default has Y=730 mm
+     *    (typical table-mic height) with X=Z=0 and an empty StreamName, so
+     *    "all-zero" doesn't trigger. We instead skip when both X and Z are
+     *    zero (mic at the camera origin = not actually placed) — empty
+     *    StreamName isn't a strong enough signal because some real mics
+     *    don't report one. */
+    const microphones = parsed.microphones.filter(m => {
+        if (m.source === 'old') {
+            return !(m.x === 0 && m.z === 0);
+        }
+        return !(m.x === 0 && m.y === 0 && m.z === 0);
+    });
+
+    /* Camera-only and microphone-only imports are both supported, but if the
+     * file has neither there is nothing to draw — abort cleanly. */
+    const hasAnyCamera = !!cam1 || otherCameras.length > 0;
+    const hasAnyMic = microphones.length > 0;
+    if (!hasAnyCamera && !hasAnyMic) {
+        alert(`Unable to import '${fileName || 'file'}'. xConfiguration file has no cameras or microphones to place.`);
+        return;
+    }
+
+    /* If only one device class is present, queue a non-blocking notice so
+     * the user knows the room is incomplete by Cisco's design guidelines.
+     * The actual notice is shown after the room finishes loading (below). */
+    let missingDeviceMessage = null;
+    if (hasAnyCamera && !hasAnyMic) {
+        missingDeviceMessage = 'Calibrated microphone missing';
+    } else if (!hasAnyCamera && hasAnyMic) {
+        missingDeviceMessage = 'Cinematic meeting camera missing';
+    }
+
+    /* Constants tied to the xConfig coordinate model — see top of function.
+     * NOTE: there is intentionally no X offset. xConfig X for every
+     * peripheral is already measured from the Quad Camera's lens center on
+     * the X axis, so no constant is added/subtracted during import. (Earlier
+     * versions of this importer applied a 0.07 m correction; that has been
+     * removed at the user's direction.) */
+    const Z_OFFSET_M = 0.05; /* xConfig Z origin is 5 cm forward of the Quad Camera lens center */
+    const QUAD_Y_OFFSET_M = 0.05; /* xConfig Y for Quad Cam reports base + ~5cm; subtract to get the actual mount elevation */
+    const PTZ_Y_OFFSET_M = 0.15; /* xConfig Y for Room Vision PTZ reports its mount point ~15cm above the lens; subtract to get the actual lens elevation */
+    const ROOM_BUFFER_M = 0.15; /* min distance kept between any device edge and the room walls */
+
+    /* Build a flat list of "to-place" items so the room-size computation can
+     * see every device in one pass. relX/relY are in METERS, relative to the
+     * xConfig coordinate origin (which is the Quad Camera's lens center
+     * when one is present, or the implicit (0,0) reference frame otherwise).
+     * relX increases to the right, relY (which maps to xConfig Z) increases
+     * away from the camera (further into the room). */
+    const placements = [];
+
+    /* Quad Camera: physically at relative (0, 0) by definition. Its elevation
+     * comes from xConfig Y minus the 5 cm offset. We import as
+     * `roomKitEqQuadCam` (Room Kit EQ: Quad Camera) rather than the bare
+     * `quadCam` device — they share dimensions (cameraParent: 'quadCam')
+     * but `roomKitEqQuadCam` is the full codec/camera combo that better
+     * matches what an xConfig file actually represents. Skipped entirely
+     * when Camera 1 is missing or is being handled as a PTZ instead. */
+    if (cam1) {
+        placements.push({
+            kind: 'quadCam',
+            deviceId: 'roomKitEqQuadCam',
+            relX: 0,
+            relY: 0,
+            elevationM: (cam1.y / 1000) - QUAD_Y_OFFSET_M,
+            rotationDeg: -(cam1.ry / 10), /* xConfig RY is right-handed CCW; VRC rotation is CW from north → negate */
+            label: 'Camera 1',
+        });
+    }
+
+    otherCameras.forEach(cam => {
+        placements.push({
+            kind: 'ptzVision2',
+            deviceId: 'ptzVision2',
+            relX: cam.x / 1000,
+            relY: (cam.z / 1000) - Z_OFFSET_M,
+            elevationM: (cam.y / 1000) - PTZ_Y_OFFSET_M,
+            rotationDeg: -(cam.ry / 10),
+            label: `Camera ${cam.n}`,
+        });
+    });
+
+    microphones.forEach(mic => {
+        const elevationM = mic.y / 1000;
+        /* >= 1.5 m → ceilingMicPro per spec; < 1.5 m → tableMicPro. */
+        const deviceId = elevationM >= 1.5 ? 'ceilingMicPro' : 'tableMicPro';
+        const idStr = (mic.id || '').trim();
+        /* Always use the "Microphone N ID: <id>" form so the data_labelField
+         * is consistent across both microphone types (ceilingMicPro and
+         * tableMicPro) and across both xConfig source variants (the new
+         * "Audio Peripherals Microphone" lines and the legacy "Audio Input
+         * Ethernet" lines, where the StreamName supplies the id). This also
+         * matches the export-side MIC_LABEL_RE so the file round-trips. */
+        const label = idStr
+            ? `Microphone ${mic.n} ID: ${idStr}`
+            : `Microphone ${mic.n}`;
+        placements.push({
+            kind: 'mic',
+            deviceId: deviceId,
+            relX: mic.x / 1000,
+            relY: (mic.z / 1000) - Z_OFFSET_M,
+            elevationM: elevationM,
+            rotationDeg: -(mic.ry / 10),
+            label: label,
+        });
+    });
+
+    /* Compute room size from the bounding box of all imported devices.
+     *
+     * Camera 1 used to be locked to the X-center of the room and to a
+     * fixed VRC y near the back wall, which forced the room to be
+     * symmetric around it (the old `2 × |relX|` width formula). Now that
+     * the xConfig coordinate origin is tracked independently by the
+     * xConfig XYZ tracking columns (created below), no device is special
+     * — they all just need to fit in the room with a `ROOM_BUFFER_M`
+     * cushion between every device edge and the nearest wall.
+     *
+     * Method:
+     *   1. Find min/max device EDGE on each axis: `relCoord ± halfDim`.
+     *   2. bbox dimension = (max − min) + 2 × ROOM_BUFFER_M.
+     *   3. Floor: roomWidth, roomLength ≥ MIN_ROOM_W_L_M (3 m). Height
+     *      uses its own MIN_ROOM_HEIGHT_M (2 m).
+     *   4. Translate items so the bbox sits CENTERED inside the
+     *      (possibly clamped-up) room — extra slack splits evenly between
+     *      opposing walls. `vrcOriginX` / `vrcOriginY` hold the VRC
+     *      coordinates of xConfig (0, 0); both placements and the
+     *      tracking columns anchor to them.
+     *
+     * Rotation is intentionally ignored when computing half-extents (a
+     * device rotated 90° would actually extend by half-DEPTH on the X
+     * axis rather than half-WIDTH). This matches the legacy behaviour
+     * and is fine in practice — Cisco cameras / mics are roughly square
+     * relative to the wall buffer, so the worst-case error is a few cm. */
+    const DEFAULT_DEVICE_HEIGHT_M = 0.05; /* 50 mm fallback per spec */
+    const MIN_ROOM_W_L_M = 3;             /* minimum width / length */
+    const MIN_ROOM_HEIGHT_M = 2;          /* minimum ceiling height */
+
+    let minXEdge = Infinity;
+    let maxXEdge = -Infinity;
+    let minYEdge = Infinity;
+    let maxYEdge = -Infinity;
+    let roomHeight = 0;
+
+    placements.forEach(p => {
+        const dev = allDeviceTypes[p.deviceId];
+        if (!dev) return;
+        const halfWidthM = (dev.width || 0) / 1000 / 2;
+        const halfDepthM = (dev.depth || 0) / 1000 / 2;
+        const deviceHeightM = (typeof dev.height === 'number' && dev.height > 0)
+            ? dev.height / 1000
+            : DEFAULT_DEVICE_HEIGHT_M;
+
+        const lEdge = p.relX - halfWidthM;
+        const rEdge = p.relX + halfWidthM;
+        const tEdge = p.relY - halfDepthM;
+        const bEdge = p.relY + halfDepthM;
+        if (lEdge < minXEdge) minXEdge = lEdge;
+        if (rEdge > maxXEdge) maxXEdge = rEdge;
+        if (tEdge < minYEdge) minYEdge = tEdge;
+        if (bEdge > maxYEdge) maxYEdge = bEdge;
+
+        const heightNeeded = (p.elevationM || 0) + deviceHeightM;
+        if (heightNeeded > roomHeight) roomHeight = heightNeeded;
+    });
+
+    /* Defensive: if every placement was filtered out by the unknown-device
+     * check (allDeviceTypes lookup miss) the bbox is still empty even
+     * though the early "no cameras or microphones" guard let us through.
+     * Fall back to a centered-zero bbox so vrcOrigin lands at the room
+     * center rather than going to NaN/Infinity. */
+    if (!isFinite(minXEdge)) { minXEdge = 0; maxXEdge = 0; }
+    if (!isFinite(minYEdge)) { minYEdge = 0; maxYEdge = 0; }
+
+    const bboxWidthM = (maxXEdge - minXEdge) + 2 * ROOM_BUFFER_M;
+    const bboxLengthM = (maxYEdge - minYEdge) + 2 * ROOM_BUFFER_M;
+    let roomWidth = Math.max(MIN_ROOM_W_L_M, bboxWidthM);
+    let roomLength = Math.max(MIN_ROOM_W_L_M, bboxLengthM);
+    if (roomHeight < MIN_ROOM_HEIGHT_M) roomHeight = MIN_ROOM_HEIGHT_M;
+
+    /* Round up to 2 decimals so the user sees tidy numbers in the UI. The
+     * extra slack from clamping/rounding flows into vrcOrigin below, so
+     * items remain visually centered in the (possibly larger) room. */
+    roomWidth = Math.ceil(roomWidth * 100) / 100;
+    roomLength = Math.ceil(roomLength * 100) / 100;
+    roomHeight = Math.ceil(roomHeight * 100) / 100;
+
+    /* vrcOriginX / vrcOriginY: VRC coordinates of xConfig (0, 0). Items
+     * are placed at (vrcOriginX + relX, vrcOriginY + relY); the X = 0 /
+     * Z = 0 tracking columns anchor to vrcOriginX / vrcOriginY directly.
+     *
+     * Derivation (see math walkthrough in the change-log notes):
+     *   leftmost device's left EDGE in VRC = ROOM_BUFFER_M + slackX/2
+     *   ⇒ vrcOriginX + minXEdge = ROOM_BUFFER_M + slackX/2
+     *   ⇒ vrcOriginX = ROOM_BUFFER_M + slackX/2 − minXEdge
+     * (Same logic for Y.) When `slack == 0` the bbox is anchored to a
+     * single buffered edge; when `slack > 0` the slack splits evenly
+     * between opposing walls so the bbox visually centers. */
+    const extraSlackX = roomWidth - bboxWidthM;
+    const extraSlackY = roomLength - bboxLengthM;
+    const vrcOriginX = ROOM_BUFFER_M + extraSlackX / 2 - minXEdge;
+    const vrcOriginY = ROOM_BUFFER_M + extraSlackY / 2 - minYEdge;
+
+    /* From here on we follow the same shape as importWorkspaceDesignerFile():
+     * reset the canvas, build a roomObj2 in meters, then swap it in via
+     * setTimeout so the DOM/Konva is ready by the time drawRoom() fires. */
+
+    resetRoomObj();
+    convertMetersFeet(true, 'meters');
+
+    const roomObj2 = structuredClone(roomObj);
+    roomObj2.unit = 'meters';
+    roomObj2.name = (fileName || '').replace(/\.txt$/i, '') || 'xConfiguration Import';
+    roomObj2.room = {
+        roomWidth: roomWidth,
+        roomLength: roomLength,
+        roomHeight: roomHeight,
+        tableWidth: 4,
+        tableLength: 10,
+        distDisplayToTable: 5,
+        frntWallToTv: 0.5,
+        tvDiag: 65,
+        drpTvNum: 1,
+    };
+    /* xConfig imports start with default walls removed (the file is just a
+     * device list — there is no room geometry to mount on), with the
+     * standard theme, and with all coverage overlays off so the imported
+     * camera/mic positions are easy to read. The grid stays on for
+     * positional reference. */
+    roomObj2.workspace.addCeiling = false;
+    roomObj2.workspace.removeDefaultWalls = true;
+    roomObj2.workspace.theme = 'standard';
+
+    roomObj2.layersVisible = {
+        grShadingCamera: false,
+        grDisplayDistance: false,
+        grShadingMicrophone: false,
+        gridLines: true,
+        grShadingSpeaker: false,
+        grLabels: false,
+    };
+
+    /* Convert each placement into a roomObj item. For non-table groups
+     * (mics, cameras, displays, etc.) VRC stores the rotation-aware CENTER
+     * of the device in attrs.x/attrs.y — see canvasToJson() which writes
+     * `getNodeCenter(node)` for these groups, and insertShapeItem() which
+     * reads attrs.x as the center when computing pixelX.
+     * (Tables/walls are different — they store the unrotated upper-left
+     * corner — but we don't import either of those from xConfig.) */
+    placements.forEach(p => {
+        const dev = allDeviceTypes[p.deviceId];
+        if (!dev) {
+            console.warn('xConfig import: unknown device type', p.deviceId);
+            return;
+        }
+
+        const centerX = vrcOriginX + p.relX;
+        const centerY = vrcOriginY + p.relY;
+
+        const item = {
+            id: createUuid(),
+            data_deviceid: p.deviceId,
+            name: dev.name,
+            x: Math.round(centerX * 1000) / 1000,
+            y: Math.round(centerY * 1000) / 1000,
+            rotation: Math.round(p.rotationDeg * 10) / 10,
+            data_labelField: p.label,
+        };
+        if (p.elevationM && p.elevationM !== 0) {
+            item.data_zPosition = Math.round(p.elevationM * 100) / 100;
+        }
+
+        const parentGroup = dev.parentGroup;
+        if (!roomObj2.items[parentGroup]) roomObj2.items[parentGroup] = [];
+        roomObj2.items[parentGroup].push(item);
+    });
+
+    /* xConfig XYZ tracking columns.
+     *
+     * The xConfig coordinate frame is anchored at xConfig (X=0, Z=0) —
+     * which lands at VRC `(vrcOriginX, vrcOriginY)` after the
+     * bounding-box translation above. Historically the exporter
+     * recovered that origin by reading Camera 1's position back out of
+     * the room, which broke as soon as the user dragged Camera 1
+     * anywhere.
+     *
+     * Drop two thin `columnRect` items into the room as visual planes
+     * that mark the xConfig X = 0 axis (blue, runs along the room's
+     * depth) and the xConfig Z = 0 axis (red, runs across the room's
+     * width). The exporter looks these up by id prefix and uses their
+     * VRC coordinates as the origin instead of Camera 1, so cameras
+     * can be moved without shifting every other peripheral.
+     *
+     * Note: the columns are no longer guaranteed to be centered in the
+     * room — they sit wherever xConfig (0, 0) falls relative to the
+     * imported devices' bounding box. This is intentional.
+     *
+     * Both columns live on a dedicated, pre-locked "xConfig XYZ" layer
+     * so they don't clutter the user's edit surface but stay
+     * round-trippable. */
+    const X_CONFIG_LAYER_NAME = 'xConfig XYZ';
+    const X_CONFIG_COL_WIDTH_M = 0.01;
+    const xConfigLayerId = createUuid();
+    /* _urlNum mirrors nextLayerUrlNumber() but reads from roomObj2.layers
+     * (not the live roomObj which hasn't been swapped in yet). Custom
+     * layers start at 20 — see the URL encoding doc in CLAUDE.md. */
+    const usedUrlNums = new Set(
+        roomObj2.layers
+            .filter(l => l.layerid !== '0' && l.layerid !== '1' && typeof l._urlNum === 'number')
+            .map(l => l._urlNum)
+    );
+    let xConfigUrlNum = 20;
+    while (usedUrlNums.has(xConfigUrlNum)) xConfigUrlNum++;
+    roomObj2.layers.push({
+        name: X_CONFIG_LAYER_NAME,
+        visible: true,
+        locked: true,
+        layerid: xConfigLayerId,
+        _urlNum: xConfigUrlNum,
+    });
+
+    if (!roomObj2.items.tables) roomObj2.items.tables = [];
+
+    /* Blue column: xConfig X = 0 axis line.
+     *
+     * Vertical sliver at VRC x = vrcOriginX (where xConfig X = 0 sits in
+     * VRC coords). Anchored at (vrcOriginX, 0) with rotation 0 so it
+     * spans the full depth of the room. The exporter reads `column.x`
+     * to recover the xConfig X origin in VRC meters. */
+    roomObj2.items.tables.push({
+        id: `xConfig-x-0-${createUuid()}`,
+        data_deviceid: 'columnRect',
+        name: 'Column',
+        x: Math.round(vrcOriginX * 1000) / 1000,
+        y: 0,
+        rotation: 0,
+        width: X_CONFIG_COL_WIDTH_M,
+        height: roomLength,
+        data_zPosition: 0,
+        data_labelField: '{"color":"blue", "opacity":0.03}',
+        data_layerId: xConfigLayerId,
+    });
+
+    /* Red column: xConfig Z = 0 axis line.
+     *
+     * Anchored at (0, vrcOriginY) with rotation -90° so the column
+     * (whose "height" runs downward in its un-rotated frame) sweeps to
+     * the right across the room — yielding a horizontal sliver at
+     * VRC y = vrcOriginY, spanning the full room width. The exporter
+     * reads `column.y` to recover the xConfig Z origin in VRC meters. */
+    roomObj2.items.tables.push({
+        id: `xConfig-z-0-${createUuid()}`,
+        data_deviceid: 'columnRect',
+        name: 'Column',
+        x: 0,
+        y: Math.round(vrcOriginY * 1000) / 1000,
+        rotation: -90,
+        width: X_CONFIG_COL_WIDTH_M,
+        height: roomWidth,
+        data_zPosition: 0,
+        data_labelField: '{"color":"red", "opacity":0.03}',
+        data_layerId: xConfigLayerId,
+    });
+
+    zoomInOut('reset');
+    document.getElementById('dialogLoadingTemplate').showModal();
+    document.getElementById("defaultOpenTab").click();
+    setTimeout(() => { closeAllDialogModals(); }, 3000);
+
+    setTimeout(() => {
+        roomObj = structuredClone(roomObj2);
+        roomObj.trNodes = [];
+        isBackgroundImageFloorFileLoad = false;
+
+        document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
+        document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
+        document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
+
+        drawRoom(true, false, false);
+
+        setTimeout(() => {
+            zoomInOut('reset');
+            drawRoom();
+            canvasToJson();
+            setTimeout(() => {
+                createShareableLink();
+                zoomInOut('reset');
+            }, 500);
+        }, 500);
+    }, 1500);
+
+    /* Post-import success dialog.
+     *
+     * Always shown when at least one camera or microphone landed (the
+     * "nothing to import" case already returned early above). Combines
+     * three things:
+     *   1. A summary count of what was imported (with singular/plural
+     *      handling so "1 microphone" doesn't read "1 microphones").
+     *   2. A heads-up that VRC and xConfig use different coordinate
+     *      systems / origins, plus how to round-trip back via Ctrl/Cmd+
+     *      Shift+E.
+     *   3. A pointer to the auto-created "xConfig XYZ" layer that holds
+     *      the X=0 / Z=0 tracking planes.
+     *
+     * Any "missing camera" / "missing microphone" warning gets prepended
+     * to the same dialog body so we don't stack two modals on top of each
+     * other.
+     *
+     * The 3200 ms delay sits 200 ms past the closeAllDialogModals()
+     * timeout above so this lands cleanly after the loading modal
+     * dismisses, rather than being covered by it. */
+    const importedCameraCount = (cam1 ? 1 : 0) + otherCameras.length;
+    const importedMicCount = microphones.length;
+    const camLabel = importedCameraCount === 1 ? 'camera' : 'cameras';
+    const micLabel = importedMicCount === 1 ? 'microphone' : 'microphones';
+    const isMacUserAgent = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '');
+    const exportShortcut = isMacUserAgent ? 'Cmd+Shift+E' : 'Ctrl+Shift+E';
+
+    let importDialogBody = '';
+    if (missingDeviceMessage) {
+        importDialogBody += `<p style="color: #b35900; margin-top: 0;"><b>${missingDeviceMessage}.</b></p>`;
+    }
+    importDialogBody += `
+        <p>xConfiguration import complete. <b>${importedMicCount} ${micLabel}</b> and <b>${importedCameraCount} ${camLabel}</b> imported.</p>
+        <ul>
+            <li>Room size and camera & microphone types are not stored in the xConfiguration file and are guessed on import. You may need to change a camera or microphone type to match the actual hardware.</li>
+            <li>The Video Room Calculator uses a different X, Y, Z coordinate system and origin than xConfiguration. All values shown in the VRC are in VRC coordinates.</li>
+            <li>To export the room back to xConfiguration format, press <kbd>${exportShortcut}</kbd>, this transforms the X, Y, Z values back to the xConfiguration coordinate system.</li>
+            <li>The xConfiguration X = 0 and Z = 0 reference planes have been added to the <b>xConfig XYZ</b> layer (locked and visible by default).</li>
+        </ul>
+    `;
+
+    setTimeout(() => {
+        closeAllDialogModals();
+        alertDialog('xConfiguration Import', importDialogBody);
+    }, 3200);
+
+    document.getElementById('fileUpload').value = null;
+}
+
+
+/* Export the current room as a Cisco xConfiguration .txt file.
+ *
+ * This is the inverse of importXConfigFile() — anything imported from an
+ * xConfig dump should round-trip back to a structurally similar dump.
+ *
+ * Bound to Ctrl/Cmd+Shift+E (the existing Ctrl/Cmd+E exports to Workspace
+ * Designer; the extra Shift modifier picks the xConfig variant).
+ *
+ * Only the device types the importer understands are emitted:
+ *   - quadCam / roomKitEqQuadCam → "Cameras Camera 1"
+ *   - ptzVision2                 → "Cameras Camera N"  (N >= 2)
+ *   - ceilingMicPro              → "Audio Peripherals Microphone N"  (always new format)
+ *   - tableMicPro                → "Audio Peripherals Microphone N"
+ *
+ * Per-item label format checks:
+ *   - Cameras must be labelled exactly  Camera <#>            (e.g. "Camera 7")
+ *   - Microphones must be labelled      Microphone <#> ID: <id>  (e.g. "Microphone 2 ID: 50:00:e0:32:ec:cd")
+ * Items whose labels don't match are silently skipped, then counted in the
+ * post-export summary dialog so the user can fix them.
+ *
+ * The Quad Camera is optional: when missing the implicit xConfig origin
+ * (0, *, 0) is anchored at (roomWidth/2, 0.10 m), mirroring how the
+ * importer treats a no-Camera-1 file. Camera-only and microphone-only
+ * exports are both supported.
+ *
+ * Other roomObj items (chairs, tables, displays, walls, etc.) are silently
+ * skipped because xConfiguration has no concept of them. */
+function exportXConfigFile() {
+    /* Sync canvasToJson() so attrs.x / attrs.y on every item reflect the
+     * latest dragged-around state. canvasToJson() also normalises x/y to
+     * the rotation-aware center for non-table items, which is exactly what
+     * we need for the relative-position math below. */
+    canvasToJson();
+
+    const videoDevices = (roomObj.items && roomObj.items.videoDevices) || [];
+    const microphones = (roomObj.items && roomObj.items.microphones) || [];
+
+    /* Either a bare `quadCam` or a `roomKitEqQuadCam` (Room Kit EQ: Quad
+     * Camera) is treated as Camera 1 — the importer creates the latter,
+     * older saves may still have the former, and they share dimensions. */
+    const QUAD_DEVICE_IDS = new Set(['quadCam', 'roomKitEqQuadCam']);
+    const isQuadDevice = (it) => it && QUAD_DEVICE_IDS.has(it.data_deviceid);
+
+    /* The Quad Camera (if present) anchors the xConfig coordinate frame.
+     * If it's missing we fall back to an implicit origin at the room's
+     * X-center / 0.10 m back-wall offset — this mirrors what the importer
+     * does when there is no Camera 1 entry, so a no-Quad-Cam round-trip
+     * keeps every other device in the same place. */
+    const quadCamItem = videoDevices.find(isQuadDevice) || null;
+    const allQuadCams = videoDevices.filter(isQuadDevice);
+    if (allQuadCams.length > 1) {
+        console.warn('xConfig export: multiple Quad Cameras found; using the first as Camera 1.');
+    }
+
+    /* Convert any value stored in current units to METERS. xConfig is
+     * always millimetres, so we always need to start from a meter value. */
+    const unitToM = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+    const toM = (v) => (typeof v === 'number' ? v * unitToM : 0);
+
+    /* Same offsets used by the importer, in reverse.
+     * NOTE: there is intentionally no X offset on export — xConfig X for
+     * every peripheral is the unmodified offset from the Quad Camera lens
+     * center on the X axis (mirrors the importer). */
+    const Z_OFFSET_M = 0.05; /* xConfig Z = (relY + 0.05) * 1000 mm  (peripherals only) */
+    const QUAD_Y_OFFSET_M = 0.05; /* Quad Cam: xConfig Y = (elevationM + 0.05) * 1000 mm */
+    const PTZ_Y_OFFSET_M = 0.15; /* Room Vision PTZ: xConfig Y = (elevationM + 0.15) * 1000 mm */
+    const QUAD_VRC_Y_M = 0.10;  /* legacy implicit origin Y when no Quad Cam and no XYZ tracking columns exist (last-resort fallback only) */
+
+    /* Reference-frame origin in VRC meters. For peripherals, relX = device.x − originXM, relY = device.y − originYM.
+     *
+     * Priority order:
+     *   1. The pair of "xConfig XYZ" tracking columns added by
+     *      importXConfigFile() — column.x of the X column gives the xConfig
+     *      X=0 origin in VRC meters; column.y of the Z column gives the
+     *      xConfig Z=0 origin. Using the columns means the user can drag
+     *      Camera 1 anywhere without shifting every other peripheral.
+     *   2. Camera 1 (Quad Cam) position — legacy behaviour for rooms that
+     *      were never imported from xConfig (or where the columns were
+     *      deleted).
+     *   3. Implicit (roomWidth/2, 0.10 m) — last-resort fallback for
+     *      rooms with no Camera 1 AND no tracking columns (e.g. heavily
+     *      hand-edited rooms). Anchors the origin to the back-wall area
+     *      where Camera 1 would conventionally sit.
+     *
+     * Column id matching is case-insensitive so that older saves using the
+     * lowercase `xconfig-x-…` form (see the example `xconfig with xyz
+     * planes.vrc.json`) still round-trip. */
+    const tables = (roomObj.items && roomObj.items.tables) || [];
+    const isXConfigCol = (it, axis) => (
+        it
+        && it.data_deviceid === 'columnRect'
+        && typeof it.id === 'string'
+        && new RegExp('^xConfig-' + axis + '-', 'i').test(it.id)
+    );
+    const xConfigXCol = tables.find(it => isXConfigCol(it, 'x'));
+    const xConfigZCol = tables.find(it => isXConfigCol(it, 'z'));
+    const usingXConfigColumns = !!(xConfigXCol && xConfigZCol);
+
+    let originXM, originYM;
+    if (usingXConfigColumns) {
+        originXM = toM(xConfigXCol.x);
+        originYM = toM(xConfigZCol.y);
+    } else if (quadCamItem) {
+        originXM = toM(quadCamItem.x);
+        originYM = toM(quadCamItem.y);
+    } else {
+        const roomWidthM = toM(roomObj.room && roomObj.room.roomWidth);
+        originXM = roomWidthM / 2;
+        originYM = QUAD_VRC_Y_M;
+    }
+
+    /* Strict label-format checkers — items whose label doesn't match these
+     * exactly are skipped on export. The Quad Cam allowance is "Camera <#>"
+     * (any #) since Cisco emits it as Camera 1 regardless of what the user
+     * called it. */
+    const CAMERA_LABEL_RE = /^Camera\s+(\d+)\s*$/i;
+    const MIC_LABEL_RE = /^Microphone\s+(\d+)\s+ID:\s*(\S.*?)\s*$/i;
+
+    /* Sequentially assign whichever number isn't already taken, starting at
+     * `startAt`. Used to fill in gaps when label numbers collide. */
+    function nextFreeNumber(used, startAt) {
+        let n = startAt;
+        while (used.has(n)) n++;
+        used.add(n);
+        return n;
+    }
+
+    /* Counters for the post-export summary dialog. */
+    let skippedCameras = 0;
+    let skippedMics = 0;
+
+    /* --- Build camera entries ------------------------------------------- */
+    const cameraEntries = [];
+    const usedCamNumbers = new Set();
+
+    /* Quad Camera always takes the Camera 1 slot — but only emit it if its
+     * label matches the strict "Camera <#>" format. (Position is still used
+     * as the origin in legacy mode even if the label is malformed,
+     * otherwise the other peripherals' relative coords would shift.)
+     *
+     * Coordinate conventions:
+     *   - Without columns: Camera 1 IS the xConfig origin, so x = z = 0.
+     *   - With columns:    Camera 1 is just another camera. emit
+     *                      x = (cam.x − originX) * 1000 mm
+     *                      z = (cam.y − originY) * 1000 mm
+     *     Note: peripherals add Z_OFFSET_M = 0.05 m because xConfig's Z
+     *     origin sits 5 cm forward of the Quad Cam lens. The Quad Cam
+     *     itself is the lens, so it does NOT add that offset — keeping the
+     *     "Quad Cam at columns ⇒ z = 0" round-trip property. */
+    if (quadCamItem) {
+        const quadLabel = (quadCamItem.data_labelField || '').trim();
+        if (CAMERA_LABEL_RE.test(quadLabel)) {
+            const quadDevType = allDeviceTypes[quadCamItem.data_deviceid] || allDeviceTypes.quadCam || {};
+            const quadElevationM = (typeof quadCamItem.data_zPosition === 'number')
+                ? toM(quadCamItem.data_zPosition)
+                : (quadDevType.defaultVert || 1500) / 1000;
+            const quadRotationDeg = quadCamItem.rotation || 0;
+            const quadRelX = usingXConfigColumns ? (toM(quadCamItem.x) - originXM) : 0;
+            const quadRelY = usingXConfigColumns ? (toM(quadCamItem.y) - originYM) : 0;
+            cameraEntries.push({
+                n: 1,
+                rx: 0,                                       /* not tracked in VRC */
+                ry: Math.round(-quadRotationDeg * 10),       /* VRC deg → xConfig deci-deg, sign flipped */
+                rz: 0,                                       /* not tracked in VRC */
+                x: Math.round(quadRelX * 1000),
+                y: Math.round((quadElevationM + QUAD_Y_OFFSET_M) * 1000),
+                z: Math.round(quadRelY * 1000),
+            });
+            usedCamNumbers.add(1);
+        } else {
+            skippedCameras++;
+        }
+    }
+
+    const ptzCams = videoDevices.filter(it => it && it.data_deviceid === 'ptzVision2');
+
+    /* Two passes: honour explicit numbers in valid labels first, then fill
+     * gaps. Items with malformed labels are dropped + counted as skipped. */
+    const ptzNumberFromLabel = ptzCams.map(it => {
+        const label = (it.data_labelField || '').trim();
+        const m = CAMERA_LABEL_RE.exec(label);
+        if (!m) return 'invalid';                 /* sentinel for the second pass */
+        const n = parseInt(m[1], 10);
+        /* Camera 1 is reserved for the Quad Cam — a PTZ trying to claim it
+         * gets bumped to the next free number rather than skipped. */
+        if (n >= 2 && !usedCamNumbers.has(n)) {
+            usedCamNumbers.add(n);
+            return n;
+        }
+        return null;                              /* valid label but number taken / reserved */
+    });
+
+    ptzCams.forEach((cam, idx) => {
+        const claimed = ptzNumberFromLabel[idx];
+        if (claimed === 'invalid') {
+            skippedCameras++;
+            return;
+        }
+        const n = (claimed === null) ? nextFreeNumber(usedCamNumbers, 2) : claimed;
+
+        const camCenterXM = toM(cam.x);
+        const camCenterYM = toM(cam.y);
+        const camElevationM = (typeof cam.data_zPosition === 'number')
+            ? toM(cam.data_zPosition)
+            : ((allDeviceTypes.ptzVision2 && allDeviceTypes.ptzVision2.defaultVert) || 1900) / 1000;
+        const camRotationDeg = cam.rotation || 0;
+
+        const relX = camCenterXM - originXM;
+        const relY = camCenterYM - originYM;
+
+        cameraEntries.push({
+            n: n,
+            rx: 0,
+            ry: Math.round(-camRotationDeg * 10),
+            rz: 0,
+            x: Math.round(relX * 1000),
+            y: Math.round((camElevationM + PTZ_Y_OFFSET_M) * 1000),
+            z: Math.round((relY + Z_OFFSET_M) * 1000),
+        });
+    });
+    cameraEntries.sort((a, b) => a.n - b.n);
+
+    /* --- Build microphone entries --------------------------------------- */
+    const micEntries = [];
+    const usedMicNumbers = new Set();
+    const proMics = microphones.filter(it => it && (it.data_deviceid === 'ceilingMicPro' || it.data_deviceid === 'tableMicPro'));
+
+    /* Same two-pass strategy as cameras. Mics MUST have a non-empty ID
+     * portion in the label per spec — the legacy "Microphone N <stream>"
+     * shape no longer matches because it lacks the literal "ID:" marker. */
+    const micParsedLabels = proMics.map(it => {
+        const label = (it.data_labelField || '').trim();
+        const m = MIC_LABEL_RE.exec(label);
+        if (!m) return null;                      /* malformed / no "ID:" prefix */
+        return { n: parseInt(m[1], 10), id: m[2] };
+    });
+    /* First pass: claim explicit numbers that aren't yet taken. */
+    micParsedLabels.forEach(parsed => {
+        if (parsed && !usedMicNumbers.has(parsed.n) && parsed.n >= 1) {
+            usedMicNumbers.add(parsed.n);
+            parsed._claimed = parsed.n;
+        }
+    });
+
+    proMics.forEach((mic, idx) => {
+        const parsed = micParsedLabels[idx];
+        if (!parsed) {
+            skippedMics++;
+            return;
+        }
+        const n = (parsed._claimed != null) ? parsed._claimed : nextFreeNumber(usedMicNumbers, 1);
+
+        const micCenterXM = toM(mic.x);
+        const micCenterYM = toM(mic.y);
+        const micElevationM = (typeof mic.data_zPosition === 'number')
+            ? toM(mic.data_zPosition)
+            : ((allDeviceTypes[mic.data_deviceid] && allDeviceTypes[mic.data_deviceid].defaultVert) || 0) / 1000;
+        const micRotationDeg = mic.rotation || 0;
+
+        const relX = micCenterXM - originXM;
+        const relY = micCenterYM - originYM;
+
+        micEntries.push({
+            n: n,
+            id: parsed.id,
+            ry: Math.round(-micRotationDeg * 10),
+            x: Math.round(relX * 1000),
+            y: Math.round(micElevationM * 1000),
+            z: Math.round((relY + Z_OFFSET_M) * 1000),
+        });
+    });
+    micEntries.sort((a, b) => a.n - b.n);
+
+    /* If nothing valid survived the label check, abort with a friendly
+     * dialog rather than emitting an empty file. */
+    if (cameraEntries.length === 0 && micEntries.length === 0) {
+        const labelHint = labelFormatExplainer();
+        alertDialog(
+            'xConfiguration Export',
+            `No cameras or microphones could be exported. ${labelHint}`
+        );
+        return;
+    }
+
+    /* --- Format the file text ------------------------------------------- */
+    const lines = [];
+    cameraEntries.forEach(cam => {
+        const prefix = `xConfiguration Cameras Camera ${cam.n} Placement`;
+        lines.push(`${prefix} RX: ${cam.rx}`);
+        lines.push(`${prefix} RY: ${cam.ry}`);
+        lines.push(`${prefix} RZ: ${cam.rz}`);
+        lines.push(`${prefix} X: ${cam.x}`);
+        lines.push(`${prefix} Y: ${cam.y}`);
+        lines.push(`${prefix} Z: ${cam.z}`);
+        lines.push(''); /* blank line between blocks */
+    });
+    micEntries.forEach(mic => {
+        const base = `xConfiguration Audio Peripherals Microphone ${mic.n}`;
+        lines.push(`${base} ID: "${mic.id}"`);
+        lines.push(`${base} Placement RY: ${mic.ry}`);
+        lines.push(`${base} Placement X: ${mic.x}`);
+        lines.push(`${base} Placement Y: ${mic.y}`);
+        lines.push(`${base} Placement Z: ${mic.z}`);
+        lines.push('');
+    });
+
+    /* Trim a single trailing blank line to keep the file tidy. */
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+    const content = lines.join('\n') + '\n';
+
+    /* --- Trigger download ----------------------------------------------- */
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1).replace(/:/g, '');
+    let downloadName = (roomObj.name && roomObj.name.trim()) || 'xConfiguration';
+    downloadName = downloadName.replace(/[/\\?%*:|"<>]/g, '-');
+    downloadName = `${downloadName}_${localISOTime}.xconfig.txt`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = downloadName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    /* --- Surface a summary dialog --------------------------------------- */
+    const camCount = cameraEntries.length;
+    const micCount = micEntries.length;
+    const exportedSummary = describeCounts(camCount, micCount);
+    let summaryHtml = `An xConfiguration file was successfully exported with ${exportedSummary}.`;
+
+    if (skippedCameras > 0 || skippedMics > 0) {
+        const skippedSummary = describeCounts(skippedCameras, skippedMics);
+        const totalSkipped = skippedCameras + skippedMics;
+        const wasOrWere = totalSkipped === 1 ? 'was' : 'were';
+        summaryHtml += `<br><br>${capitalize(skippedSummary)} ${wasOrWere} not exported because the name label did not match the required format. ${labelFormatExplainer()}`;
+    }
+
+    /* Cisco rooms are expected to ship cinematic camera(s) AND calibrated
+     * microphone(s) together. If the exported file ends up with one class
+     * but not the other, surface a yellow ⚠️ warning so the user notices
+     * the imbalance before sending the file to a device. */
+    if (camCount > 0 && micCount === 0) {
+        summaryHtml += '<br><br>⚠️ Microphone missing — a Cisco room should include at least one microphone alongside the camera(s).';
+    } else if (micCount > 0 && camCount === 0) {
+        summaryHtml += '<br><br>⚠️ Camera missing — a Cisco room should include at least one camera alongside the microphone(s).';
+    }
+
+    alertDialog('xConfiguration Export', summaryHtml);
+
+    /* ---- helpers (declared after use; hoisted) ------------------------- */
+
+    function describeCounts(c, m) {
+        const camStr = `${c} ${c === 1 ? 'camera' : 'cameras'}`;
+        const micStr = `${m} ${m === 1 ? 'microphone' : 'microphones'}`;
+        if (c > 0 && m > 0) return `${camStr} and ${micStr}`;
+        if (c > 0) return camStr;
+        if (m > 0) return micStr;
+        return '0 cameras and 0 microphones';
+    }
+
+    function capitalize(s) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    }
+
+    function labelFormatExplainer() {
+        return 'Cameras must be labelled <code>Camera &lt;#&gt;</code> (e.g. <code>Camera 7</code>) and microphones must be labelled <code>Microphone &lt;#&gt; ID: &lt;id&gt;</code> (e.g. <code>Microphone 2 ID: 50:00:e0:32:ec:cd</code>).';
+    }
+}
+
+
+/* ---------------------------------------------------------------------
+ * DXF export
+ * ---------------------------------------------------------------------
+ * Walk roomObj.items and emit an AutoCAD .dxf file that mirrors the room
+ * layout in real-world meters, organized using AIA / National CAD Standard
+ * layer names. Most devices are emitted as INSERTs of a per-deviceid block
+ * (defined lazily by DxfBlockLibrary) so a 100-chair classroom is one
+ * block + 100 small INSERT records. Tables / walls / displays / room
+ * outlines are emitted inline because their geometry varies per item.
+ *
+ * Coordinate model:
+ *   • All output is in meters regardless of roomObj.unit.
+ *   • Origin = the room's lower-left corner. CAD Y grows up, VRC Y grows
+ *     down, so we flip with  cadY = roomLengthM - vrcY.
+ *   • Konva rotation is CW-positive; CAD rotation is CCW-positive, so we
+ *     flip the sign on every rotation we hand to the writer.
+ *   • For non-table items, attrs.x / attrs.y are already the rotation-aware
+ *     center (canvasToJson() normalises them). For tables / walls, attrs.x
+ *     / attrs.y are the un-rotated upper-left corner with width / height
+ *     describing the un-rotated footprint — we transform to a rotated
+ *     center before emitting.
+ *
+ * VRC layer mirroring:
+ *   • Items in *visible* VRC layers go on their AIA category layer
+ *     (e.g. A-FURN-CHRS, E-AV-CMRA).
+ *   • Items in *hidden* VRC layers go on the corresponding Z-VRC-LAYER-*
+ *     mirror layer instead, which is set OFF in the DXF — they survive
+ *     the round-trip but stay invisible until the user toggles the layer
+ *     on in CAD. Lock state is reflected on the mirror layer too.
+ *
+ * Labelling:
+ *   • Codecs / cameras / navigators / touch panels always show a label
+ *     (model name from allDeviceTypes, or the user's data_labelField if set).
+ *   • Everything else only shows a label when data_labelField is set. */
+function exportDxfFile() {
+    /* Sync the latest item attrs back into roomObj before walking. */
+    canvasToJson();
+
+    const dxf = new DxfWriter({ units: 'meters' });
+
+    /* Convert any VRC value (in user units) to meters. */
+    const unitToM = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+    const toM = (v) => (typeof v === 'number' ? v * unitToM : 0);
+
+    const roomWidthM = toM(roomObj.room && roomObj.room.roomWidth);
+    const roomLengthM = toM(roomObj.room && roomObj.room.roomLength);
+    if (!(roomWidthM > 0) || !(roomLengthM > 0)) {
+        alertDialog('DXF Export', 'Cannot export DXF — the room has no width or length.');
+        return;
+    }
+
+    const lib = new DxfBlockLibrary(dxf, { allDeviceTypes, unitToM });
+    const mirrorMap = lib.registerVrcMirrorLayers(roomObj.layers || []);
+    const hiddenLayerIds = new Set(
+        (roomObj.layers || []).filter(l => l.visible === false).map(l => String(l.layerid))
+    );
+
+    /* Coordinate-frame helpers. */
+    const flipY = (vrcYM) => roomLengthM - vrcYM;
+    const flipRot = (deg) => -(deg || 0);
+    function rotatePoint(x, y, deg) {
+        const rad = deg * Math.PI / 180;
+        const c = Math.cos(rad), s = Math.sin(rad);
+        return [x * c - y * s, x * s + y * c];
+    }
+    function rotatedRectCorners(w, h, rotDeg) {
+        const halfW = w / 2, halfH = h / 2;
+        return [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]]
+            .map(([px, py]) => rotatePoint(px, py, rotDeg));
+    }
+
+    /** Resolve the CAD layer name for an item, honoring hidden VRC layers. */
+    function layerNameForItem(item, group) {
+        const lid = (item && item.data_layerId) ? String(item.data_layerId) : '0';
+        if (hiddenLayerIds.has(lid)) {
+            return mirrorMap[lid] || lib.useLayer(DxfBlockLibrary.LAYER.EQPM);
+        }
+        return lib.useLayer(lib.layerForItem(item, group));
+    }
+
+    /* DXF-only device-name overrides. The canonical device names in
+     * `allDeviceTypes` are tuned for the on-canvas menus and the
+     * Workspace Designer / xConfig export (which expect specific
+     * spellings). For the printed CAD drawing we sometimes want a
+     * shorter or differently-cased form so the auto-generated label
+     * fits next to the symbol without crowding. Only consulted when
+     * the user has not supplied their own `data_labelField`. */
+    const DXF_DISPLAY_NAME_OVERRIDES = {
+        ptzVision2: 'Room Vision PTZ & bracket'
+    };
+
+    /** Decide what (if anything) to write as a TEXT label for an item.
+     *  Strips any `{...}` tokens out of `data_labelField` to mirror the
+     *  on-canvas `addLabel()` behavior — those tokens carry metadata
+     *  (e.g. xConfig / Workspace Designer hints) that should never
+     *  appear on the printed CAD drawing. */
+    function labelTextFor(item) {
+        const id = item && item.data_deviceid;
+        const rawLabel = (item && item.data_labelField) || '';
+        const userLabel = rawLabel.replace(/{.*?}/g, '').trim();
+        if (DxfBlockLibrary.ALWAYS_LABELLED_DEVICE_IDS.has(id)) {
+            if (userLabel) return userLabel;
+            if (DXF_DISPLAY_NAME_OVERRIDES[id]) return DXF_DISPLAY_NAME_OVERRIDES[id];
+            const cat = allDeviceTypes[id];
+            return (cat && cat.name) || id;
+        }
+        return userLabel;
+    }
+
+    let exportedCount = 0;
+
+    function maybeLabel(item, group, cxCad, cyCad, rotCad) {
+        const text = labelTextFor(item);
+        if (!text) return;
+        const labelLayer = lib.useLayer(lib.labelLayerForItem(item, group));
+        dxf.text(cxCad, cyCad, text, {
+            height: 0.08,
+            rotation: rotCad,
+            layer: labelLayer,
+            halign: 1,
+            valign: 2
+        });
+    }
+
+    /* --- Perimeter wall rectangles ----------------------------------
+     * The VRC's `roomWidth` / `roomLength` define the INNER (usable)
+     * dimensions of the room. For the DXF we draw a real wall section
+     * by offsetting an OUTER perimeter `WALL_THICKNESS_M` outward from
+     * the inner rectangle:
+     *
+     *   • Default (`removeDefaultWalls = false`): both inner and outer
+     *     perimeters are emitted, so the wall reads as a 10cm-thick
+     *     closed section in CAD viewers.
+     *   • `removeDefaultWalls = true`: only the OUTER perimeter is
+     *     emitted. This matches the Workspace Designer convention where
+     *     the user supplies their own walls — the outer rectangle
+     *     remains as a single boundary for reference / clipping. */
+    const WALL_THICKNESS_M = 0.10;
+    const wallLayer = lib.useLayer(DxfBlockLibrary.LAYER.WALL_EXTR);
+    const removeDefaultWalls = !!(roomObj.workspace && roomObj.workspace.removeDefaultWalls);
+
+    /* Outer perimeter — always emitted. Offset outward so the room's
+     * interior dimensions remain (0,0) → (roomWidthM, roomLengthM). */
+    dxf.lwpolyline([
+        [-WALL_THICKNESS_M, -WALL_THICKNESS_M],
+        [roomWidthM + WALL_THICKNESS_M, -WALL_THICKNESS_M],
+        [roomWidthM + WALL_THICKNESS_M, roomLengthM + WALL_THICKNESS_M],
+        [-WALL_THICKNESS_M, roomLengthM + WALL_THICKNESS_M]
+    ], { closed: true, layer: wallLayer });
+
+    /* Inner perimeter — only when default walls are kept. */
+    if (!removeDefaultWalls) {
+        dxf.lwpolyline([
+            [0, 0], [roomWidthM, 0], [roomWidthM, roomLengthM], [0, roomLengthM]
+        ], { closed: true, layer: wallLayer });
+    }
+
+    /* --- Walk every item category ---------------------------------- */
+    const items = roomObj.items || {};
+    const groups = ['videoDevices', 'microphones', 'chairs', 'tables', 'displays', 'stageFloors', 'boxes', 'rooms'];
+
+    for (const group of groups) {
+        const arr = items[group];
+        if (!Array.isArray(arr)) continue;
+        for (const item of arr) {
+            try { emitItem(item, group); }
+            catch (err) { console.warn('DXF export skipped item due to error:', item, err); }
+        }
+    }
+
+    /* --- Per-item dispatch ----------------------------------------- */
+    function emitItem(item, group) {
+        if (!item || !item.data_deviceid) return;
+        if (DxfBlockLibrary.SKIP_DEVICE_IDS.has(item.data_deviceid)) return;
+
+        /* Row-of-chairs: explode into individual chair INSERTs so the
+         * CAD drawing matches what the Workspace Designer export does
+         * (see expandChairs() / workspaceDesignerExport for the same
+         * pattern). Each chair lands on the chairs layer with its own
+         * block, while inheriting the row's VRC layer assignment so
+         * hide/lock toggles still cover the whole row. */
+        if (item.data_deviceid === 'wallChairs') {
+            emitWallChairsRow(item);
+            return;
+        }
+
+        const layerName = layerNameForItem(item, group);
+
+        if (group === 'tables' || group === 'stageFloors' || group === 'boxes' || group === 'rooms') {
+            emitFootprintItem(item, group, layerName);
+            return;
+        }
+        if (group === 'displays') {
+            emitDisplay(item, layerName);
+            return;
+        }
+
+        /* Centered-INSERT items: video devices, cameras, mics, chairs, doors, etc. */
+        const blockName = lib.blockForItem(item, group);
+        if (!blockName) return;
+
+        const cxCad = toM(item.x);
+        const cyCad = flipY(toM(item.y));
+        const rotCad = flipRot(item.rotation);
+        dxf.insert(blockName, cxCad, cyCad, { rotation: rotCad, layer: layerName });
+        maybeLabel(item, group, cxCad, cyCad, rotCad);
+        exportedCount++;
+    }
+
+    /** Expand a `wallChairs` row into N individual chair INSERTs.
+     *  Mirrors the workspace-designer export, which calls
+     *  `expandChairs(item, 'meters')` after converting the row to meters
+     *  (see the `wallChairs` branch of `exportRoomObjToWorkspace()`).
+     *  We do the equivalent here so the spacing math inside
+     *  `expandChairs()` stays in a single, consistent unit (meters).
+     *  The row's label (if any) is placed only on the first chair so it
+     *  is not duplicated N times in the CAD drawing. */
+    function emitWallChairsRow(item) {
+        /* Build a meters-unit shadow of the row so expandChairs() can
+         * use its hard-coded 2.35 ft / 0.716 m chair-on-center spacing
+         * with consistent units. We only need the geometry fields. */
+        const itemM = {
+            x: toM(item.x),
+            y: toM(item.y),
+            width: toM(item.width),
+            height: toM(item.height),
+            rotation: item.rotation,
+            data_deviceid: item.data_deviceid,
+            id: item.id
+        };
+        if ('data_zPosition' in item) itemM.data_zPosition = item.data_zPosition;
+        if ('data_tilt' in item) itemM.data_tilt = item.data_tilt;
+        if ('data_slant' in item) itemM.data_slant = item.data_slant;
+
+        const chairList = expandChairs(itemM, 'meters');
+        if (!Array.isArray(chairList) || chairList.length === 0) return;
+
+        for (let i = 0; i < chairList.length; i++) {
+            const chair = chairList[i];
+            /* Chairs inherit the row's VRC layer so hide/lock continues
+             * to apply to the whole row. */
+            if (item.data_layerId) chair.data_layerId = item.data_layerId;
+            const layerName = layerNameForItem(chair, 'chairs');
+            const blockName = lib.blockForItem(chair, 'chairs');
+            if (!blockName) continue;
+            /* expandChairs(itemM, 'meters') already returns x/y in meters,
+             * so we skip toM() here and only flip Y for the CAD frame. */
+            const cxCad = chair.x;
+            const cyCad = flipY(chair.y);
+            const rotCad = flipRot(chair.rotation);
+            dxf.insert(blockName, cxCad, cyCad, { rotation: rotCad, layer: layerName });
+            /* Only the primary chair carries the row's label so that a
+             * multi-seat row reads as one labeled audience block rather
+             * than N copies of the same label. */
+            if (i === 0) maybeLabel(item, 'chairs', cxCad, cyCad, rotCad);
+            exportedCount++;
+        }
+    }
+
+    /* --- Footprint items (tables / walls / columns / stages / boxes / rooms) --- */
+    function emitFootprintItem(item, group, layerName) {
+        const id = item.data_deviceid;
+        const widthM = toM(item.width);
+        const heightM = toM(item.height != null ? item.height : item.length);
+        const tlxM = toM(item.x);
+        const tlyM = toM(item.y);
+        const rotDeg = item.rotation || 0;
+
+        if (id === 'pathShape') {
+            emitPathShape(item, layerName, tlxM, tlyM, rotDeg);
+            return;
+        }
+        if (id === 'polyRoom') {
+            const pts = (item.points || []);
+            const polyPts = [];
+            for (let i = 0; i + 1 < pts.length; i += 2) {
+                polyPts.push([toM(pts[i]), flipY(toM(pts[i + 1]))]);
+            }
+            if (polyPts.length >= 2) {
+                dxf.lwpolyline(polyPts, { closed: true, layer: layerName });
+                exportedCount++;
+            }
+            return;
+        }
+
+        /* Compute the rotation-aware center in CAD coords. The rotation
+         * pivot for tables/walls/etc. is the un-rotated upper-left corner
+         * (x, y). To find the bounding-box center after rotation we apply
+         * the same transform to (w/2, h/2). */
+        const cosR = Math.cos(rotDeg * Math.PI / 180);
+        const sinR = Math.sin(rotDeg * Math.PI / 180);
+        const halfWLocal = widthM / 2;
+        const halfHLocal = heightM / 2;
+        const cxVrc = tlxM + (halfWLocal * cosR - halfHLocal * sinR);
+        const cyVrc = tlyM + (halfWLocal * sinR + halfHLocal * cosR);
+        const cxCad = cxVrc;
+        const cyCad = flipY(cyVrc);
+        const rotCad = flipRot(rotDeg);
+
+        if (id === 'tblEllip') {
+            emitEllipse(cxCad, cyCad, widthM / 2, heightM / 2, rotCad, layerName);
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'tblPodium') {
+            /* 80% inset ellipse (matches Konva sceneFunc). */
+            emitEllipse(cxCad, cyCad, widthM * 0.4, heightM * 0.4, rotCad, layerName);
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'cylinder') {
+            dxf.circle(cxCad, cyCad, Math.max(widthM, heightM) / 2, { layer: layerName });
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'sphere') {
+            dxf.circle(cxCad, cyCad, widthM / 2, { layer: layerName });
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'tblTrap') {
+            const narrow = (typeof item.data_trapNarrowWidth === 'number')
+                ? toM(item.data_trapNarrowWidth)
+                : widthM * 0.6;
+            const halfW = widthM / 2, halfH = heightM / 2, halfN = narrow / 2;
+            /* CAD block-frame convention: +Y = TOP of CAD viewer at rot=0,
+             * which mirrors the TOP of the Konva canvas (where the wide
+             * edge of the trapezoid sits in the VRC sceneFunc). The
+             * earlier order put wide at -Y, which flipped the trapezoid
+             * 180° in any CAD viewer. */
+            const local = [
+                [-halfN, -halfH], [halfN, -halfH],   /* narrow at -Y (CAD bottom) */
+                [halfW, halfH], [-halfW, halfH]      /* wide at +Y (CAD top)      */
+            ];
+            const points = local.map(([px, py]) => {
+                const [rx, ry] = rotatePoint(px, py, rotCad);
+                return [cxCad + rx, cyCad + ry];
+            });
+            dxf.lwpolyline(points, { closed: true, layer: layerName });
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'tblShapeU') {
+            /* U-shape: outer rect with a notched cutout on the +Y side. */
+            const halfW = widthM / 2, halfH = heightM / 2;
+            const armW = Math.min(0.85, widthM * 0.35);
+            const local = [
+                [-halfW, -halfH], [halfW, -halfH],
+                [halfW, halfH], [halfW - armW, halfH],
+                [halfW - armW, -halfH + armW], [-halfW + armW, -halfH + armW],
+                [-halfW + armW, halfH], [-halfW, halfH]
+            ];
+            const points = local.map(([px, py]) => {
+                const [rx, ry] = rotatePoint(px, py, rotCad);
+                return [cxCad + rx, cyCad + ry];
+            });
+            dxf.lwpolyline(points, { closed: true, layer: layerName });
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'tblBullet') {
+            /* Rectangle (when data_role.index === 1) or rectangle with a
+             * half-circle on the -Y end (rounded). The Konva sceneFunc
+             * uses radius = width/2 and places the rounded end at the
+             * BOTTOM of the bbox (large Konva Y); in CAD block frame
+             * that maps to -Y (bottom of CAD viewer at rot=0). */
+            const halfW = widthM / 2;
+            let halfH = heightM / 2;
+            const isRect = item.data_role && item.data_role.index === 1;
+            let local;
+            if (isRect) {
+                local = [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]];
+                const pts = local.map(([px, py]) => {
+                    const [rx, ry] = rotatePoint(px, py, rotCad);
+                    return [cxCad + rx, cyCad + ry];
+                });
+                dxf.lwpolyline(pts, { closed: true, layer: layerName });
+            } else {
+                /* Rectangular portion spans y = (-halfH + halfW) … +halfH.
+                 * Semicircle (radius = halfW) sits below that, with chord
+                 * at y = -halfH + halfW and apex at y = -halfH. The arc
+                 * traverses CW from (+halfW,-halfH+halfW) → (-halfW,-halfH+halfW)
+                 * passing through (0,-halfH); CW arcs in DXF use a
+                 * negative bulge magnitude, and bulge=-1 gives a
+                 * semicircle. The Konva sceneFunc clamps height to at
+                 * least the radius (=halfW), so we mirror that here to
+                 * avoid a self-intersecting outline when the user shrinks
+                 * a bullet table below its width/2. */
+                halfH = Math.max(halfH, halfW);
+                const arcChord = -halfH + halfW;
+                const local2 = [
+                    [-halfW, halfH, 0],
+                    [halfW, halfH, 0],
+                    [halfW, arcChord, -1],
+                    [-halfW, arcChord, 0]
+                ];
+                const pts = local2.map(p => {
+                    const [rx, ry] = rotatePoint(p[0], p[1], rotCad);
+                    return [cxCad + rx, cyCad + ry, p[2]];
+                });
+                dxf.lwpolyline(pts, { closed: true, layer: layerName });
+            }
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+        if (id === 'credenza') {
+            /* Outer rectangle + interior horizontal split line. */
+            const halfW = widthM / 2, halfH = heightM / 2;
+            const corners = [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]];
+            const pts = corners.map(([px, py]) => {
+                const [rx, ry] = rotatePoint(px, py, rotCad);
+                return [cxCad + rx, cyCad + ry];
+            });
+            dxf.lwpolyline(pts, { closed: true, layer: layerName });
+            const splitY = -halfH + 0.0915;
+            const a = rotatePoint(-halfW, splitY, rotCad);
+            const b = rotatePoint(halfW, splitY, rotCad);
+            dxf.line(cxCad + a[0], cyCad + a[1], cxCad + b[0], cyCad + b[1], { layer: layerName });
+            maybeLabel(item, group, cxCad, cyCad, rotCad);
+            exportedCount++;
+            return;
+        }
+
+        /* Default: rotated rectangle, optionally rounded.
+         * - tblRect uses data_cornerRadius (and possibly data_cornerRadiusRight)
+         * - tblSchoolDesk has soft default rounding
+         * - stageFloor / carpet / box use a dashed outline (linetype on layer) */
+        let cornerR = 0;
+        if (id === 'tblRect' && typeof item.data_cornerRadius === 'number') {
+            cornerR = toM(item.data_cornerRadius);
+        } else if (id === 'tblSchoolDesk') {
+            cornerR = Math.min(widthM, heightM) * 0.05;
+        }
+
+        if (cornerR > 0) {
+            const local = DxfWriter.roundedRectPoints(widthM, heightM, cornerR);
+            const pts = local.map(p => {
+                const [rx, ry] = rotatePoint(p[0], p[1], rotCad);
+                return p.length >= 3 ? [cxCad + rx, cyCad + ry, p[2]] : [cxCad + rx, cyCad + ry];
+            });
+            dxf.lwpolyline(pts, { closed: true, layer: layerName });
+        } else {
+            const corners = rotatedRectCorners(widthM, heightM, rotCad);
+            const pts = corners.map(([px, py]) => [cxCad + px, cyCad + py]);
+            dxf.lwpolyline(pts, { closed: true, layer: layerName });
+        }
+        maybeLabel(item, group, cxCad, cyCad, rotCad);
+        exportedCount++;
+    }
+
+    /* Emit a (possibly rotated) ellipse by writing a single ELLIPSE entity.
+     * `halfW` and `halfH` are the un-rotated semi-axes; the major axis is
+     * picked as whichever is larger. */
+    function emitEllipse(cxCad, cyCad, halfW, halfH, rotCad, layerName) {
+        const isMajorH = halfH > halfW;
+        const major = isMajorH ? halfH : halfW;
+        const minor = isMajorH ? halfW : halfH;
+        const baseAngle = (isMajorH ? 90 : 0) + rotCad;
+        const ax = major * Math.cos(baseAngle * Math.PI / 180);
+        const ay = major * Math.sin(baseAngle * Math.PI / 180);
+        dxf.ellipse(cxCad, cyCad, ax, ay, minor / Math.max(major, 1e-6), { layer: layerName });
+    }
+
+    function emitDisplay(item, layerName) {
+        const id = item.data_deviceid;
+        const widthM = toM(item.width);
+        let depthM = toM(item.length);
+        if (!(depthM > 0)) {
+            const cat = allDeviceTypes[id];
+            depthM = (cat && cat.depth) ? cat.depth / 1000 : 0.05;
+        }
+        const cxCad = toM(item.x);
+        const cyCad = flipY(toM(item.y));
+        const rotCad = flipRot(item.rotation);
+        const local = [
+            [-widthM / 2, -depthM / 2],
+            [widthM / 2, -depthM / 2],
+            [widthM / 2, depthM / 2],
+            [-widthM / 2, depthM / 2]
+        ];
+        const pts = local.map(([px, py]) => {
+            const [rx, ry] = rotatePoint(px, py, rotCad);
+            return [cxCad + rx, cyCad + ry];
+        });
+        dxf.lwpolyline(pts, { closed: true, layer: layerName });
+        /* A short line on the -Y (room-facing) edge indicates the screen
+         * face. The `displaySngl-top.png` asset shows the screen as the
+         * wider bottom edge and the wall side as the narrower top edge,
+         * so in CAD block frame the screen side maps to -Y. */
+        const a = rotatePoint(-widthM / 2 + 0.02, -depthM / 2 + 0.005, rotCad);
+        const b = rotatePoint(widthM / 2 - 0.02, -depthM / 2 + 0.005, rotCad);
+        dxf.line(cxCad + a[0], cyCad + a[1], cxCad + b[0], cyCad + b[1], { layer: layerName });
+        maybeLabel(item, 'displays', cxCad, cyCad, rotCad);
+        exportedCount++;
+    }
+
+    /* SVG path tessellation. Path data lives inside item.data_labelField as
+     * JSON: { "path": "...", "scale": [sx, sy] (optional) }. We sample
+     * cubic / quadratic curves into polylines (DxfWriter.tessellateSvgPath). */
+    function emitPathShape(item, layerName, tlxM, tlyM, rotDeg) {
+        let json;
+        try { json = JSON.parse(item.data_labelField || '{}'); }
+        catch (_) { return; }
+        const path = json && json.path;
+        if (!path) return;
+        const scaleArr = Array.isArray(json.scale) ? json.scale : [1, 1];
+        const sx = (scaleArr[0] || 1) * unitToM;
+        const sy = (scaleArr[1] || 1) * unitToM;
+        const rotCad = flipRot(rotDeg);
+        const subpaths = DxfWriter.tessellateSvgPath(path, 24);
+        for (const pts of subpaths) {
+            if (pts.length < 2) continue;
+            const transformed = pts.map(([px, py]) => {
+                /* SVG Y is also down — apply the rotation in VRC space then
+                 * flip the final Y at the room frame. */
+                const [rx, ry] = rotatePoint(px * sx, py * sy, rotDeg);
+                return [tlxM + rx, flipY(tlyM + ry)];
+            });
+            dxf.lwpolyline(transformed, { closed: false, layer: layerName });
+        }
+    }
+
+    /* --- Build & download ------------------------------------------ */
+    const content = dxf.toString();
+
+    let tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    let localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
+    localISOTime = localISOTime.replaceAll(/:/g, '');
+
+    let baseName = ((roomObj.name || 'VideoRoomCalc') + '').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    if (!baseName) baseName = 'VideoRoomCalc';
+    const downloadName = `${baseName}_${localISOTime}.dxf`;
+
+    const blob = new Blob([content], { type: 'application/dxf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = downloadName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    /* Summary dialog. Counts items emitted + how many CAD layers were used. */
+    const layerCount = lib.registeredLayers.size;
+    const itemPlural = exportedCount === 1 ? 'item' : 'items';
+    const layerPlural = layerCount === 1 ? 'layer' : 'layers';
+    alertDialog(
+        'DXF Export',
+        `A DXF file was successfully exported with ${exportedCount} ${itemPlural} on ${layerCount} ${layerPlural}.<br><br>` +
+        `Objects and video devices represented with simplified geometry.<br><br>` +
+        'The file uses meters and the AIA / National CAD Standard layer scheme ' +
+        '(<code>A-FURN-CHRS</code>, <code>E-AV-CMRA</code>, <code>A-WALL-EXTR</code>, etc.).'
+    );
+}
+
+
 const fileJsonUpload = document.getElementById('fileUpload');
 
 fileJsonUpload.addEventListener('change', function (e) {
-
+    /* The picker accepts both .json and .txt now (xConfiguration dumps are
+     * .txt). The actual format is detected by content sniffing inside
+     * routeUploadedFileText(), so the file name itself is only used for
+     * naming the imported room. */
     closeAllDialogModals();
 
     if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const fileName = file.name;
         let reader = new FileReader();
-        reader.readAsText(e.target.files[0]);
-        reader.onload = function (e) {
-            let jsonFile = JSON.parse(reader.result);
-            importJson(jsonFile);
-
+        reader.readAsText(file);
+        reader.onload = function () {
+            routeUploadedFileText(reader.result, fileName);
         };
     }
 });
@@ -20229,6 +21925,30 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
 
 
+/* Resolve a Workspace Designer "layer" name to a VRC layerid in the in-progress
+ * import roomObj2.layers, creating a new custom layer if the name isn't already
+ * present. Reserved names "Default" and "Ceiling" map to the built-in layers
+ * '0' and '1' regardless of case. Returns '0' (Default) for empty/invalid input. */
+function resolveImportLayerName(layerName, roomObj2) {
+    if (!layerName || typeof layerName !== 'string') return '0';
+    const trimmed = layerName.trim();
+    if (!trimmed) return '0';
+    const lower = trimmed.toLowerCase();
+
+    if (lower === 'default') return '0';
+    if (lower === 'ceiling') return '1';
+
+    if (!roomObj2.layers) roomObj2.layers = getDefaultLayers();
+    ensureDefaultLayers(roomObj2.layers);
+
+    const existing = roomObj2.layers.find(l => l.name && l.name.toLowerCase() === lower);
+    if (existing) return existing.layerid;
+
+    const newLayer = { name: trimmed, visible: true, locked: false, layerid: createUuid() };
+    roomObj2.layers.push(newLayer);
+    return newLayer.layerid;
+}
+
 /* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
@@ -20260,6 +21980,17 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     item.id = wdItem.id.replace(/ /g, "_").replace(/#/g, "__"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
+
+    /* Restore VRC layer assignment from the optional Workspace Designer "layer"
+     * attribute. Layer names map case-insensitively to existing layers in
+     * roomObj2.layers; new names create a custom layer. The Default layer ('0')
+     * is implicit, so its data_layerId is intentionally NOT set on the item.
+     * Strip the key from wdItem so it doesn't leak into data_labelField below. */
+    if ('layer' in wdItem) {
+        const importedLayerId = resolveImportLayerName(wdItem.layer, roomObj2);
+        if (importedLayerId !== '0') item.data_layerId = importedLayerId;
+        delete wdItem.layer;
+    }
 
     /* a line has no position, only points. On import allow line to have a position */
 
@@ -21094,6 +22825,20 @@ function exportRoomObjToWorkspace() {
     /* Items in hidden VRC layers are omitted from the Workspace Designer export entirely. */
     removeHiddenLayerItemsForExport(roomObj2);
 
+    /* For every exported item that belongs to a non-Default VRC layer, attach the
+     * layer's name as a "layer" attribute on the workspaceItem. Importers (including
+     * VRC's own importer) can then restore the layer assignment by name.
+     * Default ('0') is the implicit layer and is intentionally NOT emitted to keep
+     * the JSON minimal. convertToMeters() drops roomObj2.layers, so we look up the
+     * layer name from the global roomObj.layers, which is the source of truth. */
+    function setLayerOnWorkspaceItem(workspaceItem, item) {
+        const layerId = item && item.data_layerId;
+        if (!layerId || layerId === '0') return; /* Default layer is implicit */
+        if (!roomObj.layers) return;
+        const layer = roomObj.layers.find(l => l.layerid === layerId);
+        if (layer && layer.name) workspaceItem.layer = layer.name;
+    }
+
     let activeRoomLength = roomObj2.activeRoomLength;
     let activeRoomWidth = roomObj2.activeRoomWidth;
     let activeRoomX = roomObj2.activeRoomX;
@@ -21747,6 +23492,7 @@ function exportRoomObjToWorkspace() {
             delete workspaceItem.xOffset;
         }
 
+        setLayerOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -21860,6 +23606,7 @@ function exportRoomObjToWorkspace() {
             delete workspaceItem.xOffset;
         }
 
+        setLayerOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -22001,6 +23748,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
+        setLayerOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -22140,6 +23888,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
+        setLayerOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 

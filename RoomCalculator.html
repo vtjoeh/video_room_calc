@@ -1524,6 +1524,12 @@
                   style="font-size: large;transform:  translate(0px,5px);"></i>Export Workspace
                 Designer JSON
               </div>
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadDxfMenuItem"
+                onclick="exportDxfFile()" title="Export to AutoCAD DXF (Ctrl+Shift+D)">
+                <i class="icon icon-file-annotation-bold"
+                  style="font-size: large;transform:  translate(0px,5px);"></i>Export CAD
+                DXF (meters)
+              </div>
 
             </div>
           </span>
@@ -1593,8 +1599,8 @@
           <input type="submit" value="Download Workspace Designer file" onclick="downloadFileWorkspace()" class="button"
             style="width: 300px">
         </div> -->
-        JSON File Upload (hidden):
-        <input type="file" id="fileUpload" accept=".json">
+        JSON / xConfiguration File Upload (hidden):
+        <input type="file" id="fileUpload" accept=".json,.txt">
 
     </main>
   </dialog>
@@ -2393,6 +2399,8 @@
 
   <script src="./js/konva.min.js"></script>
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
+  <script src="./js/dxfWriter.js"></script>
+  <script src="./js/dxfBlockLibrary.js"></script>
   <script src="./js/roomcalc.js"></script>
   <!-- <script src="./js/drpDownOverride.js"></script> -->
 
