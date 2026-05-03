@@ -22891,6 +22891,22 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
+            /* xConfig coordinate-reference columns (ids starting with
+             * "xConfig-x-0-" or "xConfig-z-0-") are always imported as
+             * columnRect regardless of what the scoring loop above guessed.
+             * These columns round-trip the X/Z planes that VRC creates on
+             * xConfig import so we can reconstruct the xConfig coordinate
+             * frame on the next export. The override runs after the
+             * scoring loop so it wins even when the WD object happens to
+             * carry an objectType that would otherwise match a different
+             * key (e.g. "wall"). */
+            if (wdItem.id
+                && (wdItem.id.startsWith('xConfig-x-0-') || wdItem.id.startsWith('xConfig-z-0-'))) {
+                candidateKeyName = 'columnRect';
+                candidateKey = { id: wdItem.id };
+                candidateWdItem = structuredClone(wdItem);
+            }
+
             if (Object.keys(candidateKey).length === 0) {
                 console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
 
