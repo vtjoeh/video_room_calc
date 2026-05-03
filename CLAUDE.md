@@ -1288,3 +1288,31 @@ All other dependencies are local in the `js/` folder.
 | Room templates | `js/templates.js` |
 | Device images | `assets/images/` |
 | Icons | `assets/momentum-icons.css` |
+
+---
+
+## Git Branching Model
+
+This repo uses a two-branch workflow. Full details and command reference live
+in `GIT_WORKFLOW.md` at the repo root.
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable. Always something the author would be willing to deploy. Bug fixes and small safe additions go here. |
+| `next` | Work-in-progress. Big refactors and risky features live here until they're ready to merge into `main`. |
+
+Tags (e.g. `v0.1.645`) mark deployed/stable snapshots and are pushed to
+`origin` alongside the branch.
+
+### When working in this repo, the assistant should
+
+- Check `git status` and `git branch` before suggesting commits, so it's clear
+  which branch the work is going to.
+- For risky refactors or large new features, suggest committing to `next`
+  rather than `main` (or ask the user which branch they want).
+- For small bug fixes that the user wants live soon, `main` is appropriate.
+- Never run destructive git operations (`reset --hard`, `push --force`,
+  branch deletion) without explicit user confirmation.
+- Never commit on the user's behalf unless they explicitly ask.
+- See `GIT_WORKFLOW.md` for the day-to-day cheat sheet, the merge-forward
+  pattern for hotfixes, and the "everything went wrong" recovery steps.
