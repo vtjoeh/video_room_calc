@@ -529,6 +529,70 @@ eraser-style features are ever added, plan for separate
 
 ---
 
+## 26. Detach `tr.nodes([])` before bulk-mutating selected items
+
+`Konva.Transformer` is expensive while attached to nodes that are
+being mutated. Every `node.x()` / `node.y()` / `node.rotation()` /
+`node.width()` / `node.height()` change on an attached node forces
+the Transformer to recompute its bounding box, redraw its eight
+anchors and rotater, and re-fit handles to the (possibly rotated)
+selection — and it does this *per node, per mutation*. Multiplied
+by N selected items × M attribute writes per item, this dominates
+the frame budget on large selections (50+ items).
+
+The fix is to **temporarily detach** every node from the transformer,
+do the mutations, then reattach in one shot:
+
+```javascript
+const nodesCopy = tr.nodes().slice();   // 1. snapshot the selection
+tr.nodes([]);                            // 2. detach (Transformer goes idle)
+
+for (const node of nodesCopy) {          // 3. bulk-mutate freely
+    node.x(...);
+    node.y(...);
+    node.rotation(...);
+    // ...
+}
+
+tr.nodes(nodesCopy);                     // 4. reattach in one update
+```
+
+The Transformer recomputes once on step 4 instead of N×M times during
+step 3. On a 50-item rotation this is the difference between
+"instant" and "visibly janky".
+
+### Where VRC uses this pattern
+
+- `rotateTrNodeItems()` — bulk 90° rotations
+  (`roomcalc.js:19694–19711`).
+- The zoom handler — `nodesCopy` snapshot at
+  `roomcalc.js:17693–17695`, reattach at `:17771`.
+- The arrow-key nudge handler — `roomcalc.js:18991–19053`
+  (`trNodesCopy` variant).
+
+### Companion mitigation: hide coverage groups for very large selections
+
+For selections above a threshold (`> 50` in `rotateTrNodeItems()`),
+VRC also calls `hideAllCoverageGroups(true)` before the loop and
+re-enables them via a short `setTimeout` after reattach. The
+`grShadingCamera` / `grShadingMicrophone` / `grDisplayDistance` /
+`grLabels` layers each redraw on every geometry change, and hiding
+them during the bulk update is the second half of the speed win.
+
+### Gotchas
+
+- `slice()` is required — `tr.nodes()` returns a live reference, so
+  `tr.nodes([])` would empty your "copy" too if you didn't snapshot.
+- After reattach, Transformer geometry is fresh — you do **not** need
+  `tr.forceUpdate()` (that's for trap #18, where nodes stay attached
+  while you mutate them).
+- If anything in the mutation loop reads `tr.nodes()` (e.g. to count
+  the selection), remember it is empty during the loop — read from
+  `nodesCopy.length` instead. The arrow-key handler does exactly
+  this: `if (tr.nodes().length === 1 || trNodesCopy.length === 1)`.
+
+---
+
 ## Quick checklist before editing Konva code
 
 - [ ] Am I about to write a CSS-style selector? → Re-read trap #1.
@@ -538,3 +602,4 @@ eraser-style features are ever added, plan for separate
 - [ ] Am I calling `e.stopPropagation()` inside a Konva listener? → It is `e.evt.stopPropagation()` for DOM, or `e.cancelBubble = true` for Konva (trap #11).
 - [ ] Am I caching a node? → Remember `clearCache()` after every mutation (trap #14).
 - [ ] Am I about to write `stage.toJSON()` for persistence? → Don't. Use `roomObj` (trap #23).
+- [ ] Am I bulk-mutating many selected items? → Detach with `tr.nodes([])` first, mutate, then reattach (trap #26).

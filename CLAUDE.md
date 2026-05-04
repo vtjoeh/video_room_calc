@@ -1199,11 +1199,12 @@ Templates are loaded via `loadTemplate(url)` function.
 ## Konva.js Notes
 
 > **Working on Konva code? Read `TECH_NOTES_KONVA.md` first.**
-> It documents the 25 Konva.js footguns that have bitten this project
+> It documents the 26 Konva.js footguns that have bitten this project
 > (selector limits, the `data_*` JS-property convention vs `setAttr`,
 > Transformer scale-not-size, `findOne` vs `find[0]`, why
-> `stage.toJSON()` is NOT viable here, etc.). The section below is a
-> short summary; the deep dives are in that file.
+> `stage.toJSON()` is NOT viable here, the
+> `tr.nodes([])`-detach-before-bulk-mutate speed pattern, etc.). The
+> section below is a short summary; the deep dives are in that file.
 
 **IMPORTANT:** Konva.js uses CSS-like property names in JavaScript objects, but these are NOT CSS properties. Do not confuse them.
 
