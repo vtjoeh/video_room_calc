@@ -1,4 +1,4 @@
-const version = "v0.1.645";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.646";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. The function bodies live in
  * js/util/uuid.js and js/util/units.js (loaded via <script> before this
@@ -106,9 +106,6 @@ let layerGrid = new Konva.Layer({
     name: 'layerGrid',
 });
 
-// let layerBackgroundImageFloor = new Konva.Layer({
-//     name: 'layerBackgroundImageFloor'
-// })
 
 let layerBackgroundImageFloor = new Konva.Group({
     name: 'layerBackgroundImageFloor'
@@ -1278,10 +1275,6 @@ layerSelectionBox.add(circleEnd);
 circleEnd.hide();
 
 
-
-
-// let measuringToolText = 'DIST m/f';
-
 const measuringToolLabel = new Konva.Label({
     x: 30,
     y: 30,
@@ -1293,25 +1286,6 @@ const measuringToolLabel = new Konva.Label({
 
 
 
-// measuringToolLabel.add(
-//     new Konva.Tag({
-//         fill: 'lightgrey',
-//         stroke: 'black',
-//         strokeWidth: 1,
-//         pointerDirection: 'down',
-//         pointerWidth: 0,
-//         pointerHeight: 0,
-//         lineJoin: 'round',
-//         shadowColor: 'black',
-//         shadowBlur: 7,
-//         shadowOffsetX: 5,
-//         shadowOffsetY: 5,
-//         shadowOpacity: 0.5,
-//         cornerRadius: 5,
-//         name: 'tagMeasuringToolLabel',
-//     })
-// );
-
 measuringToolLabel.add(
     new Konva.Tag({
         fill: '#588ce5ff',
@@ -1321,11 +1295,6 @@ measuringToolLabel.add(
         pointerWidth: 0,
         pointerHeight: 0,
         lineJoin: 'round',
-        // shadowColor: 'black',
-        // shadowBlur: 7,
-        // shadowOffsetX: 5,
-        // shadowOffsetY: 5,
-        // shadowOpacity: 0.5,
         cornerRadius: 5,
         name: 'tagMeasuringToolLabel',
     })
@@ -13772,11 +13741,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             displayNumber = 3;
         }
 
-        // if (deviceId === 'display21_9') {
-        //     width = (displayWidth21_9 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
-        // } else {
-        //     width = (displayWidth / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber; /* height is displayDepth, which is constant regardless of diagnol inches */
-        // }
 
         if (deviceId === 'display21_9') {
             width = (displayWidth21_9 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
@@ -13972,7 +13936,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('mouseup touchend', function imageItemMouseUpTouchend(e) {
 
-            // e.target.data_zPosition = document.getElementById('itemZposition').value;
+
             clickedOnItemId = '';
 
             let overlapItemOutlines = layerTransform.find('#overlapItemOutline');
@@ -14509,93 +14473,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
 
-        /* closest distance line */
-        // let widthRatio = 1 * displayNumber;
-        // let diagonalUnit = data_diagonalInches / 12;
-        // if (unit === 'meters') {
-        //     diagonalUnit = diagonalUnit / 3.28084;
-        // }
-
-        // let xc1 = -diagonalUnit * scale * widthRatio;
-        // let distance1 = diagonalUnit * scale;
-        // let distance1unit = diagonalUnit;
-        // let xc2 = diagonalUnit * scale * widthRatio;
-
-        // if (deviceId === 'display21_9') {
-        //     distance1 = distance1 * 1.07 / 1.33;
-        //     distance1unit = distance1unit * 1.07 / 1.33;
-        // }
-
-        // let purpleLine = new Konva.Line({
-        //     points: [xc1, distance1, xc2, distance1],
-        //     stroke: 'purple',
-        //     strokeWidth: 2,
-        //     lineJoin: 'round',
-        //     dash: [5, 5],
-        // });
-
-        // let txt1xFromDisplay = new Konva.Text({
-        //     x: -1000,
-        //     y: distance1,
-        //     text: 'Ideal closest participant to display: ' + distance1unit.toFixed(1) + ' ' + abbrUnit,
-        //     fontSize: 12,
-        //     fill: 'purple',
-        //     align: 'center',
-        //     width: 2000,
-        //     padding: 3,
-        //     align: 'center',
-        // });
-
-        // let greenLine = new Konva.Line({
-
-        //     points: [xc1 * 3, distance1 * 3, xc2 * 3, distance1 * 3],
-        //     stroke: 'green',
-        //     strokeWidth: 2,
-        //     lineJoin: 'round',
-        //     dash: [5, 5],
-        // });
-
-        // let txt3xFromDisplay = new Konva.Text({
-        //     x: -1000,
-        //     y: distance1 * 3,
-        //     text: 'Ideal farthest participant from display: ' + (distance1unit * 3).toFixed(1) + ' ' + abbrUnit,
-        //     fontSize: 12,
-        //     fill: 'green',
-        //     align: 'center',
-        //     width: 2000,
-        //     padding: 3,
-        //     align: 'center',
-        // });
-
-        // let redLine = new Konva.Line({
-        //     points: [xc1 * 4, distance1 * 4, xc2 * 4, distance1 * 4],
-        //     stroke: 'red',
-        //     strokeWidth: 2,
-        //     lineJoin: 'round',
-        //     dash: [5, 5],
-        // });
-
-        // let txt4xFromDisplay = new Konva.Text({
-        //     x: -1000,
-        //     y: distance1 * 4,
-        //     text: 'Max farthest participant from display: ' + (distance1unit * 4).toFixed(1) + ' ' + abbrUnit,
-        //     fontSize: 12,
-        //     fill: '#C41E3A',
-        //     align: 'center',
-        //     width: 2000,
-        //     padding: 3,
-        //     align: 'center',
-        // });
-
-
-        // groupItemDisplayDistance.add(redLine);
-        // groupItemDisplayDistance.add(greenLine);
-        // groupItemDisplayDistance.add(purpleLine);
-        // groupItemDisplayDistance.add(txt1xFromDisplay);
-        // groupItemDisplayDistance.add(txt3xFromDisplay);
-        // groupItemDisplayDistance.add(txt4xFromDisplay);
-        // //       imageDataUrl = groupItemDisplayDistance.toDataURL();
-        // grDisplayDistance.add(groupItemDisplayDistance);
     }
 
     /* Coverage groups (fov~, audio~, speaker~, dispDist~) and label~ are created
@@ -15056,9 +14933,7 @@ function getObjectsWithLowestDiff(resultV) {
 function snapToGuideLinesResize(moved) {
     let original = lastSelectedNodePosition;
     if (snapGuidesDrawn && moved.rotation() === 0) {
-        // lastSelectedNodePosition.height(lastSelectedNodePosition.y() + guides[0].lineGuide + 300);
-        // e.target.height(Math.abs(lastSelectedNodePosition.y() - guides[0].lineGuide));
-        // e.target.y(lastSelectedNodePosition.y());
+
         updateFormatDetails(e.target.id());
     }
 }
@@ -15077,7 +14952,7 @@ function snapToGuideLines(e, resize = false) {
     /* find possible snapping lines */
     let lineGuideStops = getLineGuideStops(e.target, resize);
 
-    // drawSnapGuides(guides);
+
 
     let absPos = e.target.absolutePosition();
     if (resize === true) {
@@ -15091,16 +14966,14 @@ function snapToGuideLines(e, resize = false) {
             let itemBounds = getObjectSnappingEdges(e.target, resize);
 
             let itemOriginalBounds = getObjectSnappingEdges(original, resize);
-            // console.log('itemBounds', JSON.stringify(itemBounds));
-            // console.log('itemOrigin', JSON.stringify(itemOriginalBounds));
+
 
             if (!itemOriginalBounds) return;
             if (!itemBounds) return;
 
 
 
-            // console.log('1', Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide));
-            //  console.log('0', Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide));
+
             if (Math.abs(itemBounds.vertical[1].guide - itemOriginalBounds.vertical[1].guide) > Math.abs(itemBounds.vertical[0].guide - itemOriginalBounds.vertical[0].guide)) {
                 itemBounds.vertical[0].ignore = true;
 
@@ -15122,10 +14995,6 @@ function snapToGuideLines(e, resize = false) {
             if (!guides.length) {
                 return;
             }
-
-            // console.log('original', original.id(), original.x(), original.y(), original.width(), original.height());
-            // console.log('moved', moved.id(), moved.x(), moved.y(), moved.width(), moved.height());
-            // console.log('guides', JSON.stringify(guides));
 
             /* only show vertical guides */
             if (Math.round(original.width() * 1000) === Math.round(moved.width() * 1000) && ((moved.rotation() % 180) === 0)) {
@@ -15287,15 +15156,13 @@ function updateRemoveDefaultWallsCheckBox() {
 
     if (roomObj.workspace.removeDefaultWalls === false) {
         document.getElementById('addCeilingCheckBox').checked = true;
-        //  roomObj.workspace.addCeiling = true;
-        //  document.getElementById('addCeilingCheckBox').disabled = true;
+
         document.getElementById('addCeilingDiv').style.display = 'none';
         document.getElementById('addCeilingAutoDiv').style.display = '';
         document.getElementById('defaultWallSettings').style.display = "";
 
     } else {
         document.getElementById('addCeilingCheckBox').disabled = false;
-        //    document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
         document.getElementById('defaultWallSettings').style.display = "none";
         document.getElementById('addCeilingDiv').style.display = '';
         document.getElementById('addCeilingAutoDiv').style.display = 'none';
@@ -15316,13 +15183,11 @@ function removeDefaultWallsChange(e) {
     drawRoom(false, true, false);
 
 
-    // saveToUndoArray();
 }
 
 
 function btnWallSelected(wallSelected) {
-    // setDefaultWallsMenu(wallSelected);
-    // updateBtnWallUpateMenu(wallSelected);
+
     currentDefaultWall = wallSelected;
 
     updateDefaultWallsMenu(wallSelected);
@@ -15407,11 +15272,9 @@ function updateDefaultWallsMenu(event) {
     } else {
         document.getElementById('pickDoorSelection').style.display = '';
         document.getElementById('noDoorSelectionDiv').style.display = 'none';
-        ///  document.getElementById('drpDefaultWallDoor').value = roomObj.roomSurfaces[wall].door || 'none';
     }
 
 
-    //  btnWallSelected(wall);
 
     updateBtnWallUpateMenu(wall);
 
@@ -16998,7 +16861,6 @@ function addListeners(stage) {
             const nodes = tr.nodes().concat([e.target]);
             tr.nodes(nodes);
             enableCopyDelBtn();
-            // /*v0.1.513 fixed issue with shift multiple select allowing the TR Node to be resizeable if table object was selected first */
             if (tr.nodes().length > 1) {
                 tr.resizeEnabled(false);
             }
@@ -17288,7 +17150,6 @@ function checkForMultipleCodecsOnDragEnd(droppedItem) {
                 /* update this later with a pretty modal and a "Don't show this message again" toggle */
 
                 document.getElementById('dialogMultipleVideoDevices').showModal();
-                // alert('\u26A0 Multiple Video Device Alert\u26A0\r\n\r\nThere are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead, delete/undo the last action and insert a camera.')
             }
 
         }
@@ -18135,7 +17996,6 @@ function createHighlightImage(deviceId, imageObj2, minimumSize = 500) {
 
     if (itemType.width < minimumSize && itemType.depth < minimumSize) {
 
-        //   let divContainerId = 'containerImageCreate-' + createUuid();
 
         let divContainerId = 'containerImageCreate';
         let checkDiv = document.getElementById(divContainerId);
@@ -18226,11 +18086,6 @@ function preLoadTopImages() {
                     });
 
                     counter++;
-
-                    /* last image is cached if totalDevices === counter **/
-                    if (totalDevices === counter) {
-                        // console.info('** last item loaded **', item.id);
-                    }
 
                 };
 
@@ -18613,10 +18468,8 @@ function changeWallAnchors(isWall = false) {
 
             if (roomObj.unit === 'meters') ratioFactor = ratioFactor / 3.28084;
 
-            // ratioFactor = ratioFactor + 0.1;
 
             ratioFactor = ratioFactor + minimumSize;
-            ;
 
             if (isWall === 'wallChairs' || isWall === 'couch') {
                 anchor.height(5 * ratioFactor);
@@ -18637,7 +18490,7 @@ function changeWallAnchors(isWall = false) {
                 anchor.width(20 * ratioFactor);
 
                 if (anchor.attrs.name.startsWith('bottom-center')) {
-                    //option 1
+
 
                     anchor.offsetY(0 * ratioFactor);
                     anchor.offsetX(10 * ratioFactor);
@@ -18670,7 +18523,6 @@ function changeWallAnchors(isWall = false) {
                 }
 
 
-                // anchor.stroke('lightBlue');
                 anchor.fill('white');
                 anchor.stroke("rgb(0, 161, 255)");
             }
@@ -18695,11 +18547,7 @@ function testiFrameToggle(allowClose = false) {
             testiFrameInitialized = true;
             openWorkspaceWindow(false);
             floatingWorkspaceResize('slideOver');
-            // setTimeout(() => {
-            //     if (mobileDevice === 'RoomOS') {
-            //         floatingWorkspaceResize('fullScreen');
-            //     }
-            // }, 1000);
+
         }
 
 
@@ -19113,7 +18961,6 @@ function searchQuickItem(items, word = '') {
 
     const all = items.filter(i => match(word, i.name))
 
-    // return all.filter(i => !i.name.includes('Unknown'))
 
     return all.filter(i => !regex.test(i.name));
 }
@@ -19180,12 +19027,6 @@ function onQuickAddChange(e) {
 
         }
 
-        // item.addEventListener('dragstart', dragStart);
-        // item.addEventListener('drag', drag);
-        // item.addEventListener('dragend', dragEnd);
-        // item.addEventListener('touchstart', touchStart);
-        // item.addEventListener('touchmove', touchMove);
-        // item.addEventListener('touchend', touchEnd);
 
         gallery.appendChild(btnItem);
     })
@@ -19337,12 +19178,6 @@ function flipItems() {
 
         node.offsetX(node.width() / 2);
         node.offsetY(node.height() / 2);
-
-        // node.offsetX(nodeCenterXY.x - node.x());
-        // node.offsetY(nodeCenterXY.y - node.y());
-
-        // node.x(nodeCornerXY.x);
-        // node.y(nodeCornerXY.y);
 
         node.rotation(-node.rotation());
 
@@ -19548,91 +19383,6 @@ function rotateRoom(rotationAmount) {
     }, 1);
 
 
-
-    //drawRoom(true, true, false);
-
-
-
-    /*
-    setTimeout(() => {
-        isRotatingRoom = false;
-        canvasToJson();
-    }, 3 * timeForEachStage);
-
-    setTimeout(() => {
-        document.getElementById('dialogLoadingTemplate').close();
-        isFreezeKeys = false;
-    }, 4 * timeForEachStage + 500);
-
-
-    let roomWidth = roomObj.room.roomWidth;
-    let roomLength = roomObj.room.roomLength;
-    let roomSurfaces = { ...roomObj.roomSurfaces };
-
-    // make the room the larger of roomWidth or roomLenght on both sides
-    let roomWidthLength;
-    if (roomWidth > roomLength) {
-        roomWidthLength = roomWidth;
-    } else {
-        roomWidthLength = roomLength
-    }
-
-
-    roomObj.room.roomLength = roomWidthLength;
-    roomObj.room.roomWidth = roomWidthLength;
-
-    drawRoom(true, true, false);
-
-    setTimeout(function nowRotateTrNodeItems() {
-
-        let rotationCenter = {};
-
-        rotationCenter.x = ((roomWidth) / 2) * scale + pxOffset;
-        rotationCenter.y = ((roomLength)) * scale / 2 + pyOffset;
-
-        // flip for counter clockwise
-        if (rotationAmount === 90) {
-            rotationCenter.x = rotationCenter.y;
-        }
-        else {
-            rotationCenter.y = rotationCenter.x;
-        }
-
-
-
-
-        selectAllTrNodes();
-        rotateTrNodeItems(rotationAmount, rotationCenter);
-        rotateBackgroundImage(rotationAmount, rotationCenter);
-        canvasToJson();
-    }, timeForEachStage);
-
-
-    // reset room dimensions
-    setTimeout(function nowResizeRoom() {
-        tr.nodes([]);
-        roomObj.trNodes = [];
-        roomObj.room.roomLength = roomWidth;
-        roomObj.room.roomWidth = roomLength;
-
-        if (rotationAmount === 90) {
-
-            roomObj.roomSurfaces.leftwall = roomSurfaces.backwall;
-            roomObj.roomSurfaces.backwall = roomSurfaces.rightwall;
-            roomObj.roomSurfaces.rightwall = roomSurfaces.videowall;
-            roomObj.roomSurfaces.videowall = roomSurfaces.leftwall;
-
-        }
-        else {
-            roomObj.roomSurfaces.leftwall = roomSurfaces.videowall;
-            roomObj.roomSurfaces.backwall = roomSurfaces.leftwall;
-            roomObj.roomSurfaces.rightwall = roomSurfaces.backwall;
-            roomObj.roomSurfaces.videowall = roomSurfaces.rightwall;
-        }
-        drawRoom(true, true, false);
-    }, timeForEachStage * 2);
-    */
-
 }
 
 function rotateTrNodeItemsOriginal(rotationAmount = 90, rotationCenter) {
@@ -19687,18 +19437,17 @@ function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
     }
 
 
-    // Get rotation center from transformer if not provided
+    /* Get rotation center from transformer if not provided */
     if (!rotationCenter) {
         rotationCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
     }
 
-    // Copy nodes array and DETACH from transformer (speed optimization)
+    /* Copy nodes array and DETACH from transformer (speed optimization) */
     const nodesCopy = tr.nodes().slice();
     tr.nodes([]);
 
     for (let i = 0; i < nodesCopy.length; i++) {
         const node = nodesCopy[i];
-        //  node.listening(false);
 
         let nodeCenter = getNodeCenter(node);
 
@@ -19738,10 +19487,8 @@ function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
 
     }
 
-    //   tr.nodes(nodesCopy);
 
-    //   hideAllCoverageGroups(false);
-    // Reattach nodes to transformer
+    /* Reattach nodes to transformer */
     tr.nodes(nodesCopy);
     rotateResetTrNodeTimer = setTimeout(() => {
 
@@ -19781,7 +19528,6 @@ function rotateAroundCenter(node, deg) {
     node.offset({ x: w / 2, y: h / 2 });
     node.rotate(deg);
 
-    // node.offset({x: 0, y: 0});
 
 }
 
@@ -23223,7 +22969,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.range;
         delete wdItem.distanceBtwChairs;
         delete wdItem.distanceToWall;
-        // delete wdItem.model;
+
     }
 
     if (wdItem.model === '') {
@@ -23380,35 +23126,9 @@ function getLocationOfRoomKitEqxDisplay(item) {
 
 }
 
-/** move here */
 
 
 
-
-/* The  downloadFileWorkspace() determines if the Unit is meters or feet and converts roomObj temporarily to meters along with the Canvas drawing */
-
-// function downloadJsonFile() {
-//     let downloadRoomName;
-//     let roomObj2 = structuredClone(roomObj);
-//     if (konvaBackgroundImageFloor.name() != '') {
-//         roomObj2.backgroundImageSrc = backgroundImageFloor.src;
-//     }
-//     const link = document.createElement("a");
-//     const content = JSON.stringify(roomObj2, null, 5);
-//     const file = new Blob([content], { type: 'text/plain' });
-
-//     downloadRoomName = roomObj.name;
-
-//     if (downloadRoomName == '') {
-//         downloadRoomName = 'Video Room Calc';
-//     }
-//     link.href = URL.createObjectURL(file);
-//     downloadRoomName = downloadRoomName.replace(/[/\\?%*:|"<>]/g, '-');
-//     downloadRoomName = downloadRoomName.trim() + '.json';
-//     link.download = downloadRoomName;
-//     link.click();
-//     URL.revokeObjectURL(link.href);
-// }
 
 function downloadFileWorkspace() {
 
@@ -23458,11 +23178,6 @@ function openWorkspaceWindow(fromButton = true) {
     let currentSite = location.origin + location.pathname;
     console.info('Current WD site:', currentSite);
 
-    /* any site that is not https://collabexperience.com/ will redirect to designer.webex.com */
-    // if (currentSite != 'https://collabexperience.com/') {
-    //     newWorkspaceTab = defaultWorkspaceTestSite;
-    //     console.info('WD site: ', newWorkspaceTab);
-    // }
 
     lastAction = "btnClick Workspace Designer";
 
@@ -23909,7 +23624,6 @@ function exportRoomObjToWorkspace() {
             let rightDoor = structuredClone(item);
             let deltaX = 0.51;
 
-            //  let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
             let deltaY = -1 * ((allDeviceTypes[item.data_deviceid].depth / 2 / 1000) - 0.05);
 
             leftDoor.id = 'primary1-doorDouble-L-' + item.id;
@@ -24145,7 +23859,6 @@ function exportRoomObjToWorkspace() {
             let newDisplayHeight = item.data_diagonalInches / diagonalInches * displayHeight_2 / 1000;
 
             if (item.data_deviceid === 'roomKitEqxFS') {
-                // newData_zPosition = 1.8 + Number(item.data_zPosition) - newDisplayHeight;
                 newData_zPosition = 1.76 + Number(item.data_zPosition) - newDisplayHeight;
                 deltaY = -0.07;
             }
@@ -24661,7 +24374,7 @@ function exportRoomObjToWorkspace() {
 
         if (item.data_deviceid === 'cylinder') {
             workspaceItem.radius = item.width / 2;
-            // workspaceItem.length = item.data_vHeight;
+
             if ('data_vHeight' in item && item.data_vHeight) {
                 workspaceItem.length = item.data_vHeight;
             } else {
@@ -24747,7 +24460,7 @@ function validateDisplaySizeAndModel(model, size) {
 function parseDataLabelFieldJson(item, workspaceItem) {
 
     let commentPart;
-    //  let jsonPart = /{.*?}/.exec(item.data_labelField);
+
     let jsonPart = /{.*}/.exec(item.data_labelField);
 
     if ('data_labelField' in item && item.data_labelField) {
@@ -24981,7 +24694,6 @@ tooltip2Hover();
 
 function tooltip2Hover() {
 
-    //    if (mobileDevice != 'false') return; /* do not use on mobile devices */
 
     const tooltipTitles = document.querySelectorAll('.tooltip, .tooltipIcon, .tooltipBottom');
 
@@ -25328,22 +25040,12 @@ function isTeslaBrowser() {
     } else {
         batteryAPI = false;
     }
-    // showTestLog(ua);
-    // showTestLog('isTouchDevice:', isTouchDevice)
-    // showTestLog('hasTeslaKeyword', hasTeslaKeyword);
-    // showTestLog('batteryAPI: ', batteryAPI);
 
-    // showTestLog('isTesla?:', hasTeslaKeyword && isTouchDevice && batteryAPI)
-
-    // showTestLog('screen Width x Height:', screen.width, 'x', screen.height);
-    // showTestLog('available Screen Width x Height:', screen.availWidth, 'x', screen.availHeight);
 
     return hasTeslaKeyword && isTouchDevice && batteryAPI;
 }
 
 
-// Mark's Changes in roomcalc.js
-// Added at the very bottom of the file
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -25542,7 +25244,7 @@ function splitViewToggle() {
     fromDrag=false (Preview toggle) hides it completely. */
 function splitViewClose(fromDrag) {
     let container = document.getElementById('splitViewContainer');
-    // let iframe = document.getElementById('splitViewIframe');
+
     let expandBtn = document.getElementById('splitViewExpandBtn');
 
     let reopenTab = document.getElementById('splitViewReopenTab');
@@ -25780,10 +25482,6 @@ function splitViewUpdateBreakpointClasses() {
     let header = document.getElementById('ContainerHeader');
     let leftPxWidth = header ? header.offsetWidth : window.innerWidth;
 
-    // bodyEl.classList.toggle('svBp900', leftPxWidth <= 900);
-    // bodyEl.classList.toggle('svBp783', leftPxWidth <= 783);
-    // bodyEl.classList.toggle('svBp650', leftPxWidth <= 650);
-    // bodyEl.classList.toggle('svBp405', leftPxWidth <= 405);
 
     bodyEl.classList.toggle('svBp900', leftPxWidth <= 1050);
     bodyEl.classList.toggle('svBp783', leftPxWidth <= 800);
