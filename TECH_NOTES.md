@@ -93,6 +93,32 @@ Split into focused modules under `js/` using a `window.VRC` namespace
 4. Rendering: `js/render/itemRender.js`, `js/render/wallBuilder.js`
 5. Glue: a slim `js/main.js` that wires everything together.
 
+### Status (May 2026)
+
+Shipped to `next`:
+
+- `js/constants.js` — global constants + `window.VRC` namespace bootstrap
+- `js/data/workspaceKey.js` — Workspace Designer device map (~270 lines)
+- `js/util/uuid.js` — `createUuid()`
+- `js/util/units.js` — `convertToUnit`, `convertToMeters`, `convertMetersFeet`
+
+Net ~244 lines came out of `roomcalc.js`. Pattern (IIFE + `window.VRC.<ns>`,
+plus a thin alias block at the top of `roomcalc.js`) is documented in
+those files and proven to work across classic `<script>` tags without
+the top-level `const` collision that bit the first `workspaceKey`
+attempt.
+
+**Paused after `util/units.js`.** The remaining Phase 2 leaves
+(`js/util/geometry.js` for `round` / `getDistanceA` / `getDistanceB` /
+the `pointAtDistanceFromP2TowardP1` cluster / `polylineSelfIntersects`,
+and a possible `js/data/devices.js` for the ~1,300-line device-spec
+arrays) are **deferred** because they don't unblock the next planned
+feature (Groups). Refactor without a forcing function tends to
+over-design; better to let Groups pull on selection / iteration / undo
+and refactor *those* areas in the same change. Resume Phase 2 leaf
+work opportunistically — when a future feature happens to need it, or
+between features.
+
 ### Convention
 
 ```javascript
