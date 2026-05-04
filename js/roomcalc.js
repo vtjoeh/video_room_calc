@@ -22208,7 +22208,21 @@ function exportXConfigFile() {
  *   • Codecs / cameras / navigators / touch panels always show a label
  *     (model name from allDeviceTypes, or the user's data_labelField if set).
  *   • Everything else only shows a label when data_labelField is set. */
-function exportDxfFile() {
+async function exportDxfFile() {
+    /* Lazy-load the DXF writer + block library. They were eagerly loaded
+     * via <script> tags in older versions but most users never export
+     * DXF, so the ~46 KB / ~1500 lines of code is now fetched on first
+     * use only. See TECH_NOTES.md (Phase 1). loadScriptOnce() is
+     * idempotent — repeat exports skip the network round-trip. */
+    try {
+        await loadScriptOnce(VRC.constants.SCRIPT_DXF_WRITER);
+        await loadScriptOnce(VRC.constants.SCRIPT_DXF_BLOCK_LIB);
+    } catch (err) {
+        console.error('DXF export aborted: failed to load DXF scripts', err);
+        alertDialog('DXF Export', 'Could not load the DXF export module. Check your network connection and try again.');
+        return;
+    }
+
     /* Sync the latest item attrs back into roomObj before walking. */
     canvasToJson();
 
