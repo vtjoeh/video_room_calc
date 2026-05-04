@@ -18,20 +18,26 @@ video_room_calculator/
 ├── style.css                # Styles with CSS custom properties
 ├── CLAUDE.md                # This developer reference
 ├── TECH_NOTES.md            # Engineering notes & refactor targets
+├── TECH_NOTES_KONVA.md      # Konva.js footguns specific to this codebase
 ├── GIT_WORKFLOW.md          # Branching, tagging, day-to-day cheatsheet
 ├── README.md                # Release notes & user-facing docs
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
 ├── js/
-│   ├── constants.js         # Global constants + window.VRC namespace bootstrap
-│   ├── roomcalc.js          # Core application logic (~26,000 lines)
-│   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library)
-│   ├── templates.js         # Pre-built room templates
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
-│   ├── qrcode.js            # QR code generation (lazy-loaded)
-│   ├── drpDownOverride.js   # Dropdown UI for RoomOS (lazy-loaded)
-│   ├── dxfWriter.js         # DXF (CAD) writer
-│   └── dxfBlockLibrary.js   # DXF symbol block library
+│   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
+│   ├── data/
+│   │   └── workspaceKey.js  # Workspace Designer object map (Phase 2 extract; window.VRC.workspaceKey)
+│   ├── util/
+│   │   ├── uuid.js          # createUuid() (Phase 2 extract; window.VRC.util)
+│   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
+│   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library)
+│   ├── roomcalc.js          # Core application logic (~26,000 lines)
+│   ├── templates.js         # Pre-built room templates             (lazy-loaded — first new-room dialog open)
+│   ├── qrcode.js            # QR code generation                   (lazy-loaded — first QR render)
+│   ├── drpDownOverride.js   # Dropdown UI for RoomOS               (lazy-loaded — RoomOS only)
+│   ├── dxfWriter.js         # DXF (CAD) writer                     (lazy-loaded — first DXF export)
+│   └── dxfBlockLibrary.js   # DXF symbol block library             (lazy-loaded — first DXF export)
 ├── data/                    # Device specifications
 │   ├── README.md            # Documentation for data files
 │   ├── videoDevices.json    # Video device specs
@@ -47,6 +53,20 @@ video_room_calculator/
 ```
 
 There is no build step. Open `RoomCalculator.html` directly in a browser.
+
+The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
+`data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
+`idbStorage.js` → `roomcalc.js`. Every module before `roomcalc.js`
+attaches to the shared `window.VRC` namespace (per the convention in
+`TECH_NOTES.md`); `roomcalc.js` then aliases the public names back into
+local `const` bindings near the top of the file so existing call sites
+stay unchanged. See the Phase 2 header comment in `roomcalc.js` and the
+IIFE pattern note in `js/data/workspaceKey.js`.
+
+The lazy-loaded scripts (`templates.js`, `qrcode.js`,
+`drpDownOverride.js`, `dxfWriter.js`, `dxfBlockLibrary.js`) are pulled
+in on demand by `loadScriptOnce()` and are *not* listed in
+`RoomCalculator.html`.
 
 `TECH_NOTES.md` documents the long-term refactor direction. Read it
 before doing structural changes. `GIT_WORKFLOW.md` describes the
