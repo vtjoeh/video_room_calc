@@ -6129,7 +6129,10 @@ function onLoad() {
         document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
     }
 
-    populateTemplates();
+    /* templates.js is lazy-loaded by openNewRoomDialog() on first open.
+     * The dialog auto-opens via getQueryString() in the default-room path
+     * (which runs earlier in onLoad), so the load is already in flight by
+     * the time we get here. See TECH_NOTES.md (Phase 1). */
 
     firstLoad = false;
 
@@ -6183,6 +6186,27 @@ function populateTemplates() {
      * templates are in the DOM, then move it to the very front so it is
      * the first item the user sees. */
     syncReloadLastDesignButton();
+}
+
+/* Single-flight lazy loader for templates.js + populateTemplates(). The
+ * first openNewRoomDialog() call kicks this off; the modal shows
+ * synchronously and the templates pop into the grid as soon as the
+ * script finishes loading (typically a few ms from disk cache). Repeat
+ * calls return the same Promise so the templates are never double-added
+ * to the DOM. On load failure the promise is cleared so the next dialog
+ * open retries. */
+let _templatesPopulationPromise = null;
+function ensureTemplatesPopulated() {
+    if (_templatesPopulationPromise) return _templatesPopulationPromise;
+    _templatesPopulationPromise = loadScriptOnce(VRC.constants.SCRIPT_TEMPLATES)
+        .then(() => {
+            populateTemplates();
+        })
+        .catch(err => {
+            _templatesPopulationPromise = null;
+            console.error('Failed to load templates.js for new-room dialog', err);
+        });
+    return _templatesPopulationPromise;
 }
 
 /* Show or hide the "Reload last design" tile in the new-room dialog's
@@ -9048,6 +9072,10 @@ function openNewRoomDialog() {
      * during onLoad() or manually opened by the user). */
     newRoomDialogOpenCount++;
     syncReloadLastDesignButton();
+    /* Lazy-load templates.js + populate the grid on first open. Fire-
+     * and-forget — the modal shows synchronously below; templates pop
+     * in a moment later. Subsequent calls are no-ops. */
+    ensureTemplatesPopulated();
     document.getElementById('newRoomDialog').showModal();
 }
 
