@@ -5138,6 +5138,25 @@ function getQueryString() {
 
     }
 
+    /* `?debug=1` (or `?debug` / `?debug=on`) shows the small fps / item /
+     * Konva-node count overlay in the top-right corner. Persisted in
+     * localStorage so refreshes keep it on; `?debug=0` clears it.
+     * See debugOverlayEnable() for details and TECH_NOTES.md for the
+     * rationale (Phase 4/5 redraw / sync refactor measurement). */
+    const QS_DEBUG = (window.VRC && VRC.constants && VRC.constants.QS_DEBUG) || 'debug';
+    if (urlParams.has(QS_DEBUG)) {
+        const debugValue = urlParams.get(QS_DEBUG);
+        if (debugValue === '' || debugValue == 1 || debugValue == 'on') {
+            setItemForLocalStorage('debug', 'true');
+            debugOverlayEnable();
+        } else if (debugValue == '0' || debugValue === 'off') {
+            localStorage.removeItem('debug');
+            debugOverlayDisable();
+        }
+    } else if (localStorage.getItem('debug') === 'true') {
+        debugOverlayEnable();
+    }
+
     /* simulate RoomOS for testing only */
     if (urlParams.has('RoomOS') || urlParams.has('roomos')) {
         mobileDevice = 'RoomOS';
@@ -18677,43 +18696,201 @@ if (isCacheImages) {
 
 
 
-function setExternalScripts(src) {
-    return new Promise((resolve, reject) => {
+/* Map of `src → Promise` so each script is loaded at most once.
+ * Calling loadScriptOnce() twice with the same src returns the original
+ * promise instead of injecting a second <script> tag. */
+const _loadedScripts = new Map();
+
+function loadScriptOnce(src) {
+    if (_loadedScripts.has(src)) {
+        return _loadedScripts.get(src);
+    }
+
+    const promise = new Promise((resolve, reject) => {
         const scriptTag = document.createElement('script');
         scriptTag.type = 'text/javascript';
         scriptTag.src = src;
-        scriptTag.id = 'qrcodejs';
-        scriptTag.onload = () => resolve();
+        scriptTag.async = false;
+        scriptTag.onload = () => resolve(src);
+        scriptTag.onerror = () => {
+            /* allow a retry on next call */
+            _loadedScripts.delete(src);
+            const err = new Error('Failed to load script: ' + src);
+            console.error(err);
+            reject(err);
+        };
         document.body.appendChild(scriptTag);
     });
+
+    _loadedScripts.set(src, promise);
+    return promise;
 }
+
+/* Backward-compatible alias. The old name is still used in some places
+ * (and may be referenced from external test snippets). Remove after the
+ * Phase 3 module split if no external references remain. */
+const setExternalScripts = loadScriptOnce;
 
 async function loadQRCodeScript() {
 
     /* attribution: kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator */
 
-    const script = './js/qrcode.js';
     qrCodeAlwaysOn = true;
+    canvasToJson();
 
-    const scripts = [script];
-    for (let i = 0; i < scripts.length; i++) {
-        canvasToJson();
+    await loadScriptOnce(VRC.constants.SCRIPT_QRCODE);
 
-        await setExternalScripts(scripts[i]);
-
-        createQrCode();
-
-        createShareableLink();
-    }
+    createQrCode();
+    createShareableLink();
 }
 
 
 async function loadDrpDownOverrideScript() {
+    await loadScriptOnce(VRC.constants.SCRIPT_DRPDOWN_OVERRIDE);
+}
 
-    const script = './js/drpDownOverride.js';
 
-    await setExternalScripts(script);
+/* -----------------------------------------------------------------------
+ * Debug performance overlay. Activated by `?debug=1` (or
+ * localStorage.debug === 'true'). Off by default with zero overhead.
+ *
+ * Shown in the top-right corner. Reports:
+ *   fps    – frames per second sampled over the last second
+ *   items  – total items in roomObj.items.* arrays
+ *   nodes  – Konva node count under layerTransform (rough)
+ *
+ * Designed as a measurement tool for the Phase 4/5 refactor work
+ * described in TECH_NOTES.md (setTimeout-based sync, full-redraw undo).
+ * --------------------------------------------------------------------- */
+const _debug = {
+    enabled: false,
+    overlayEl: null,
+    frames: 0,
+    lastFpsTime: 0,
+    fps: 0,
+    rafId: null,
+    refreshIntervalId: null,
+};
 
+function debugOverlayEnable() {
+    if (_debug.enabled) {
+        return;
+    }
+    _debug.enabled = true;
+
+    const el = document.createElement('div');
+    el.id = 'vrcDebugOverlay';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = [
+        'position: fixed',
+        'top: 4px',
+        'right: 4px',
+        'z-index: 100000',
+        'padding: 6px 10px',
+        'background: rgba(0,0,0,0.78)',
+        'color: #0f0',
+        'font: 11px/1.35 ui-monospace, Menlo, Monaco, Consolas, monospace',
+        'border-radius: 4px',
+        'pointer-events: none',
+        'white-space: pre',
+        'min-width: 8.5em',
+    ].join(';');
+    el.textContent = 'debug';
+    document.body.appendChild(el);
+    _debug.overlayEl = el;
+
+    _debug.lastFpsTime = performance.now();
+    _debug.frames = 0;
+
+    const tick = (now) => {
+        _debug.frames += 1;
+        const elapsed = now - _debug.lastFpsTime;
+        if (elapsed >= 1000) {
+            _debug.fps = Math.round((_debug.frames * 1000) / elapsed);
+            _debug.frames = 0;
+            _debug.lastFpsTime = now;
+        }
+        _debug.rafId = requestAnimationFrame(tick);
+    };
+    _debug.rafId = requestAnimationFrame(tick);
+
+    const refreshMs = (window.VRC
+        && VRC.constants
+        && VRC.constants.DEBUG_OVERLAY_REFRESH_MS) || 1000;
+    _debug.refreshIntervalId = setInterval(debugOverlayRefresh, refreshMs);
+    debugOverlayRefresh();
+
+    console.info('Debug overlay enabled. Use ?debug=0 to disable.');
+}
+
+function debugOverlayRefresh() {
+    if (!_debug.enabled || !_debug.overlayEl) {
+        return;
+    }
+
+    let itemCount = 0;
+    try {
+        const items = (typeof roomObj === 'object' && roomObj && roomObj.items) || {};
+        for (const key in items) {
+            if (Object.prototype.hasOwnProperty.call(items, key)
+                && Array.isArray(items[key])) {
+                itemCount += items[key].length;
+            }
+        }
+    } catch (_) {
+        /* roomObj may not be ready during very early boot */
+    }
+
+    /* Count every Konva descendant of the stage. Konva's selector API
+     * supports `#id`, `.name`, and Type names (e.g. 'Rect') but NOT a
+     * `'*'` wildcard, so we walk the children tree manually. Counts
+     * groups, shapes, labels, transformer handles — i.e. the real
+     * render cost, not just the items the user added. */
+    let konvaNodes = 0;
+    try {
+        if (typeof stage !== 'undefined' && stage && typeof stage.getChildren === 'function') {
+            konvaNodes = countKonvaDescendants(stage);
+        }
+    } catch (_) {
+        /* stage may not be initialized yet */
+    }
+
+    _debug.overlayEl.textContent =
+        'fps   : ' + _debug.fps + '\n' +
+        'items : ' + itemCount + '\n' +
+        'nodes : ' + konvaNodes;
+}
+
+function countKonvaDescendants(node) {
+    if (!node || typeof node.getChildren !== 'function') {
+        return 0;
+    }
+    let total = 0;
+    const children = node.getChildren();
+    for (let i = 0; i < children.length; i += 1) {
+        total += 1;
+        total += countKonvaDescendants(children[i]);
+    }
+    return total;
+}
+
+function debugOverlayDisable() {
+    if (!_debug.enabled) {
+        return;
+    }
+    if (_debug.rafId) {
+        cancelAnimationFrame(_debug.rafId);
+    }
+    if (_debug.refreshIntervalId) {
+        clearInterval(_debug.refreshIntervalId);
+    }
+    if (_debug.overlayEl && _debug.overlayEl.parentNode) {
+        _debug.overlayEl.parentNode.removeChild(_debug.overlayEl);
+    }
+    _debug.enabled = false;
+    _debug.overlayEl = null;
+    _debug.rafId = null;
+    _debug.refreshIntervalId = null;
 }
 
 

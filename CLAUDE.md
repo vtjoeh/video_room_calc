@@ -16,18 +16,23 @@ The **Video Room Calculator** is a web-based tool for designing Cisco video coll
 video_room_calculator/
 ├── RoomCalculator.html      # Main entry point
 ├── style.css                # Styles with CSS custom properties
-├── package.json             # NPM config for linting
-├── .eslintrc.json           # ESLint configuration
 ├── CLAUDE.md                # This developer reference
-├── RECOMMENDATIONS.md       # Code improvement recommendations
+├── TECH_NOTES.md            # Engineering notes & refactor targets
+├── GIT_WORKFLOW.md          # Branching, tagging, day-to-day cheatsheet
+├── README.md                # Release notes & user-facing docs
+├── FAQ.md                   # Frequently asked questions
+├── LICENSE                  # MIT NON-AI license
 ├── js/
-│   ├── constants.js         # Configuration constants (NEW)
-│   ├── roomcalc.js          # Core application logic (~13,000 lines)
+│   ├── constants.js         # Global constants + window.VRC namespace bootstrap
+│   ├── roomcalc.js          # Core application logic (~26,000 lines)
+│   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library)
 │   ├── templates.js         # Pre-built room templates
-│   ├── konva.min.js         # Canvas rendering library
-│   ├── qrcode.js            # QR code generation
-│   └── drpDownOverride.js   # Dropdown UI for RoomOS
-├── data/                    # Device specifications (NEW)
+│   ├── konva.min.js         # Canvas rendering library (third party, minified)
+│   ├── qrcode.js            # QR code generation (lazy-loaded)
+│   ├── drpDownOverride.js   # Dropdown UI for RoomOS (lazy-loaded)
+│   ├── dxfWriter.js         # DXF (CAD) writer
+│   └── dxfBlockLibrary.js   # DXF symbol block library
+├── data/                    # Device specifications
 │   ├── README.md            # Documentation for data files
 │   ├── videoDevices.json    # Video device specs
 │   ├── cameras.json         # Camera specs
@@ -39,10 +44,13 @@ video_room_calculator/
 │   ├── MomentumFontIcon.woff2
 │   ├── momentum-icons.css
 │   └── favicon.ico
-├── README.md                # Release notes & documentation
-├── FAQ.md                   # Frequently asked questions
-└── LICENSE                  # MIT NON-AI license
 ```
+
+There is no build step. Open `RoomCalculator.html` directly in a browser.
+
+`TECH_NOTES.md` documents the long-term refactor direction. Read it
+before doing structural changes. `GIT_WORKFLOW.md` describes the
+`main` / `next` branching model.
 
 ---
 
