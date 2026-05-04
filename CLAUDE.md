@@ -1178,6 +1178,13 @@ Templates are loaded via `loadTemplate(url)` function.
 
 ## Konva.js Notes
 
+> **Working on Konva code? Read `TECH_NOTES_KONVA.md` first.**
+> It documents the 25 Konva.js footguns that have bitten this project
+> (selector limits, the `data_*` JS-property convention vs `setAttr`,
+> Transformer scale-not-size, `findOne` vs `find[0]`, why
+> `stage.toJSON()` is NOT viable here, etc.). The section below is a
+> short summary; the deep dives are in that file.
+
 **IMPORTANT:** Konva.js uses CSS-like property names in JavaScript objects, but these are NOT CSS properties. Do not confuse them.
 
 ### Konva Properties vs CSS
@@ -1314,13 +1321,36 @@ Tags (e.g. `v0.1.645`) mark deployed/stable snapshots and are pushed to
 
 ### When working in this repo, the assistant should
 
-- Check `git status` and `git branch` before suggesting commits, so it's clear
-  which branch the work is going to.
-- For risky refactors or large new features, suggest committing to `next`
-  rather than `main` (or ask the user which branch they want).
-- For small bug fixes that the user wants live soon, `main` is appropriate.
-- Never run destructive git operations (`reset --hard`, `push --force`,
-  branch deletion) without explicit user confirmation.
-- Never commit on the user's behalf unless they explicitly ask.
-- See `GIT_WORKFLOW.md` for the day-to-day cheat sheet, the merge-forward
-  pattern for hotfixes, and the "everything went wrong" recovery steps.
+**Hard rule: the user always runs git themselves.** The assistant must
+NOT run any state-changing git command — no `git add`, `git commit`,
+`git push`, `git pull`, `git merge`, `git rebase`, `git reset`,
+`git checkout` of a different branch, `git stash`, branch creation /
+deletion, tag creation / deletion, or anything else that mutates the
+repo. This applies even when the user says "let's commit" — that means
+"give me the commands to run", not "run them for me".
+
+Read-only inspection is fine and encouraged: `git status`, `git diff`,
+`git log`, `git branch`, `git show`, `git blame`, `git remote -v`, etc.
+
+When the user is ready to commit, the assistant should provide:
+
+1. The exact CLI commands to run (copy-paste-ready, with proper
+   quoting and HEREDOC for multi-line commit messages).
+2. A drafted commit message in the repo's style.
+3. A note about which branch the commit should land on (`main` for
+   small safe additions and bug fixes; `next` for risky refactors and
+   large features — see the table above).
+
+Other guidance:
+
+- Before suggesting commits, the assistant may run read-only
+  `git status` / `git branch` to see the lay of the land.
+- For risky refactors or large new features, suggest `next` rather
+  than `main` (or ask which branch the user wants).
+- For small bug fixes the user wants live soon, `main` is appropriate.
+- Never suggest destructive git operations (`reset --hard`,
+  `push --force`, branch deletion) without flagging the risk
+  prominently first.
+- See `GIT_WORKFLOW.md` for the day-to-day cheat sheet, the
+  merge-forward pattern for hotfixes, and the "everything went wrong"
+  recovery steps.

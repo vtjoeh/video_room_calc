@@ -6,6 +6,11 @@ certain code looks the way it does and what the long-term direction is.
 
 This file is **not** end-user documentation. It is engineering notes only.
 
+For the catalogue of Konva.js footguns specific to this codebase
+(selectors, `data_*` properties, Transformer behaviour, why
+`stage.toJSON()` is not viable here, etc.), see `TECH_NOTES_KONVA.md`.
+That file is lazy-loaded — open it on demand when touching Konva code.
+
 ---
 
 ## 1. setTimeout-based synchronization between roomObj and Konva
