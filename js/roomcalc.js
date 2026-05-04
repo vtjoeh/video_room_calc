@@ -64,7 +64,7 @@ let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 const betaWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* Cisco's beta Workspace Designer site, surfaced as the "designer.cisco.com (beta)" choice in the Workspace Designer Site dropdown */
 let newWorkspaceTab = defaultWorkspaceTab;
-let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
+let defaultWorkspaceTestSite  = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Window reprsenting the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
@@ -9934,6 +9934,7 @@ function applyWdSiteSelection(mode, customUrl) {
     } else {
         /* mode === 'default' — also covers any unrecognized value, which
          * is the safe production fallback. */
+        newWorkspaceTab = defaultWorkspaceTab;
         workspaceDesignerTestUrl = null;
         localStorage.removeItem('wd');
         /* Intentionally do NOT reset `testiFrame` here. Other code
@@ -23350,7 +23351,7 @@ function addDefaultsToWorkspaceObj() {
 
 
 function exportRoomObjToWorkspace() {
-    console.time('exportRoomObjToWorkspace()');
+  
     /* drawRoom() calls postMessageToWorkspace() at the end of the same turn, while createShareableLink() -> listItemsOffStage() is debounced (see canvasToJson). Without this, itemsOffStageId can lag behind a resize redraw; pathShapes use live getClientRect() in findFourCorners and are the first to misclassify. */
     listItemsOffStage();
 
@@ -24428,7 +24429,6 @@ function exportRoomObjToWorkspace() {
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-    console.timeEnd('exportRoomObjToWorkspace()');
     return workspaceObj;
 
 }
