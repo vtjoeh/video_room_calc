@@ -5627,8 +5627,10 @@ function parseShortenedXYUrl(parameters) {
 
                 const grpName = DOMPurify.sanitize(
                     'text' in item
-                        ? decodeURIComponent(item.text.replaceAll('+', ' '))
-                        : 'Group ' + grpUrlNum
+                        ? decodeURIComponent(item.text.replaceAll('+', ' ')) 
+                        : ''
+
+           //              : 'Group ' + grpUrlNum
                 );
 
                 let grpLayerId = '0';
@@ -5883,7 +5885,8 @@ function parseShortenedXYUrl(parameters) {
                          * URL it will patch this entry in place via _urlNum. */
                         matchedGroup = {
                             groupid: createUuid(),
-                            name: 'Group ' + grpUrlNum,
+                        //    name: 'Group ' + grpUrlNum,
+
                             data_layerId: '0',
                             x: 0, y: 0, width: 0, height: 0,
                             rotation: 0,
@@ -8681,7 +8684,8 @@ function createShareableLink() {
             if (group.rotation) {
                 grpStr += 'f' + Math.round(group.rotation * 10);
             }
-            const safeName = group.name && group.name.trim() ? group.name : ('Group ' + urlGroupNum);
+           // const safeName = group.name && group.name.trim() ? group.name : ('Group ' + urlGroupNum);
+            const safeName = group.name && group.name.trim() ? group.name : ('');
             grpStr += '~' + encodeURIComponent(safeName).replaceAll('%20', '+') + '~';
             strUrlQuery2 += grpStr;
             urlGroupNum++;
@@ -9759,7 +9763,8 @@ function pasteItems(duplicate = true) {
 
         const newGroup = {
             groupid: newGroupId,
-            name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
+      //       name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
+            name: item.groupAttrs.name || (''), 
             data_layerId: layerId,
             x: (item.groupAttrs.x || 0) + xOffset,
             y: (item.groupAttrs.y || 0) + yOffset,
@@ -14784,7 +14789,8 @@ function createGroup(nodesToGroup) {
 
     const newGroup = {
         groupid: createUuid(),
-        name: 'Group ' + (roomObj.groups.length + 1),
+       // name: 'Group ' + (roomObj.groups.length + 1),
+        name: '',
         data_layerId: targetLayerId,
         x: ((pixelX - pxOffset) / scale) + activeRoomX,
         y: ((pixelY - pyOffset) / scale) + activeRoomY,
