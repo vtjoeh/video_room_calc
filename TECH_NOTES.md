@@ -169,16 +169,34 @@ feasible without another big rewrite:
 
 ### Group functionality (PowerPoint-style)
 
-- New top-level array `roomObj.groups: [{id, name, memberIds, transform}]`.
-- Selection model becomes `{type: 'item' | 'group', id}`. Most current
-  code assumes selection = list of leaf items.
-- Render each group inside a `Konva.Group` so transforms cascade.
-- Undo / redo must record group operations as a single user action.
-- URL encoding gets a new uppercase prefix (`G` is taken by back wall;
-  pick a free letter).
+**Status: shipped (May 2026) — MVP, URL encoding, copy/paste, and
+Workspace Designer round-trip are all live.**
 
-Refactor implication: centralize selection and "iterate all items"
-operations so they can be made group-aware in one place.
+Items keep their individual Konva parent groups; a separate light-blue
+bounding-box rect (`data_deviceid='group'`, opacity 0 → 0.2 on select)
+lives in `groupGroupRects`. Members carry `data_groupId` on both the
+Konva node and the roomObj item (matches the `data_layerId` convention).
+
+End-user details (selection, drag, Details panel, group-rect props)
+live in **VRC Group System** in `CLAUDE.md`. URL spec lives in
+**Group URL Encoding** in `CLAUDE.md`. The persistence invariants below
+are the load-bearing rules to keep in mind for future changes.
+
+#### Persistence invariants
+
+- `allNodeShapeGroups` does NOT include `groupGroupRects`. Every node
+  walk that emits items must guard with
+  `if (node.data_deviceid === 'group') return;`.
+- `groupMembers` is **derived** from items whose `data_groupId`
+  matches the groupid — never serialize as-is.
+- Group `x`/`y`/`width`/`height`/`data_zPosition`/`rotation` ARE
+  serialized in URL (in the `H{n}` block) and JSON. They must be
+  encoded explicitly, not derived at load time — because item images
+  load asynchronously and any synchronous bounds recompute would see
+  zero members. `updateGroupBounds()` is only a defensive fallback
+  for malformed inputs (guarded by `if (!g.width || !g.height)`).
+- `ungroupItems(groupId, true)` = ungroup (keep items).
+  `ungroupItems(groupId, false)` = hard delete.
 
 ### Improved zoom (native Konva pan + zoom)
 

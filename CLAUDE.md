@@ -137,8 +137,23 @@ roomObj = {
     { name: 'Default',  visible: true, locked: false, layerid: '0' },   // reserved - cannot be deleted
     { name: 'Ceiling',  visible: true, locked: false, layerid: '1' },   // reserved - cannot be deleted
     { name: 'Furniture', visible: true, locked: false, layerid: 'uuid' } // custom layers use createUuid()
-  ]
+  ],
   // items carry an optional data_layerId = layerid string; omitted for Default layer ('0')
+  groups: [                   // VRC Group system (PowerPoint-style grouping)
+    {
+      groupid: "uuid",
+      name: "Group 1",
+      data_layerId: "0",      // VRC layer shared by all members (matches item.data_layerId convention)
+      x: 1.5,                 // bounding rect top-left, in current unit
+      y: 3.84,
+      width: 2.5,
+      height: 3.5,
+      rotation: 0,
+      data_zPosition: 0,      // lowest z-position of members
+      groupMembers: ["item-uuid-1", "item-uuid-2"]
+    }
+  ]
+  // items carry an optional data_groupId = groupid string; omitted if not in a group
 }
 ```
 
@@ -237,6 +252,30 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 | `btnUndoClicked()` | 5598 | Handles undo |
 | `btnRedoClicked()` | 5617 | Handles redo |
 | `enableBtnUndoRedo()` | 5632 | Updates button states |
+
+### Groups
+
+| Function | Line | Description |
+|----------|------|-------------|
+| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group |
+| `ungroupItems(groupId, keepItems)` | 13884 | Dissolves group; `keepItems=false` also destroys members |
+| `ungroupSelectedItems()` | 14031 | Calls `ungroupItems(..., true)` for all groups in selection |
+| `insertGroupRect(groupObj)` | 14048 | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0` by default; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()`). Selection visual is opacity-only — `updateTrNodesShading()` raises opacity to 0.2 on select, `removeShadingTrNodes()` drops it back to 0 on deselect |
+| `updateGroupBounds(groupId)` | 264 | Recalculates group rect bounds from member `getMemberBoundingRect()` (matches the Transformer's tight blue box exactly) |
+| `getMemberBoundingRect(node)` | 244 | `node.getClientRect({ skipShadow: true, relativeTo: layerTransform })` — same call the Transformer uses internally; correctly handles rotation, stroke, image offsets, and the `smallItemsHighlight` outline trick |
+| `getGroupById(groupId)` | 226 | Finds a group object in `roomObj.groups` |
+| `getGroupMemberNodes(groupId)` | 252 | Returns member Konva nodes across all item groups |
+| `ensureGroups(obj?)` | 231 | Ensures `roomObj.groups` array exists |
+| `expandSelectionForGroups()` | 11939 | Expands `tr.nodes()` to `[rect, ...members]` whenever any group-related node is selected |
+| `getActiveGroupSelection(nodes?)` | 312 | Returns `{ rectNode, group, groupId }` when the selection is exactly one Group rect plus only members of that same group; `null` otherwise. Used by `enableCopyDelBtn()` to recognise a "single conceptual item" Group selection and route to the single-item Details panel |
+| `getRotatedRectCenter(rectNode)` | 334 | Visual centre of a (possibly rotated) Konva.Rect in `layerTransform`-local coords. Used as the rotation pivot for `updateGroupItem()` |
+| `rotateNodeAroundPoint(node, cx, cy, deltaR)` | 353 | Rigid rotation of a Konva node around an arbitrary parent-space point (rotates origin around the point AND increments the node's own rotation by deltaR) |
+| `populateGroupDetails(rectNode)` | 394 | Renders the Details panel for a Group: shows Label/Layer/X/Y/Z/Rotation, hides irrelevant divs, disables Width/Length |
+| `refreshGroupDetailsFromCanvas()` | 372 | Lightweight live-refresh of the Group's X / Y / Rotation / Width / Length form inputs from the rect's current canvas state. Hooked into `tr.on('dragmove')`, `tr.on('transform')`, `tr.on('dragend')`, `tr.on('transformend')` and `followGroupDragFromMember()` so the panel tracks the canvas while the user drags or rotates the group. No-op when the active selection isn't a single Group bundle |
+| `updateGroupItem(group)` | 455 | Group fast-path inside `updateItem()`: applies X/Y/Z deltas to all members + rect, rotates members rigidly around the rect centre, and cascades label/layer changes. Z delta uses `Number(m.data_zPosition) \|\| 0` per member so missing/NaN values are treated as 0. Also calls `updateShading()` per-member so FOV/audio/display-distance/labels follow |
+| `beginGroupDragFollow(node)` | 184 | Captures the pre-drag snapshot of every sibling + Group rect. **MUST be called from `dragstart`**, not `dragmove` — by the first dragmove `target.x()` has already advanced past its pre-drag value, baking that offset into the snapshot and causing the rect/siblings to drift behind by the first-frame jump |
+| `followGroupDragFromMember(node)` | 219 | Member-direct drag follower; shifts siblings + rect by absolute delta from snapshot. Calls `updateShading(sibling)` for every moved member (skipping the Group rect) so each sibling's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Falls back to `beginGroupDragFollow()` if no snapshot exists |
+| `endGroupDragFollow()` | 257 | Clears the drag-follow snapshot (called from all `dragend` paths) |
 
 ### URL & Sharing
 
@@ -411,24 +450,12 @@ The shareable link uses a compressed format. **IMPORTANT:** Uppercase letters ar
 
 Example: `B10010100` = camera on, display off, mic on, grid off, ceiling on, walls on, labels off, speaker off
 
-### Layer Configuration (`y` attribute in `B` section)
-
-Layers are encoded as a `y` attribute within the `B` section, using tilde-delimited text with pipe separators:
-
-Format: `B10010100y~numLayers|name1|VL|name2|VL|...~`
-
-| Part | Description |
-|------|-------------|
-| `numLayers` | Number of layers (e.g., `2`) |
-| `name1` | Layer 1 name (URL encoded, `+` for spaces) |
-| `VL` | Two digits: V=visible(0/1), L=locked(0/1) |
-
-Example: `B10010100y~2|Layer+1|10|Background|01~`
-- 2 layers total
-- Layer 1: name="Layer 1", visible=true, locked=false (`10`)
-- Layer 2: name="Background", visible=false, locked=true (`01`)
-
-**Note:** Layer data is only encoded if non-default (more than 1 layer, or Layer 1 has modified name/visibility/lock).
+> **Note:** VRC layers are **not** encoded inside the `B` section. They are
+> emitted at the room level using the `L{num}` prefix (e.g., `L20~New+Layer~`).
+> See [Layer URL Encoding](#layer-url-encoding) below for the canonical spec.
+>
+> Example URL fragment with two custom layers:
+> `...B100100000L20~New+Layer~L21~New+Layer+2~SA223a190`
 
 ### Wall Configuration Prefixes
 
@@ -568,11 +595,13 @@ After an item type prefix, lowercase letters encode attributes:
 | `p` | slant | Number | ×10, data_slant |
 | `q` | mount | Index | Mount type (0-based index) |
 | `r` | path shape points | Numbers | Space-separated point values (×100, in mm) for pathShape |
-| `s` | group index | Index | Group index (items with same index are grouped) |
-| `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) |
+| `s` | group reference | Number | Points at the room-level `H{n}` block. Omitted when not in a group. When present, the per-item `ll` is also omitted (group's `ll` covers all members) |
+| `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
-**AVAILABLE for future use:** `t`, `u`, `v`, `w`, `x`, `z`
+**AVAILABLE for future ITEM use:** `t`, `u`, `v`. (`w`/`x`/`y`/`z`/`h` are used inside `H{n}` blocks for group geometry; the parser keys by `sid` so they could still be reused on items, but prefer `t`/`u`/`v` first.)
+
+**Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility), `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H` (groups). Available: `I`, `J`, `K`, `N`, `O`, `P`, `Q`, `R`, `U`, `V`, `X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix families.)
 
 ### Layer URL Encoding
 
@@ -617,6 +646,21 @@ AB150a200b90c53d6f450m1~My+Label~
 | `m1` | color index 1 (Carbon Black) |
 | `~My+Label~` | label = "My Label" |
 
+### Example with a Group + custom Layer
+
+```
+L20~Furniture~H1x140y180w180h300ll20~My+Group~AB150a200s1~Bar+A~MB300a400s1~Mic~
+```
+
+| Part | Meaning |
+|------|---------|
+| `L20~Furniture~` | Custom layer #20 named "Furniture" (visible, unlocked) |
+| `H1x140y180w180h300ll20~My+Group~` | Group #1: rect at (1.40, 1.80) m, 1.80 × 3.00 m, on layer 20, rotation 0, named "My Group" |
+| `AB150a200s1~Bar+A~` | Room Bar at (1.5, 2.0) m, member of group 1 (no `ll` — inherited from H1's `ll20`) |
+| `MB300a400s1~Mic~` | Table Microphone at (3.0, 4.0) m, also member of group 1 |
+
+After parse: `roomObj.groups[0]` gets `x`/`y`/`width`/`height` directly from the H block (rect renders correctly on frame 1), and `data_layerId = <Furniture layerid>`. Both items inherit the same `data_layerId` via `s1`. `groupMembers` is rebuilt post-pass. `data_zPosition` defaults to `0` (omitted from H block).
+
 ### Key Functions
 
 | Function | Line | Purpose |
@@ -629,10 +673,381 @@ AB150a200b90c53d6f450m1~My+Label~
 ### Adding New Attributes
 
 When adding new item attributes:
-1. Use next available lowercase letter (`s`, `t`, `u`, etc.)  — `r` is taken by path points, `ll` is taken by layer number
+1. Use next available lowercase letter (`t`, `u`, etc.)  — `r` is taken by path points, `s` is taken by group reference, `ll` is taken by layer number
 2. Only encode non-default values to save URL space
 3. Update both `createShareableLinkItem()` and `parseShortenedXYUrl()`
 4. Ensure backwards compatibility (old URLs without new attribute use defaults)
+
+### Group URL Encoding
+
+VRC Groups serialize via the room-level `H{n}` prefix and the per-item
+`s{n}` reference. `H` blocks are emitted after `L` (layer) blocks and
+before items, so `ll` and `s` references resolve in-order.
+
+#### Format
+
+`H{num}x{x×100}[y{y×100}][z{z×100}]w{w×100}[h{h×100}][ll{layerNum}][f{rot×10}]~name~`
+
+| Attr | Meaning | Omitted when |
+|------|---------|--------------|
+| `x{n}` / `w{n}` | Group rect X / width (×100) | always emitted |
+| `y{n}` / `h{n}` | Group rect Y / height (×100) | `0` |
+| `z{n}` | `data_zPosition` (×100) | `0` |
+| `ll{n}` | Layer ref (same numbering as item `ll`) | Default layer (`'0'`) |
+| `f{n}` | Rotation (×10, degrees) | `0` |
+| `~text~` | Group name (URL-encoded) | always emitted |
+
+`groupMembers` is rebuilt post-parse from items whose `data_groupId`
+matches the group's `groupid`, so `H` block / item ordering doesn't matter.
+
+#### Item rule: `s` suppresses `ll`
+
+When an item is in a group, the encoder emits `s{n}` and **omits** the
+per-item `ll` — the group's `H` block already encodes the layer, and
+members always share their group's layer (`createGroup()` /
+`updateItemLayer()` enforce this). The decoder inherits `data_layerId`
+from the group when only `s` is present; if a hand-edited URL has both,
+per-item `ll` wins. Items NOT in a group emit `ll` as before.
+
+#### Why x/y/z/w/h are explicit (not derived)
+
+Item `Konva.Image` nodes are added to their parent groups inside the
+async `imageObj.onload` callback (see line ~15042). So at draw time,
+`getGroupMemberNodes()` returns empty and any bounds recompute bails
+out. Encoding bounds directly in the URL renders the rect correctly on
+frame 1 and makes JSON ↔ URL roundtrip lossless. `updateGroupBounds()`
+is still called in `roomObjToCanvas()` as a defensive recompute, but
+**only when `g.width` or `g.height` is missing** — so partial-load
+races (cached images) can't clobber correct URL-supplied bounds.
+
+#### Numbering
+
+`_groupUrlEncodeMap = {}` (groupid → 1, 2, 3, …) is rebuilt each
+`createShareableLink()` call. Flat, no reserved range. Empty groups are
+skipped on encode and dropped on decode.
+
+#### Backwards compat
+
+Old URLs without `H` / `s` load cleanly into a room with no groups.
+Layer encoding is unchanged.
+
+#### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Encoder map | `_groupUrlEncodeMap` global next to `_layerUrlEncodeMap` |
+| Encoder room-level | `createShareableLink()` — after `L{n}` block |
+| Encoder item-level + `ll` suppression | `createShareableLinkItem()` — before label tilde |
+| Parser room-level | `parseShortenedXYUrl()` — `else if (item.sid === "H")` branch |
+| Parser item-level | `parseShortenedXYUrl()` — `if ('s' in item)` after per-item `ll` |
+| Post-parse member rebuild | `parseShortenedXYUrl()` — before `return output;` |
+| Defensive bounds rebuild | `roomObjToCanvas()` — guarded by `if (!g.width \|\| !g.height)` |
+
+---
+
+## VRC Group System
+
+VRC Groups bundle multiple canvas items so they move and rotate as a unit (PowerPoint-style). Groups are a **logical grouping** separate from Konva.js layers.
+
+### Concept
+
+A VRC Group lets the user:
+- **Move** all member items together by dragging the Group rect
+- **Rotate** all member items together around the Group rect center
+- **Delete** the whole group (group rect + all members) in one operation
+- **Ungroup** (dissolve) without losing items (Ctrl/Cmd+Shift+G)
+
+### Data Structure
+
+```javascript
+roomObj.groups = [
+    {
+        groupid: "uuid",          // unique identifier (the group's own UUID; stays as `groupid` for parallelism with `roomObj.layers[].layerid`)
+        name: "Group 1",          // display name (editable)
+        data_layerId: "0",        // VRC layer all members share (matches item.data_layerId convention)
+        x: 1.5,                   // top-left of bounding rect, in current unit
+        y: 3.84,
+        width: 2.5,               // outer bounds in current unit
+        height: 3.5,
+        rotation: 0,              // degrees
+        data_zPosition: 0,        // lowest z of all members
+        groupMembers: ["uuid1", "uuid2"]  // item IDs
+    }
+]
+```
+
+Each item in `roomObj.items.*` carries:
+```javascript
+item.data_groupId = "groupid-string"  // omitted if not in a group (matches the node.data_groupId Konva attribute)
+```
+
+On the Konva node:
+```javascript
+node.data_groupId = "groupid-string"  // null if not in a group
+```
+
+### Selection model
+
+The Group rect **always travels with its members in `tr.nodes()`**. Once any group-related node is selected, `expandSelectionForGroups()` adds the rect plus every member, and Konva's Transformer then moves and rotates the whole bundle natively (preserving relative positions).
+
+- **Group rect**: `listening: false` (passive visual anchor), `draggable: true` (so the Transformer can carry it).
+- **Member items**: `listening: true` (the user clicks any member to initiate the group selection), `draggable: true`.
+- The user typically clicks any member item to select the group; the selection then expands to `[rect, ...members]`.
+
+### Drag behaviour: Transformer drag vs. member-direct drag
+
+There are two distinct drag paths to keep in mind:
+
+1. **Transformer drag** — user grabs the Transformer's bounding box. `tr.isDragging() === true`. Konva moves every node in `tr.nodes()` natively, preserving relative positions. No manual sync is needed.
+2. **Member-direct drag** — user click-drags directly on a single member. Konva's drag system moves only that one node; siblings + Group rect would otherwise stay put. The member's **`dragstart`** handler calls `beginGroupDragFollow(node)`, which snapshots the pre-drag positions of every sibling + the Group rect. The member's **`dragmove`** handler then calls `followGroupDragFromMember(node)`, which applies absolute deltas to all siblings + the Group rect AND calls `updateShading(sibling)` for every moved member (skipping the Group rect) so each sibling's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Both helpers no-op when `tr.isDragging()` is true to avoid double-shifting during Transformer drags.
+
+**Why snapshot in `dragstart`, not `dragmove`?** By the first dragmove fires, Konva has already advanced the dragged node's `x()` / `y()` past their pre-drag values (the few-pixel jump it takes for Konva to recognise a drag). Snapshotting at that point bakes the offset into `startPos`, so every subsequent `dx = target.x() - startPos.x` underreports the true delta by exactly that initial jump — and the rect/siblings drift behind the dragged member by that amount for the rest of the drag. `dragstart` fires before any positional change, so capturing then keeps `startPos` at the true pre-drag value and the deltas stay accurate from the very first dragmove. `followGroupDragFromMember()` retains a fallback `beginGroupDragFollow()` call in case any code path skips the dragstart hook.
+
+The snapshot is cleared on each `dragend` (member's `dragend`, table's `dragend`, and `tr.on('dragend')` all call `endGroupDragFollow()`).
+
+#### Selection promotion in `dragmove`
+
+The existing item `dragmove` handlers in `tblWallFlr` and `imageItem` contain a "promote to tr.nodes() if not already there" block (so click-then-drag on an unselected item still works). For group members this would clobber the whole-group selection down to just the dragged item. Both handlers now branch on `data_groupId`:
+
+- **Group member** → `tr.nodes([target])` then `expandSelectionForGroups()` to re-add the rect + every sibling.
+- **Non-group item** → original behaviour (single-item selection + conditional resize anchors).
+
+### Konva Layout
+
+The Group rect lives in `groupGroupRects` (a `Konva.Group` added to `layerTransform` **before** all item groups so it renders behind items):
+
+```
+layerTransform
+  └── groupGroupRects        ← Group rects (light blue / dashed blue stroke; opacity 0 default, 0.2 when selected)
+  └── groupStageFloors
+  └── groupTables
+  └── groupChairs
+  └── ... (item groups)
+  └── groupVideoDevices
+  └── groupMicrophones
+```
+
+### Group Rect Properties
+
+| Property | Value |
+|----------|-------|
+| `data_deviceid` | `'group'` |
+| `data_groupId` | the group's UUID |
+| `data_layerId` | inherited from members |
+| `data_labelField` | the group's `name` |
+| `fill` | `'#8FD9FB'` (light blue, baked-in) |
+| `stroke` | `'blue'`, `strokeWidth:1`, `dash:[6,4]` |
+| `opacity` | `0` by default (rect is visually absent), raised to `0.2` while selected by `updateTrNodesShading()` and dropped back to `0` by `removeShadingTrNodes()`. Selection state therefore conveys via opacity only — stroke/fill never change |
+| `draggable` | `true` (so Transformer can carry it in `tr.nodes()`) |
+| `listening` | `false` (passive visual anchor; user selects via any member item) |
+| Bounds | Computed from `getMemberBoundingRect()` (Konva `getClientRect`); flush with the items, **no padding** so the rect matches the Transformer's tight blue box exactly |
+| Transformer | rotation-only (`tr.enabledAnchors([])`, `tr.resizeEnabled(false)`) — once grouped, items always move together as a unit, so resize is meaningless |
+
+### Right-click menu behaviour
+
+The right-click menu's **Group** entry is disabled when:
+- Fewer than 2 items are selected (excluding the Group rect itself), OR
+- All selected items already belong to the same single group (regrouping the same items would just dissolve and recreate the existing group — a no-op).
+
+The **Ungroup** entry is enabled whenever the selection contains a Group rect or any group member.
+
+### Key Group Functions
+
+| Function | Purpose |
+|----------|---------|
+| `createGroup(nodesToGroup?)` | Groups current `tr.nodes()` (or passed nodes). Layer conflict → moves all to `drpAddItemLayer`. |
+| `ungroupItems(groupId, keepItems)` | `keepItems=true` = Ungroup (keep items). `keepItems=false` = hard-delete members too. |
+| `ungroupSelectedItems()` | Calls `ungroupItems(..., true)` for all groups in `tr.nodes()`. |
+| `insertGroupRect(groupObj)` | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0`; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()` and is moved by Konva natively). |
+| `updateGroupBounds(groupId)` | Recalculates group rect pixel bounds from member `getMemberBoundingRect()`. **Currently used only at create time** (rect travels with members during drags). Kept available for future "rebuild after Details-panel edit". |
+| `getMemberBoundingRect(node)` | `node.getClientRect({ skipShadow: true, relativeTo: layerTransform })` — same call the Transformer uses internally. Returns the tight visual bbox in `layerTransform`-local coords. |
+| `getGroupById(groupId)` | Finds a group object in `roomObj.groups`. |
+| `getGroupMemberNodes(groupId)` | Returns all Konva nodes across all item groups whose `data_groupId` matches. |
+| `ensureGroups(obj?)` | Ensures `roomObj.groups` (or `obj.groups`) exists as an array. |
+| `expandSelectionForGroups()` | Post-click/drag-select hook that expands `tr.nodes()` to `[rect, ...members]` whenever any group-related node is selected. |
+| `followGroupDragFromMember(node)` | Called from each member's `dragmove`; shifts siblings + Group rect to match a member-direct drag. No-op during a Transformer drag (`tr.isDragging()`). |
+| `endGroupDragFollow()` | Called from `dragend` handlers (member, table, `tr`) to clear the drag-follow snapshot. |
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/Cmd+G` | Group selected items |
+| `Ctrl/Cmd+Shift+G` | Ungroup (dissolve, keep items) |
+
+### Critical Guards
+
+**`canvasToJson()` / `getNodesJson()`** — must skip group rects:
+```javascript
+if (node.data_deviceid === 'group') return;
+```
+
+**`updateTrNodesShading()`** — members excluded from blue outline:
+```javascript
+if (node.data_groupId && node.data_deviceid !== 'group') return;
+```
+
+**`allNodeShapeGroups`** does NOT include `groupGroupRects`. Group rects are managed separately.
+
+### Where `data_groupId` Must Be Updated
+
+When adding new data to items, the four-place rule still applies. For `data_groupId` specifically:
+
+| Location | Function | Done? |
+|----------|----------|-------|
+| `insertShapeItem()` → `updateNodeAttributes()` | `node.data_groupId = attrs.data_groupId \|\| null` | ✓ |
+| `insertTable()` | `tblWallFlr.data_groupId = attrs.data_groupId \|\| null` | ✓ |
+| `canvasToJson()` / `getNodesJson()` | `if (node.data_groupId) itemAttr.data_groupId = node.data_groupId` | ✓ |
+| `copyToCanvasClipBoard()` | Copy `data_groupId` with UUID remapping on paste | ✓ |
+
+### Details panel for a selected Group
+
+When the current selection is exactly one Group's bundle (the rect plus only members of that same group), the right-hand Details panel shows **Group fields** instead of either single-item or multi-item fields. Detection happens in `enableCopyDelBtn()` via `getActiveGroupSelection()`; if it returns a match, the single-item Details panel is shown and `updateFormatDetails()` is called with the Group rect's id.
+
+Fields shown for a Group:
+- **Group Name** (the `Item Label:` field re-labelled; backed by `group.name` and `rectNode.data_labelField`)
+- **Layer** (backed by `group.data_layerId`; the dropdown's `onchange` handler calls `updateItemLayer()` which has a Group-rect branch that cascades the layer to every member)
+- **X / Y** (backed by `rectNode.x()` / `rectNode.y()` — the rect's unrotated top-left, same convention as tables/walls)
+- **Z** (backed by `group.data_zPosition`)
+- **Width / Length** — display-only (`disabled = true`); these reflect the bounding box of the members and are recomputed by `updateGroupBounds()` / the Konva Transformer, never typed in directly
+- **Rotation** (backed by `rectNode.rotation()`)
+
+Fields hidden for a Group: `itemNameDiv`, `labelPathId`, `itemTopElevationDiv`, `itemDiagonalTvDiv`, `itemVheightDiv`, `trapNarrowWidthDiv`, `tblRectRadiusDiv`, `tblRectRadiusRightDiv`, `itemTiltSlantDiv`, `itemTiltDiv`, `itemSlantDiv`, `isPrimaryDiv`, `itemOffsetDiv`, `roleDiv`, `mountDiv`, `colorDiv`. The non-group branch of `updateFormatDetails()` re-shows `itemNameDiv` at the top so a subsequent click on a normal item finds the div in its default-visible state.
+
+Click-on-a-member also reroutes to Group fields: `updateFormatDetails()` swaps the clicked member's `shape` over to the Group rect when `shape.data_groupId` is set, so the very first click immediately shows Group details (no flicker between member details and group details).
+
+### Update flow for a selected Group
+
+`updateItem()` has a fast-path at the top: if the displayed `itemId` matches a `roomObj.groups[].groupid`, it routes to `updateGroupItem(group)` and returns before any of the per-item logic runs (which is built around `roomObjItemsMap.get(id)` and would otherwise silently no-op for groups).
+
+`updateGroupItem(group)` reads the form values, computes deltas against the current state, then:
+
+1. **Translation** (`deltaX`, `deltaY` in pixels): every member node + the rect get `node.x(node.x() + dX)` and `node.y(node.y() + dY)`. Done first so the rotation pivot computed next is the new visual centre.
+2. **Rotation** (`deltaR` degrees): rigid rotation around the rect's (post-translation) visual centre via `rotateNodeAroundPoint(node, cx, cy, deltaR)`. The helper rotates the node's origin around `(cx, cy)` AND adds `deltaR` to the node's own rotation — that combination keeps every point of the node rigid with the rotation around `(cx, cy)`. Applied to every member and to the rect.
+3. **Z elevation** (`deltaZ`): added to every member's `data_zPosition`. A member with no `data_zPosition` (or a NaN/non-numeric value) is treated as `0` via `Number(m.data_zPosition) || 0`, so the resulting value lands at exactly `deltaZ` for those members. The `if (deltaZ !== 0)` guard avoids polluting nodes that previously had no `data_zPosition` with an explicit `0` when the user didn't actually change Z. The group object's `data_zPosition` is then set to the new form value (matches the new minimum since everyone shifted by the same delta).
+4. **Group name**: written to `group.name` and `rectNode.data_labelField`.
+5. **Layer cascade**: if the layer changed, `group.data_layerId`, `rectNode.data_layerId`, and every member's `data_layerId` are updated and `applyLayerStateToNode()` is run on each.
+6. **Coverage realignment**: `updateShading(member)` is called on every member so `#fov~`, `#audio~`, `#dispDist~`, `#speaker~`, and `#label~` nodes follow the moves. (`updateShading()` reads each member's current centre/rotation and re-positions the coverage node — same call the per-member `dragmove` and `transform` handlers make natively.)
+
+Width/Length deltas are intentionally NOT applied because the form fields are disabled. Rotation delta is computed as `newRot - currentRot` without normalising to the shortest path; member rotations may end up with values outside `[-360, 360]` after large rotations, which Konva renders correctly but produces unusual values in the saved JSON. If this becomes a UX issue, normalise `deltaR` to `[-180, 180]` and explicitly set the rect's rotation back to `newRot` after the rigid rotation completes.
+
+### Live Details-panel refresh during drag and rotate
+
+When a Group is selected and the user moves or rotates it on the canvas (rather than typing into the form), `refreshGroupDetailsFromCanvas()` updates the Details panel's `itemX`, `itemY`, `itemRotation`, `itemWidth`, `itemLength` inputs from the current rect state. This mirrors the per-item `if (tr.nodes().length === 1) updateFormatDetails(...)` call in the `imageItem`/`tblWallFlr` `dragmove` handlers, but is keyed off `getActiveGroupSelection()` so it's a no-op outside Group selections.
+
+Hook points:
+
+| Event | Why |
+|-------|-----|
+| `tr.on('dragmove')` | Transformer-driven group drag — Konva moves all nodes natively, so the rect's x/y reflect the drag in real time |
+| `tr.on('dragend')`   | Final flush after Transformer drag (catches missed-frame edge cases) |
+| `tr.on('transform')` | Group rotation (rotate anchor) — rotates every node around the bbox centre, so rect.x/y AND rect.rotation update mid-drag. Refresh runs before the existing `if (trNodesLength !== 1) return` early-out because group bundles have `trNodesLength > 1` |
+| `tr.on('transformend')` | Final flush after rotation |
+| `followGroupDragFromMember()` | Member-direct drag — refresh fires after the snapshot delta is applied to siblings + rect |
+
+### Done (recent)
+
+- **Copy / paste / duplicate (Ctrl/Cmd+C, V, D, and the right-click menu)**
+ — Group rects ride through the clipboard as a special
+ `{ isGroupRect, oldGroupId, groupAttrs }` entry alongside the regular
+ member entries (which carry `data_groupId` in `newAttr`). On paste,
+ every Group rect in the clipboard mints a fresh `groupid` via
+ `createUuid()`; member items get their `data_groupId` remapped to the
+ new id, a fresh `roomObj.groups` entry is pushed (with the offset
+ top-left and `groupMembers` rebuilt from the new uuids), and
+ `insertGroupRect()` materializes the rect on canvas. Members of
+ incomplete groups (rect missing OR some members absent) paste as
+ ungrouped, mirroring the URL/WD-import "drop empty groups" rule.
+ The new bundle (rect + all members) is selected after paste so the
+ Details panel immediately shows Group fields. Clipboard is
+ JSON-serialized to `localStorage`, so cross-tab copy/paste works too.
+ See `copyToCanvasClipBoard()` and `pasteItems()` for the
+ implementation.
+- **URL encoding** — `H{n}` room-level prefix for group definitions plus
+ `s{n}` on items. See "Group URL Encoding" in the URL Encoding Format
+ section above for the format and the implementation cross-reference
+ table.
+- **Workspace Designer round-trip** — items carry their `data_groupId`
+ on the WD JSON as a `"group": "<groupid>"` string attribute, and the
+ Group rect's geometry / metadata round-trips via
+ `workspaceObj.data.vrc.groups[]`. See "Workspace Designer Group
+ Round-Trip" below for the format and the implementation
+ cross-reference table.
+
+### Workspace Designer Group Round-Trip
+
+VRC Groups round-trip cleanly through the Workspace Designer JSON
+format. The Workspace Designer has no native concept of a Group item,
+so the round-trip uses two parallel pieces:
+
+1. **Per-member item attribute** — every `customObjects[]` member of a
+   group carries a plain `"group": "<groupid>"` string attribute (the
+   same UUID that lives in the source `roomObj.groups[].groupid` and
+   `item.data_groupId`). WD preserves arbitrary string attributes on
+   custom objects, so this survives a save/reload through the WD UI
+   even though WD doesn't render anything special for it.
+
+2. **Room-level group block in `data.vrc.groups`** — the Group rect's
+   geometry and metadata are stashed in VRC's own JSON namespace under
+   `workspaceObj.data.vrc.groups[]`, alongside the existing
+   `data.vrc.backgroundImage` block. **Always meters**, **VRC top-left
+   coordinates** (no `roomX`/`roomY` shift, no centring on
+   `roomWidth/2, roomLength/2`), so it lines up with the items the
+   importer reconstructs at VRC top-left coords:
+
+```json
+{
+  "groupid": "uuid",
+  "name": "Group 1",
+  "x": 1.5,
+  "y": 3.84,
+  "width": 2.5,
+  "height": 3.5,
+  "rotation": 0,
+  "data_zPosition": 0,
+  "layerName": "Furniture"
+}
+```
+
+`layerName` is omitted when the group is on the Default layer
+(`data_layerId === '0'`), mirroring the per-item `layer` convention.
+Layer NAMES (not UUIDs) are emitted so the JSON is human-readable and
+stable across round-trips that may regenerate layer UUIDs.
+`groupMembers` is **never emitted** — it's rebuilt on import by
+scanning items for `data_groupId` references (same pattern the URL
+parser uses post-parse). Empty groups are skipped on export and
+filtered on import.
+
+#### Coordinate model
+
+Items in `customObjects[]` go through the full WD coordinate transform
+(swap X/Z, centre on `roomWidth/2, roomLength/2`, apply `roomX`/`roomY`
+offsets via `convertToMeters()`). Groups in `data.vrc.groups[]` do
+**not** — they stay in VRC top-left meters. The asymmetry is deliberate
+and matches the existing `data.vrc.backgroundImage` block. On import
+both flows reconstruct items + groups in VRC top-left coords, so they
+align.
+
+#### Items in hidden VRC layers
+
+`removeHiddenLayerItemsForExport()` already drops items in hidden layers
+from `customObjects[]` before export. Groups always share their
+members' layer (`createGroup()` / `updateItemLayer()` enforce this), so
+a group on a hidden layer has all its members dropped and ends up
+filtered by the empty-group rule on import. No extra handling needed
+on the export side — the empty group survives in
+`data.vrc.groups[]` but is dropped on the post-parse rebuild.
+
+#### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Per-item `group` attribute encoder | `setGroupOnWorkspaceItem()` inside `exportRoomObjToWorkspace()` (mirror of `setLayerOnWorkspaceItem()`) |
+| Per-item `group` attribute call sites | All four push helpers (`workspaceObjItemPush`, `workspaceObjDisplayPush`, `workspaceObjTablePush`, `workspaceObjWallPush`) call `setGroupOnWorkspaceItem(workspaceItem, item)` immediately before `workspaceObj.customObjects.push(workspaceItem)` |
+| `data.vrc.groups[]` encoder | `exportRoomObjToWorkspace()` — block immediately after the `data.vrc.backgroundImage` emit. Reads `roomObj.groups` directly (not `roomObj2.groups` — `convertToMeters()` drops `groups` from the clone) and applies `groupRatio = (roomObj.unit === 'feet') ? (1/3.28084) : 1` |
+| Per-item `group` attribute decoder | `wdItemToRoomObjItem()` — `if ('group' in wdItem)` block immediately after the `wdItem.layer` extraction. Strips the key from `wdItem` so it doesn't leak into `data_labelField` |
+| `data.vrc.groups[]` decoder + post-parse member rebuild | `importWorkspaceDesignerFile()` — block immediately after the `data.vrc.backgroundImageFile` import. Calls `ensureGroups(roomObj2)`, then walks `data.vrc.groups[]` and pushes new entries into `roomObj2.groups`, then mirrors the URL parser's `roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length)` rebuild |
+| Group rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group') return;` so group rects never enter `roomObj.items.*` and therefore never reach the WD push helpers |
 
 ---
 
@@ -1156,6 +1571,8 @@ Templates are loaded via `loadTemplate(url)` function.
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Shift+Ctrl+Z` | Redo |
 | `Ctrl+R` | Rotate 90° |
+| `Ctrl+G` | Group selected items (≥2 items required) |
+| `Ctrl+Shift+G` | Ungroup (dissolve, keep items) |
 | `Ctrl+S` | Save/Download JSON |
 | `Ctrl+E` | Export to Workspace Designer |
 | `Ctrl+Shift+E` | Export to Cisco xConfiguration .txt |

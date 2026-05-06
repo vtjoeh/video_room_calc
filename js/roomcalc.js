@@ -1,4 +1,4 @@
-const version = "v0.1.646";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.647";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. The function bodies live in
  * js/util/uuid.js and js/util/units.js (loaded via <script> before this
@@ -117,6 +117,7 @@ const clientTimeStamp = startTime.toUTCString();
 let fullShareLink;
 let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
 let _layerUrlEncodeMap = {}; /* maps layerid → URL layer number (20+), rebuilt by createShareableLink() */
+let _groupUrlEncodeMap = {}; /* maps groupid → URL group number (1+), rebuilt by createShareableLink() */
 let lastAction = "load";
 let isBackgroundImageFloorFileLoad = false; /* keep track if the backgroundImageFloor is being loaded as part of a JSON file */
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
@@ -163,6 +164,428 @@ roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on expor
 roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Workspace Designer */
 
 roomObj.layers = getDefaultLayers();
+roomObj.groups = [];
+
+/* ---- Group drag-follow state ----
+ * When the user click-drags a single group member directly (rather than
+ * grabbing the Transformer's bounding box), Konva moves only that one
+ * node — the siblings + group rect would otherwise stay put.
+ * `_groupDragSnapshot` lets us shift them by the same delta on every
+ * dragmove. Same pattern as `updateShading()` on a video device's
+ * `#fov~id` coverage node — that follower runs from the device's own
+ * `dragmove` handler. We snapshot start positions on the first dragmove
+ * (lazy init) and apply absolute deltas, so the math stays correct
+ * even if other handlers also shift positions. */
+let _groupDragSnapshot = null;
+
+/* Snapshot every group sibling + the Group rect's start position so the
+ * follower can shift them in lock-step with the dragged member. MUST be
+ * called from `dragstart` (or earlier), not `dragmove` — by the first
+ * dragmove `target.x()` has already advanced a few pixels past where it
+ * was before the user started moving the mouse. Snapshotting at dragmove
+ * time bakes that offset into `startPos.x` and the rect/siblings end up
+ * drifting behind the dragged member by exactly the first-dragmove jump
+ * (visible as the purple Group rect parting from its chairs in the
+ * screenshot). Capturing in dragstart pins startPos to the true pre-drag
+ * position so `dx = target.x() - startPos.x` is accurate from the very
+ * first dragmove onward. Safe to call multiple times for the same drag —
+ * later calls re-snapshot from the (still-correct) current positions. */
+function beginGroupDragFollow(target) {
+    if (!target || !target.data_groupId) return;
+    if (tr.isDragging()) { _groupDragSnapshot = null; return; }
+    _groupDragSnapshot = {
+        groupId:  target.data_groupId,
+        target:   target,
+        startPos: { x: target.x(), y: target.y() },
+        others:   new Map(),
+    };
+    getGroupMemberNodes(target.data_groupId).forEach(member => {
+        if (member === target) return;
+        _groupDragSnapshot.others.set(member, { x: member.x(), y: member.y() });
+    });
+    if (groupGroupRects) {
+        const rectNode = groupGroupRects.find(n => n.data_groupId === target.data_groupId)[0];
+        if (rectNode && rectNode !== target) {
+            _groupDragSnapshot.others.set(rectNode, { x: rectNode.x(), y: rectNode.y() });
+        }
+    }
+}
+
+/* Apply group drag-follow during a member-direct drag.
+ * Skips when the Transformer itself is being dragged (in which case Konva
+ * already moves every node in tr.nodes() natively — double-shift would
+ * compound the move). The snapshot is normally captured by the dragstart
+ * hooks on imageItem/tblWallFlr; the `if (!_groupDragSnapshot)` block here
+ * is a fallback for any code path that calls this without a prior dragstart
+ * (the resulting snapshot will still be at the pre-mouse-move position
+ * because Konva fires dragstart before the first dragmove). */
+function followGroupDragFromMember(target) {
+    if (!target || !target.data_groupId) return;
+    if (tr.isDragging()) { _groupDragSnapshot = null; return; }
+
+    if (!_groupDragSnapshot || _groupDragSnapshot.target !== target) {
+        beginGroupDragFollow(target);
+        if (!_groupDragSnapshot) return; /* tr.isDragging guard kicked in */
+    }
+
+    const dx = target.x() - _groupDragSnapshot.startPos.x;
+    const dy = target.y() - _groupDragSnapshot.startPos.y;
+    if (dx === 0 && dy === 0) return;
+    _groupDragSnapshot.others.forEach((startPos, node) => {
+        node.x(startPos.x + dx);
+        node.y(startPos.y + dy);
+        /* Each moved sibling has its own coverage (#fov~, #audio~,
+         * #dispDist~, #speaker~) and label (#label~) that need to track
+         * the move — same call the single-item dragmove handler makes for
+         * the dragged item itself. The Group rect has no coverage so we
+         * skip it (and its data_deviceid='group' isn't in allDeviceTypes,
+         * which moveShading's `allDeviceTypes[id].depth` would crash on
+         * if a stale shading node ever existed). */
+        if (node.data_deviceid !== 'group') {
+            updateShading(node);
+        }
+    });
+    layerTransform.batchDraw();
+    /* Keep the Details-panel X/Y in sync with the live drag, same as the
+     * `if (tr.nodes().length === 1) updateFormatDetails(...)` call in the
+     * single-item branch of imageItem/tblWallFlr dragmove. */
+    refreshGroupDetailsFromCanvas();
+}
+
+function endGroupDragFollow() {
+    _groupDragSnapshot = null;
+}
+
+/* ---- Group helper functions ---- */
+
+function getGroupById(groupId) {
+    if (!roomObj.groups) return null;
+    return roomObj.groups.find(g => g.groupid === groupId) || null;
+}
+
+function ensureGroups(obj) {
+    const target = obj || roomObj;
+    if (!target.groups) target.groups = [];
+}
+
+/* Bounding box in layerTransform-local coords for a single group member.
+ * Uses Konva's `getClientRect` — the same API the Transformer calls
+ * internally — so the purple Group rect hugs items exactly the way the
+ * blue Transformer box does, including correct handling of rotation,
+ * stroke, image offsets, and the `smallItemsHighlight` outline trick.
+ * `skipShadow: true` because shadows aren't part of the visual extent
+ * we care about. `skipStroke` is left at its default (false) so stroked
+ * items report their full painted bounds. */
+function getMemberBoundingRect(node) {
+    return node.getClientRect({
+        skipShadow: true,
+        relativeTo: layerTransform,
+    });
+}
+
+/* Return all Konva nodes (across all item groups) whose data_groupId matches groupId */
+function getGroupMemberNodes(groupId) {
+    const members = [];
+    allNodeShapeGroups.forEach(kg => {
+        kg.getChildren().forEach(node => {
+            if (node.data_groupId === groupId) members.push(node);
+        });
+    });
+    return members;
+}
+
+/* Recalculate the Group rect's x, y, width, height from current member positions
+ * and update both the Konva node and the roomObj.groups entry. */
+function updateGroupBounds(groupId) {
+    if (!groupGroupRects) return;
+    const members = getGroupMemberNodes(groupId);
+    if (!members.length) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    members.forEach(node => {
+        const r = getMemberBoundingRect(node);
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.y + r.height > maxY) maxY = r.y + r.height;
+    });
+
+    /* No padding — match the Transformer's tight blue box exactly. */
+    const newX = minX;
+    const newY = minY;
+    const newW = maxX - minX;
+    const newH = maxY - minY;
+
+    /* Update Konva node */
+    const groupRectNode = groupGroupRects.find(n => n.data_groupId === groupId)[0];
+    if (groupRectNode) {
+        groupRectNode.x(newX);
+        groupRectNode.y(newY);
+        groupRectNode.width(newW);
+        groupRectNode.height(newH);
+    }
+
+    /* Update roomObj.groups entry (in unit space) */
+    const g = getGroupById(groupId);
+    if (g) {
+        g.x = ((newX - pxOffset) / scale) + activeRoomX;
+        g.y = ((newY - pyOffset) / scale) + activeRoomY;
+        g.width  = newW / scale;
+        g.height = newH / scale;
+        const zPositions = members
+            .map(n => parseFloat(n.data_zPosition) || 0)
+            .filter(z => !isNaN(z));
+        if (zPositions.length) g.data_zPosition = Math.min(...zPositions);
+    }
+}
+
+/* Returns { rectNode, group, groupId } when the current (or supplied) tr.nodes()
+ * represents exactly one group's bundle — a single Group rect plus only members
+ * of that same group. Returns null otherwise (mixed selection, multiple groups,
+ * group plus stranger items, etc.). Used by enableCopyDelBtn() and the right-
+ * click menu logic to recognise a "single conceptual item" group selection. */
+function getActiveGroupSelection(nodes) {
+    nodes = nodes || tr.nodes();
+    if (!nodes || !nodes.length) return null;
+    const groupRects = nodes.filter(n => n.data_deviceid === 'group');
+    if (groupRects.length !== 1) return null;
+    const rectNode = groupRects[0];
+    const groupId = rectNode.data_groupId;
+    if (!groupId) return null;
+    /* Every other node must be a member of this same group */
+    const allBelong = nodes.every(n => n === rectNode || n.data_groupId === groupId);
+    if (!allBelong) return null;
+    const group = getGroupById(groupId);
+    if (!group) return null;
+    return { rectNode: rectNode, group: group, groupId: groupId };
+}
+
+/* Returns the visual centre of a (possibly rotated) Konva.Rect in parent
+ * (layerTransform) coords. The rect's origin is its unrotated top-left, so
+ * the centre is (w/2, h/2) rotated by the rect's rotation and translated
+ * back to (rect.x, rect.y). Used as the rotation pivot when the user
+ * changes the Group's Rotation field — members rotate around this point so
+ * the group's visual centre stays put. */
+function getRotatedRectCenter(rectNode) {
+    const r = rectNode.rotation();
+    const rad = Math.PI / 180 * r;
+    const cosR = Math.cos(rad);
+    const sinR = Math.sin(rad);
+    const halfW = rectNode.width() / 2;
+    const halfH = rectNode.height() / 2;
+    return {
+        x: rectNode.x() + halfW * cosR - halfH * sinR,
+        y: rectNode.y() + halfW * sinR + halfH * cosR,
+    };
+}
+
+/* Rotate a Konva node around an arbitrary parent-space point by deltaR degrees.
+ * Standard rigid-body rotation: rotate the node's origin around (cx, cy) by
+ * deltaR AND increment the node's own rotation by deltaR. This works for any
+ * node regardless of its offsetX/Y because Konva's rotation pivot is always
+ * the node's local (0,0) — moving (0,0) and rotating in lock-step keeps every
+ * point of the node rigid with the rotation around (cx, cy). */
+function rotateNodeAroundPoint(node, cx, cy, deltaR) {
+    if (!deltaR) return;
+    const newPos = rotatePointAroundOrigin(node.x(), node.y(), cx, cy, deltaR);
+    node.x(newPos.x);
+    node.y(newPos.y);
+    node.rotation(node.rotation() + deltaR);
+}
+
+/* Push the live X / Y / Rotation / Width / Length of the active Group's rect
+ * into the matching Details-panel inputs without re-running the heavier
+ * populateGroupDetails() (no show/hide work, no dropdown rebuilds). Called
+ * during drags and rotations so the form tracks the canvas in real time —
+ * mirrors the per-item `if (tr.nodes().length === 1) updateFormatDetails(e)`
+ * call inside the imageItem/tblWallFlr dragmove handlers. No-op when the
+ * current selection isn't a single Group bundle. */
+function refreshGroupDetailsFromCanvas() {
+    const sel = getActiveGroupSelection();
+    if (!sel) return;
+    const r = sel.rectNode;
+    const itemX   = document.getElementById('itemX');
+    const itemY   = document.getElementById('itemY');
+    const itemRot = document.getElementById('itemRotation');
+    const itemW   = document.getElementById('itemWidth');
+    const itemL   = document.getElementById('itemLength');
+    if (itemX)   itemX.value   = round(((r.x() - pxOffset) / scale) + activeRoomX);
+    if (itemY)   itemY.value   = round(((r.y() - pyOffset) / scale) + activeRoomY);
+    if (itemRot) itemRot.value = round(r.rotation(), -1);
+    if (itemW)   itemW.value   = round(r.width()  / scale);
+    if (itemL)   itemL.value   = round(r.height() / scale);
+}
+
+/* Populate the right-hand Details panel with Group fields when the selection
+ * is a single VRC Group. Called from updateFormatDetails() when the active
+ * shape is a Group rect. Width/Length are read-only (groups are sized by
+ * their members and resize anchors are disabled on the Transformer);
+ * X/Y/Z/Rotation/Label/Layer are editable through updateItem() →
+ * updateGroupItem(). */
+function populateGroupDetails(rectNode) {
+    const group = getGroupById(rectNode.data_groupId);
+    if (!group) return;
+
+    /* Hide everything that doesn't apply to a Group. The companion non-group
+     * branch in updateFormatDetails re-shows itemNameDiv at its top so we
+     * don't strand it hidden when the user clicks back to a normal item. */
+    const hideIds = [
+        'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv',
+    ];
+    hideIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    /* Show the divs we use */
+    const showIds = [
+        'labelFieldDiv', 'itemLayerDiv', 'itemWidthLengthDiv',
+        'itemWidthDiv', 'itemLengthDiv', 'itemRotationDiv',
+    ];
+    showIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+
+    document.getElementById('itemLabeldiv').textContent = 'Group Name:';
+    document.getElementById('labelField').value = group.name || '';
+
+    /* X / Y track the rect's own (top-left) origin, same convention as
+     * tables/walls so the value the user sees matches what canvasToJson()
+     * stores in roomObj.groups. */
+    document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
+    document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
+    document.getElementById('itemZposition').value = (group.data_zPosition != null) ? group.data_zPosition : 0;
+
+    /* Width / Length are display-only — they reflect the bounding box of
+     * the group's members and are recomputed by updateGroupBounds() / the
+     * Konva Transformer, never typed in directly. */
+    document.getElementById('itemWidth').value  = round(rectNode.width()  / scale);
+    document.getElementById('itemLength').value = round(rectNode.height() / scale);
+    document.getElementById('itemWidth').disabled  = true;
+    document.getElementById('itemLength').disabled = true;
+
+    document.getElementById('itemRotation').value = round(rectNode.rotation(), -1);
+
+    document.getElementById('itemId').innerText    = group.groupid;
+    document.getElementById('itemType').innerText  = 'Group';
+    document.getElementById('itemGroup').innerText = '';
+
+    populateLayerDropdown('drpItemLayer', group.data_layerId || '0');
+}
+
+/* Apply a group-level edit from the Details panel: X/Y/Z deltas translate
+ * every member (and the rect) by the same offset; a rotation delta rotates
+ * every member around the Group rect's current visual centre so the group's
+ * apparent centre stays put. Label and layer changes cascade to all members.
+ * Coverage nodes (FOV, audio, etc.) are re-aligned via updateShading()
+ * after the moves. */
+function updateGroupItem(group) {
+    if (!group || !groupGroupRects) return;
+    const rectNode = groupGroupRects.find(n => n.data_groupId === group.groupid)[0];
+    if (!rectNode) return;
+
+    const newName = (DOMPurify.sanitize(document.getElementById('labelField').value) || '').trim() || group.name;
+    const newX = Number(document.getElementById('itemX').value) || 0;
+    const newY = Number(document.getElementById('itemY').value) || 0;
+    /* Z field: empty / null / non-numeric all collapse to 0, matching the
+     * "treat missing data_zPosition as 0" rule applied to members below. */
+    const newZ = Number(document.getElementById('itemZposition').value) || 0;
+    const newRot = normalizeDegree(Number(document.getElementById('itemRotation').value) || 0);
+    const newLayerId = (document.getElementById('drpItemLayer') && document.getElementById('drpItemLayer').value) || '0';
+
+    /* Compute deltas in the same units the form uses */
+    const currentX_user = ((rectNode.x() - pxOffset) / scale) + activeRoomX;
+    const currentY_user = ((rectNode.y() - pyOffset) / scale) + activeRoomY;
+    /* group.data_zPosition is the group's current baseline (the lowest
+     * member z at create time, kept in sync by every updateGroupItem
+     * call). Missing / NaN -> 0. */
+    const currentZ      = Number(group.data_zPosition) || 0;
+    const currentRot    = rectNode.rotation();
+
+    const deltaX_px = (newX - currentX_user) * scale;
+    const deltaY_px = (newY - currentY_user) * scale;
+    const deltaZ    = newZ - currentZ;
+    const deltaR    = newRot - currentRot;
+
+    const members = getGroupMemberNodes(group.groupid);
+
+    /* 1) Translate first so the rotation pivot we compute next is the
+     *    visual centre at the new location. */
+    if (deltaX_px !== 0 || deltaY_px !== 0) {
+        members.forEach(m => { m.x(m.x() + deltaX_px); m.y(m.y() + deltaY_px); });
+        rectNode.x(rectNode.x() + deltaX_px);
+        rectNode.y(rectNode.y() + deltaY_px);
+    }
+
+    /* 2) Rigid rotation around the (post-translation) rect centre. */
+    if (deltaR !== 0) {
+        const centre = getRotatedRectCenter(rectNode);
+        members.forEach(m => rotateNodeAroundPoint(m, centre.x, centre.y, deltaR));
+        rotateNodeAroundPoint(rectNode, centre.x, centre.y, deltaR);
+    }
+
+    /* 3) Z elevation: deltaZ adds to every member's data_zPosition.
+     *    A member with no existing data_zPosition (or NaN/non-numeric) is
+     *    treated as 0, so the new value lands at exactly deltaZ. The group
+     *    object then holds the new baseline (which equals newZ since every
+     *    member was shifted by the same amount, preserving the relative
+     *    stack). The early-return on `deltaZ === 0` avoids polluting nodes
+     *    that previously had no data_zPosition with an explicit `0`. */
+    if (deltaZ !== 0) {
+        members.forEach(m => {
+            const existingZ = Number(m.data_zPosition) || 0;
+            m.data_zPosition = existingZ + deltaZ;
+            /* Mirror to roomObj.items immediately. canvasToJson() at the end
+             * of this function rebuilds roomObj from canvas state, but only
+             * writes data_zPosition when it's `in` the node — and a member
+             * that was never assigned a z before has no own property, so a
+             * stale write order (or any future reorder) could miss it. The
+             * direct mirror keeps roomObj.items in sync regardless. */
+            if (roomObj && roomObj.items) {
+                for (const cat in roomObj.items) {
+                    if (!Array.isArray(roomObj.items[cat])) continue;
+                    const entry = roomObj.items[cat].find(it => it.id === m.id());
+                    if (entry) { entry.data_zPosition = m.data_zPosition; break; }
+                }
+            }
+        });
+    }
+    group.data_zPosition = newZ;
+    rectNode.data_zPosition = newZ;
+
+    /* 4) Group name */
+    group.name = newName;
+    rectNode.data_labelField = newName;
+
+    /* 5) Layer cascade — share-a-layer invariant matches createGroup(). */
+    if (newLayerId !== (group.data_layerId || '0')) {
+        group.data_layerId = newLayerId;
+        rectNode.data_layerId = newLayerId;
+        applyLayerStateToNode(rectNode, newLayerId);
+        members.forEach(m => {
+            m.data_layerId = newLayerId;
+            applyLayerStateToNode(m, newLayerId);
+        });
+        renderLayersList();
+    }
+
+    /* 6) Re-align FOV / audio / display-distance / labels for moved members. */
+    members.forEach(m => updateShading(m));
+
+    layerTransform.batchDraw();
+    canvasToJson();
+
+    /* Match the existing single-item updateItem button-debounce. */
+    const btn = document.getElementById("btnUpdateItemId");
+    if (btn) {
+        btn.disabled = true;
+        setTimeout(() => { btn.disabled = false; }, 700);
+    }
+}
 
 function getDefaultLayers() {
     return [
@@ -577,13 +1000,35 @@ function getAllCanvasNodes() {
     return layerTransform.find('Image, Rect, Circle, Shape, Line, RegularPolygon');
 }
 
-/* Change a single item's layer by node id */
+/* Change a single item's layer by node id.
+ *
+ * When `nodeId` resolves to a Group rect (data_deviceid === 'group'), the
+ * change cascades: every member of the group is moved to `newLayerId`, the
+ * group's `data_layerId` in roomObj.groups is updated, and the rect itself is
+ * moved too. This keeps the invariant that all members of a Group share a
+ * single VRC layer (the same invariant `createGroup()` enforces at create
+ * time). Without the cascade, picking a layer in the Group's Details
+ * dropdown would only relabel the rect and silently leave the members on
+ * their old layer. */
 function updateItemLayer(nodeId, newLayerId) {
     if (!newLayerId) newLayerId = '0';
     const node = stage.find('#' + nodeId)[0];
     if (!node) return;
-    node.data_layerId = newLayerId;
-    applyLayerStateToNode(node, newLayerId);
+
+    if (node.data_deviceid === 'group') {
+        const groupId = node.data_groupId;
+        const group = getGroupById(groupId);
+        if (group) group.data_layerId = newLayerId;
+        node.data_layerId = newLayerId;
+        applyLayerStateToNode(node, newLayerId);
+        getGroupMemberNodes(groupId).forEach(m => {
+            m.data_layerId = newLayerId;
+            applyLayerStateToNode(m, newLayerId);
+        });
+    } else {
+        node.data_layerId = newLayerId;
+        applyLayerStateToNode(node, newLayerId);
+    }
     canvasToJson();
     renderLayersList();
 }
@@ -1074,6 +1519,11 @@ let groupRooms = new Konva.Group(
 
 let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices];
 
+/* Group rects live in their own Konva group, rendered behind all items */
+let groupGroupRects = new Konva.Group({
+    name: 'groupGroupRects',
+});
+
 let titleGroup = new Konva.Group(
     {
         name: 'titleGroup',
@@ -1146,9 +1596,22 @@ tr.on('dragstart', function trDragStart() {
 
 });
 
+tr.on('dragmove', function trDragMove() {
+
+    /* When the user drags the Transformer's bounding box (rather than a
+     * single member) Konva moves every node in tr.nodes() natively and the
+     * per-member dragmove handlers don't always fire — push the live rect
+     * coords into the Group Details panel so X/Y track the drag. */
+    refreshGroupDetailsFromCanvas();
+});
+
 tr.on('dragend', function trDragStart() {
 
     hideAllCoverageGroups(false);
+    endGroupDragFollow();
+    /* Final flush of the Group Details panel after a Transformer-driven
+     * drag (caches catch missed-frame edge cases). */
+    refreshGroupDetailsFromCanvas();
 });
 
 /* Customize the rotation / rotater anchor */
@@ -5133,6 +5596,95 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
         }
+        else if (item.sid === "H" && 'value' in item) {
+            /* Group definition (created by createShareableLink()):
+             *   H{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
+             *
+             * Notes vs Layers:
+             *   - Group numbers start at 1 (no reserved range).
+             *   - Members are NOT enumerated in the H block; they are populated
+             *     after the forEach pass from items that carry `s{num}`.
+             *   - x / y / data_zPosition / width / height ARE encoded explicitly
+             *     in the H block. The previous design tried to derive them from
+             *     member nodes via `updateGroupBounds()` after `roomObjToCanvas()`
+             *     finished its insert loop, but item `Konva.Image` nodes are
+             *     created inside an asynchronous `imageObj.onload` callback —
+             *     so at the moment `updateGroupBounds()` runs, the members
+             *     don't yet exist as children of `groupChairs` etc., and the
+             *     bounds compute returns 0/0/1/1.
+             *
+             * H{n} blocks are always emitted by the encoder before any item
+             * that references them, but we keep a lazy-create fallback (mirror
+             * of the layer parser) so a hand-edited URL can still load. Any
+             * geometry attribute missing from the URL defaults to 0; the
+             * defensive `updateGroupBounds()` call in `roomObjToCanvas()` then
+             * recomputes from members once they're rendered (works for old or
+             * malformed URLs, just produces a brief flicker for fresh loads).
+             */
+            const grpUrlNum = parseInt(item.value, 10);
+            if (!isNaN(grpUrlNum) && grpUrlNum > 0) {
+                ensureGroups(roomObj);
+
+                const grpName = DOMPurify.sanitize(
+                    'text' in item
+                        ? decodeURIComponent(item.text.replaceAll('+', ' '))
+                        : 'Group ' + grpUrlNum
+                );
+
+                let grpLayerId = '0';
+                if ('ll' in item) {
+                    const layerUrlNum = parseInt(item.ll, 10);
+                    if (layerUrlNum === 1) {
+                        grpLayerId = '1';
+                    } else if (layerUrlNum >= 20) {
+                        if (!roomObj.layers) roomObj.layers = getDefaultLayers();
+                        let matchedLayer = roomObj.layers.find(l => l._urlNum === layerUrlNum);
+                        if (!matchedLayer) {
+                            /* L{n} not yet seen — same lazy fallback used by the item `ll` parser */
+                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: layerUrlNum };
+                            roomObj.layers.push(matchedLayer);
+                        }
+                        grpLayerId = matchedLayer.layerid;
+                    }
+                }
+
+                const grpRotation = ('f' in item) ? (parseInt(item.f, 10) / 10) : 0;
+                const grpX        = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
+                const grpY        = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
+                const grpZ        = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
+                const grpW        = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
+                const grpH        = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
+
+                /* Patch a placeholder if items registered an unknown group ref
+                 * before the H block (defensive — encoder won't do this), else
+                 * push a fresh group object. */
+                let existingGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
+                if (existingGroup) {
+                    existingGroup.name = grpName;
+                    existingGroup.data_layerId = grpLayerId;
+                    existingGroup.rotation = grpRotation;
+                    existingGroup.x = grpX;
+                    existingGroup.y = grpY;
+                    existingGroup.data_zPosition = grpZ;
+                    existingGroup.width = grpW;
+                    existingGroup.height = grpH;
+                } else {
+                    roomObj.groups.push({
+                        groupid: createUuid(),
+                        name: grpName,
+                        data_layerId: grpLayerId,
+                        x: grpX,
+                        y: grpY,
+                        width: grpW,
+                        height: grpH,
+                        rotation: grpRotation,
+                        data_zPosition: grpZ,
+                        groupMembers: [],
+                        _urlNum: grpUrlNum,
+                    });
+                }
+            }
+        }
         else if (item.sid === "D" || item.sid === "E" || item.sid === "F" || item.sid === "G") {
             let roomSurface = {};
             let wall;
@@ -5313,6 +5865,41 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
+            /* group assignment: s{num} → roomObj.groups[i] where _urlNum === num.
+             * The encoder omits per-item `ll` when an item belongs to a group
+             * (the H{n} block already encodes the layer), so when only `s` is
+             * present we inherit the layer from the group here. If a hand-
+             * edited URL carries both `s` AND `ll`, the per-item `ll` parsed
+             * just above already won and we leave it alone. */
+            if ('s' in item) {
+                const grpUrlNum = parseInt(item.s, 10);
+                if (!isNaN(grpUrlNum) && grpUrlNum > 0) {
+                    ensureGroups(roomObj);
+                    let matchedGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
+                    if (!matchedGroup) {
+                        /* H{n} block hasn't been parsed yet (defensive — the
+                         * encoder always emits H blocks before items). Create
+                         * a placeholder; if the H block appears later in the
+                         * URL it will patch this entry in place via _urlNum. */
+                        matchedGroup = {
+                            groupid: createUuid(),
+                            name: 'Group ' + grpUrlNum,
+                            data_layerId: '0',
+                            x: 0, y: 0, width: 0, height: 0,
+                            rotation: 0,
+                            data_zPosition: 0,
+                            groupMembers: [],
+                            _urlNum: grpUrlNum,
+                        };
+                        roomObj.groups.push(matchedGroup);
+                    }
+                    newItem.data_groupId = matchedGroup.groupid;
+                    if (!('ll' in item)) {
+                        newItem.data_layerId = matchedGroup.data_layerId;
+                    }
+                }
+            }
+
             if ('text' in item) {
                 newItem.data_labelField = DOMPurify.sanitize(item.text);
             }
@@ -5324,6 +5911,27 @@ function parseShortenedXYUrl(parameters) {
 
 
     })
+
+    /* Post-parse: rebuild Group membership from items now that every item has
+     * its `data_groupId` set (and a fresh UUID). x/y/width/height/rotation/
+     * data_zPosition stay at the values parsed from the H block. Empty groups
+     * are dropped — the encoder already skips them, but a hand-edited URL
+     * could carry an H block whose only `s{n}` references never appeared on
+     * any item. */
+    if (roomObj.groups && roomObj.groups.length) {
+        roomObj.groups.forEach(g => { g.groupMembers = []; });
+
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category].forEach(it => {
+                if (!it.data_groupId) return;
+                const g = roomObj.groups.find(grp => grp.groupid === it.data_groupId);
+                if (g) g.groupMembers.push(it.id);
+            });
+        }
+
+        roomObj.groups = roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length);
+    }
 
     return output;
 
@@ -5405,6 +6013,7 @@ function resetRoomObj() {
         "drpTvNum": 1,
     };
 
+    roomObj.groups = []; 
 
     roomObj.roomSurfaces =
     {
@@ -8003,6 +8612,82 @@ function createShareableLink() {
         });
     }
 
+    /* Build groupid → URL number map and emit H{n} blocks for each group that
+     * has at least one member. Empty groups are skipped so stale entries can't
+     * survive in the URL forever.
+     *
+     * Format: H{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
+     *
+     * Why x/y/z/w/h are encoded explicitly (not derived from members):
+     *   Item Konva.Image nodes are created inside `imageObj.onload` (an async
+     *   callback). When `roomObjToCanvas()` finishes its synchronous insert
+     *   loop and tries to compute group bounds via `updateGroupBounds()`, the
+     *   member nodes don't yet exist as children of `groupChairs` /
+     *   `groupVideoDevices` / etc., so `getGroupMemberNodes()` returns empty
+     *   and the call no-ops. Encoding bounds explicitly removes the async
+     *   dependency entirely — the rect renders correctly on the first frame.
+     *
+     *   `updateGroupBounds()` is still called as a defensive recompute in
+     *   `roomObjToCanvas()`, so a hand-edited URL or an old URL missing some
+     *   of these attributes is still recoverable once the images load.
+     *
+     * Letter assignments (mnemonic, scoped to H blocks only — no conflict
+     * with item attribute letters because the parser keys output[obj][letter]
+     * by `sid`, and these letters are only read by the H branch):
+     *   - x : x position (×100)
+     *   - y : y position (×100)        — only emitted when != 0
+     *   - z : data_zPosition (×100)    — only emitted when != 0
+     *   - w : width (×100)
+     *   - h : height (×100)
+     *   - f : rotation (×10)           — only emitted when != 0
+     *   - ll : layer ref               — only emitted for non-default layer.
+     *          Group members never re-emit `ll` themselves (the decoder
+     *          inherits the layer from the group), saving URL bytes.
+     *   - ~text~ : group name (URL-encoded; always emitted)
+     *
+     * H{n} blocks are emitted AFTER L{n} blocks so the group's `ll` ref can
+     * resolve immediately, and BEFORE items so each item's `s{n}` ref can
+     * resolve immediately. */
+    _groupUrlEncodeMap = {};
+    if (roomObj.groups && roomObj.groups.length) {
+        const groupsWithMembers = new Set();
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category].forEach(it => {
+                if (it.data_groupId) groupsWithMembers.add(it.data_groupId);
+            });
+        }
+        let urlGroupNum = 1;
+        roomObj.groups.forEach(group => {
+            if (!groupsWithMembers.has(group.groupid)) return;
+            _groupUrlEncodeMap[group.groupid] = urlGroupNum;
+            let grpStr = 'H' + urlGroupNum;
+            /* Geometry (always emit x and w; y/z/h only when non-zero to save
+             * bytes for the common "group flush against (0,*) corner" case
+             * and groups at z=0). x and w are always meaningful even at 0/1,
+             * so encode them unconditionally to keep the parser simple. */
+            grpStr += 'x' + Math.round((group.x || 0) * 100);
+            if (group.y) grpStr += 'y' + Math.round(group.y * 100);
+            if (group.data_zPosition) grpStr += 'z' + Math.round(group.data_zPosition * 100);
+            grpStr += 'w' + Math.round((group.width || 0) * 100);
+            if (group.height) grpStr += 'h' + Math.round(group.height * 100);
+            if (group.data_layerId && group.data_layerId !== '0') {
+                if (group.data_layerId === '1') {
+                    grpStr += 'll1';
+                } else if (_layerUrlEncodeMap[group.data_layerId] != null) {
+                    grpStr += 'll' + _layerUrlEncodeMap[group.data_layerId];
+                }
+            }
+            if (group.rotation) {
+                grpStr += 'f' + Math.round(group.rotation * 10);
+            }
+            const safeName = group.name && group.name.trim() ? group.name : ('Group ' + urlGroupNum);
+            grpStr += '~' + encodeURIComponent(safeName).replaceAll('%20', '+') + '~';
+            strUrlQuery2 += grpStr;
+            urlGroupNum++;
+        });
+    }
+
     let items = roomObj.items;
     let i = 0;
     for (const category in items) {
@@ -8207,13 +8892,27 @@ function createShareableLinkItem(item) {
         strItem += 'r' + points.join(' ');
     }
 
+    /* When the item belongs to a group that was emitted as an H{n} block, the
+     * group's `ll` already encodes the layer for every member. Group members
+     * always share their group's layer by definition (createGroup() and
+     * updateItemLayer() enforce this), so we skip the per-item `ll` to keep
+     * the URL short. The decoder inherits data_layerId from the group when an
+     * item carries `s` but no `ll`. */
+    const itemHasGroupRef = item.data_groupId && _groupUrlEncodeMap[item.data_groupId] != null;
+
     /* encode layer reference: ll1 for Ceiling, ll20+ for custom layers; skip Default (ll0 not needed) */
-    if ('data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
+    if (!itemHasGroupRef && 'data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
         if (item.data_layerId === '1') {
             strItem += 'll1';
         } else if (_layerUrlEncodeMap[item.data_layerId] != null) {
             strItem += 'll' + _layerUrlEncodeMap[item.data_layerId];
         }
+    }
+
+    /* encode group reference: s{n} where n is the URL number assigned to the
+     * group during the H{n} room-level emission earlier in this run. */
+    if (itemHasGroupRef) {
+        strItem += 's' + _groupUrlEncodeMap[item.data_groupId];
     }
 
     if ('data_labelField' in item) {
@@ -8691,8 +9390,62 @@ function copyToCanvasClipBoard(nodes) {
 
     let clipBoardArray = [];
 
+    /* ---- Group selection bookkeeping ----
+     * A group is "complete" when its rect AND every current member of the
+     * group are in the selection. Only complete groups round-trip through
+     * the clipboard with their structure intact: members keep
+     * data_groupId (remapped on paste) and a fresh group rect is
+     * materialized on paste. Members of incomplete groups paste as
+     * ungrouped, mirroring the URL/WD-import rule that empty / partial
+     * groups are dropped. expandSelectionForGroups() normally guarantees
+     * complete bundles, but this is the defensive backstop. */
+    const selectedRectGroupIds = new Set();
+    const selectedMemberIdsByGroup = {};
+    nodes.forEach(n => {
+        if (n.data_deviceid === 'group' && n.data_groupId) {
+            selectedRectGroupIds.add(n.data_groupId);
+        } else if (n.data_groupId) {
+            (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
+        }
+    });
+    const completeGroupIds = new Set();
+    selectedRectGroupIds.forEach(gid => {
+        const group = getGroupById(gid);
+        if (!group) return;
+        const present = selectedMemberIdsByGroup[gid] || new Set();
+        const allHere = (group.groupMembers || []).every(id => present.has(id));
+        if (allHere) completeGroupIds.add(gid);
+    });
 
     nodes.forEach(node => {
+        /* Group rect: emit a special clipboard entry so pasteItems() can
+         * mint a fresh roomObj.groups entry with a remapped groupid and
+         * recreate the rect. Skip the regular item-attr pipeline (the
+         * rect has no Konva.Image, no diagonal/role/colour/etc., and its
+         * canonical x/y/width/height live in roomObj.groups, not on the
+         * Konva attrs in unit space). */
+        if (node.data_deviceid === 'group') {
+            const oldGroupId = node.data_groupId;
+            if (!completeGroupIds.has(oldGroupId)) return;
+            const group = getGroupById(oldGroupId);
+            if (!group) return;
+            clipBoardArray.push({
+                isGroupRect: true,
+                oldGroupId: oldGroupId,
+                groupAttrs: {
+                    name: group.name,
+                    data_layerId: group.data_layerId || '0',
+                    data_zPosition: parseFloat(group.data_zPosition) || 0,
+                    x: group.x || 0,
+                    y: group.y || 0,
+                    width: group.width || 0,
+                    height: group.height || 0,
+                    rotation: group.rotation || 0,
+                },
+            });
+            return;
+        }
+
         let x2Offset, y2Offset, x2, y2; /* new x and new y */
         let attrs = node.attrs;
 
@@ -8797,6 +9550,14 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_layerId = node.data_layerId;
         }
 
+        /* Group membership — only carried for members of "complete" group
+         * selections (rect + all members present). pasteItems() remaps
+         * this old groupid to the freshly minted one. Drop it for
+         * incomplete groups so those members paste as ungrouped. */
+        if (node.data_groupId && completeGroupIds.has(node.data_groupId)) {
+            newAttr.data_groupId = node.data_groupId;
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -8867,22 +9628,45 @@ function pasteItems(duplicate = true) {
             }
 
             itemsObj.items.forEach((item, index) => {
-                item.newAttr = convertItemUnitBasedOnRatio(item.newAttr, ratio);
+                /* Group rect entries carry their dims in `groupAttrs`
+                 * (unit space) instead of `newAttr`. Both bags share the
+                 * same x/y/width/height/data_zPosition keys that
+                 * convertItemUnitBasedOnRatio handles. */
+                if (item.isGroupRect) {
+                    item.groupAttrs = convertItemUnitBasedOnRatio(item.groupAttrs, ratio);
+                } else {
+                    item.newAttr = convertItemUnitBasedOnRatio(item.newAttr, ratio);
+                }
             });
 
         }
 
-        checkForMultipleCodecsOnPaste(itemsObj.items);
+        /* Skip Group rect entries — they have no allDeviceTypes mapping
+         * and the codec-count check only cares about regular items. */
+        checkForMultipleCodecsOnPaste(itemsObj.items.filter(it => !it.isGroupRect));
 
     } else {
         return;
     }
+
+    /* ---- Build oldGroupId → newGroupId map ----
+     * Every Group rect in the clipboard mints a fresh groupid; member
+     * items that were copied alongside a Group rect get their
+     * data_groupId remapped below. Members whose old groupid is NOT in
+     * the map (no rect copied → incomplete group) paste as ungrouped. */
+    const oldToNewGroupId = {};
+    itemsObj.items.forEach(it => {
+        if (it.isGroupRect && it.oldGroupId) {
+            oldToNewGroupId[it.oldGroupId] = createUuid();
+        }
+    });
+
     let uuids = [];
 
     if (duplicate) {
 
 
-        if (itemsObj.items.length === 1 && itemsObj.items[0].deviceId.startsWith('chair')) {
+        if (itemsObj.items.length === 1 && !itemsObj.items[0].isGroupRect && itemsObj.items[0].deviceId.startsWith('chair')) {
             let itemAttr = itemsObj.items[0].newAttr;
             let offset = (roomObj.unit === 'feet') ? 2.35 : 2.35 / 3.28084;
             let rotation = itemAttr.rotation;
@@ -8914,14 +9698,30 @@ function pasteItems(duplicate = true) {
     }
 
 
-
+    /* Track new member uuids per new groupid so we can populate
+     * groupMembers on the freshly minted roomObj.groups entries. */
+    const newMembersByGroupId = {};
 
     itemsObj.items.forEach(item => {
+
+        if (item.isGroupRect) return; /* materialized in the second pass below */
 
         /* if pasted item references a layer that no longer exists, assign to Default */
         if (item.newAttr.data_layerId && item.newAttr.data_layerId !== '0' && item.newAttr.data_layerId !== '1') {
             if (!getLayerById(item.newAttr.data_layerId)) {
                 item.newAttr.data_layerId = '0';
+            }
+        }
+
+        /* Remap data_groupId: complete-group members point at the new
+         * groupid; members of incomplete groups (no rect in clipboard)
+         * paste as ungrouped. */
+        if (item.newAttr.data_groupId) {
+            const newGid = oldToNewGroupId[item.newAttr.data_groupId];
+            if (newGid) {
+                item.newAttr.data_groupId = newGid;
+            } else {
+                delete item.newAttr.data_groupId;
             }
         }
 
@@ -8932,10 +9732,48 @@ function pasteItems(duplicate = true) {
         itemCount++;
         insertShapeItem(item.deviceId, item.parent, item.newAttr, uuid);
 
-
+        if (item.newAttr.data_groupId) {
+            (newMembersByGroupId[item.newAttr.data_groupId] = newMembersByGroupId[item.newAttr.data_groupId] || []).push(uuid);
+        }
 
     })
 
+
+    /* ---- Second pass: materialize each pasted Group ----
+     * Pushes a fresh entry into roomObj.groups (with the remapped
+     * groupid, the offset top-left, and groupMembers populated from the
+     * uuids generated above) and inserts a new Group rect on the canvas
+     * via insertGroupRect(). The rect's groupid is added to `uuids` so
+     * trNodesFromUuids() selects the whole bundle (rect + members) — the
+     * same selection shape the user had before copying. */
+    itemsObj.items.forEach(item => {
+        if (!item.isGroupRect) return;
+        const newGroupId = oldToNewGroupId[item.oldGroupId];
+        if (!newGroupId) return;
+        ensureGroups(roomObj);
+
+        let layerId = item.groupAttrs.data_layerId || '0';
+        if (layerId !== '0' && layerId !== '1' && !getLayerById(layerId)) {
+            layerId = '0';
+        }
+
+        const newGroup = {
+            groupid: newGroupId,
+            name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
+            data_layerId: layerId,
+            x: (item.groupAttrs.x || 0) + xOffset,
+            y: (item.groupAttrs.y || 0) + yOffset,
+            width: item.groupAttrs.width || 0,
+            height: item.groupAttrs.height || 0,
+            rotation: item.groupAttrs.rotation || 0,
+            data_zPosition: parseFloat(item.groupAttrs.data_zPosition) || 0,
+            groupMembers: newMembersByGroupId[newGroupId] || [],
+        };
+
+        roomObj.groups.push(newGroup);
+        insertGroupRect(newGroup);
+        uuids.push(newGroupId);
+    });
 
 
     trNodesFromUuids(uuids, true);  /* select the newly pasted items */
@@ -8987,6 +9825,7 @@ function stageAddLayers() {
 
 
     layerGrid.add(layerBackgroundImageFloor);
+    layerTransform.add(groupGroupRects); /* Group rects render behind all items */
     layerTransform.add(groupStageFloors);
     layerTransform.add(grShadingCamera);
     layerTransform.add(grDisplayDistance);
@@ -9307,7 +10146,32 @@ function deleteTrNodes(save = true) {
 
     tr.nodes([]);
 
+    /* Handle Group rect deletions first: delete the rect + all member nodes */
+    const groupRectNodes = copyTrNodes.filter(n => n.data_deviceid === 'group');
+    if (groupRectNodes.length) {
+        groupRectNodes.forEach(rectNode => {
+            ungroupItems(rectNode.data_groupId, false /* keepItems=false → hard delete */);
+        });
+        /* Remove these from copyTrNodes so we don't try to delete them again below */
+        const groupIds = new Set(groupRectNodes.map(n => n.data_groupId));
+        copyTrNodes.splice(0, copyTrNodes.length, ...copyTrNodes.filter(
+            n => n.data_deviceid !== 'group' && !groupIds.has(n.data_groupId)
+        ));
+    }
+
     copyTrNodes.forEach(node => {
+
+        /* If this item belongs to a group, remove it from the group membership */
+        if (node.data_groupId) {
+            const g = getGroupById(node.data_groupId);
+            if (g) {
+                g.groupMembers = (g.groupMembers || []).filter(id => id !== node.id());
+                if ((g.groupMembers || []).length < 2) {
+                    ungroupItems(g.groupid, true /* keepItems=true for remaining members */);
+                }
+            }
+            node.data_groupId = null;
+        }
 
         let parentGroup = allDeviceTypes[node.data_deviceid].parentGroup;
         let id = node.id();
@@ -9403,6 +10267,30 @@ function roomObjToCanvas(updateExisting = false) {
 
     console.info('total Items Inserted or Updated:', itemCount);
 
+    /* Draw Group rects after all items are on stage.
+     *
+     * `updateGroupBounds()` is called as a defensive recompute ONLY for groups
+     * whose bounds are missing (width/height === 0). This handles old or
+     * hand-edited URLs that carry an `H{n}` block without `w` / `h`. For
+     * fresh URLs and JSON loads, x/y/width/height are already set correctly
+     * from the source, so we skip the recompute to avoid two pitfalls:
+     *
+     *   1. Item Konva.Image nodes are queued via async `imageObj.onload`
+     *      callbacks, so at this point `getGroupMemberNodes()` typically
+     *      returns empty and the call would no-op anyway.
+     *   2. Browser image cache can make SOME members load synchronously while
+     *      others stay async. If we recomputed in that partial state, the
+     *      resulting (smaller) bbox would overwrite the correct bounds we
+     *      just placed via `insertGroupRect()`. The gate below avoids that.
+     */
+    if (roomObj.groups && roomObj.groups.length) {
+        roomObj.groups.forEach(g => {
+            insertGroupRect(g);
+            if (!g.width || !g.height) {
+                updateGroupBounds(g.groupid);
+            }
+        });
+    }
 
 }
 
@@ -9451,6 +10339,9 @@ function canvasToJson() {
         let itemAttr = {};
 
         theObjects.forEach(node => {
+            /* Group rects are stored in roomObj.groups, not roomObj.items */
+            if (node.data_deviceid === 'group') return;
+
             let x, y;
             let attrs = node.attrs;
             if (!('rotation' in attrs)) {
@@ -9559,6 +10450,10 @@ function canvasToJson() {
                 itemAttr.data_layerId = node.data_layerId;
             }
 
+            if (node.data_groupId) {
+                itemAttr.data_groupId = node.data_groupId;
+            }
+
             if ('points' in attrs) {
                 let points = attrs.points;
 
@@ -9580,6 +10475,20 @@ function canvasToJson() {
 
     }
 
+
+    /* Sync Group rect Konva positions back to roomObj.groups */
+    if (groupGroupRects && roomObj.groups && roomObj.groups.length) {
+        groupGroupRects.getChildren().forEach(node => {
+            if (node.data_deviceid !== 'group') return;
+            const g = getGroupById(node.data_groupId);
+            if (!g) return;
+            g.x        = ((node.x()      - pxOffset) / scale) + activeRoomX;
+            g.y        = ((node.y()      - pyOffset) / scale) + activeRoomY;
+            g.width    = node.width()  / scale;
+            g.height   = node.height() / scale;
+            g.rotation = node.rotation();
+        });
+    }
 
     clearTimeout(undoArrayTimer);
 
@@ -11034,6 +11943,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
     applyLayerStateToNode(tblWallFlr, tblWallFlr.data_layerId);
 
+    /* Group membership */
+    tblWallFlr.data_groupId = attrs.data_groupId || null;
+
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
     } else {
@@ -11089,6 +12001,17 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     });
 
+    tblWallFlr.on('dragstart', function tableOnDragStart(e) {
+        /* Capture the pre-drag snapshot for group drag-follow BEFORE
+         * Konva's drag system advances the target's position. If we waited
+         * until dragmove (followGroupDragFromMember's lazy fallback) the
+         * snapshot would bake in the first-frame jump and the rect/siblings
+         * would drift behind by that amount on every subsequent dragmove. */
+        if (e.target.data_groupId) {
+            beginGroupDragFollow(e.target);
+        }
+    });
+
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
 
         if (isAllCoverageGroupHidden) return;
@@ -11098,14 +12021,21 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         snapCenterToIncrement(tblWallFlr);
 
         if (!tr.nodes().includes(e.target)) {
-            tr.nodes([e.target]);
-            enableCopyDelBtn();
-            /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
-                resizeTableOrWall();
+            if (e.target.data_groupId) {
+                /* Group member dragged solo — select the whole group
+                 * (rect + every member) instead of just this one item. */
+                tr.nodes([e.target]);
+                expandSelectionForGroups();
             } else {
-                tr.resizeEnabled(false);
+                tr.nodes([e.target]);
+                /* tables and other objects maybe resizable. */
+                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
+                    resizeTableOrWall();
+                } else {
+                    tr.resizeEnabled(false);
+                }
             }
+            enableCopyDelBtn();
         }
 
         if (e.target.attrs.id) {
@@ -11119,6 +12049,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             updateShading(tblWallFlr);
         }
+
+        /* If this table belongs to a Group, drag the rest of the group
+         * along with it (siblings + the Group rect). Same pattern as
+         * `updateShading()` above for `#fov~id` coverage nodes — the
+         * follower runs from the dragged item's own dragmove. No-op when
+         * the Transformer itself is being dragged (Konva handles that). */
+        followGroupDragFromMember(tblWallFlr);
     });
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
@@ -11128,6 +12065,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
         allGuideLines = [];
 
+        endGroupDragFollow();
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
@@ -11682,6 +12620,15 @@ function removeShadingTrNodes() {
     lastTrNodesWithShading.forEach(node => {
         if (('data_deviceid' in node)) {
 
+            /* Group rect: deselect just hides the rect again. Stroke / fill
+             * are kept at their insertGroupRect defaults (blue/#8FD9FB) so
+             * we don't touch them — and `allDeviceTypes['group']` is
+             * undefined, so the device-type lookups below would crash. */
+            if (node.data_deviceid === 'group') {
+                node.opacity(0);
+                return;
+            }
+
             if ('image' in node.attrs) {
                 node.strokeEnabled(false);
                 node.stroke();
@@ -11712,6 +12659,45 @@ function removeShadingTrNodes() {
 
     lastTrNodesWithShading = [];
     tr.nodes(copyTrNodes);
+}
+
+/* ---- Group-aware selection expansion ----
+ * Call after setting tr.nodes() from any click/drag-select path.
+ * When any group-related node is selected (the rect OR any member), the
+ * resulting tr.nodes() becomes [groupRect, ...allMembers] so Konva's
+ * Transformer moves and rotates the entire bundle natively. The user
+ * normally clicks a member to initiate the selection (the Group rect
+ * itself has listening:false). */
+function expandSelectionForGroups() {
+    const current = tr.nodes().slice();
+    let expanded = false;
+
+    const groupIds = new Set();
+    current.forEach(node => {
+        if (node.data_groupId) groupIds.add(node.data_groupId);
+    });
+
+    groupIds.forEach(id => {
+        if (groupGroupRects) {
+            const rectNode = groupGroupRects.find(n => n.data_groupId === id)[0];
+            if (rectNode && !current.includes(rectNode)) {
+                current.push(rectNode);
+                expanded = true;
+            }
+        }
+        getGroupMemberNodes(id).forEach(member => {
+            if (!current.includes(member)) { current.push(member); expanded = true; }
+        });
+    });
+
+    if (expanded) tr.nodes(current);
+
+    /* Resize is meaningless on a group: items move together but never need
+     * to be re-sized as a unit. Rotation stays enabled (separate anchor). */
+    if (current.some(n => n.data_deviceid === 'group')) {
+        tr.enabledAnchors([]);
+        tr.resizeEnabled(false);
+    }
 }
 
 function updateTrNodesShadingTimer() {
@@ -11745,6 +12731,20 @@ function updateTrNodesShading() {
 
 
     copyTrNodes.forEach(node => {
+
+        /* Group members are excluded from the blue-outline shading;
+         * only the Group rect itself shows a selection visual (and its
+         * stroke/fill are already blue — see insertGroupRect — so the
+         * "highlight" is just a fade-up from opacity 0 to 0.2). */
+        if (node.data_groupId && node.data_deviceid !== 'group') return;
+
+        if (node.data_deviceid === 'group') {
+            /* Group rect: selection state is conveyed by opacity only.
+             * Default 0 → 0.2 here, restored by removeShadingTrNodes(). */
+            node.opacity(0.2);
+            lastTrNodesWithShading.push(node);
+            return;
+        }
 
         node.strokeEnabled(true);
         node.strokeWidth(2);
@@ -11984,6 +12984,18 @@ function updateMultipleItems() {
 
 /* Item is updated after clicking Update item on web page from Details tab */
 function updateItem() {
+    /* Group fast-path: when the Details panel is showing a Group (itemId
+     * === group.groupid), apply X/Y/Z deltas + rotation around the rect
+     * centre to all members and cascade label/layer. The rest of this
+     * function is built around `roomObjItemsMap.get(id)` which has no entry
+     * for groups, so the regular flow would silently no-op. */
+    const __detailsItemId = document.getElementById('itemId').innerText;
+    const __activeGroup = getGroupById(__detailsItemId);
+    if (__activeGroup) {
+        updateGroupItem(__activeGroup);
+        return;
+    }
+
     let parentGroup = document.getElementById('itemGroup').innerText;
     if (!parentGroup) {
         console.info('parentGroup for itemUpdate not found');
@@ -13619,6 +14631,232 @@ function testSearchShapeToNode() {
 
 }
 
+/* ---- Group creation / destruction ---- */
+
+/* Dissolve a group. keepItems=true → leave member nodes on canvas (Ungroup).
+ * keepItems=false → destroy member nodes too (Delete path). */
+function ungroupItems(groupId, keepItems) {
+    if (!groupId) return;
+    ensureGroups();
+
+    const members = getGroupMemberNodes(groupId);
+
+    members.forEach(node => {
+        node.data_groupId = null;
+        if (keepItems) {
+            /* Members already had listening:true; nothing to restore.
+             * Just clear the group attribute from the roomObj.items entry. */
+            for (const category in roomObj.items) {
+                if (!Array.isArray(roomObj.items[category])) continue;
+                const entry = roomObj.items[category].find(i => i.id === node.id());
+                if (entry) delete entry.data_groupId;
+            }
+        } else {
+            /* Hard-delete: destroy member and its coverage nodes */
+            ['audio~', 'speaker~', 'fov~', 'dispDist~'].forEach(prefix => {
+                const cov = stage.find('#' + prefix + node.id())[0];
+                if (cov) cov.destroy();
+            });
+            stage.find('#label~' + node.id()).forEach(l => l.destroy());
+            canvasNodesMap.delete(node.id());
+            node.destroy();
+        }
+    });
+
+    /* Remove the Konva group rect */
+    if (groupGroupRects) {
+        const rectNode = groupGroupRects.find(n => n.data_groupId === groupId)[0];
+        if (rectNode) rectNode.destroy();
+    }
+
+    /* Remove from roomObj.groups */
+    roomObj.groups = roomObj.groups.filter(g => g.groupid !== groupId);
+
+    if (!keepItems) {
+        /* Clean up roomObj.items entries for hard-deleted members */
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category] = roomObj.items[category].filter(i => i.data_groupId !== groupId);
+        }
+    }
+
+    layerTransform.batchDraw();
+}
+
+/* Group the current tr.nodes() selection (or the nodes passed in). */
+function createGroup(nodesToGroup) {
+    ensureGroups();
+
+    const candidates = nodesToGroup || tr.nodes();
+    /* Only group actual items — skip existing group rects, transformers, etc. */
+    const itemNodes = candidates.filter(n =>
+        n.data_deviceid && n.data_deviceid !== 'group' && n.isVisible()
+    );
+
+    if (itemNodes.length < 2) {
+        alertDialog('Cannot Group', 'Select at least two items to create a group.');
+        return;
+    }
+
+    /* Collect unique group IDs already on the selection — dissolve them first */
+    const existingGroupIds = new Set(
+        itemNodes.filter(n => n.data_groupId).map(n => n.data_groupId)
+    );
+    existingGroupIds.forEach(id => ungroupItems(id, true));
+
+    /* Re-collect after dissolve (data_groupId is now null on all) */
+    const finalNodes = itemNodes; /* same Konva node references, groupId cleared */
+
+    /* Layer resolution */
+    const layerIds = [...new Set(finalNodes.map(n => n.data_layerId || '0'))];
+    let targetLayerId;
+    if (layerIds.length === 1) {
+        targetLayerId = layerIds[0];
+    } else {
+        const drp = document.getElementById('drpAddItemLayer');
+        targetLayerId = (drp && drp.value) ? drp.value : '0';
+        /* Move all members to the target layer */
+        finalNodes.forEach(n => updateItemLayer(n.id(), targetLayerId));
+    }
+
+    /* Calculate bounding box in layerTransform-local pixel space using the
+     * same getClientRect call the Transformer uses internally, so the
+     * Group rect hugs the items exactly the way the blue Transformer box
+     * does (no visible gap). No padding. */
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    finalNodes.forEach(node => {
+        const r = getMemberBoundingRect(node);
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.y + r.height > maxY) maxY = r.y + r.height;
+    });
+
+    const pixelX = minX;
+    const pixelY = minY;
+    const pixelW = maxX - minX;
+    const pixelH = maxY - minY;
+
+    const lowestZ = Math.min(...finalNodes.map(n => parseFloat(n.data_zPosition) || 0));
+
+    const newGroup = {
+        groupid: createUuid(),
+        name: 'Group ' + (roomObj.groups.length + 1),
+        data_layerId: targetLayerId,
+        x: ((pixelX - pxOffset) / scale) + activeRoomX,
+        y: ((pixelY - pyOffset) / scale) + activeRoomY,
+        width:  pixelW / scale,
+        height: pixelH / scale,
+        rotation: 0,
+        data_zPosition: lowestZ,
+        groupMembers: finalNodes.map(n => n.id()),
+    };
+
+    roomObj.groups.push(newGroup);
+
+    /* Tag member Konva nodes */
+    finalNodes.forEach(node => {
+        node.data_groupId = newGroup.groupid;
+        /* Tag roomObj.items entry */
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            const entry = roomObj.items[category].find(i => i.id === node.id());
+            if (entry) entry.data_groupId = newGroup.groupid;
+        }
+    });
+
+    const groupRectNode = insertGroupRect(newGroup);
+
+    /* Select the group rect + all members so Konva's Transformer can
+     * move/rotate them as one bundle when the user grabs any of them. */
+    if (groupRectNode) {
+        tr.nodes([groupRectNode, ...finalNodes]);
+    } else {
+        tr.nodes(finalNodes);
+    }
+    tr.enabledAnchors([]);
+    tr.resizeEnabled(false);
+    enableCopyDelBtn();
+    canvasToJson();
+    console.info('Group created:', newGroup.groupid, 'with', finalNodes.length, 'members');
+}
+
+/* Ungroup all groups referenced in the current tr.nodes() selection */
+function ungroupSelectedItems() {
+    const groupIds = new Set();
+    tr.nodes().forEach(n => {
+        if (n.data_deviceid === 'group') groupIds.add(n.data_groupId);
+        else if (n.data_groupId) groupIds.add(n.data_groupId);
+    });
+    if (!groupIds.size) return;
+    tr.nodes([]);
+    groupIds.forEach(id => ungroupItems(id, true));
+    canvasToJson();
+}
+
+/* ---- Group rect visual ----
+ * Creates (or recreates) the purple bounding-box rectangle for a VRC Group.
+ * The rect is placed in groupGroupRects (behind all items).
+ * groupObj: an entry from roomObj.groups.
+ */
+function insertGroupRect(groupObj) {
+    if (!groupObj || !groupObj.groupid) return;
+
+    /* Remove any stale rect for this group first */
+    const existing = groupGroupRects.find(n => n.data_groupId === groupObj.groupid)[0];
+    if (existing) existing.destroy();
+
+    const pixelX = scale * groupObj.x + pxOffset - activeRoomX * scale;
+    const pixelY = scale * groupObj.y + pyOffset - activeRoomY * scale;
+    const pixelW = scale * (groupObj.width  || 1);
+    const pixelH = scale * (groupObj.height || 1);
+
+    /* listening: false — the rect is a passive visual anchor; the user
+     *            initiates a selection by clicking any member item.
+     *            `expandSelectionForGroups()` then adds this rect to
+     *            tr.nodes() so it travels with the group.
+     * draggable: true — needed so Konva's Transformer can carry the rect
+     *            as part of tr.nodes() (the rect always moves with its
+     *            members when the group is selected).
+     * No manual drag/transform handlers on the rect; member-direct drags
+     * are followed by `followGroupDragFromMember()` from each member's
+     * own dragmove handler.
+     */
+    /* Default appearance: invisible (opacity 0) so the rect is just a
+     * passive bounding-box anchor that doesn't add visual noise to the
+     * canvas. When the group is selected (single-Group bundle OR part of a
+     * multi-select), `updateTrNodesShading()` raises opacity to 0.2 so the
+     * user can see the group bounds; `removeShadingTrNodes()` drops it
+     * back to 0 on deselect. The fill/stroke colours are baked in here
+     * (light blue + solid blue) so the highlight just toggles opacity. */
+    const groupRect = new Konva.Rect({
+        x: pixelX,
+        y: pixelY,
+        width: pixelW,
+        height: pixelH,
+        rotation: groupObj.rotation || 0,
+        fill: '#8FD9FB',
+        stroke: 'blue',
+        strokeWidth: 1,
+        dash: [6, 4],
+        opacity: 0,
+        name: 'Group Item',
+        id: groupObj.groupid,
+        draggable: true,
+        listening: false,
+    });
+
+    groupRect.data_deviceid   = 'group';
+    groupRect.data_groupId    = groupObj.groupid;
+    groupRect.data_zPosition  = groupObj.data_zPosition || 0;
+    groupRect.data_layerId    = groupObj.data_layerId || '0';
+    groupRect.data_labelField = groupObj.name || 'Group Item';
+
+    groupGroupRects.add(groupRect);
+    layerTransform.batchDraw();
+    return groupRect;
+}
+
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
 
     let hitStrokeWidth = 0; /* px:  allows the user to be close within X pixels to click on shape */
@@ -13847,6 +15085,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
         applyLayerStateToNode(node, node.data_layerId);
 
+        /* Group membership */
+        node.data_groupId = attrs.data_groupId || null;
+
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
         }
@@ -13878,6 +15119,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         updateNodeAttributes(imageItem);
 
         imageItem.on('dragend', function imageItemOnDragEnd() {
+            endGroupDragFollow();
             if (trNodesLength > 1) return;
             allGuideLines.forEach(guideLine => {
                 guideLine.destroy();
@@ -13889,6 +15131,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         });
 
 
+
+        imageItem.on('dragstart', function imageItemOnDragStart(e) {
+            /* Capture the pre-drag snapshot for group drag-follow BEFORE
+             * Konva's drag system advances the target's position. See the
+             * matching tblWallFlr.on('dragstart') for the full reasoning. */
+            if (e.target.data_groupId) {
+                beginGroupDragFollow(e.target);
+            }
+        });
 
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
 
@@ -13905,14 +15156,21 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             /* in case the dragged item is not the tr.node, make it the tr.node */
 
             if (!tr.nodes().includes(e.target)) {
-                tr.nodes([e.target]);
-                enableCopyDelBtn();
-                /* tables and other objects maybe resizable. */
-                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
-                    resizeTableOrWall();
+                if (e.target.data_groupId) {
+                    /* Group member dragged solo — select the whole group
+                     * (rect + every member) instead of just this one item. */
+                    tr.nodes([e.target]);
+                    expandSelectionForGroups();
                 } else {
-                    tr.resizeEnabled(false);
+                    tr.nodes([e.target]);
+                    /* tables and other objects maybe resizable. */
+                    if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
+                        resizeTableOrWall();
+                    } else {
+                        tr.resizeEnabled(false);
+                    }
                 }
+                enableCopyDelBtn();
             }
 
             if (e.target.attrs.id) {
@@ -13921,6 +15179,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 }
             }
 
+            /* If this item belongs to a Group, drag the rest of the group
+             * along with it (siblings + the Group rect). Same pattern as
+             * `updateShading()` above for `#fov~id` coverage nodes — the
+             * follower runs from the dragged item's own dragmove. No-op
+             * when the Transformer itself is being dragged. */
+            followGroupDragFromMember(imageItem);
         });
 
         imageItem.on('mousedown touchstart', function imageItemOnMouseDownTouchstart(e) {
@@ -15759,6 +17023,25 @@ function enableCopyDelBtn(opts) {
 
     }
 
+    /* When the entire selection is a single Group (rect + only members of
+     * that one group), treat it as one conceptual item and show the
+     * single-item Details panel populated with Group fields. Without this
+     * branch the length>1 multi-item panel would always show because
+     * `expandSelectionForGroups()` always pulls every member + the rect
+     * into tr.nodes() whenever any group node is selected. */
+    const __activeGroupSel = getActiveGroupSelection();
+    if (__activeGroupSel) {
+        divItemDetailsVisible.style.display = '';
+        txtItemsDetailNote.style.display = 'none';
+        multiItemsVisible.style.display = 'none';
+
+        multiUpdateMode = false;
+        updateFormatDetails(__activeGroupSel.rectNode.id());
+
+        updateTrNodesShadingTimer();
+        return;
+    }
+
     if (tr.nodes().length === 1) {
         divItemDetailsVisible.style.display = '';
         txtItemsDetailNote.style.display = 'none';
@@ -16182,6 +17465,34 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     if (!('data_deviceid' in shape)) return; /* if the shape does not have a data_deviceid, it was selected incorrectly, escape out */
 
     if (shape.data_deviceid === 'backgroundImageFloor') return; /* background image is not editable in the format details pane */
+
+    /* Group rerouting:
+     *   - Clicking a group member: the user thinks of the group as one item,
+     *     so swap `shape` over to the Group rect and show Group fields
+     *     instead of the member's own details.
+     *   - The Group rect itself only ever lands in `shape` via the
+     *     enableCopyDelBtn() bundle-detection path (its listening:false flag
+     *     blocks direct clicks). */
+    if (shape.data_groupId && shape.data_deviceid !== 'group' && typeof groupGroupRects !== 'undefined' && groupGroupRects) {
+        const rectNode = groupGroupRects.find(n => n.data_groupId === shape.data_groupId)[0];
+        if (rectNode) shape = rectNode;
+    }
+
+    if (shape.data_deviceid === 'group') {
+        /* Re-show itemNameDiv before populateGroupDetails hides it again, so
+         * that any subsequent click on a non-group item finds the div in its
+         * default visible state (the rest of updateFormatDetails never
+         * touches itemNameDiv). */
+        const itemNameDiv = document.getElementById('itemNameDiv');
+        if (itemNameDiv) itemNameDiv.style.display = '';
+        populateGroupDetails(shape);
+        return;
+    }
+
+    /* Restore visibility of divs the group branch may have hidden, so a
+     * normal-item details panel renders correctly after viewing a group. */
+    const itemNameDivEl = document.getElementById('itemNameDiv');
+    if (itemNameDivEl) itemNameDivEl.style.display = '';
 
     let id = shape.attrs.id;
 
@@ -16786,7 +18097,7 @@ function addListeners(stage) {
         });
 
         tr.nodes(selected);
-
+        expandSelectionForGroups();
 
         if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes' || selected[0].getParent().name() === 'rooms')) {
             /* if there is a single table, make it resizable */
@@ -16839,11 +18150,13 @@ function addListeners(stage) {
         if (!metaPressed && !isSelected) {
             /* if no key pressed and the node is not selected */
             tr.nodes([e.target]);
+            expandSelectionForGroups();
 
-            /* tables and other objects maybe resizable. */
-            if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
+            /* tables and other objects maybe resizable (only when no group rect in selection). */
+            if (!tr.nodes().some(n => n.data_deviceid === 'group') &&
+                (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms)) {
                 resizeTableOrWall();
-            } else {
+            } else if (!tr.nodes().some(n => n.data_deviceid === 'group')) {
                 tr.resizeEnabled(false);
             }
 
@@ -16861,6 +18174,7 @@ function addListeners(stage) {
 
             const nodes = tr.nodes().concat([e.target]);
             tr.nodes(nodes);
+            expandSelectionForGroups();
             enableCopyDelBtn();
             if (tr.nodes().length > 1) {
                 tr.resizeEnabled(false);
@@ -16888,6 +18202,14 @@ function addListeners(stage) {
 
     tr.on('transform', function onTransform(e) {
 
+        /* Group rotation: the rotate anchor is the only enabled handle for
+         * a Group (resizeEnabled=false). Konva spins every node in
+         * tr.nodes() around the bbox centre, which moves the rect's x/y
+         * AND its rotation — refresh the Details panel so the user sees
+         * the live values. Done before the early return because trNodesLength
+         * is >1 for a Group bundle. */
+        refreshGroupDetailsFromCanvas();
+
         if (trNodesLength !== 1) return;
 
         let scaleX = e.target.scaleX();
@@ -16914,6 +18236,9 @@ function addListeners(stage) {
 
     tr.on('transformend', () => {
         hideAllCoverageGroups(false);
+        /* Final flush of Group X/Y/Rotation in the Details panel after a
+         * Transformer-driven rotation. */
+        refreshGroupDetailsFromCanvas();
     });
 
 }
@@ -18825,9 +20150,17 @@ function onKeyDown(e) {
         } else if (key === 'x') {
             cutItems();
             isShortCutKeyUsed = true;
-        } else if (key === 'r') {
+        }         else if (key === 'r') {
             e.preventDefault();
             rotateTrNodeItems();
+            isShortCutKeyUsed = true;
+        } else if (key === 'g' && !e.shiftKey) {
+            e.preventDefault();
+            createGroup();
+            isShortCutKeyUsed = true;
+        } else if (key === 'g' && e.shiftKey) {
+            e.preventDefault();
+            ungroupSelectedItems();
             isShortCutKeyUsed = true;
         }
         // else if (key === 'f'){
@@ -19213,6 +20546,11 @@ function selectAllNodes() {
     shapes = shapes.concat(groupTouchPanels.getChildren());
 
     shapes = shapes.concat(groupChairs.getChildren());
+
+    /* Include Group rects so drag-select can capture them */
+    if (groupGroupRects) {
+        shapes = shapes.concat(groupGroupRects.getChildren());
+    }
 
     return shapes;
 }
@@ -20264,6 +21602,9 @@ function importJson(jsonFile) {
             } else {
                 ensureDefaultLayers(roomObj.layers);
             }
+
+            /* Ensure groups array is present (older VRC files won't have it) */
+            ensureGroups();
 
             /* update roomObj items so they can be moved between parentGroups */
             let items = {};
@@ -22451,6 +23792,63 @@ function importWorkspaceDesignerFile(workspaceObj) {
         roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
     }
 
+    /* Restore VRC Groups from data.vrc.groups (paired with the per-item
+     * "group" attribute already extracted by wdItemToRoomObjItem). The
+     * import roomObj2 is always meters (line ~23300 sets roomObj2.unit =
+     * 'meters' and convertMetersFeet has switched the canvas to meters
+     * earlier), and the exporter wrote group geometry in meters in VRC
+     * top-left coordinates with no roomX/roomY shift, so we can copy
+     * x/y/width/height/rotation/data_zPosition straight across.
+     * groupMembers is rebuilt below by scanning items for data_groupId
+     * references — same pattern the URL parser uses (see post-parse
+     * rebuild near line 5921). Empty groups (no member references
+     * anywhere in roomObj2.items) are dropped by the same filter. */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.groups)) {
+        ensureGroups(roomObj2);
+        workspaceObj.data.vrc.groups.forEach(g => {
+            if (!g || !g.groupid) return;
+            /* Group's layer name resolves to the same layerid items got
+             * during their own resolveImportLayerName() pass, because
+             * groups always share their members' layer (createGroup() and
+             * updateItemLayer() enforce this). Default is implicit. */
+            const groupLayerId = g.layerName
+                ? resolveImportLayerName(g.layerName, roomObj2)
+                : '0';
+            roomObj2.groups.push({
+                groupid: g.groupid,
+                name: g.name || '',
+                data_layerId: groupLayerId,
+                x: Number(g.x) || 0,
+                y: Number(g.y) || 0,
+                width: Number(g.width) || 0,
+                height: Number(g.height) || 0,
+                rotation: Number(g.rotation) || 0,
+                data_zPosition: Number(g.data_zPosition) || 0,
+                groupMembers: [], /* rebuilt below */
+            });
+        });
+
+        /* Rebuild groupMembers from items now that every item has its
+         * data_groupId set (see wdItem.group extraction in
+         * wdItemToRoomObjItem). Mirror the URL parser's post-parse pass:
+         * walk every category, push matching item ids, then drop any
+         * group whose members never resolved (empty H block on a
+         * hand-edited file, or all members landed in a hidden layer that
+         * was filtered on export). */
+        if (roomObj2.groups.length) {
+            roomObj2.groups.forEach(grp => { grp.groupMembers = []; });
+            for (const category in roomObj2.items) {
+                if (!Array.isArray(roomObj2.items[category])) continue;
+                roomObj2.items[category].forEach(it => {
+                    if (!it.data_groupId) return;
+                    const grp = roomObj2.groups.find(gr => gr.groupid === it.data_groupId);
+                    if (grp) grp.groupMembers.push(it.id);
+                });
+            }
+            roomObj2.groups = roomObj2.groups.filter(gr => gr.groupMembers && gr.groupMembers.length);
+        }
+    }
+
     setTimeout(() => {
         roomObj = structuredClone(roomObj2);
 
@@ -22560,6 +23958,19 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         const importedLayerId = resolveImportLayerName(wdItem.layer, roomObj2);
         if (importedLayerId !== '0') item.data_layerId = importedLayerId;
         delete wdItem.layer;
+    }
+
+    /* Restore VRC Group membership from the optional Workspace Designer "group"
+     * attribute. The matching group geometry/metadata lives in
+     * workspaceObj.data.vrc.groups and is restored separately at the end of
+     * importWorkspaceDesignerFile(); after all items are placed,
+     * groupMembers is rebuilt by scanning items for data_groupId references.
+     * Strip the key from wdItem so it doesn't leak into data_labelField below. */
+    if ('group' in wdItem) {
+        if (wdItem.group && typeof wdItem.group === 'string') {
+            item.data_groupId = wdItem.group;
+        }
+        delete wdItem.group;
     }
 
     /* a line has no position, only points. On import allow line to have a position */
@@ -23378,6 +24789,19 @@ function exportRoomObjToWorkspace() {
         if (layer && layer.name) workspaceItem.layer = layer.name;
     }
 
+    /* For every exported item that belongs to a VRC Group, attach the group's
+     * id as a "group" attribute on the workspaceItem. Workspace Designer does
+     * not understand Group items themselves, but it preserves arbitrary string
+     * attributes on customObjects, so the group reference round-trips cleanly.
+     * The matching group geometry/metadata is emitted separately under
+     * workspaceObj.data.vrc.groups (see below). The Konva Group rect itself
+     * has data_deviceid === 'group' and is never pushed to customObjects. */
+    function setGroupOnWorkspaceItem(workspaceItem, item) {
+        const groupId = item && item.data_groupId;
+        if (!groupId) return;
+        workspaceItem.group = groupId;
+    }
+
     let activeRoomLength = roomObj2.activeRoomLength;
     let activeRoomWidth = roomObj2.activeRoomWidth;
     let activeRoomX = roomObj2.activeRoomX;
@@ -23518,6 +24942,55 @@ function exportRoomObjToWorkspace() {
     if ('backgroundImageFile' in roomObj && 'backgroundImage' in roomObj2) {
         workspaceObj.data.vrc.backgroundImageFile = roomObj.backgroundImageFile;
         workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
+    }
+
+    /* VRC Groups round-trip via data.vrc.groups. The Workspace Designer has
+     * no concept of a Group item, so each member's data_groupId rides on the
+     * member as a plain "group" string attribute (set by
+     * setGroupOnWorkspaceItem above) and the Group rect's geometry +
+     * metadata are stashed here in VRC's own JSON namespace — same approach
+     * the background image uses. Stored in meters always (apply ratio if
+     * the source roomObj is in feet); coordinates stay in VRC top-left
+     * frame (no roomX/roomY shift) so they sit alongside the items the
+     * importer reconstructs at VRC top-left coords. groupMembers is
+     * intentionally NOT emitted: it's rebuilt on import by walking the
+     * imported items and collecting every item whose data_groupId matches
+     * the group's groupid. Empty groups are skipped — they're already
+     * filtered out by the URL encoder and would just be dropped on
+     * round-trip rebuild. The Konva Group rect (data_deviceid === 'group')
+     * is never an item in roomObj.items, so customObjects don't include
+     * it; only the H-block-style metadata here represents the rect. */
+    if (Array.isArray(roomObj.groups) && roomObj.groups.length > 0) {
+        const groupRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedGroups = [];
+        roomObj.groups.forEach(g => {
+            if (!g || !g.groupid) return;
+            if (Array.isArray(g.groupMembers) && g.groupMembers.length === 0) return;
+            const exportedGroup = {
+                groupid: g.groupid,
+                name: g.name || '',
+                x: round((g.x || 0) * groupRatio),
+                y: round((g.y || 0) * groupRatio),
+                width: round((g.width || 0) * groupRatio),
+                height: round((g.height || 0) * groupRatio),
+                rotation: g.rotation || 0,
+                data_zPosition: round((g.data_zPosition || 0) * groupRatio),
+            };
+            /* Mirror the per-item layer convention: emit the layer NAME
+             * (not the UUID) so that data.vrc.groups is human-readable and
+             * stable across round-trips that may regenerate layer UUIDs.
+             * Default ('0') is implicit. Lookups go through roomObj.layers
+             * because convertToMeters() drops layers from roomObj2. */
+            const groupLayerId = g.data_layerId;
+            if (groupLayerId && groupLayerId !== '0' && roomObj.layers) {
+                const groupLayer = roomObj.layers.find(l => l.layerid === groupLayerId);
+                if (groupLayer && groupLayer.name) exportedGroup.layerName = groupLayer.name;
+            }
+            exportedGroups.push(exportedGroup);
+        });
+        if (exportedGroups.length > 0) {
+            workspaceObj.data.vrc.groups = exportedGroups;
+        }
     }
 
 
@@ -24030,6 +25503,7 @@ function exportRoomObjToWorkspace() {
         }
 
         setLayerOnWorkspaceItem(workspaceItem, item);
+        setGroupOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -24144,6 +25618,7 @@ function exportRoomObjToWorkspace() {
         }
 
         setLayerOnWorkspaceItem(workspaceItem, item);
+        setGroupOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -24286,6 +25761,7 @@ function exportRoomObjToWorkspace() {
         }
 
         setLayerOnWorkspaceItem(workspaceItem, item);
+        setGroupOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -24426,6 +25902,7 @@ function exportRoomObjToWorkspace() {
         }
 
         setLayerOnWorkspaceItem(workspaceItem, item);
+        setGroupOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
     }
 
@@ -24841,6 +26318,18 @@ function createRightClickMenu(usePreviousPosition = false) {
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        /* Group is enabled when there are 2+ items in the selection AND they
+         * are not already all members of the same single group (regrouping
+         * the same items is a no-op that would just dissolve and recreate
+         * the existing group). */
+        const itemsOnly = tr.nodes().filter(n => n.data_deviceid !== 'group');
+        const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));
+        const allSameExistingGroup = (distinctGroupIds.size === 1 && !distinctGroupIds.has(null));
+        const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;
+        const canUngroup = tr.nodes().some(n => n.data_deviceid === 'group' || n.data_groupId);
+        createMenuItem('groupMenuDiv',   'Group',   'ctrl+g',       !canGroup);
+        createMenuItem('ungroupMenuDiv', 'Ungroup', 'ctrl+shift+g', !canUngroup);
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('undoDiv', 'Undo', 'ctrl+z', !(undoArray.length > 1));
         createMenuItem('redoDiv', 'Redo', 'ctrl+y', !(redoArray.length > 0));
     }
@@ -24938,6 +26427,12 @@ function createRightClickMenu(usePreviousPosition = false) {
                 if (tr.nodes().length === 1) {
                     updateFormatDetails(shape.id());
                 }
+            }
+            else if (e.target.id === 'groupMenuDiv') {
+                createGroup();
+            }
+            else if (e.target.id === 'ungroupMenuDiv') {
+                ungroupSelectedItems();
             }
         });
 
