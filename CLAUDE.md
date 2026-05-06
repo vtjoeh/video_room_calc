@@ -204,14 +204,14 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 |----------|----------|---------|
 | `insertShapeItem()` ~line 9831 | `imageItem.data_xxx = attrs.data_xxx` | Set on Konva node for non-table items |
 | `insertTable()` ~line 7793 | `tblWallFlr.data_xxx = attrs.data_xxx` | Set on Konva node for tables/walls |
-| `canvasToJson()` ~line 6945 | `itemAttr.data_xxx = node.data_xxx` | Read from node, write to roomObj |
-| Copy function ~line 6221 | `newAttr.data_xxx = node.data_xxx` | Preserve during copy/paste |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | `itemAttr.data_xxx = node.data_xxx` | Read from node, write to roomObj — **NOT** in the dead `getNodesJson()` defined inside `canvasToJson()`; that nested function is never called and is annotated as such in source |
+| `copyToCanvasClipBoard()` | `newAttr.data_xxx = node.data_xxx` | Preserve during copy/paste |
 
 ### Why this matters:
 - Konva only supports standard attributes (x, y, width, rotation, etc.)
 - Custom `data_*` attributes are stored directly on the node object
-- `canvasToJson()` syncs these back to `roomObj` which is the source of truth
-- If you skip any step, the attribute will appear to save but then disappear when clicking another item
+- `canvasToJson()` calls `updateRoomObjFromTrNode()`, which syncs the current `tr.nodes()` selection back to `roomObj.items` (the source of truth). For brand-new items (e.g. just pasted), this is the *only* writer that creates the `roomObj.items[]` entry, so the field MUST be added to its `itemAttr` builder. Mirror it on both code paths inside that function: the `roomObjItemsMap.get(...)`-hit branch (existing item — patch on the existing entry) AND the `else` branch (new item — push a fresh `itemAttr`).
+- If you skip any step, the attribute will appear to save but then disappear when clicking another item, OR — more subtly — round-trip correctly for items created in-place but vanish for items created via paste/duplicate (the bug pattern that broke group URL persistence on copy/paste in May 2026).
 
 ---
 
@@ -877,10 +877,21 @@ The **Ungroup** entry is enabled whenever the selection contains a Group rect or
 
 ### Critical Guards
 
-**`canvasToJson()` / `getNodesJson()`** — must skip group rects:
+**`updateRoomObjFromTrNode()`** — must skip group rects (Konva nodes
+with `data_deviceid === 'group'` carry no `allDeviceTypes` mapping, so
+the `parentGroup` lookup at the top of the loop short-circuits with a
+`console.error` — but defensive guards in any new walker code should
+mirror the `getNodesJson()` pattern below):
 ```javascript
 if (node.data_deviceid === 'group') return;
 ```
+
+> **Note:** the `getNodesJson()` function nested inside `canvasToJson()`
+> is **dead code** (never called). It is annotated in the source as
+> such; do NOT mirror new `data_*` propagation there. The active writer
+> is `updateRoomObjFromTrNode()`, called from the top of
+> `canvasToJson()`. See the "Where `data_groupId` Must Be Updated"
+> table below.
 
 **`updateTrNodesShading()`** — members excluded from blue outline:
 ```javascript
@@ -897,8 +908,19 @@ When adding new data to items, the four-place rule still applies. For `data_grou
 |----------|----------|-------|
 | `insertShapeItem()` → `updateNodeAttributes()` | `node.data_groupId = attrs.data_groupId \|\| null` | ✓ |
 | `insertTable()` | `tblWallFlr.data_groupId = attrs.data_groupId \|\| null` | ✓ |
-| `canvasToJson()` / `getNodesJson()` | `if (node.data_groupId) itemAttr.data_groupId = node.data_groupId` | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | `if (node.data_groupId) itemAttr.data_groupId = node.data_groupId` (push branch); also patches the existing entry's `data_groupId` in the `roomObjItemsMap`-hit branch so groups added/removed via direct `roomObj.items[].data_groupId` mutation stay in sync after the next canvasToJson | ✓ |
 | `copyToCanvasClipBoard()` | Copy `data_groupId` with UUID remapping on paste | ✓ |
+
+> **Why this matters / why `getNodesJson()` is the wrong place:** the
+> nested `getNodesJson()` function inside `canvasToJson()` is dead —
+> never invoked. The actual canvas → `roomObj.items` writer is
+> `updateRoomObjFromTrNode()`, which only walks `tr.nodes()`. After a
+> paste/duplicate, the new items aren't in `roomObjItemsMap` yet, so
+> they go through the "push fresh `itemAttr`" branch — which means the
+> writer code itself must include the field, otherwise it's silently
+> dropped on the round-trip and `createShareableLink()` emits no
+> `s{n}` for the affected members (URL persistence breaks for pasted
+> groups).
 
 ### Details panel for a selected Group
 
@@ -1139,7 +1161,7 @@ When adding new data to items, the critical four places still apply (see Critica
 |----------|----------|-------|
 | `insertShapeItem()` → `updateNodeAttributes()` | `node.data_layerId = attrs.data_layerId \|\| '0'` | ✓ |
 | `insertTable()` | `tblWallFlr.data_layerId = attrs.data_layerId \|\| '0'` | ✓ |
-| `canvasToJson()` | Save `data_layerId` to `itemAttr` (both `getNodesJson` sections) | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | Save `data_layerId` to `itemAttr` (the `getNodesJson()` defined inside `canvasToJson()` is dead code — see the `data_groupId` table for details) | ✓ |
 | `copyToCanvasClipBoard()` | Copy `data_layerId` in `newAttr` | ✓ |
 
 ### Layer Encoding in `_layerUrlEncodeMap`

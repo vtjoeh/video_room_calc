@@ -10330,6 +10330,23 @@ function canvasToJson() {
 
 
 
+    /* ⚠️ DEAD CODE — never called.
+     *
+     * The active canvas → roomObj.items writer is
+     * `updateRoomObjFromTrNode()` (called above), which only touches the
+     * current `tr.nodes()` selection. This nested function would walk
+     * EVERY child of a parentGroup and rebuild roomObj.items[groupName]
+     * from scratch, but no caller exists. It is left in place for git
+     * blame continuity and as a cross-reference for the per-attribute
+     * patterns it documents.
+     *
+     * IMPORTANT: when adding new `data_*` attributes, do NOT add them
+     * here and assume they're synced — they aren't. The four-place rule
+     * in CLAUDE.md (Critical Data Flow + Where `data_groupId` Must Be
+     * Updated) calls out `updateRoomObjFromTrNode()` as the active
+     * writer; mirror new attrs there too.
+     */
+    // eslint-disable-next-line no-unused-vars
     function getNodesJson(parentGroup) {
 
         let theObjects = parentGroup.getChildren();
@@ -10643,6 +10660,21 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_layerId = node.data_layerId;
         }
 
+        /* Group membership — must be propagated here, NOT in the dead
+         * `getNodesJson()` defined inside canvasToJson(). This function
+         * (`updateRoomObjFromTrNode`) is the active canvas → roomObj.items
+         * writer, so when paste/duplicate creates brand-new items they
+         * fall through the "push fresh itemAttr" branch below, and
+         * without this line the new entries land in roomObj.items
+         * WITHOUT data_groupId — which then breaks URL persistence
+         * (createShareableLink can't emit `s{n}` for a member with no
+         * data_groupId, so the round-trip drops the group). See the
+         * "Where data_groupId Must Be Updated" four-place table in
+         * CLAUDE.md. */
+        if (node.data_groupId) {
+            itemAttr.data_groupId = node.data_groupId;
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -10668,6 +10700,17 @@ function updateRoomObjFromTrNode() {
                 item.data_layerId = itemAttr.data_layerId;
             } else {
                 delete item.data_layerId;
+            }
+
+            /* Sync group membership too — otherwise an item that gets
+             * added to a group (or removed from one) via the existing
+             * roomObjItemsMap entry would never have its data_groupId
+             * updated on subsequent canvasToJson calls, and the URL
+             * would drift from the canvas. */
+            if (itemAttr.data_groupId) {
+                item.data_groupId = itemAttr.data_groupId;
+            } else {
+                delete item.data_groupId;
             }
 
         } else {
