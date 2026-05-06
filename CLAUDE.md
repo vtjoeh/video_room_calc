@@ -1177,7 +1177,7 @@ VRC supports importing **three** distinct file formats through the same UI (open
 `routeUploadedFileText(text, fileName)` is the single entry point for both upload paths:
 
 1. Try `JSON.parse(text)` → if it succeeds and the result is an object, hand it to `importJson()` (which routes between VRC JSON and Workspace Designer JSON internally based on the presence of `room` vs `customObjects`).
-2. If JSON parsing fails, test the text against the regex `/^(?:\*c )?xConfiguration\b/m` — i.e. any line that starts with `xConfiguration` (the optional `*c ` prefix is the RoomOS shell prompt, present in raw RoomOS dumps and absent in files this app exports). If matched, call `importXConfigFile(text, fileName)`.
+2. If JSON parsing fails, test the text against the OR-alternation regex `/^((?:\*c )?xConfiguration\b)|(Audio\sPeripherals\sMicrophone\s1\sPlacement)|(Cameras\sCamera\s1\sPlacement\sRX)/m` — which detects all three xConfig line formats (see below). If matched, call `importXConfigFile(text, fileName)`.
 3. Otherwise, show an alert that the file format is unrecognized.
 
 The optional `*c ` prefix is what makes xConfig files **round-trippable**: a file produced by `Ctrl+Shift+E` (no prefix) re-imports cleanly through the same code path used for raw RoomOS dumps (with prefix).
@@ -1186,7 +1186,19 @@ The `<input type="file" id="fileUpload">` accept attribute is `.json,.txt` so bo
 
 ### Cisco xConfiguration .txt Files
 
-These are configuration dumps from a Cisco RoomOS endpoint. Any `.txt` file containing `xConfiguration` lines (with or without the `*c ` RoomOS shell prefix) is treated as one. Only **camera placements** and **microphone placements** are imported; every other xConfiguration line is ignored.
+These are configuration dumps from a Cisco RoomOS endpoint. Three line formats are detected and parsed — only **camera placements** and **microphone placements** are imported; every other line is ignored.
+
+**Three accepted xConfig line formats:**
+
+| Format | Example | Source |
+|--------|---------|--------|
+| 1. Raw RoomOS SSH dump | `*c xConfiguration Cameras Camera 1 Placement RX: 112` | SSH session output |
+| 2. App export (no `*c`) | `xConfiguration Cameras Camera 1 Placement RX: 112` | `Ctrl+Shift+E` export from this app |
+| 3. Bare config dump | `Cameras Camera 1 Placement RX: 112` | Device configuration export tools (no `xConfiguration` keyword) |
+
+Detection (step 2 above) uses an OR alternation: formats 1 & 2 are caught by the `xConfiguration` arm; format 3 is caught by the `Audio Peripherals Microphone 1 Placement` or `Cameras Camera 1 Placement RX` arms.
+
+In `parseXConfigText()`, all five parser regexes wrap the optional prefix in a **capturing** group (group 1, may be `undefined`) so the data groups are consistently numbered across all regexes: group 2 = device number, group 3 = field name, group 4 = integer value.
 
 #### Microphone xConfig Variants
 

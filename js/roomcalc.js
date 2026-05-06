@@ -21684,13 +21684,16 @@ function routeUploadedFileText(text, fileName) {
         return;
     }
 
-    /* Two flavours of xConfiguration text are accepted:
-     *  - raw RoomOS dump:  "*c xConfiguration ..."  (lines start with `*c `)
+    /* Three flavours of xConfiguration text are accepted:
+     *  - raw RoomOS dump:    "*c xConfiguration ..."  (lines start with `*c `)
      *  - exported file from this app: "xConfiguration ..."  (no prefix, ready
      *    to paste straight into a RoomOS shell)
-     * Match either form by allowing an optional `*c ` before the keyword,
-     * anchored to the start of a line. */
-    if (typeof text === 'string' && /^(?:\*c )?xConfiguration\b/m.test(text)) {
+     *  - bare configuration dump: lines start directly with the xConfig key
+     *    (e.g. "Cameras Camera 1 Placement RX: 112") — no `xConfiguration`
+     *    prefix at all, as produced by some device configuration export tools.
+     * The OR-alternation covers all three: xConfiguration lines (formats 1/2)
+     * plus two canonical bare-key anchors for format 3. */
+    if (typeof text === 'string' && /^((?:\*c )?xConfiguration\b)|(Audio\sPeripherals\sMicrophone\s1\sPlacement)|(Cameras\sCamera\s1\sPlacement\sRX)/m.test(text)) {
         importXConfigFile(text, fileName);
         return;
     }
@@ -21720,20 +21723,27 @@ function parseXConfigText(text) {
     /* Split on any newline so CRLF and LF dumps both work. */
     const lines = text.split(/\r?\n/);
 
-    /* The leading `*c ` is part of the RoomOS shell prompt format; xConfig
-     * dumps start every line with it. Files this app exports omit the
-     * prefix so they can be pasted straight into a RoomOS shell. We accept
-     * both shapes by making `*c ` an optional non-capturing group. */
-    /* Capture group 1 = camera number, group 2 = field (RX/RY/RZ/X/Y/Z), group 3 = signed integer */
-    const cameraRe = /^(?:\*c )?xConfiguration Cameras Camera (\d+) Placement (RX|RY|RZ|X|Y|Z):\s*(-?\d+)\s*$/;
+    /* Three line formats are accepted (see routeUploadedFileText for the
+     * detection logic):
+     *  1. "*c xConfiguration Cameras Camera 1 ..."  (raw RoomOS SSH dump)
+     *  2. "xConfiguration Cameras Camera 1 ..."     (app export, no *c prefix)
+     *  3. "Cameras Camera 1 ..."                    (bare config dump — no
+     *       xConfiguration keyword at all)
+     * The optional prefix is wrapped in a CAPTURING group so that the data
+     * groups are consistently numbered across all five regexes:
+     *   group 1 = optional "*c xConfiguration" prefix (may be undefined)
+     *   group 2 = device number
+     *   group 3 = field name  (or ID string for ID/StreamName regexes)
+     *   group 4 = integer value  (absent for ID/StreamName regexes) */
+    const cameraRe = /^((?:\*c )?xConfiguration)?\s*Cameras Camera (\d+) Placement (RX|RY|RZ|X|Y|Z):\s*(-?\d+)\s*$/;
     /* New format (RoomOS 11+): Audio Peripherals Microphone N — only RY/X/Y/Z are used. */
-    const micPlacementRe = /^(?:\*c )?xConfiguration Audio Peripherals Microphone (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
+    const micPlacementRe = /^((?:\*c )?xConfiguration)?\s*Audio Peripherals Microphone (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
     /* Mic ID lines look like:  ... Microphone N ID: "50:00:e0:32:ec:cd"   (the value can be empty: "") */
-    const micIdRe = /^(?:\*c )?xConfiguration Audio Peripherals Microphone (\d+) ID:\s*"([^"]*)"\s*$/;
+    const micIdRe = /^((?:\*c )?xConfiguration)?\s*Audio Peripherals Microphone (\d+) ID:\s*"([^"]*)"\s*$/;
     /* Legacy format: Audio Input Ethernet N — same Placement fields, plus
      * a StreamName attribute that plays the same role as the new format's ID. */
-    const ethPlacementRe = /^(?:\*c )?xConfiguration Audio Input Ethernet (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
-    const ethStreamNameRe = /^(?:\*c )?xConfiguration Audio Input Ethernet (\d+) StreamName:\s*"([^"]*)"\s*$/;
+    const ethPlacementRe = /^((?:\*c )?xConfiguration)?\s*Audio Input Ethernet (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
+    const ethStreamNameRe = /^((?:\*c )?xConfiguration)?\s*Audio Input Ethernet (\d+) StreamName:\s*"([^"]*)"\s*$/;
 
     function ensureCam(n) {
         if (!result.cameras[n]) result.cameras[n] = { n: n, rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
@@ -21766,9 +21776,9 @@ function parseXConfigText(text) {
 
         let m = cameraRe.exec(line);
         if (m) {
-            const cam = ensureCam(parseInt(m[1], 10));
-            const field = m[2];
-            const val = parseInt(m[3], 10);
+            const cam = ensureCam(parseInt(m[2], 10));
+            const field = m[3];
+            const val = parseInt(m[4], 10);
             if (field === 'RX') cam.rx = val;
             else if (field === 'RY') cam.ry = val;
             else if (field === 'RZ') cam.rz = val;
@@ -21780,10 +21790,10 @@ function parseXConfigText(text) {
 
         m = micPlacementRe.exec(line);
         if (m) {
-            const mic = ensureMic(parseInt(m[1], 10), 'new');
+            const mic = ensureMic(parseInt(m[2], 10), 'new');
             if (!mic) continue;
-            const field = m[2];
-            const val = parseInt(m[3], 10);
+            const field = m[3];
+            const val = parseInt(m[4], 10);
             if (field === 'RY') mic.ry = val;
             else if (field === 'X') mic.x = val;
             else if (field === 'Y') mic.y = val;
@@ -21793,18 +21803,18 @@ function parseXConfigText(text) {
 
         m = micIdRe.exec(line);
         if (m) {
-            const mic = ensureMic(parseInt(m[1], 10), 'new');
+            const mic = ensureMic(parseInt(m[2], 10), 'new');
             if (!mic) continue;
-            mic.id = m[2];
+            mic.id = m[3];
             continue;
         }
 
         m = ethPlacementRe.exec(line);
         if (m) {
-            const mic = ensureMic(parseInt(m[1], 10), 'old');
+            const mic = ensureMic(parseInt(m[2], 10), 'old');
             if (!mic) continue;
-            const field = m[2];
-            const val = parseInt(m[3], 10);
+            const field = m[3];
+            const val = parseInt(m[4], 10);
             if (field === 'RY') mic.ry = val;
             else if (field === 'X') mic.x = val;
             else if (field === 'Y') mic.y = val;
@@ -21814,9 +21824,9 @@ function parseXConfigText(text) {
 
         m = ethStreamNameRe.exec(line);
         if (m) {
-            const mic = ensureMic(parseInt(m[1], 10), 'old');
+            const mic = ensureMic(parseInt(m[2], 10), 'old');
             if (!mic) continue;
-            mic.id = m[2];
+            mic.id = m[3];
             continue;
         }
     }
