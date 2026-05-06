@@ -1,7 +1,7 @@
 /* Unit conversion helpers: convertToUnit, convertToMeters, convertMetersFeet
  *
  * Extracted from roomcalc.js as part of Phase 2 of the modularization
- * plan in TECH_NOTES.md. These three functions handle every unit
+ * plan in notes/TECH_NOTES.md. These three functions handle every unit
  * conversion the app does:
  *
  *   convertToUnit(input)        -- parses a free-form text field
@@ -13,7 +13,7 @@
  *                                  and meters; rewrites every item.
  *
  * Attached to `window.VRC.util.<name>` (per the namespace convention in
- * TECH_NOTES.md). roomcalc.js aliases them back as top-level
+ * notes/TECH_NOTES.md). roomcalc.js aliases them back as top-level
  * `const convertToUnit = VRC.util.convertToUnit;` (etc.) so the call
  * sites scattered through that file stay unchanged.
  *

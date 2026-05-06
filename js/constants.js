@@ -10,7 +10,7 @@
  *
  * Convention: every other VRC module attaches to `window.VRC.<name>`
  * and is loaded by a <script> tag in RoomCalculator.html. See
- * TECH_NOTES.md for the long-term modularization plan.
+ * notes/TECH_NOTES.md for the long-term modularization plan.
  */
 
 window.VRC = window.VRC || {};

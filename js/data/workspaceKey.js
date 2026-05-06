@@ -3,7 +3,7 @@
  * Pure data — maps each VRC item type to the Workspace Designer object
  * that represents it on import / export. No DOM access, no Konva calls,
  * no functions. The object is attached to `window.VRC.workspaceKey`
- * (per the namespace convention in TECH_NOTES.md) and `roomcalc.js`
+ * (per the namespace convention in notes/TECH_NOTES.md) and `roomcalc.js`
  * pulls it back in as a top-level `workspaceKey` const so the read
  * sites scattered through that file stay unchanged.
  *

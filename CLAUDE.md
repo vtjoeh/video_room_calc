@@ -17,12 +17,13 @@ video_room_calculator/
 ├── RoomCalculator.html      # Main entry point
 ├── style.css                # Styles with CSS custom properties
 ├── CLAUDE.md                # This developer reference
-├── TECH_NOTES.md            # Engineering notes & refactor targets
-├── TECH_NOTES_KONVA.md      # Konva.js footguns specific to this codebase
 ├── GIT_WORKFLOW.md          # Branching, tagging, day-to-day cheatsheet
 ├── README.md                # Release notes & user-facing docs
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
+├── notes/
+│   ├── TECH_NOTES.md        # Engineering notes & refactor targets
+│   └── TECH_NOTES_KONVA.md  # Konva.js footguns specific to this codebase
 ├── js/
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
@@ -58,7 +59,7 @@ The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
 `data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
 `idbStorage.js` → `roomcalc.js`. Every module before `roomcalc.js`
 attaches to the shared `window.VRC` namespace (per the convention in
-`TECH_NOTES.md`); `roomcalc.js` then aliases the public names back into
+`notes/TECH_NOTES.md`); `roomcalc.js` then aliases the public names back into
 local `const` bindings near the top of the file so existing call sites
 stay unchanged. See the Phase 2 header comment in `roomcalc.js` and the
 IIFE pattern note in `js/data/workspaceKey.js`.
@@ -68,7 +69,7 @@ The lazy-loaded scripts (`templates.js`, `qrcode.js`,
 in on demand by `loadScriptOnce()` and are *not* listed in
 `RoomCalculator.html`.
 
-`TECH_NOTES.md` documents the long-term refactor direction. Read it
+`notes/TECH_NOTES.md` documents the long-term refactor direction. Read it
 before doing structural changes. `GIT_WORKFLOW.md` describes the
 `main` / `next` branching model.
 
@@ -1649,7 +1650,7 @@ Templates are loaded via `loadTemplate(url)` function.
 
 ## Konva.js Notes
 
-> **Working on Konva code? Read `TECH_NOTES_KONVA.md` first.**
+> **Working on Konva code? Read `notes/TECH_NOTES_KONVA.md` first.**
 > It documents the 26 Konva.js footguns that have bitten this project
 > (selector limits, the `data_*` JS-property convention vs `setAttr`,
 > Transformer scale-not-size, `findOne` vs `find[0]`, why

@@ -14,7 +14,7 @@
     integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- templates.js is lazy-loaded the first time openNewRoomDialog()
-       runs. See TECH_NOTES.md (Phase 1) for the rationale. -->
+       runs. See notes/TECH_NOTES.md (Phase 1) for the rationale. -->
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./assets/momentum-icons.css" />
 </head>
@@ -1626,7 +1626,7 @@
       </div>
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
-    <main id="room-templates" style="max-height: none;">
+    <main id="room-templates" style="max-height: none; min-height: 600px;">
     </main>
     <main id="quick-setup" style="max-height: none;">
       <div id="quickSetupItems">
@@ -2438,7 +2438,7 @@
   <script src="./js/util/uuid.js"></script>
   <script src="./js/util/units.js"></script>
   <!-- dxfWriter.js + dxfBlockLibrary.js are lazy-loaded by exportDxfFile()
-       on first DXF export. See TECH_NOTES.md (Phase 1) for the rationale. -->
+       on first DXF export. See notes/TECH_NOTES.md (Phase 1) for the rationale. -->
   <script src="./js/idbStorage.js"></script>
   <script src="./js/roomcalc.js"></script>
   <!-- <script src="./js/drpDownOverride.js"></script> -->

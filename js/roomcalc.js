@@ -1,4 +1,4 @@
-const version = "v0.1.647";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.646";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. The function bodies live in
  * js/util/uuid.js and js/util/units.js (loaded via <script> before this
@@ -1417,7 +1417,7 @@ canvasPixel.y = 0;
 /* Workspace Designer keys (workspaceKey)
  *
  * Pure data — moved to js/data/workspaceKey.js as part of the Phase 2
- * module split (TECH_NOTES.md). The data file is loaded via <script>
+ * module split (notes/TECH_NOTES.md). The data file is loaded via <script>
  * before this one and exposes the dictionary on `window.VRC.workspaceKey`.
  * The local `workspaceKey` const below is a back-reference so all the
  * existing read sites in this file (`workspaceKey.codecEQX`, etc.) keep
@@ -4439,7 +4439,7 @@ creatArrayKeysTypes();
 
 /* createUuid() lives in js/util/uuid.js (Phase 2 module split). It is
  * aliased back to a local `const` at the top of this file so the call
- * sites here keep working. See TECH_NOTES.md. */
+ * sites here keep working. See notes/TECH_NOTES.md. */
 
 function createRoomId() {
     let roomId = createUuid();
@@ -5103,7 +5103,7 @@ function getQueryString() {
     /* `?debug=1` (or `?debug` / `?debug=on`) shows the small fps / item /
      * Konva-node count overlay in the top-right corner. Persisted in
      * localStorage so refreshes keep it on; `?debug=0` clears it.
-     * See debugOverlayEnable() for details and TECH_NOTES.md for the
+     * See debugOverlayEnable() for details and notes/TECH_NOTES.md for the
      * rationale (Phase 4/5 redraw / sync refactor measurement). */
     const QS_DEBUG = (window.VRC && VRC.constants && VRC.constants.QS_DEBUG) || 'debug';
     if (urlParams.has(QS_DEBUG)) {
@@ -6243,7 +6243,7 @@ function onLoad() {
     /* templates.js is lazy-loaded by openNewRoomDialog() on first open.
      * The dialog auto-opens via getQueryString() in the default-room path
      * (which runs earlier in onLoad), so the load is already in flight by
-     * the time we get here. See TECH_NOTES.md (Phase 1). */
+     * the time we get here. See notes/TECH_NOTES.md (Phase 1). */
 
     firstLoad = false;
 
@@ -19548,7 +19548,7 @@ async function loadDrpDownOverrideScript() {
  *   nodes  – Konva node count under layerTransform (rough)
  *
  * Designed as a measurement tool for the Phase 4/5 refactor work
- * described in TECH_NOTES.md (setTimeout-based sync, full-redraw undo).
+ * described in notes/TECH_NOTES.md (setTimeout-based sync, full-redraw undo).
  * --------------------------------------------------------------------- */
 const _debug = {
     enabled: false,
@@ -22917,7 +22917,7 @@ async function exportDxfFile() {
     /* Lazy-load the DXF writer + block library. They were eagerly loaded
      * via <script> tags in older versions but most users never export
      * DXF, so the ~46 KB / ~1500 lines of code is now fetched on first
-     * use only. See TECH_NOTES.md (Phase 1). loadScriptOnce() is
+     * use only. See notes/TECH_NOTES.md (Phase 1). loadScriptOnce() is
      * idempotent — repeat exports skip the network round-trip. */
     try {
         await loadScriptOnce(VRC.constants.SCRIPT_DXF_WRITER);

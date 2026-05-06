@@ -6,7 +6,7 @@
  * see the commented-out replace() implementation in the repo history).
  *
  * Attached to `window.VRC.util.createUuid` (per the namespace
- * convention in TECH_NOTES.md) and `roomcalc.js` aliases it back as a
+ * convention in notes/TECH_NOTES.md) and `roomcalc.js` aliases it back as a
  * top-level `const createUuid = VRC.util.createUuid;` so the call sites
  * scattered through that file stay unchanged.
  *
