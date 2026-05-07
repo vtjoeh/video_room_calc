@@ -6272,6 +6272,21 @@ function createTemplateButton(template) {
     const img = document.createElement('img');
     img.src = `./assets/images/templates/${image}`;
     img.inert = true; /* used to remove the Edge image search */
+    /* `.room-template img` defaults to a fixed 122 × 120 footprint so
+     * the tile reserves its space before the image bytes have decoded
+     * (avoids the thin vertical-line flash). Once the image actually
+     * loads, the `.loaded` class drops the width back to `auto` so each
+     * thumbnail renders at its own aspect ratio (the original look —
+     * fixed height, width fits the image). The `complete` short-circuit
+     * handles the case where the browser served the image straight from
+     * cache and the load event has already fired by the time we get
+     * here. */
+    const markImgLoaded = () => img.classList.add('loaded');
+    if (img.complete && img.naturalWidth > 0) {
+        markImgLoaded();
+    } else {
+        img.addEventListener('load', markImgLoaded, { once: true });
+    }
     button.appendChild(img);
 
     button.appendChild(label);
@@ -6290,13 +6305,33 @@ function createTemplateButton(template) {
 
 function populateTemplates() {
     const parent = document.querySelector('#room-templates');
-    templates.forEach(template => {
-        parent.appendChild(createTemplateButton(template));
-    })
-    /* Add the "Reload last design" tile (if conditions are met) AFTER the
-     * templates are in the DOM, then move it to the very front so it is
-     * the first item the user sees. */
-    syncReloadLastDesignButton();
+    /* RoomCalculator.html seeds 9 `.room-template-placeholder` tiles
+     * inside `#room-templates` so the dialog has the right grid size on
+     * the very first frame (before templates.js has finished loading).
+     * Replace those placeholders in-place with the real tiles so layout
+     * stays stable; templates beyond the 9th get appended; any unused
+     * placeholders (templates.length < 9) are dropped. */
+    const placeholders = Array.from(parent.querySelectorAll('.room-template-placeholder'));
+    templates.forEach((template, idx) => {
+        const tile = createTemplateButton(template);
+        const ph = placeholders[idx];
+        if (ph) {
+            parent.replaceChild(tile, ph);
+        } else {
+            parent.appendChild(tile);
+        }
+    });
+    for (let i = templates.length; i < placeholders.length; i++) {
+        placeholders[i].remove();
+    }
+    /* Real templates are now in the DOM — drop the blur from the
+     * placeholders' loading state. */
+    parent.classList.remove('templates-loading');
+    /* The "Reload last design" tile is added by the caller
+     * (`openNewRoomDialog()`) via `ensureTemplatesPopulated().then()`
+     * so it lands AFTER the placeholders have been swapped out — that
+     * way it doesn't get inserted next to loading placeholders and
+     * visually bounce when the real templates pop in. */
 }
 
 /* Single-flight lazy loader for templates.js + populateTemplates(). The
@@ -9273,11 +9308,19 @@ function openNewRoomDialog() {
      * time the dialog is shown on this page load (whether auto-shown
      * during onLoad() or manually opened by the user). */
     newRoomDialogOpenCount++;
-    syncReloadLastDesignButton();
-    /* Lazy-load templates.js + populate the grid on first open. Fire-
-     * and-forget — the modal shows synchronously below; templates pop
-     * in a moment later. Subsequent calls are no-ops. */
-    ensureTemplatesPopulated();
+    /* Lazy-load templates.js + populate the grid on first open. The
+     * modal shows synchronously below; templates pop in a moment later
+     * by replacing the seeded `.room-template-placeholder` tiles. */
+    const populated = ensureTemplatesPopulated();
+    /* Defer the "Reload last design" tile until the real templates are
+     * in place. If we called `syncReloadLastDesignButton()` synchronously
+     * here, the tile would be inserted alongside the loading
+     * placeholders and then visually bounce around as the real
+     * templates pop in. On subsequent opens this promise is already
+     * resolved so the call effectively runs synchronously. */
+    populated.then(() => {
+        syncReloadLastDesignButton();
+    });
     document.getElementById('newRoomDialog').showModal();
 }
 

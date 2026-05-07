@@ -1626,7 +1626,70 @@
       </div>
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
-    <main id="room-templates" style="max-height: none; min-height: 600px;">
+    <!--
+      `templates-loading` blurs the grid until templates.js is fetched and
+      `populateTemplates()` replaces these 9 `.room-template-placeholder`
+      tiles in-place. Seeding the placeholders directly in HTML keeps the
+      grid the right size on the very first frame so the
+      `#btnReloadLastDesign` tile (added later) doesn't visually bounce
+      around as templates pop in. See `populateTemplates()` and
+      `openNewRoomDialog()` in js/roomcalc.js.
+    -->
+    <main id="room-templates" class="templates-loading" style="max-height: none; min-height: 600px;">
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
+      <div class="room-template room-template-placeholder" aria-hidden="true">
+        <button class="templateLinks" type="button" disabled>
+          <img width="122" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <span>Loading image</span>
+        </button>
+      </div>
     </main>
     <main id="quick-setup" style="max-height: none;">
       <div id="quickSetupItems">

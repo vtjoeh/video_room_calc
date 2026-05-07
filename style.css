@@ -1073,6 +1073,32 @@ input:placeholder-shown {
   justify-content: center;
 }
 
+/* Slight blur over the templates grid until templates.js loads and
+ * `populateTemplates()` replaces the seeded `.room-template-placeholder`
+ * tiles. The blur is dropped (and pointer events restored) the moment
+ * the real tiles are in place. Pairs with the placeholder markup in
+ * RoomCalculator.html (`<main id="room-templates" class="templates-loading">`). */
+#room-templates.templates-loading {
+  filter: blur(2px);
+  pointer-events: none;
+  transition: filter 0.2s ease-out;
+}
+
+/* Hide the placeholder image's blue border while the real templates are
+ * still loading — the data-URI src is already transparent, so dropping
+ * the border to transparent makes the tile visually empty (the
+ * "Loading image" label still shows) without changing the laid-out
+ * size. The real `.room-template img` border returns the moment
+ * `populateTemplates()` swaps in the real tiles. */
+.room-template-placeholder img {
+  border-color: transparent;
+}
+
+.room-template-placeholder span {
+  color: #888;
+  font-style: italic;
+}
+
 .room-template {
   width: 150px;
   display: flex;
@@ -1082,10 +1108,25 @@ input:placeholder-shown {
 }
 
 .room-template img {
+  /* Explicit width keeps the tile box at its full 122 × 120 footprint
+   * even before the image bytes have decoded — without it, a freshly-
+   * inserted <img> with an unloaded src renders at 0 × 120, which makes
+   * just the 1px border visible as a thin vertical line in the brief
+   * window between `populateTemplates()` swapping in the real tiles
+   * and the browser finishing the image decode. The width is dropped
+   * back to `auto` (matching the original look — each thumbnail rendered
+   * at its own aspect ratio with a fixed 120px height) once the image's
+   * `load` event fires; see the `.loaded` rule below and the matching
+   * handler in `createTemplateButton()`. */
+  width: 122px;
   height: 120px;
   max-width: 100%;
   border: 1px solid var(--active);
   object-fit: contain;
+}
+
+.room-template img.loaded {
+  width: auto;
 }
 
 .templateLinks {
