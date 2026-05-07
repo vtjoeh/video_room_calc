@@ -17,11 +17,11 @@ video_room_calculator/
 ├── RoomCalculator.html      # Main entry point
 ├── style.css                # Styles with CSS custom properties
 ├── CLAUDE.md                # This developer reference
-├── GIT_WORKFLOW.md          # Branching, tagging, day-to-day cheatsheet
 ├── README.md                # Release notes & user-facing docs
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
 ├── notes/
+│   ├── GIT_WORKFLOW.md      # Branching, tagging, day-to-day cheatsheet
 │   ├── TECH_NOTES.md        # Engineering notes & refactor targets
 │   └── TECH_NOTES_KONVA.md  # Konva.js footguns specific to this codebase
 ├── js/
@@ -70,7 +70,7 @@ in on demand by `loadScriptOnce()` and are *not* listed in
 `RoomCalculator.html`.
 
 `notes/TECH_NOTES.md` documents the long-term refactor direction. Read it
-before doing structural changes. `GIT_WORKFLOW.md` describes the
+before doing structural changes. `notes/GIT_WORKFLOW.md` describes the
 `main` / `next` branching model.
 
 ---
@@ -1782,7 +1782,7 @@ All other dependencies are local in the `js/` folder.
 ## Git Branching Model
 
 This repo uses a two-branch workflow. Full details and command reference live
-in `GIT_WORKFLOW.md` at the repo root.
+in `notes/GIT_WORKFLOW.md`.
 
 | Branch | Purpose |
 |--------|---------|
@@ -1824,6 +1824,6 @@ Other guidance:
 - Never suggest destructive git operations (`reset --hard`,
   `push --force`, branch deletion) without flagging the risk
   prominently first.
-- See `GIT_WORKFLOW.md` for the day-to-day cheat sheet, the
+- See `notes/GIT_WORKFLOW.md` for the day-to-day cheat sheet, the
   merge-forward pattern for hotfixes, and the "everything went wrong"
   recovery steps.
