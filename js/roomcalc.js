@@ -26313,7 +26313,7 @@ function createRightClickMenu(usePreviousPosition = false) {
 
     mouseOverRightClickMenu = false;
 
-    let bottomBuffer = 177;
+    let bottomBuffer = 256;
     let rightBuffer = 277;
 
     if (mobileDevice === 'RoomOS') {
