@@ -1863,6 +1863,87 @@ hr.rightClickHorizontalLine {
 }
 
 
+/* -------------------------------------------------------------- */
+/* Per-item ellipse menu (Group / CustomItem actions)             */
+/* Sits next to #btnUpdateItemId and #btnMultiUpdateItemId in the */
+/* Details / Multiple-Item Details panels. Opens itemActionsMenu  */
+/* (built in roomcalc.js → toggleItemActionsMenu()).              */
+/* -------------------------------------------------------------- */
+.itemEllipseHostRow {
+  position: relative;
+  align-items: center;
+}
+
+.itemEllipseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  color: var(--active, #0352a6);
+}
+
+.itemEllipseBtn:hover {
+  background-color: #e6f1fb;
+  border-color: var(--active, #0352a6);
+}
+
+.itemEllipseBtn .icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.itemEllipseBtn[disabled],
+.itemEllipseBtn.itemEllipseBtnDisabled {
+  color: rgb(163, 162, 162);
+  cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
+}
+
+#itemActionsMenu {
+  position: fixed;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 5px;
+  padding: 4px 0;
+  box-shadow: 4px 8px 8px hsl(0deg 0% 0% / 0.38);
+  z-index: 1000;
+  min-width: 200px;
+  font-size: small;
+  cursor: default;
+}
+
+#itemActionsMenu .itemActionsMenuItem {
+  padding: 6px 12px;
+  user-select: none;
+}
+
+#itemActionsMenu .itemActionsMenuItem:hover {
+  background-color: #c5c7c8;
+  cursor: pointer;
+}
+
+#itemActionsMenu .itemActionsMenuItemDisable {
+  padding: 6px 12px;
+  color: rgb(163, 162, 162);
+  cursor: default;
+}
+
+#itemActionsMenu hr.itemActionsMenuDivider {
+  height: 1px;
+  background-color: rgb(105, 104, 104);
+  border: none;
+  margin: 4px 0;
+}
+
 
 /* ----------------------------------------------------------------- */
 /* Scroll-hint button: a sticky chevron that appears at the bottom of */

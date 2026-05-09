@@ -74,8 +74,16 @@ shape.scale({ x: 2, y: 2 })
 
 // Layer management
 layer.add(shape)
-layer.draw()
-layer.batchDraw()
+layer.draw()       // SYNCHRONOUS — use only when you need pixels updated
+                   //   right now (e.g. immediately before stage.toDataURL())
+// layer.batchDraw()  ← DO NOT USE in Konva v8+ (we ship v9.3.12).
+//                       Konva.autoDrawEnabled is true by default, so any
+//                       mutation auto-queues a redraw on the next rAF.
+//                       See TECH_NOTES_KONVA.md trap #12.
+//                       Note: Konva.Group has NO batchDraw method —
+//                       calling it on grLabels / grShadingCamera /
+//                       grShadingMicrophone / grShadingSpeaker /
+//                       grDisplayDistance throws TypeError.
 
 // Events
 shape.on('click', handler)

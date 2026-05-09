@@ -684,8 +684,13 @@
                     used for future features.</span>
                 </label>
               </div>
-              <div class="inputRow" style="margin-top: 1.5em;" id="updateItemDiv">
+              <div class="inputRow itemEllipseHostRow" style="margin-top: 1.5em;" id="updateItemDiv">
                 <input type="submit" value="Update Item" onclick="updateItem()" class="button" id="btnUpdateItemId">
+                <button type="button" class="itemEllipseBtn" id="btnUpdateItemEllipse"
+                  title="Group / Custom Item actions"
+                  onclick="toggleItemActionsMenu(event, 'single')">
+                  <i class="icon icon-more-bold"></i>
+                </button>
                 <!-- <div id="singleShadingDiv" class="inputRow" style="gap: 0;">
                   <button class="btn" onclick="toggleCamShadeSingleItem()" id="btnCamShadeToggleSingleItem"
                     title="Toggle Camera Shading">
@@ -930,9 +935,14 @@
               </div>
 
 
-              <div class="inputRow" style="margin-top: 1.5em;" id="updateMultiItemDiv">
+              <div class="inputRow itemEllipseHostRow" style="margin-top: 1.5em;" id="updateMultiItemDiv">
                 <input type="submit" value="Update Mulitiple Items" onclick="updateMultipleItems()" class="button"
                   id="btnMultiUpdateItemId">
+                <button type="button" class="itemEllipseBtn" id="btnMultiUpdateItemEllipse"
+                  title="Group / Custom Item actions"
+                  onclick="toggleItemActionsMenu(event, 'multi')">
+                  <i class="icon icon-more-bold"></i>
+                </button>
               </div>
 
             </div>

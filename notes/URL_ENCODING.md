@@ -214,18 +214,20 @@ After an item type prefix, lowercase letters encode attributes:
 | `q` | mount | Index | Mount type (0-based index) |
 | `r` | path shape points | Numbers | Space-separated point values (×100, in mm) for pathShape |
 | `s` | group reference | Number | Points at the room-level `H{n}` block. Omitted when not in a group. When present, the per-item `ll` is also omitted (group's `ll` covers all members) |
-| `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` |
+| `t` | customItem reference | Number | Points at the room-level `J{n}` block. Omitted when not in a customItem. When present alongside `s`, the per-item `ll` is omitted (group's `ll` wins); when only `t` is present, customItem's `ll` covers the item |
+| `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
-**AVAILABLE for future ITEM use:** `t`, `u`, `v`. (`w`/`x`/`y`/`z`/`h`
-are used inside `H{n}` blocks for group geometry; the parser keys by
-`sid` so they could still be reused on items, but prefer `t`/`u`/`v`
-first.)
+**AVAILABLE for future ITEM use:** `u`, `v`. (`w`/`x`/`y`/`z`/`h` are
+used inside `H{n}` / `J{n}` blocks for group/customItem geometry; the
+parser keys by `sid` so they could still be reused on items, but
+prefer `u`/`v` first.)
 
 **Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility),
 `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H`
-(groups). Available: `I`, `J`, `K`, `N`, `O`, `P`, `Q`, `R`, `U`, `V`,
-`X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix families.)
+(groups), `J` (customItems). Available: `I`, `K`, `N`, `O`, `P`, `Q`,
+`R`, `U`, `V`, `X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix
+families.)
 
 ## Layer URL Encoding
 
@@ -384,3 +386,92 @@ Layer encoding is unchanged.
 | Parser item-level | `parseShortenedXYUrl()` — `if ('s' in item)` after per-item `ll` |
 | Post-parse member rebuild | `parseShortenedXYUrl()` — before `return output;` |
 | Defensive bounds rebuild | `roomObjToCanvas()` — guarded by `if (!g.width \|\| !g.height)` |
+
+## CustomItem URL Encoding
+
+VRC CustomItems serialize via the room-level `J{n}` prefix and the
+per-item `t{n}` reference. Mirror of the Group encoding above —
+re-read the Group section for the full rationale; this section only
+calls out the differences.
+
+### Format
+
+`J{num}x{x×100}[y{y×100}][z{z×100}]w{w×100}[h{h×100}][ll{layerNum}][f{rot×10}]~name~`
+
+Same field set as `H` blocks; `J` is emitted **after** the `H` block(s)
+and **before** items, so `ll`, `s`, and `t` references all resolve
+in-order.
+
+`customItemMembers` is rebuilt post-parse from items whose
+`data_customItemId` matches the customItem's `customitemid`, so block /
+item ordering doesn't matter.
+
+### Item rule: `s` and `t` both suppress `ll`
+
+When an item carries `s{n}` (group) and/or `t{n}` (customItem), the
+encoder omits the per-item `ll`. On decode:
+
+- `s` + `ll` together → per-item `ll` wins.
+- `s` only → item inherits the group's layer.
+- `t` only → item inherits the customItem's layer.
+- `s` + `t` (item is in both) → group's layer wins (Option 1 design:
+  Group selection takes precedence over CustomItem, so layer cascading
+  follows the same rule).
+
+### Why a separate per-item key (`t`) was chosen
+
+A `t{num}` ref is encoded independently of `s{num}` so an item can be
+in **both** a group and a customItem at the same time (Option 1
+design). The encoder/decoder treats the two refs as independent.
+
+`t` was chosen because it's the next free single letter alphabetically
+after `s`. In May 2026 a long-standing bug was fixed in
+`deleteBlankDotKeys()` inside `parseShortenedXYUrl()` — the old `if
+(outputObj.t = '.')` was an assignment instead of a comparison, which
+unconditionally stripped any `t` (and the associated `text`) from the
+last object in the URL and from any object preceding a `_` repeat
+marker. The corrected `if (outputObj.t === '.')` restores the
+documented `t.` sentinel behaviour and lets `t{num}` round-trip
+cleanly.
+
+### Numbering
+
+`_customItemUrlEncodeMap = {}` (customitemid → 1, 2, 3, …) is rebuilt
+each `createShareableLink()` call, parallel to `_groupUrlEncodeMap`.
+Flat, no reserved range. Empty customItems are skipped on encode and
+dropped on decode (same rule as groups).
+
+### Backwards compat
+
+Old URLs without `J` / `t` load cleanly into a room with no
+customItems. Existing groups (`H` / `s`) are unaffected. `t` was free
+as a per-item attribute (see "Adding New Attributes" above which now
+lists it as taken), and the bug fix in `deleteBlankDotKeys()` does not
+affect any prior URL that did not carry `t` — i.e., every URL emitted
+by VRC ≤ v0.1.645.
+
+### Example with a Group + CustomItem
+
+```
+H1x140y180w180h200~My+Group~J1x100y100w120h150~My+CustomItem~AB150a200s1t1~Bar~MB300a400s1~Mic~
+```
+
+| Part | Meaning |
+|------|---------|
+| `H1x140y180w180h200~My+Group~` | Group #1 rect at (1.40, 1.80) m, 1.80 × 2.00 m |
+| `J1x100y100w120h150~My+CustomItem~` | CustomItem #1 rect at (1.00, 1.00) m, 1.20 × 1.50 m |
+| `AB150a200s1t1~Bar~` | Room Bar at (1.5, 2.0) m, member of BOTH group 1 and customItem 1 |
+| `MB300a400s1~Mic~` | Mic at (3.0, 4.0) m, member of group 1 only |
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Encoder map | `_customItemUrlEncodeMap` global next to `_groupUrlEncodeMap` |
+| Encoder room-level | `createShareableLink()` — immediately after the `H{n}` block emission |
+| Encoder item-level + `ll` suppression | `createShareableLinkItem()` — `itemHasCustomItemRef` branch alongside `itemHasGroupRef` |
+| Parser room-level | `parseShortenedXYUrl()` — `else if (item.sid === "J")` branch right after the `"H"` branch |
+| Parser item-level | `parseShortenedXYUrl()` — `if ('t' in item)` block right after the `if ('s' in item)` block |
+| Parser bug fix (`t.` sentinel) | `parseShortenedXYUrl()` → `deleteBlankDotKeys()` — corrected to `outputObj.t === '.'` |
+| Post-parse member rebuild | `parseShortenedXYUrl()` — same loop that rebuilds `groupMembers`, walking `data_customItemId` instead |
+| Defensive bounds rebuild | `roomObjToCanvas()` — `updateCustomItemBounds()` guarded by `if (!c.width \|\| !c.height)` |

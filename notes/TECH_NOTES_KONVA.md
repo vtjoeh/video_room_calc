@@ -13,7 +13,8 @@ Companion files:
 - `CLAUDE.md` — user-facing dev reference (has a short Konva.js Notes
   section that points here for the deep dives).
 - `TECH_NOTES.md` — engineering log of refactor targets and known
-  workarounds (e.g. the `setTimeout` cluster around `batchDraw()`).
+  workarounds (e.g. the `setTimeout` cluster around the rAF gap that
+  `batchDraw()` and Konva's auto-draw share).
 
 ---
 
@@ -288,20 +289,52 @@ Konva node. Do not copy that pattern into a Konva listener.
 
 ---
 
-## 12. `batchDraw()` is async (rAF), `draw()` is sync
+## 12. `batchDraw()` is mostly DEAD CODE in Konva v8+ — auto-draw is on by default
 
-`layer.batchDraw()` schedules a redraw on the next `requestAnimationFrame`.
-The canvas pixels are NOT updated synchronously.
+**Konva v8 (and v9.3.12, which we ship) sets `Konva.autoDrawEnabled = true`
+by default.** Per the official
+[Batch Draw doc](https://konvajs.org/docs/performance/Batch_Draw.html):
 
-This is the root cause of the `setTimeout(..., n)` cluster documented
-in `TECH_NOTES.md` item 1. Anything that reads pixel-derived data
-(`stage.toDataURL()`, hit tests, `getClientRect()` after a transform
-change in some cases) will get **stale results** if you call it
-immediately after a `batchDraw()`.
+> Update: this demo is not relevant with the new `konva@8`. In the new
+> version, Konva is doing all batching draws automatically on any
+> changes on canvas.
 
-Use `layer.draw()` (synchronous) when you need pixels updated right
-now (e.g. immediately before `toDataURL()`). Otherwise prefer
-`batchDraw()` for performance.
+So **calling `layer.batchDraw()` after a mutation is redundant** — Konva
+already queued a redraw on the next `requestAnimationFrame` for you.
+The 5.x – 7.x pattern of "mutate then call `batchDraw()` for perf" is no
+longer needed.
+
+### What actually still matters
+
+1. `batchDraw()` is async (rAF), `draw()` is sync.
+   - Anything that reads pixel-derived data (`stage.toDataURL()`,
+     `toCanvas()`, hit tests, `getClientRect()` after a transform change
+     in some cases) will get **stale results** if it runs in the same
+     tick as the mutation. The auto-draw also runs on the next rAF, so
+     it has the same problem as an explicit `batchDraw()`.
+   - Use `layer.draw()` (synchronous) when you need pixels updated
+     right now (e.g. immediately before `toDataURL()` — see trap #16).
+2. `batchDraw()` only exists on `Konva.Layer` and `Konva.Stage`.
+   `Konva.Group` does **NOT** have a `batchDraw` method (or a `draw`
+   method that does anything useful). Calling `someGroup.batchDraw()`
+   throws `TypeError: someGroup.batchDraw is not a function`. The
+   May 2026 audit found 5 such silent no-op calls (`grShadingMicrophone`,
+   `grShadingSpeaker`, `grShadingCamera`, `grDisplayDistance`, `grLabels`
+   — all `Konva.Group`s) plus one un-guarded crash on `grLabels`. All
+   were removed.
+3. The `setTimeout(..., n)` cluster documented in `TECH_NOTES.md` item 1
+   exists because the rAF gap is real — even with auto-draw, code that
+   reads pixel state in the same tick as the mutation reads stale data.
+
+### Convention going forward
+
+- **Don't add `layer.batchDraw()` calls.** New code should rely on
+  Konva's auto-draw.
+- If you need a sync redraw (about to call `toDataURL()` etc.), use
+  `layer.draw()`.
+- If `Konva.autoDrawEnabled` is ever flipped to `false` (we don't do
+  this anywhere — `rg autoDrawEnabled` returns no matches), reinstate
+  explicit `batchDraw()` calls at every mutation site.
 
 ---
 
@@ -576,7 +609,8 @@ For selections above a threshold (`> 50` in `rotateTrNodeItems()`),
 VRC also calls `hideAllCoverageGroups(true)` before the loop and
 re-enables them via a short `setTimeout` after reattach. The
 `grShadingCamera` / `grShadingMicrophone` / `grDisplayDistance` /
-`grLabels` layers each redraw on every geometry change, and hiding
+`grLabels` Konva.Groups (children of `layerTransform`, NOT separate
+Konva layers) each redraw on every geometry change, and hiding
 them during the bulk update is the second half of the speed win.
 
 ### Gotchas
@@ -598,7 +632,8 @@ them during the bulk update is the second half of the speed win.
 - [ ] Am I about to write a CSS-style selector? → Re-read trap #1.
 - [ ] Am I assigning to `node.x` / `node.fill` / etc. directly? → Use the function form (trap #6).
 - [ ] Am I adding a new `data_*` field? → Update all FOUR sites listed in `CLAUDE.md` → "Critical Data Flow" (and remember it is a JS-object slot, not a Konva attr — trap #6).
-- [ ] Am I reading a node's pixel-derived state right after `batchDraw()`? → Use `draw()` instead, or defer (trap #12).
+- [ ] Am I about to add a `layer.batchDraw()` call? → Don't. Konva v8+ auto-draws (trap #12). The only legitimate use is `someGroup.batchDraw()` — and that throws because Groups have no `batchDraw` method.
+- [ ] Am I reading a node's pixel-derived state in the same tick as a mutation (e.g. before `toDataURL()`)? → Use `layer.draw()` (sync), or defer to the next rAF (trap #12, trap #16).
 - [ ] Am I calling `e.stopPropagation()` inside a Konva listener? → It is `e.evt.stopPropagation()` for DOM, or `e.cancelBubble = true` for Konva (trap #11).
 - [ ] Am I caching a node? → Remember `clearCache()` after every mutation (trap #14).
 - [ ] Am I about to write `stage.toJSON()` for persistence? → Don't. Use `roomObj` (trap #23).

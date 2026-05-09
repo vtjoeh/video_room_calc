@@ -36,9 +36,13 @@ in subtle ways:
   first. `canvasToJson()` is the reconciler.
 - `drawRoom(true)` rebuilds the entire Konva graph from `roomObj`. This is
   the heavy hammer used after most state changes.
-- Konva's own batching (`batchDraw()` uses `requestAnimationFrame`) means
-  changes are not visible synchronously. Code that reads pixel positions
-  immediately after a mutation gets stale data.
+- Konva's auto-draw (since v8 — we ship v9.3.12 with
+  `Konva.autoDrawEnabled = true`) means any mutation queues a redraw on
+  the next `requestAnimationFrame` automatically. So changes are not
+  visible synchronously. Code that reads pixel positions immediately
+  after a mutation gets stale data — the same problem an explicit
+  `batchDraw()` would have, just one we no longer trigger by hand.
+  See `TECH_NOTES_KONVA.md` trap #12 for the auto-draw convention.
 - Active room "zoom" mode (`isActiveRoomPart`) maintains a *transformed*
   view of the canvas; reapplying state while in this mode triggers
   ordering bugs because nodes are deleted before their replacements exist.
@@ -48,9 +52,13 @@ in subtle ways:
 1. **Single source of truth.** `roomObj` is canonical; Konva nodes are
    derived. Every user action mutates `roomObj` first, then a single
    `requestRedraw()` call reconciles Konva to match.
-2. **Centralize redraws.** Replace ad-hoc `layer.batchDraw()` and
-   `setTimeout(..., n)` calls with a debounced `requestRedraw()` queue
-   that runs once per animation frame.
+2. **Centralize redraws.** Replace ad-hoc `setTimeout(..., n)` calls
+   with a debounced `requestRedraw()` queue that runs once per
+   animation frame. Konva v8+ already auto-batches per-mutation, so
+   the goal here is to schedule deterministic *post-redraw* hooks
+   (e.g. "after the next frame, run canvasToJson"), not to add explicit
+   `batchDraw()` calls. (The old `layer.batchDraw()` calls were removed
+   in May 2026 — see `TECH_NOTES_KONVA.md` trap #12.)
 3. **Delta-based undo / redo (Phase 5).** Instead of snapshotting the
    entire `roomObj`, undo / redo records the *change*: which item, which
    field, before / after value. Applying an undo mutates the specific
@@ -62,7 +70,9 @@ in subtle ways:
 4. **Audit and remove every `setTimeout(..., n)` that exists for sync
    reasons.** They are guesses, not guarantees. Replace each with either:
    - A `requestRedraw()` call followed by a microtask, OR
-   - A direct, deterministic call after a Konva `batchDraw()`.
+   - A direct, deterministic call after a sync `layer.draw()` (the
+     auto-draw runs on the next rAF, so it doesn't help here — only a
+     sync `draw()` updates pixels in the same tick).
 
 ### Constraint
 

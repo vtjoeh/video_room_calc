@@ -118,6 +118,7 @@ let fullShareLink;
 let fullShareLinkCollabExpBase; /* fullSharelink used the full domain and path.  shareLinkCollabExpBase only uses https://collabexperience.com/?x= */
 let _layerUrlEncodeMap = {}; /* maps layerid → URL layer number (20+), rebuilt by createShareableLink() */
 let _groupUrlEncodeMap = {}; /* maps groupid → URL group number (1+), rebuilt by createShareableLink() */
+let _customItemUrlEncodeMap = {}; /* maps customitemid → URL customItem number (1+), rebuilt by createShareableLink() */
 let lastAction = "load";
 let isBackgroundImageFloorFileLoad = false; /* keep track if the backgroundImageFloor is being loaded as part of a JSON file */
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
@@ -165,6 +166,7 @@ roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Worksp
 
 roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
+roomObj.customItems = [];
 
 /* ---- Group drag-follow state ----
  * When the user click-drags a single group member directly (rather than
@@ -177,6 +179,37 @@ roomObj.groups = [];
  * (lazy init) and apply absolute deltas, so the math stays correct
  * even if other handlers also shift positions. */
 let _groupDragSnapshot = null;
+
+/* Return every CustomItem rect whose members ALL belong to the given Group.
+ * Used by the Group drag-follow + form-update paths so a Group drag/rotate
+ * also carries any "fully contained" CustomItem rects with it.
+ *
+ * Why "all members" and not "any member"? A CustomItem whose members are
+ * split across multiple Groups (uncommon, but legal — VRC Groups and VRC
+ * CustomItems are independent flat memberships) is no longer rigid with
+ * any single Group during that Group's drag: only some of its members
+ * move. Shifting the rect by the dragged Group's delta would visually
+ * detach it from the un-moved members. So we move the rect only when the
+ * whole CustomItem rides with the Group — which is the user-visible
+ * "3 CustomItems inside 1 Group" pattern that surfaced this gap.
+ *
+ * Note: the Transformer-drag path doesn't need this — `expandSelectionForGroups()`
+ * already adds every overlapping CustomItem rect to `tr.nodes()`, and Konva
+ * then moves them natively. This helper exists for the two paths Konva
+ * doesn't cover: member-direct drag (`followGroupDragFromMember`) and the
+ * form-update path (`updateGroupItem`). */
+function getCustomItemRectsAllInGroup(groupId) {
+    if (!groupId || typeof groupCustomItemRects === 'undefined' || !groupCustomItemRects) return [];
+    const result = [];
+    groupCustomItemRects.getChildren().forEach(rect => {
+        const ciId = rect.data_customItemId;
+        if (!ciId) return;
+        const members = getCustomItemMemberNodes(ciId);
+        if (members.length === 0) return;
+        if (members.every(m => m.data_groupId === groupId)) result.push(rect);
+    });
+    return result;
+}
 
 /* Snapshot every group sibling + the Group rect's start position so the
  * follower can shift them in lock-step with the dragged member. MUST be
@@ -209,6 +242,16 @@ function beginGroupDragFollow(target) {
             _groupDragSnapshot.others.set(rectNode, { x: rectNode.x(), y: rectNode.y() });
         }
     }
+    /* Also pull in CustomItem rects whose members all belong to this Group
+     * — without this, dragging the Group leaves the "fully-contained"
+     * CustomItem rects behind. The CustomItem follower only handles the
+     * dragged item's own CustomItem rect, so siblings B/C in a "3 CustomItems
+     * in 1 Group" layout would otherwise stay put. (May 2026 fix.) */
+    getCustomItemRectsAllInGroup(target.data_groupId).forEach(rect => {
+        if (rect === target) return;
+        if (_groupDragSnapshot.others.has(rect)) return;
+        _groupDragSnapshot.others.set(rect, { x: rect.x(), y: rect.y() });
+    });
 }
 
 /* Apply group drag-follow during a member-direct drag.
@@ -237,15 +280,19 @@ function followGroupDragFromMember(target) {
         /* Each moved sibling has its own coverage (#fov~, #audio~,
          * #dispDist~, #speaker~) and label (#label~) that need to track
          * the move — same call the single-item dragmove handler makes for
-         * the dragged item itself. The Group rect has no coverage so we
-         * skip it (and its data_deviceid='group' isn't in allDeviceTypes,
-         * which moveShading's `allDeviceTypes[id].depth` would crash on
-         * if a stale shading node ever existed). */
-        if (node.data_deviceid !== 'group') {
+         * the dragged item itself. Skip the Group rect (data_deviceid='group'
+         * isn't in allDeviceTypes, which moveShading's `allDeviceTypes[id].depth`
+         * would crash on if a stale shading node ever existed) AND skip
+         * CustomItem rects (data_deviceid='customItem' — no coverage either,
+         * and they are now snapshotted alongside the Group rect when a Group
+         * fully contains a CustomItem; see beginGroupDragFollow). */
+        if (node.data_deviceid !== 'group' && node.data_deviceid !== 'customItem') {
             updateShading(node);
         }
     });
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws on the next animation frame
+     * after the .x()/.y() mutations above (Konva.autoDrawEnabled defaults
+     * to true). Calling batchDraw() here would just queue a duplicate rAF. */
     /* Keep the Details-panel X/Y in sync with the live drag, same as the
      * `if (tr.nodes().length === 1) updateFormatDetails(...)` call in the
      * single-item branch of imageItem/tblWallFlr dragmove. */
@@ -254,6 +301,88 @@ function followGroupDragFromMember(target) {
 
 function endGroupDragFollow() {
     _groupDragSnapshot = null;
+}
+
+/* ---- CustomItem drag-follow ----
+ * VRC CustomItems behave like Groups for drag/move purposes — they are a
+ * second, parallel "bundle" concept. See the Group drag-follow helpers
+ * above for the design notes (snapshot in dragstart, not dragmove). The
+ * CustomItem variant follows the same pattern with one wrinkle: when an
+ * item belongs to BOTH a Group and a CustomItem, the Group's drag-follow
+ * runs first and shifts every member (including those that also belong to
+ * a CustomItem). The CustomItem rect itself is moved separately by the
+ * follower below; if the rect is already in tr.nodes() (Transformer drag),
+ * Konva handles its movement natively and this follower no-ops. */
+let _customItemDragSnapshot = null;
+
+function beginCustomItemDragFollow(target) {
+    if (!target || !target.data_customItemId) return;
+    if (tr.isDragging()) { _customItemDragSnapshot = null; return; }
+    _customItemDragSnapshot = {
+        customItemId: target.data_customItemId,
+        target:       target,
+        startPos:     { x: target.x(), y: target.y() },
+        others:       new Map(),
+    };
+    getCustomItemMemberNodes(target.data_customItemId).forEach(member => {
+        if (member === target) return;
+        _customItemDragSnapshot.others.set(member, { x: member.x(), y: member.y() });
+    });
+    if (groupCustomItemRects) {
+        const rectNode = groupCustomItemRects.find(n => n.data_customItemId === target.data_customItemId)[0];
+        if (rectNode && rectNode !== target) {
+            _customItemDragSnapshot.others.set(rectNode, { x: rectNode.x(), y: rectNode.y() });
+        }
+    }
+}
+
+/* Apply customItem drag-follow during a member-direct drag. Same skip
+ * rules as Group: no-op when the Transformer is being dragged (members
+ * are moved natively via tr.nodes()) and lazy-fallback to a fresh
+ * snapshot if dragstart didn't capture one. The Group follower runs
+ * before this on items that belong to both bundles, and the
+ * CustomItem rect follower below handles the customItem-specific rect
+ * tracking. We skip moving sibling items that ALSO belong to the
+ * dragged item's Group, because the Group follower already moved them
+ * — moving them again here would double-shift. */
+function followCustomItemDragFromMember(target) {
+    if (!target || !target.data_customItemId) return;
+    if (tr.isDragging()) { _customItemDragSnapshot = null; return; }
+
+    if (!_customItemDragSnapshot || _customItemDragSnapshot.target !== target) {
+        beginCustomItemDragFollow(target);
+        if (!_customItemDragSnapshot) return;
+    }
+
+    const dx = target.x() - _customItemDragSnapshot.startPos.x;
+    const dy = target.y() - _customItemDragSnapshot.startPos.y;
+    if (dx === 0 && dy === 0) return;
+
+    const dragGroupId = target.data_groupId || null;
+
+    _customItemDragSnapshot.others.forEach((startPos, node) => {
+        /* Skip sibling items that the Group follower already moved.
+         * The Group follower runs first (its `data_groupId` check) and
+         * shifts every Group member by the same delta; if we re-shift
+         * here, the item drifts ahead of the rest of the Group. The
+         * customItem rect itself has no data_groupId set (rects are
+         * stored separately) so it always follows. */
+        if (dragGroupId && node.data_groupId === dragGroupId && node.data_deviceid !== 'customItem') {
+            return;
+        }
+        node.x(startPos.x + dx);
+        node.y(startPos.y + dy);
+        if (node.data_deviceid !== 'customItem' && node.data_deviceid !== 'group') {
+            updateShading(node);
+        }
+    });
+    /* No batchDraw() — see beginGroupDragFollow / followGroupDragFromMember
+     * for the rationale. Konva v8+ auto-redraws on next rAF. */
+    refreshCustomItemDetailsFromCanvas();
+}
+
+function endCustomItemDragFollow() {
+    _customItemDragSnapshot = null;
 }
 
 /* ---- Group helper functions ---- */
@@ -352,8 +481,16 @@ function getActiveGroupSelection(nodes) {
     const rectNode = groupRects[0];
     const groupId = rectNode.data_groupId;
     if (!groupId) return null;
-    /* Every other node must be a member of this same group */
-    const allBelong = nodes.every(n => n === rectNode || n.data_groupId === groupId);
+    /* Every other node must be a member of this same group OR a
+     * CustomItem rect that's a fellow traveler (its members are also in
+     * this group). expandSelectionForGroups() pulls customItem rects
+     * alongside group selections; without this allowance the active-group
+     * detection would fail and the panel would fall back to multi-item. */
+    const allBelong = nodes.every(n =>
+        n === rectNode ||
+        n.data_deviceid === 'customItem' ||
+        n.data_groupId === groupId
+    );
     if (!allBelong) return null;
     const group = getGroupById(groupId);
     if (!group) return null;
@@ -512,6 +649,12 @@ function updateGroupItem(group) {
     const deltaR    = newRot - currentRot;
 
     const members = getGroupMemberNodes(group.groupid);
+    /* CustomItem rects whose every member belongs to this Group ride along
+     * with the Group during translate / rotate (same rule the drag-follow
+     * uses — see beginGroupDragFollow for the rationale). Without this, a
+     * Details-panel X / Y / Rotation edit on a Group would leave any
+     * fully-contained CustomItem rect floating where it was. */
+    const customItemRects = getCustomItemRectsAllInGroup(group.groupid);
 
     /* 1) Translate first so the rotation pivot we compute next is the
      *    visual centre at the new location. */
@@ -519,6 +662,7 @@ function updateGroupItem(group) {
         members.forEach(m => { m.x(m.x() + deltaX_px); m.y(m.y() + deltaY_px); });
         rectNode.x(rectNode.x() + deltaX_px);
         rectNode.y(rectNode.y() + deltaY_px);
+        customItemRects.forEach(r => { r.x(r.x() + deltaX_px); r.y(r.y() + deltaY_px); });
     }
 
     /* 2) Rigid rotation around the (post-translation) rect centre. */
@@ -526,6 +670,7 @@ function updateGroupItem(group) {
         const centre = getRotatedRectCenter(rectNode);
         members.forEach(m => rotateNodeAroundPoint(m, centre.x, centre.y, deltaR));
         rotateNodeAroundPoint(rectNode, centre.x, centre.y, deltaR);
+        customItemRects.forEach(r => rotateNodeAroundPoint(r, centre.x, centre.y, deltaR));
     }
 
     /* 3) Z elevation: deltaZ adds to every member's data_zPosition.
@@ -576,10 +721,269 @@ function updateGroupItem(group) {
     /* 6) Re-align FOV / audio / display-distance / labels for moved members. */
     members.forEach(m => updateShading(m));
 
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws on next rAF after the
+     * x/y/rotation mutations above (Konva.autoDrawEnabled === true). */
     canvasToJson();
 
     /* Match the existing single-item updateItem button-debounce. */
+    const btn = document.getElementById("btnUpdateItemId");
+    if (btn) {
+        btn.disabled = true;
+        setTimeout(() => { btn.disabled = false; }, 700);
+    }
+}
+
+/* ---- CustomItem helper functions ----
+ *
+ * CustomItems are a parallel bundling concept to Groups: a CustomItem
+ * groups items so they move/rotate as a unit (same UX as a Group), but
+ * with a *weaker* selection precedence. When an item belongs to both a
+ * Group and a CustomItem, clicking it selects the Group; the CustomItem
+ * rect rides along but doesn't capture the Details panel.
+ *
+ * The data shape mirrors roomObj.groups exactly — see CLAUDE.md "VRC
+ * Group System" for the conventions. CustomItem rects render in
+ * `groupCustomItemRects` (a Konva.Group added to layerTransform AFTER
+ * groupGroupRects so they paint on top of group rects but still behind
+ * items). Visual difference: light green fill / green stroke, vs the
+ * group's light blue / blue stroke.
+ */
+
+function getCustomItemById(customItemId) {
+    if (!roomObj.customItems) return null;
+    return roomObj.customItems.find(c => c.customitemid === customItemId) || null;
+}
+
+function ensureCustomItems(obj) {
+    const target = obj || roomObj;
+    if (!target.customItems) target.customItems = [];
+}
+
+/* Return all Konva nodes (across all item groups) whose data_customItemId matches customItemId */
+function getCustomItemMemberNodes(customItemId) {
+    const members = [];
+    allNodeShapeGroups.forEach(kg => {
+        kg.getChildren().forEach(node => {
+            if (node.data_customItemId === customItemId) members.push(node);
+        });
+    });
+    return members;
+}
+
+/* Recalculate the CustomItem rect's x, y, width, height from current member
+ * positions. Mirrors updateGroupBounds() — see its docstring for the
+ * `getMemberBoundingRect` rationale. */
+function updateCustomItemBounds(customItemId) {
+    if (!groupCustomItemRects) return;
+    const members = getCustomItemMemberNodes(customItemId);
+    if (!members.length) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    members.forEach(node => {
+        const r = getMemberBoundingRect(node);
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.y + r.height > maxY) maxY = r.y + r.height;
+    });
+
+    const newX = minX;
+    const newY = minY;
+    const newW = maxX - minX;
+    const newH = maxY - minY;
+
+    const customItemRectNode = groupCustomItemRects.find(n => n.data_customItemId === customItemId)[0];
+    if (customItemRectNode) {
+        customItemRectNode.x(newX);
+        customItemRectNode.y(newY);
+        customItemRectNode.width(newW);
+        customItemRectNode.height(newH);
+    }
+
+    const c = getCustomItemById(customItemId);
+    if (c) {
+        c.x = ((newX - pxOffset) / scale) + activeRoomX;
+        c.y = ((newY - pyOffset) / scale) + activeRoomY;
+        c.width  = newW / scale;
+        c.height = newH / scale;
+        const zPositions = members
+            .map(n => parseFloat(n.data_zPosition) || 0)
+            .filter(z => !isNaN(z));
+        if (zPositions.length) c.data_zPosition = Math.min(...zPositions);
+    }
+}
+
+/* Returns { rectNode, customItem, customItemId } when the current selection
+ * is exactly one CustomItem's bundle — a single CustomItem rect plus only
+ * members of that same customItem, AND no Group rect is in the selection
+ * (Group precedence wins). Mirrors getActiveGroupSelection(). */
+function getActiveCustomItemSelection(nodes) {
+    nodes = nodes || tr.nodes();
+    if (!nodes || !nodes.length) return null;
+    /* Group precedence: if any Group rect is selected, we are in a Group
+     * bundle (or a multi-selection that contains a group rect). The
+     * Details panel routes via getActiveGroupSelection() in that case. */
+    if (nodes.some(n => n.data_deviceid === 'group')) return null;
+    const customItemRects = nodes.filter(n => n.data_deviceid === 'customItem');
+    if (customItemRects.length !== 1) return null;
+    const rectNode = customItemRects[0];
+    const customItemId = rectNode.data_customItemId;
+    if (!customItemId) return null;
+    const allBelong = nodes.every(n => n === rectNode || n.data_customItemId === customItemId);
+    if (!allBelong) return null;
+    const customItem = getCustomItemById(customItemId);
+    if (!customItem) return null;
+    return { rectNode: rectNode, customItem: customItem, customItemId: customItemId };
+}
+
+/* Lightweight live-refresh of the CustomItem Details inputs from the
+ * rect's current canvas state. Hooked to drag/transform events when a
+ * CustomItem is the active selection. Mirrors refreshGroupDetailsFromCanvas(). */
+function refreshCustomItemDetailsFromCanvas() {
+    const sel = getActiveCustomItemSelection();
+    if (!sel) return;
+    const r = sel.rectNode;
+    const itemX   = document.getElementById('itemX');
+    const itemY   = document.getElementById('itemY');
+    const itemRot = document.getElementById('itemRotation');
+    const itemW   = document.getElementById('itemWidth');
+    const itemL   = document.getElementById('itemLength');
+    if (itemX)   itemX.value   = round(((r.x() - pxOffset) / scale) + activeRoomX);
+    if (itemY)   itemY.value   = round(((r.y() - pyOffset) / scale) + activeRoomY);
+    if (itemRot) itemRot.value = round(r.rotation(), -1);
+    if (itemW)   itemW.value   = round(r.width()  / scale);
+    if (itemL)   itemL.value   = round(r.height() / scale);
+}
+
+/* Populate the right-hand Details panel with CustomItem fields when the
+ * selection is a single VRC CustomItem. Mirrors populateGroupDetails(). */
+function populateCustomItemDetails(rectNode) {
+    const customItem = getCustomItemById(rectNode.data_customItemId);
+    if (!customItem) return;
+
+    const hideIds = [
+        'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv',
+    ];
+    hideIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    const showIds = [
+        'labelFieldDiv', 'itemLayerDiv', 'itemWidthLengthDiv',
+        'itemWidthDiv', 'itemLengthDiv', 'itemRotationDiv',
+    ];
+    showIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+
+    document.getElementById('itemLabeldiv').textContent = 'Custom Item Name:';
+    document.getElementById('labelField').value = customItem.name || '';
+
+    document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
+    document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
+    document.getElementById('itemZposition').value = (customItem.data_zPosition != null) ? customItem.data_zPosition : 0;
+
+    document.getElementById('itemWidth').value  = round(rectNode.width()  / scale);
+    document.getElementById('itemLength').value = round(rectNode.height() / scale);
+    document.getElementById('itemWidth').disabled  = true;
+    document.getElementById('itemLength').disabled = true;
+
+    document.getElementById('itemRotation').value = round(rectNode.rotation(), -1);
+
+    document.getElementById('itemId').innerText    = customItem.customitemid;
+    document.getElementById('itemType').innerText  = 'Custom Item';
+    document.getElementById('itemGroup').innerText = '';
+
+    populateLayerDropdown('drpItemLayer', customItem.data_layerId || '0');
+}
+
+/* Apply a CustomItem-level edit from the Details panel: X/Y/Z deltas
+ * translate every member (and the rect) by the same offset; a rotation
+ * delta rotates every member around the CustomItem rect's current visual
+ * centre. Mirrors updateGroupItem(). */
+function updateCustomItemItem(customItem) {
+    if (!customItem || !groupCustomItemRects) return;
+    const rectNode = groupCustomItemRects.find(n => n.data_customItemId === customItem.customitemid)[0];
+    if (!rectNode) return;
+
+    const newName = (DOMPurify.sanitize(document.getElementById('labelField').value) || '').trim() || customItem.name;
+    const newX = Number(document.getElementById('itemX').value) || 0;
+    const newY = Number(document.getElementById('itemY').value) || 0;
+    const newZ = Number(document.getElementById('itemZposition').value) || 0;
+    const newRot = normalizeDegree(Number(document.getElementById('itemRotation').value) || 0);
+    const newLayerId = (document.getElementById('drpItemLayer') && document.getElementById('drpItemLayer').value) || '0';
+
+    const currentX_user = ((rectNode.x() - pxOffset) / scale) + activeRoomX;
+    const currentY_user = ((rectNode.y() - pyOffset) / scale) + activeRoomY;
+    const currentZ      = Number(customItem.data_zPosition) || 0;
+    const currentRot    = rectNode.rotation();
+
+    const deltaX_px = (newX - currentX_user) * scale;
+    const deltaY_px = (newY - currentY_user) * scale;
+    const deltaZ    = newZ - currentZ;
+    const deltaR    = newRot - currentRot;
+
+    const members = getCustomItemMemberNodes(customItem.customitemid);
+
+    if (deltaX_px !== 0 || deltaY_px !== 0) {
+        members.forEach(m => { m.x(m.x() + deltaX_px); m.y(m.y() + deltaY_px); });
+        rectNode.x(rectNode.x() + deltaX_px);
+        rectNode.y(rectNode.y() + deltaY_px);
+        /* CustomItem move may also need to drag along any Group rect that
+         * contains all our members — but only if every member of the
+         * Group is also a member of this CustomItem (otherwise the Group
+         * would partially de-sync). Skip that case for v1; the user can
+         * always select the Group bundle instead to drag everything. */
+    }
+
+    if (deltaR !== 0) {
+        const centre = getRotatedRectCenter(rectNode);
+        members.forEach(m => rotateNodeAroundPoint(m, centre.x, centre.y, deltaR));
+        rotateNodeAroundPoint(rectNode, centre.x, centre.y, deltaR);
+    }
+
+    if (deltaZ !== 0) {
+        members.forEach(m => {
+            const existingZ = Number(m.data_zPosition) || 0;
+            m.data_zPosition = existingZ + deltaZ;
+            if (roomObj && roomObj.items) {
+                for (const cat in roomObj.items) {
+                    if (!Array.isArray(roomObj.items[cat])) continue;
+                    const entry = roomObj.items[cat].find(it => it.id === m.id());
+                    if (entry) { entry.data_zPosition = m.data_zPosition; break; }
+                }
+            }
+        });
+    }
+    customItem.data_zPosition = newZ;
+    rectNode.data_zPosition = newZ;
+
+    customItem.name = newName;
+    rectNode.data_labelField = newName;
+
+    /* Layer cascade — same share-a-layer invariant Groups enforce. */
+    if (newLayerId !== (customItem.data_layerId || '0')) {
+        customItem.data_layerId = newLayerId;
+        rectNode.data_layerId = newLayerId;
+        applyLayerStateToNode(rectNode, newLayerId);
+        members.forEach(m => {
+            m.data_layerId = newLayerId;
+            applyLayerStateToNode(m, newLayerId);
+        });
+        renderLayersList();
+    }
+
+    members.forEach(m => updateShading(m));
+
+    /* No batchDraw() — Konva v8+ auto-redraws on next rAF (see updateGroupItem
+     * for the same pattern). Konva.autoDrawEnabled === true. */
+    canvasToJson();
+
     const btn = document.getElementById("btnUpdateItemId");
     if (btn) {
         btn.disabled = true;
@@ -631,6 +1035,16 @@ function removeHiddenLayerItemsForExport(roomObj2) {
         if (!Array.isArray(roomObj2.items[group])) continue;
         roomObj2.items[group] = roomObj2.items[group].filter(item => {
             const lid = item.data_layerId || '0';
+            return !hiddenLayerIds.has(lid);
+        });
+    }
+    /* Drop CustomItems whose own layer is hidden too — same rationale
+     * as Groups (filtered later in exportRoomObjToWorkspace via the
+     * hidden-layer filter on data.vrc.customItems[]). Done here to
+     * keep roomObj2 internally consistent. */
+    if (Array.isArray(roomObj2.customItems)) {
+        roomObj2.customItems = roomObj2.customItems.filter(c => {
+            const lid = c.data_layerId || '0';
             return !hiddenLayerIds.has(lid);
         });
     }
@@ -732,13 +1146,14 @@ function applyAllLayerStates() {
             applyLayerStateToNode(node, node.data_layerId);
         }
     });
-    layerTransform.batchDraw();
-    /* Coverage and label nodes live on separate Konva layers; redraw them too */
-    if (typeof grShadingMicrophone !== 'undefined' && grShadingMicrophone.batchDraw) grShadingMicrophone.batchDraw();
-    if (typeof grShadingSpeaker !== 'undefined' && grShadingSpeaker.batchDraw) grShadingSpeaker.batchDraw();
-    if (typeof grShadingCamera !== 'undefined' && grShadingCamera.batchDraw) grShadingCamera.batchDraw();
-    if (typeof grDisplayDistance !== 'undefined' && grDisplayDistance.batchDraw) grDisplayDistance.batchDraw();
-    if (typeof grLabels !== 'undefined' && grLabels.batchDraw) grLabels.batchDraw();
+    /* No explicit batchDraw() needed in Konva v8+ — `Konva.autoDrawEnabled`
+     * defaults to true, so the visibility/listening changes above auto-trigger
+     * a redraw of layerTransform on the next animation frame.
+     *
+     * The grShading* / grDisplayDistance / grLabels nodes are Konva.Group
+     * children of layerTransform (NOT separate layers), so they ride the
+     * same auto-redraw — the previous explicit *.batchDraw() calls were
+     * silent no-ops because Konva.Group has no batchDraw method. */
 }
 
 /* ---- Layer CRUD ---- */
@@ -932,7 +1347,7 @@ function removeLayerNodesFromSelection(layerId) {
     const remaining = tr.nodes().filter(n => (n.data_layerId || '0') !== layerId);
     tr.nodes(remaining);
     refreshCopyDelBtnState();
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
 }
 
 /* Toggle visibility for ALL layers (used by global hide/unhide button).
@@ -947,7 +1362,7 @@ function toggleAllLayersVisible() {
         /* Hiding all → clear entire selection (stay on Layers tab) */
         tr.nodes([]);
         refreshCopyDelBtnState();
-        layerTransform.batchDraw();
+        /* No batchDraw() — Konva v8+ auto-redraws on next rAF. */
     }
     renderLayersList();
     canvasToJson();
@@ -965,7 +1380,7 @@ function toggleAllLayersLocked() {
         /* Locking all → clear entire selection (stay on Layers tab) */
         tr.nodes([]);
         refreshCopyDelBtnState();
-        layerTransform.batchDraw();
+        /* No batchDraw() — Konva v8+ auto-redraws on next rAF. */
     }
     renderLayersList();
     canvasToJson();
@@ -1025,6 +1440,16 @@ function updateItemLayer(nodeId, newLayerId) {
             m.data_layerId = newLayerId;
             applyLayerStateToNode(m, newLayerId);
         });
+    } else if (node.data_deviceid === 'customItem') {
+        const customItemId = node.data_customItemId;
+        const customItem = getCustomItemById(customItemId);
+        if (customItem) customItem.data_layerId = newLayerId;
+        node.data_layerId = newLayerId;
+        applyLayerStateToNode(node, newLayerId);
+        getCustomItemMemberNodes(customItemId).forEach(m => {
+            m.data_layerId = newLayerId;
+            applyLayerStateToNode(m, newLayerId);
+        });
     } else {
         node.data_layerId = newLayerId;
         applyLayerStateToNode(node, newLayerId);
@@ -1061,7 +1486,7 @@ function selectLayerItems(layerId) {
     } else {
         tr.nodes([]);
     }
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
 }
 
 /* Layer ID that NEW items (added via the equipment menu, quick-add dialog,
@@ -1524,6 +1949,14 @@ let groupGroupRects = new Konva.Group({
     name: 'groupGroupRects',
 });
 
+/* CustomItem rects live in their own Konva group, rendered behind all
+ * items but ON TOP of group rects (so a CustomItem rect inside a Group's
+ * bbox visually layers over the Group rect). See `stageAddLayers()` for
+ * the order. */
+let groupCustomItemRects = new Konva.Group({
+    name: 'groupCustomItemRects',
+});
+
 let titleGroup = new Konva.Group(
     {
         name: 'titleGroup',
@@ -1601,17 +2034,20 @@ tr.on('dragmove', function trDragMove() {
     /* When the user drags the Transformer's bounding box (rather than a
      * single member) Konva moves every node in tr.nodes() natively and the
      * per-member dragmove handlers don't always fire — push the live rect
-     * coords into the Group Details panel so X/Y track the drag. */
+     * coords into the bundle Details panel so X/Y track the drag. */
     refreshGroupDetailsFromCanvas();
+    refreshCustomItemDetailsFromCanvas();
 });
 
 tr.on('dragend', function trDragStart() {
 
     hideAllCoverageGroups(false);
     endGroupDragFollow();
-    /* Final flush of the Group Details panel after a Transformer-driven
-     * drag (caches catch missed-frame edge cases). */
+    endCustomItemDragFollow();
+    /* Final flush of the bundle Details panel after a Transformer-driven
+     * drag (catches missed-frame edge cases). */
     refreshGroupDetailsFromCanvas();
+    refreshCustomItemDetailsFromCanvas();
 });
 
 /* Customize the rotation / rotater anchor */
@@ -5436,15 +5872,21 @@ function parseShortenedXYUrl(parameters) {
     /* delete the last object that has values '.' */
     deleteBlankDotKeys(output[objCount]);
 
-    /* if the valuve is a '.'  (as in a dot) then delete the key.  If it is 't.', then delete the text key too. */
+    /* if the value is a '.' (as in a dot) then delete the key. If it is
+     * `t.`, then delete the text key too — but ONLY when t.value is the
+     * literal '.' sentinel. Bug fix May 2026: the original `if (outputObj.t = '.')`
+     * was an assignment, which always evaluated truthy and stripped t/text
+     * from EVERY item that had a `t` key. With customItem references now
+     * encoded as `t{n}` (numeric), that bug would silently corrupt the
+     * customItem refs (and any associated `text` label) for the last item
+     * in the URL plus any item followed by `_` repeat. Comment above also
+     * documents the originally intended behaviour. */
     function deleteBlankDotKeys(outputObj) {
 
         /* t. represents not repeating the previous object */
-        if (outputObj.t) {
-            if (outputObj.t = '.') {
-                delete outputObj.t;
-                delete outputObj.text;
-            }
+        if (outputObj.t === '.') {
+            delete outputObj.t;
+            delete outputObj.text;
         }
 
         for (const [key, value] of Object.entries(outputObj)) {
@@ -5687,6 +6129,71 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
         }
+        else if (item.sid === "J" && 'value' in item) {
+            /* CustomItem definition: J{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
+             *
+             * Mirrors the H{n} parser — see that block for the full rationale
+             * (lazy-create fallback, geometry encoding decisions, etc.). */
+            const cUrlNum = parseInt(item.value, 10);
+            if (!isNaN(cUrlNum) && cUrlNum > 0) {
+                ensureCustomItems(roomObj);
+
+                const cName = DOMPurify.sanitize(
+                    'text' in item
+                        ? decodeURIComponent(item.text.replaceAll('+', ' '))
+                        : ''
+                );
+
+                let cLayerId = '0';
+                if ('ll' in item) {
+                    const layerUrlNum = parseInt(item.ll, 10);
+                    if (layerUrlNum === 1) {
+                        cLayerId = '1';
+                    } else if (layerUrlNum >= 20) {
+                        if (!roomObj.layers) roomObj.layers = getDefaultLayers();
+                        let matchedLayer = roomObj.layers.find(l => l._urlNum === layerUrlNum);
+                        if (!matchedLayer) {
+                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: layerUrlNum };
+                            roomObj.layers.push(matchedLayer);
+                        }
+                        cLayerId = matchedLayer.layerid;
+                    }
+                }
+
+                const cRotation = ('f' in item) ? (parseInt(item.f, 10) / 10) : 0;
+                const cX        = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
+                const cY        = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
+                const cZ        = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
+                const cW        = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
+                const cH        = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
+
+                let existingCustomItem = roomObj.customItems.find(c => c._urlNum === cUrlNum);
+                if (existingCustomItem) {
+                    existingCustomItem.name = cName;
+                    existingCustomItem.data_layerId = cLayerId;
+                    existingCustomItem.rotation = cRotation;
+                    existingCustomItem.x = cX;
+                    existingCustomItem.y = cY;
+                    existingCustomItem.data_zPosition = cZ;
+                    existingCustomItem.width = cW;
+                    existingCustomItem.height = cH;
+                } else {
+                    roomObj.customItems.push({
+                        customitemid: createUuid(),
+                        name: cName,
+                        data_layerId: cLayerId,
+                        x: cX,
+                        y: cY,
+                        width: cW,
+                        height: cH,
+                        rotation: cRotation,
+                        data_zPosition: cZ,
+                        customItemMembers: [],
+                        _urlNum: cUrlNum,
+                    });
+                }
+            }
+        }
         else if (item.sid === "D" || item.sid === "E" || item.sid === "F" || item.sid === "G") {
             let roomSurface = {};
             let wall;
@@ -5903,6 +6410,35 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
+            /* customItem assignment: t{num} → roomObj.customItems[i] where
+             * _urlNum === num. Same lazy-fallback pattern as `s` above. When
+             * an item carries both `s` and `t`, the Group's `ll` already
+             * won (above) so this branch only runs for layer inheritance
+             * if `s` was absent. */
+            if ('t' in item) {
+                const cUrlNum = parseInt(item.t, 10);
+                if (!isNaN(cUrlNum) && cUrlNum > 0) {
+                    ensureCustomItems(roomObj);
+                    let matchedCustomItem = roomObj.customItems.find(c => c._urlNum === cUrlNum);
+                    if (!matchedCustomItem) {
+                        matchedCustomItem = {
+                            customitemid: createUuid(),
+                            data_layerId: '0',
+                            x: 0, y: 0, width: 0, height: 0,
+                            rotation: 0,
+                            data_zPosition: 0,
+                            customItemMembers: [],
+                            _urlNum: cUrlNum,
+                        };
+                        roomObj.customItems.push(matchedCustomItem);
+                    }
+                    newItem.data_customItemId = matchedCustomItem.customitemid;
+                    if (!('ll' in item) && !('s' in item)) {
+                        newItem.data_layerId = matchedCustomItem.data_layerId;
+                    }
+                }
+            }
+
             if ('text' in item) {
                 newItem.data_labelField = DOMPurify.sanitize(item.text);
             }
@@ -5934,6 +6470,23 @@ function parseShortenedXYUrl(parameters) {
         }
 
         roomObj.groups = roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length);
+    }
+
+    /* Same post-parse rebuild for CustomItem membership from `t{n}` refs.
+     * Mirror of the Group block above — empty customItems are dropped. */
+    if (roomObj.customItems && roomObj.customItems.length) {
+        roomObj.customItems.forEach(c => { c.customItemMembers = []; });
+
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category].forEach(it => {
+                if (!it.data_customItemId) return;
+                const c = roomObj.customItems.find(cit => cit.customitemid === it.data_customItemId);
+                if (c) c.customItemMembers.push(it.id);
+            });
+        }
+
+        roomObj.customItems = roomObj.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
     }
 
     return output;
@@ -6017,6 +6570,7 @@ function resetRoomObj() {
     };
 
     roomObj.groups = []; 
+    roomObj.customItems = [];
 
     roomObj.roomSurfaces =
     {
@@ -8687,6 +9241,7 @@ function createShareableLink() {
      * resolve immediately, and BEFORE items so each item's `s{n}` ref can
      * resolve immediately. */
     _groupUrlEncodeMap = {};
+    _customItemUrlEncodeMap = {};
     if (roomObj.groups && roomObj.groups.length) {
         const groupsWithMembers = new Set();
         for (const category in roomObj.items) {
@@ -8724,6 +9279,48 @@ function createShareableLink() {
             grpStr += '~' + encodeURIComponent(safeName).replaceAll('%20', '+') + '~';
             strUrlQuery2 += grpStr;
             urlGroupNum++;
+        });
+    }
+
+    /* CustomItem definitions: J{n}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
+     *
+     * Mirrors the H{n} block above. Per-item back-reference uses `t{n}`.
+     * Empty / member-less customItems are skipped, same as Groups. Items
+     * carry both `s{n}` (group ref) AND `t{n}` (customItem ref) when
+     * applicable; `ll` is suppressed for any item that has either ref
+     * since the bundle's `ll` already covers the layer. */
+    if (roomObj.customItems && roomObj.customItems.length) {
+        const customItemsWithMembers = new Set();
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category].forEach(it => {
+                if (it.data_customItemId) customItemsWithMembers.add(it.data_customItemId);
+            });
+        }
+        let urlCustomItemNum = 1;
+        roomObj.customItems.forEach(customItem => {
+            if (!customItemsWithMembers.has(customItem.customitemid)) return;
+            _customItemUrlEncodeMap[customItem.customitemid] = urlCustomItemNum;
+            let cStr = 'J' + urlCustomItemNum;
+            cStr += 'x' + Math.round((customItem.x || 0) * 100);
+            if (customItem.y) cStr += 'y' + Math.round(customItem.y * 100);
+            if (customItem.data_zPosition) cStr += 'z' + Math.round(customItem.data_zPosition * 100);
+            cStr += 'w' + Math.round((customItem.width || 0) * 100);
+            if (customItem.height) cStr += 'h' + Math.round(customItem.height * 100);
+            if (customItem.data_layerId && customItem.data_layerId !== '0') {
+                if (customItem.data_layerId === '1') {
+                    cStr += 'll1';
+                } else if (_layerUrlEncodeMap[customItem.data_layerId] != null) {
+                    cStr += 'll' + _layerUrlEncodeMap[customItem.data_layerId];
+                }
+            }
+            if (customItem.rotation) {
+                cStr += 'f' + Math.round(customItem.rotation * 10);
+            }
+            const safeCName = customItem.name && customItem.name.trim() ? customItem.name : ('');
+            cStr += '~' + encodeURIComponent(safeCName).replaceAll('%20', '+') + '~';
+            strUrlQuery2 += cStr;
+            urlCustomItemNum++;
         });
     }
 
@@ -8931,16 +9528,17 @@ function createShareableLinkItem(item) {
         strItem += 'r' + points.join(' ');
     }
 
-    /* When the item belongs to a group that was emitted as an H{n} block, the
-     * group's `ll` already encodes the layer for every member. Group members
-     * always share their group's layer by definition (createGroup() and
-     * updateItemLayer() enforce this), so we skip the per-item `ll` to keep
-     * the URL short. The decoder inherits data_layerId from the group when an
-     * item carries `s` but no `ll`. */
+    /* When the item belongs to a Group / CustomItem that was emitted as an
+     * H{n} / J{n} block, the bundle's `ll` already encodes the layer for
+     * every member. Group / CustomItem members always share the bundle's
+     * layer by definition, so we skip the per-item `ll` to keep the URL
+     * short. The decoder inherits data_layerId from the bundle when an
+     * item carries `s` or `t` but no `ll`. */
     const itemHasGroupRef = item.data_groupId && _groupUrlEncodeMap[item.data_groupId] != null;
+    const itemHasCustomItemRef = item.data_customItemId && _customItemUrlEncodeMap[item.data_customItemId] != null;
 
     /* encode layer reference: ll1 for Ceiling, ll20+ for custom layers; skip Default (ll0 not needed) */
-    if (!itemHasGroupRef && 'data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
+    if (!itemHasGroupRef && !itemHasCustomItemRef && 'data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
         if (item.data_layerId === '1') {
             strItem += 'll1';
         } else if (_layerUrlEncodeMap[item.data_layerId] != null) {
@@ -8952,6 +9550,13 @@ function createShareableLinkItem(item) {
      * group during the H{n} room-level emission earlier in this run. */
     if (itemHasGroupRef) {
         strItem += 's' + _groupUrlEncodeMap[item.data_groupId];
+    }
+
+    /* encode customItem reference: t{n} where n is the URL number assigned
+     * to the customItem during the J{n} room-level emission. An item can
+     * carry both `s{n}` and `t{n}` when it belongs to both bundles. */
+    if (itemHasCustomItemRef) {
+        strItem += 't' + _customItemUrlEncodeMap[item.data_customItemId];
     }
 
     if ('data_labelField' in item) {
@@ -9437,22 +10042,32 @@ function copyToCanvasClipBoard(nodes) {
 
     let clipBoardArray = [];
 
-    /* ---- Group selection bookkeeping ----
-     * A group is "complete" when its rect AND every current member of the
-     * group are in the selection. Only complete groups round-trip through
-     * the clipboard with their structure intact: members keep
-     * data_groupId (remapped on paste) and a fresh group rect is
-     * materialized on paste. Members of incomplete groups paste as
-     * ungrouped, mirroring the URL/WD-import rule that empty / partial
-     * groups are dropped. expandSelectionForGroups() normally guarantees
-     * complete bundles, but this is the defensive backstop. */
+    /* ---- Group / CustomItem selection bookkeeping ----
+     * A bundle (group or customItem) is "complete" when its rect AND every
+     * current member are in the selection. Only complete bundles
+     * round-trip through the clipboard with their structure intact:
+     * members keep data_groupId / data_customItemId (remapped on paste)
+     * and a fresh rect is materialized on paste. Members of incomplete
+     * bundles paste as ungrouped/uncustom-itemed, mirroring the URL/WD-
+     * import rule that empty / partial bundles are dropped.
+     * expandSelectionForGroups() normally guarantees complete bundles,
+     * but this is the defensive backstop. */
     const selectedRectGroupIds = new Set();
     const selectedMemberIdsByGroup = {};
+    const selectedRectCustomItemIds = new Set();
+    const selectedMemberIdsByCustomItem = {};
     nodes.forEach(n => {
         if (n.data_deviceid === 'group' && n.data_groupId) {
             selectedRectGroupIds.add(n.data_groupId);
-        } else if (n.data_groupId) {
-            (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
+        } else if (n.data_deviceid === 'customItem' && n.data_customItemId) {
+            selectedRectCustomItemIds.add(n.data_customItemId);
+        } else {
+            if (n.data_groupId) {
+                (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
+            }
+            if (n.data_customItemId) {
+                (selectedMemberIdsByCustomItem[n.data_customItemId] = selectedMemberIdsByCustomItem[n.data_customItemId] || new Set()).add(n.id());
+            }
         }
     });
     const completeGroupIds = new Set();
@@ -9462,6 +10077,14 @@ function copyToCanvasClipBoard(nodes) {
         const present = selectedMemberIdsByGroup[gid] || new Set();
         const allHere = (group.groupMembers || []).every(id => present.has(id));
         if (allHere) completeGroupIds.add(gid);
+    });
+    const completeCustomItemIds = new Set();
+    selectedRectCustomItemIds.forEach(cid => {
+        const customItem = getCustomItemById(cid);
+        if (!customItem) return;
+        const present = selectedMemberIdsByCustomItem[cid] || new Set();
+        const allHere = (customItem.customItemMembers || []).every(id => present.has(id));
+        if (allHere) completeCustomItemIds.add(cid);
     });
 
     nodes.forEach(node => {
@@ -9488,6 +10111,29 @@ function copyToCanvasClipBoard(nodes) {
                     width: group.width || 0,
                     height: group.height || 0,
                     rotation: group.rotation || 0,
+                },
+            });
+            return;
+        }
+
+        /* CustomItem rect: same pattern as the Group rect above. */
+        if (node.data_deviceid === 'customItem') {
+            const oldCustomItemId = node.data_customItemId;
+            if (!completeCustomItemIds.has(oldCustomItemId)) return;
+            const customItem = getCustomItemById(oldCustomItemId);
+            if (!customItem) return;
+            clipBoardArray.push({
+                isCustomItemRect: true,
+                oldCustomItemId: oldCustomItemId,
+                customItemAttrs: {
+                    name: customItem.name,
+                    data_layerId: customItem.data_layerId || '0',
+                    data_zPosition: parseFloat(customItem.data_zPosition) || 0,
+                    x: customItem.x || 0,
+                    y: customItem.y || 0,
+                    width: customItem.width || 0,
+                    height: customItem.height || 0,
+                    rotation: customItem.rotation || 0,
                 },
             });
             return;
@@ -9605,6 +10251,11 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_groupId = node.data_groupId;
         }
 
+        /* CustomItem membership — same rule as Group above. */
+        if (node.data_customItemId && completeCustomItemIds.has(node.data_customItemId)) {
+            newAttr.data_customItemId = node.data_customItemId;
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -9675,12 +10326,15 @@ function pasteItems(duplicate = true) {
             }
 
             itemsObj.items.forEach((item, index) => {
-                /* Group rect entries carry their dims in `groupAttrs`
-                 * (unit space) instead of `newAttr`. Both bags share the
-                 * same x/y/width/height/data_zPosition keys that
+                /* Group / CustomItem rect entries carry their dims in
+                 * `groupAttrs` / `customItemAttrs` (unit space) instead of
+                 * `newAttr`. All three bags share the same
+                 * x/y/width/height/data_zPosition keys that
                  * convertItemUnitBasedOnRatio handles. */
                 if (item.isGroupRect) {
                     item.groupAttrs = convertItemUnitBasedOnRatio(item.groupAttrs, ratio);
+                } else if (item.isCustomItemRect) {
+                    item.customItemAttrs = convertItemUnitBasedOnRatio(item.customItemAttrs, ratio);
                 } else {
                     item.newAttr = convertItemUnitBasedOnRatio(item.newAttr, ratio);
                 }
@@ -9688,9 +10342,10 @@ function pasteItems(duplicate = true) {
 
         }
 
-        /* Skip Group rect entries — they have no allDeviceTypes mapping
-         * and the codec-count check only cares about regular items. */
-        checkForMultipleCodecsOnPaste(itemsObj.items.filter(it => !it.isGroupRect));
+        /* Skip Group / CustomItem rect entries — they have no
+         * allDeviceTypes mapping and the codec-count check only cares
+         * about regular items. */
+        checkForMultipleCodecsOnPaste(itemsObj.items.filter(it => !it.isGroupRect && !it.isCustomItemRect));
 
     } else {
         return;
@@ -9702,9 +10357,13 @@ function pasteItems(duplicate = true) {
      * data_groupId remapped below. Members whose old groupid is NOT in
      * the map (no rect copied → incomplete group) paste as ungrouped. */
     const oldToNewGroupId = {};
+    const oldToNewCustomItemId = {};
     itemsObj.items.forEach(it => {
         if (it.isGroupRect && it.oldGroupId) {
             oldToNewGroupId[it.oldGroupId] = createUuid();
+        }
+        if (it.isCustomItemRect && it.oldCustomItemId) {
+            oldToNewCustomItemId[it.oldCustomItemId] = createUuid();
         }
     });
 
@@ -9713,7 +10372,7 @@ function pasteItems(duplicate = true) {
     if (duplicate) {
 
 
-        if (itemsObj.items.length === 1 && !itemsObj.items[0].isGroupRect && itemsObj.items[0].deviceId.startsWith('chair')) {
+        if (itemsObj.items.length === 1 && !itemsObj.items[0].isGroupRect && !itemsObj.items[0].isCustomItemRect && itemsObj.items[0].deviceId.startsWith('chair')) {
             let itemAttr = itemsObj.items[0].newAttr;
             let offset = (roomObj.unit === 'feet') ? 2.35 : 2.35 / 3.28084;
             let rotation = itemAttr.rotation;
@@ -9745,13 +10404,16 @@ function pasteItems(duplicate = true) {
     }
 
 
-    /* Track new member uuids per new groupid so we can populate
-     * groupMembers on the freshly minted roomObj.groups entries. */
+    /* Track new member uuids per new groupid / customitemid so we can
+     * populate groupMembers / customItemMembers on the freshly minted
+     * roomObj.groups / roomObj.customItems entries. */
     const newMembersByGroupId = {};
+    const newMembersByCustomItemId = {};
 
     itemsObj.items.forEach(item => {
 
         if (item.isGroupRect) return; /* materialized in the second pass below */
+        if (item.isCustomItemRect) return; /* materialized in the second pass below */
 
         /* if pasted item references a layer that no longer exists, assign to Default */
         if (item.newAttr.data_layerId && item.newAttr.data_layerId !== '0' && item.newAttr.data_layerId !== '1') {
@@ -9772,6 +10434,16 @@ function pasteItems(duplicate = true) {
             }
         }
 
+        /* Same remap for data_customItemId. */
+        if (item.newAttr.data_customItemId) {
+            const newCid = oldToNewCustomItemId[item.newAttr.data_customItemId];
+            if (newCid) {
+                item.newAttr.data_customItemId = newCid;
+            } else {
+                delete item.newAttr.data_customItemId;
+            }
+        }
+
         let uuid = createUuid();
         uuids.push(uuid);
         item.newAttr.x = item.newAttr.x + xOffset;
@@ -9781,6 +10453,9 @@ function pasteItems(duplicate = true) {
 
         if (item.newAttr.data_groupId) {
             (newMembersByGroupId[item.newAttr.data_groupId] = newMembersByGroupId[item.newAttr.data_groupId] || []).push(uuid);
+        }
+        if (item.newAttr.data_customItemId) {
+            (newMembersByCustomItemId[item.newAttr.data_customItemId] = newMembersByCustomItemId[item.newAttr.data_customItemId] || []).push(uuid);
         }
 
     })
@@ -9821,6 +10496,37 @@ function pasteItems(duplicate = true) {
         roomObj.groups.push(newGroup);
         insertGroupRect(newGroup);
         uuids.push(newGroupId);
+    });
+
+    /* ---- Third pass: materialize each pasted CustomItem ----
+     * Mirror of the Group pass above. */
+    itemsObj.items.forEach(item => {
+        if (!item.isCustomItemRect) return;
+        const newCustomItemId = oldToNewCustomItemId[item.oldCustomItemId];
+        if (!newCustomItemId) return;
+        ensureCustomItems(roomObj);
+
+        let layerId = item.customItemAttrs.data_layerId || '0';
+        if (layerId !== '0' && layerId !== '1' && !getLayerById(layerId)) {
+            layerId = '0';
+        }
+
+        const newCustomItem = {
+            customitemid: newCustomItemId,
+            name: item.customItemAttrs.name || '',
+            data_layerId: layerId,
+            x: (item.customItemAttrs.x || 0) + xOffset,
+            y: (item.customItemAttrs.y || 0) + yOffset,
+            width: item.customItemAttrs.width || 0,
+            height: item.customItemAttrs.height || 0,
+            rotation: item.customItemAttrs.rotation || 0,
+            data_zPosition: parseFloat(item.customItemAttrs.data_zPosition) || 0,
+            customItemMembers: newMembersByCustomItemId[newCustomItemId] || [],
+        };
+
+        roomObj.customItems.push(newCustomItem);
+        insertCustomItemRect(newCustomItem);
+        uuids.push(newCustomItemId);
     });
 
 
@@ -9874,6 +10580,7 @@ function stageAddLayers() {
 
     layerGrid.add(layerBackgroundImageFloor);
     layerTransform.add(groupGroupRects); /* Group rects render behind all items */
+    layerTransform.add(groupCustomItemRects); /* CustomItem rects render between Group rects and items */
     layerTransform.add(groupStageFloors);
     layerTransform.add(grShadingCamera);
     layerTransform.add(grDisplayDistance);
@@ -9997,7 +10704,9 @@ function applyLabelLayerVisibility() {
             labelNode.visible(layerVisible);
         }
     });
-    grLabels.batchDraw();
+    /* No batchDraw() here: grLabels is a Konva.Group (Groups have no
+     * batchDraw method — calling it crashes), and Konva v8+ auto-redraws
+     * the parent Layer on any visibility change anyway. */
 }
 
 function gridLinesVisible(state = 'buttonPress') {
@@ -10209,6 +10918,19 @@ function deleteTrNodes(save = true) {
 
     copyTrNodes.forEach(node => {
 
+        /* Group rect: when the user deletes a Group bundle, dissolve the
+         * group entirely (keepItems=false also wipes the members). */
+        if (node.data_deviceid === 'group' && node.data_groupId) {
+            ungroupItems(node.data_groupId, false);
+            return;
+        }
+
+        /* CustomItem rect: same as above. */
+        if (node.data_deviceid === 'customItem' && node.data_customItemId) {
+            ungroupCustomItem(node.data_customItemId, false);
+            return;
+        }
+
         /* If this item belongs to a group, remove it from the group membership */
         if (node.data_groupId) {
             const g = getGroupById(node.data_groupId);
@@ -10219,6 +10941,18 @@ function deleteTrNodes(save = true) {
                 }
             }
             node.data_groupId = null;
+        }
+
+        /* Same membership cleanup for customItems. */
+        if (node.data_customItemId) {
+            const c = getCustomItemById(node.data_customItemId);
+            if (c) {
+                c.customItemMembers = (c.customItemMembers || []).filter(id => id !== node.id());
+                if ((c.customItemMembers || []).length < 2) {
+                    ungroupCustomItem(c.customitemid, true);
+                }
+            }
+            node.data_customItemId = null;
         }
 
         let parentGroup = allDeviceTypes[node.data_deviceid].parentGroup;
@@ -10336,6 +11070,16 @@ function roomObjToCanvas(updateExisting = false) {
             insertGroupRect(g);
             if (!g.width || !g.height) {
                 updateGroupBounds(g.groupid);
+            }
+        });
+    }
+
+    /* Same defensive recompute for CustomItem rects. */
+    if (roomObj.customItems && roomObj.customItems.length) {
+        roomObj.customItems.forEach(c => {
+            insertCustomItemRect(c);
+            if (!c.width || !c.height) {
+                updateCustomItemBounds(c.customitemid);
             }
         });
     }
@@ -10555,6 +11299,20 @@ function canvasToJson() {
         });
     }
 
+    /* Sync CustomItem rect Konva positions back to roomObj.customItems */
+    if (groupCustomItemRects && roomObj.customItems && roomObj.customItems.length) {
+        groupCustomItemRects.getChildren().forEach(node => {
+            if (node.data_deviceid !== 'customItem') return;
+            const c = getCustomItemById(node.data_customItemId);
+            if (!c) return;
+            c.x        = ((node.x()      - pxOffset) / scale) + activeRoomX;
+            c.y        = ((node.y()      - pyOffset) / scale) + activeRoomY;
+            c.width    = node.width()  / scale;
+            c.height   = node.height() / scale;
+            c.rotation = node.rotation();
+        });
+    }
+
     clearTimeout(undoArrayTimer);
 
     if (!isRotatingRoom) {
@@ -10580,6 +11338,14 @@ function updateRoomObjFromTrNode() {
 
     console.info('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
+        /* Group and CustomItem rects are stored in roomObj.groups /
+         * roomObj.customItems, NOT roomObj.items. They have no
+         * allDeviceTypes mapping, so the parentGroup lookup below would
+         * fail (logged as "parentGroup not found"). canvasToJson() syncs
+         * their canvas positions back to roomObj.groups /
+         * roomObj.customItems separately. */
+        if (node.data_deviceid === 'group' || node.data_deviceid === 'customItem') return;
+
         let x, y;
         let attrs = node.attrs;
         if (!('rotation' in attrs)) {
@@ -10723,6 +11489,11 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_groupId = node.data_groupId;
         }
 
+        /* CustomItem membership — same rationale as data_groupId above. */
+        if (node.data_customItemId) {
+            itemAttr.data_customItemId = node.data_customItemId;
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -10759,6 +11530,13 @@ function updateRoomObjFromTrNode() {
                 item.data_groupId = itemAttr.data_groupId;
             } else {
                 delete item.data_groupId;
+            }
+
+            /* Same for customItem membership. */
+            if (itemAttr.data_customItemId) {
+                item.data_customItemId = itemAttr.data_customItemId;
+            } else {
+                delete item.data_customItemId;
             }
 
         } else {
@@ -12034,8 +12812,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
     applyLayerStateToNode(tblWallFlr, tblWallFlr.data_layerId);
 
-    /* Group membership */
+    /* Group / CustomItem membership */
     tblWallFlr.data_groupId = attrs.data_groupId || null;
+    tblWallFlr.data_customItemId = attrs.data_customItemId || null;
 
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
@@ -12093,13 +12872,17 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('dragstart', function tableOnDragStart(e) {
-        /* Capture the pre-drag snapshot for group drag-follow BEFORE
-         * Konva's drag system advances the target's position. If we waited
-         * until dragmove (followGroupDragFromMember's lazy fallback) the
-         * snapshot would bake in the first-frame jump and the rect/siblings
-         * would drift behind by that amount on every subsequent dragmove. */
+        /* Capture the pre-drag snapshot for group / customItem drag-follow
+         * BEFORE Konva's drag system advances the target's position. If we
+         * waited until dragmove (followGroupDragFromMember's lazy fallback)
+         * the snapshot would bake in the first-frame jump and the
+         * rect/siblings would drift behind by that amount on every
+         * subsequent dragmove. */
         if (e.target.data_groupId) {
             beginGroupDragFollow(e.target);
+        }
+        if (e.target.data_customItemId) {
+            beginCustomItemDragFollow(e.target);
         }
     });
 
@@ -12112,8 +12895,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         snapCenterToIncrement(tblWallFlr);
 
         if (!tr.nodes().includes(e.target)) {
-            if (e.target.data_groupId) {
-                /* Group member dragged solo — select the whole group
+            if (e.target.data_groupId || e.target.data_customItemId) {
+                /* Bundle member dragged solo — select the whole bundle
                  * (rect + every member) instead of just this one item. */
                 tr.nodes([e.target]);
                 expandSelectionForGroups();
@@ -12141,12 +12924,16 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             updateShading(tblWallFlr);
         }
 
-        /* If this table belongs to a Group, drag the rest of the group
-         * along with it (siblings + the Group rect). Same pattern as
-         * `updateShading()` above for `#fov~id` coverage nodes — the
-         * follower runs from the dragged item's own dragmove. No-op when
-         * the Transformer itself is being dragged (Konva handles that). */
+        /* If this table belongs to a Group / CustomItem, drag the rest of
+         * the bundle along with it (siblings + the rect). Same pattern as
+         * `updateShading()` above for coverage nodes — the follower runs
+         * from the dragged item's own dragmove. No-op when the Transformer
+         * itself is being dragged (Konva handles that). The Group follower
+         * runs first; the CustomItem follower then handles items that are
+         * ONLY in a customItem (its internal guard skips siblings already
+         * shifted by the Group follower). */
         followGroupDragFromMember(tblWallFlr);
+        followCustomItemDragFromMember(tblWallFlr);
     });
 
     tblWallFlr.on('dragend', function tableOnDragEnd(e) {
@@ -12157,6 +12944,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         allGuideLines = [];
 
         endGroupDragFollow();
+        endCustomItemDragFollow();
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
@@ -12565,7 +13353,8 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
         updateLayerSelection(layerSelectionBox);
 
-        layerTransform.batchDraw();
+        /* No batchDraw() — Konva v8+ auto-redraws after the per-node
+         * mutations inside updateNodeScaleLayer (Konva.autoDrawEnabled === true). */
 
         function updateNodeScaleLayer(layer) {
 
@@ -12711,11 +13500,12 @@ function removeShadingTrNodes() {
     lastTrNodesWithShading.forEach(node => {
         if (('data_deviceid' in node)) {
 
-            /* Group rect: deselect just hides the rect again. Stroke / fill
-             * are kept at their insertGroupRect defaults (blue/#8FD9FB) so
-             * we don't touch them — and `allDeviceTypes['group']` is
-             * undefined, so the device-type lookups below would crash. */
-            if (node.data_deviceid === 'group') {
+            /* Group / CustomItem rect: deselect just hides the rect again.
+             * Stroke / fill are kept at their insert*Rect defaults so we
+             * don't touch them — and allDeviceTypes['group'/'customItem']
+             * are undefined, so the device-type lookups below would
+             * crash. */
+            if (node.data_deviceid === 'group' || node.data_deviceid === 'customItem') {
                 node.opacity(0);
                 return;
             }
@@ -12757,15 +13547,25 @@ function removeShadingTrNodes() {
  * When any group-related node is selected (the rect OR any member), the
  * resulting tr.nodes() becomes [groupRect, ...allMembers] so Konva's
  * Transformer moves and rotates the entire bundle natively. The user
- * normally clicks a member to initiate the selection (the Group rect
- * itself has listening:false). */
+ * normally clicks a member to initiate the selection (the rects have
+ * listening:false).
+ *
+ * CustomItems get the SAME treatment in parallel: any member's
+ * `data_customItemId` causes the CustomItem rect + every member to be
+ * pulled in alongside any Group expansion. This matters when an item is
+ * in BOTH a Group and a CustomItem — the Group bundle takes Details
+ * panel precedence, but the CustomItem rect rides along so its visuals
+ * track the move and so the CustomItem doesn't get partially-moved on
+ * Transformer drags. */
 function expandSelectionForGroups() {
     const current = tr.nodes().slice();
     let expanded = false;
 
     const groupIds = new Set();
+    const customItemIds = new Set();
     current.forEach(node => {
         if (node.data_groupId) groupIds.add(node.data_groupId);
+        if (node.data_customItemId) customItemIds.add(node.data_customItemId);
     });
 
     groupIds.forEach(id => {
@@ -12777,15 +13577,33 @@ function expandSelectionForGroups() {
             }
         }
         getGroupMemberNodes(id).forEach(member => {
+            if (!current.includes(member)) {
+                current.push(member); expanded = true;
+                /* New member may carry its own customItem ref; record it so the
+                 * customItem-expansion pass below picks it up. */
+                if (member.data_customItemId) customItemIds.add(member.data_customItemId);
+            }
+        });
+    });
+
+    customItemIds.forEach(id => {
+        if (groupCustomItemRects) {
+            const rectNode = groupCustomItemRects.find(n => n.data_customItemId === id)[0];
+            if (rectNode && !current.includes(rectNode)) {
+                current.push(rectNode);
+                expanded = true;
+            }
+        }
+        getCustomItemMemberNodes(id).forEach(member => {
             if (!current.includes(member)) { current.push(member); expanded = true; }
         });
     });
 
     if (expanded) tr.nodes(current);
 
-    /* Resize is meaningless on a group: items move together but never need
+    /* Resize is meaningless on a bundle: items move together but never need
      * to be re-sized as a unit. Rotation stays enabled (separate anchor). */
-    if (current.some(n => n.data_deviceid === 'group')) {
+    if (current.some(n => n.data_deviceid === 'group' || n.data_deviceid === 'customItem')) {
         tr.enabledAnchors([]);
         tr.resizeEnabled(false);
     }
@@ -12823,15 +13641,17 @@ function updateTrNodesShading() {
 
     copyTrNodes.forEach(node => {
 
-        /* Group members are excluded from the blue-outline shading;
-         * only the Group rect itself shows a selection visual (and its
-         * stroke/fill are already blue — see insertGroupRect — so the
-         * "highlight" is just a fade-up from opacity 0 to 0.2). */
-        if (node.data_groupId && node.data_deviceid !== 'group') return;
+        /* Group / CustomItem members are excluded from the blue-outline
+         * shading; only the rect itself shows a selection visual. The
+         * Group rect's blue/#8FD9FB and the CustomItem rect's green/#B6EAB0
+         * are baked in — the "highlight" is just a fade-up from opacity
+         * 0 to 0.2. When an item belongs to BOTH bundles, the Group rect
+         * takes precedence visually (we'd still highlight both, but the
+         * Details panel routes via Group). */
+        if ((node.data_groupId || node.data_customItemId) &&
+            node.data_deviceid !== 'group' && node.data_deviceid !== 'customItem') return;
 
-        if (node.data_deviceid === 'group') {
-            /* Group rect: selection state is conveyed by opacity only.
-             * Default 0 → 0.2 here, restored by removeShadingTrNodes(). */
+        if (node.data_deviceid === 'group' || node.data_deviceid === 'customItem') {
             node.opacity(0.2);
             lastTrNodesWithShading.push(node);
             return;
@@ -13084,6 +13904,13 @@ function updateItem() {
     const __activeGroup = getGroupById(__detailsItemId);
     if (__activeGroup) {
         updateGroupItem(__activeGroup);
+        return;
+    }
+
+    /* CustomItem fast-path: same rationale as Groups. */
+    const __activeCustomItem = getCustomItemById(__detailsItemId);
+    if (__activeCustomItem) {
+        updateCustomItemItem(__activeCustomItem);
         return;
     }
 
@@ -14771,7 +15598,7 @@ function ungroupItems(groupId, keepItems) {
         }
     }
 
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
 }
 
 /* Group the current tr.nodes() selection (or the nodes passed in). */
@@ -14886,6 +15713,170 @@ function ungroupSelectedItems() {
     canvasToJson();
 }
 
+/* ---- CustomItem creation / destruction ----
+ * Mirrors createGroup() and ungroupItems(). See those functions for design
+ * notes on layer cascade, share-a-layer invariant, and the bounding-rect
+ * computation. The only differences:
+ *   - data_customItemId instead of data_groupId
+ *   - roomObj.customItems instead of roomObj.groups
+ *   - groupCustomItemRects instead of groupGroupRects
+ *   - device id 'customItem' instead of 'group'
+ */
+
+function ungroupCustomItem(customItemId, keepItems) {
+    if (!customItemId) return;
+    ensureCustomItems();
+
+    const members = getCustomItemMemberNodes(customItemId);
+
+    members.forEach(node => {
+        node.data_customItemId = null;
+        if (keepItems) {
+            for (const category in roomObj.items) {
+                if (!Array.isArray(roomObj.items[category])) continue;
+                const entry = roomObj.items[category].find(i => i.id === node.id());
+                if (entry) delete entry.data_customItemId;
+            }
+        } else {
+            ['audio~', 'speaker~', 'fov~', 'dispDist~'].forEach(prefix => {
+                const cov = stage.find('#' + prefix + node.id())[0];
+                if (cov) cov.destroy();
+            });
+            stage.find('#label~' + node.id()).forEach(l => l.destroy());
+            canvasNodesMap.delete(node.id());
+            node.destroy();
+        }
+    });
+
+    if (groupCustomItemRects) {
+        const rectNode = groupCustomItemRects.find(n => n.data_customItemId === customItemId)[0];
+        if (rectNode) rectNode.destroy();
+    }
+
+    roomObj.customItems = roomObj.customItems.filter(c => c.customitemid !== customItemId);
+
+    if (!keepItems) {
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            roomObj.items[category] = roomObj.items[category].filter(i => i.data_customItemId !== customItemId);
+        }
+    }
+
+    /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
+}
+
+/* Create a CustomItem from the current tr.nodes() selection (or supplied
+ * nodes). The selection precedence is: a CustomItem with members that
+ * are already in a Group is allowed; the items will keep their
+ * data_groupId AND get a new data_customItemId. Items already in another
+ * customItem are first ungrouped from that customItem. */
+function createCustomItem(nodesToGroup) {
+    ensureCustomItems();
+
+    const candidates = nodesToGroup || tr.nodes();
+    const itemNodes = candidates.filter(n =>
+        n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
+    );
+
+    if (itemNodes.length < 2) {
+        alertDialog('Cannot Create Custom Item', 'Select at least two items to create a Custom Item.');
+        return;
+    }
+
+    /* Dissolve any existing customItem memberships first so each item ends
+     * up with exactly one data_customItemId (the new one). */
+    const existingCustomItemIds = new Set(
+        itemNodes.filter(n => n.data_customItemId).map(n => n.data_customItemId)
+    );
+    existingCustomItemIds.forEach(id => ungroupCustomItem(id, true));
+
+    const finalNodes = itemNodes;
+
+    /* Layer resolution: same convention as createGroup(). All members
+     * adopt a single shared layer. If the selection spans multiple
+     * layers, fall back to the "Add Items to:" dropdown. */
+    const layerIds = [...new Set(finalNodes.map(n => n.data_layerId || '0'))];
+    let targetLayerId;
+    if (layerIds.length === 1) {
+        targetLayerId = layerIds[0];
+    } else {
+        const drp = document.getElementById('drpAddItemLayer');
+        targetLayerId = (drp && drp.value) ? drp.value : '0';
+        finalNodes.forEach(n => updateItemLayer(n.id(), targetLayerId));
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    finalNodes.forEach(node => {
+        const r = getMemberBoundingRect(node);
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.y + r.height > maxY) maxY = r.y + r.height;
+    });
+
+    const pixelX = minX;
+    const pixelY = minY;
+    const pixelW = maxX - minX;
+    const pixelH = maxY - minY;
+
+    const lowestZ = Math.min(...finalNodes.map(n => parseFloat(n.data_zPosition) || 0));
+
+    const newCustomItem = {
+        customitemid: createUuid(),
+        name: '',
+        data_layerId: targetLayerId,
+        x: ((pixelX - pxOffset) / scale) + activeRoomX,
+        y: ((pixelY - pyOffset) / scale) + activeRoomY,
+        width:  pixelW / scale,
+        height: pixelH / scale,
+        rotation: 0,
+        data_zPosition: lowestZ,
+        customItemMembers: finalNodes.map(n => n.id()),
+    };
+
+    roomObj.customItems.push(newCustomItem);
+
+    finalNodes.forEach(node => {
+        node.data_customItemId = newCustomItem.customitemid;
+        for (const category in roomObj.items) {
+            if (!Array.isArray(roomObj.items[category])) continue;
+            const entry = roomObj.items[category].find(i => i.id === node.id());
+            if (entry) entry.data_customItemId = newCustomItem.customitemid;
+        }
+    });
+
+    const customItemRectNode = insertCustomItemRect(newCustomItem);
+
+    /* Select customItem rect + members so the Konva Transformer carries
+     * the bundle as one unit. expandSelectionForGroups() will also pull in
+     * any Group rect that contains some of these members (since
+     * data_groupId is preserved). */
+    if (customItemRectNode) {
+        tr.nodes([customItemRectNode, ...finalNodes]);
+    } else {
+        tr.nodes(finalNodes);
+    }
+    expandSelectionForGroups();
+    tr.enabledAnchors([]);
+    tr.resizeEnabled(false);
+    enableCopyDelBtn();
+    canvasToJson();
+    console.info('CustomItem created:', newCustomItem.customitemid, 'with', finalNodes.length, 'members');
+}
+
+/* Ungroup all customItems referenced in the current tr.nodes() selection */
+function ungroupSelectedCustomItems() {
+    const customItemIds = new Set();
+    tr.nodes().forEach(n => {
+        if (n.data_deviceid === 'customItem') customItemIds.add(n.data_customItemId);
+        else if (n.data_customItemId) customItemIds.add(n.data_customItemId);
+    });
+    if (!customItemIds.size) return;
+    tr.nodes([]);
+    customItemIds.forEach(id => ungroupCustomItem(id, true));
+    canvasToJson();
+}
+
 /* ---- Group rect visual ----
  * Creates (or recreates) the purple bounding-box rectangle for a VRC Group.
  * The rect is placed in groupGroupRects (behind all items).
@@ -14945,8 +15936,51 @@ function insertGroupRect(groupObj) {
     groupRect.data_labelField = groupObj.name || 'Group Item';
 
     groupGroupRects.add(groupRect);
-    layerTransform.batchDraw();
+    /* No batchDraw() — Konva v8+ auto-redraws after .add() (Konva.autoDrawEnabled === true). */
     return groupRect;
+}
+
+/* ---- CustomItem rect visual ----
+ * Mirrors insertGroupRect() — see that function for the design notes. The
+ * only differences are the visual style (light green / green stroke) and
+ * the parent Konva group (groupCustomItemRects). */
+function insertCustomItemRect(customItemObj) {
+    if (!customItemObj || !customItemObj.customitemid) return;
+
+    const existing = groupCustomItemRects.find(n => n.data_customItemId === customItemObj.customitemid)[0];
+    if (existing) existing.destroy();
+
+    const pixelX = scale * customItemObj.x + pxOffset - activeRoomX * scale;
+    const pixelY = scale * customItemObj.y + pyOffset - activeRoomY * scale;
+    const pixelW = scale * (customItemObj.width  || 1);
+    const pixelH = scale * (customItemObj.height || 1);
+
+    const customItemRect = new Konva.Rect({
+        x: pixelX,
+        y: pixelY,
+        width: pixelW,
+        height: pixelH,
+        rotation: customItemObj.rotation || 0,
+        fill: '#B6EAB0',
+        stroke: 'green',
+        strokeWidth: 1,
+        dash: [4, 4],
+        opacity: 0,
+        name: 'Custom Item',
+        id: customItemObj.customitemid,
+        draggable: true,
+        listening: false,
+    });
+
+    customItemRect.data_deviceid     = 'customItem';
+    customItemRect.data_customItemId = customItemObj.customitemid;
+    customItemRect.data_zPosition    = customItemObj.data_zPosition || 0;
+    customItemRect.data_layerId      = customItemObj.data_layerId || '0';
+    customItemRect.data_labelField   = customItemObj.name || 'Custom Item';
+
+    groupCustomItemRects.add(customItemRect);
+    /* No batchDraw() — Konva v8+ auto-redraws after .add() (Konva.autoDrawEnabled === true). */
+    return customItemRect;
 }
 
 function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = false) {
@@ -15177,8 +16211,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_layerId = ('data_layerId' in attrs && attrs.data_layerId) ? attrs.data_layerId : '0';
         applyLayerStateToNode(node, node.data_layerId);
 
-        /* Group membership */
+        /* Group / CustomItem membership */
         node.data_groupId = attrs.data_groupId || null;
+        node.data_customItemId = attrs.data_customItemId || null;
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -15212,6 +16247,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         imageItem.on('dragend', function imageItemOnDragEnd() {
             endGroupDragFollow();
+            endCustomItemDragFollow();
             if (trNodesLength > 1) return;
             allGuideLines.forEach(guideLine => {
                 guideLine.destroy();
@@ -15225,11 +16261,15 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
         imageItem.on('dragstart', function imageItemOnDragStart(e) {
-            /* Capture the pre-drag snapshot for group drag-follow BEFORE
-             * Konva's drag system advances the target's position. See the
-             * matching tblWallFlr.on('dragstart') for the full reasoning. */
+            /* Capture the pre-drag snapshot for group / customItem drag-
+             * follow BEFORE Konva's drag system advances the target's
+             * position. See the matching tblWallFlr.on('dragstart') for
+             * the full reasoning. */
             if (e.target.data_groupId) {
                 beginGroupDragFollow(e.target);
+            }
+            if (e.target.data_customItemId) {
+                beginCustomItemDragFollow(e.target);
             }
         });
 
@@ -15248,9 +16288,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             /* in case the dragged item is not the tr.node, make it the tr.node */
 
             if (!tr.nodes().includes(e.target)) {
-                if (e.target.data_groupId) {
-                    /* Group member dragged solo — select the whole group
-                     * (rect + every member) instead of just this one item. */
+                if (e.target.data_groupId || e.target.data_customItemId) {
+                    /* Bundle member dragged solo — select the whole bundle
+                     * (rect + every member) instead of just this one
+                     * item. */
                     tr.nodes([e.target]);
                     expandSelectionForGroups();
                 } else {
@@ -15271,12 +16312,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 }
             }
 
-            /* If this item belongs to a Group, drag the rest of the group
-             * along with it (siblings + the Group rect). Same pattern as
-             * `updateShading()` above for `#fov~id` coverage nodes — the
-             * follower runs from the dragged item's own dragmove. No-op
-             * when the Transformer itself is being dragged. */
+            /* If this item belongs to a Group / CustomItem, drag the rest
+             * of the bundle along with it. The Group follower runs first;
+             * the CustomItem follower handles items only in a customItem
+             * (its internal guard avoids double-shifting siblings already
+             * moved by the Group follower). */
             followGroupDragFromMember(imageItem);
+            followCustomItemDragFromMember(imageItem);
         });
 
         imageItem.on('mousedown touchstart', function imageItemOnMouseDownTouchstart(e) {
@@ -17134,6 +18176,21 @@ function enableCopyDelBtn(opts) {
         return;
     }
 
+    /* CustomItem precedence: same logic as Group, but only triggers when
+     * no Group rect is in the selection (Group always wins). */
+    const __activeCustomItemSel = getActiveCustomItemSelection();
+    if (__activeCustomItemSel) {
+        divItemDetailsVisible.style.display = '';
+        txtItemsDetailNote.style.display = 'none';
+        multiItemsVisible.style.display = 'none';
+
+        multiUpdateMode = false;
+        updateFormatDetails(__activeCustomItemSel.rectNode.id());
+
+        updateTrNodesShadingTimer();
+        return;
+    }
+
     if (tr.nodes().length === 1) {
         divItemDetailsVisible.style.display = '';
         txtItemsDetailNote.style.display = 'none';
@@ -17558,15 +18615,20 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     if (shape.data_deviceid === 'backgroundImageFloor') return; /* background image is not editable in the format details pane */
 
-    /* Group rerouting:
+    /* Group rerouting (precedence: Group > CustomItem > single):
      *   - Clicking a group member: the user thinks of the group as one item,
      *     so swap `shape` over to the Group rect and show Group fields
      *     instead of the member's own details.
-     *   - The Group rect itself only ever lands in `shape` via the
+     *   - Clicking a CustomItem member that isn't ALSO in a Group: swap to
+     *     the CustomItem rect and show CustomItem fields.
+     *   - The rect itself only ever lands in `shape` via the
      *     enableCopyDelBtn() bundle-detection path (its listening:false flag
      *     blocks direct clicks). */
     if (shape.data_groupId && shape.data_deviceid !== 'group' && typeof groupGroupRects !== 'undefined' && groupGroupRects) {
         const rectNode = groupGroupRects.find(n => n.data_groupId === shape.data_groupId)[0];
+        if (rectNode) shape = rectNode;
+    } else if (shape.data_customItemId && shape.data_deviceid !== 'customItem' && typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
+        const rectNode = groupCustomItemRects.find(n => n.data_customItemId === shape.data_customItemId)[0];
         if (rectNode) shape = rectNode;
     }
 
@@ -17578,6 +18640,13 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         const itemNameDiv = document.getElementById('itemNameDiv');
         if (itemNameDiv) itemNameDiv.style.display = '';
         populateGroupDetails(shape);
+        return;
+    }
+
+    if (shape.data_deviceid === 'customItem') {
+        const itemNameDiv = document.getElementById('itemNameDiv');
+        if (itemNameDiv) itemNameDiv.style.display = '';
+        populateCustomItemDetails(shape);
         return;
     }
 
@@ -18294,13 +19363,14 @@ function addListeners(stage) {
 
     tr.on('transform', function onTransform(e) {
 
-        /* Group rotation: the rotate anchor is the only enabled handle for
-         * a Group (resizeEnabled=false). Konva spins every node in
-         * tr.nodes() around the bbox centre, which moves the rect's x/y
-         * AND its rotation — refresh the Details panel so the user sees
-         * the live values. Done before the early return because trNodesLength
-         * is >1 for a Group bundle. */
+        /* Bundle rotation: the rotate anchor is the only enabled handle
+         * for a Group / CustomItem (resizeEnabled=false). Konva spins
+         * every node in tr.nodes() around the bbox centre, which moves
+         * the rect's x/y AND its rotation — refresh the Details panel so
+         * the user sees the live values. Done before the early return
+         * because trNodesLength is >1 for a bundle. */
         refreshGroupDetailsFromCanvas();
+        refreshCustomItemDetailsFromCanvas();
 
         if (trNodesLength !== 1) return;
 
@@ -18328,9 +19398,10 @@ function addListeners(stage) {
 
     tr.on('transformend', () => {
         hideAllCoverageGroups(false);
-        /* Final flush of Group X/Y/Rotation in the Details panel after a
+        /* Final flush of bundle X/Y/Rotation in the Details panel after a
          * Transformer-driven rotation. */
         refreshGroupDetailsFromCanvas();
+        refreshCustomItemDetailsFromCanvas();
     });
 
 }
@@ -20642,6 +21713,11 @@ function selectAllNodes() {
     /* Include Group rects so drag-select can capture them */
     if (groupGroupRects) {
         shapes = shapes.concat(groupGroupRects.getChildren());
+    }
+
+    /* Include CustomItem rects so drag-select can capture them */
+    if (groupCustomItemRects) {
+        shapes = shapes.concat(groupCustomItemRects.getChildren());
     }
 
     return shapes;
@@ -23951,6 +25027,46 @@ function importWorkspaceDesignerFile(workspaceObj) {
         }
     }
 
+    /* Restore VRC CustomItems from data.vrc.customItems. Mirror of the
+     * Groups restore block above — see that for the full rationale
+     * (always meters in VRC top-left coords, layerName -> layerid lookup,
+     * customItemMembers rebuilt by scanning items for data_customItemId,
+     * empty customItems dropped). */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.customItems)) {
+        ensureCustomItems(roomObj2);
+        workspaceObj.data.vrc.customItems.forEach(c => {
+            if (!c || !c.customitemid) return;
+            const customItemLayerId = c.layerName
+                ? resolveImportLayerName(c.layerName, roomObj2)
+                : '0';
+            roomObj2.customItems.push({
+                customitemid: c.customitemid,
+                name: c.name || '',
+                data_layerId: customItemLayerId,
+                x: Number(c.x) || 0,
+                y: Number(c.y) || 0,
+                width: Number(c.width) || 0,
+                height: Number(c.height) || 0,
+                rotation: Number(c.rotation) || 0,
+                data_zPosition: Number(c.data_zPosition) || 0,
+                customItemMembers: [], /* rebuilt below */
+            });
+        });
+
+        if (roomObj2.customItems.length) {
+            roomObj2.customItems.forEach(cit => { cit.customItemMembers = []; });
+            for (const category in roomObj2.items) {
+                if (!Array.isArray(roomObj2.items[category])) continue;
+                roomObj2.items[category].forEach(it => {
+                    if (!it.data_customItemId) return;
+                    const cit = roomObj2.customItems.find(c => c.customitemid === it.data_customItemId);
+                    if (cit) cit.customItemMembers.push(it.id);
+                });
+            }
+            roomObj2.customItems = roomObj2.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
+        }
+    }
+
     setTimeout(() => {
         roomObj = structuredClone(roomObj2);
 
@@ -24073,6 +25189,18 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.data_groupId = wdItem.group;
         }
         delete wdItem.group;
+    }
+
+    /* Restore VRC CustomItem membership from the optional Workspace Designer
+     * "customItem" attribute. Mirror of the "group" extraction above —
+     * matching customItem geometry/metadata lives in
+     * workspaceObj.data.vrc.customItems and is restored separately at the
+     * end of importWorkspaceDesignerFile(). */
+    if ('customItem' in wdItem) {
+        if (wdItem.customItem && typeof wdItem.customItem === 'string') {
+            item.data_customItemId = wdItem.customItem;
+        }
+        delete wdItem.customItem;
     }
 
     /* a line has no position, only points. On import allow line to have a position */
@@ -24891,17 +26019,19 @@ function exportRoomObjToWorkspace() {
         if (layer && layer.name) workspaceItem.layer = layer.name;
     }
 
-    /* For every exported item that belongs to a VRC Group, attach the group's
-     * id as a "group" attribute on the workspaceItem. Workspace Designer does
-     * not understand Group items themselves, but it preserves arbitrary string
-     * attributes on customObjects, so the group reference round-trips cleanly.
-     * The matching group geometry/metadata is emitted separately under
-     * workspaceObj.data.vrc.groups (see below). The Konva Group rect itself
-     * has data_deviceid === 'group' and is never pushed to customObjects. */
+    /* For every exported item that belongs to a VRC Group / CustomItem,
+     * attach the bundle's id as a "group" / "customItem" attribute on the
+     * workspaceItem. Workspace Designer does not understand Group/CustomItem
+     * items themselves, but it preserves arbitrary string attributes on
+     * customObjects, so the references round-trip cleanly. The matching
+     * geometry/metadata is emitted separately under workspaceObj.data.vrc.groups
+     * and workspaceObj.data.vrc.customItems (see below). The Konva Group/
+     * CustomItem rects themselves (data_deviceid === 'group' / 'customItem')
+     * are never pushed to customObjects. */
     function setGroupOnWorkspaceItem(workspaceItem, item) {
-        const groupId = item && item.data_groupId;
-        if (!groupId) return;
-        workspaceItem.group = groupId;
+        if (!item) return;
+        if (item.data_groupId) workspaceItem.group = item.data_groupId;
+        if (item.data_customItemId) workspaceItem.customItem = item.data_customItemId;
     }
 
     let activeRoomLength = roomObj2.activeRoomLength;
@@ -25092,6 +26222,41 @@ function exportRoomObjToWorkspace() {
         });
         if (exportedGroups.length > 0) {
             workspaceObj.data.vrc.groups = exportedGroups;
+        }
+    }
+
+    /* VRC CustomItems round-trip via data.vrc.customItems. Mirror of the
+     * Groups block above — see that block for the full rationale (always
+     * meters, VRC top-left coords, customItemMembers omitted on export and
+     * rebuilt on import, empty customItems skipped, layerName instead of
+     * layerid for human-readability). The CustomItem rect Konva node has
+     * data_deviceid === 'customItem' and is never pushed to customObjects;
+     * only the metadata block here represents the rect. */
+    if (Array.isArray(roomObj.customItems) && roomObj.customItems.length > 0) {
+        const customItemRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedCustomItems = [];
+        roomObj.customItems.forEach(c => {
+            if (!c || !c.customitemid) return;
+            if (Array.isArray(c.customItemMembers) && c.customItemMembers.length === 0) return;
+            const exportedCustomItem = {
+                customitemid: c.customitemid,
+                name: c.name || '',
+                x: round((c.x || 0) * customItemRatio),
+                y: round((c.y || 0) * customItemRatio),
+                width: round((c.width || 0) * customItemRatio),
+                height: round((c.height || 0) * customItemRatio),
+                rotation: c.rotation || 0,
+                data_zPosition: round((c.data_zPosition || 0) * customItemRatio),
+            };
+            const customItemLayerId = c.data_layerId;
+            if (customItemLayerId && customItemLayerId !== '0' && roomObj.layers) {
+                const customItemLayer = roomObj.layers.find(l => l.layerid === customItemLayerId);
+                if (customItemLayer && customItemLayer.name) exportedCustomItem.layerName = customItemLayer.name;
+            }
+            exportedCustomItems.push(exportedCustomItem);
+        });
+        if (exportedCustomItems.length > 0) {
+            workspaceObj.data.vrc.customItems = exportedCustomItems;
         }
     }
 
@@ -26328,6 +27493,151 @@ function closeRightClickMenu() {
         element.remove();
     } /* if the menu already exists, remove and recreate */
 }
+
+
+/* -----------------------------------------------------------------
+ * Per-item Group / CustomItem ellipse menu
+ * -----------------------------------------------------------------
+ * Built dynamically next to #btnUpdateItemId or #btnMultiUpdateItemId
+ * via the .itemEllipseBtn buttons in RoomCalculator.html. Opens with
+ * a fixed-position popover anchored to the clicked button. The menu
+ * contents are computed from the current `tr.nodes()` state, NOT
+ * from which button was clicked — this keeps single-vs-multi rules
+ * aligned with the right-click menu's Group/Ungroup logic, and
+ * scopes "Custom Item" actions to the same selection rules.
+ *
+ * Per the design (Option 1, May 2026): CustomItem actions live ONLY
+ * on this menu, NOT on the right-click context menu. Only `Group` /
+ * `Ungroup` are duplicated between the two surfaces.
+ *
+ * The menu is fixed-position so it floats over the rest of the
+ * Details panel; clicking outside or pressing Escape closes it.
+ */
+const ITEM_ACTIONS_MENU_ID = 'itemActionsMenu';
+
+function closeItemActionsMenu() {
+    const el = document.getElementById(ITEM_ACTIONS_MENU_ID);
+    if (el) el.remove();
+    document.removeEventListener('mousedown', _itemActionsMenuOutsideClick, true);
+    document.removeEventListener('keydown',   _itemActionsMenuKeydown,      true);
+}
+
+function _itemActionsMenuOutsideClick(e) {
+    const el = document.getElementById(ITEM_ACTIONS_MENU_ID);
+    if (!el) return;
+    /* Don't close when the user clicks the menu itself or one of the
+     * ellipse buttons (the button's own onclick handles toggle). */
+    if (el.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.itemEllipseBtn')) return;
+    closeItemActionsMenu();
+}
+
+function _itemActionsMenuKeydown(e) {
+    if (e.key === 'Escape') closeItemActionsMenu();
+}
+
+function toggleItemActionsMenu(event, mode) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    /* Toggle off if already open */
+    if (document.getElementById(ITEM_ACTIONS_MENU_ID)) {
+        closeItemActionsMenu();
+        return;
+    }
+
+    const anchorBtn = (event && event.currentTarget) ||
+        (mode === 'multi'
+            ? document.getElementById('btnMultiUpdateItemEllipse')
+            : document.getElementById('btnUpdateItemEllipse'));
+    if (!anchorBtn) return;
+
+    /* ---- Selection introspection ----
+     * Build the same canGroup / canUngroup booleans used by the
+     * right-click menu (see createRightClickMenu lines ~27515-27521)
+     * so the two surfaces stay in lock-step. CustomItem booleans are
+     * computed here only — they don't appear on the right-click menu. */
+    const trNodes = (typeof tr !== 'undefined' && tr && tr.nodes) ? tr.nodes() : [];
+
+    const itemsOnly = trNodes.filter(n =>
+        n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');
+
+    const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));
+    const allSameExistingGroup = (distinctGroupIds.size === 1 && !distinctGroupIds.has(null));
+    const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;
+    const canUngroup = trNodes.some(n => n.data_deviceid === 'group' || n.data_groupId);
+
+    const distinctCustomItemIds = new Set(itemsOnly.map(n => n.data_customItemId || null));
+    const allSameExistingCustomItem = (distinctCustomItemIds.size === 1 && !distinctCustomItemIds.has(null));
+    /* CustomItem creation rules mirror Group rules: 2+ items selected,
+     * not already all in the same single CustomItem. A CustomItem CAN
+     * be nested inside a Group (Option 1 design), so existing
+     * data_groupId on the members does NOT block creation. */
+    const canCustomItem = itemsOnly.length >= 2 && !allSameExistingCustomItem;
+    const canUncustomItem = trNodes.some(n => n.data_deviceid === 'customItem' || n.data_customItemId);
+
+    /* ---- Build menu DOM ---- */
+    const menu = document.createElement('div');
+    menu.id = ITEM_ACTIONS_MENU_ID;
+
+    const addItem = (label, disabled, onClick) => {
+        const div = document.createElement('div');
+        div.className = disabled ? 'itemActionsMenuItemDisable' : 'itemActionsMenuItem';
+        div.textContent = label;
+        if (!disabled) {
+            div.addEventListener('click', () => {
+                closeItemActionsMenu();
+                try { onClick(); } catch (err) { console.error(err); }
+            });
+        }
+        menu.appendChild(div);
+    };
+
+    const addDivider = () => {
+        const hr = document.createElement('hr');
+        hr.className = 'itemActionsMenuDivider';
+        menu.appendChild(hr);
+    };
+
+    addItem('Create Group',       !canGroup,        () => createGroup());
+    addItem('Ungroup',            !canUngroup,      () => ungroupSelectedItems());
+    addDivider();
+    addItem('Create Custom Item', !canCustomItem,   () => createCustomItem());
+    addItem('Remove Custom Item', !canUncustomItem, () => ungroupSelectedCustomItems());
+
+    /* ---- Position & mount ----
+     * Fixed-position popover anchored just below the ellipse button.
+     * Pinned to the button's right edge so the menu hugs the panel's
+     * right side, then nudged left if it would clip the viewport.
+     * Mount first so we can measure the rendered width. */
+    document.body.appendChild(menu);
+
+    const btnRect = anchorBtn.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+
+    let left = btnRect.right - menuRect.width;
+    if (left + menuRect.width > window.innerWidth - 4) {
+        left = Math.max(4, window.innerWidth - menuRect.width - 4);
+    }
+    if (left < 4) left = 4;
+
+    let top = btnRect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight - 4) {
+        /* Flip above the button when there isn't room below */
+        top = Math.max(4, btnRect.top - menuRect.height - 4);
+    }
+
+    menu.style.left = left + 'px';
+    menu.style.top  = top  + 'px';
+
+    /* Close on outside click or Escape — capture phase so we beat any
+     * click handlers inside the panel itself. */
+    document.addEventListener('mousedown', _itemActionsMenuOutsideClick, true);
+    document.addEventListener('keydown',   _itemActionsMenuKeydown,      true);
+}
+
 
 /* createas a right click menu */
 function createRightClickMenu(usePreviousPosition = false) {

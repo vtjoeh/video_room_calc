@@ -283,8 +283,9 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 | `populateGroupDetails(rectNode)` | 394 | Renders the Details panel for a Group: shows Label/Layer/X/Y/Z/Rotation, hides irrelevant divs, disables Width/Length |
 | `refreshGroupDetailsFromCanvas()` | 372 | Lightweight live-refresh of the Group's X / Y / Rotation / Width / Length form inputs from the rect's current canvas state. Hooked into `tr.on('dragmove')`, `tr.on('transform')`, `tr.on('dragend')`, `tr.on('transformend')` and `followGroupDragFromMember()` so the panel tracks the canvas while the user drags or rotates the group. No-op when the active selection isn't a single Group bundle |
 | `updateGroupItem(group)` | 455 | Group fast-path inside `updateItem()`: applies X/Y/Z deltas to all members + rect, rotates members rigidly around the rect centre, and cascades label/layer changes. Z delta uses `Number(m.data_zPosition) \|\| 0` per member so missing/NaN values are treated as 0. Also calls `updateShading()` per-member so FOV/audio/display-distance/labels follow |
-| `beginGroupDragFollow(node)` | 184 | Captures the pre-drag snapshot of every sibling + Group rect. **MUST be called from `dragstart`**, not `dragmove` — by the first dragmove `target.x()` has already advanced past its pre-drag value, baking that offset into the snapshot and causing the rect/siblings to drift behind by the first-frame jump |
-| `followGroupDragFromMember(node)` | 219 | Member-direct drag follower; shifts siblings + rect by absolute delta from snapshot. Calls `updateShading(sibling)` for every moved member (skipping the Group rect) so each sibling's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Falls back to `beginGroupDragFollow()` if no snapshot exists |
+| `beginGroupDragFollow(node)` | 184 | Captures the pre-drag snapshot of every sibling + Group rect + every CustomItem rect "fully contained" in the dragged Group (see `getCustomItemRectsAllInGroup()`). **MUST be called from `dragstart`**, not `dragmove` — by the first dragmove `target.x()` has already advanced past its pre-drag value, baking that offset into the snapshot and causing the rect/siblings to drift behind by the first-frame jump |
+| `getCustomItemRectsAllInGroup(groupId)` | 184 | Returns every CustomItem rect whose members ALL belong to `groupId`. Used by `beginGroupDragFollow()` and `updateGroupItem()` so a Group drag/rotate also carries its fully-contained CustomItem rects. Excludes split-membership CustomItems (members in multiple Groups) — shifting their rect with one Group's drag would visually detach it from the un-moved members. The Transformer-drag path doesn't need this (`expandSelectionForGroups()` already adds every overlapping CustomItem rect to `tr.nodes()`). |
+| `followGroupDragFromMember(node)` | 219 | Member-direct drag follower; shifts siblings + Group rect + every snapshotted CustomItem rect by absolute delta from snapshot. Calls `updateShading(sibling)` for every moved item-member (skipping the Group rect AND CustomItem rects, neither of which has coverage) so each member's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Falls back to `beginGroupDragFollow()` if no snapshot exists |
 | `endGroupDragFollow()` | 257 | Clears the drag-follow snapshot (called from all `dragend` paths) |
 
 ### URL & Sharing
@@ -421,7 +422,9 @@ The Group rect **always travels with its members in `tr.nodes()`**. Once any gro
 There are two distinct drag paths to keep in mind:
 
 1. **Transformer drag** — user grabs the Transformer's bounding box. `tr.isDragging() === true`. Konva moves every node in `tr.nodes()` natively, preserving relative positions. No manual sync is needed.
-2. **Member-direct drag** — user click-drags directly on a single member. Konva's drag system moves only that one node; siblings + Group rect would otherwise stay put. The member's **`dragstart`** handler calls `beginGroupDragFollow(node)`, which snapshots the pre-drag positions of every sibling + the Group rect. The member's **`dragmove`** handler then calls `followGroupDragFromMember(node)`, which applies absolute deltas to all siblings + the Group rect AND calls `updateShading(sibling)` for every moved member (skipping the Group rect) so each sibling's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Both helpers no-op when `tr.isDragging()` is true to avoid double-shifting during Transformer drags.
+2. **Member-direct drag** — user click-drags directly on a single member. Konva's drag system moves only that one node; siblings + Group rect + any CustomItem rects fully contained in the Group would otherwise stay put. The member's **`dragstart`** handler calls `beginGroupDragFollow(node)`, which snapshots the pre-drag positions of every sibling + the Group rect + every "fully-contained" CustomItem rect (via `getCustomItemRectsAllInGroup()`). The member's **`dragmove`** handler then calls `followGroupDragFromMember(node)`, which applies absolute deltas to every snapshotted node AND calls `updateShading(sibling)` for every moved item-member (skipping the Group rect AND CustomItem rects — neither has its own coverage) so each member's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Both helpers no-op when `tr.isDragging()` is true to avoid double-shifting during Transformer drags.
+
+   **Why "fully contained" CustomItem rects are part of the Group's drag-follow:** in the common "3 CustomItems inside 1 Group" pattern, every CustomItem's members all share the same `data_groupId`. The Transformer-drag path handles this transparently because `expandSelectionForGroups()` adds every overlapping CustomItem rect to `tr.nodes()`. The member-direct drag path bypasses Transformer entirely, so without snapshotting those rects in `beginGroupDragFollow()` the Group's chairs would slide out from under the un-moved CustomItem rects. The "all members in this Group" rule ensures we only carry CustomItems whose entire shape is rigid with the Group; a CustomItem with members split across multiple Groups stays put because shifting its rect would visually detach it from the un-moved members.
 
 **Why snapshot in `dragstart`, not `dragmove`?** By the first dragmove fires, Konva has already advanced the dragged node's `x()` / `y()` past their pre-drag values (the few-pixel jump it takes for Konva to recognise a drag). Snapshotting at that point bakes the offset into `startPos`, so every subsequent `dx = target.x() - startPos.x` underreports the true delta by exactly that initial jump — and the rect/siblings drift behind the dragged member by that amount for the rest of the drag. `dragstart` fires before any positional change, so capturing then keeps `startPos` at the true pre-drag value and the deltas stay accurate from the very first dragmove. `followGroupDragFromMember()` retains a fallback `beginGroupDragFollow()` call in case any code path skips the dragstart hook.
 
@@ -487,7 +490,7 @@ The **Ungroup** entry is enabled whenever the selection contains a Group rect or
 | `getGroupMemberNodes(groupId)` | Returns all Konva nodes across all item groups whose `data_groupId` matches. |
 | `ensureGroups(obj?)` | Ensures `roomObj.groups` (or `obj.groups`) exists as an array. |
 | `expandSelectionForGroups()` | Post-click/drag-select hook that expands `tr.nodes()` to `[rect, ...members]` whenever any group-related node is selected. |
-| `followGroupDragFromMember(node)` | Called from each member's `dragmove`; shifts siblings + Group rect to match a member-direct drag. No-op during a Transformer drag (`tr.isDragging()`). |
+| `followGroupDragFromMember(node)` | Called from each member's `dragmove`; shifts siblings + Group rect + every CustomItem rect "fully contained" in the dragged Group to match a member-direct drag. No-op during a Transformer drag (`tr.isDragging()`). |
 | `endGroupDragFollow()` | Called from `dragend` handlers (member, table, `tr`) to clear the drag-follow snapshot. |
 
 ### Keyboard Shortcuts
@@ -566,8 +569,8 @@ Click-on-a-member also reroutes to Group fields: `updateFormatDetails()` swaps t
 
 `updateGroupItem(group)` reads the form values, computes deltas against the current state, then:
 
-1. **Translation** (`deltaX`, `deltaY` in pixels): every member node + the rect get `node.x(node.x() + dX)` and `node.y(node.y() + dY)`. Done first so the rotation pivot computed next is the new visual centre.
-2. **Rotation** (`deltaR` degrees): rigid rotation around the rect's (post-translation) visual centre via `rotateNodeAroundPoint(node, cx, cy, deltaR)`. The helper rotates the node's origin around `(cx, cy)` AND adds `deltaR` to the node's own rotation — that combination keeps every point of the node rigid with the rotation around `(cx, cy)`. Applied to every member and to the rect.
+1. **Translation** (`deltaX`, `deltaY` in pixels): every member node + the rect + every CustomItem rect "fully contained" in this Group (via `getCustomItemRectsAllInGroup()`) get `node.x(node.x() + dX)` and `node.y(node.y() + dY)`. Done first so the rotation pivot computed next is the new visual centre. The fully-contained CustomItem rects ride along for the same reason they do in member-direct drag (see "Member-direct drag" above) — without this, a Details-panel X/Y edit on a Group would leave the CustomItem rects floating where they were.
+2. **Rotation** (`deltaR` degrees): rigid rotation around the rect's (post-translation) visual centre via `rotateNodeAroundPoint(node, cx, cy, deltaR)`. The helper rotates the node's origin around `(cx, cy)` AND adds `deltaR` to the node's own rotation — that combination keeps every point of the node rigid with the rotation around `(cx, cy)`. Applied to every member, to the Group rect, and to every fully-contained CustomItem rect.
 3. **Z elevation** (`deltaZ`): added to every member's `data_zPosition`. A member with no `data_zPosition` (or a NaN/non-numeric value) is treated as `0` via `Number(m.data_zPosition) || 0`, so the resulting value lands at exactly `deltaZ` for those members. The `if (deltaZ !== 0)` guard avoids polluting nodes that previously had no `data_zPosition` with an explicit `0` when the user didn't actually change Z. The group object's `data_zPosition` is then set to the new form value (matches the new minimum since everyone shifted by the same delta).
 4. **Group name**: written to `group.name` and `rectNode.data_labelField`.
 5. **Layer cascade**: if the layer changed, `group.data_layerId`, `rectNode.data_layerId`, and every member's `data_layerId` are updated and `applyLayerStateToNode()` is run on each.
@@ -632,6 +635,151 @@ references; empty groups are filtered.
 See `notes/WORKSPACE_DESIGNER.md` for the JSON shape, the coordinate
 asymmetry between items and groups, hidden-layer handling, and the
 implementation cross-reference table.
+
+---
+
+## VRC Custom Item System
+
+VRC Custom Items are a **second, parallel** flat grouping mechanism
+that runs alongside Groups. Concept-wise they bundle a set of items so
+they move and rotate as a unit, the same way Groups do — but they have
+their own selection precedence, their own data structures, and their
+own UI surfaces. The existing Group system is unchanged.
+
+Both mechanisms are **flat** (one layer deep). Multiple Custom Items
+may live inside a Group (a Custom Item's members can additionally
+share a `data_groupId`), but a Group cannot live inside a Custom Item.
+
+### Selection precedence: Group > Custom Item > single
+
+Clicking any item in a Group selects the whole Group bundle. Only when
+the clicked item is **not** in a Group does the Custom Item bundle
+take over and select all of its members. This precedence is enforced
+in `expandSelectionForGroups()` and `getActiveCustomItemSelection()`.
+
+### Data structure
+
+```javascript
+roomObj.customItems = [
+    {
+        customitemid: "uuid",          // the customItem's own UUID (mirrors group.groupid)
+        name: "Custom Item 1",         // editable display name
+        data_layerId: "0",             // VRC layer all members share
+        x: 1.5,                        // top-left of bounding rect, in current unit
+        y: 3.84,
+        width: 2.5,
+        height: 3.5,
+        rotation: 0,
+        data_zPosition: 0,
+        customItemMembers: ["uuid1", "uuid2"]  // item IDs
+    }
+]
+```
+
+Each item in `roomObj.items.*` carries:
+
+```javascript
+item.data_customItemId = "customitemid-string"   // omitted if not in a customItem
+item.data_groupId       = "groupid-string"        // omitted if not in a group; can coexist with data_customItemId
+```
+
+### Konva rendering
+
+Custom Item rects live in `groupCustomItemRects` (a `Konva.Group`
+added to `layerTransform` AFTER `groupGroupRects` so a Custom Item
+visually sits on top of a Group it lives in, but still renders behind
+the items themselves):
+
+```
+layerTransform
+  ├── groupGroupRects        ← Group rects (light blue / dashed blue)
+  ├── groupCustomItemRects   ← CustomItem rects (light green / dashed green)
+  ├── groupStageFloors
+  └── ...item groups
+```
+
+The rect's appearance and behaviour mirror the Group rect with two
+visual tweaks:
+
+| Property | Group rect | CustomItem rect |
+|----------|------------|-----------------|
+| `fill`   | `'#8FD9FB'` | `'#B6EAB0'` |
+| `stroke` | `'blue'`, `dash:[6,4]` | `'green'`, `dash:[4,4]` |
+| `data_deviceid` | `'group'` | `'customItem'` |
+| Default `opacity` | `0` (opacity-only highlight on select) | `0` (same) |
+
+### UI
+
+Custom Item actions are exposed **only** via the per-item ellipse
+button (`#btnUpdateItemEllipse` / `#btnMultiUpdateItemEllipse`) next
+to the `Update Item` / `Update Multiple Items` buttons in the Details
+panel. The ellipse menu (`#itemActionsMenu`, built by
+`toggleItemActionsMenu()`) carries:
+
+| Menu item | Enabled when |
+|-----------|--------------|
+| `Create Group` | 2+ items selected, not all already in the same Group |
+| `Ungroup` | Selection contains a Group rect or a Group member |
+| `Create Custom Item` | 2+ items selected, not all already in the same Custom Item |
+| `Remove Custom Item` | Selection contains a CustomItem rect or member |
+
+The right-click menu is intentionally **unchanged** — it shows
+`Group` / `Ungroup` only. CustomItem actions are deliberately scoped
+to the ellipse menu so the right-click menu stays compact.
+
+### Keyboard shortcuts
+
+There are no dedicated CustomItem shortcuts. `Ctrl/Cmd+G` and
+`Ctrl/Cmd+Shift+G` continue to operate on Groups only.
+
+### URL encoding
+
+Custom Items use the room-level `J{n}` prefix and the per-item `t{n}`
+reference, mirror of `H{n}` / `s{n}` for Groups. An item that belongs
+to both a Group and a Custom Item carries `s{n}` AND `t{n}` (in that
+order). When `s` and `t` are both present the Group's layer wins
+(matches the selection-precedence rule). See
+`notes/URL_ENCODING.md` → "CustomItem URL Encoding" for the format,
+the bug fix in `deleteBlankDotKeys()` that made `t` safe to use as a
+per-item ref, and the implementation cross-reference table.
+
+### Workspace Designer round-trip
+
+Items carry their `data_customItemId` on the WD JSON as a
+`"customItem": "<customitemid>"` string attribute, and the CustomItem
+rect's geometry / metadata round-trips via
+`workspaceObj.data.vrc.customItems[]` (mirror of `data.vrc.groups[]`).
+On import, `customItemMembers` is rebuilt by scanning items for
+`data_customItemId` references; empty customItems are filtered.
+
+See `notes/WORKSPACE_DESIGNER.md` → "VRC CustomItem Round-Trip" for
+the JSON shape and implementation cross-reference table.
+
+### Where `data_customItemId` Must Be Updated
+
+Same four-place rule as `data_groupId` and `data_layerId`:
+
+| Location | Function | Done? |
+|----------|----------|-------|
+| `insertShapeItem()` → `updateNodeAttributes()` | `node.data_customItemId = attrs.data_customItemId \|\| null` | ✓ |
+| `insertTable()` | `tblWallFlr.data_customItemId = attrs.data_customItemId \|\| null` | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | `if (node.data_customItemId) itemAttr.data_customItemId = node.data_customItemId` (push branch + map-hit branch) | ✓ |
+| `copyToCanvasClipBoard()` / `pasteItems()` | Copy `data_customItemId` with UUID remapping on paste; CustomItem rect rides through clipboard as `{ isCustomItemRect: true, ... }` | ✓ |
+
+### Key CustomItem functions
+
+| Function | Purpose |
+|----------|---------|
+| `createCustomItem(nodesToGroup?)` | Bundle current `tr.nodes()` (or supplied nodes) into a new VRC CustomItem |
+| `ungroupCustomItem(customItemId, keepItems)` | Dissolve a CustomItem; `keepItems=false` also destroys members |
+| `ungroupSelectedCustomItems()` | Walks the selection and dissolves every CustomItem referenced in it |
+| `insertCustomItemRect(customItemObj)` | Materialize the green Konva.Rect on `groupCustomItemRects` (mirror of `insertGroupRect()`) |
+| `updateCustomItemBounds(customItemId)` | Recalculate the rect's bounds from `getMemberBoundingRect()` |
+| `getCustomItemById()` / `getCustomItemMemberNodes()` / `ensureCustomItems()` | Helpers parallel to the Group equivalents |
+| `getActiveCustomItemSelection(nodes?)` | Returns `{ rectNode, customItem, customItemId }` when the selection is exactly one CustomItem rect plus only its members AND no Group rect is present (Group precedence) |
+| `populateCustomItemDetails()` / `refreshCustomItemDetailsFromCanvas()` | Drive the Details panel for a selected CustomItem |
+| `updateCustomItemItem(customItem)` | Apply Details-panel edits (X/Y/Z/rotation/name/layer) to a CustomItem and its members |
+| `beginCustomItemDragFollow()` / `followCustomItemDragFromMember()` / `endCustomItemDragFollow()` | Member-direct drag follower (parallel to the Group versions). Both followers run during drag — the Group follower runs first; the CustomItem follower detects the overlap to avoid double-shifting items that are in both bundles |
 
 ---
 

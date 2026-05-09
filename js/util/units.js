@@ -313,6 +313,14 @@ window.VRC.util = window.VRC.util || {};
             }
         }
 
+        /* Same scaling for VRC CustomItems — they share the same
+         * unit-space convention as Groups. */
+        if (Array.isArray(roomObj.customItems) && roomObj.customItems.length) {
+            for (const i in roomObj.customItems) {
+                roomObj.customItems[i] = convertItemUnitBasedOnRatio(roomObj.customItems[i], ratio);
+            }
+        }
+
         if (isDrawRoom != 'noDraw') {
             drawRoom(true);
         }
