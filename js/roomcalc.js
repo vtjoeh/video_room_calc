@@ -10061,6 +10061,22 @@ function copyToCanvasClipBoard(nodes) {
             selectedRectGroupIds.add(n.data_groupId);
         } else if (n.data_deviceid === 'customItem' && n.data_customItemId) {
             selectedRectCustomItemIds.add(n.data_customItemId);
+            /* Defensive: a CustomItem rect can also carry a data_groupId
+             * in legacy buggy state — pre-May-2026 createGroup didn't filter
+             * customItem rects out of itemNodes, so they ended up in
+             * group.groupMembers AND got tagged with data_groupId. Without
+             * this branch, the completeness check below would reject the
+             * Group (its groupMembers includes the CustomItem rect's UUID,
+             * but the rect goes into selectedRectCustomItemIds rather than
+             * selectedMemberIdsByGroup) and the Group would be silently
+             * dropped from the clipboard. The paste path's "rebuild
+             * groupMembers from new item uuids" pass naturally drops the
+             * stale CustomItem-rect UUID, so this rescue is also a
+             * cleanup — pasted Group ends up with only real items as
+             * members. */
+            if (n.data_groupId) {
+                (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
+            }
         } else {
             if (n.data_groupId) {
                 (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
@@ -15606,9 +15622,25 @@ function createGroup(nodesToGroup) {
     ensureGroups();
 
     const candidates = nodesToGroup || tr.nodes();
-    /* Only group actual items — skip existing group rects, transformers, etc. */
+    /* Only group actual items — skip existing Group rects (data_deviceid='group')
+     * AND existing CustomItem rects (data_deviceid='customItem'). CustomItem
+     * rects are NOT items; they are a parallel bundle primitive. The
+     * CustomItem's member items are already in `candidates` (pulled in by
+     * expandSelectionForGroups() when the user clicks the CustomItem rect),
+     * so they get added to the new Group individually with a shared
+     * data_groupId. The CustomItem rect itself stays a CustomItem (its
+     * own bundle), and `getCustomItemRectsAllInGroup()` makes it ride
+     * along when the new Group is later dragged or rotated.
+     *
+     * Without the customItem exclusion, the CustomItem rect was getting
+     * added to `group.groupMembers` and tagged with `data_groupId`. On
+     * copy, `copyToCanvasClipBoard()`'s completeness check routed the
+     * CustomItem rect into `selectedRectCustomItemIds` (because of its
+     * data_deviceid) and never counted it as a Group member, so the
+     * Group always failed the completeness gate and was silently dropped
+     * from the clipboard. Mirror createCustomItem()'s filter to fix it. */
     const itemNodes = candidates.filter(n =>
-        n.data_deviceid && n.data_deviceid !== 'group' && n.isVisible()
+        n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
     );
 
     if (itemNodes.length < 2) {
@@ -15693,6 +15725,14 @@ function createGroup(nodesToGroup) {
     } else {
         tr.nodes(finalNodes);
     }
+    /* Re-pull any CustomItem rects (and their members) whose member items
+     * just landed in the new Group. Without this, Ctrl+G immediately
+     * followed by Ctrl+C would copy the items + Group rect but leave the
+     * CustomItem rect out of `tr.nodes()` (it was filtered out of
+     * `finalNodes` above), and the CustomItem would be dropped from the
+     * clipboard. expandSelectionForGroups() also re-clamps the
+     * Transformer's anchors/resize state for the bundle. */
+    expandSelectionForGroups();
     tr.enabledAnchors([]);
     tr.resizeEnabled(false);
     enableCopyDelBtn();
@@ -27730,11 +27770,17 @@ function createRightClickMenu(usePreviousPosition = false) {
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        /* Group is enabled when there are 2+ items in the selection AND they
-         * are not already all members of the same single group (regrouping
+        /* Group is enabled when there are 2+ real items in the selection AND
+         * they are not already all members of the same single group (regrouping
          * the same items is a no-op that would just dissolve and recreate
-         * the existing group). */
-        const itemsOnly = tr.nodes().filter(n => n.data_deviceid !== 'group');
+         * the existing group). Excludes both Group rects AND CustomItem rects
+         * — neither becomes a Group member (`createGroup()` filters them
+         * both out of `finalNodes`); counting them here would mis-enable the
+         * menu when only one real item is selected alongside a CustomItem
+         * rect. Matches the ellipse-menu equivalent above (`itemsOnly`
+         * filter at the top of `refreshGroupCustomItemActionState()`). */
+        const itemsOnly = tr.nodes().filter(n =>
+            n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');
         const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));
         const allSameExistingGroup = (distinctGroupIds.size === 1 && !distinctGroupIds.has(null));
         const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;

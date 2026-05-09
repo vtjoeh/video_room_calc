@@ -267,7 +267,7 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group |
+| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group. Filter excludes both `data_deviceid==='group'` AND `data_deviceid==='customItem'` rects — only real items become Group members. A CustomItem rect in the selection is dropped from `finalNodes`; its member items (already pulled in by `expandSelectionForGroups()`) are added to the new Group individually with shared `data_groupId`, and the CustomItem rect remains its own bundle. Calls `expandSelectionForGroups()` after setting `tr.nodes()` so an immediate Ctrl+C captures the CustomItem rect too. |
 | `ungroupItems(groupId, keepItems)` | 13884 | Dissolves group; `keepItems=false` also destroys members |
 | `ungroupSelectedItems()` | 14031 | Calls `ungroupItems(..., true)` for all groups in selection |
 | `insertGroupRect(groupObj)` | 14048 | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0` by default; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()`). Selection visual is opacity-only — `updateTrNodesShading()` raises opacity to 0.2 on select, `removeShadingTrNodes()` drops it back to 0 on deselect |
@@ -480,7 +480,7 @@ The **Ungroup** entry is enabled whenever the selection contains a Group rect or
 
 | Function | Purpose |
 |----------|---------|
-| `createGroup(nodesToGroup?)` | Groups current `tr.nodes()` (or passed nodes). Layer conflict → moves all to `drpAddItemLayer`. |
+| `createGroup(nodesToGroup?)` | Groups current `tr.nodes()` (or passed nodes). Filter excludes existing Group rects AND CustomItem rects (mirror of `createCustomItem`'s filter — only real items can be Group members; CustomItem rects in the selection contribute their member items via `expandSelectionForGroups()` and stay as their own independent bundle). Layer conflict → moves all to `drpAddItemLayer`. Re-runs `expandSelectionForGroups()` at the end so an immediate Ctrl+C still includes any CustomItem rect that was filtered out of `finalNodes`. |
 | `ungroupItems(groupId, keepItems)` | `keepItems=true` = Ungroup (keep items). `keepItems=false` = hard-delete members too. |
 | `ungroupSelectedItems()` | Calls `ungroupItems(..., true)` for all groups in `tr.nodes()`. |
 | `insertGroupRect(groupObj)` | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0`; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()` and is moved by Konva natively). |
@@ -649,6 +649,20 @@ own UI surfaces. The existing Group system is unchanged.
 Both mechanisms are **flat** (one layer deep). Multiple Custom Items
 may live inside a Group (a Custom Item's members can additionally
 share a `data_groupId`), but a Group cannot live inside a Custom Item.
+
+**Important rule: a CustomItem rect is NEVER a Group member.** When the
+user creates a Group with a CustomItem rect in the selection,
+`createGroup()` filters the CustomItem rect out of `finalNodes`. The
+CustomItem's *member items* (already pulled in by
+`expandSelectionForGroups()`) are added to the new Group individually
+with shared `data_groupId`; the CustomItem rect remains an independent
+bundle. This keeps `roomObj.groups[].groupMembers` strictly a list of
+real items, which is what `copyToCanvasClipBoard()`'s completeness
+check (and the URL / WD round-trips) assume. The
+`getCustomItemRectsAllInGroup()` helper then makes the CustomItem rect
+ride along when the new Group is dragged or rotated. The mirror rule
+already holds for `createCustomItem()` — Group rects are filtered out
+and only items become CustomItem members.
 
 ### Selection precedence: Group > Custom Item > single
 
