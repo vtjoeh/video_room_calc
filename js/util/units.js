@@ -297,6 +297,22 @@ window.VRC.util = window.VRC.util || {};
 
         }
 
+        /* VRC Groups: roomObj.groups[].x/y/width/height/data_zPosition are
+         * stored in unit-space (same convention as items + data.vrc.groups
+         * in the Workspace Designer round-trip). They MUST be scaled by the
+         * same ratio as items, otherwise the Group rect drifts away from
+         * its members on the next drawRoom() — insertGroupRect() reads
+         * group.x/y/width/height and multiplies by `scale` (pixels per
+         * current unit), so a missed conversion here lands the rect at
+         * the OLD unit's coordinate in the NEW unit's pixel grid.
+         * convertItemUnitBasedOnRatio() handles exactly the fields a group
+         * entry needs (x, y, width, height, data_zPosition), so reuse it. */
+        if (Array.isArray(roomObj.groups) && roomObj.groups.length) {
+            for (const i in roomObj.groups) {
+                roomObj.groups[i] = convertItemUnitBasedOnRatio(roomObj.groups[i], ratio);
+            }
+        }
+
         if (isDrawRoom != 'noDraw') {
             drawRoom(true);
         }

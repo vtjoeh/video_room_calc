@@ -311,7 +311,7 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `convertMetersFeet()` | 2401 | Converts between units |
+| `convertMetersFeet()` | 2401 | Converts between units. Walks `roomObj.items` AND `roomObj.groups` (group rect geometry is also stored in unit-space and would otherwise drift away from its members on the next `drawRoom()`). Lives in `js/util/units.js`. |
 | `convertToMeters()` | 2278 | Normalizes to meters |
 | `convertToUnit()` | 1868 | Converts value to current unit |
 
