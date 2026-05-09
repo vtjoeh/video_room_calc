@@ -20,10 +20,19 @@ video_room_calculator/
 ├── README.md                # Release notes & user-facing docs
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
-├── notes/
-│   ├── GIT_WORKFLOW.md      # Branching, tagging, day-to-day cheatsheet
-│   ├── TECH_NOTES.md        # Engineering notes & refactor targets
-│   └── TECH_NOTES_KONVA.md  # Konva.js footguns specific to this codebase
+├── notes/                          # Lazy-loaded references (not in CLAUDE.md context)
+│   ├── GIT_WORKFLOW.md             # Branching, tagging, day-to-day cheatsheet
+│   ├── TECH_NOTES.md               # Engineering notes & refactor targets
+│   ├── TECH_NOTES_KONVA.md         # Konva.js footguns specific to this codebase
+│   ├── KONVA.md                    # Konva.js API/CSS cheat sheet (companion to footgun file)
+│   ├── URL_ENCODING.md             # `?x=…` shareable-link format (items / layers / groups)
+│   ├── WORKSPACE_DESIGNER.md       # Cisco WD JSON round-trip (incl. Group block)
+│   ├── XCONFIG.md                  # Cisco xConfiguration .txt import + export
+│   ├── DXF_EXPORT.md               # AutoCAD R12 DXF export (layers, blocks, internals)
+│   ├── UI_LAYOUT.md                # HTML structure + CSS organization quick map
+│   ├── TEMPLATES.md                # Templates system blurb
+│   ├── KEYBOARD_SHORTCUTS.md       # Canonical keyboard shortcut list
+│   └── DEPENDENCIES_AND_ISSUES.md  # External CDN deps + common issues cheat sheet
 ├── js/
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
@@ -308,441 +317,53 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 
 ---
 
-## HTML Structure
+## HTML & CSS Layout
 
-### Main Layout (Three-Column)
+The page is a fixed top header (`ContainerHeader`) over a
+three-column body (`sidebar`, `ContainerRoomSvg` with the Konva
+canvas, optional details). All modal dialogs (`newRoomDialog`,
+`dialogSave`, `dialogQuestions`, `modalWorkspace`, `dialogQuickAdd`)
+are siblings of the body. The CSS uses a single primary colour
+variable (`--active: #0352a6`) and four responsive breakpoints
+(900 / 783 / 650 / 405 px).
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    ContainerHeader                       │  <- Fixed top bar
-├──────────────┬─────────────────────────┬────────────────┤
-│   sidebar    │   ContainerRoomSvg      │                │
-│              │   ┌─controlButtons─┐    │                │
-│  Room Tab    │   │ [cam][mic][dsp]│    │                │
-│  Equipment   │   └────────────────┘    │                │
-│  Details     │   ┌─scroll-container─┐  │                │
-│              │   │                   │  │                │
-│              │   │   Canvas (Konva) │  │                │
-│              │   │                   │  │                │
-│              │   └───────────────────┘  │                │
-└──────────────┴─────────────────────────┴────────────────┘
-```
-
-### Key HTML Element IDs
-
-| ID | Purpose |
-|----|---------|
-| `ContainerHeader` | Top navigation bar |
-| `sidebar` | Left panel with tabs |
-| `ContainerRoomSvg` | Canvas container |
-| `canvasDiv` | Konva stage mount point |
-| `scroll-container` | Scrollable canvas wrapper |
-| `controlButtons` | Toolbar above canvas |
-
-### Dialog Modals
-
-| ID | Purpose |
-|----|---------|
-| `newRoomDialog` | New room / templates dialog |
-| `dialogSave` | Save/export options |
-| `dialogQuestions` | Help and documentation |
-| `modalWorkspace` | Workspace Designer preview |
-| `dialogQuickAdd` | Quick add search (spacebar) |
-
----
-
-## CSS Organization
-
-### Key CSS Classes
-
-| Class | Purpose |
-|-------|---------|
-| `.ContainerHeader` | Fixed black header bar |
-| `.ContainerInputsFeedback` | White panel containers |
-| `.tabcontent` | Tab panel content |
-| `.subtabcontent` | Nested tab content |
-| `.inputField` | Form field wrapper |
-| `.button` | Primary button style |
-| `.btn` | Icon button in toolbar |
-| `.button-group` | Grouped toolbar buttons |
-| `.flexItems` | Equipment menu items |
-| `.dialog` | Modal dialog base |
-| `.tooltip` | Hover tooltip |
-
-### CSS Variables
-
-```css
-:root {
-  --active: #0352a6;  /* Primary blue color */
-}
-```
-
-### Responsive Breakpoints
-
-| Breakpoint | Changes |
-|------------|---------|
-| `max-width: 900px` | Sidebar stacks below canvas |
-| `max-width: 783px` | Full-screen dialogs |
-| `max-width: 650px` | Hide header text, icon-only |
-| `max-width: 405px` | iPhone SE specific adjustments |
+See `notes/UI_LAYOUT.md` for the full layout map, key ID/class
+tables, and breakpoint specifics. The actual source files
+(`RoomCalculator.html`, `style.css`) are always the source of truth —
+the notes file is a quick map.
 
 ---
 
 ## Workspace Designer Integration
 
-The app exports to Cisco's Workspace Designer using `workspaceKey` mappings (lines 223-427). Each device type maps to a Workspace Designer object:
+The app exports to (and imports from) Cisco's Workspace Designer
+using `workspaceKey` mappings in `js/data/workspaceKey.js`. Quick
+coordinate mapping: VRC x = WD x, VRC y = WD z, VRC `data_zPosition`
+= WD y, VRC degrees = `-1 * radians`.
 
-```javascript
-workspaceKey.roomBar = {
-  objectType: 'videoDevice',
-  model: 'Room Bar',
-  color: 'light',
-  mount: "wall",
-  yOffset: 0.032
-};
-```
-
-**Coordinate System Differences:**
-- VRC x = Designer x
-- VRC y = Designer z
-- VRC data_zPosition = Designer y
-- VRC degrees = Designer -1*(radians)
+See `notes/WORKSPACE_DESIGNER.md` for the per-item mapping conventions
+and the VRC Group round-trip (per-member `"group": "<groupid>"` plus
+the room-level `data.vrc.groups[]` block).
 
 ---
 
 ## URL Encoding Format
 
-The shareable link uses a compressed format. **IMPORTANT:** Uppercase letters are item type prefixes, lowercase letters are item attributes. Do not confuse them.
+Shareable links are a compressed `?…` query string. Uppercase 2-char
+prefixes mark item types (`AB`=Room Bar, `MA`=Ceiling Mic Pro,
+`TA`=Rectangle Table, `WA`=Wall, etc.); lowercase letters encode item
+attributes (x is implicit, `a`=y, `b`=z, `c`=width, `d`=length,
+`f`=rotation, `m`=color, `s`=group ref, `ll`=layer ref, `~text~`=label).
+Room-level prefixes: `A` (unit/version), `B` (visibility flags),
+`C~ver~` (author version), `D`/`E`/`F`/`G` (walls), `L{n}` (layers),
+`H{n}` (groups). Encode/decode lives in `createShareableLink()` and
+`parseShortenedXYUrl()` in `js/roomcalc.js`.
 
-### URL Structure
-
-```
-?A1v0.1.631b2600c2000e0f300~RoomName~B10010100C~v1.0~D1a1E2F0G0AB150a200b90c53d6f450...
-```
-
-### Room-Level Parameters (appear once at start)
-
-| Code | Type | Meaning |
-|------|------|---------|
-| `A` | Prefix | Unit: `A0`=meters, `A1`=feet |
-| `v` | Prefix | Version string (e.g., `v0.1.631`) |
-| `b` | Param | Room width in mm (e.g., `b2600` = 2600mm) |
-| `c` | Param | Room length in mm |
-| `e` | Param | Software: `e0`=Webex, `e1`=MTR |
-| `f` | Param | Room height in mm (optional) |
-| `~text~` | Delim | Room name (URL encoded, spaces as `+`) |
-| `B` | Prefix | Visibility flags (8-digit binary string) |
-| `C~text~` | Prefix | Author version (optional) |
-
-### Visibility Flags (`B` prefix)
-
-`B` is followed by 8 binary digits (0 or 1):
-
-| Position | Meaning |
-|----------|---------|
-| 0 | Camera coverage visible |
-| 1 | Display distance visible |
-| 2 | Microphone coverage visible |
-| 3 | Grid lines visible |
-| 4 | Add ceiling (Workspace Designer) |
-| 5 | Remove default walls |
-| 6 | Labels visible |
-| 7 | Speaker coverage visible |
-
-Example: `B10010100` = camera on, display off, mic on, grid off, ceiling on, walls on, labels off, speaker off
-
-> **Note:** VRC layers are **not** encoded inside the `B` section. They are
-> emitted at the room level using the `L{num}` prefix (e.g., `L20~New+Layer~`).
-> See [Layer URL Encoding](#layer-url-encoding) below for the canonical spec.
->
-> Example URL fragment with two custom layers:
-> `...B100100000L20~New+Layer~L21~New+Layer+2~SA223a190`
-
-### Wall Configuration Prefixes
-
-| Prefix | Wall |
-|--------|------|
-| `D` | Left wall |
-| `E` | Right wall |
-| `F` | Video wall (front) |
-| `G` | Back wall |
-
-Wall values: `0`=regular, `1`=glass, `2`=window
-Sub-attributes: `a1`=acoustic treatment, `b0`/`b1`/`b2`=door position (left/center/right)
-
-Example: `D1a1b1` = Left wall is glass with acoustic treatment and center door
-
-### Item Type Prefixes (UPPERCASE)
-
-Each device/furniture type has a 2-character uppercase key:
-
-**Video Devices (A_):**
-| Key | Device |
-|-----|--------|
-| `AB` | Room Bar |
-| `AC` | Room Bar Pro |
-| `AD` | Room Kit EQX: Wall Mount |
-| `AE` | Room Kit EQ: Quad Camera |
-| `AF` | _Kit EQ: Quad Cam Extended (deprecated) |
-| `AG` | _Room Kit EQ: PTZ 4K Camera (deprecated) |
-| `AH` | _Room Kit EQ: Quad+PTZ Extended (deprecated) |
-| `AI` | Room Kit Pro: Quad Camera |
-| `AJ` | Board Pro 55* |
-| `AK` | Board Pro 75* |
-| `AL` | Board Pro 55 G2: Wall Mount |
-| `AM` | Board Pro 75 G2: Wall Mount |
-| `AN` | Desk [RoomOS] |
-| `AO` | Desk Pro |
-| `AP` | Desk Mini [RoomOS] |
-| `AQ` | Room 55* |
-| `AR` | Room Kit Mini* |
-| `AS` | Room Kit* |
-| `AT` | Virtual Lens Bar Pro |
-| `AU` | Room Kit EQX: Floor Stand |
-| `AV` | Board Pro 55 G2: Floor Stand |
-| `AW` | Board Pro 75 G2: Floor Stand |
-| `AX` | Room Kit EQX: Wall Stand |
-| `AY` | Board Pro 75 G2: Wheel Stand |
-| `AZ` | Board Pro 55 G2: Wheel Stand |
-| `BA` | Board Pro 55 G2: Wall Stand |
-| `BB` | Board Pro 75 G2: Wall Stand |
-
-**Cameras (C_):**
-| Key | Camera |
-|-----|--------|
-| `CA` | Precision 60 Camera* |
-| `CB` | _PTZ 4K Camera* (deprecated) |
-| `CC` | Quad Camera |
-| `CD` | _Quad Cam Extended (deprecated) |
-| `CE` | _Quad+PTZ Extended* (deprecated) |
-| `CF` | _Room Vision PTZ (deprecated) |
-| `CG` | _PTZ 4K & Bracket (deprecated) |
-| `CH` | Room Vision PTZ Cam & Bracket |
-| `CI` | PTZ 4K Cam & Bracket |
-
-**Microphones/Peripherals (M_):**
-| Key | Device |
-|-----|--------|
-| `MA` | Ceiling Microphone Pro |
-| `MB` | Table Microphone |
-| `MC` | Table Microphone Pro |
-| `MD` | Ceiling Microphone |
-| `ME` | Table Navigator |
-| `MF` | Wall Navigator |
-| `MG`-`MX` | Various peripherals (headsets, webcams, phones, etc.) |
-
-**Tables (T_):**
-| Key | Table Type |
-|-----|------------|
-| `TA` | Rectangle Table |
-| `TB` | Ellipse Table |
-| `TC` | Stadium Table |
-| `TD` | Boat Table |
-| `TE` | Trapezoid Table |
-| `TF` | Curved Table |
-
-**Walls/Shapes (W_):**
-| Key | Shape |
-|-----|-------|
-| `WA` | Wall |
-| `WB` | Glass Wall |
-| `WC` | Column Rectangle |
-| `WE` | Door Left |
-| `WF` | Door Right |
-| `WG` | Door Double |
-| `WH` | Box |
-| `WI` | Stage Floor |
-| `WJ` | Column Cylinder |
-| `WK` | Sphere |
-| `WL` | Path Shape |
-
-**Chairs (S_):**
-| Key | Chair Type |
-|-----|------------|
-| `SA` | Chair |
-| `SB` | Row of Chairs |
-| `SC` | Person Standing |
-
-**Displays (D_):** *(Note: `D` alone is also wall prefix - context matters)*
-| Key | Display Type |
-|-----|--------------|
-| `DA` | Single Display |
-| `DB` | Dual Display |
-| `DC` | Triple Display |
-| `DD` | Display 21:9 |
-
-### Item Attribute Codes (lowercase)
-
-After an item type prefix, lowercase letters encode attributes:
-
-| Letter | Attribute | Format | Notes |
-|--------|-----------|--------|-------|
-| *(none)* | x position | Number | First number after prefix (×100, in mm) |
-| `a` | y position | Number | ×100, in mm |
-| `b` | z position (elevation) | Number | ×100, in mm (data_zPosition) |
-| `c` | width | Number | ×100, in mm |
-| `d` | length | Number | ×100, in mm |
-| `e` | height | Number | ×100, in mm |
-| `f` | rotation | Number | ×10, in degrees |
-| `g` | diagonal inches | Number | Display size |
-| `h` | corner radius | Number | ×100, table corner radius |
-| `i` | corner radius right | Number | ×100, right side corner radius |
-| `j` | vertical height | Number | ×100, data_vHeight |
-| `k` | trapezoid narrow width | Number | ×100, data_trapNarrowWidth |
-| `l` | role | Index | Camera/display role (0-based index) |
-| `m` | color | Index | Device color (0-based index) |
-| `n` | hidden shading | Decimal | Bitfield for FOV/audio/display visibility |
-| `o` | tilt | Number | ×10, data_tilt |
-| `p` | slant | Number | ×10, data_slant |
-| `q` | mount | Index | Mount type (0-based index) |
-| `r` | path shape points | Numbers | Space-separated point values (×100, in mm) for pathShape |
-| `s` | group reference | Number | Points at the room-level `H{n}` block. Omitted when not in a group. When present, the per-item `ll` is also omitted (group's `ll` covers all members) |
-| `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` |
-| `~text~` | label | String | data_labelField (URL encoded) |
-
-**AVAILABLE for future ITEM use:** `t`, `u`, `v`. (`w`/`x`/`y`/`z`/`h` are used inside `H{n}` blocks for group geometry; the parser keys by `sid` so they could still be reused on items, but prefer `t`/`u`/`v` first.)
-
-**Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility), `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H` (groups). Available: `I`, `J`, `K`, `N`, `O`, `P`, `Q`, `R`, `U`, `V`, `X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix families.)
-
-### Layer URL Encoding
-
-VRC Layers (not Konva layers) are encoded at the **room level** using the `L` prefix:
-
-| Format | Meaning |
-|--------|---------|
-| `L0v0` | Default layer hidden (`visible=false`) — only emitted when non-default |
-| `L0k1` | Default layer locked (`locked=true`) — only emitted when non-default |
-| `L0v0k1` | Default layer hidden AND locked |
-| `L1v0` / `L1k1` / `L1v0k1` | Same flags applied to the Ceiling layer |
-| `L20~Name~` | Custom layer number 20, name "Name", visible=true, locked=false |
-| `L20v0~Name~` | Layer 20 with `visible=false` (sub-attribute `v0`) |
-| `L20k1~Name~` | Layer 20 with `locked=true` (sub-attribute `k1`) |
-| `L20v0k1~Name~` | Layer 20, hidden and locked |
-
-- Custom layers are numbered starting at **20** (L20, L21, …)
-- **L0 (Default)** and **L1 (Ceiling)** are reserved layers and are normally **implicit** (not encoded), to keep URLs short
-- Reserved layers L0 and L1 are encoded **only when they are at non-default state** — i.e., when `visible=false` OR `locked=true`. If a reserved layer is `visible=true` AND `locked=false`, it is omitted from the URL.
-- Reserved layer entries do **not** include a `~name~` block (their names are fixed: "Default", "Ceiling")
-- Numbers 2–19 are reserved for future built-in layers
-- Items reference their layer with `ll{number}` (e.g., `ll20`, `ll1` for Ceiling)
-- If an item has `ll{n}` but no matching `L{n}`, a layer named `"Layer {n}"` is auto-created
-- Layer `visible` defaults to `true`; only encoded if `false` (sub-attribute `v0`)
-- Layer `locked` defaults to `false`; only encoded if `true` (sub-attribute `k1`)
-
-### Example Decoded
-
-```
-AB150a200b90c53d6f450m1~My+Label~
-```
-
-| Part | Meaning |
-|------|---------|
-| `AB` | Room Bar (item type) |
-| `150` | x = 1.50m (150/100) |
-| `a200` | y = 2.00m |
-| `b90` | z = 0.90m (elevation) |
-| `c53` | width = 0.53m |
-| `d6` | length = 0.06m |
-| `f450` | rotation = 45° (450/10) |
-| `m1` | color index 1 (Carbon Black) |
-| `~My+Label~` | label = "My Label" |
-
-### Example with a Group + custom Layer
-
-```
-L20~Furniture~H1x140y180w180h300ll20~My+Group~AB150a200s1~Bar+A~MB300a400s1~Mic~
-```
-
-| Part | Meaning |
-|------|---------|
-| `L20~Furniture~` | Custom layer #20 named "Furniture" (visible, unlocked) |
-| `H1x140y180w180h300ll20~My+Group~` | Group #1: rect at (1.40, 1.80) m, 1.80 × 3.00 m, on layer 20, rotation 0, named "My Group" |
-| `AB150a200s1~Bar+A~` | Room Bar at (1.5, 2.0) m, member of group 1 (no `ll` — inherited from H1's `ll20`) |
-| `MB300a400s1~Mic~` | Table Microphone at (3.0, 4.0) m, also member of group 1 |
-
-After parse: `roomObj.groups[0]` gets `x`/`y`/`width`/`height` directly from the H block (rect renders correctly on frame 1), and `data_layerId = <Furniture layerid>`. Both items inherit the same `data_layerId` via `s1`. `groupMembers` is rebuilt post-pass. `data_zPosition` defaults to `0` (omitted from H block).
-
-### Key Functions
-
-| Function | Line | Purpose |
-|----------|------|---------|
-| `createShareableLink()` | 5039 | Builds complete URL |
-| `createShareableLinkItem()` | ~5220 | Encodes single item |
-| `createShareableLinkItemShading()` | 5346 | Encodes `B` visibility flags |
-| `parseShortenedXYUrl()` | 2734 | Decodes URL back to roomObj |
-
-### Adding New Attributes
-
-When adding new item attributes:
-1. Use next available lowercase letter (`t`, `u`, etc.)  — `r` is taken by path points, `s` is taken by group reference, `ll` is taken by layer number
-2. Only encode non-default values to save URL space
-3. Update both `createShareableLinkItem()` and `parseShortenedXYUrl()`
-4. Ensure backwards compatibility (old URLs without new attribute use defaults)
-
-### Group URL Encoding
-
-VRC Groups serialize via the room-level `H{n}` prefix and the per-item
-`s{n}` reference. `H` blocks are emitted after `L` (layer) blocks and
-before items, so `ll` and `s` references resolve in-order.
-
-#### Format
-
-`H{num}x{x×100}[y{y×100}][z{z×100}]w{w×100}[h{h×100}][ll{layerNum}][f{rot×10}]~name~`
-
-| Attr | Meaning | Omitted when |
-|------|---------|--------------|
-| `x{n}` / `w{n}` | Group rect X / width (×100) | always emitted |
-| `y{n}` / `h{n}` | Group rect Y / height (×100) | `0` |
-| `z{n}` | `data_zPosition` (×100) | `0` |
-| `ll{n}` | Layer ref (same numbering as item `ll`) | Default layer (`'0'`) |
-| `f{n}` | Rotation (×10, degrees) | `0` |
-| `~text~` | Group name (URL-encoded) | always emitted |
-
-`groupMembers` is rebuilt post-parse from items whose `data_groupId`
-matches the group's `groupid`, so `H` block / item ordering doesn't matter.
-
-#### Item rule: `s` suppresses `ll`
-
-When an item is in a group, the encoder emits `s{n}` and **omits** the
-per-item `ll` — the group's `H` block already encodes the layer, and
-members always share their group's layer (`createGroup()` /
-`updateItemLayer()` enforce this). The decoder inherits `data_layerId`
-from the group when only `s` is present; if a hand-edited URL has both,
-per-item `ll` wins. Items NOT in a group emit `ll` as before.
-
-#### Why x/y/z/w/h are explicit (not derived)
-
-Item `Konva.Image` nodes are added to their parent groups inside the
-async `imageObj.onload` callback (see line ~15042). So at draw time,
-`getGroupMemberNodes()` returns empty and any bounds recompute bails
-out. Encoding bounds directly in the URL renders the rect correctly on
-frame 1 and makes JSON ↔ URL roundtrip lossless. `updateGroupBounds()`
-is still called in `roomObjToCanvas()` as a defensive recompute, but
-**only when `g.width` or `g.height` is missing** — so partial-load
-races (cached images) can't clobber correct URL-supplied bounds.
-
-#### Numbering
-
-`_groupUrlEncodeMap = {}` (groupid → 1, 2, 3, …) is rebuilt each
-`createShareableLink()` call. Flat, no reserved range. Empty groups are
-skipped on encode and dropped on decode.
-
-#### Backwards compat
-
-Old URLs without `H` / `s` load cleanly into a room with no groups.
-Layer encoding is unchanged.
-
-#### Implementation cross-reference
-
-| Concern | Location |
-|---------|----------|
-| Encoder map | `_groupUrlEncodeMap` global next to `_layerUrlEncodeMap` |
-| Encoder room-level | `createShareableLink()` — after `L{n}` block |
-| Encoder item-level + `ll` suppression | `createShareableLinkItem()` — before label tilde |
-| Parser room-level | `parseShortenedXYUrl()` — `else if (item.sid === "H")` branch |
-| Parser item-level | `parseShortenedXYUrl()` — `if ('s' in item)` after per-item `ll` |
-| Post-parse member rebuild | `parseShortenedXYUrl()` — before `return output;` |
-| Defensive bounds rebuild | `roomObjToCanvas()` — guarded by `if (!g.width \|\| !g.height)` |
+See `notes/URL_ENCODING.md` for the full attribute table, the
+complete item-prefix tables, the `B` visibility-flag positions, the
+`L{n}` layer encoding, the `H{n}` group encoding (incl. why x/y/z/w/h
+are explicit and not derived), worked examples, and the encoder /
+parser cross-reference table.
 
 ---
 
@@ -987,90 +608,30 @@ Hook points:
  See `copyToCanvasClipBoard()` and `pasteItems()` for the
  implementation.
 - **URL encoding** — `H{n}` room-level prefix for group definitions plus
- `s{n}` on items. See "Group URL Encoding" in the URL Encoding Format
- section above for the format and the implementation cross-reference
- table.
+ `s{n}` on items. See the "Group URL Encoding" section in
+ `notes/URL_ENCODING.md` for the format and the implementation
+ cross-reference table.
 - **Workspace Designer round-trip** — items carry their `data_groupId`
  on the WD JSON as a `"group": "<groupid>"` string attribute, and the
  Group rect's geometry / metadata round-trips via
- `workspaceObj.data.vrc.groups[]`. See "Workspace Designer Group
- Round-Trip" below for the format and the implementation
- cross-reference table.
+ `workspaceObj.data.vrc.groups[]`. See the stub immediately below and
+ `notes/WORKSPACE_DESIGNER.md` for the full format and the
+ implementation cross-reference table.
 
 ### Workspace Designer Group Round-Trip
 
-VRC Groups round-trip cleanly through the Workspace Designer JSON
-format. The Workspace Designer has no native concept of a Group item,
-so the round-trip uses two parallel pieces:
+Groups round-trip through Workspace Designer via two parallel pieces:
+each member item carries a plain `"group": "<groupid>"` string
+attribute on its `customObjects[]` entry, and the Group rect itself
+(geometry + metadata + `layerName`) is stashed in
+`workspaceObj.data.vrc.groups[]` (always meters, VRC top-left
+coords — same convention as `data.vrc.backgroundImage`). On import,
+`groupMembers` is rebuilt by scanning items for `data_groupId`
+references; empty groups are filtered.
 
-1. **Per-member item attribute** — every `customObjects[]` member of a
-   group carries a plain `"group": "<groupid>"` string attribute (the
-   same UUID that lives in the source `roomObj.groups[].groupid` and
-   `item.data_groupId`). WD preserves arbitrary string attributes on
-   custom objects, so this survives a save/reload through the WD UI
-   even though WD doesn't render anything special for it.
-
-2. **Room-level group block in `data.vrc.groups`** — the Group rect's
-   geometry and metadata are stashed in VRC's own JSON namespace under
-   `workspaceObj.data.vrc.groups[]`, alongside the existing
-   `data.vrc.backgroundImage` block. **Always meters**, **VRC top-left
-   coordinates** (no `roomX`/`roomY` shift, no centring on
-   `roomWidth/2, roomLength/2`), so it lines up with the items the
-   importer reconstructs at VRC top-left coords:
-
-```json
-{
-  "groupid": "uuid",
-  "name": "Group 1",
-  "x": 1.5,
-  "y": 3.84,
-  "width": 2.5,
-  "height": 3.5,
-  "rotation": 0,
-  "data_zPosition": 0,
-  "layerName": "Furniture"
-}
-```
-
-`layerName` is omitted when the group is on the Default layer
-(`data_layerId === '0'`), mirroring the per-item `layer` convention.
-Layer NAMES (not UUIDs) are emitted so the JSON is human-readable and
-stable across round-trips that may regenerate layer UUIDs.
-`groupMembers` is **never emitted** — it's rebuilt on import by
-scanning items for `data_groupId` references (same pattern the URL
-parser uses post-parse). Empty groups are skipped on export and
-filtered on import.
-
-#### Coordinate model
-
-Items in `customObjects[]` go through the full WD coordinate transform
-(swap X/Z, centre on `roomWidth/2, roomLength/2`, apply `roomX`/`roomY`
-offsets via `convertToMeters()`). Groups in `data.vrc.groups[]` do
-**not** — they stay in VRC top-left meters. The asymmetry is deliberate
-and matches the existing `data.vrc.backgroundImage` block. On import
-both flows reconstruct items + groups in VRC top-left coords, so they
-align.
-
-#### Items in hidden VRC layers
-
-`removeHiddenLayerItemsForExport()` already drops items in hidden layers
-from `customObjects[]` before export. Groups always share their
-members' layer (`createGroup()` / `updateItemLayer()` enforce this), so
-a group on a hidden layer has all its members dropped and ends up
-filtered by the empty-group rule on import. No extra handling needed
-on the export side — the empty group survives in
-`data.vrc.groups[]` but is dropped on the post-parse rebuild.
-
-#### Implementation cross-reference
-
-| Concern | Location |
-|---------|----------|
-| Per-item `group` attribute encoder | `setGroupOnWorkspaceItem()` inside `exportRoomObjToWorkspace()` (mirror of `setLayerOnWorkspaceItem()`) |
-| Per-item `group` attribute call sites | All four push helpers (`workspaceObjItemPush`, `workspaceObjDisplayPush`, `workspaceObjTablePush`, `workspaceObjWallPush`) call `setGroupOnWorkspaceItem(workspaceItem, item)` immediately before `workspaceObj.customObjects.push(workspaceItem)` |
-| `data.vrc.groups[]` encoder | `exportRoomObjToWorkspace()` — block immediately after the `data.vrc.backgroundImage` emit. Reads `roomObj.groups` directly (not `roomObj2.groups` — `convertToMeters()` drops `groups` from the clone) and applies `groupRatio = (roomObj.unit === 'feet') ? (1/3.28084) : 1` |
-| Per-item `group` attribute decoder | `wdItemToRoomObjItem()` — `if ('group' in wdItem)` block immediately after the `wdItem.layer` extraction. Strips the key from `wdItem` so it doesn't leak into `data_labelField` |
-| `data.vrc.groups[]` decoder + post-parse member rebuild | `importWorkspaceDesignerFile()` — block immediately after the `data.vrc.backgroundImageFile` import. Calls `ensureGroups(roomObj2)`, then walks `data.vrc.groups[]` and pushes new entries into `roomObj2.groups`, then mirrors the URL parser's `roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length)` rebuild |
-| Group rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group') return;` so group rects never enter `roomObj.items.*` and therefore never reach the WD push helpers |
+See `notes/WORKSPACE_DESIGNER.md` for the JSON shape, the coordinate
+asymmetry between items and groups, hidden-layer handling, and the
+implementation cross-reference table.
 
 ---
 
@@ -1193,432 +754,53 @@ The per-item single-item toggles (`toggleMicShadingSingleItem`, `toggleSpeakerSh
 
 ## File Import & xConfiguration .txt Support
 
-VRC supports importing **three** distinct file formats through the same UI (open-file picker and drag-and-drop). Detection is done by **content**, not file extension.
-
-### Detection Pipeline
-
-`routeUploadedFileText(text, fileName)` is the single entry point for both upload paths:
-
-1. Try `JSON.parse(text)` → if it succeeds and the result is an object, hand it to `importJson()` (which routes between VRC JSON and Workspace Designer JSON internally based on the presence of `room` vs `customObjects`).
-2. If JSON parsing fails, test the text against the OR-alternation regex `/^((?:\*c )?xConfiguration\b)|(Audio\sPeripherals\sMicrophone\s1\sPlacement)|(Cameras\sCamera\s1\sPlacement\sRX)/m` — which detects all three xConfig line formats (see below). If matched, call `importXConfigFile(text, fileName)`.
-3. Otherwise, show an alert that the file format is unrecognized.
-
-The optional `*c ` prefix is what makes xConfig files **round-trippable**: a file produced by `Ctrl+Shift+E` (no prefix) re-imports cleanly through the same code path used for raw RoomOS dumps (with prefix).
-
-The `<input type="file" id="fileUpload">` accept attribute is `.json,.txt` so both formats appear in the picker dialog.
-
-### Cisco xConfiguration .txt Files
-
-These are configuration dumps from a Cisco RoomOS endpoint. Three line formats are detected and parsed — only **camera placements** and **microphone placements** are imported; every other line is ignored.
-
-**Three accepted xConfig line formats:**
-
-| Format | Example | Source |
-|--------|---------|--------|
-| 1. Raw RoomOS SSH dump | `*c xConfiguration Cameras Camera 1 Placement RX: 112` | SSH session output |
-| 2. App export (no `*c`) | `xConfiguration Cameras Camera 1 Placement RX: 112` | `Ctrl+Shift+E` export from this app |
-| 3. Bare config dump | `Cameras Camera 1 Placement RX: 112` | Device configuration export tools (no `xConfiguration` keyword) |
-
-Detection (step 2 above) uses an OR alternation: formats 1 & 2 are caught by the `xConfiguration` arm; format 3 is caught by the `Audio Peripherals Microphone 1 Placement` or `Cameras Camera 1 Placement RX` arms.
-
-In `parseXConfigText()`, all five parser regexes wrap the optional prefix in a **capturing** group (group 1, may be `undefined`) so the data groups are consistently numbered across all regexes: group 2 = device number, group 3 = field name, group 4 = integer value.
-
-#### Microphone xConfig Variants
-
-Two microphone-placement formats are recognized in the same parser:
-
-| Format | Example line | RoomOS |
-|--------|--------------|--------|
-| **New** (`Audio Peripherals Microphone`) | `*c xConfiguration Audio Peripherals Microphone 1 Placement X: -1809` plus a `Microphone N ID: "<mac>"` line | RoomOS 11+ |
-| **Legacy** (`Audio Input Ethernet`) | `*c xConfiguration Audio Input Ethernet 2 Placement X: -83` plus an `Ethernet N StreamName: "<mac>"` line | older RoomOS |
-
-The mic *number* (the `N` in either format) is preserved into the VRC label. If both formats appear for the same `N`, the new format **wins** — the legacy entry is discarded entirely. This is handled inside `ensureMic(n, source)` in `parseXConfigText()` via a `source: 'new' | 'old'` tag stored on each parsed mic entry.
-
-Empty-slot detection differs by format because the defaults differ:
-- **New format**: defaults are `X = Y = Z = 0` → skip when *all three* are zero.
-- **Legacy format**: default is `X = 0, Y = 730, Z = 0` (typical table-mic height) with empty `StreamName` → skip when *both X and Z* are zero (Y is allowed to be non-zero).
-
-#### Coordinate Model
-
-The xConfiguration coordinate frame is **relative to the Quad Camera's reference origin**. The X axis is taken as already centered on the Quad Camera's lens center, so **no X offset is applied** during import or export. The Z axis is offset from the lens by `+5 cm`, so a `−0.05 m` correction is applied on import (and re-added on export).
-
-| xConfig axis | Direction | Units | VRC mapping |
-|--------------|-----------|-------|-------------|
-| `X` | Right of Quad Cam | mm | VRC X (no offset — used directly as `relX` from the Quad Cam) |
-| `Y` | Up from floor | mm | VRC `data_zPosition` (elevation) |
-| `Z` | Forward into the room | mm | VRC Y (depth) (after `- 0.05 m` offset) |
-| `RX/RY/RZ` | Rotation around X/Y/Z | deci-degrees (value/10 = degrees) | RY → VRC `rotation` (negated, since xConfig is right-handed CCW and VRC is CW from north) |
-
-#### Device Mapping Rules
-
-| xConfig device | VRC device | Notes |
-|----------------|------------|-------|
-| `Cameras Camera 1` with `\|X\|` ≤ 10 mm AND `\|Z\|` ≤ 10 mm | `roomKitEqQuadCam` | Camera 1 sitting at (or within 10 mm of) the xConfig origin = the Quad Camera. Imported as Room Kit EQ: Quad Camera (same dimensions as `quadCam` via `cameraParent`) and treated as the reference frame for everything else |
-| `Cameras Camera 1` with `\|X\|` > 10 mm OR `\|Z\|` > 10 mm | `ptzVision2` | A Room Vision PTZ wired into the Camera 1 slot. Imported at its actual coordinates (label still "Camera 1"); the room then has no Quad Camera |
-| `Cameras Camera 2..N` | `ptzVision2` | Room Vision PTZ |
-| `Audio Peripherals Microphone N` with Y < 1.5 m | `tableMicPro` | Below 1.5 m elevation = on a table |
-| `Audio Peripherals Microphone N` with Y ≥ 1.5 m | `ceilingMicPro` | At or above 1.5 m = ceiling-mounted |
-
-**Cameras with `Placement Y = 0` are skipped** (applies to **all** camera slots including Camera 1). xConfig's `Y` is the camera's height above the floor in mm, and a value of `0` means "no height configured" — the default for an empty slot. This catches both the fully‑empty slots (`X = Y = Z = 0`, like Cameras 2..6 in a typical Codec EQ) **and** stale, partially‑configured ghosts that have non‑zero `X` / `Z` but `Y = 0` (e.g. a Camera 7 left over from a removed device). This matches the behavior of Cisco's official xConfig placement tool.
-
-Mics with `X = Y = Z = 0` are also skipped (those slots exist in xConfig even when no mic is actually placed). The legacy `Audio Input Ethernet` mic format defaults to `X = 0, Y = 730, Z = 0`, so for that format the importer instead drops entries where both `X` and `Z` are zero.
-
-#### Camera-only / Microphone-only Imports
-
-Both flavours are supported — the importer no longer aborts when one of the two device classes is missing.
-
-| File contents | Behaviour |
-|---------------|-----------|
-| Cameras + microphones | Normal import, no notice |
-| Cameras only (no mics) | Imports normally, then shows an `alertDialog` with the message **"Calibrated microphone missing"** |
-| Microphones only (no cameras) | Imports normally, then shows an `alertDialog` with the message **"Cinematic meeting camera missing"** |
-| Neither | Aborts with a generic "no cameras or microphones to place" alert (nothing to draw) |
-
-The notice is fired ~3.2 s after import begins so it lands cleanly after the loading modal dismisses (rather than being stacked behind it). When there is no Quad Camera in the room, the implicit xConfig origin (0, 0) still anchors at `(roomWidth / 2, 0.10 m)` so the room geometry math is unchanged — peripherals are positioned around the same reference point they would have been if the Quad Cam were physically there.
-
-#### Special Quad Camera Handling
-
-- Placed at xConfig (0, 0) by definition — its VRC center lands at `(vrcOriginX, vrcOriginY)` where the **xConfig XYZ tracking columns** described below intersect.
-- Elevation: `(xConfig Y / 1000) − 0.05 m`. The xConfig Y for the Quad Camera reports "base + ~5 cm", so we subtract 0.05 m to get the actual mounting elevation.
-- The X/Z xConfig values for the Quad Camera are typically 0 by definition (it's the reference frame). When the user later moves the Quad Cam off-origin in the VRC, the tracking columns preserve the original origin so the move is reflected as a non-zero offset on the next export rather than silently shifting every other peripheral.
-
-> **Historical note**: In earlier versions the Quad Cam was force-placed at `(roomWidth/2, 0.10 m)` and the room was sized symmetrically around it. As of the bounding-box rework, no device is locked to a specific room location — the room is sized to fit the device bounding box with a 0.15 m wall buffer (see [Room Sizing](#room-sizing) below) and items are translated as a group via `vrcOriginX` / `vrcOriginY`.
-
-#### xConfig XYZ Tracking Columns
-
-After every successful import, two thin `columnRect` items are dropped into `roomObj.items.tables[]` to mark the xConfig coordinate origin in VRC space:
-
-| Column | id prefix | data_labelField | x | y | rotation | width | height |
-|--------|-----------|-----------------|---|---|----------|-------|--------|
-| **Blue** (X = 0 axis) | `xConfig-x-0-<uuid>` | `{"color":"blue", "opacity":0.03}` | vrcOriginX | 0 | 0 | 0.01 m | roomLength |
-| **Red** (Z = 0 axis) | `xConfig-z-0-<uuid>` | `{"color":"red", "opacity":0.03}` | 0 | vrcOriginY | -90 | 0.01 m | roomWidth |
-
-Where `vrcOriginX` and `vrcOriginY` are the VRC coordinates of xConfig (0, 0) — derived from the bounding-box translation in [Room Sizing](#room-sizing). The columns are **not** guaranteed to be centered in the room; they sit wherever xConfig (0, 0) lands relative to the imported devices.
-
-Both columns are assigned to a dedicated **`xConfig XYZ` layer** that is created **locked** by default so the user can't accidentally drag them around. The layer is `visible: true` so the planes render as faint guide lines in Workspace Designer (the JSON `color`/`opacity` in `data_labelField` is read by `parseDataLabelFieldJson()` during the WD export).
-
-The exporter reads:
-- `blueColumn.x` ⇒ xConfig X = 0 origin in VRC meters
-- `redColumn.y`  ⇒ xConfig Z = 0 origin in VRC meters
-
-If both columns are present, they take priority over Camera 1 for the origin computation. Camera 1 then emits its own xConfig (X, Z) **relative to the columns** — so dragging Camera 1 produces a non-zero offset rather than shifting the whole frame. Note that Camera 1 still does **not** add the `+0.05 m` Z offset (peripherals do), preserving the round-trip property where a Quad Cam at the column intersection emits `Camera 1 X=0, Z=0`.
-
-Column id matching is **case-insensitive** so older saves using the lowercase `xconfig-x-…` form (see the example `xconfig with xyz planes.vrc.json`) still round-trip cleanly. If either column is missing the exporter falls back to the legacy "Camera 1 = origin" path; if Camera 1 is also missing it falls back to the implicit `(roomWidth/2, 0.10 m)` origin.
-
-#### Special Room Vision PTZ Handling
-
-Room Vision PTZ cameras (`ptzVision2`) get an additional `−0.15 m` correction on their elevation only. The xConfig Y for these cameras reports the **mount point** (~15 cm above the lens), so we subtract 0.15 m to recover the lens elevation that VRC stores in `data_zPosition`. The export reverses this with a `+0.15 m` correction.
-
-This offset is **not** applied to the Quad Camera (which uses its own 0.05 m correction) or to microphones (which already report lens-equivalent height directly).
-
-#### Room Sizing
-
-Room dimensions are derived from the **bounding box** of every imported device, with a **0.15 m buffer** to the walls on every side. No device is locked to a specific room location — the items are placed as a group and translated into the room.
-
-```
-For each device, in xConfig-frame meters:
-   leftEdge   = relX − halfWidth
-   rightEdge  = relX + halfWidth
-   topEdge    = relY − halfDepth
-   bottomEdge = relY + halfDepth
-   topOfDevice = elevationM + deviceHeightM
-
-bbox dimensions (after taking min/max across all devices):
-   bboxWidth  = (maxRightEdge  − minLeftEdge)  + 2 × 0.15 m
-   bboxLength = (maxBottomEdge − minTopEdge)   + 2 × 0.15 m
-
-Apply minimums:
-   roomWidth   = max(3 m, bboxWidth)
-   roomLength  = max(3 m, bboxLength)
-   roomHeight  = max(2 m, max over devices of topOfDevice)
-```
-
-`deviceHeightM` reads from `allDeviceTypes[deviceId].height` (in mm) — e.g. `ceilingMicPro` = 48 mm, `quadCam` = 120 mm, `ptzVision2` = 193 mm. If a device type has no height listed, a **0.05 m (50 mm)** fallback is used. `halfWidth` / `halfDepth` come from the same table; rotation is intentionally ignored when computing extents (a 90°-rotated device would actually project its `halfDepth` onto the X axis, but the worst-case error is a few cm so it's not worth the math).
-
-When the bounding box is **smaller** than the 3 m × 3 m floor, the extra slack splits **evenly** between opposing walls (Option B) so items remain visually centered in the larger room rather than anchored in one corner. The translation that achieves this:
-
-```
-slackX = roomWidth  − bboxWidth        (≥ 0)
-slackY = roomLength − bboxLength       (≥ 0)
-vrcOriginX = 0.15 m + slackX/2 − minLeftEdge
-vrcOriginY = 0.15 m + slackY/2 − minTopEdge
-
-For each device:    centerX = vrcOriginX + relX
-                    centerY = vrcOriginY + relY
-For tracking columns:
-   blueColumn.x    = vrcOriginX
-   redColumn.y     = vrcOriginY
-```
-
-All three room values are rounded **up** to 2 decimal places so the user sees tidy numbers in the UI.
-
-#### Device Naming
-
-| Device | `data_labelField` |
-|--------|-------------------|
-| Camera 1 (Room Kit EQ: Quad Camera) | `Camera 1` |
-| Camera 2..N | `Camera N` |
-| Microphone N (any format, with ID) | `Microphone N ID: <id>` (e.g. `Microphone 1 ID: 50:00:e0:32:ec:cd`) — applied to **both** `tableMicPro` and `ceilingMicPro` and **both** xConfig variants (new `Audio Peripherals Microphone` *and* legacy `Audio Input Ethernet` StreamName), so labels are consistent across the room and round-trip cleanly through xConfig export |
-| Microphone N without ID/StreamName | `Microphone N` |
-
-#### Implementation Files
-
-- Parser: `parseXConfigText()` in `js/roomcalc.js` — pure function, takes the raw text and returns `{ cameras: [...], microphones: [...] }` arrays.
-- Importer: `importXConfigFile(text, fileName)` in `js/roomcalc.js` — applies all the coordinate math, builds a fresh `roomObj2`, and uses the same timing pattern as `importWorkspaceDesignerFile()` (set up roomObj2 → `setTimeout(1500ms)` → `drawRoom()` → `setTimeout(500ms)` → `canvasToJson()` + `createShareableLink()`).
-
-### Exporting to xConfiguration
-
-`exportXConfigFile()` is the inverse of `importXConfigFile()`. It is bound to **`Ctrl/Cmd+Shift+E`** (the existing `Ctrl/Cmd+E` exports to Workspace Designer; the extra `Shift` selects the xConfig variant). The output is a `.xconfig.txt` file download with no `*c` prefix on any line — it is meant to be sent over RoomOS's command interface, not parsed back as a SSH log.
-
-#### Reverse coordinate math
-
-For each item, `attrs.x` / `attrs.y` is the rotation-aware **center** in current units (set by `canvasToJson()` via `getNodeCenter()`). The exporter calls `canvasToJson()` first to ensure those values are fresh, then converts to meters via `unitToM = (roomObj.unit === 'feet') ? 1/3.28084 : 1`, then:
-
-```
-xConfigX_mm  = round(relX × 1000)                 for peripherals (always 0 for Quad Cam)
-xConfigZ_mm  = round((relY + 0.05) × 1000)        for peripherals (always 0 for Quad Cam)
-xConfigY_mm  = round(elevationM × 1000)           for microphones
-xConfigY_mm  = round((elevationM + 0.05) × 1000)  for the Quad Cam (re-adds the +5 cm mount offset)
-xConfigY_mm  = round((elevationM + 0.15) × 1000)  for Room Vision PTZ (re-adds the +15 cm mount offset)
-xConfigRY    = round(-rotationDeg × 10)           VRC CW degrees → xConfig CCW deci-degrees (negate)
-```
-
-`relX` / `relY` are computed against the Quad Camera's own center, so the shared reference frame matches what the importer expects.
-
-`RX` and `RZ` are emitted as `0` for every camera — VRC does not currently track tilt or slant for cameras imported from xConfig, so there's nothing to round-trip.
-
-#### Device coverage
-
-Only the device types the importer understands are emitted. Anything else in the room is silently skipped:
-
-| roomObj item | xConfig section |
-|--------------|-----------------|
-| `roomKitEqQuadCam` *or* `quadCam` (always Camera 1) | `Cameras Camera 1 Placement *` |
-| `ptzVision2` | `Cameras Camera N Placement *` (N ≥ 2) |
-| `ceilingMicPro`, `tableMicPro` | `Audio Peripherals Microphone N *` |
-| anything else (chairs, tables, displays, walls, …) | skipped |
-
-The exporter accepts either id as Camera 1 because the importer emits `roomKitEqQuadCam` while older saves may still contain a bare `quadCam` — both are recognised via the `QUAD_DEVICE_IDS` set. **The Quad Camera is optional**: a room with only PTZ cameras and/or only microphones can still be exported. When no Quad Cam is present, the implicit xConfig origin is anchored at `(roomWidth / 2, 0.10 m)` (matching the importer's behaviour), so a no-Quad-Cam export round-trips cleanly back through the importer.
-
-#### Strict label-format checks
-
-Every device must carry a `data_labelField` that matches the expected pattern, otherwise it is **silently skipped** (and counted for the summary dialog described below):
-
-| Device class | Required label | Matched by |
-|--------------|----------------|------------|
-| Cameras (Quad and PTZ) | `Camera <#>` (e.g. `Camera 7`) | `/^Camera\s+(\d+)\s*$/i` |
-| Microphones | `Microphone <#> ID: <id>` (e.g. `Microphone 2 ID: 50:00:e0:32:ec:cd`) | `/^Microphone\s+(\d+)\s+ID:\s*(\S.*?)\s*$/i` |
-
-Notes:
-- The legacy `Microphone <#> <streamname>` shape produced by older imports does **not** match (no literal `ID:` marker) and gets skipped — fix the labels by hand or re-import the source xConfig with the new format.
-- A PTZ camera labelled `Camera 1` claims a number reserved for the Quad Cam, so it gets bumped to the next free number rather than skipped.
-- The Quad Camera's position is used as the reference frame **even if its label is malformed** (so the other peripherals' relative coords stay correct); the only thing the label gate controls is whether the Camera 1 line itself is emitted.
-
-#### Post-export summary dialog
-
-Whenever the export emits at least one item, a final `alertDialog` summarises the result:
-
-```
-An xConfiguration file was successfully exported with 2 cameras and 3 microphones.
-```
-
-If any items were skipped due to a malformed label, a second sentence is appended explaining how many were dropped and what the required label format is:
-
-```
-An xConfiguration file was successfully exported with 2 cameras and 3 microphones.
-
-1 camera and 2 microphones were not exported because the name label did not match the required format. Cameras must be labelled `Camera <#>` (e.g. `Camera 7`) and microphones must be labelled `Microphone <#> ID: <id>` (e.g. `Microphone 2 ID: 50:00:e0:32:ec:cd`).
-```
-
-If the exported file ends up with **only one device class** (cameras but no microphones, or microphones but no cameras), a yellow `⚠️` warning is appended to the dialog so the imbalance can't be missed:
-
-```
-An xConfiguration file was successfully exported with 2 cameras and 0 microphones.
-
-⚠️ Microphone missing — a Cisco room should include at least one microphone alongside the camera(s).
-```
-
-Both warnings can appear in the same dialog (e.g. label-skipped items leaving a class empty fires the format explainer **and** the ⚠️ missing-class line).
-
-Pluralisation handles 0/1/2+ correctly via `describeCounts()`; the helper omits a clause entirely when its count is 0 (e.g. only-cameras: "with 2 cameras"). When **no** items have valid labels the export aborts before writing the file and shows the same explainer in a "No cameras or microphones could be exported." dialog instead.
-
-#### Number preservation (round-trip integrity)
-
-Cameras and microphones get their numbers from `data_labelField` when possible:
-
-- A label like `"Camera 7"` → `Cameras Camera 7 ...`
-- A label like `"Microphone 3 ID: 50:00:e0:32:ec:cd"` → `Audio Peripherals Microphone 3 ID: "50:00:e0:32:ec:cd"`
-- Imported labels are always normalized to `Microphone N ID: <id>` regardless of source variant, so the export side always sees the same shape.
-
-Numbers already taken (e.g. by another item with the same explicit label number) get bumped via a `nextFreeNumber()` helper. Items without an extractable number are assigned the lowest free number starting at 2 (cameras) or 1 (microphones).
-
-#### Output format
-
-Always written in the **new** format (`Audio Peripherals Microphone N`). The legacy format (`Audio Input Ethernet N`) is only supported on import. Each device block ends with a blank line so the file is easy to scan.
+VRC supports importing **three** distinct file formats through the
+same UI (open-file picker and drag-and-drop): VRC JSON, Workspace
+Designer JSON, and Cisco xConfiguration `.txt`. Detection is done by
+**content** (in `routeUploadedFileText()`), not file extension.
+
+The xConfig variant is bidirectional — `Ctrl/Cmd+Shift+E` writes a
+matching `.xconfig.txt` that re-imports cleanly through the same
+parser (`parseXConfigText()`).
+
+See `notes/XCONFIG.md` for the full detection pipeline, the three
+xConfig line formats, the coordinate model + Quad Camera handling,
+the xConfig XYZ tracking columns, room-sizing rules, and the export
+contract (label format checks, summary dialog, etc.).
 
 ---
 
 ## CAD DXF Export
 
-Exports the room as an AutoCAD‑compatible **DXF** file via the **Save** dialog → **Export CAD DXF (meters)** menu item, or the keyboard shortcut **`Ctrl+Shift+D`** (`Cmd+Shift+D` on macOS). The file is named `<RoomName>_YYYY-MM-DDTHHMMSS.SSS.dxf` and downloaded straight to the browser.
+Exports the room as an AutoCAD R12 (AC1009) `.dxf` file via the
+**Save** dialog → **Export CAD DXF (meters)** menu item, or
+**`Ctrl/Cmd+Shift+D`**. Always meters, always AIA / NCS layer scheme.
+Implementation lives in `js/dxfWriter.js`, `js/dxfBlockLibrary.js`,
+and `exportDxfFile()` in `js/roomcalc.js`.
 
-### Format: AutoCAD R12 (AC1009)
-
-Targeting R12 (the oldest text DXF version) gives the broadest compatibility — every CAD tool tested reads it cleanly: AutoCAD desktop, **AutoCAD Web App** (which is unusually strict about subclass markers in newer versions), BricsCAD, DraftSight, LibreCAD, QCAD, FreeCAD, online viewers. Files round‑trip cleanly to R2000/R2018 in tools that prefer those versions.
-
-R12 limits the entity vocabulary; the writer adapts as follows:
-- `LWPOLYLINE` → emitted as `POLYLINE` + `VERTEX` × N + `SEQEND` (still supports per‑vertex bulge for arc segments).
-- `ELLIPSE` → tessellated to a 64‑point closed `POLYLINE` approximation.
-- `CIRCLE`, `ARC`, `LINE`, `TEXT`, `INSERT`, `BLOCK` are emitted natively.
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `js/dxfWriter.js` | Zero‑dependency text‑DXF writer. Owns handle allocation, HEADER vars, full TABLES section (VPORT, LTYPE, LAYER, STYLE, VIEW, UCS, APPID, DIMSTYLE), reserved `$Model_Space` / `$Paper_Space` blocks, user blocks and entities. Public API: `addLayer()`, `addLineType()`, `addBlock()`, plus `line()`, `lwpolyline()` / `polyline()`, `circle()`, `arc()`, `ellipse()`, `text()`, `insert()`, `toString()`. Also exposes static helpers `DxfWriter.tessellateSvgPath(d, samples)` and `DxfWriter.roundedRectPoints(w, h, r)`. |
-| `js/dxfBlockLibrary.js` | AIA / NCS layer scheme, item‑category → layer mapping, and starter library of vector blocks. Each block is centered at the origin with the device's "front" facing **+Y**, so `dxf.insert(name, x, y, { rotation })` rotates around the centroid. |
-| `exportDxfFile()` in `js/roomcalc.js` | Orchestrator. Calls `canvasToJson()` first, then walks `roomObj`, emits the perimeter wall, registers VRC layer mirrors, and emits each item via `emitItem()` / `emitFootprintItem()` / `emitDisplay()` / `emitPathShape()`. |
-
-### Coordinate system
-
-- **Units**: meters (always). VRC items in feet are converted via `convertToMeters()` before serialization.
-- **Origin**: room's lower‑left corner at `(0, 0)`.
-- **Axes**: VRC uses Y‑down (Konva); CAD uses Y‑up. The exporter applies `flipY = roomLengthM - vrcY`.
-- **Rotation**: VRC uses Konva CW degrees; CAD uses CCW degrees. The exporter applies `flipRot = -konvaDeg`.
-
-For block instances, the exporter computes the item's centroid in CAD coordinates and inserts the block there with `rotation = -konvaDeg`. For inline footprints (tables, walls, displays, stage floors, paths) the exporter rotates corner points around the item's pivot, then maps the result through `flipY`.
-
-### Layer scheme (AIA / NCS)
-
-Layer names follow the US National CAD Standard `D-MAJR-MINR` pattern so the file drops cleanly into a real architectural set:
-
-| Layer | ACI color | Used for |
-|-------|-----------|----------|
-| `A-WALL-EXTR` | 250 (near‑black) | Room perimeter |
-| `A-WALL-FULL` | 250 (near‑black) | Standard interior walls (`wallStd`) |
-| `A-WALL-GLAZ` | 141 | Glass walls (`wallGlass`) |
-| `A-WALL-PATT` | 8 | Window walls and acoustic panels (`wallWindow`, `wallChairs`) |
-| `A-DOOR` | 4 | Doors (single/double, left/right swings) |
-| `A-FLOR-RISR` | 30 (DASHED) | Stage floors / risers |
-| `A-FLOR-CARP` | 8 (DASHED) | Carpets |
-| `A-FLOR-IDEN` | 250 (near‑black) | Floor‑item labels |
-| `A-COLS` | 8 | Columns (rectangular and cylindrical) |
-| `A-FURN-CHRS` | 5 | Chairs, wheelchairs |
-| `A-FURN-TBLS` | 250 (near‑black) | Tables |
-| `A-FURN-PEOP` | 8 | People silhouettes, plants, trees, poufs |
-| `A-FURN-IDEN` | 250 (near‑black) | Furniture labels |
-| `A-EQPM` | 9 (DASHED) | Generic equipment, boxes, spheres |
-| `E-AV-CODE` | 1 | Codecs / Room Bars / Boards / Desks |
-| `E-AV-CMRA` | 6 | Cameras (Quad, PTZ, P60, etc.) |
-| `E-AV-MICR` | 3 | Table & ceiling microphones |
-| `E-AV-DSPL` | 250 (near‑black) | Displays (single, dual, triple, 21:9) |
-| `E-AV-SPKR` | 211 | Speakers |
-| `E-AV-CTRL` | 4 | Navigators (table & wall) |
-| `E-AV-PERF` | 8 | AV peripherals (projectors, headsets, phones) |
-| `E-AV-IDEN` | 250 (near‑black) | AV labels |
-| `A-ROOM-PATH` | 9 | `pathShape` (arbitrary user paths) |
-
-**Why ACI 250 instead of 7 for "black"?** ACI 7 is officially "white/black depending on background", but several DXF viewers — notably AutoDesk Viewer — render it as a faint cream/yellow on a light background instead of inverting. ACI 250 is the darkest gray in the index (RGB ≈ 51,51,51) and renders solidly dark in every viewer we've tested. So architectural lines that should read as black (walls, tables, displays, identification labels) use 250, while distinct accent colors (red codecs, magenta cameras, green mics, blue chairs, cyan glass walls / doors) keep equipment categories visually separated.
-
-In addition, every VRC layer (the user‑facing ones from the Layers tab) is mirrored into a `Z-VRC-LAYER-<sanitized name>` CAD layer (color 9). When a VRC layer is hidden or locked, the mirror CAD layer is set off / locked too, **and** every item from that VRC layer is routed onto the mirror layer instead of its normal AIA layer. This preserves the user's organisation when the file is opened in CAD.
-
-### Labels (`TEXT` entities)
-
-Labels are placed below the item's centroid on the matching `*-IDEN` layer:
-
-- AV devices (codec, camera, navigator, touch panel) → always show the **model name** (matching VRC's default behavior).
-- All other items (chairs, tables, displays, walls, etc.) → show the user's `data_labelField` if set, otherwise no label.
-
-Text height is 0.10 m (≈4 inches), single‑line `TEXT` (chosen over `MTEXT` for cross‑tool compatibility).
-
-### Block library
-
-The block library lazily registers blocks the first time an item of a given `data_deviceid` is exported, so the file only contains the blocks it needs. Block names use the pattern `VRC_<DEVICEID>` (uppercased, underscored). Each block is built from primitives (`lwpolyline`, `circle`, `line`, `arc`) on the appropriate layer:
-
-| Item kind | Block contents |
-|-----------|----------------|
-| Codec / room bar | Rounded rectangle + small line on +Y face marking the lens/display side |
-| Camera (compact: P60, Room Vision PTZ, PTZ 4K + Bracket, …) | Body rectangle + concentric lens circles on the +Y face + short tick on the +Y edge for orientation |
-| Camera (bracket‑style: w / d > 4, e.g. Quad Camera) | Long thin bar + concentric lens circles centered on the +Y face |
-| Microphone (table) | Single circle |
-| Microphone (ceiling) | Circle + cross‑hairs (standard CAD ceiling‑fixture symbol) |
-| Speaker | Outer circle + inner cone circle |
-| Navigator / touch panel | Rounded rectangle + inset rectangle for screen face |
-| Chair | Rounded rectangle + chair‑back line on −Y |
-| Door (single) | Door jambs + single leaf + 90° swing arc |
-| Door (double) | Door jambs + two leaves + two swing arcs |
-| Person standing | Two concentric circles (shoulders + head) |
-| Plant / tree | Single (or nested) circle |
-| Wheelchair / turn cycle | Rounded rectangle (or circle for turn‑radius) |
-
-Tables, walls, columns, displays, stage floors, boxes, carpets, and `pathShape` items are emitted **inline** (no block) because their geometry varies per‑item.
-
-### Adding a new device block
-
-1. Add the device id to the appropriate `LAYER_*` map in `dxfBlockLibrary.js` (`DEVICE_LAYER_FOR_DEVICE_ID`).
-2. If it needs a custom block visual, add a `_defineXxxBlock(name, dims, layer)` method modeled on the existing helpers, and route to it from `blockForItem()` based on either `data_deviceid` or the resolved layer category.
-3. If the device should always be labelled with its model name (like other AV devices), make sure its layer is one of the AV layers — `ALWAYS_LABELLED_DEVICE_IDS` is computed from those.
-
-### Internals worth knowing
-
-- **Handles**: every entity carries a hex handle (group code 5). The writer pre‑allocates **all** boilerplate + user‑block handles before serializing the HEADER, so `$HANDSEED` is the true upper bound and no two records collide. User block contents are allocated handles incrementally as `addBlock(...).lwpolyline(...)` etc. are called on the proxy returned by `addBlock()`.
-- **Reserved blocks**: `$Model_Space` and `$Paper_Space` MUST exist in every R12 file. The writer emits them automatically with empty bodies.
-- **Required tables**: VPORT, LTYPE, LAYER, STYLE, VIEW, UCS, APPID, DIMSTYLE are emitted unconditionally (most with minimal default records). Skipping any of them causes AutoCAD Web App to reject the file.
-- **Line endings**: CRLF, per the DXF spec.
-- **Coordinate precision**: 4 decimal places (≈0.1 mm in meters) — keeps file size reasonable while staying well below human‑perceptible accuracy.
-
-### Validation
-
-The output is validated by `ezdxf` (Python). A clean export reports `errors=0, fixes=0` against `ezdxf.audit()` and round‑trips cleanly through `ezdxf.readfile() → saveas('R2018') → readfile()`.
+See `notes/DXF_EXPORT.md` for the full layer table, block library,
+coordinate transform, and instructions for adding a new device block.
 
 ---
 
 ## Templates System
 
-Templates are defined in `js/templates.js`:
+Pre-built room templates surface in the **Templates** tab of
+`#newRoomDialog`. Each template is a single encoded `?x=…` URL fed
+to `loadTemplate(url)`. Definitions live in `js/templates.js`
+(lazy-loaded on first dialog open via `ensureTemplatesPopulated()`).
 
-```javascript
-const templates = [
-  {
-    id: 'round-angle',
-    name: 'Round corner table at angle',
-    image: 'round-angle.png',
-    url: 'A1v0.1.608b2402c2300...',  // Encoded room state
-    note: 'Optional note',
-    noteUrl: 'https://...'  // Optional link
-  },
-  // ...
-]
-```
-
-Templates are loaded via `loadTemplate(url)` function.
+See `notes/TEMPLATES.md` for the entry shape, the placeholder-swap
+flow in `populateTemplates()`, and the loading-state CSS contract.
 
 ---
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Space` | Quick add menu |
-| `Ctrl+C` | Copy |
-| `Ctrl+V` | Paste |
-| `Ctrl+D` | Duplicate |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` / `Shift+Ctrl+Z` | Redo |
-| `Ctrl+R` | Rotate 90° |
-| `Ctrl+G` | Group selected items (≥2 items required) |
-| `Ctrl+Shift+G` | Ungroup (dissolve, keep items) |
-| `Ctrl+S` | Save/Download JSON |
-| `Ctrl+E` | Export to Workspace Designer |
-| `Ctrl+Shift+E` | Export to Cisco xConfiguration .txt |
-| `Ctrl+Shift+D` | Export to AutoCAD R12 DXF |
-| `Ctrl+I` | Import file |
-| `Delete` / `Backspace` | Delete selected |
-| `Esc` | Deselect all |
-| `C` | Toggle camera coverage |
-| `M` | Toggle microphone coverage |
-| `D` | Toggle display coverage |
-| `Arrow keys` | Move selected items |
+See `notes/KEYBOARD_SHORTCUTS.md` for the canonical list of every
+keyboard shortcut bound by `js/roomcalc.js` (Cmd is accepted in place
+of Ctrl on macOS). The handler lives near the `keydown` listener
+registration in `js/roomcalc.js`.
 
 ---
 
@@ -1655,114 +837,26 @@ Templates are loaded via `loadTemplate(url)` function.
 > (selector limits, the `data_*` JS-property convention vs `setAttr`,
 > Transformer scale-not-size, `findOne` vs `find[0]`, why
 > `stage.toJSON()` is NOT viable here, the
-> `tr.nodes([])`-detach-before-bulk-mutate speed pattern, etc.). The
-> section below is a short summary; the deep dives are in that file.
+> `tr.nodes([])`-detach-before-bulk-mutate speed pattern, etc.).
 
-**IMPORTANT:** Konva.js uses CSS-like property names in JavaScript objects, but these are NOT CSS properties. Do not confuse them.
+**IMPORTANT:** Konva.js uses CSS-like property names in JavaScript
+objects, but these are NOT CSS properties (e.g. `fill`, `stroke`,
+`strokeWidth`, `cornerRadius`, `rotation` in **degrees**). Items store
+their VRC-specific data as plain JS properties on the node:
+`node.data_deviceid`, `node.data_zPosition`, `node.data_labelField`,
+etc.
 
-### Konva Properties vs CSS
-
-```javascript
-// This is KONVA (JavaScript object), NOT CSS:
-new Konva.Rect({
-  x: 100,
-  y: 200,
-  width: 50,
-  height: 30,
-  fill: 'blue',           // Konva property, not CSS
-  stroke: '#ccc',         // Konva property, not CSS
-  strokeWidth: 2,         // Konva property (camelCase, not stroke-width)
-  cornerRadius: 5,        // Konva property
-  opacity: 0.5,           // Konva property
-  rotation: 45,           // Konva property (degrees, not CSS transform)
-  draggable: true         // Konva property
-});
-```
-
-### Key Differences from CSS
-
-| Konva | CSS Equivalent | Notes |
-|-------|----------------|-------|
-| `fill` | `background-color` | Konva uses `fill` for shapes |
-| `stroke` | `border-color` | Konva uses `stroke` for outline |
-| `strokeWidth` | `border-width` | camelCase in Konva |
-| `cornerRadius` | `border-radius` | camelCase in Konva |
-| `rotation` | `transform: rotate()` | Degrees as number, not string |
-| `x`, `y` | `left`, `top` | Direct coordinates |
-| `listening` | - | Whether shape receives events |
-| `visible` | `display`/`visibility` | Boolean in Konva |
-
-### Common Konva Methods Used in VRC
-
-```javascript
-// Creating shapes
-new Konva.Line({ points: [x1,y1,x2,y2], stroke: '#000' })
-new Konva.Rect({ x, y, width, height, fill })
-new Konva.Circle({ x, y, radius, fill })
-new Konva.Image({ x, y, image, width, height })
-new Konva.Group({ x, y, rotation })
-new Konva.Text({ x, y, text, fontSize, fill })
-
-// Transformations
-shape.x()           // Get x position
-shape.x(100)        // Set x position
-shape.rotation()    // Get rotation in degrees
-shape.rotation(45)  // Set rotation
-shape.scale({ x: 2, y: 2 })
-
-// Layer management
-layer.add(shape)
-layer.draw()
-layer.batchDraw()
-
-// Events
-shape.on('click', handler)
-shape.on('dragend', handler)
-
-// Attributes
-shape.setAttrs({ fill: 'red', opacity: 0.5 })
-shape.getAttr('fill')
-shape.attrs  // All attributes object
-```
-
-### VRC-Specific Konva Patterns
-
-```javascript
-// Items store data in Konva node attributes
-node.data_deviceid = 'roomBar';
-node.data_zPosition = 0.9;
-node.data_labelField = 'My Label';
-
-// Access via attrs
-const deviceId = node.attrs.data_deviceid;
-
-// The transformer for selection
-const tr = new Konva.Transformer({
-  nodes: [selectedShape],
-  rotationSnaps: [0, 90, 180, 270]
-});
-```
+See `notes/KONVA.md` for the API/CSS-vs-Konva cheat sheet, common
+Konva methods used in VRC, and the VRC-specific Konva patterns.
 
 ---
 
-## External Dependencies (CDN)
+## External Dependencies & Common Issues
 
-```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-```
-
-All other dependencies are local in the `js/` folder.
-
----
-
-## Common Issues & Solutions
-
-| Issue | Solution |
-|-------|----------|
-| Canvas not rendering | Check browser console for Konva errors |
-| Images not loading | Verify paths in `assets/images/` |
-| URL too long | Room has too many objects (>500), use JSON file instead |
-| Workspace Designer export fails | Check `workspaceKey` mapping exists |
+The only CDN dependency is **DOMPurify** (HTML sanitization). Every
+other JS file lives in `js/`. There is no build step. See
+`notes/DEPENDENCIES_AND_ISSUES.md` for the script-load order and a
+short troubleshooting cheat sheet.
 
 ---
 
