@@ -15806,10 +15806,42 @@ function ungroupCustomItem(customItemId, keepItems) {
 }
 
 /* Create a CustomItem from the current tr.nodes() selection (or supplied
- * nodes). The selection precedence is: a CustomItem with members that
- * are already in a Group is allowed; the items will keep their
- * data_groupId AND get a new data_customItemId. Items already in another
- * customItem are first ungrouped from that customItem. */
+ * nodes).
+ *
+ * Architectural rule (asymmetric nesting):
+ *   A Group CAN contain CustomItems — items can carry both a
+ *   `data_groupId` and a `data_customItemId` simultaneously when their
+ *   CustomItem is nested inside a Group. `createGroup()` honours this
+ *   by leaving `data_customItemId` untouched on its members.
+ *
+ *   A CustomItem CANNOT contain Groups — `createCustomItem()` enforces
+ *   this by dissolving every Group touched by the selection during
+ *   create (step 2 below). Items entering a new CustomItem are
+ *   guaranteed to have no `data_groupId` afterward.
+ *
+ * Pre-create cleanup runs in a fixed order:
+ *   1. Items already in another CustomItem are dissolved out of it
+ *      (so each item ends up with exactly one data_customItemId).
+ *   2. EVERY Group that any selected item belongs to is dissolved via
+ *      `ungroupItems(id, true)` — clears `data_groupId` on every member
+ *      node + roomObj.items entry, destroys the Group rect, removes
+ *      the entry from `roomObj.groups`.
+ *
+ *      Side effect — Group co-tenants lose membership too: if a Group
+ *      G has members [A, B, C, D] and the user selects A, B for a new
+ *      CustomItem, dissolving G also clears `data_groupId` on C, D
+ *      (they are not in the new CustomItem; they become loose items).
+ *      This is the trade-off of using the existing whole-Group
+ *      dissolve helper; the surgical alternative (remove only the
+ *      selected members from G) often leaves a Group of size <2,
+ *      which the rest of the code does not gracefully tolerate.
+ *
+ * The reverse direction (Group containing CustomItems) is unaffected:
+ * `createGroup()` does NOT dissolve CustomItems; it just adds the
+ * Group's `data_groupId` to each member, leaving any existing
+ * `data_customItemId` intact. `ungroupItems(id, true)` likewise
+ * preserves `data_customItemId` on its members, so ungrouping a
+ * Group never destroys a nested CustomItem. */
 function createCustomItem(nodesToGroup) {
     ensureCustomItems();
 
@@ -15829,6 +15861,35 @@ function createCustomItem(nodesToGroup) {
         itemNodes.filter(n => n.data_customItemId).map(n => n.data_customItemId)
     );
     existingCustomItemIds.forEach(id => ungroupCustomItem(id, true));
+
+    /* Strip ALL Group memberships touched by the selection. For every
+     * distinct data_groupId carried by any selected item, dissolve the
+     * whole Group via `ungroupItems(id, true)` — clears `data_groupId`
+     * on every member node + roomObj.items entry, destroys the Group
+     * rect, and removes the entry from `roomObj.groups`. After this
+     * loop every selected item is guaranteed to have no `data_groupId`,
+     * matching the rule "when a customItem is created, all group
+     * information should be removed from each item and the group
+     * removed".
+     *
+     * Side effect — Group "co-tenants" lose membership too: if a Group
+     * G has members [A, B, C, D] and the user selects A, B for a new
+     * CustomItem, dissolving G also clears `data_groupId` on C and D
+     * (they are not in the new CustomItem; they simply become loose
+     * items). This is the documented trade-off of keeping the dissolve
+     * a single atomic operation with the existing helper. The
+     * alternative (surgically removing only A, B from G's
+     * `groupMembers` and recomputing the rect bounds) would leave a
+     * Group of size <2 in many real workflows, which the rest of the
+     * code does not gracefully tolerate.
+     *
+     * Items not in any Group are skipped by the `n.data_groupId` filter
+     * — Set already de-duplicates so each Group is dissolved once even
+     * if multiple selected items share it. */
+    const groupIdsToDissolve = new Set(
+        itemNodes.filter(n => n.data_groupId).map(n => n.data_groupId)
+    );
+    groupIdsToDissolve.forEach(id => ungroupItems(id, true));
 
     const finalNodes = itemNodes;
 
@@ -27606,17 +27667,49 @@ function toggleItemActionsMenu(event, mode) {
 
     const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));
     const allSameExistingGroup = (distinctGroupIds.size === 1 && !distinctGroupIds.has(null));
-    const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;
-    const canUngroup = trNodes.some(n => n.data_deviceid === 'group' || n.data_groupId);
 
     const distinctCustomItemIds = new Set(itemsOnly.map(n => n.data_customItemId || null));
     const allSameExistingCustomItem = (distinctCustomItemIds.size === 1 && !distinctCustomItemIds.has(null));
-    /* CustomItem creation rules mirror Group rules: 2+ items selected,
-     * not already all in the same single CustomItem. A CustomItem CAN
-     * be nested inside a Group (Option 1 design), so existing
-     * data_groupId on the members does NOT block creation. */
+
+    /* Group creation is disabled when:
+     *   - fewer than 2 real items are selected, OR
+     *   - all items already share the same Group (no-op — would just
+     *     dissolve and recreate the existing Group).
+     *
+     * CustomItem state intentionally does NOT block Group creation: per
+     * the architectural rule "a Group can have CustomItems, but a
+     * CustomItem cannot have Groups", wrapping one or more CustomItems
+     * in a Group is a legitimate operation. The result is a Group whose
+     * members each carry both a `data_groupId` (the new Group) and a
+     * preserved `data_customItemId` (their original CustomItem). The
+     * CustomItem rect tags along on Group drags via
+     * `getCustomItemRectsAllInGroup()`. */
+    const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;
+    const canUngroup = trNodes.some(n => n.data_deviceid === 'group' || n.data_groupId);
+
+    /* CustomItem creation rules: 2+ items selected, not already all in
+     * the same single CustomItem (would just dissolve and recreate the
+     * existing CustomItem). Existing `data_groupId` on the members does
+     * NOT block creation — `createCustomItem()` enforces "a CustomItem
+     * cannot have Groups" by dissolving every touched Group as part of
+     * the create, so any nested Group state is stripped from the new
+     * bundle. */
     const canCustomItem = itemsOnly.length >= 2 && !allSameExistingCustomItem;
-    const canUncustomItem = trNodes.some(n => n.data_deviceid === 'customItem' || n.data_customItemId);
+
+    /* "Remove Custom Item" is offered only when the selection is *exactly*
+     * one CustomItem bundle and nothing else — i.e. the same condition
+     * that drives the "Custom Item Name:" Details panel via
+     * `getActiveCustomItemSelection()`. That helper already enforces:
+     *   - no Group rect in the selection (Group bundle wins),
+     *   - exactly one CustomItem rect,
+     *   - every other selected node is a member of that CustomItem.
+     * Tying the menu state to the same predicate keeps the surface
+     * coherent: if you can see "Custom Item Name:" you can remove it,
+     * and vice versa. Multi-CustomItem selections, mixed selections,
+     * and bare CustomItem-member selections (no rect) all fail this
+     * test — by design, the user is expected to first click into the
+     * specific bundle they want to dissolve. */
+    const canUncustomItem = !!getActiveCustomItemSelection(trNodes);
 
     /* ---- Build menu DOM ---- */
     const menu = document.createElement('div');
@@ -27771,14 +27864,16 @@ function createRightClickMenu(usePreviousPosition = false) {
         createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         /* Group is enabled when there are 2+ real items in the selection AND
-         * they are not already all members of the same single group (regrouping
-         * the same items is a no-op that would just dissolve and recreate
-         * the existing group). Excludes both Group rects AND CustomItem rects
-         * — neither becomes a Group member (`createGroup()` filters them
-         * both out of `finalNodes`); counting them here would mis-enable the
-         * menu when only one real item is selected alongside a CustomItem
-         * rect. Matches the ellipse-menu equivalent above (`itemsOnly`
-         * filter at the top of `refreshGroupCustomItemActionState()`). */
+         * they are not already all members of the same single Group.
+         * Excludes both Group rects AND CustomItem rects — neither becomes
+         * a Group member (`createGroup()` filters them both out of
+         * `finalNodes`); counting them here would mis-enable the menu when
+         * only one real item is selected alongside a CustomItem rect.
+         *
+         * CustomItem state intentionally does NOT block Group creation: a
+         * Group can wrap one or more CustomItems (the items keep their
+         * `data_customItemId` and additionally get the new `data_groupId`).
+         * Matches the ellipse-menu equivalent in `toggleItemActionsMenu()`. */
         const itemsOnly = tr.nodes().filter(n =>
             n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');
         const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));

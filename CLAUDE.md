@@ -267,8 +267,8 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group. Filter excludes both `data_deviceid==='group'` AND `data_deviceid==='customItem'` rects — only real items become Group members. A CustomItem rect in the selection is dropped from `finalNodes`; its member items (already pulled in by `expandSelectionForGroups()`) are added to the new Group individually with shared `data_groupId`, and the CustomItem rect remains its own bundle. Calls `expandSelectionForGroups()` after setting `tr.nodes()` so an immediate Ctrl+C captures the CustomItem rect too. |
-| `ungroupItems(groupId, keepItems)` | 13884 | Dissolves group; `keepItems=false` also destroys members |
+| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group. Filter excludes both `data_deviceid==='group'` AND `data_deviceid==='customItem'` rects — only real items become Group members. A CustomItem rect in the selection is dropped from `finalNodes`; its member items (already pulled in by `expandSelectionForGroups()`) are added to the new Group individually with shared `data_groupId`, and the CustomItem rect remains its own bundle. **`data_customItemId` on the members is left untouched** — a Group can contain CustomItems (see "Group / CustomItem nesting model"). Calls `expandSelectionForGroups()` after setting `tr.nodes()` so an immediate Ctrl+C captures the CustomItem rect too. |
+| `ungroupItems(groupId, keepItems)` | 13884 | Dissolves Group; `keepItems=false` also destroys members. **`data_customItemId` on members is left untouched** — ungrouping a Group never destroys a nested CustomItem (see "Group / CustomItem nesting model"). |
 | `ungroupSelectedItems()` | 14031 | Calls `ungroupItems(..., true)` for all groups in selection |
 | `insertGroupRect(groupObj)` | 14048 | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0` by default; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()`). Selection visual is opacity-only — `updateTrNodesShading()` raises opacity to 0.2 on select, `removeShadingTrNodes()` drops it back to 0 on deselect |
 | `updateGroupBounds(groupId)` | 264 | Recalculates group rect bounds from member `getMemberBoundingRect()` (matches the Transformer's tight blue box exactly) |
@@ -472,16 +472,54 @@ layerTransform
 
 The right-click menu's **Group** entry is disabled when:
 - Fewer than 2 items are selected (excluding the Group rect itself), OR
-- All selected items already belong to the same single group (regrouping the same items would just dissolve and recreate the existing group — a no-op).
+- All selected items already belong to the same single Group (regrouping the same items would just dissolve and recreate the existing Group — a no-op).
 
-The **Ungroup** entry is enabled whenever the selection contains a Group rect or any group member.
+CustomItem state is **NOT** a factor — see "Group / CustomItem nesting model" below for why.
+
+The **Ungroup** entry is enabled whenever the selection contains a Group rect or any Group member. (When the selection is purely a CustomItem bundle with no Group involvement, Ungroup is naturally disabled because no member carries a `data_groupId`.)
+
+The same two rules drive the **Create Group** entry on the ellipse menu (`#itemActionsMenu` built by `toggleItemActionsMenu()`), so the right-click menu and the ellipse menu always agree about when Group is offered.
+
+### Group / CustomItem nesting model
+
+The Group and CustomItem systems are intentionally asymmetric:
+
+> **A Group CAN contain CustomItems.**
+> **A CustomItem CANNOT contain Groups.**
+
+This rule is enforced at three places, summarized here:
+
+| Operation | Effect on `data_groupId` | Effect on `data_customItemId` |
+|-----------|--------------------------|--------------------------------|
+| `createGroup()` | Sets it on every member to the new Group's id (after dissolving any pre-existing Groups the items were in) | **Untouched.** A Group containing items that were already CustomItem members keeps those CustomItems alive. |
+| `createCustomItem()` | **Dissolves every touched Group** via `ungroupItems(id, true)`. After create, every member has `data_groupId === null`. | Sets it on every member to the new CustomItem's id (after dissolving any pre-existing CustomItems the items were in). |
+| `ungroupItems(id, true)` (right-click "Ungroup", `Ctrl/Cmd+Shift+G`) | Cleared on each member; rect destroyed; `roomObj.groups[]` entry removed | **Untouched.** Ungrouping a Group preserves any nested CustomItems intact. |
+| `ungroupCustomItem(id, true)` ("Remove Custom Item") | **Untouched.** Dissolving a CustomItem leaves the Group it was nested in alone. | Cleared on each member; rect destroyed; `roomObj.customItems[]` entry removed |
+
+**An item can therefore carry both `data_groupId` AND `data_customItemId` simultaneously** when a CustomItem is nested inside a Group. The CustomItem rect tags along during Group drags via `getCustomItemRectsAllInGroup()` (see "Member-direct drag" below). Selection precedence remains Group > CustomItem (a click on a doubly-nested member expands to the Group bundle; clicking the CustomItem rect directly is what surfaces the CustomItem bundle).
+
+#### Create-action enable matrix
+
+| Selection state | Create Group | Create Custom Item |
+|-----------------|--------------|--------------------|
+| 2+ items, no shared bundle | enabled → creates Group | enabled → creates CustomItem |
+| Some/all items in one or more Groups | enabled → dissolves any pre-existing Groups, creates a single new Group covering the selection (CustomItems on those items survive) | enabled → dissolves every touched Group, then creates the CustomItem |
+| All items share one Group | disabled (no-op regroup) | enabled → dissolves that Group, then creates the CustomItem |
+| All items share one CustomItem | enabled → wraps the CustomItem in a new Group (a Group containing exactly that one CustomItem is a legitimate state) | disabled (no-op recreate) |
+| Items from multiple CustomItems | enabled → wraps them all in a single Group (the canonical "multiple CustomItems added to a Group" case — every CustomItem is preserved) | enabled → dissolves all the source CustomItems, creates a single new CustomItem covering everything |
+
+**Group → CustomItem is always destructive of Group state**, but **CustomItem → Group is always non-destructive of CustomItem state**. The asymmetry is the entire point of the model.
+
+**Side effect on the Group → CustomItem path — co-tenants lose Group membership.** If Group G has members `[A, B, C, D]` and the user selects `A, B` for a new CustomItem, dissolving G also clears `data_groupId` on `C, D` (they are not in the new CustomItem; they simply become loose items). This is the trade-off of keeping the dissolve a single atomic call to `ungroupItems()`. The surgical alternative (remove only `A, B` from G's `groupMembers` and recompute the rect) would frequently leave a Group of size <2, which the rest of the code does not gracefully tolerate.
+
+In practice the co-tenant side effect is rare because `expandSelectionForGroups()` expands any partial-Group selection back to the whole Group bundle before the user can act on it.
 
 ### Key Group Functions
 
 | Function | Purpose |
 |----------|---------|
-| `createGroup(nodesToGroup?)` | Groups current `tr.nodes()` (or passed nodes). Filter excludes existing Group rects AND CustomItem rects (mirror of `createCustomItem`'s filter — only real items can be Group members; CustomItem rects in the selection contribute their member items via `expandSelectionForGroups()` and stay as their own independent bundle). Layer conflict → moves all to `drpAddItemLayer`. Re-runs `expandSelectionForGroups()` at the end so an immediate Ctrl+C still includes any CustomItem rect that was filtered out of `finalNodes`. |
-| `ungroupItems(groupId, keepItems)` | `keepItems=true` = Ungroup (keep items). `keepItems=false` = hard-delete members too. |
+| `createGroup(nodesToGroup?)` | Groups current `tr.nodes()` (or passed nodes). Filter excludes existing Group rects AND CustomItem rects (only real items can be Group members; CustomItem rects in the selection contribute their member items via `expandSelectionForGroups()` and stay as their own independent bundle). Members keep their existing `data_customItemId` — a Group can wrap one or more CustomItems. Layer conflict → moves all to `drpAddItemLayer`. Re-runs `expandSelectionForGroups()` at the end so an immediate Ctrl+C still includes any CustomItem rect that was filtered out of `finalNodes`. |
+| `ungroupItems(groupId, keepItems)` | `keepItems=true` = Ungroup (keep items). `keepItems=false` = hard-delete members too. Either way, `data_customItemId` on members is left intact — a CustomItem nested inside a Group survives ungrouping. |
 | `ungroupSelectedItems()` | Calls `ungroupItems(..., true)` for all groups in `tr.nodes()`. |
 | `insertGroupRect(groupObj)` | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0`; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()` and is moved by Konva natively). |
 | `updateGroupBounds(groupId)` | Recalculates group rect pixel bounds from member `getMemberBoundingRect()`. **Currently used only at create time** (rect travels with members during drags). Kept available for future "rebuild after Details-panel edit". |
@@ -732,14 +770,17 @@ panel. The ellipse menu (`#itemActionsMenu`, built by
 
 | Menu item | Enabled when |
 |-----------|--------------|
-| `Create Group` | 2+ items selected, not all already in the same Group |
-| `Ungroup` | Selection contains a Group rect or a Group member |
-| `Create Custom Item` | 2+ items selected, not all already in the same Custom Item |
-| `Remove Custom Item` | Selection contains a CustomItem rect or member |
+| `Create Group` | 2+ items selected, not all already in the same Group. CustomItem state is intentionally **not** a factor — wrapping one or more CustomItems in a Group is supported and preserves every CustomItem (see "Group / CustomItem nesting model" above) |
+| `Ungroup` | Selection contains a Group rect or a Group member. Ungrouping never destroys nested CustomItems |
+| `Create Custom Item` | 2+ items selected, not all already in the same Custom Item. **Every** Group touched by any selected item is auto-dissolved during creation (Group → CustomItem is always destructive of Group state — even Group co-tenants outside the selection lose their `data_groupId`). The menu item stays enabled regardless of Group state |
+| `Remove Custom Item` | Selection is *exactly* one CustomItem bundle (one CustomItem rect plus only its members; no Group rect). Same predicate as `getActiveCustomItemSelection()` — i.e. enabled in exactly the cases where the Details panel shows the "Custom Item Name:" field. Multi-CustomItem selections, bare-member selections (no rect), and Group-containing selections all leave this disabled; the user is expected to click into the specific CustomItem bundle they want to dissolve. Removing a CustomItem never destroys the Group it was nested in |
 
-The right-click menu is intentionally **unchanged** — it shows
+The right-click menu is intentionally **unchanged** in scope — it shows
 `Group` / `Ungroup` only. CustomItem actions are deliberately scoped
-to the ellipse menu so the right-click menu stays compact.
+to the ellipse menu so the right-click menu stays compact. Both
+surfaces use the same `canGroup` formula (see
+`createRightClickMenu()` and `toggleItemActionsMenu()`), so they
+always agree about when Group is offered.
 
 ### Keyboard shortcuts
 
@@ -784,8 +825,8 @@ Same four-place rule as `data_groupId` and `data_layerId`:
 
 | Function | Purpose |
 |----------|---------|
-| `createCustomItem(nodesToGroup?)` | Bundle current `tr.nodes()` (or supplied nodes) into a new VRC CustomItem |
-| `ungroupCustomItem(customItemId, keepItems)` | Dissolve a CustomItem; `keepItems=false` also destroys members |
+| `createCustomItem(nodesToGroup?)` | Bundle current `tr.nodes()` (or supplied nodes) into a new VRC CustomItem. Filter mirrors `createGroup()` (excludes Group rects and CustomItem rects). Pre-create cleanup, in order: (1) dissolves any existing CustomItem memberships of the selected items, (2) dissolves **every** Group touched by any selected item via `ungroupItems(id, true)` — clears `data_groupId` on each member node + roomObj.items entry, destroys the Group rect, removes the entry from `roomObj.groups`. After cleanup every selected item is guaranteed to have no `data_groupId`. Group co-tenants (members of dissolved Groups that were not in the selection) also lose their `data_groupId` and become loose items — see "Group / CustomItem bundle precedence on create" for the rationale. |
+| `ungroupCustomItem(customItemId, keepItems)` | Dissolve a CustomItem; `keepItems=false` also destroys members. `data_groupId` on members is left intact — removing a CustomItem never destroys the Group it was nested in (see "Group / CustomItem nesting model"). |
 | `ungroupSelectedCustomItems()` | Walks the selection and dissolves every CustomItem referenced in it |
 | `insertCustomItemRect(customItemObj)` | Materialize the green Konva.Rect on `groupCustomItemRects` (mirror of `insertGroupRect()`) |
 | `updateCustomItemBounds(customItemId)` | Recalculate the rect's bounds from `getMemberBoundingRect()` |
