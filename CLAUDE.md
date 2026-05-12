@@ -1297,6 +1297,28 @@ keyboard shortcut bound by `js/roomcalc.js` (Cmd is accepted in place
 of Ctrl on macOS). The handler lives near the `keydown` listener
 registration in `js/roomcalc.js`.
 
+### Canvas focus invariant
+
+For canvas shortcuts (especially the bare `Space` key → Quick Add) to
+work reliably, keyboard focus must be on the stage container, not on a
+previously-clicked button (e.g. `Update Item`) — pressing space while
+a `<button>` has focus fires that button's click action by default.
+
+`addListeners(stage)` enforces this in three places:
+
+1. **Once at registration**: `stage.container().tabIndex = 1` so the
+ container is keyboard-focusable.
+2. **Every `mousedown`/`touchstart` on the stage** (top of the handler,
+ before any early returns): `stage.container().focus({ preventScroll: true })`
+ — covers single clicks on items, empty-area clicks, and the start of
+ a drag-select rectangle.
+3. **End of the drag-select `mouseup`/`touchend`**: another
+ `focus({ preventScroll: true })` re-assertion in case focus was
+ stolen mid-drag by an interleaved blur/focus event.
+
+`preventScroll: true` keeps the `#scroll-container` parent from jumping
+when focus lands on the canvas.
+
 ---
 
 ## Development Notes

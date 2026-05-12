@@ -21103,6 +21103,13 @@ function addListeners(stage) {
 
     let x1, y1, x2, y2;
 
+    /* Make the stage container keyboard-focusable. Without a tabIndex
+     * the call to stage.container().focus() below is a no-op, and the
+     * canvas can never own keyboard focus. Setting it once here means
+     * every click handler can rely on focus() working — we don't need
+     * to redundantly re-set tabIndex in each path. */
+    stage.container().tabIndex = 1;
+
     stage.on('click tap', function stageOnDblclickDbltap(e) {
 
 
@@ -21125,6 +21132,18 @@ function addListeners(stage) {
     });
 
     stage.on('mousedown touchstart', function stageOnMousedownTouchstart(e) {
+
+        /* Move keyboard focus to the canvas on EVERY interaction (any
+         * click on an item, empty canvas, or the start of a drag-select
+         * rectangle). Without this, focus stays on whatever the user
+         * clicked last — typically a button like "Update Item" — and
+         * pressing space then fires that button's click action (browser
+         * default) instead of the canvas Quick Add shortcut. The mouseup
+         * path at the end of a drag-select also calls focus(), but that
+         * only covers the multi-select case; this catches single clicks
+         * on items and empty-area clicks too. preventScroll keeps the
+         * scrollable canvas container from jumping when focus lands. */
+        stage.container().focus({ preventScroll: true });
 
         if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall || isWallBuilderOn || isWallWriterOn2 || isPolyBuilderOn) {
             return;
@@ -21252,9 +21271,14 @@ function addListeners(stage) {
             resizeTableOrWall();
         }
 
-        /* need to set focus on stage in case multi-select was done and focus was not already on stage for shortcut keys to work */
-        stage.container().tabIndex = 1;
-        stage.container().focus();
+        /* Final focus reassertion at the end of a multi-select drag.
+         * The mousedown handler at the start of the drag already moved
+         * focus to the canvas, but a Konva-internal blur during the
+         * drag, or focus stolen by a button click that immediately
+         * preceded the drag, can leave focus elsewhere by the time the
+         * user lifts the mouse. tabIndex is set once in addListeners(),
+         * so we don't need to set it again here. */
+        stage.container().focus({ preventScroll: true });
         enableCopyDelBtn();
     });
 
