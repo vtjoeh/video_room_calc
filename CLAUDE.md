@@ -41,7 +41,7 @@ video_room_calculator/
 │   ├── util/
 │   │   ├── uuid.js          # createUuid() (Phase 2 extract; window.VRC.util)
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
-│   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library)
+│   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
 │   ├── roomcalc.js          # Core application logic (~26,000 lines)
 │   ├── templates.js         # Pre-built room templates             (lazy-loaded — first new-room dialog open)
 │   ├── qrcode.js            # QR code generation                   (lazy-loaded — first QR render)
@@ -714,8 +714,11 @@ in `expandSelectionForGroups()` and `getActiveCustomItemSelection()`.
 ```javascript
 roomObj.customItems = [
     {
-        customitemid: "uuid",          // the customItem's own UUID (mirrors group.groupid)
-        name: "Custom Item 1",         // editable display name
+        customitemid: "uuid",          // per-INSTANCE id, regenerated on paste/duplicate (mirrors group.groupid)
+        customItemBaseId: "uuid",      // per-TEMPLATE id, "family" id — STABLE across copies, pastes, exports,
+                                       // and IDB library entries. Two canvas instances of the same library
+                                       // template share one customItemBaseId. See "VRC Custom Item Library"
+        name: "Custom Item 1",         // editable display name (data_labelField in the export format)
         data_layerId: "0",             // VRC layer all members share
         x: 1.5,                        // top-left of bounding rect, in current unit
         y: 3.84,
@@ -734,6 +737,11 @@ Each item in `roomObj.items.*` carries:
 item.data_customItemId = "customitemid-string"   // omitted if not in a customItem
 item.data_groupId       = "groupid-string"        // omitted if not in a group; can coexist with data_customItemId
 ```
+
+**`customitemid` vs `customItemBaseId` — when to use which:**
+- `customitemid` is the **instance** id. It's regenerated on paste/duplicate (the new copy is a distinct bundle on the canvas). All four-place-rule wiring (`data_customItemId` on member nodes, clipboard remapping, etc.) uses `customitemid`.
+- `customItemBaseId` is the **template / "family"** id. It persists across copies, paste, export, and IDB library round-trips. It's the **primary key** of the `customItems` IndexedDB store and the dedup key on import. Every copy of a CustomItem on the canvas points back to the same library template via this id.
+- Edits to ANY canvas instance with a matching baseId auto-save back to the same library record (see auto-save flow in "VRC Custom Item Library"). The "strict family" model means there is no per-instance override of the template — diverging two instances requires explicitly changing one's `customItemBaseId` (no UI for this in v1).
 
 ### Konva rendering
 
@@ -770,10 +778,13 @@ panel. The ellipse menu (`#itemActionsMenu`, built by
 
 | Menu item | Enabled when |
 |-----------|--------------|
-| `Create Group` | 2+ items selected, not all already in the same Group. CustomItem state is intentionally **not** a factor — wrapping one or more CustomItems in a Group is supported and preserves every CustomItem (see "Group / CustomItem nesting model" above) |
+| `Create Group` | 2+ items selected, AND not all already in the same Group, AND the selection is NOT *exactly* one CustomItem bundle. The single-CustomItem-bundle case is excluded because the bundle is already a logical grouping; wrapping it in a 1-CustomItem Group would be a no-op visually. **Mixed selections (CustomItem bundle + outside item) still allow Group creation** — wrapping one or more CustomItems in a Group is supported and preserves every CustomItem (see "Group / CustomItem nesting model" above) |
 | `Ungroup` | Selection contains a Group rect or a Group member. Ungrouping never destroys nested CustomItems |
-| `Create Custom Item` | 2+ items selected, not all already in the same Custom Item. **Every** Group touched by any selected item is auto-dissolved during creation (Group → CustomItem is always destructive of Group state — even Group co-tenants outside the selection lose their `data_groupId`). The menu item stays enabled regardless of Group state |
-| `Remove Custom Item` | Selection is *exactly* one CustomItem bundle (one CustomItem rect plus only its members; no Group rect). Same predicate as `getActiveCustomItemSelection()` — i.e. enabled in exactly the cases where the Details panel shows the "Custom Item Name:" field. Multi-CustomItem selections, bare-member selections (no rect), and Group-containing selections all leave this disabled; the user is expected to click into the specific CustomItem bundle they want to dissolve. Removing a CustomItem never destroys the Group it was nested in |
+| `Create Custom Item` | 2+ items selected, not all already in the same Custom Item. **Every** Group touched by any selected item is auto-dissolved during creation (Group → CustomItem is always destructive of Group state — even Group co-tenants outside the selection lose their `data_groupId`). The menu item stays enabled regardless of Group state. Clicking opens the name-required dialog `#dialogCustomItemAdd` (see below) — `createCustomItem()` is never invoked without a name from this surface |
+| `Unjoin Custom Item` | Selection is *exactly* one CustomItem bundle (one CustomItem rect plus only its members; no Group rect). Same predicate as `getActiveCustomItemSelection()` — i.e. enabled in exactly the cases where the Details panel shows the "Custom Item Name:" field. Multi-CustomItem selections, bare-member selections (no rect), and Group-containing selections all leave this disabled; the user is expected to click into the specific CustomItem bundle they want to dissolve. Unjoining a CustomItem never destroys the Group it was nested in |
+| `Export Custom Item` | Single CustomItem bundle selected. Opens a `.vrcCustomItems.json` file save dialog and concurrently persists to the IDB library. Pre-condition: the bundle must have a non-empty `name`; otherwise `exportCustomItem()` surfaces a "Custom Item Name Required" `alertDialog`. See "VRC Custom Item Library" |
+| `Add to Custom Library` | Single CustomItem bundle selected AND its `customItemBaseId` is NOT currently in the in-memory `customItemLibraryIds` cache (i.e. not in IDB). Shown mutually exclusive with `Remove from Library` |
+| `Remove from Library` | Single CustomItem bundle selected AND its `customItemBaseId` IS in the library. Deletes the IDB record and unmarks the cache. The canvas instance is untouched — the bundle still works, it just won't auto-save on edits or appear in the Quick Add palette |
 
 The right-click menu is intentionally **unchanged** in scope — it shows
 `Group` / `Ungroup` only. CustomItem actions are deliberately scoped
@@ -781,6 +792,25 @@ to the ellipse menu so the right-click menu stays compact. Both
 surfaces use the same `canGroup` formula (see
 `createRightClickMenu()` and `toggleItemActionsMenu()`), so they
 always agree about when Group is offered.
+
+#### `Create Custom Item` name-required dialog
+
+The ellipse-menu entry routes through `openCreateCustomItemDialog()`,
+which opens the `<dialog id="dialogCustomItemAdd">` modal (mirroring
+the established `dialogLayerAdd` pattern) with an empty input field
+and Cancel / Create buttons. The handler `confirmCreateCustomItemFromDialog()`
+trims and `DOMPurify`-sanitizes the input, surfaces a "Custom Item
+Name Required" `alertDialog` on empty / all-script-stripped input,
+and only then calls `createCustomItem(undefined, cleanedName)`.
+
+This enforces the invariant that **user-created CustomItems always
+have a name**. Imported CustomItems (VRC `.vrc.json`, Workspace
+Designer JSON, shortened URLs, `.vrcCustomItems` library imports) are
+exempt — those paths build the customItem record directly on
+`roomObj.customItems` without going through `createCustomItem()`, so
+they can carry an unnamed (or `data_labelField: ""`) bundle through.
+Unnamed bundles are **canvas-only** — they never enter the Library DB
+(see "Unnamed customItems" in the Library section below).
 
 ### Keyboard shortcuts
 
@@ -825,16 +855,278 @@ Same four-place rule as `data_groupId` and `data_layerId`:
 
 | Function | Purpose |
 |----------|---------|
-| `createCustomItem(nodesToGroup?)` | Bundle current `tr.nodes()` (or supplied nodes) into a new VRC CustomItem. Filter mirrors `createGroup()` (excludes Group rects and CustomItem rects). Pre-create cleanup, in order: (1) dissolves any existing CustomItem memberships of the selected items, (2) dissolves **every** Group touched by any selected item via `ungroupItems(id, true)` — clears `data_groupId` on each member node + roomObj.items entry, destroys the Group rect, removes the entry from `roomObj.groups`. After cleanup every selected item is guaranteed to have no `data_groupId`. Group co-tenants (members of dissolved Groups that were not in the selection) also lose their `data_groupId` and become loose items — see "Group / CustomItem bundle precedence on create" for the rationale. |
-| `ungroupCustomItem(customItemId, keepItems)` | Dissolve a CustomItem; `keepItems=false` also destroys members. `data_groupId` on members is left intact — removing a CustomItem never destroys the Group it was nested in (see "Group / CustomItem nesting model"). |
-| `ungroupSelectedCustomItems()` | Walks the selection and dissolves every CustomItem referenced in it |
+| `createCustomItem(nodesToGroup?, name?)` | Bundle current `tr.nodes()` (or supplied nodes) into a new VRC CustomItem. Filter mirrors `createGroup()` (excludes Group rects and CustomItem rects). The optional second `name` arg is supplied by `confirmCreateCustomItemFromDialog()` — empty fallback (`name=''`) is allowed at the signature level for hypothetical programmatic callers but the menu surface forces a non-empty name through the dialog. Stamps a fresh `customItemBaseId` (template id) on the new bundle. Pre-create cleanup, in order: (1) dissolves any existing CustomItem memberships of the selected items, (2) dissolves **every** Group touched by any selected item via `ungroupItems(id, true)` — clears `data_groupId` on each member node + roomObj.items entry, destroys the Group rect, removes the entry from `roomObj.groups`. After cleanup every selected item is guaranteed to have no `data_groupId`. Group co-tenants (members of dissolved Groups that were not in the selection) also lose their `data_groupId` and become loose items — see "Group / CustomItem bundle precedence on create" for the rationale. After creation, fires `persistCustomItemToLibrary()` to add the template to the VRC Custom Item Library |
+| `openCreateCustomItemDialog()` | Opens the `<dialog id="dialogCustomItemAdd">` name-required modal. Pre-validates the selection (≥ 2 valid item nodes) BEFORE prompting so the user doesn't type a name that can't be used. Routed from the `Create Custom Item` ellipse-menu entry |
+| `confirmCreateCustomItemFromDialog()` | "Create" button handler: trims + `DOMPurify`-sanitizes the input, rejects empty/all-script results with a follow-up `alertDialog`, then calls `createCustomItem(undefined, cleanedName)` |
+| `ungroupCustomItem(customItemId, keepItems)` | Dissolve a CustomItem; `keepItems=false` also destroys members. `data_groupId` on members is left intact — unjoining a CustomItem never destroys the Group it was nested in (see "Group / CustomItem nesting model"). Does NOT remove the template from the Library DB — that's a separate explicit action (`removeCustomItemFromLibrary`) |
+| `ungroupSelectedCustomItems()` | Walks the selection and dissolves every CustomItem referenced in it (handler for the "Unjoin Custom Item" menu entry) |
 | `insertCustomItemRect(customItemObj)` | Materialize the green Konva.Rect on `groupCustomItemRects` (mirror of `insertGroupRect()`) |
-| `updateCustomItemBounds(customItemId)` | Recalculate the rect's bounds from `getMemberBoundingRect()` |
-| `getCustomItemById()` / `getCustomItemMemberNodes()` / `ensureCustomItems()` | Helpers parallel to the Group equivalents |
-| `getActiveCustomItemSelection(nodes?)` | Returns `{ rectNode, customItem, customItemId }` when the selection is exactly one CustomItem rect plus only its members AND no Group rect is present (Group precedence) |
+| `updateCustomItemBounds(customItemId)` | Recalculate the rect's bounds from `getMemberBoundingRect()`. Called every frame during a member-drag; tail-end calls `maybeAutoSaveCustomItemEdit(customItem)` so the library record stays current with canvas edits |
+| `getCustomItemById()` / `getCustomItemMemberNodes()` / `ensureCustomItems()` / `ensureCustomItemBaseIds()` | Helpers parallel to the Group equivalents. `ensureCustomItemBaseIds` is the defensive backfill — stamps a fresh `customItemBaseId` on any customItem in `roomObj.customItems` that lacks one (older room JSONs predating the library work) |
+| `getActiveCustomItemSelection(nodes?)` | Returns `{ rectNode, customItem, customItemId }` when the selection is exactly one CustomItem rect plus only its members AND no Group rect is present (Group precedence). Single source of truth for both `Unjoin Custom Item` enable state AND the new `canGroup &&= !singleCustomItemBundleSelected` clause |
 | `populateCustomItemDetails()` / `refreshCustomItemDetailsFromCanvas()` | Drive the Details panel for a selected CustomItem |
-| `updateCustomItemItem(customItem)` | Apply Details-panel edits (X/Y/Z/rotation/name/layer) to a CustomItem and its members |
+| `updateCustomItemItem(customItem)` | Apply Details-panel edits (X/Y/Z/rotation/name/layer) to a CustomItem and its members. Tail-end calls `maybeAutoSaveCustomItemEdit(customItem)` so library record stays current |
 | `beginCustomItemDragFollow()` / `followCustomItemDragFromMember()` / `endCustomItemDragFollow()` | Member-direct drag follower (parallel to the Group versions). Both followers run during drag — the Group follower runs first; the CustomItem follower detects the overlap to avoid double-shifting items that are in both bundles |
+| `persistCustomItemToLibrary(customItem)` | Build the export record, generate the menu image, upsert to IDB, mark the in-memory cache. Returns a Promise resolving to the saved `customItemBaseId` (or `null`). **Silently skips unnamed customItems** (canvas-only invariant) |
+| `maybeAutoSaveCustomItemEdit(customItem)` | Debounced auto-save (750 ms per `customItemBaseId`) — fires from `updateCustomItemItem` (Details-panel edits) and `updateCustomItemBounds` (drags). Only fires for templates ALREADY in the library; silent no-op otherwise |
+| `addCustomItemToLibrary(customItem)` | Explicit "Add to Custom Library" menu handler. Thin wrapper over `persistCustomItemToLibrary` + toast |
+| `removeCustomItemFromLibrary(customItem)` | Explicit "Remove from Library" handler. `idbStore.customItemDelete` + `unmarkCustomItemInLibrary` + toast |
+| `exportCustomItem(customItem)` | "Export Custom Item" handler. Name-required precheck, builds record, generates menuImage, persists to library AND downloads `<safe-name>.vrcCustomItems.json` |
+| `buildCustomItemExportRecord(customItem)` | Build the JSON record: meters, parts normalized to CustomItem-local frame (upper-left at 0,0, rotation 0), whitelisted fields only |
+| `createCustomItemMenuImage(record)` | 100×100 PNG thumbnail (parts fit in 90×90, centered). Spawns a temp Konva stage, awaits all part-image loads with `Promise.all`, then `stage.toDataURL({ pixelRatio: 1, mimeType: 'image/png' })` |
+| `getPartRenderRect(item, customItem)` | Compute a part's local-frame geometry (localX, localY, width, height, localRotation) — shared by the export record builder and the menu-image generator |
+| `validateCustomItemRecord(rec)` | Strict schema validator for an incoming `.vrcCustomItems` entry. Returns `{ valid, error? }` |
+| `insertCustomItemAtRoomCenter(record)` | Inverse of `buildCustomItemExportRecord` — materializes a customItem at room center from a library record. Used by the single-record auto-insert branch of `importCustomItemsFile` |
+| `importCustomItemsFile(jsonFile)` | Top-level import orchestrator. Validate → bucket (saved/already-had/unnamed/failed) → IDB upsert (new only) → optional auto-insert → summary dialog |
+| `hydrateCustomItemLibraryIds()` | Boot-time `await idbStore.customItemGetAllIds()` → `customItemLibraryIds` cache fill |
+| `isCustomItemInLibrary(baseId)` / `markCustomItemInLibrary(baseId)` / `unmarkCustomItemInLibrary(baseId)` | Synchronous reads/writes against the in-memory cache `customItemLibraryIds` |
+
+### Where `customItemBaseId` Must Be Updated
+
+Mirror of the four-place rule for `data_groupId` / `data_customItemId` /
+`data_layerId`, but applied to the **template-id propagation** paths.
+The rule: every flow that creates or rehydrates a `customItem` MUST
+ensure `customItemBaseId` is present.
+
+| Location | Function | Behaviour |
+|----------|----------|-----------|
+| Manual create | `createCustomItem()` | Stamps a fresh `createUuid()` — this is the new template's family id |
+| Copy / paste | `copyToCanvasClipBoard()` / `pasteItems()` | **PRESERVES** the original `customItemBaseId` from the source bundle. Two pasted copies of the same source bundle share one `customItemBaseId` (strict family model). Only `customitemid` (the instance id) is regenerated on paste |
+| Workspace Designer round-trip | WD export (`exportedCustomItem.customItemBaseId`) / WD import (read into `roomObj.customItems[].customItemBaseId`) | Round-trips through `workspaceObj.data.vrc.customItems[]` so a customItem created in VRC, exported to WD JSON, and re-imported retains its library identity |
+| Boot / load backfill | `ensureCustomItemBaseIds(obj)` | Defensive: stamps a fresh id on any customItem that lacks one. Called from `canvasToJson()`, the WD import post-processing step, the VRC `.vrc.json` import path, and the shortened-URL `parseShortenedXYUrl()` |
+
+---
+
+## VRC Custom Item Library
+
+A browser-local IndexedDB-backed library of CustomItem **templates**.
+Templates created by the user (manual `Create Custom Item`) and templates
+imported from `.vrcCustomItems.json` files are saved here so they can be
+re-applied across sessions and (PR2) surfaced as searchable tiles in the
+Quick Add palette.
+
+The library lives entirely in the user's browser — it is **not** synced,
+**not** uploaded, and **not** part of the room JSON. Saving a room file
+does NOT include the library; loading a room JSON does NOT auto-add its
+embedded customItems to the library. Library membership is **explicit**
+and per-template, gated on the actions in the table above.
+
+### Strict-family model: one template, many instances
+
+Every CustomItem in `roomObj.customItems` carries a `customItemBaseId`.
+Copies (paste, duplicate) inherit it; edits to ANY canvas instance with
+a matching baseId auto-save back to the same library record. There is
+no per-instance override of template geometry / parts — diverging two
+instances requires explicitly changing one's `customItemBaseId` (no UI
+for this in v1).
+
+This is intentional: the user's mental model is "this template is the
+roomBar-plus-displays setup I keep dropping into different rooms" —
+they expect edits to flow back to the template, not branch silently.
+
+### IndexedDB schema (`vrcRoomCalc` DB, store `customItems`, v2)
+
+```javascript
+{
+    customItemBaseId: "uuid",       // primary key
+    data_labelField: "name",        // export-format name (mirrors customItem.name in roomObj)
+    width: 2.5,                     // METERS (export format is unit-stable)
+    height: 3.5,                    // METERS
+    customItemParts: [              // members in CustomItem-LOCAL frame (UL at 0,0, rotation 0)
+        {
+            data_deviceid: "roomBarPro",
+            x: 0.577, y: 0.179,     // METERS, local to CustomItem upper-left
+            width: 0.5, height: 1.0,
+            rotation: 0,
+            data_zPosition: 1.77,
+            data_vHeight: 0,
+            data_color: { value: "light", index: 0 },
+            // ... whitelisted per-part fields only
+        },
+        // ...
+    ],
+    menuImage: "data:image/png;base64,iVBOR...",  // 100×100 PNG, transparent bg
+    addedAt:   "2026-05-11T20:45:13.219Z",  // ISO 8601 UTC (NOT epoch ms — readable in DevTools)
+    updatedAt: "2026-05-11T21:02:48.001Z"   // bumped on every put
+}
+```
+
+Constants:
+- `STORE_CUSTOMITEMS = 'customItems'`
+- `MAX_CUSTOM_ITEMS = 200` — FIFO eviction by `addedAt` only on insert of a **new** record (updates of existing baseIds preserve `addedAt` and never evict)
+- DB schema bump: v1 → v2 added the `customItems` store. The `onupgradeneeded` handler uses `if (!db.objectStoreNames.contains(...))` per store, so existing v1 data (undo/redo, bgImages) is untouched on upgrade
+
+### In-memory cache: `customItemLibraryIds`
+
+Module-level `Set<string>` of every `customItemBaseId` present in IDB.
+Hydrated once on boot via `hydrateCustomItemLibraryIds()` (fire-and-forget
+in the boot IIFE), then kept in sync by:
+- `markCustomItemInLibrary(baseId)` — called after every successful `customItemPut`
+- `unmarkCustomItemInLibrary(baseId)` — called after every successful `customItemDelete`
+
+The cache exists so the itemActionsMenu can decide "Add to Custom Library"
+vs "Remove from Library" **synchronously** at menu-render time — an IDB
+round trip would either flicker the menu or force the menu construction
+async.
+
+Trade-off: the cache is single-tab. If the user has VRC open in two tabs
+and removes a template from tab A, tab B's cache is stale until a refresh.
+Cross-tab BroadcastChannel sync is out of scope for v1.
+
+### Library auto-save invariants
+
+`maybeAutoSaveCustomItemEdit(customItem)` is the workhorse. Wired into:
+- `updateCustomItemItem()` — Details-panel edits
+- `updateCustomItemBounds()` — every frame during a member drag
+
+A per-baseId `setTimeout` of 750 ms coalesces the drag-frame storm into a
+single IDB upsert when motion stops. Key invariants:
+- **Only fires for templates ALREADY in the library** — silent no-op if
+  `!isCustomItemInLibrary(baseId)`. URL-loaded / room-JSON-loaded
+  customItems do NOT sneak into the library on a drag
+- **Re-resolves the customItem at timer fire** via `getCustomItemById(customitemid)`
+  — an ungroup/delete during the debounce window cleanly no-ops
+- **No toast** on auto-save — drag flows are frequent. Toasts only fire
+  for the initial create, explicit `Add to Library`, and import
+
+### Unnamed customItems (canvas-only invariant)
+
+CustomItems with empty/whitespace `name` (== `data_labelField`) are
+**canvas-only**. They live in `roomObj.customItems` (so undo/redo,
+save-to-VRC, and shareable URLs preserve them) but they NEVER enter
+the Library DB.
+
+Enforcement points:
+- `persistCustomItemToLibrary(customItem)` early-returns when name is empty.
+  This blocks both the (impossible-by-construction) unnamed manual create
+  AND the auto-save path from importing-then-dragging an unnamed bundle
+- `importCustomItemsFile` buckets schema-valid-but-unnamed records as
+  "Not saved to Library (no name)" in the summary dialog. The canvas
+  instance is still inserted for single-record files — the user explicitly
+  dropped a file expecting something visual
+
+Promoting an unnamed canvas customItem to the library: set a name via the
+Details panel, then click `Add to Custom Library` in the ellipse menu.
+
+### Export format: `.vrcCustomItems.json`
+
+File payload (single-record shape today; array reserves room for future
+multi-record library exports):
+
+```json
+{
+  "vrcCustomItems": [
+    {
+      "customItemBaseId": "<uuid>",
+      "data_labelField": "Friendly Name",
+      "width": 2.5, "height": 3.5,
+      "customItemParts": [ /* ... */ ],
+      "menuImage": "data:image/png;base64,...",
+      "addedAt": "2026-05-11T20:45:13.219Z",
+      "updatedAt": "2026-05-11T21:02:48.001Z"
+    }
+  ]
+}
+```
+
+Coordinate normalization on export (`buildCustomItemExportRecord` +
+`getPartRenderRect`):
+- **All measurements are METERS**, regardless of the room's current unit
+- The CustomItem itself is exported with `rotation = 0` and implicit
+  origin at upper-left (`x` and `y` are NOT included on the record)
+- Each part's `x` / `y` is the offset from the CustomItem's
+  upper-left in the **CustomItem's local frame** (CustomItem
+  rotation 0). On import, restoring world coordinates is a plain
+  translate-by-roomCenter — no inverse rotation math
+- Each part's `rotation` is the part rotation **relative to** the
+  CustomItem (so a CustomItem rotated 30° with a part rotated 45° on
+  the canvas exports part rotation as 15°)
+- Per-part `data_zPosition` is preserved; the CustomItem itself does
+  NOT export its own `data_zPosition` (set to 0 on import-derived
+  minimum)
+- Field allow-list: `CUSTOM_ITEM_PART_VERBATIM_FIELDS` (objects /
+  enums kept as-is) and `CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS` (numeric
+  fields like `data_zPosition`, `data_vHeight` converted feet↔meters).
+  `cornerRadius` (number or array) and `points` (array) are handled
+  specially. Everything else is dropped — hand-edited files with
+  arbitrary keys do NOT leak through to roomObj on import
+
+### Menu image generation (`createCustomItemMenuImage`)
+
+Generates the `menuImage` data URL (PNG, 100×100). Mirrors the existing
+`createHighlightImage()` pattern: spawn a temp `<div>` → temp Konva
+`Stage` → render each part to its own `Konva.Image` / `Konva.Rect` →
+`stage.toDataURL({ pixelRatio: 1, mimeType: 'image/png' })`.
+
+Why PNG instead of JPEG: PNG natively supports alpha so the thumbnail
+has a transparent background (essential for tile compositing in the
+future Quick Add palette).
+
+Critical detail: every Konva image-bearing part decodes asynchronously
+(`new Image().onload`). The function collects all `Image.onload`
+promises and `Promise.all()`s them BEFORE calling `toDataURL` — without
+this, the snapshot would capture a half-loaded composite. (The existing
+`createHighlightImage` has a latent race here; the new function does not.)
+
+Parts are scaled so the bundle fits inside a centered 90×90 box (10px
+margin on every side) within the 100×100 frame.
+
+### Import flow
+
+Entry: `importJson()` detects `Array.isArray(jsonFile.vrcCustomItems)`
+**before** the room/customObjects branches (narrowest discriminator,
+also skips the `dialogLoadingTemplate` modal flicker for this small
+import shape).
+
+`importCustomItemsFile(jsonFile)` then:
+1. Validate every record via `validateCustomItemRecord` (schema-only;
+   no IDB)
+2. For each VALID record, bucket using `isCustomItemInLibrary(baseId)`:
+   - baseId already in cache → **Already existed** (no overwrite — see below)
+   - baseId new AND name non-empty → queued for IDB save
+   - baseId new AND name empty → **Not saved to Library (no name)**,
+     canvas-only
+3. Persist queued records (`customItemPut`), then mark cache
+4. **If exactly one valid record in the file**, materialize it on the
+   room canvas at center via `insertCustomItemAtRoomCenter()`
+5. Show the summary dialog with the four buckets (Saved /
+   Already existed / Not saved (no name) / Errors)
+
+#### No-overwrite-on-import policy
+
+When a `.vrcCustomItems` record carries a `customItemBaseId` already in
+the local library, the import **does NOT overwrite** the existing
+record. The local copy wins because:
+- `maybeAutoSaveCustomItemEdit` continuously syncs canvas edits to IDB,
+  so the local record likely reflects fresher edits than the imported file
+- Re-importing an old export file should NEVER silently clobber a
+  fresher local edit (would be a data-loss bug invisible to the user)
+- The user can explicitly `Remove from Library` and then re-import to
+  force a replacement — this is the documented escape hatch
+
+The canvas auto-insert (for single-record files) still fires regardless
+of bucket — the user dropped a file expecting something visual to happen.
+
+#### Toast vs. dialog
+
+The summary dialog is the loud channel (alertDialog, blocks until
+dismissed). The toast is supplementary:
+- Single newly saved record + inserted on canvas → "Imported 1 Custom Item — saved to library"
+- Multiple newly saved → "Imported N Custom Items — saved to library"
+- All-already-existed / all-no-name / all-failed → no toast (the dialog
+  is enough)
+
+### Library API (`idbStorage.js`)
+
+| Function | Purpose |
+|----------|---------|
+| `customItemPut(record)` | Upsert by `customItemBaseId`. Preserves `addedAt` on update, bumps `updatedAt` to `new Date().toISOString()`. FIFO eviction triggered only on new-record inserts that push count over `MAX_CUSTOM_ITEMS` |
+| `customItemGet(baseId)` | Read a single record (full payload incl. menuImage) |
+| `customItemGetAll()` | Read all records, newest-first by `updatedAt` (string compare works on ISO 8601) |
+| `customItemGetAllIds()` | Lightweight — IDs only, used by `hydrateCustomItemLibraryIds` |
+| `customItemDelete(baseId)` | Delete one record |
+| `customItemHas(baseId)` | `store.count(IDBKeyRange.only(baseId)) > 0` — cheaper than `get` when you only need the boolean. **NOTE**: most callers should prefer the synchronous `isCustomItemInLibrary(baseId)` against the in-memory cache instead |
+| `customItemMax()` | Returns `MAX_CUSTOM_ITEMS` (for UI surfaces wanting to display the cap) |
 
 ---
 

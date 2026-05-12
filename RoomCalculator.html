@@ -2335,6 +2335,22 @@
     </div>
   </dialog>
 
+  <dialog id="dialogCustomItemAdd" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Create Custom Item</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemAddNameInput" style="margin-bottom: 6px; display: block;">Custom Item name:</label>
+        <input type="text" id="customItemAddNameInput" maxlength="60" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmCreateCustomItemFromDialog();}" />
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" onclick="confirmCreateCustomItemFromDialog()">Create</button>
+    </div>
+  </dialog>
+
   <dialog id="dialogLayerDelete" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Delete Layer</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>

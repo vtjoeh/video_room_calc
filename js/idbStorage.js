@@ -31,19 +31,28 @@
     'use strict';
 
     const DB_NAME = 'videoRoomCalculator';
-    const DB_VERSION = 1;
+    /* DB_VERSION 2 — adds STORE_CUSTOMITEMS (VRC Custom Item Library).
+     * onupgradeneeded creates the new store only when it does not already
+     * exist, so a fresh install creates v2 directly and an existing v1
+     * install upgrades by adding the new store without touching the
+     * undo/redo/bgImages stores. */
+    const DB_VERSION = 2;
 
     const STORE_UNDO = 'undoEntries';
     const STORE_REDO = 'redoEntries';
     const STORE_BG = 'bgImages';
+    const STORE_CUSTOMITEMS = 'customItems';
 
     /* Hard caps. The undo cap matches the legacy in-memory `maxUndoArrayLength`
      * so the IDB store stays bounded. The bg-image cap is a small FIFO
      * library — 10 floor-plans is plenty for almost any user and still leaves
-     * the per-origin quota untouched even with multi-MB images. */
+     * the per-origin quota untouched even with multi-MB images. The custom-item
+     * cap is generous (the records are small — a few KB JPEG + part metadata)
+     * but bounded to keep the library list manageable in the UI palette. */
     const MAX_UNDO_ENTRIES = 100;
     const MAX_REDO_ENTRIES = 100;
     const MAX_BG_IMAGES = 10;
+    const MAX_CUSTOM_ITEMS = 200;
 
     /* Legacy localStorage key we migrate from on first run with IDB enabled. */
     const LEGACY_LS_UNDO_KEY = 'undoArray';
@@ -76,6 +85,17 @@
                 if (!db.objectStoreNames.contains(STORE_BG)) {
                     const bg = db.createObjectStore(STORE_BG, { keyPath: 'id' });
                     bg.createIndex('addedAt', 'addedAt', { unique: false });
+                }
+                /* VRC Custom Item Library — keyed by customItemBaseId so an
+                 * import of a customItem with a baseId that already exists
+                 * naturally upserts (same key, new value). The addedAt index
+                 * supports FIFO eviction and newest-first listing in the
+                 * Quick Add palette (future PR). updatedAt is stored on the
+                 * record but not indexed; sorting by updatedAt is done in
+                 * the JS layer when needed. */
+                if (!db.objectStoreNames.contains(STORE_CUSTOMITEMS)) {
+                    const ci = db.createObjectStore(STORE_CUSTOMITEMS, { keyPath: 'customItemBaseId' });
+                    ci.createIndex('addedAt', 'addedAt', { unique: false });
                 }
             };
 
@@ -412,6 +432,245 @@
             });
     }
 
+    /* ----- VRC Custom Item Library ----------------------------------------
+     *
+     * One record per customItem "template" (family / baseId). The record is
+     * the same shape that the .vrcCustomItems export file emits for a single
+     * customItem, plus bookkeeping (addedAt / updatedAt). Same record shape
+     * means an imported file payload can be put directly without
+     * transformation, and an exported file is built by reading the record
+     * back as-is. Schema:
+     *
+     *   {
+     *     customItemBaseId: '<uuid>',                // primary key
+     *     data_labelField:  'Friendly Name',
+     *     width:            <number, meters>,
+     *     height:           <number, meters>,
+     *     customItemParts:  [...],                   // normalized part list
+     *     menuImage:        'data:image/png;base64,...',
+     *     addedAt:          '2026-05-11T20:55:00.000Z',  // ISO 8601 UTC,
+     *                                                    //   preserved across upserts
+     *     updatedAt:        '2026-05-11T20:55:00.000Z'   // ISO 8601 UTC,
+     *                                                    //   refreshed on every put
+     *   }
+     *
+     * Why ISO 8601 strings instead of Date.now() epoch ms?
+     *   - Self-documenting when inspecting records in DevTools.
+     *   - Lexicographic order == chronological order, so the addedAt IDB
+     *     index keeps working unchanged: the cursor still walks oldest
+     *     to newest, FIFO eviction still picks the right victim, and the
+     *     newest-first sort in customItemGetAll is a string compare.
+     *   - Round-trips losslessly through JSON.
+     *   - Universal standard (locale-independent — unlike toLocaleString
+     *     output which would vary per user).
+     *
+     * customItemPut() upserts by baseId — same baseId overwrites in place
+     * (no duplicates), which is exactly the import dedup semantic the user
+     * asked for. FIFO eviction (oldest addedAt) runs only when a NEW baseId
+     * pushes the count past MAX_CUSTOM_ITEMS, so existing entries can't be
+     * evicted by re-saving them. */
+
+    function customItemPut(record) {
+        if (!idbAvailable) return Promise.resolve(null);
+        if (!record || !record.customItemBaseId) {
+            console.warn('[idbStorage] customItemPut: missing customItemBaseId');
+            return Promise.resolve(null);
+        }
+        const baseId = String(record.customItemBaseId);
+        const nowIso = new Date().toISOString();
+        return tx(STORE_CUSTOMITEMS, 'readwrite', function (store) {
+            const out = { baseId: baseId, isNew: false };
+            const getReq = store.get(baseId);
+            getReq.onsuccess = function () {
+                const existing = getReq.result;
+                /* Preserve original addedAt across upserts so FIFO order
+                 * reflects when the user first added the template, not the
+                 * most recent edit. */
+                const addedAt = (existing && existing.addedAt) || nowIso;
+                out.isNew = !existing;
+                const entry = {
+                    customItemBaseId: baseId,
+                    data_labelField: String(record.data_labelField || ''),
+                    width: Number(record.width) || 0,
+                    height: Number(record.height) || 0,
+                    customItemParts: Array.isArray(record.customItemParts) ? record.customItemParts : [],
+                    menuImage: typeof record.menuImage === 'string' ? record.menuImage : '',
+                    /* Renderer version stamp for the menuImage. Bumped
+                     * whenever createCustomItemMenuImage() math changes
+                     * in a way that invalidates previously stored
+                     * thumbnails. Stale records (version < current) are
+                     * refreshed once on boot. Stored verbatim so the
+                     * one-shot migration can detect them without
+                     * round-tripping every record's PNG. */
+                    menuImageVersion: Number(record.menuImageVersion) || 0,
+                    addedAt: addedAt,
+                    updatedAt: nowIso
+                };
+                store.put(entry);
+            };
+            return out;
+        }).then(function (result) {
+            /* Only evict when a NEW baseId crossed the cap — upserts of
+             * existing entries leave the count unchanged. */
+            if (result && result.isNew) return customItemsEvictExcess().then(function () { return result.baseId; });
+            return (result && result.baseId) || null;
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemPut failed:', e && e.message);
+            return null;
+        });
+    }
+
+    function customItemsEvictExcess() {
+        if (!idbAvailable) return Promise.resolve(0);
+        return tx(STORE_CUSTOMITEMS, 'readwrite', function (store) {
+            const out = { deleted: 0 };
+            const countReq = store.count();
+            countReq.onsuccess = function () {
+                const excess = countReq.result - MAX_CUSTOM_ITEMS;
+                if (excess <= 0) return;
+                let removed = 0;
+                const idx = store.index('addedAt');
+                idx.openCursor().onsuccess = function (ev) {
+                    const cursor = ev.target.result;
+                    if (!cursor || removed >= excess) return;
+                    cursor.delete();
+                    removed++;
+                    out.deleted = removed;
+                    cursor.continue();
+                };
+            };
+            return out;
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemsEvictExcess failed:', e && e.message);
+            return 0;
+        });
+    }
+
+    function customItemGet(baseId) {
+        if (!idbAvailable || !baseId) return Promise.resolve(null);
+        return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                const transaction = db.transaction(STORE_CUSTOMITEMS, 'readonly');
+                const store = transaction.objectStore(STORE_CUSTOMITEMS);
+                const req = store.get(String(baseId));
+                req.onsuccess = function () { resolve(req.result || null); };
+                req.onerror = function () { reject(req.error); };
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemGet failed:', e && e.message);
+            return null;
+        });
+    }
+
+    /* Return all library records, newest-first by updatedAt so the Quick Add
+     * palette shows the most recently edited / imported templates first. The
+     * sort is done in JS because we only index addedAt (FIFO eviction key);
+     * adding a second index just for sort order would double the write cost. */
+    function customItemGetAll() {
+        if (!idbAvailable) return Promise.resolve([]);
+        return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                const transaction = db.transaction(STORE_CUSTOMITEMS, 'readonly');
+                const store = transaction.objectStore(STORE_CUSTOMITEMS);
+                const out = [];
+                store.openCursor().onsuccess = function (ev) {
+                    const cursor = ev.target.result;
+                    if (cursor) {
+                        out.push(cursor.value);
+                        cursor.continue();
+                    }
+                };
+                transaction.oncomplete = function () {
+                    /* String compare on ISO 8601 timestamps gives the
+                     * same chronological order as numeric compare on
+                     * epoch ms — ISO 8601 was specifically designed for
+                     * this property. Descending (newest-first) because
+                     * the Quick Add palette renders most-recently-edited
+                     * templates first. */
+                    out.sort(function (a, b) {
+                        const au = String(a.updatedAt || '');
+                        const bu = String(b.updatedAt || '');
+                        if (au < bu) return 1;
+                        if (au > bu) return -1;
+                        return 0;
+                    });
+                    resolve(out);
+                };
+                transaction.onerror = function (ev) { reject(ev.target.error); };
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemGetAll failed:', e && e.message);
+            return [];
+        });
+    }
+
+    /* Lightweight variant — returns just the array of customItemBaseIds, used
+     * to seed the in-memory `customItemLibraryIds` cache on boot without
+     * paying the cost of reading every base64 menuImage data URL. */
+    function customItemGetAllIds() {
+        if (!idbAvailable) return Promise.resolve([]);
+        return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                const transaction = db.transaction(STORE_CUSTOMITEMS, 'readonly');
+                const store = transaction.objectStore(STORE_CUSTOMITEMS);
+                const out = [];
+                /* getAllKeys is the cheap path — pulls just the primary keys
+                 * (the customItemBaseId strings) without deserializing record
+                 * values. Falls back to a cursor on older browsers. */
+                if (typeof store.getAllKeys === 'function') {
+                    const req = store.getAllKeys();
+                    req.onsuccess = function () {
+                        (req.result || []).forEach(function (k) { out.push(String(k)); });
+                    };
+                } else {
+                    store.openKeyCursor().onsuccess = function (ev) {
+                        const cursor = ev.target.result;
+                        if (cursor) {
+                            out.push(String(cursor.primaryKey));
+                            cursor.continue();
+                        }
+                    };
+                }
+                transaction.oncomplete = function () { resolve(out); };
+                transaction.onerror = function (ev) { reject(ev.target.error); };
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemGetAllIds failed:', e && e.message);
+            return [];
+        });
+    }
+
+    function customItemDelete(baseId) {
+        if (!idbAvailable || !baseId) return Promise.resolve(false);
+        return tx(STORE_CUSTOMITEMS, 'readwrite', function (store) {
+            store.delete(String(baseId));
+        }).then(function () { return true; })
+            .catch(function (e) {
+                console.warn('[idbStorage] customItemDelete failed:', e && e.message);
+                return false;
+            });
+    }
+
+    function customItemHas(baseId) {
+        if (!idbAvailable || !baseId) return Promise.resolve(false);
+        return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                const transaction = db.transaction(STORE_CUSTOMITEMS, 'readonly');
+                const store = transaction.objectStore(STORE_CUSTOMITEMS);
+                /* count() with a key range of exactly one key returns 0 or 1
+                 * without ever materializing the (potentially large)
+                 * menuImage payload — much cheaper than store.get() when the
+                 * caller only needs the boolean. */
+                const req = store.count(IDBKeyRange.only(String(baseId)));
+                req.onsuccess = function () { resolve(req.result > 0); };
+                req.onerror = function () { reject(req.error); };
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] customItemHas failed:', e && e.message);
+            return false;
+        });
+    }
+
     /* ----- Public API ------------------------------------------------------ */
 
     /* Hydrate the undo and redo arrays from IDB. Performs the one-time
@@ -475,11 +734,23 @@
         bgImagesUpdate: bgImagesUpdate,
         bgImagesMax: function () { return MAX_BG_IMAGES; },
 
+        /* VRC Custom Item Library (FIFO library, capped at MAX_CUSTOM_ITEMS,
+         * keyed by customItemBaseId so same-baseId import upserts in place) */
+        customItemPut: customItemPut,
+        customItemGet: customItemGet,
+        customItemGetAll: customItemGetAll,
+        customItemGetAllIds: customItemGetAllIds,
+        customItemDelete: customItemDelete,
+        customItemHas: customItemHas,
+        customItemMax: function () { return MAX_CUSTOM_ITEMS; },
+
         /* Exposed for tests / future tooling */
         _constants: {
             DB_NAME: DB_NAME, DB_VERSION: DB_VERSION,
             STORE_UNDO: STORE_UNDO, STORE_REDO: STORE_REDO, STORE_BG: STORE_BG,
-            MAX_UNDO_ENTRIES: MAX_UNDO_ENTRIES, MAX_REDO_ENTRIES: MAX_REDO_ENTRIES, MAX_BG_IMAGES: MAX_BG_IMAGES
+            STORE_CUSTOMITEMS: STORE_CUSTOMITEMS,
+            MAX_UNDO_ENTRIES: MAX_UNDO_ENTRIES, MAX_REDO_ENTRIES: MAX_REDO_ENTRIES,
+            MAX_BG_IMAGES: MAX_BG_IMAGES, MAX_CUSTOM_ITEMS: MAX_CUSTOM_ITEMS
         }
     };
 
