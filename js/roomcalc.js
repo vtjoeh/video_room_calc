@@ -2987,13 +2987,22 @@ function openCreateCustomItemDialog() {
 
     /* Same selection predicate createCustomItem() will apply.
      * Surfacing the error BEFORE the prompt keeps the UX coherent —
-     * no point asking for a name we can't use. */
+     * no point asking for a name we can't use.
+     *
+     * Single-item exception mirrors the canCustomItem rule in
+     * toggleItemActionsMenu(): a lone `pathShape` is allowed to become
+     * a CustomItem on its own. Keep this predicate in lock-step with
+     * createCustomItem()'s gate so the dialog never opens for a
+     * selection the create function will reject. */
     const candidates = (typeof tr !== 'undefined' && tr && tr.nodes) ? tr.nodes() : [];
     const itemNodes = candidates.filter(n =>
         n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
     );
-    if (itemNodes.length < 2) {
-        alertDialog('Cannot Create Custom Item', 'Select at least two items to create a Custom Item.');
+    const isSinglePathShape =
+        itemNodes.length === 1 && itemNodes[0].data_deviceid === 'pathShape';
+    if (itemNodes.length < 2 && !isSinglePathShape) {
+        alertDialog('Cannot Create Custom Item',
+            'Select at least two items, or a single Custom Path Shape, to create a Custom Item.');
         return;
     }
 
@@ -17681,8 +17690,29 @@ function createCustomItem(nodesToGroup, name) {
         n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
     );
 
-    if (itemNodes.length < 2) {
-        alertDialog('Cannot Create Custom Item', 'Select at least two items to create a Custom Item.');
+    /* Selection floor: 2+ real items, with a single-item exception for
+     * a lone `pathShape`. Custom Path Shapes are user-authored geometry
+     * that the user often wants to save to the Custom Item Library as a
+     * standalone reusable template, so the usual "redundant 1-item
+     * bundle" objection (which justifies the 2+ rule for normal
+     * devices) doesn't apply. All downstream code paths (membership
+     * wiring, rect insertion, URL/WD/clipboard round-trip, library
+     * export, menu-image generation) already work for any member count
+     * >= 1.
+     *
+     * Note on the deletion path: `deleteTrNodes` still dissolves any
+     * CustomItem that drops below 2 members on deletion. A 1-pathShape
+     * CustomItem whose single member is deleted dissolves cleanly
+     * (length 0). A 2-member CustomItem reduced to 1 by deletion also
+     * still dissolves — even if the remaining member is a pathShape —
+     * because that path is conservative and shared with the Group
+     * dissolve logic. The user can re-create a 1-pathShape CustomItem
+     * from the loose remainder if desired. */
+    const isSinglePathShape =
+        itemNodes.length === 1 && itemNodes[0].data_deviceid === 'pathShape';
+    if (itemNodes.length < 2 && !isSinglePathShape) {
+        alertDialog('Cannot Create Custom Item',
+            'Select at least two items, or a single Custom Path Shape, to create a Custom Item.');
         return;
     }
 
@@ -29797,8 +29827,20 @@ function toggleItemActionsMenu(event, mode) {
      * NOT block creation — `createCustomItem()` enforces "a CustomItem
      * cannot have Groups" by dissolving every touched Group as part of
      * the create, so any nested Group state is stripped from the new
-     * bundle. */
-    const canCustomItem = itemsOnly.length >= 2 && !allSameExistingCustomItem;
+     * bundle.
+     *
+     * Single-item exception: a single `pathShape` is also allowed to
+     * become a CustomItem on its own. Custom Path Shapes are
+     * user-authored geometry that the user often wants to bundle (and
+     * save to the library) as a standalone reusable template — the
+     * "2+ items" rule that prevents redundant 1-item bundles for normal
+     * devices doesn't make sense for these. The same
+     * `!allSameExistingCustomItem` check still gates re-bundling an
+     * already-bundled pathShape. */
+    const isSinglePathShape =
+        itemsOnly.length === 1 && itemsOnly[0].data_deviceid === 'pathShape';
+    const canCustomItem =
+        (itemsOnly.length >= 2 || isSinglePathShape) && !allSameExistingCustomItem;
 
     /* "Unjoin Custom Item" is offered only when the selection is *exactly*
      * one CustomItem bundle and nothing else — i.e. the same condition
