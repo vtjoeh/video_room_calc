@@ -1200,6 +1200,21 @@
                 placeholder="https://example.com" autocomplete="off"
                 oninput="wdSiteCustomChange()" onblur="wdSiteCustomBlur()">
             </div>
+
+            <div class="inputField" id="exportCustomItemsDiv">
+              <label class="tooltip">Custom Item Library:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Download every Custom Item template stored in your local Custom Item Library
+                  as a single <code>.vrcCustomItems.json</code> file. The same file can be re-imported
+                  later (or by another user) to restore the library — duplicates are ignored on import.
+                </span>
+              </label>
+              <button type="button" class="button dropDownBtnWhite" id="btnExportAllCustomItems"
+                onclick="exportAllCustomItemsFromLibrary()" disabled>
+                Export Custom Items
+              </button>
+            </div>
           </div>
         </div>
         <!-- Layers Tab -->
@@ -2360,6 +2375,18 @@
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
       <button class="button" id="dialogLayerDeleteConfirmBtn">Delete</button>
+    </div>
+  </dialog>
+
+  <dialog id="dialogCustomItemDelete" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Delete Custom Item</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div id="dialogCustomItemDeleteMain"></div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" id="dialogCustomItemDeleteConfirmBtn">Delete</button>
     </div>
   </dialog>
 

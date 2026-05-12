@@ -3027,5 +3027,58 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
  * the 92px tile width but visible against any background. */
 .equipmentItemOnMenu.customItemTile {
   border-left: 3px solid #4caf50;
+  /* Anchor for .customItemTileDeleteBtn — the absolutely-positioned
+   * delete glyph nests inside the tile rather than the gallery, so it
+   * tracks the tile through wrapping/reorder of search results. */
+  position: relative;
+}
+
+/* ---- Quick Add palette: customItem tile delete button ----
+ *
+ * Small round trash-icon affordance in the upper-right of every
+ * library customItem tile, modelled on the Recent Floor Plans card's
+ * delete button (.recentFloorPlanDeleteBtn) — same shape, same fade-
+ * on-hover behaviour — but shrunk to 20px so it doesn't crowd the 70px
+ * menuImage thumbnail above the tile's 12px label.
+ *
+ * The white pill background + drop-shadow lifts the icon off any tile
+ * background colour the menuImage might bleed into, so the affordance
+ * stays legible regardless of which Custom Item it sits on. The icon
+ * itself is the Momentum `icon-delete-bold` glyph (same one used by
+ * the Layer dialog's per-layer delete row). */
+.customItemTileDeleteBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #555;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transition: opacity 120ms ease-out, color 120ms ease-out;
+}
+
+.customItemTileDeleteBtn .icon {
+  font-size: 15px;
+}
+
+.equipmentItemOnMenu.customItemTile:hover .customItemTileDeleteBtn,
+.equipmentItemOnMenu.customItemTile:focus-within .customItemTileDeleteBtn,
+.customItemTileDeleteBtn:focus {
+  opacity: 1;
+}
+
+.customItemTileDeleteBtn:hover {
+  color: #c00;
 }
 

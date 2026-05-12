@@ -834,6 +834,13 @@ function hydrateCustomItemLibraryIds() {
         .then(ids => {
             customItemLibraryIds = new Set(ids || []);
             console.info('[customItemLibrary] hydrated', customItemLibraryIds.size, 'template id(s) from IDB');
+            /* Initial enable/disable for the Settings → Export Custom
+             * Items button. Subsequent state changes (Add to Library,
+             * Unjoin, tile delete, import) are picked up by the
+             * mark/unmark hooks. */
+            if (typeof updateExportCustomItemsButtonState === 'function') {
+                updateExportCustomItemsButtonState();
+            }
         })
         .catch(e => {
             console.warn('[customItemLibrary] hydrate failed:', e && e.message);
@@ -902,13 +909,27 @@ function isCustomItemInLibrary(customItemBaseId) {
  * synchronously on the next pointer event. */
 function markCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
+    const before = customItemLibraryIds.size;
     customItemLibraryIds.add(customItemBaseId);
+    /* Only refresh the Settings export-button state when the membership
+     * count actually changed (re-mark of an existing baseId is a no-op
+     * on the Set, but we'd otherwise still pay a DOM-reflow cost on
+     * every save). */
+    if (customItemLibraryIds.size !== before &&
+        typeof updateExportCustomItemsButtonState === 'function') {
+        updateExportCustomItemsButtonState();
+    }
 }
 
 /* Inverse of mark — invoked after idbStore.customItemDelete() succeeds. */
 function unmarkCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
+    const before = customItemLibraryIds.size;
     customItemLibraryIds.delete(customItemBaseId);
+    if (customItemLibraryIds.size !== before &&
+        typeof updateExportCustomItemsButtonState === 'function') {
+        updateExportCustomItemsButtonState();
+    }
 }
 
 /* Compute a single customItem member's geometry in the customItem's
@@ -1714,6 +1735,64 @@ function removeCustomItemFromLibrary(customItem) {
     });
 }
 
+/* Opens the "Delete Custom Item" confirmation modal — invoked from the
+ * little trash button in the upper-right of each library tile in the
+ * Quick Add palette. Mirrors openDeleteLayerDialog() so the surface
+ * feels familiar (same dialogWhiteBox style, Cancel/Delete buttons,
+ * close-X). On Delete:
+ *
+ *   - removes the IDB record (idbStore.customItemDelete),
+ *   - syncs the in-memory customItemLibraryIds Set so isCustomItemInLibrary()
+ *     returns false immediately on subsequent renders (e.g. the
+ *     itemActionsMenu re-evaluates the Add/Unjoin entries),
+ *   - splices the deleted record out of the Quick Add cache,
+ *   - re-fires onQuickAddChange so the deleted tile disappears WITHOUT
+ *     wiping the user's current search query, and
+ *   - shows a toast for the action.
+ *
+ * The on-canvas instances of the customItem are intentionally LEFT in
+ * place — deletion targets the *library template*, not living bundles
+ * the user has placed. That mirrors the wording in the dialog body and
+ * matches the strict-family model: instances exist independent of
+ * library membership. */
+function openDeleteCustomItemFromLibraryDialog(baseId, name) {
+    if (!baseId) return;
+    const dialog = document.getElementById('dialogCustomItemDelete');
+    if (!dialog) return;
+
+    const displayName = (name && String(name).trim().length) ? String(name).trim() : '(unnamed)';
+    const safeName = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(displayName) : displayName;
+    let html = `<div>Delete <b>"${safeName}"</b> from your local Custom Item Library?</div>`;
+    html += `<div style="margin-top: 8px; color: #555;">This only removes the saved template. Existing instances of this Custom Item already on the room canvas are unaffected.</div>`;
+
+    const main = document.getElementById('dialogCustomItemDeleteMain');
+    if (main) main.innerHTML = html;
+
+    const btn = document.getElementById('dialogCustomItemDeleteConfirmBtn');
+    if (btn) {
+        btn.onclick = function () {
+            dialog.close();
+            if (!window.idbStore || typeof window.idbStore.customItemDelete !== 'function') {
+                showToast('Library unavailable — delete failed');
+                return;
+            }
+            window.idbStore.customItemDelete(baseId).then(function (ok) {
+                if (!ok) {
+                    showToast('Delete failed for "' + displayName + '"');
+                    return;
+                }
+                unmarkCustomItemInLibrary(baseId);
+                _customItemQuickAddRecordsCache = (_customItemQuickAddRecordsCache || [])
+                    .filter(r => r && r.customItemBaseId !== baseId);
+                showToast('Deleted "' + displayName + '" from library');
+                const input = document.querySelector('.quick-dialog input');
+                if (input) onQuickAddChange({ target: input });
+            });
+        };
+    }
+    dialog.showModal();
+}
+
 /* "Export Custom Item" — download the customItem as a single-entry
  * .vrcCustomItems.json file and ALSO persist to the IDB library (the
  * user has signalled this is a "keeper" template by exporting it, so
@@ -1784,6 +1863,102 @@ function exportCustomItem(customItem) {
 
         showToast('Custom Item exported');
     });
+}
+
+/* "Export Custom Items" — Details → Settings entry-point. Bundles
+ * EVERY record currently in the local Custom Item Library into a
+ * single .vrcCustomItems.json file (same on-the-wire shape as the
+ * single-item export — `{ vrcCustomItems: [...] }` — just with N
+ * records instead of 1). This is the symmetrical counterpart to the
+ * import flow's existing N-record support, so a user can back up,
+ * archive, or hand off their entire library in one click.
+ *
+ * Behaviours:
+ *   - Reads the records straight from IDB rather than from the
+ *     `_customItemQuickAddRecordsCache`, since the cache is dropped
+ *     when the Quick Add dialog closes. The button lives in the
+ *     Settings tab where Quick Add isn't open.
+ *   - Records are taken VERBATIM from IDB — no re-render of menuImage,
+ *     no normalization, no extra IDB writes. The boot migration has
+ *     already brought every record up to the current renderer version,
+ *     so re-rendering on export would be redundant work.
+ *   - Empty-library case is normally prevented by the button's disabled
+ *     state, but we still guard at runtime in case the disabled state
+ *     drifted (e.g. dev tools clear of IDB while Settings is open).
+ *   - "X items exported" is shown via alertDialog (same modal style
+ *     used by the import-summary dialog) rather than showToast — the
+ *     user just clicked an explicit, infrequent action and benefits
+ *     from a synchronous acknowledgement.
+ */
+function exportAllCustomItemsFromLibrary() {
+    if (!window.idbStore || typeof window.idbStore.customItemGetAll !== 'function') {
+        alertDialog(
+            'Export Failed',
+            'Local storage (IndexedDB) is unavailable in this browser session.'
+        );
+        return;
+    }
+    window.idbStore.customItemGetAll().then(function (records) {
+        if (!Array.isArray(records) || !records.length) {
+            alertDialog(
+                'No Custom Items',
+                'There are no Custom Items in your local library to export.'
+            );
+            return;
+        }
+        const fileObj = { vrcCustomItems: records };
+        const json = JSON.stringify(fileObj, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        /* Time-stamped filename so multiple exports in a session don't
+         * collide in the user's Downloads folder. ISO date (no time) is
+         * enough — same-day exports get a -2/-3 suffix from the OS.
+         * No PII / no secret material in the filename. */
+        const stamp = new Date().toISOString().slice(0, 10); /* YYYY-MM-DD */
+        link.download = 'customItemLibrary-' + stamp + '.vrcCustomItems.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        const n = records.length;
+        alertDialog(
+            'Custom Items Exported',
+            n + ' Custom Item' + (n === 1 ? '' : 's') + ' exported to ' +
+            '<code>' + (typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(link.download) : link.download) + '</code>.'
+        );
+    }).catch(function (e) {
+        console.warn('[customItemLibrary] exportAllCustomItemsFromLibrary failed:', e && e.message);
+        alertDialog(
+            'Export Failed',
+            'Reading the local Custom Item Library failed. See the browser console for details.'
+        );
+    });
+}
+
+/* Toggle the "Export Custom Items" button (Details → Settings) between
+ * enabled/disabled based on whether the local library has any records.
+ *
+ * Source of truth is the in-memory customItemLibraryIds Set, which is
+ * kept in sync with IDB by hydrate-on-boot, mark/unmark on save/delete,
+ * and the boot menuImage migration. This keeps the call cheap (no IDB
+ * round-trip per state-change site) and lets us update the button on
+ * every mark/unmark. The button is intentionally hidden behind a
+ * standard <button disabled> rather than via .style.display so it's
+ * still discoverable in the panel — a user with an empty library can
+ * see the affordance, hover for the tooltip, and immediately understand
+ * why it isn't actionable yet. */
+function updateExportCustomItemsButtonState() {
+    const btn = document.getElementById('btnExportAllCustomItems');
+    if (!btn) return;
+    const count = customItemLibraryIds ? customItemLibraryIds.size : 0;
+    btn.disabled = count === 0;
+    btn.title = count === 0
+        ? 'No Custom Items in the local library yet.'
+        : 'Download all ' + count + ' Custom Item' + (count === 1 ? '' : 's') +
+          ' as a single .vrcCustomItems.json file.';
 }
 
 /* Strict validator for a single .vrcCustomItems record. Returns
@@ -23336,6 +23511,43 @@ function onQuickAddChange(e) {
             btnItem.classList.add('customItemTile');
             btnItem.id = `customItem-${m.id}-div`;
             btnItem.draggable = false;
+
+            /* Delete button — small trash icon in the upper-right of
+             * the tile. CRITICAL: this is a <span role="button"> not a
+             * <button>, because btnItem itself is a <button> and HTML5
+             * forbids <button> nested inside <button>. Browsers DOM-
+             * repair that nesting by hoisting the inner button out as
+             * a sibling, which silently broke the layout (and click
+             * handler) of the original implementation. The role +
+             * tabindex + keydown handler keep keyboard accessibility
+             * parity with a real button. */
+            const delBtn = document.createElement('span');
+            delBtn.className = 'customItemTileDeleteBtn';
+            delBtn.setAttribute('role', 'button');
+            delBtn.setAttribute('tabindex', '0');
+            delBtn.setAttribute('aria-label', 'Delete ' + (m.name || 'Custom Item') + ' from library');
+            delBtn.title = 'Delete from local Custom Item Library';
+            /* Momentum icon (icon-delete-bold) — same trash glyph used
+             * by the layer-delete button in the Layer dialog. innerHTML
+             * is safe here: the markup is a fixed string with no
+             * caller-supplied data. */
+            delBtn.innerHTML = '<i class="icon icon-delete-bold"></i>';
+            /* stopPropagation prevents the parent btnItem.onclick from
+             * also firing — without it every trash click would also
+             * insert the customItem onto the canvas. */
+            delBtn.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                openDeleteCustomItemFromLibraryDialog(m.id, m.name || '');
+            });
+            delBtn.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    openDeleteCustomItemFromLibraryDialog(m.id, m.name || '');
+                }
+            });
+            btnItem.appendChild(delBtn);
 
             btnItem.onclick = () => {
                 const { roomWidth, roomLength } = roomObj.room;
