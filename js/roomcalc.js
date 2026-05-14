@@ -608,7 +608,7 @@ function populateGroupDetails(rectNode) {
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
-        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2841,7 +2841,7 @@ function populateCustomItemDetails(rectNode) {
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
-        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -3634,6 +3634,50 @@ function selectLayerItems(layerId) {
     }
     refreshCopyDelBtnState();
     /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
+}
+
+/* Reset per-item fill / opacity overrides on the currently-selected
+ * item back to the device defaults (#FFFFFF99 / opacity 1).
+ *
+ * Routes through the standard updateItem() pipeline rather than
+ * mutating the Konva node directly — per UX request: "When Reset is
+ * clicked, it should update updateItem() after setting values to
+ * default." Same path every other Details-panel control uses, so any
+ * future updateItem() behaviour (coverage node sync, label rebuild,
+ * canvasToJson flush, etc.) is picked up automatically without us
+ * needing to mirror it here.
+ *
+ * Reset flow:
+ *   1. Set #itemFill picker to `#FFFFFF` (the populate-time "no
+ *      override" sentinel — also matches updateItem()'s special-case
+ *      that deletes data_fill when the picker reads `#FFFFFF`).
+ *   2. Set #itemOpacity input to '' (updateItem() reads empty / 1 as
+ *      "no override" and deletes data_opacity).
+ *   3. Call updateItem(), which destroys + rebuilds the Konva node
+ *      via insertTable() / insertShapeItem() with data_fill and
+ *      data_opacity absent — picking up the device default fallbacks
+ *      automatically.
+ *
+ * Scoped to the single-item Details panel (#btnFillReset lives inside
+ * #fillDiv which is only shown in single-selection mode). The
+ * multiUpdateMode guard mirrors the other input listeners so this
+ * also no-ops cleanly if the button ever surfaces in a multi-select
+ * context in the future. */
+function resetFillToDefault() {
+    if (!tr || tr.nodes().length !== 1) return;
+    const node = tr.nodes()[0];
+    if (!node || !node.data_deviceid) return;
+    const def = allDeviceTypes[node.data_deviceid];
+    if (!def || (!def.configurableColor && !def.wdOpacity)) return;
+
+    const fillEl = document.getElementById('itemFill');
+    const opEl = document.getElementById('itemOpacity');
+    if (fillEl) fillEl.value = '#FFFFFF';
+    if (opEl) opEl.value = '';
+
+    if (!multiUpdateMode) {
+        updateItem();
+    }
 }
 
 /* Layer ID that NEW items (added via the equipment menu, quick-add dialog,
@@ -6259,7 +6303,10 @@ let tables = [{
     key: 'WA',
     frontImage: 'wallStd-front.png',
     family: 'wallBox',
-    resizeable: ['depth', 'vheight']
+    resizeable: ['depth', 'vheight'], 
+    configurableColor: true, 
+    wdOpacity: true, 
+    
 },
 {
     name: 'Glass Wall',
@@ -6268,7 +6315,6 @@ let tables = [{
     frontImage: 'wallGlass-front.png',
     family: 'wallBox',
     resizeable: ['depth', 'vheight'], 
-    webColors: true, 
 },
 
 {
@@ -6278,6 +6324,9 @@ let tables = [{
     frontImage: 'columnRect-front.png',
     family: 'wallBox',
     resizeable: ['width', 'depth', 'vheight'],     
+    configurableColor: true, 
+    wdOpacity: true, 
+             
 },
 
 {
@@ -6334,6 +6383,7 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 0.5,
     resizeable: [], 
+    configurableColor: true,
 
 },
 {
@@ -6345,7 +6395,9 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 1,
     opacity: 0.4,
-    resizeable: []
+    resizeable: [],
+    configurableColor: true,
+    wdOpacity: true,
 },
 {
     name: 'Custom Path Shape',
@@ -6353,7 +6405,9 @@ let tables = [{
     key: 'WL',
     frontImage: 'pathShape-menu.png',
     strokeWidth: 1 / scale,
-    resizeable: []
+    resizeable: [], 
+    configurableColor: true,
+    wdOpacity: true
 },
 {
     name: 'Credenza / Cabinet',
@@ -6935,6 +6989,8 @@ let stageFloors = [
         dash: [4, 8],
         resizeable: ['width', 'depth', 'vheight'],
         default_vHeight: 500,
+        configurableColor: true,
+        wdOpacity: true,
     },
     {
         name: 'Carpet',
@@ -6947,6 +7003,8 @@ let stageFloors = [
         dash: [8, 3],
         resizeable: ['width', 'depth', 'vheight'],
         default_vHeight: 10,
+        configurableColor: true,
+        wdOpacity: true,
         defaultVert: 10,
     }
 ]
@@ -6965,6 +7023,8 @@ let boxes = [
         dash: [7, 5],
         resizeable: ['width', 'depth', 'vheight'],
         default_vHeight: 1000,
+        configurableColor: true,
+        wdOpacity: true,
     },
     {
         name: 'Wall Builder - Multiple walls',
@@ -7112,6 +7172,68 @@ function addOnBlurUnitInputListener() {
 }
 
 addOnBlurUnitInputListener();
+
+/* Wire change / blur / debounced-input listeners on the Details-panel
+ * fill color and opacity inputs (#itemFill, #itemOpacity).
+ *
+ * The unitInput auto-binding above only catches text inputs in the
+ * .unitInput class — #itemFill is type="color" and #itemOpacity is
+ * type="number", so they need their own binding pass. Without this,
+ * the user can pick a new color or type a new opacity but nothing
+ * happens until they hit the Update Item button — which is exactly
+ * what got reported as broken.
+ *
+ * Event semantics:
+ *  - input on #itemFill is debounced (500 ms idle) because native
+ *    <input type="color"> fires `input` continuously while the user
+ *    scrubs the picker. Wiring updateItem() directly would rebuild
+ *    the Konva node dozens of times per second.
+ *  - change on #itemFill flushes immediately (cancels pending
+ *    debounce). Fires on swatch-click / picker-dismiss.
+ *  - blur on #itemFill flushes immediately as a safety net for
+ *    browsers where `change` doesn't fire on dismiss.
+ *  - blur on #itemOpacity (type="number") commits on tab-away. The
+ *    other input/change events on a number field would commit
+ *    mid-typing which is unhelpful — blur matches the unitInput
+ *    convention used elsewhere in the panel.
+ *
+ * All paths gate on !multiUpdateMode to match the unitInput listeners. */
+function addOnFillInputListeners() {
+    const fillEl = document.getElementById('itemFill');
+    const opEl = document.getElementById('itemOpacity');
+
+    let fillInputDebounce = null;
+    const FILL_INPUT_DEBOUNCE_MS = 500;
+
+    function flushFillUpdate() {
+        if (fillInputDebounce) {
+            clearTimeout(fillInputDebounce);
+            fillInputDebounce = null;
+        }
+        if (!multiUpdateMode) {
+            updateItem();
+        }
+    }
+
+    if (fillEl) {
+        fillEl.addEventListener('input', () => {
+            if (fillInputDebounce) clearTimeout(fillInputDebounce);
+            fillInputDebounce = setTimeout(flushFillUpdate, FILL_INPUT_DEBOUNCE_MS);
+        });
+        fillEl.addEventListener('change', flushFillUpdate);
+        fillEl.addEventListener('blur', flushFillUpdate);
+    }
+
+    if (opEl) {
+        opEl.addEventListener('blur', () => {
+            if (!multiUpdateMode) {
+                updateItem();
+            }
+        });
+    }
+}
+
+addOnFillInputListeners();
 
 determineMobileDevice();
 
@@ -8619,6 +8741,20 @@ function parseShortenedXYUrl(parameters) {
                     if (!('ll' in item) && !('s' in item)) {
                         newItem.data_layerId = matchedCustomItem.data_layerId;
                     }
+                }
+            }
+
+            /* Configurable fill (`u{RRRGGGBBB}`) and opacity (`v{NN}`).
+             * Decoder is uncached — runs once per URL parse. Invalid input
+             * falls back to defaults so a malformed URL doesn't blank out
+             * the rest of the item. */
+            if ('u' in item) {
+                newItem.data_fill = urlRgbToHex(String(item.u));
+            }
+            if ('v' in item) {
+                const opNum = parseInt(item.v, 10);
+                if (!isNaN(opNum) && opNum >= 0 && opNum < 100) {
+                    newItem.data_opacity = opNum / 100;
                 }
             }
 
@@ -11624,6 +11760,99 @@ function expand(num) {
     return Math.round(num * 100);
 }
 
+/* Hex ↔ 9-digit zero-padded RGB triple, used by the `u` URL letter for
+ * configurableColor / data_fill. Encoder is cached because the URL is
+ * regenerated on every drag/resize/paste and the same handful of hex
+ * values typically come up repeatedly per session. Decoder is
+ * uncached — parseShortenedXYUrl() runs once per page load. */
+let _hexToUrlRgbCache = new Map();
+function hexToUrlRgb(hex) {
+    if (!hex || typeof hex !== 'string') return '255255255';
+    const cached = _hexToUrlRgbCache.get(hex);
+    if (cached) return cached;
+    let h = hex.trim().replace(/^#/, '');
+    if (h.length === 3) {
+        h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return '255255255';
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    const result = String(r).padStart(3, '0') + String(g).padStart(3, '0') + String(b).padStart(3, '0');
+    _hexToUrlRgbCache.set(hex, result);
+    return result;
+}
+function urlRgbToHex(rgb9) {
+    if (!rgb9 || rgb9.length !== 9 || !/^\d{9}$/.test(rgb9)) return '#FFFFFF';
+    const r = Math.min(255, Math.max(0, parseInt(rgb9.substring(0, 3), 10)));
+    const g = Math.min(255, Math.max(0, parseInt(rgb9.substring(3, 6), 10)));
+    const b = Math.min(255, Math.max(0, parseInt(rgb9.substring(6, 9), 10)));
+    return '#' + r.toString(16).padStart(2, '0').toUpperCase()
+               + g.toString(16).padStart(2, '0').toUpperCase()
+               + b.toString(16).padStart(2, '0').toUpperCase();
+}
+
+/* Normalize a WD-imported color value to a 6-digit uppercase hex.
+ * Accepts:
+ *   "#RRGGBB" / "#RGB"            — short and long hex
+ *   CSS named colors              — "AliceBlue", "red", "transparent", …
+ * Returns null when the input is not a parseable color (the caller then
+ * leaves data_fill absent so the item falls back to its device default).
+ *
+ * The named-color path leans on the browser's CSS parser via
+ * getComputedStyle() — much cleaner than shipping our own named-color
+ * table and stays in sync with whatever the spec adds in the future.
+ * Results (including null for invalid input) are memoized in
+ * _namedColorToHexCache so a WD JSON full of "AliceBlue" walls only
+ * hits the DOM probe once per session. */
+let _namedColorToHexCache = new Map();
+function normalizeColorToHex(input) {
+    if (input == null) return null;
+    const key = String(input).trim();
+    if (!key) return null;
+    if (_namedColorToHexCache.has(key)) return _namedColorToHexCache.get(key);
+
+    /* Direct hex shortcut — skip the DOM probe entirely when it's
+     * obviously already #RRGGBB or #RGB. */
+    let h = key.replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(h)) {
+        h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    if (/^[0-9a-fA-F]{6}$/.test(h)) {
+        const hex = '#' + h.toUpperCase();
+        _namedColorToHexCache.set(key, hex);
+        return hex;
+    }
+
+    /* CSS-name path: ask the browser to resolve. We DON'T cache the
+     * temp div across calls because the DOM probe is cheap (<1ms) and
+     * the cache hit on the *result* is what matters for performance. */
+    let result = null;
+    try {
+        const probe = document.createElement('div');
+        probe.style.color = '';
+        probe.style.color = key;
+        if (probe.style.color !== '') {
+            document.body.appendChild(probe);
+            const rgb = getComputedStyle(probe).color;
+            document.body.removeChild(probe);
+            const m = rgb && rgb.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (m) {
+                const r = Math.min(255, parseInt(m[1], 10));
+                const g = Math.min(255, parseInt(m[2], 10));
+                const b = Math.min(255, parseInt(m[3], 10));
+                result = '#' + r.toString(16).padStart(2, '0').toUpperCase()
+                             + g.toString(16).padStart(2, '0').toUpperCase()
+                             + b.toString(16).padStart(2, '0').toUpperCase();
+            }
+        }
+    } catch (e) {
+        result = null;
+    }
+    _namedColorToHexCache.set(key, result);
+    return result;
+}
+
 function createShareableLinkItem(item) {
     let strItem = '';
 
@@ -11771,6 +12000,21 @@ function createShareableLinkItem(item) {
      * carry both `s{n}` and `t{n}` when it belongs to both bundles. */
     if (itemHasCustomItemRef) {
         strItem += 't' + _customItemUrlEncodeMap[item.data_customItemId];
+    }
+
+    /* Configurable fill / opacity letters (per notes/URL_ENCODING.md):
+     *   u{RRR}{GGG}{BBB} — zero-padded RGB triple, always 9 digits.
+     *                       Encoder uses cached hexToUrlRgb().
+     *   v{NN}            — opacity × 100 (0..99). Default (1.0) omitted.
+     * Both are absent ⇒ device default per the spec. */
+    if (item.data_fill) {
+        strItem += 'u' + hexToUrlRgb(item.data_fill);
+    }
+    if (item.data_opacity != null && Number(item.data_opacity) !== 1) {
+        const opacityNum = Number(item.data_opacity);
+        if (!isNaN(opacityNum) && opacityNum >= 0 && opacityNum < 1) {
+            strItem += 'v' + Math.round(opacityNum * 100);
+        }
     }
 
     if ('data_labelField' in item) {
@@ -12498,6 +12742,16 @@ function copyToCanvasClipBoard(nodes) {
         /* CustomItem membership — same rule as Group above. */
         if (node.data_customItemId && completeCustomItemIds.has(node.data_customItemId)) {
             newAttr.data_customItemId = node.data_customItemId;
+        }
+
+        /* Configurable fill / opacity — preserved verbatim through
+         * copy/paste/duplicate. data_fill is just a hex string and
+         * data_opacity a 0..1 number; neither needs UUID remapping. */
+        if (node.data_fill) {
+            newAttr.data_fill = node.data_fill;
+        }
+        if (node.data_opacity != null && Number(node.data_opacity) !== 1) {
+            newAttr.data_opacity = Number(node.data_opacity);
         }
 
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
@@ -13760,6 +14014,18 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_customItemId = node.data_customItemId;
         }
 
+        /* Configurable fill / opacity (box / carpet / stageFloor today,
+         * any future configurableColor / wdOpacity device). Same
+         * four-place-rule rationale as data_groupId above. Default
+         * (opacity exactly 1.0) is omitted entirely so the JSON / URL
+         * round-trip stays compact for the common case. */
+        if (node.data_fill) {
+            itemAttr.data_fill = node.data_fill;
+        }
+        if (node.data_opacity != null && Number(node.data_opacity) !== 1) {
+            itemAttr.data_opacity = Number(node.data_opacity);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -13803,6 +14069,27 @@ function updateRoomObjFromTrNode() {
                 item.data_customItemId = itemAttr.data_customItemId;
             } else {
                 delete item.data_customItemId;
+            }
+
+            /* Configurable fill / opacity — explicit-delete-on-absent
+             * so the Details-panel Reset button cleanly propagates the
+             * deletion back to roomObj.items[]. resetFillToDefault()
+             * routes through updateItem() which rebuilds the Konva
+             * node via insertTable()/insertShapeItem() with data_fill
+             * / data_opacity unset; the rebuilt node lands here on the
+             * next canvasToJson with both attrs absent and we must
+             * mirror that absence onto the existing roomObj entry —
+             * otherwise the cleared values would silently reappear
+             * from the prior roomObj state. */
+            if (itemAttr.data_fill) {
+                item.data_fill = itemAttr.data_fill;
+            } else {
+                delete item.data_fill;
+            }
+            if (itemAttr.data_opacity != null) {
+                item.data_opacity = itemAttr.data_opacity;
+            } else {
+                delete item.data_opacity;
             }
 
         } else {
@@ -14557,6 +14844,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'sphere') {
+        /* configurableColor: per-item override on attrs.data_fill (read from
+         * shape.data_fill inside sceneFunc — populated by the four-place rule
+         * after construction but BEFORE the first draw, so by the time the
+         * gradient is built the override is available). Sphere is intentionally
+         * configurableColor-only (no wdOpacity), so opacity stays on the
+         * historical device-default fallback. */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -14577,7 +14870,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 shape.fillRadialGradientStartRadius(0)
                 shape.fillRadialGradientEndPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3 });
                 shape.fillRadialGradientEndRadius(shape.width());
-                shape.fillRadialGradientColorStops([0, 'white', 0.5, 'grey', 1, 'grey']);
+                /* Body color: per-item override via shape.data_fill, falling
+                 * back to the historical 'grey'. Inner stop stays 'white' so
+                 * the 3D highlight effect is preserved even when the sphere
+                 * is tinted to a custom color. */
+                const sphereBodyColor = shape.data_fill || 'grey';
+                shape.fillRadialGradientColorStops([0, 'white', 0.5, sphereBodyColor, 1, sphereBodyColor]);
                 context.fillStrokeShape(shape);
             }
 
@@ -14585,18 +14883,23 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
 
     } else if (insertDevice.id === 'cylinder') {
+        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
+         * and attrs.data_opacity. Absent ⇒ historical cylinder defaults
+         * (`grey` fill, device-def opacity 0.4). */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             width: width,
             height: height,
-            fill: 'grey',
+            fill: attrs.data_fill || 'grey',
             stroke: strokeColor,
             strokeWidth: allDeviceTypes['cylinder'].strokeWidth,
             id: uuid,
             draggable: true,
-            opacity: allDeviceTypes[insertDevice.id].opacity ?? opacity,
+            opacity: (attrs.data_opacity == null
+                ? (allDeviceTypes[insertDevice.id].opacity ?? opacity)
+                : Number(attrs.data_opacity)),
             sceneFunc: (context, shape) => {
                 context.beginPath();
                 /* don't need to set position of ellipse, Konva will handle it */
@@ -14743,19 +15046,23 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         });
     } else if (insertDevice.id === 'box') {
+        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
+         * (6-digit hex) and attrs.data_opacity (0..1). Absent ⇒ device default
+         * (#FFFFFF99 / opacity 1). resetFillToDefault() relies on this fallback. */
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             width: width,
             height: height,
-            fill: '#FFFFFF99',
+            fill: attrs.data_fill || '#FFFFFF99',
             id: uuid,
             cornerRadius: radius,
             draggable: true,
             dash: allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
+            opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
         });
     } else if (insertDevice.id === 'carpet') {
         tblWallFlr = new Konva.Rect({
@@ -14764,14 +15071,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             rotation: rotation,
             width: width,
             height: height,
-            fill: '#FFFFFF99',
+            fill: attrs.data_fill || '#FFFFFF99',
             id: uuid,
             cornerRadius: radius,
             draggable: true,
             dash: allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke,
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
-            opacity: 1,
+            opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
         });
     } else if (insertDevice.id === 'stageFloor') {
         tblWallFlr = new Konva.Rect({
@@ -14780,28 +15087,33 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             rotation: rotation,
             width: width,
             height: height,
-            fill: '#FFFFFF99',
+            fill: attrs.data_fill || '#FFFFFF99',
             id: uuid,
             cornerRadius: radius,
             draggable: true,
             dash: allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke,
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
-            opacity: 1,
+            opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
         });
     } else if (insertDevice.id === 'wallStd') {
+        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
+         * and attrs.data_opacity. Absent ⇒ historical wallStd defaults
+         * (`gray` fill, 0.8 opacity), so resetFillToDefault() (which deletes
+         * both attrs and triggers a rebuild via updateItem()) restores the
+         * original look. */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             width: wallWidth,
             height: height,
-            fill: 'gray',
+            fill: attrs.data_fill || 'gray',
             stroke: strokeColor,
             strokeWidth: 1,
             id: uuid,
             draggable: true,
-            opacity: opacity,
+            opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
             sceneFunc: (ctx, shape) => {
                 ctx.beginPath();
                 let height = shape.height();
@@ -14984,18 +15296,21 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         });
     } else if (insertDevice.id === 'columnRect') {
+        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
+         * and attrs.data_opacity. Absent ⇒ historical columnRect defaults
+         * (`gray` fill, 0.8 opacity). */
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             width: width,
             height: height,
-            fill: 'gray',
+            fill: attrs.data_fill || 'gray',
             stroke: strokeColor,
             strokeWidth: 1,
             id: uuid,
             draggable: true,
-            opacity: opacity,
+            opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
         });
 
     } else if (insertDevice.id === 'boxRoomPart') {
@@ -15081,6 +15396,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     /* Group / CustomItem membership */
     tblWallFlr.data_groupId = attrs.data_groupId || null;
     tblWallFlr.data_customItemId = attrs.data_customItemId || null;
+
+    /* Configurable fill / opacity (box, carpet, stageFloor). Stored on the
+     * node so canvasToJson() can round-trip them. The Konva rect's actual
+     * fill/opacity are wired above from the same attrs (with the
+     * #FFFFFF99 / 1.0 hardcoded fallback). Absent ⇒ null so the
+     * four-place rule writer can detect "no override" and omit the key
+     * on roomObj.items. */
+    tblWallFlr.data_fill = attrs.data_fill || null;
+    tblWallFlr.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
 
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
@@ -16404,6 +16728,48 @@ function updateItem() {
                 item.data_layerId = selectedLayerId;
             } else {
                 delete item.data_layerId;
+            }
+        }
+
+        /* Configurable fill / opacity — read from the Details panel
+         * inputs whenever the device-def opts in. Empty / default
+         * opacity (1) is omitted so the JSON / URL round-trip stays
+         * compact for the common case.
+         *
+         * `#FFFFFF` is treated as the "no override" sentinel — same
+         * convention `updateFormatDetails()` uses to populate the
+         * picker when `data_fill` is absent (`shape.data_fill ||
+         * '#FFFFFF'`). This makes the reset button a single call:
+         * `resetFillToDefault()` sets the picker back to `#FFFFFF`,
+         * sets opacity to '', then `updateItem()` reads them and
+         * deletes both overrides — same path every other field uses.
+         *
+         * Trade-off: users who want an EXPLICIT pure-white override
+         * (rather than the device's translucent-white default
+         * `#FFFFFF99`) need to pick `#FEFEFE` or similar. Visually
+         * indistinguishable, semantically explicit. The convention is
+         * acceptable because the device default already paints white,
+         * so "I want white" is satisfied by clearing the override. */
+        const __deviceDef = allDeviceTypes[item.data_deviceid];
+        if (__deviceDef && __deviceDef.configurableColor) {
+            const fillVal = document.getElementById('itemFill').value;
+            if (fillVal && fillVal.toUpperCase() !== '#FFFFFF') {
+                item.data_fill = fillVal.toUpperCase();
+            } else {
+                delete item.data_fill;
+            }
+        }
+        if (__deviceDef && __deviceDef.wdOpacity) {
+            const opVal = document.getElementById('itemOpacity').value;
+            if (opVal === '' || Number(opVal) === 1) {
+                delete item.data_opacity;
+            } else {
+                const opNum = Number(opVal);
+                if (!isNaN(opNum) && opNum >= 0 && opNum < 1) {
+                    item.data_opacity = opNum;
+                } else {
+                    delete item.data_opacity;
+                }
             }
         }
 
@@ -18634,6 +19000,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         /* Group / CustomItem membership */
         node.data_groupId = attrs.data_groupId || null;
         node.data_customItemId = attrs.data_customItemId || null;
+
+        /* Configurable fill / opacity — defensive mirror. box / carpet /
+         * stageFloor route through insertTable(), but the four-place rule
+         * wants both writers in sync so any future Image-rendered device
+         * with configurableColor: true picks up the values too. */
+        node.data_fill = attrs.data_fill || null;
+        node.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -21434,6 +21807,38 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     /* populate layer dropdown for single item */
     populateLayerDropdown('drpItemLayer', item.data_layerId || '0');
+
+    /* Configurable fill / opacity (box, carpet, stageFloor — anything
+     * the device-def marks with configurableColor or wdOpacity).
+     *   - Show / hide #fillDiv based on the flags.
+     *   - Populate #itemFill from node.data_fill (fallback "#FFFFFF" so
+     *     the <input type="color"> always has a valid value — empty
+     *     strings throw it back to the browser default which would
+     *     mislead the user about what "no override" looks like).
+     *   - Populate #itemOpacity from node.data_opacity. Blank input
+     *     ⇒ "no override" (the placeholder shows "1"), matching the
+     *     resetFillToDefault() reset semantics. */
+    const fillDiv = document.getElementById('fillDiv');
+    if (fillDiv) {
+        const deviceDef = allDeviceTypes[shape.data_deviceid];
+        if (deviceDef && (deviceDef.configurableColor || deviceDef.wdOpacity)) {
+            fillDiv.style.display = '';
+            const fillInput = document.getElementById('itemFill');
+            const opacityInput = document.getElementById('itemOpacity');
+            const opacityLabel = document.getElementById('itemOpacityLabel');
+            if (fillInput) {
+                fillInput.value = shape.data_fill || '#FFFFFF';
+                fillInput.style.display = deviceDef.configurableColor ? '' : 'none';
+            }
+            if (opacityInput) {
+                opacityInput.value = (shape.data_opacity == null) ? '' : shape.data_opacity;
+                opacityInput.style.display = deviceDef.wdOpacity ? '' : 'none';
+                if (opacityLabel) opacityLabel.style.display = deviceDef.wdOpacity ? '' : 'none';
+            }
+        } else {
+            fillDiv.style.display = 'none';
+        }
+    }
 
 }
 
@@ -28240,6 +28645,32 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
+    /* Configurable fill / opacity import (box / carpet / stageFloor and
+     * any future configurableColor / wdOpacity device). Gated on the
+     * device-def flags so the existing roomBar-style dropdown
+     * `data_color` import block above stays the canonical path for
+     * `colors:`-array devices. `wdItem.color` may arrive as a hex
+     * (e.g. "#FFAA00") OR as a CSS named color (e.g. "AliceBlue",
+     * "red") — normalizeColorToHex() handles both via the browser's
+     * own CSS parser, results cached in _namedColorToHexCache.
+     * `wdItem.opacity` arrives as a STRING per the workspace convention
+     * and is parsed + clamped to [0, 1) (1.0 is the implicit default
+     * and is omitted from data_opacity entirely). */
+    if (deviceType && deviceType.configurableColor && 'color' in wdItem && wdItem.color) {
+        const hex = normalizeColorToHex(wdItem.color);
+        if (hex) {
+            item.data_fill = hex;
+            delete wdItem.color;
+        }
+    }
+    if (deviceType && deviceType.wdOpacity && 'opacity' in wdItem && wdItem.opacity != null) {
+        const opNum = parseFloat(wdItem.opacity);
+        if (!isNaN(opNum) && opNum >= 0 && opNum < 1) {
+            item.data_opacity = opNum;
+        }
+        delete wdItem.opacity;
+    }
+
 
 
     if ('role' in wdItem) {
@@ -29871,6 +30302,22 @@ function exportRoomObjToWorkspace() {
 
         if ('data_mount' in item && item.data_mount) {
             workspaceItem.mount = item.data_mount.value;
+        }
+
+        /* Configurable fill / opacity round-trip into WD JSON.
+         * Gated on the device-def flags so the existing roomBar-style
+         * dropdown `data_color` system (which writes a named-color
+         * string via its own data_color.value) is unaffected. The two
+         * systems never coexist on a single device — see CLAUDE.md
+         * "Configurable Fill & Opacity" section. workspaceItem.opacity
+         * is emitted as a STRING to match the existing wallGlass /
+         * circulationSpace convention so the WD parser accepts it. */
+        const __deviceDefWdRT = allDeviceTypes[item.data_deviceid];
+        if (__deviceDefWdRT && __deviceDefWdRT.configurableColor && item.data_fill) {
+            workspaceItem.color = item.data_fill;
+        }
+        if (__deviceDefWdRT && __deviceDefWdRT.wdOpacity && item.data_opacity != null) {
+            workspaceItem.opacity = String(item.data_opacity);
         }
 
         if (item.data_hiddenInDesigner) {

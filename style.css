@@ -347,12 +347,18 @@ button:not(:disabled) {
 }
 
 /* configurableColor fill + opacity row (#fillDiv > .fillField). Compact
- * single-row layout: label, color swatch, reset button, opacity label,
- * opacity number input. Overrides the default `.inputField` column
- * flow so everything sits on one line. */
+ * single-row layout: label, color swatch, [opacity label, opacity input,]
+ * reset button. Overrides the default `.inputField` column flow + space-
+ * between justification — we want a tight left cluster (Color label, swatch,
+ * optionally Opacity label + input) with the reset button pinned to the
+ * right wall via margin-left:auto. Pinning the reset button keeps the
+ * Color → swatch gap constant regardless of whether the opacity controls
+ * are visible (per UX request: "maintain the same distance between Color
+ * [i] [picker] regardless if there is opacity or not"). */
 .fillField {
   flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
 }
 
@@ -385,6 +391,7 @@ button:not(:disabled) {
   flex: 0 0 auto;
   font-size: 18px;
   line-height: 1;
+  margin-left: auto;
 }
 
 .fillResetBtn:hover {

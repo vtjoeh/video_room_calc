@@ -228,9 +228,29 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 ## Configurable Fill & Opacity (configurableColor / wdOpacity)
 
 Items whose device definition carries `configurableColor: true` and / or
-`wdOpacity: true` (initially `box`, `carpet`, `stageFloor`) can have their
-canvas fill and opacity overridden per-item via the compact `#fillDiv`
-row in the Details panel.
+`wdOpacity: true` can have their canvas fill and opacity overridden
+per-item via the compact `#fillDiv` row in the Details panel.
+
+Current participants:
+
+| Item | configurableColor | wdOpacity | Device default fill | Device default opacity |
+|------|-------------------|-----------|---------------------|------------------------|
+| `box`         | ✓ | ✓ | `#FFFFFF99` | 1 |
+| `carpet`      | ✓ | ✓ | `#FFFFFF99` | 1 |
+| `stageFloor`  | ✓ | ✓ | `#FFFFFF99` | 1 |
+| `wallStd`     | ✓ | ✓ | `gray`      | 0.8 |
+| `columnRect`  | ✓ | ✓ | `gray`      | 0.8 |
+| `cylinder`    | ✓ | ✓ | `grey`      | 0.4 (device-def `opacity`) |
+| `sphere`      | ✓ | — | radial gradient (`white → grey → grey`) | 0.8 |
+| `pathShape`   | ✓ | ✓ | uses its own `data_labelField` JSON color/opacity (legacy — NOT yet routed through `data_fill`/`data_opacity`; see "pathShape footgun" below) | — |
+
+Each Konva-rendering branch reads `attrs.data_fill || <device-default>`
+for fill and `(attrs.data_opacity == null ? <device-default> :
+Number(attrs.data_opacity))` for opacity. The device defaults are the
+historical hardcoded values, so when the user clicks Reset (which
+triggers a rebuild with `data_fill` / `data_opacity` deleted), the item
+falls back to exactly what it looked like before configurable color
+existed.
 
 ### Concept
 
@@ -241,10 +261,41 @@ row in the Details panel.
   0.01 precision); stored as `item.data_opacity = <number>` and overrides
   the rect's Konva `opacity`. Default (1.0) ⇒ attribute omitted entirely.
 
-Both attributes are **absent ⇒ device default** (the existing hardcoded
-`#FFFFFF99` fill / `opacity: 1` from `insertTable()`). The "reset" button
-(`#btnFillReset`, `resetFillToDefault()`) clears both attrs and re-applies
-the defaults on the spot — no Update Item click required.
+Both attributes are **absent ⇒ device default**. The "reset" button
+(`#btnFillReset`, `resetFillToDefault()`) sets the picker back to
+`#FFFFFF` and opacity to `''`, then routes through `updateItem()`,
+which deletes both attrs and rebuilds the Konva node — the rebuilt
+node picks up the device defaults via the `|| <default>` fallback in
+each rendering branch.
+
+### Sphere gradient (configurableColor-only)
+
+Sphere is rendered as a Konva.Shape with a radial gradient set inside
+`sceneFunc`. The body color reads `shape.data_fill || 'grey'` at draw
+time. The inner stop stays `white` so the 3D highlight effect is
+preserved even when the sphere is tinted to a custom color. Sphere is
+intentionally `configurableColor: true` only (no `wdOpacity`) — the
+device-def fallback opacity (0.8) renders the sphere with a soft, semi-
+transparent body that matches the original look.
+
+`shape.data_fill` is populated by the four-place rule writer line
+(`tblWallFlr.data_fill = attrs.data_fill || null`) which runs AFTER
+the `new Konva.Shape({...})` constructor but BEFORE the first redraw,
+so the `sceneFunc`'s read sees the correct value on every draw,
+including the very first one.
+
+### pathShape footgun
+
+`pathShape` carries `configurableColor: true` AND `wdOpacity: true` in
+its device definition for legacy reasons, but its rendering path still
+reads color/opacity from a `{"color":"…","opacity":…}` JSON embedded in
+`data_labelField` (see `insertTable()`'s `pathShape` branch). It does
+NOT yet route through `attrs.data_fill` / `attrs.data_opacity`. The
+Details panel exposes the fill picker for pathShapes — but typing in it
+will set `data_fill` on the item without affecting the canvas
+rendering. **Treat pathShape as legacy / out-of-scope** until someone
+unifies the two paths; the existing label-JSON convention is what the
+Workspace Designer round-trip relies on.
 
 ### Data shape
 
@@ -266,7 +317,7 @@ Same four-place rule as `data_groupId` / `data_color` / `data_layerId`:
 |----------|----------|-------|
 | `insertTable()` | `tblWallFlr.data_fill = attrs.data_fill \|\| null; tblWallFlr.data_opacity = …`. Also wires the Konva rect's actual `fill` and `opacity` from these attrs (with the hardcoded fallback) | ✓ |
 | `insertShapeItem()` → `updateNodeAttributes()` | Defensive mirror — box/carpet/stageFloor route through `insertTable`, but the four-place rule wants both writers consistent | ✓ |
-| `canvasToJson()` → `updateRoomObjFromTrNode()` | Push branch AND map-hit branch. Map-hit branch uses the explicit-delete-on-absent pattern (`delete item.data_fill`) so a node that loses its fill via `resetFillToDefault()` propagates the deletion back to `roomObj.items` | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | Push branch AND map-hit branch. Map-hit branch uses the explicit-delete-on-absent pattern (`delete item.data_fill`) so a node rebuilt without `data_fill` (e.g. after the user clicks the Reset button, which routes through `updateItem()` → `insertTable()`/`insertShapeItem()` with the attr unset) propagates the deletion back to `roomObj.items` | ✓ |
 | `copyToCanvasClipBoard()` | Preserve both on copy/paste | ✓ |
 
 ### URL Encoding
@@ -303,12 +354,34 @@ Both import paths only fire when `deviceType.configurableColor` /
 
 ### Reset semantics
 
-`resetFillToDefault()` does an in-place rect reset without a full
-canvas redraw: it clears `data_fill` / `data_opacity` on both the
-`roomObj.items[]` entry and the Konva node, then calls `node.fill()` /
-`node.opacity()` with the hardcoded defaults and a single `batchDraw()`.
-This keeps the current selection (`tr.nodes()`) intact and avoids
-losing focus, drag state, or coverage-node sync.
+`resetFillToDefault()` routes through the standard `updateItem()`
+pipeline rather than mutating the Konva node directly. The button
+handler sets `#itemFill` back to `#FFFFFF` (the populate-time "no
+override" sentinel — same value `updateFormatDetails()` uses for items
+without a `data_fill`) and `#itemOpacity` back to `''`, then calls
+`updateItem()`. `updateItem()` reads those values, deletes `data_fill`
+/ `data_opacity` from the item, destroys and rebuilds the Konva node
+via `insertTable()` / `insertShapeItem()`, and lets the rebuilt node's
+default fallbacks (`attrs.data_fill || '#FFFFFF99'`, `attrs.data_opacity
+== null ? 1 : ...`) repaint the rect to the device defaults. Same
+path every other Details-panel control uses, so future updateItem()
+behaviour (coverage node sync, label rebuild, canvasToJson flush,
+post-update reselect) is picked up automatically.
+
+`#FFFFFF` is the **shared "no override" sentinel** between
+`updateFormatDetails()` and `updateItem()`: populate shows it when
+`data_fill` is absent; `updateItem()` treats it (case-insensitive) as
+"delete `data_fill`". Together they make `#FFFFFF` a closed loop —
+an item without a fill override populates as `#FFFFFF`, saving
+unchanged round-trips cleanly with no spurious `data_fill: "#FFFFFF"`
+landing in the JSON / URL.
+
+Trade-off: users who want an EXPLICIT pure-white override (rather
+than the device's translucent-white default `#FFFFFF99`) have to pick
+`#FEFEFE` or similar — visually indistinguishable from pure white on
+canvas but semantically explicit in the data. Acceptable because the
+device default already paints white-with-alpha, so "I want this item
+white" is satisfied by simply clearing the override.
 
 ---
 
