@@ -3576,21 +3576,63 @@ function updateMultipleItemsLayer(newLayerId) {
     renderLayersList();
 }
 
-/* Select all canvas nodes belonging to a layer */
+/* Count selectable items in a layer. Mirrors the source list that
+ * selectLayerItems() pulls from (selectAllNodes()), so the count is
+ * exactly "how many items would be selected if the user clicked the
+ * select-items button on this layer". Group / CustomItem rects are
+ * excluded because they're not standalone items — they ride along with
+ * their members via expandSelectionForGroups(). Defensive null-check on
+ * `groupVideoDevices` because renderLayersList() can run before the
+ * device groups are constructed during early init. */
+function getLayerItemCount(layerId) {
+    if (typeof groupVideoDevices === 'undefined' || !groupVideoDevices) return 0;
+    return selectAllNodes().filter(n => {
+        if (n.data_deviceid === 'group' || n.data_deviceid === 'customItem') return false;
+        return (n.data_layerId || '0') === layerId;
+    }).length;
+}
+
+/* Select all canvas nodes belonging to a layer.
+ *
+ * Behaviour mirrors the rectangular drag-select finalize path
+ * (mouseup in stage.on('mouseup touchend') around line 21620):
+ *   1. Source the candidate node list from selectAllNodes() — NOT from
+ *      getAllCanvasNodes(). The latter does a deep `layerTransform.find()`
+ *      that picks up nested child shapes inside compound items (sub-rects
+ *      of outerWall constructs, internal polyRoom lines, etc.). Passing
+ *      those nested children to `tr.nodes()` blows the Konva stack: the
+ *      Transformer's getClientRect/cache-reset cycle recurses through
+ *      their parents and fires Maximum-call-stack RangeErrors. The
+ *      rectangular drag-select avoids this by using selectAllNodes(),
+ *      which returns ONLY the direct children of each device group
+ *      (groupVideoDevices, groupChairs, …) plus the Group/CustomItem
+ *      rect groups.
+ *   2. Filter by data_layerId === layerId, AND by listening() && isVisible()
+ *      so locked/hidden-layer items are never picked up (defensive — the
+ *      Layers-tab button is also disabled for locked/hidden layers, so
+ *      in practice every node here passes). Group/CustomItem rects have
+ *      listening:false, so they're filtered out here; expandSelectionForGroups()
+ *      pulls them back in below.
+ *   3. tr.nodes(nodes) — runs even when nodes is empty so any prior
+ *      selection on other layers is dropped.
+ *   4. expandSelectionForGroups() so Group / CustomItem bundles get their
+ *      rect + every member added, matching how drag-select treats bundles.
+ *   5. refreshCopyDelBtnState() (NOT enableCopyDelBtn()) so the right-panel
+ *      Details panel and Duplicate/Delete buttons update, but the user
+ *      stays on the Layers tab — they triggered this from the Layers tab
+ *      and tab-switching mid-action would be jarring. Same pattern as
+ *      removeLayerNodesFromSelection() / toggleAllLayersVisible(). */
 function selectLayerItems(layerId) {
-    const nodes = getAllCanvasNodes().filter(node => {
+    const nodes = selectAllNodes().filter(node => {
+        if (!node.listening() || !node.isVisible()) return false;
         const nLayerId = node.data_layerId || '0';
         return nLayerId === layerId;
     });
+    tr.nodes(nodes);
     if (nodes.length > 0) {
-        tr.nodes(nodes);
-        enableCopyDelBtn();
-        if (nodes.length === 1) {
-            updateFormatDetails(nodes[0].id());
-        }
-    } else {
-        tr.nodes([]);
+        expandSelectionForGroups();
     }
+    refreshCopyDelBtnState();
     /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
 }
 
@@ -3687,13 +3729,19 @@ function renderLayersList() {
         headerLabel.className = 'layer-name layer-header-label';
         headerLabel.textContent = 'All Layers';
 
-        const headerSpacer = document.createElement('span');
-        headerSpacer.className = 'layer-header-spacer';
+        /* Two spacers reserve the per-row "select items" + "delete" columns
+         * so the header row's hide/lock buttons stay column-aligned with
+         * the per-layer hide/lock buttons. */
+        const headerSpacerSelect = document.createElement('span');
+        headerSpacerSelect.className = 'layer-header-spacer';
+        const headerSpacerDel = document.createElement('span');
+        headerSpacerDel.className = 'layer-header-spacer';
 
         headerRow.appendChild(globalVisBtn);
         headerRow.appendChild(globalLockBtn);
         headerRow.appendChild(headerLabel);
-        headerRow.appendChild(headerSpacer);
+        headerRow.appendChild(headerSpacerSelect);
+        headerRow.appendChild(headerSpacerDel);
         container.appendChild(headerRow);
 
         /* ---- Per-layer rows ---- */
@@ -3730,6 +3778,34 @@ function renderLayersList() {
                 nameSpan.onclick = (e) => startInlineRename(e, layer.layerid, nameSpan);
             }
 
+            /* select-items button — selects every canvas item on this layer
+             * (mirrors what a rectangular drag-select around the layer would
+             * produce). Disabled when:
+             *   - the layer is hidden (items aren't interactively visible)
+             *   - the layer is locked (items aren't interactively selectable)
+             *   - the layer is empty (nothing to select)
+             * The `layer-select-btn` class gives it distinct :hover and
+             * :active (press) styling (see style.css) without changing how
+             * the existing vis/lock buttons feel on hover. */
+            const layerItemCount = getLayerItemCount(layer.layerid);
+            const canSelectLayerItems =
+                layer.visible && !layer.locked && layerItemCount > 0;
+            const selBtn = document.createElement('button');
+            selBtn.className = 'layer-icon-btn layer-select-btn'
+                + (canSelectLayerItems ? ' layer-btn-active' : '');
+            if (!layer.visible) {
+                selBtn.title = 'Layer is hidden — cannot select items';
+            } else if (layer.locked) {
+                selBtn.title = 'Layer is locked — cannot select items';
+            } else if (layerItemCount === 0) {
+                selBtn.title = 'Layer is empty — no items to select';
+            } else {
+                selBtn.title = `Select ${layerItemCount} item${layerItemCount === 1 ? '' : 's'} in this layer`;
+            }
+            selBtn.disabled = !canSelectLayerItems;
+            selBtn.innerHTML = `<i class="icon icon-selection-bold"></i>`;
+            selBtn.onclick = () => selectLayerItems(layer.layerid);
+
             /* delete button */
             const delBtn = document.createElement('button');
             delBtn.className = 'layer-icon-btn layer-delete-btn';
@@ -3753,6 +3829,7 @@ function renderLayersList() {
             row.appendChild(visBtn);
             row.appendChild(lockBtn);
             row.appendChild(nameSpan);
+            row.appendChild(selBtn);
             row.appendChild(delBtn);
             container.appendChild(row);
         });

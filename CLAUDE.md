@@ -1271,15 +1271,25 @@ A VRC Layer lets the user:
 
 ### Layers Tab UI
 
-The Layers tab uses a 4-column row layout: `[hide/show btn] [lock/unlock btn] [name] [delete btn]`.
+The Layers tab uses a 5-column row layout: `[hide/show btn] [lock/unlock btn] [name] [select items btn] [delete btn]`.
 
 A **header row** at the top of the list mirrors the same columns and exposes global actions across **all** layers:
 - **Global hide/show button** — if any layer is hidden, shows all; otherwise hides all (and clears the canvas selection).
 - **Global lock/unlock button** — if any layer is locked, unlocks all; otherwise locks all (and clears the canvas selection).
 
+The header row uses two `.layer-header-spacer` placeholders (one for the per-row "select items" column, one for the "delete" column) so the global hide/lock buttons stay column-aligned with the per-row hide/lock buttons.
+
 Per-row behavior:
 - Clicking the **layer name** opens an inline rename input (custom layers only). Reserved layers (Default / Ceiling) ignore the click.
 - Toggling **hide** or **lock** on a layer immediately removes that layer's nodes from the current `tr.nodes()` selection (via `removeLayerNodesFromSelection()`).
+- Clicking **select items** (`icon-selection-bold`) calls `selectLayerItems(layerid)` to replace the current `tr.nodes()` with every item on this layer (items on other layers are dropped, mirroring a rectangular drag-select around the layer's items). Disabled when:
+  - the layer is hidden (items aren't interactively visible on the canvas)
+  - the layer is locked (items aren't interactively selectable on the canvas)
+  - the layer is empty (nothing to select — count comes from `getLayerItemCount(layerid)`, which sources from the same `selectAllNodes()` list `selectLayerItems()` uses, so the count and the resulting selection are always in sync)
+
+  When enabled the button carries both `layer-icon-btn`, `layer-select-btn`, and `layer-btn-active`. The dedicated `layer-select-btn` class is what gives it distinct `:hover` (darker, more saturated blue) and `:active` (mouse-down: even darker + `transform: scale(0.94)` "pressed-in" feel) styling without changing how the existing vis/lock buttons feel on hover. The base `.layer-icon-btn` already carries a `transition: background 0.1s, border-color 0.1s` so the state changes ease in and out smoothly. The button's tooltip shows the live item count (`"Select N items in this layer"`) when enabled, and explains the disabled reason otherwise.
+
+  The count is recomputed every time `renderLayersList()` runs. `renderLayersList()` is called at the tail of `drawRoom()`, so any canvas mutation (add / delete / paste / duplicate / undo / redo / layer reassign) refreshes the count automatically — there's no separate "items changed → refresh layers tab" wiring to maintain.
 
 ### Data Structure
 
@@ -1333,7 +1343,8 @@ item.data_layerId = 'some-uuid';    // custom layer
 | `isItemInHiddenLayer(itemOrNode)` | Returns true if the item/node's `data_layerId` resolves to a layer with `visible=false` |
 | `removeHiddenLayerItemsForExport(roomObj2)` | Used by `exportRoomObjToWorkspace()` to drop every item whose layer is hidden from the cloned roomObj before export (mutates the cloned roomObj) |
 | `applyLabelLayerVisibility()` | Iterates all `Konva.Label` children of `grLabels` and hides the ones whose parent item is in a hidden VRC layer (called by `labelsVisible(true)`) |
-| `selectLayerItems(layerId)` | Selects all items in a layer via `tr.nodes()` (legacy helper — not currently bound to UI) |
+| `selectLayerItems(layerId)` | Selects all items in a layer via `tr.nodes()`. Bound to the per-layer "select items" button in the Layers tab (`icon-selection-bold`). Mirrors the rectangular drag-select finalize path: sources candidates from `selectAllNodes()` (NOT `getAllCanvasNodes()` — see footgun below), filters by `listening() && isVisible()` so locked/hidden-layer items are never picked up, replaces the current selection (items on other layers are dropped), expands Group / CustomItem bundles via `expandSelectionForGroups()`, then calls `refreshCopyDelBtnState()` (NOT `enableCopyDelBtn()`) so the user stays on the Layers tab. The Layers-tab button is also disabled when the layer is locked / hidden / empty, so the `listening() && isVisible()` filter is purely defensive. **Footgun:** the seemingly-equivalent `getAllCanvasNodes()` (which does `layerTransform.find('Image, Rect, Circle, Shape, Line, RegularPolygon')`) picks up nested child shapes inside compound items (sub-rects of outerWall constructs, internal polyRoom lines, etc.). Passing those nested children to `tr.nodes()` blows the Konva stack — the Transformer's `getClientRect` / cache-reset cycle recurses through their parents and fires Maximum-call-stack `RangeError`s. `selectAllNodes()` is the safe top-level item list (direct children of `groupVideoDevices`/`groupChairs`/… plus the Group/CustomItem rect groups) and is what the rectangular drag-select uses |
+| `getLayerItemCount(layerId)` | Counts selectable items in a layer. Used by `renderLayersList()` to (a) disable the per-layer "select items" button when the count is 0, and (b) show the count in the button's tooltip. Pulls from the same `selectAllNodes()` source list `selectLayerItems()` uses (excluding Group / CustomItem rects, which aren't standalone items), so the count is always exactly "how many items would land in `tr.nodes()` if the user clicked the button". Defensive null-check on `groupVideoDevices` because `renderLayersList()` can run before the device groups are constructed during early init |
 | `renderLayersList()` | Rebuilds the Layers tab HTML (header row + per-layer rows) and refreshes dropdowns |
 | `populateLayerDropdown(id, selected)` | Fills a `<select>` with current layers |
 | `updateItemLayer(nodeId, layerId)` | Changes one item's layer |

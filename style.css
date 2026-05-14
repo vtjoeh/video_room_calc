@@ -3030,6 +3030,27 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
   background: #ffeaea;
 }
 
+/* ----- Per-layer "select items" button --------------------------------------
+ * Distinct hover + press feedback so the user can tell the button is
+ * interactive AND that their click registered, even on a layer where the
+ * resulting selection lands offscreen. The base `.layer-icon-btn` already
+ * carries a `transition: background 0.1s, border-color 0.1s` (line 2953)
+ * so these states ease in/out smoothly. The `:active` state is what gives
+ * the "momentarily change color on click" effect — applies while the mouse
+ * is held down, releases back to the hover/active style on mouse-up. */
+.layer-select-btn.layer-btn-active:hover {
+  background: #b8d9ff;
+  border-color: #023f80;
+  color: #023f80;
+}
+
+.layer-select-btn.layer-btn-active:active {
+  background: #7fb6ff;
+  border-color: #012b5c;
+  color: #012b5c;
+  transform: scale(0.94);
+}
+
 
 /* ----- VRC toast primitive ------------------------------------------------
  * Lightweight transient notification used for "Custom Item saved to library",
