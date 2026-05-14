@@ -491,6 +491,15 @@
                 const entry = {
                     customItemBaseId: baseId,
                     data_labelField: String(record.data_labelField || ''),
+                    /* Optional descriptive metadata. Coerced to string
+                     * (the on-disk shape never carries numbers / objects)
+                     * and length-capped here defensively — the dialogs
+                     * already cap input lengths, but a hand-edited
+                     * import file could carry arbitrarily long values
+                     * that would balloon IDB row size. */
+                    author: String(record.author || '').slice(0, 120),
+                    description: String(record.description || '').slice(0, 2000),
+                    version: String(record.version || '1').slice(0, 40),
                     width: Number(record.width) || 0,
                     height: Number(record.height) || 0,
                     customItemParts: Array.isArray(record.customItemParts) ? record.customItemParts : [],

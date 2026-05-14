@@ -215,19 +215,59 @@ After an item type prefix, lowercase letters encode attributes:
 | `r` | path shape points | Numbers | Space-separated point values (×100, in mm) for pathShape |
 | `s` | group reference | Number | Points at the room-level `H{n}` block. Omitted when not in a group. When present, the per-item `ll` is also omitted (group's `ll` covers all members) |
 | `t` | customItem reference | Number | Points at the room-level `J{n}` block. Omitted when not in a customItem. When present alongside `s`, the per-item `ll` is omitted (group's `ll` wins); when only `t` is present, customItem's `ll` covers the item |
+| `u` | fill color (RGB) | RGB triple | `data_fill` for `configurableColor` devices. Always 9 zero-padded digits: `u{RRR}{GGG}{BBB}`. `#FFFFFF` → `u255255255`; `#0F0F0F` → `u015015015`. Default (absent) ⇒ device default fill (`#FFFFFF99`). Encoder uses cached `hexToUrlRgb()`; decoder uses `urlRgbToHex()` |
+| `v` | opacity (×100) | Number | `data_opacity` for `wdOpacity` devices. `v{NN}` where NN = opacity × 100 in range [0, 99]. `v50` = 0.50; `v0` = 0. Default (1.0) is omitted entirely |
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
-**AVAILABLE for future ITEM use:** `u`, `v`. (`w`/`x`/`y`/`z`/`h` are
-used inside `H{n}` / `J{n}` blocks for group/customItem geometry; the
-parser keys by `sid` so they could still be reused on items, but
-prefer `u`/`v` first.)
+**AVAILABLE for future ITEM use:** `w`, `x`, `y`, `z`. (`u` is fill
+color, `v` is opacity — both added in the 2026 configurableColor work.
+`w`/`x`/`y`/`z`/`h` are also used inside `H{n}` / `J{n}` blocks for
+group/customItem geometry; the parser keys by `sid` so they could still
+be reused on items, but prefer the remaining unused letters first.)
 
 **Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility),
 `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H`
 (groups), `J` (customItems). Available: `I`, `K`, `N`, `O`, `P`, `Q`,
 `R`, `U`, `V`, `X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix
 families.)
+
+## ConfigurableColor URL Encoding (`u` / `v`)
+
+Items whose device definition has `configurableColor: true` and / or
+`wdOpacity: true` (initially `box`, `carpet`, `stageFloor`) can carry
+a custom fill color and / or opacity via the per-item `u` and `v`
+prefixes.
+
+### Format
+
+| Letter | Field | Format | Examples |
+|--------|-------|--------|----------|
+| `u` | `data_fill` | `u{RRR}{GGG}{BBB}` (always 9 digits, zero-padded) | `u255255255` = `#FFFFFF`, `u015015015` = `#0F0F0F`, `u255170000` = `#FFAA00` |
+| `v` | `data_opacity` | `v{NN}` (NN = opacity × 100, range 0–99) | `v50` = 0.50, `v0` = 0, `v75` = 0.75 |
+
+- `u` is **omitted entirely** when `data_fill` is absent — the item
+  falls back to the device's hardcoded fill (`#FFFFFF99` for box /
+  carpet / stageFloor).
+- `v` is **omitted entirely** when `data_opacity` is absent OR equals
+  1.0 — the item falls back to full opacity.
+- The encoder uses a session-lifetime `_hexToUrlRgbCache` Map so each
+  unique hex only converts once per session (the URL is regenerated on
+  every drag/resize/paste). The decoder runs only on URL load and has
+  no cache.
+- Order: `u` and `v` are emitted in `createShareableLinkItem()`
+  immediately after the `t{n}` customItem reference and before the
+  `~label~` block.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Hex → URL RGB (cached) | `hexToUrlRgb()` near `_layerUrlEncodeMap` global |
+| URL RGB → hex (uncached) | `urlRgbToHex()` next to `hexToUrlRgb()` |
+| Encoder | `createShareableLinkItem()` — block immediately after `t{n}` emission |
+| Decoder | `parseShortenedXYUrl()` — block immediately after `r` (points) parsing |
+| Tokenizer | `parseShortenedXYUrl()` uses `/[a-z]/` so `u` and `v` are accepted natively without any regex update |
 
 ## Layer URL Encoding
 

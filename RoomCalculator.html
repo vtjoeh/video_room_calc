@@ -633,6 +633,24 @@
                 </div>
               </div>
 
+              <div class="inputRow" id="fillDiv" style="display: none;">
+                <div class="inputField fillField">
+                  <label for="itemFill" class="tooltip">Color:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Custom fill color and opacity for this item. Applied to both the
+                      canvas and the Workspace Designer export. Click the reset button to clear the override
+                      and fall back to the default appearance.</span>
+                  </label>
+                  <input type="color" id="itemFill" value="#ffffff" class="fillColorInput">
+
+                  <label for="itemOpacity" id="itemOpacityLabel" class="fillOpacityLabel">Opacity:</label>
+                  <input type="number" id="itemOpacity" min="0" max="1" step="0.01" placeholder="1" class="fillOpacityInput allowBlank">
+                  <button type="button" id="btnFillReset" title="Reset fill and opacity to default" class="btn" onclick="resetFillToDefault()">
+                    <i class="icon icon-reset-bold"></i>
+                  </button>
+                </div>
+              </div>
+
               <div class="inputRow" id="itemTiltSlantDiv" style="display: none;">
                 <div class="inputField" id="itemTiltDiv" style="display: none;">
                   <label class="tooltip">Tilt:<i class="icon icon-info-circle-bold"></i>
@@ -2355,14 +2373,72 @@
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
-        <label for="customItemAddNameInput" style="margin-bottom: 6px; display: block;">Custom Item name:</label>
+        <label for="customItemAddNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: #c00;">*</span>:</label>
         <input type="text" id="customItemAddNameInput" maxlength="60" style="width: 100%; box-sizing: border-box;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmCreateCustomItemFromDialog();}" />
+      </div>
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemAddAuthorInput" style="margin-bottom: 6px; display: block;">Author:</label>
+        <input type="text" id="customItemAddAuthorInput" maxlength="80" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmCreateCustomItemFromDialog();}" />
+      </div>
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemAddDescriptionInput" style="margin-bottom: 6px; display: block;">Description:</label>
+        <textarea id="customItemAddDescriptionInput" maxlength="500" rows="3"
+          style="width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
       </div>
     </main>
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
       <button class="button" onclick="confirmCreateCustomItemFromDialog()">Create</button>
+    </div>
+  </dialog>
+
+  <!--
+    Edit Custom Item — opened from the Quick Add palette's per-tile ellipsis button.
+    Lets the user rename / re-author / re-describe a library template AND surfaces
+    Export / Delete / Remove-From-Library actions. The form fields mirror
+    dialogCustomItemAdd; only the Name field is required. Buttons:
+      * Save                — persist edited metadata to IDB (and cascade to any
+                              live canvas instances of the same customItemBaseId
+                              per the strict-family model in CLAUDE.md).
+      * Export from Library — download as .vrcCustomItems.json (single record).
+      * Delete / Remove From Library — destructive removal of the IDB record
+                              (both buttons call the same handler; the dialog
+                              surfaces both labels because the user mental model
+                              "delete this template" and "remove it from my
+                              library" are distinct phrases that mean the same
+                              local-IDB operation). Confirmation reuses the
+                              existing dialogCustomItemDelete modal flow.
+  -->
+  <dialog id="dialogCustomItemEdit" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Edit Custom Item</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemEditNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: #c00;">*</span>:</label>
+        <input type="text" id="customItemEditNameInput" maxlength="60" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditCustomItemFromDialog();}" />
+      </div>
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemEditAuthorInput" style="margin-bottom: 6px; display: block;">Author:</label>
+        <input type="text" id="customItemEditAuthorInput" maxlength="80" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditCustomItemFromDialog();}" />
+      </div>
+      <div class="inputField" style="max-width: none;">
+        <label for="customItemEditDescriptionInput" style="margin-bottom: 6px; display: block;">Description:</label>
+        <textarea id="customItemEditDescriptionInput" maxlength="500" rows="3"
+          style="width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+        <button class="button dropDownBtnWhite" id="customItemEditExportBtn" type="button">Export from Library</button>
+        <button class="button dropDownBtnWhite" id="customItemEditRemoveBtn" type="button">Remove From Library</button>
+        <button class="button dropDownBtnWhite" id="customItemEditDeleteBtn" type="button" style="color: #c00;">Delete</button>
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" onclick="confirmEditCustomItemFromDialog()">Save</button>
     </div>
   </dialog>
 

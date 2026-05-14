@@ -170,3 +170,63 @@ discussion in `CLAUDE.md`.
 | Per-item `customItem` attribute decoder | `wdItemToRoomObjItem()` — `if ('customItem' in wdItem)` block immediately after the `'group' in wdItem` block. Strips the key from `wdItem` |
 | `data.vrc.customItems[]` decoder + post-parse member rebuild | `importWorkspaceDesignerFile()` — block immediately after the `data.vrc.groups` import. Calls `ensureCustomItems(roomObj2)`, walks `data.vrc.customItems[]`, and rebuilds `customItemMembers` from `data_customItemId` references |
 | CustomItem rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group' \|\| node.data_deviceid === 'customItem') return;` so CustomItem rects never enter `roomObj.items.*` and therefore never reach the WD push helpers |
+
+## ConfigurableColor & Opacity Round-Trip
+
+Items whose device definition has `configurableColor: true` and / or
+`wdOpacity: true` (initially `box`, `carpet`, `stageFloor`) can carry
+a custom fill color and / or opacity. Both round-trip through the
+standard `customObjects[]` array — no separate `data.vrc.*` block is
+needed because the WD `customObjects[]` schema already understands
+`color` and `opacity` for several object types (e.g. `wallGlass`,
+`circulationSpace`).
+
+### JSON shape
+
+Per-item attributes on the WD `customObjects[]` entry:
+
+| WD field | VRC field | Type | Notes |
+|----------|-----------|------|-------|
+| `color` | `data_fill` | 6-digit hex string `"#RRGGBB"` | Uppercase on export. Overrides any `color` default coming from `workspaceKey[deviceId]` |
+| `opacity` | `data_opacity` | **String** (e.g. `"0.5"`) | String format matches existing `wallGlass` / `circulationSpace` convention in `workspaceKey.js`. Omitted entirely when opacity is the default (1.0) |
+
+### Coordinate / unit model
+
+Neither field has any unit transform — fills are absolute colors,
+opacity is unit-less in [0, 1).
+
+### Color asymmetry (export vs. import)
+
+- **Export** always emits 6-digit hex (`"#FFAA00"`) so downstream
+  consumers don't have to know about CSS named colors.
+- **Import** accepts both 6-digit hex AND CSS named colors
+  (`"AliceBlue"`, `"red"`, `"DarkSeaGreen"`) via the
+  `normalizeColorToHex()` helper, which leans on the browser's CSS
+  parser (`document.createElement('div')` + `getComputedStyle()`)
+  rather than maintaining a names table. Invalid names cache as `null`
+  in `_namedColorToHexCache` to avoid re-hammering the DOM on repeated
+  bad inputs.
+
+The asymmetry is deliberate — a strict hex-only import would silently
+reject perfectly-valid WD JSON that a hand-edit or external tool
+produced.
+
+### Asymmetry with the existing `data_color` dropdown system
+
+Items with `colors: [{ light: 'First Light' }, …]` (e.g. roomBar) use
+`data_color = { value, index }` and emit `workspaceItem.color =
+'light'` (a keyword). Items with `configurableColor: true` use
+`data_fill = '#FFAA00'` and emit `workspaceItem.color = '#FFAA00'`
+(hex). The two systems are **mutually exclusive on a single device**
+and the import branches are gated on `deviceType.colors` vs
+`deviceType.configurableColor` so they don't collide.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Color name → hex normalization (cached) | `normalizeColorToHex()` near `_layerUrlEncodeMap`, in `js/roomcalc.js` |
+| Export — color override | `workspaceObjWallPush()` — block immediately after the existing `data_color` color override |
+| Export — opacity emit | Same function, right after the color override |
+| Import — hex / named color | `wdItemToRoomObjItem()` (around the existing `'color' in wdItem` block) — new branch gated on `deviceType.configurableColor` |
+| Import — opacity | Same function, new `'opacity' in wdItem && deviceType.wdOpacity` block immediately after the color import |

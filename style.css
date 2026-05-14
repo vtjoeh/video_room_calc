@@ -346,6 +346,64 @@ button:not(:disabled) {
   max-width: 380px;
 }
 
+/* configurableColor fill + opacity row (#fillDiv > .fillField). Compact
+ * single-row layout: label, color swatch, reset button, opacity label,
+ * opacity number input. Overrides the default `.inputField` column
+ * flow so everything sits on one line. */
+.fillField {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.fillField > label {
+  white-space: nowrap;
+}
+
+.fillColorInput {
+  width: 38px;
+  height: 28px;
+  padding: 2px;
+  border-radius: 6px;
+  border: 2px solid #888;
+  background: white;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.fillResetBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.fillResetBtn:hover {
+  color: #000;
+}
+
+.fillResetBtn:focus {
+  outline: none;
+}
+
+.fillOpacityLabel {
+  margin-left: 4px;
+}
+
+.fillOpacityInput {
+  width: 64px;
+  flex: 0 0 auto;
+}
+
 .inputField label {
   font-size: 14px;
   display: flex;
@@ -3033,19 +3091,26 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
   position: relative;
 }
 
-/* ---- Quick Add palette: customItem tile delete button ----
+/* ---- Quick Add palette: customItem tile "more" (ellipsis) button ----
  *
- * Small round trash-icon affordance in the upper-right of every
- * library customItem tile, modelled on the Recent Floor Plans card's
- * delete button (.recentFloorPlanDeleteBtn) — same shape, same fade-
- * on-hover behaviour — but shrunk to 20px so it doesn't crowd the 70px
- * menuImage thumbnail above the tile's 12px label.
+ * Small round `...` affordance in the upper-right of every library
+ * customItem tile. Originally a trash glyph (delete-only), now an
+ * ellipsis that opens the Edit Custom Item dialog (rename / re-author
+ * / re-describe + Export / Delete / Remove-From-Library). Modelled on
+ * the Recent Floor Plans card's delete button — same shape, same
+ * fade-on-hover behaviour — but shrunk to 20px so it doesn't crowd
+ * the 70px menuImage thumbnail above the tile's 12px label.
  *
  * The white pill background + drop-shadow lifts the icon off any tile
  * background colour the menuImage might bleed into, so the affordance
  * stays legible regardless of which Custom Item it sits on. The icon
- * itself is the Momentum `icon-delete-bold` glyph (same one used by
- * the Layer dialog's per-layer delete row). */
+ * itself is the Momentum `icon-more-bold` glyph (matches the global
+ * "more menu" trigger in the toolbar).
+ *
+ * Class name still reads `customItemTileDeleteBtn` for historical
+ * reasons — renaming it would require a coordinated change across CSS
+ * + JS with no functional benefit. The class is the visual style only;
+ * the click handler decides the action. */
 .customItemTileDeleteBtn {
   position: absolute;
   top: 4px;
@@ -3079,6 +3144,9 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
 }
 
 .customItemTileDeleteBtn:hover {
-  color: #c00;
+  /* Neutral darken on hover — the button is no longer destructive
+   * (the ellipsis opens an edit dialog), so the previous red hover
+   * colour would mislead the user into expecting a delete action. */
+  color: #0352a6;
 }
 

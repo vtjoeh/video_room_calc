@@ -225,6 +225,93 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 
 ---
 
+## Configurable Fill & Opacity (configurableColor / wdOpacity)
+
+Items whose device definition carries `configurableColor: true` and / or
+`wdOpacity: true` (initially `box`, `carpet`, `stageFloor`) can have their
+canvas fill and opacity overridden per-item via the compact `#fillDiv`
+row in the Details panel.
+
+### Concept
+
+- `configurableColor: true` → device exposes a native HTML5 color picker
+  in the Details panel; the user's pick is stored as
+  `item.data_fill = '#RRGGBB'` and overrides the rect's Konva `fill`.
+- `wdOpacity: true` → device exposes an opacity number input (0–1 with
+  0.01 precision); stored as `item.data_opacity = <number>` and overrides
+  the rect's Konva `opacity`. Default (1.0) ⇒ attribute omitted entirely.
+
+Both attributes are **absent ⇒ device default** (the existing hardcoded
+`#FFFFFF99` fill / `opacity: 1` from `insertTable()`). The "reset" button
+(`#btnFillReset`, `resetFillToDefault()`) clears both attrs and re-applies
+the defaults on the spot — no Update Item click required.
+
+### Data shape
+
+```javascript
+item.data_fill    = '#FFAA00';  // 6-digit hex (uppercase), absent ⇒ default
+item.data_opacity = 0.5;        // 0 ≤ n < 1, absent ⇒ 1.0 (default)
+```
+
+`data_fill` is intentionally a different attribute from the existing
+`data_color = { value, index }` dropdown system (used by roomBar etc.).
+The two systems never coexist on a single device — a device has either
+a `colors:` array (dropdown) or `configurableColor: true` (free hex).
+
+### Where `data_fill` / `data_opacity` Must Be Updated
+
+Same four-place rule as `data_groupId` / `data_color` / `data_layerId`:
+
+| Location | Function | Done? |
+|----------|----------|-------|
+| `insertTable()` | `tblWallFlr.data_fill = attrs.data_fill \|\| null; tblWallFlr.data_opacity = …`. Also wires the Konva rect's actual `fill` and `opacity` from these attrs (with the hardcoded fallback) | ✓ |
+| `insertShapeItem()` → `updateNodeAttributes()` | Defensive mirror — box/carpet/stageFloor route through `insertTable`, but the four-place rule wants both writers consistent | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | Push branch AND map-hit branch. Map-hit branch uses the explicit-delete-on-absent pattern (`delete item.data_fill`) so a node that loses its fill via `resetFillToDefault()` propagates the deletion back to `roomObj.items` | ✓ |
+| `copyToCanvasClipBoard()` | Preserve both on copy/paste | ✓ |
+
+### URL Encoding
+
+Per-item URL letters (in `createShareableLinkItem` and
+`parseShortenedXYUrl`):
+
+| Letter | Field | Format | Notes |
+|--------|-------|--------|-------|
+| `u` | `data_fill` | `u{RRR}{GGG}{BBB}` zero-padded RGB triple (always 9 digits) | `#FFFFFF` → `u255255255`. Encoder uses cached `hexToUrlRgb()`; decoder uses uncached `urlRgbToHex()` |
+| `v` | `data_opacity` | `v{NN}` where NN = opacity × 100 | `v50` = 0.50, `v0` = 0. Default (1.0) omitted entirely |
+
+The `_hexToUrlRgbCache` Map (session-lifetime) keeps the hot
+encode path cheap — the URL is regenerated on every drag/resize/paste,
+but each unique hex only converts once per session.
+
+### Workspace Designer Round-Trip
+
+**Export** (`workspaceObjWallPush`): `workspaceItem.color = data_fill`
+(hex) and `workspaceItem.opacity = String(data_opacity)` (string to
+match the existing `wallGlass` / `circulationSpace` convention).
+
+**Import**: `wdItem.color` is fed through `normalizeColorToHex()`, which
+accepts both hex (`"#RRGGBB"`) and CSS named colors (`"AliceBlue"`,
+`"red"`, …). The DOM probe (`document.createElement('div')` → set
+`style.color` → `getComputedStyle()`) leans on the browser's CSS parser
+so we don't ship a named-color table. Results are cached in
+`_namedColorToHexCache` (invalid names cache as `null`). `wdItem.opacity`
+is parsed via `parseFloat` and clamped to [0, 1).
+
+Both import paths only fire when `deviceType.configurableColor` /
+`deviceType.wdOpacity` are set, so the existing roomBar-style dropdown
+`data_color` import (gated on `deviceType.colors`) is unaffected.
+
+### Reset semantics
+
+`resetFillToDefault()` does an in-place rect reset without a full
+canvas redraw: it clears `data_fill` / `data_opacity` on both the
+`roomObj.items[]` entry and the Konva node, then calls `node.fill()` /
+`node.opacity()` with the hardcoded defaults and a single `batchDraw()`.
+This keeps the current selection (`tr.nodes()`) intact and avoids
+losing focus, drag state, or coverage-node sync.
+
+---
+
 ## Key Functions Reference
 
 ### Initialization & Loading
@@ -797,11 +884,21 @@ always agree about when Group is offered.
 
 The ellipse-menu entry routes through `openCreateCustomItemDialog()`,
 which opens the `<dialog id="dialogCustomItemAdd">` modal (mirroring
-the established `dialogLayerAdd` pattern) with an empty input field
-and Cancel / Create buttons. The handler `confirmCreateCustomItemFromDialog()`
-trims and `DOMPurify`-sanitizes the input, surfaces a "Custom Item
-Name Required" `alertDialog` on empty / all-script-stripped input,
-and only then calls `createCustomItem(undefined, cleanedName)`.
+the established `dialogLayerAdd` pattern) with three fields and
+Cancel / Create buttons:
+
+- **Custom Item Name** (required) — sanitized via `DOMPurify`; empty
+  input surfaces a "Custom Item Name Required" `alertDialog`
+- **Author** (optional) — free-form, up to 80 chars
+- **Description** (optional) — free-form textarea, up to 500 chars
+
+The handler `confirmCreateCustomItemFromDialog()` trims and
+`DOMPurify`-sanitizes every field, surfaces a "Custom Item Name
+Required" `alertDialog` on empty / all-script-stripped name, and
+calls `createCustomItem(undefined, cleanedName, cleanedAuthor,
+cleanedDesc)`. `version` is hard-coded to `'1'` inside
+`createCustomItem` — the wire format reserves the string shape but
+the dialog doesn't surface a version field today.
 
 This enforces the invariant that **user-created CustomItems always
 have a name**. Imported CustomItems (VRC `.vrc.json`, Workspace
@@ -811,6 +908,35 @@ exempt — those paths build the customItem record directly on
 they can carry an unnamed (or `data_labelField: ""`) bundle through.
 Unnamed bundles are **canvas-only** — they never enter the Library DB
 (see "Unnamed customItems" in the Library section below).
+
+#### `Edit Custom Item` library dialog
+
+The Quick Add palette renders each library customItem tile with an
+ellipsis (`...`) button in the upper-right (Momentum `icon-more-bold`,
+class `customItemTileDeleteBtn` — name kept for CSS reuse, see
+`style.css`). Clicking the ellipsis opens
+`<dialog id="dialogCustomItemEdit">` via `openEditCustomItemDialog(baseId)`:
+
+- Reads from the Quick Add cache (`_customItemQuickAddRecordsCache`)
+  to populate Name / Author / Description; falls back to a fresh
+  `idbStore.customItemGet(baseId)` if the cache lacks the record.
+- **Save** routes through `confirmEditCustomItemFromDialog()`:
+  validates a non-empty name, sanitizes every field, `customItemPut`s
+  the merged record (preserving `customItemParts`, `width`, `height`,
+  `menuImage`, `addedAt`), then **cascades** Name / Author /
+  Description onto every live canvas instance with a matching
+  `customItemBaseId` (strict-family model — see "Strict-family model"
+  below).
+- **Export from Library** → `exportCustomItemRecordFromLibrary(baseId)`:
+  reads the verbatim IDB record and writes it to disk as
+  `<safe-name>.vrcCustomItems.json`. Does NOT rebuild `menuImage` /
+  `customItemParts`, since the user is editing descriptive metadata
+  only.
+- **Delete** and **Remove From Library** both route through
+  `openDeleteCustomItemFromLibraryDialog()` (the existing trash-icon
+  confirmation flow), so the destructive path is identical to the
+  pre-2026-05-14 inline trash behaviour — just gated behind one extra
+  click.
 
 ### Keyboard shortcuts
 
@@ -930,6 +1056,9 @@ they expect edits to flow back to the template, not branch silently.
 {
     customItemBaseId: "uuid",       // primary key
     data_labelField: "name",        // export-format name (mirrors customItem.name in roomObj)
+    author: "Friendly Name",        // optional, set via Create / Edit dialog (free-form)
+    description: "Short blurb",     // optional, set via Create / Edit dialog (free-form, up to 500 chars)
+    version: "1",                   // wire format reserves string; UI writes "1" today
     width: 2.5,                     // METERS (export format is unit-stable)
     height: 3.5,                    // METERS
     customItemParts: [              // members in CustomItem-LOCAL frame (UL at 0,0, rotation 0)

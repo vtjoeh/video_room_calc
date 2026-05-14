@@ -1182,9 +1182,18 @@ function buildCustomItemExportRecord(customItem) {
 
     if (!parts.length) return null;
 
+    /* Optional descriptive metadata fields. Treated as free-form
+     * strings (cleaned + length-capped on the dialog write paths so
+     * the IDB record stays bounded). `version` is a string for forward
+     * compatibility with future "1.2", "alpha", … values — current UI
+     * only writes "1" but the wire format reserves the string shape so
+     * older clients reading newer records don't choke on a number. */
     return {
         customItemBaseId: customItem.customItemBaseId,
         data_labelField: String(customItem.name || ''),
+        author: String(customItem.author || ''),
+        description: String(customItem.description || ''),
+        version: String(customItem.version || '1'),
         width: (Number(customItem.width) || 0) * unitToMeters,
         height: (Number(customItem.height) || 0) * unitToMeters,
         customItemParts: parts,
@@ -1793,6 +1802,278 @@ function openDeleteCustomItemFromLibraryDialog(baseId, name) {
     dialog.showModal();
 }
 
+/* ---- Edit Custom Item (from Quick Add tile ellipsis) ----
+ *
+ * Per-template editor opened from the new ellipsis (`...`) button on
+ * every Quick Add library tile. Replaces the previous trash-only
+ * affordance: the tile no longer deletes inline; instead it surfaces
+ * Name / Author / Description for editing, with Export / Delete /
+ * Remove-From-Library actions grouped inside the dialog.
+ *
+ * Data model: the dialog reads from and writes to the LIBRARY record
+ * (IDB) — that's the source of truth for descriptive metadata in v1.
+ * On save we additionally cascade Name / Author / Description into
+ * every canvas instance of the same `customItemBaseId` (strict-family
+ * model in CLAUDE.md) so an open room reflects the rename without
+ * forcing a reload. Other geometric/membership fields are NOT touched
+ * — those are owned by the canvas instance and would clobber per-room
+ * positioning if we synced them from the library.
+ *
+ * Caches `_customItemQuickAddRecordsCache` and `customItemLibraryIds`
+ * are kept in sync with every IDB mutation the dialog performs so the
+ * Quick Add tiles refresh immediately on close without a full
+ * dialog reopen. */
+let _customItemEditDialogBaseId = null;
+
+function openEditCustomItemDialog(baseId) {
+    if (!baseId) return;
+    const dialog = document.getElementById('dialogCustomItemEdit');
+    const nameInput = document.getElementById('customItemEditNameInput');
+    if (!dialog || !nameInput) {
+        /* Older RoomCalculator.html without the edit-dialog markup —
+         * silently fall back to the delete dialog so the tile button
+         * still does *something* useful instead of throwing. */
+        const cached = (_customItemQuickAddRecordsCache || [])
+            .find(r => r && r.customItemBaseId === baseId);
+        const fallbackName = cached ? (cached.data_labelField || '') : '';
+        openDeleteCustomItemFromLibraryDialog(baseId, fallbackName);
+        return;
+    }
+
+    /* Prefer the Quick Add in-memory cache — it's already populated
+     * (the dialog only opens while the Quick Add palette is showing
+     * a tile for this template). Falls through to an IDB read if the
+     * cache somehow drifted (defensive — should not happen in normal
+     * flow since the cache is loaded on Quick Add open). */
+    const cached = (_customItemQuickAddRecordsCache || [])
+        .find(r => r && r.customItemBaseId === baseId);
+
+    const fillFromRecord = (rec) => {
+        _customItemEditDialogBaseId = baseId;
+        nameInput.value = rec ? String(rec.data_labelField || '') : '';
+        const authorInput = document.getElementById('customItemEditAuthorInput');
+        const descInput = document.getElementById('customItemEditDescriptionInput');
+        if (authorInput) authorInput.value = rec ? String(rec.author || '') : '';
+        if (descInput) descInput.value = rec ? String(rec.description || '') : '';
+
+        /* Wire action buttons fresh on every open — closing the dialog
+         * does NOT detach handlers, but rewiring keeps the captured
+         * baseId in lock-step with whichever tile the user clicked. */
+        const exportBtn = document.getElementById('customItemEditExportBtn');
+        const removeBtn = document.getElementById('customItemEditRemoveBtn');
+        const deleteBtn = document.getElementById('customItemEditDeleteBtn');
+        const displayName = (rec && rec.data_labelField && rec.data_labelField.trim())
+            ? rec.data_labelField.trim() : '(unnamed)';
+
+        if (exportBtn) {
+            exportBtn.onclick = function () {
+                exportCustomItemRecordFromLibrary(baseId);
+            };
+        }
+        /* Delete and Remove-From-Library are intentionally the same
+         * destructive operation against the IDB record — the labels
+         * are surfaced separately because users describe the action
+         * with either phrase, but conceptually a Quick Add tile only
+         * has one "go away" path. Both route through the existing
+         * confirmation dialog (`dialogCustomItemDelete`) so the user
+         * gets a chance to back out. */
+        const destructive = function () {
+            dialog.close();
+            openDeleteCustomItemFromLibraryDialog(baseId, displayName);
+        };
+        if (removeBtn) removeBtn.onclick = destructive;
+        if (deleteBtn) deleteBtn.onclick = destructive;
+
+        dialog.showModal();
+        setTimeout(() => { nameInput.focus(); nameInput.select(); }, 0);
+    };
+
+    if (cached) {
+        fillFromRecord(cached);
+        return;
+    }
+    if (window.idbStore && typeof window.idbStore.customItemGet === 'function') {
+        window.idbStore.customItemGet(baseId).then(fillFromRecord);
+    } else {
+        fillFromRecord(null);
+    }
+}
+
+/* "Save" handler for dialogCustomItemEdit. Reads the form, sanitizes
+ * the same way the create dialog does, persists the edits to IDB via
+ * customItemPut (upsert by baseId), then cascades the new metadata to
+ * any live canvas customItem instances sharing this baseId so the
+ * current room reflects the rename without a reload.
+ *
+ * Geometry / parts / menuImage are intentionally NOT rebuilt here —
+ * the user is editing descriptive metadata only, and a re-render of
+ * the menu thumbnail would require resurrecting the customItem on a
+ * temp Konva stage just to capture an unchanged image. The existing
+ * record's menuImage is preserved verbatim. */
+function confirmEditCustomItemFromDialog() {
+    const baseId = _customItemEditDialogBaseId;
+    if (!baseId) return;
+
+    const nameInput = document.getElementById('customItemEditNameInput');
+    if (!nameInput) return;
+
+    const cleanField = (val) => {
+        const trimmed = (val || '').trim();
+        if (!trimmed) return '';
+        return (typeof DOMPurify !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function')
+            ? (DOMPurify.sanitize(trimmed) || '').trim()
+            : trimmed;
+    };
+
+    const newName = cleanField(nameInput.value);
+    if (!newName) {
+        alertDialog('Custom Item Name Required',
+            'Please enter a name for the Custom Item.');
+        return;
+    }
+    const newAuthor = cleanField((document.getElementById('customItemEditAuthorInput') || {}).value);
+    const newDesc = cleanField((document.getElementById('customItemEditDescriptionInput') || {}).value);
+
+    if (!window.idbStore || typeof window.idbStore.customItemGet !== 'function' ||
+        typeof window.idbStore.customItemPut !== 'function') {
+        showToast('Library unavailable — save failed');
+        return;
+    }
+
+    window.idbStore.customItemGet(baseId).then(function (rec) {
+        if (!rec) {
+            showToast('Custom Item no longer in library');
+            const dlg = document.getElementById('dialogCustomItemEdit');
+            if (dlg) dlg.close();
+            return null;
+        }
+        /* Merge edits into the existing record. menuImage,
+         * customItemParts, width, height, customItemBaseId,
+         * menuImageVersion, addedAt are all preserved verbatim by the
+         * customItemPut path (which reads them off `record` and
+         * passes them through). */
+        rec.data_labelField = newName;
+        rec.author = newAuthor;
+        rec.description = newDesc;
+        if (!rec.version) rec.version = '1';
+        return window.idbStore.customItemPut(rec).then(function (savedBaseId) {
+            if (!savedBaseId) {
+                showToast('Save failed');
+                return null;
+            }
+            /* Cascade to any live canvas instance(s) of this template
+             * so the Details panel and the customItem rect label
+             * reflect the new name immediately. The strict-family
+             * model says all instances share metadata derived from
+             * the library — see CLAUDE.md "Strict-family model". */
+            if (Array.isArray(roomObj.customItems)) {
+                roomObj.customItems.forEach(ci => {
+                    if (!ci || ci.customItemBaseId !== baseId) return;
+                    ci.name = newName;
+                    ci.author = newAuthor;
+                    ci.description = newDesc;
+                    if (!ci.version) ci.version = rec.version || '1';
+                    /* Mirror name onto the rect's data_labelField so
+                     * the canvas label and Details-panel "Custom Item
+                     * Name" both pick it up on next refresh. */
+                    if (typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
+                        const rectNode = groupCustomItemRects
+                            .find(n => n.data_customItemId === ci.customitemid)[0];
+                        if (rectNode) rectNode.data_labelField = newName;
+                    }
+                });
+            }
+
+            /* Refresh the Quick Add cache so the tile label / search
+             * match the new name on the next keystroke without a
+             * round-trip. The cache is the source of truth for the
+             * palette renderer while the dialog is open. */
+            if (Array.isArray(_customItemQuickAddRecordsCache)) {
+                const idx = _customItemQuickAddRecordsCache.findIndex(
+                    r => r && r.customItemBaseId === baseId);
+                if (idx >= 0) {
+                    _customItemQuickAddRecordsCache[idx] = Object.assign(
+                        {}, _customItemQuickAddRecordsCache[idx], {
+                            data_labelField: newName,
+                            author: newAuthor,
+                            description: newDesc,
+                            version: rec.version || '1',
+                        });
+                }
+            }
+
+            showToast('Custom Item updated');
+            const dlg = document.getElementById('dialogCustomItemEdit');
+            if (dlg) dlg.close();
+            const input = document.querySelector('.quick-dialog input');
+            if (input) onQuickAddChange({ target: input });
+
+            /* Persist roomObj so the rename survives undo history /
+             * page refresh from a saved URL. canvasToJson() walks
+             * tr.nodes() and merges into roomObj — the customItems
+             * array we just mutated is untouched by that walker, so
+             * the rename is preserved as long as canvasToJson runs
+             * after our mutation. */
+            if (typeof canvasToJson === 'function') canvasToJson();
+            return savedBaseId;
+        });
+    }).catch(function (e) {
+        console.warn('[customItemLibrary] save edit failed:', e && e.message);
+        showToast('Save failed');
+    });
+}
+
+/* Helper used by the Edit dialog's "Export from Library" button. The
+ * existing `exportCustomItem(customItem)` reads from a canvas instance
+ * (roomObj.customItems entry) and uses buildCustomItemExportRecord(),
+ * which walks roomObj.items for the parts. That path doesn't work
+ * here because the tile being edited may NOT be currently on the
+ * canvas — the user is editing the library record directly.
+ *
+ * Instead we read the verbatim IDB record and write it straight to
+ * disk in the same `.vrcCustomItems.json` shape. menuImage, parts,
+ * and the freshly-edited metadata all round-trip exactly as stored. */
+function exportCustomItemRecordFromLibrary(baseId) {
+    if (!baseId) return;
+    if (!window.idbStore || typeof window.idbStore.customItemGet !== 'function') {
+        showToast('Library unavailable — export failed');
+        return;
+    }
+    window.idbStore.customItemGet(baseId).then(function (rec) {
+        if (!rec) {
+            showToast('Custom Item no longer in library');
+            return;
+        }
+        const name = (rec.data_labelField || '').trim();
+        if (!name) {
+            /* The Quick Add tile only ever shows named records (the
+             * canvas-only invariant), so this branch is essentially
+             * unreachable, but guard defensively for hand-edited IDB
+             * rows or future migrations that might surface unnamed
+             * library entries. */
+            alertDialog('Custom Item Name Required',
+                'This Custom Item has no name. Save a name before exporting.');
+            return;
+        }
+        const fileObj = { vrcCustomItems: [rec] };
+        const json = JSON.stringify(fileObj, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const safeName = name.replace(/[/\\?%*:|"<>]/g, '-').trim().slice(0, 60) || 'custom_item';
+        link.download = safeName + '.vrcCustomItems.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('Custom Item exported');
+    }).catch(function (e) {
+        console.warn('[customItemLibrary] export from library failed:', e && e.message);
+        showToast('Export failed');
+    });
+}
+
 /* "Export Custom Item" — download the customItem as a single-entry
  * .vrcCustomItems.json file and ALSO persist to the IDB library (the
  * user has signalled this is a "keeper" template by exporting it, so
@@ -1987,6 +2268,20 @@ function validateCustomItemRecord(rec) {
     if (typeof rec.height !== 'number' || !isFinite(rec.height) || rec.height <= 0) {
         return { valid: false, error: 'Invalid height' };
     }
+    /* author / description / version are OPTIONAL — older library
+     * records (pre-2026-05) carry no such fields, so we accept their
+     * absence. When present, they must be strings: any other type
+     * (number, object) is treated as a hand-edited / malformed file
+     * and rejected so the bad value can't reach the dialog renderer. */
+    if (rec.author !== undefined && typeof rec.author !== 'string') {
+        return { valid: false, error: 'Invalid author' };
+    }
+    if (rec.description !== undefined && typeof rec.description !== 'string') {
+        return { valid: false, error: 'Invalid description' };
+    }
+    if (rec.version !== undefined && typeof rec.version !== 'string') {
+        return { valid: false, error: 'Invalid version' };
+    }
     if (!Array.isArray(rec.customItemParts) || !rec.customItemParts.length) {
         return { valid: false, error: 'No customItemParts' };
     }
@@ -2170,6 +2465,13 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
          * showing on a just-imported template. */
         customItemBaseId: record.customItemBaseId,
         name: String(record.data_labelField || ''),
+        /* Descriptive metadata round-trips with the record so the
+         * Edit-from-Library dialog reads the most recent values
+         * regardless of which canvas instance is consulted. Missing
+         * fields on older records collapse to '' / '1'. */
+        author: String(record.author || ''),
+        description: String(record.description || ''),
+        version: String(record.version || '1'),
         data_layerId: targetLayerId,
         x: ciX,
         y: ciY,
@@ -3007,6 +3309,14 @@ function openCreateCustomItemDialog() {
     }
 
     input.value = '';
+    /* Author and Description are new optional fields. Existing HTML
+     * builds may not have the inputs yet, so guard each lookup — a
+     * missing field collapses to an empty string in the create call
+     * rather than throwing a TypeError on the assignment. */
+    const authorInput = document.getElementById('customItemAddAuthorInput');
+    const descInput = document.getElementById('customItemAddDescriptionInput');
+    if (authorInput) authorInput.value = '';
+    if (descInput) descInput.value = '';
     dlg.showModal();
     /* setTimeout(0) lets <dialog>.showModal complete its open animation
      * before focusing — without this, Chromium sometimes drops the
@@ -3043,9 +3353,29 @@ function confirmCreateCustomItemFromDialog() {
             'Please enter a name for the new Custom Item.');
         return;
     }
+
+    /* Optional author / description — sanitize the same way the name is
+     * so downstream consumers (alertDialog HTML, filenames, dialog
+     * renderer using innerHTML through _escapeHtmlForCustomItemDialog)
+     * see uniformly clean values. DOMPurify-stripping an entire field
+     * to '' is a legitimate outcome (e.g. user pasted all-HTML) and
+     * silently degrades to empty — author / description are optional,
+     * not required. */
+    const authorInput = document.getElementById('customItemAddAuthorInput');
+    const descInput = document.getElementById('customItemAddDescriptionInput');
+    const cleanField = (val) => {
+        const trimmed = (val || '').trim();
+        if (!trimmed) return '';
+        return (typeof DOMPurify !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function')
+            ? (DOMPurify.sanitize(trimmed) || '').trim()
+            : trimmed;
+    };
+    const cleanedAuthor = cleanField(authorInput ? authorInput.value : '');
+    const cleanedDesc = cleanField(descInput ? descInput.value : '');
+
     const dlg = document.getElementById('dialogCustomItemAdd');
     if (dlg) dlg.close();
-    createCustomItem(undefined, cleaned);
+    createCustomItem(undefined, cleaned, cleanedAuthor, cleanedDesc);
 }
 
 /* Opens the "Delete Layer" confirmation modal (replaces the legacy confirm()).
@@ -5860,7 +6190,8 @@ let tables = [{
     key: 'WB',
     frontImage: 'wallGlass-front.png',
     family: 'wallBox',
-    resizeable: ['depth', 'vheight']
+    resizeable: ['depth', 'vheight'], 
+    webColors: true, 
 },
 
 {
@@ -5869,7 +6200,7 @@ let tables = [{
     key: 'WC',
     frontImage: 'columnRect-front.png',
     family: 'wallBox',
-    resizeable: ['width', 'depth', 'vheight']
+    resizeable: ['width', 'depth', 'vheight'],     
 },
 
 {
@@ -5925,7 +6256,7 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 0.5,
-    resizeable: []
+    resizeable: [], 
 
 },
 {
@@ -11954,6 +12285,14 @@ function copyToCanvasClipBoard(nodes) {
                 oldCustomItemId: oldCustomItemId,
                 customItemAttrs: {
                     name: customItem.name,
+                    /* Descriptive metadata travels with the clipboard
+                     * so paste/duplicate preserves Author / Description
+                     * / Version. Defaults match the create-dialog
+                     * defaults so paste of a pre-author-fields template
+                     * still produces a coherent v1 record. */
+                    author: customItem.author || '',
+                    description: customItem.description || '',
+                    version: customItem.version || '1',
                     customItemBaseId: customItem.customItemBaseId || null,
                     data_layerId: customItem.data_layerId || '0',
                     data_zPosition: parseFloat(customItem.data_zPosition) || 0,
@@ -12348,6 +12687,15 @@ function pasteItems(duplicate = true) {
              * existed (mixed-session paste). */
             customItemBaseId: item.customItemAttrs.customItemBaseId || createUuid(),
             name: item.customItemAttrs.name || '',
+            /* Restore descriptive metadata from the clipboard so a
+             * pasted/duplicated bundle keeps its Author / Description
+             * / Version. Older clipboard entries (pre-2026-05) lack
+             * these keys — collapse to '' / '1' defaults rather than
+             * leaving them undefined so dialog renderers always see
+             * string types. */
+            author: item.customItemAttrs.author || '',
+            description: item.customItemAttrs.description || '',
+            version: item.customItemAttrs.version || '1',
             data_layerId: layerId,
             x: (item.customItemAttrs.x || 0) + xOffset,
             y: (item.customItemAttrs.y || 0) + yOffset,
@@ -17682,7 +18030,7 @@ function ungroupCustomItem(customItemId, keepItems) {
  * an unnamed bundle that the user will be nudged to name before
  * exporting/saving to library — same lenient behavior as imported
  * templates without a data_labelField. */
-function createCustomItem(nodesToGroup, name) {
+function createCustomItem(nodesToGroup, name, author, description) {
     ensureCustomItems();
 
     const candidates = nodesToGroup || tr.nodes();
@@ -17798,6 +18146,14 @@ function createCustomItem(nodesToGroup, name) {
          * a name — matches the schema for import paths that may carry
          * an unnamed template through. */
         name: (name == null) ? '' : String(name),
+        /* Optional descriptive metadata from the create dialog.
+         * Author + description are free-form strings; version defaults
+         * to '1' (UI doesn't surface this field — every template
+         * created in v1 is implicitly version 1, with the wire format
+         * reserving the string shape for future bumps). */
+        author: (author == null) ? '' : String(author),
+        description: (description == null) ? '' : String(description),
+        version: '1',
         data_layerId: targetLayerId,
         x: ((pixelX - pxOffset) / scale) + activeRoomX,
         y: ((pixelY - pyOffset) / scale) + activeRoomY,
@@ -23566,42 +23922,54 @@ function onQuickAddChange(e) {
             btnItem.id = `customItem-${m.id}-div`;
             btnItem.draggable = false;
 
-            /* Delete button — small trash icon in the upper-right of
-             * the tile. CRITICAL: this is a <span role="button"> not a
-             * <button>, because btnItem itself is a <button> and HTML5
-             * forbids <button> nested inside <button>. Browsers DOM-
-             * repair that nesting by hoisting the inner button out as
-             * a sibling, which silently broke the layout (and click
-             * handler) of the original implementation. The role +
-             * tabindex + keydown handler keep keyboard accessibility
-             * parity with a real button. */
-            const delBtn = document.createElement('span');
-            delBtn.className = 'customItemTileDeleteBtn';
-            delBtn.setAttribute('role', 'button');
-            delBtn.setAttribute('tabindex', '0');
-            delBtn.setAttribute('aria-label', 'Delete ' + (m.name || 'Custom Item') + ' from library');
-            delBtn.title = 'Delete from local Custom Item Library';
-            /* Momentum icon (icon-delete-bold) — same trash glyph used
-             * by the layer-delete button in the Layer dialog. innerHTML
-             * is safe here: the markup is a fixed string with no
-             * caller-supplied data. */
-            delBtn.innerHTML = '<i class="icon icon-delete-bold"></i>';
+            /* Ellipsis (more) button — small `...` glyph in the
+             * upper-right of every Quick Add library tile. Clicking
+             * opens the Edit Custom Item dialog (rename / re-author /
+             * re-describe + Export / Delete / Remove-From-Library),
+             * replacing the previous trash-only affordance. The trash
+             * action still lives inside the new dialog so users who
+             * just want to delete still have a one-confirmation path.
+             *
+             * CRITICAL: this is a <span role="button"> not a <button>,
+             * because btnItem itself is a <button> and HTML5 forbids
+             * <button> nested inside <button>. Browsers DOM-repair
+             * that nesting by hoisting the inner button out as a
+             * sibling, which silently broke the layout (and click
+             * handler) of the original delete-button implementation.
+             * The role + tabindex + keydown handler keep keyboard
+             * accessibility parity with a real button.
+             *
+             * CSS class is reused (`customItemTileDeleteBtn`) to avoid
+             * a CSS rule duplication; only the icon glyph and the
+             * click handler differ. The class name is no longer
+             * literally accurate but renaming it would require a
+             * coordinated CSS edit with no functional benefit. */
+            const moreBtn = document.createElement('span');
+            moreBtn.className = 'customItemTileDeleteBtn';
+            moreBtn.setAttribute('role', 'button');
+            moreBtn.setAttribute('tabindex', '0');
+            moreBtn.setAttribute('aria-label', 'More actions for ' + (m.name || 'Custom Item'));
+            moreBtn.title = 'More actions (rename, export, remove)';
+            /* Momentum icon (icon-more-bold) — three-dot ellipsis
+             * glyph. innerHTML is safe here: the markup is a fixed
+             * string with no caller-supplied data. */
+            moreBtn.innerHTML = '<i class="icon icon-more-bold"></i>';
             /* stopPropagation prevents the parent btnItem.onclick from
-             * also firing — without it every trash click would also
+             * also firing — without it every ellipsis click would also
              * insert the customItem onto the canvas. */
-            delBtn.addEventListener('click', function (ev) {
+            moreBtn.addEventListener('click', function (ev) {
                 ev.stopPropagation();
                 ev.preventDefault();
-                openDeleteCustomItemFromLibraryDialog(m.id, m.name || '');
+                openEditCustomItemDialog(m.id);
             });
-            delBtn.addEventListener('keydown', function (ev) {
+            moreBtn.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter' || ev.key === ' ') {
                     ev.stopPropagation();
                     ev.preventDefault();
-                    openDeleteCustomItemFromLibraryDialog(m.id, m.name || '');
+                    openEditCustomItemDialog(m.id);
                 }
             });
-            btnItem.appendChild(delBtn);
+            btnItem.appendChild(moreBtn);
 
             btnItem.onclick = () => {
                 const { roomWidth, roomLength } = roomObj.room;
@@ -27277,6 +27645,12 @@ function importWorkspaceDesignerFile(workspaceObj) {
                  * from canvasToJson) assigns a fresh one. */
                 customItemBaseId: c.customItemBaseId || undefined,
                 name: c.name || '',
+                /* Descriptive metadata. Older WD files won't carry
+                 * these keys — collapse to '' / '1' so downstream
+                 * dialog renderers see consistent string types. */
+                author: c.author ? String(c.author) : '',
+                description: c.description ? String(c.description) : '',
+                version: c.version ? String(c.version) : '1',
                 data_layerId: customItemLayerId,
                 x: Number(c.x) || 0,
                 y: Number(c.y) || 0,
@@ -28492,6 +28866,14 @@ function exportRoomObjToWorkspace() {
                  * malformed roomObj) — importer assigns a fresh baseId. */
                 customItemBaseId: c.customItemBaseId || undefined,
                 name: c.name || '',
+                /* Optional descriptive metadata. Emitted only when
+                 * present and non-empty so older importers don't see
+                 * `"author": ""` noise on bundles that never carried
+                 * the field. version defaults to '1' on the wire when
+                 * the field exists at all (set by createCustomItem). */
+                author: c.author || undefined,
+                description: c.description || undefined,
+                version: c.version || undefined,
                 x: round((c.x || 0) * customItemRatio),
                 y: round((c.y || 0) * customItemRatio),
                 width: round((c.width || 0) * customItemRatio),
@@ -28500,6 +28882,9 @@ function exportRoomObjToWorkspace() {
                 data_zPosition: round((c.data_zPosition || 0) * customItemRatio),
             };
             if (!exportedCustomItem.customItemBaseId) delete exportedCustomItem.customItemBaseId;
+            if (!exportedCustomItem.author) delete exportedCustomItem.author;
+            if (!exportedCustomItem.description) delete exportedCustomItem.description;
+            if (!exportedCustomItem.version) delete exportedCustomItem.version;
             const customItemLayerId = c.data_layerId;
             if (customItemLayerId && customItemLayerId !== '0' && roomObj.layers) {
                 const customItemLayer = roomObj.layers.find(l => l.layerid === customItemLayerId);
