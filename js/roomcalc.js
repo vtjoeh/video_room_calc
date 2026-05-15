@@ -506,7 +506,7 @@ function populateGroupDetails(rectNode) {
      * (The non-group branch of updateFormatDetails re-shows itemNameDiv.) */
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
@@ -2294,7 +2294,7 @@ function populateCustomItemDetails(rectNode) {
 
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
@@ -20748,9 +20748,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
 
     if (shape.data_deviceid === 'tblRect') {
+        document.getElementById('tblRectRadiusRow').style.display = '';
         document.getElementById('tblRectRadiusDiv').style.display = '';
         document.getElementById('tblRectRadiusRightDiv').style.display = '';
     } else {
+        document.getElementById('tblRectRadiusRow').style.display = 'none';
         document.getElementById('tblRectRadiusDiv').style.display = 'none';
         document.getElementById('tblRectRadiusRightDiv').style.display = 'none';
     }
