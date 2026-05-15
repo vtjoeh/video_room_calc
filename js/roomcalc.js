@@ -1,4 +1,4 @@
-const version = "v0.1.646";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.647";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. The function bodies live in
  * js/util/uuid.js and js/util/units.js (loaded via <script> before this
@@ -6325,7 +6325,6 @@ let tables = [{
     family: 'wallBox',
     resizeable: ['width', 'depth', 'vheight'],     
     configurableColor: true, 
-    wdOpacity: true, 
              
 },
 
@@ -11434,7 +11433,13 @@ function createShareableLink() {
     listItemsOffStage();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
-    strUrlQuery2 += `${roomObj.version}`;
+    /* Belt-and-braces guard: a missing roomObj.version would interpolate as the
+     * literal string "undefined", which the parseShortenedXYUrl() lowercase-letter
+     * accumulator then absorbs into the next attribute key (e.g. `undefinedb` instead
+     * of `b`), silently corrupting roomWidth on re-parse. Falling back to the boot
+     * `version` constant keeps the URL grammar valid even if some future code path
+     * leaves roomObj.version unset. The importJson() loader also backfills this field. */
+    strUrlQuery2 += `${roomObj.version || version}`;
     strUrlQuery2 += `b${expand(roomObj.room.roomWidth)}c${expand(roomObj.room.roomLength)}`;
 
     if (roomObj.software === 'webex') {
@@ -25756,6 +25761,11 @@ function importJson(jsonFile) {
         setTimeout(() => {
             roomObj = structuredClone(jsonFile);
             roomObj.trNodes = [];
+            /* Third-party-authored .vrc.json files may omit `version`. Backfill from
+             * the boot-time default so downstream consumers (createShareableLink in
+             * particular) never interpolate the literal string `"undefined"` into
+             * the URL grammar — which silently corrupts roomWidth on re-parse. */
+            if (!roomObj.version) roomObj.version = version;
 
             if ('backgroundImageFile' in jsonFile) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
