@@ -504,14 +504,6 @@
                     height: Number(record.height) || 0,
                     customItemParts: Array.isArray(record.customItemParts) ? record.customItemParts : [],
                     menuImage: typeof record.menuImage === 'string' ? record.menuImage : '',
-                    /* Renderer version stamp for the menuImage. Bumped
-                     * whenever createCustomItemMenuImage() math changes
-                     * in a way that invalidates previously stored
-                     * thumbnails. Stale records (version < current) are
-                     * refreshed once on boot. Stored verbatim so the
-                     * one-shot migration can detect them without
-                     * round-tripping every record's PNG. */
-                    menuImageVersion: Number(record.menuImageVersion) || 0,
                     addedAt: addedAt,
                     updatedAt: nowIso
                 };

@@ -115,15 +115,6 @@ let _customItemUrlEncodeMap = {}; /* maps customitemid → URL customItem number
  * the ellipse menu and Quick Add palette; reconciled on every write. */
 let customItemLibraryIds = new Set();
 
-/* Renderer version for customItem menuImage thumbnails. Bump whenever
- * createCustomItemMenuImage() math changes in a way that makes prior
- * thumbnails wrong; refreshStaleCustomItemMenuImages() re-renders any
- * record at version < this on next page load.
- *   1 = initial (center-anchor for all parts; buggy for UL-anchor parts).
- *   2 = per-part anchor convention.
- *   3 = device-faithful rendering (pathShape, box dashed stroke, etc.).
- *   4 = parts sorted into drawRoom()'s parentGroup z-order. */
-const CUSTOM_ITEM_MENU_IMAGE_VERSION = 4;
 let lastAction = "load";
 let isBackgroundImageFloorFileLoad = false; /* keep track if the backgroundImageFloor is being loaded as part of a JSON file */
 let quickSetupState = 'disabled'; /* QuickSetupState states are changed by program to 'update', 'disabled' or 'insert' to see if quick setup menu works */
@@ -716,47 +707,6 @@ function hydrateCustomItemLibraryIds() {
         });
 }
 
-/* One-shot boot migration: re-render menuImages for library records
- * with stored renderer version < CUSTOM_ITEM_MENU_IMAGE_VERSION. Runs
- * serially to avoid slamming the main thread; cost paid once per bump. */
-function refreshStaleCustomItemMenuImages() {
-    if (!window.idbStore ||
-        typeof window.idbStore.customItemGetAll !== 'function' ||
-        typeof window.idbStore.customItemPut !== 'function') {
-        return Promise.resolve();
-    }
-    return window.idbStore.customItemGetAll()
-        .then(function (records) {
-            if (!Array.isArray(records) || !records.length) return;
-            const stale = records.filter(r =>
-                r && (Number(r.menuImageVersion) || 0) < CUSTOM_ITEM_MENU_IMAGE_VERSION
-            );
-            if (!stale.length) return;
-            console.info('[customItemLibrary] refreshing menuImage for',
-                stale.length, 'stale record(s) (renderer v' + CUSTOM_ITEM_MENU_IMAGE_VERSION + ')');
-            /* Reduce-chain so renders are serial. Errors on any single
-             * record are swallowed (and the record stays at its old
-             * version, so the next boot will retry) — never block boot. */
-            return stale.reduce(function (chain, rec) {
-                return chain.then(function () {
-                    return createCustomItemMenuImage(rec)
-                        .then(function (dataUrl) {
-                            rec.menuImage = dataUrl || rec.menuImage || '';
-                            rec.menuImageVersion = CUSTOM_ITEM_MENU_IMAGE_VERSION;
-                            return window.idbStore.customItemPut(rec);
-                        })
-                        .catch(function (e) {
-                            console.warn('[customItemLibrary] refresh failed for',
-                                rec && rec.customItemBaseId, e && e.message);
-                        });
-                });
-            }, Promise.resolve());
-        })
-        .catch(function (e) {
-            console.warn('[customItemLibrary] refreshStaleCustomItemMenuImages failed:', e && e.message);
-        });
-}
-
 /* Synchronous predicate — UI hot path. Falsy / unknown baseIds always
  * return false so callers can pass through possibly-missing values. */
 function isCustomItemInLibrary(customItemBaseId) {
@@ -1321,7 +1271,6 @@ function persistCustomItemToLibrary(customItem) {
 
     return createCustomItemMenuImage(record).then(function (dataUrl) {
         record.menuImage = dataUrl || '';
-        record.menuImageVersion = CUSTOM_ITEM_MENU_IMAGE_VERSION;
         return window.idbStore.customItemPut(record);
     }).then(function (savedBaseId) {
         if (savedBaseId) {
@@ -1573,10 +1522,9 @@ function confirmEditCustomItemFromDialog() {
             return null;
         }
         /* Merge edits into the existing record. menuImage,
-         * customItemParts, width, height, customItemBaseId,
-         * menuImageVersion, addedAt are all preserved verbatim by the
-         * customItemPut path (which reads them off `record` and
-         * passes them through). */
+         * customItemParts, width, height, customItemBaseId, and addedAt
+         * are all preserved verbatim by the customItemPut path (which
+         * reads them off `record` and passes them through). */
         rec.data_labelField = newName;
         rec.author = newAuthor;
         rec.description = newDesc;
@@ -1714,7 +1662,6 @@ function exportCustomItem(customItem) {
 
     createCustomItemMenuImage(record).then(function (dataUrl) {
         record.menuImage = dataUrl || '';
-        record.menuImageVersion = CUSTOM_ITEM_MENU_IMAGE_VERSION;
 
         /* Best-effort library upsert by baseId; never blocks the download. */
         if (window.idbStore && typeof window.idbStore.customItemPut === 'function') {
@@ -8332,18 +8279,7 @@ function binaryToBase26(binary) {
      * unavailable the Set stays empty and every "in library?" check
      * returns false, which the UI handles gracefully. */
     if (typeof hydrateCustomItemLibraryIds === 'function') {
-        hydrateCustomItemLibraryIds().then(function () {
-            /* Chain the menuImage migration AFTER hydrate finishes so the
-             * Set is populated before we kick off potentially-slow render
-             * work. Migration is itself fire-and-forget — boot doesn't
-             * wait. allDeviceTypes must already be populated (it's built
-             * synchronously above before this onLoad block runs), which
-             * the migration relies on for the UL-vs-center anchor branch
-             * in createCustomItemMenuImage(). */
-            if (typeof refreshStaleCustomItemMenuImages === 'function') {
-                refreshStaleCustomItemMenuImages();
-            }
-        });
+        hydrateCustomItemLibraryIds();
     }
 
     idbReady.then(function (state) {
