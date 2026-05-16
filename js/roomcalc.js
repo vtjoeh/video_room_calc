@@ -18861,52 +18861,120 @@ function addLabel(node, attrs, alwaysLabel = false) {
 }
 
 
-/* snap the center of the node to the increment. */
+/* snap the center of the node to the increment.
+ *
+ * Bundle (Group / CustomItem) drags use the bundle's RECT center as the
+ * source — same "rect_only" rule as Snap to Objects. The grid lattice
+ * is fixed (it doesn't depend on other objects) so we don't need to
+ * exclude bundle members from any candidate list; we only need to pick
+ * the right source point and propagate the delta correctly:
+ *
+ *   - Transformer drag (`tr.isDragging()` true): rect already moved with
+ *     everyone. Compute delta from rect's current center → grid; apply
+ *     delta to the rect + every member.
+ *   - Member-direct drag: only `node` (e.target) has moved. Project the
+ *     rect's would-be center using the dragstart snapshot, snap to
+ *     grid, then apply the delta to `node` only — the existing
+ *     followGroupDragFromMember / followCustomItemDragFromMember at the
+ *     tail of the dragmove handler will propagate the delta to siblings
+ *     and the rect.
+ */
 function snapCenterToIncrement(node) {
-    if (tr.nodes().length === 1) {
+    let snapIncrement = Number(document.getElementById('snapToIncrement').value);
+    let snapIncrementCheckBox = document.getElementById('snapIncrementCheckBox');
 
-        let snapIncrement = Number(document.getElementById('snapToIncrement').value);
-        let snapIncrementCheckBox = document.getElementById('snapIncrementCheckBox');
+    if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
+        snapIncrement = 0.25;
+        document.getElementById('snapToIncrement').value = snapIncrement;
+    }
 
-        if (snapIncrement < 0.02 || (snapIncrement > roomObj.room.roomWidth / 2)) {
-            snapIncrement = 0.25;
-            document.getElementById('snapToIncrement').value = snapIncrement;
-        }
+    if (!snapIncrementCheckBox.checked) return;
 
-        if (snapIncrementCheckBox.checked) {
+    const bundleSel = (typeof getActiveGroupSelection === 'function' ? getActiveGroupSelection() : null)
+        || (typeof getActiveCustomItemSelection === 'function' ? getActiveCustomItemSelection() : null);
 
-            /* get the center of the node in pixels */
-            let pixelXY = getNodeCenter(node);
+    if (!bundleSel) {
+        if (tr.nodes().length !== 1) return;
 
-            /* convert pixels to feet/meters */
-            let x = (pixelXY.x - pxOffset) / scale;
-            let y = (pixelXY.y - pyOffset) / scale;
+        /* get the center of the node in pixels */
+        let pixelXY = getNodeCenter(node);
 
-            /* round to increment */
-            let newX = Math.round(x / snapIncrement) * snapIncrement;
-            let newY = Math.round(y / snapIncrement) * snapIncrement;
+        /* convert pixels to feet/meters */
+        let x = (pixelXY.x - pxOffset) / scale;
+        let y = (pixelXY.y - pyOffset) / scale;
 
-            /* get delta of new position - old position */
-            let deltaX = newX - x;
-            let deltaY = newY - y;
+        /* round to increment */
+        let newX = Math.round(x / snapIncrement) * snapIncrement;
+        let newY = Math.round(y / snapIncrement) * snapIncrement;
 
-            /* convert the delta back to pixels */
-            let deltaPixelX = ((deltaX) * scale);
-            let deltaPixelY = ((deltaY) * scale);
+        /* get delta of new position - old position */
+        let deltaX = newX - x;
+        let deltaY = newY - y;
 
-            /* add the delta back to the original node */
-            node.x(node.x() + deltaPixelX);
-            node.y(node.y() + deltaPixelY);
+        /* convert the delta back to pixels */
+        let deltaPixelX = ((deltaX) * scale);
+        let deltaPixelY = ((deltaY) * scale);
 
-        }
+        /* add the delta back to the original node */
+        node.x(node.x() + deltaPixelX);
+        node.y(node.y() + deltaPixelY);
+        return;
+    }
+
+    /* Bundle path — source is the rect's center. */
+    const rectNode = bundleSel.rectNode;
+    if (!rectNode) return;
+
+    /* Compute the rect's would-be center (member-direct) or current
+     * center (Transformer drag). */
+    let projectionDx = 0;
+    let projectionDy = 0;
+    if (!tr.isDragging() && node && node !== rectNode) {
+        const snapshot = bundleSel.groupId ? _groupDragSnapshot : _customItemDragSnapshot;
+        if (!snapshot || snapshot.target !== node) return;
+        projectionDx = node.x() - snapshot.startPos.x;
+        projectionDy = node.y() - snapshot.startPos.y;
+    }
+
+    const rectCenter = getNodeCenter(rectNode);
+    const x = ((rectCenter.x + projectionDx) - pxOffset) / scale;
+    const y = ((rectCenter.y + projectionDy) - pyOffset) / scale;
+
+    const newX = Math.round(x / snapIncrement) * snapIncrement;
+    const newY = Math.round(y / snapIncrement) * snapIncrement;
+
+    const deltaPixelX = (newX - x) * scale;
+    const deltaPixelY = (newY - y) * scale;
+    if (deltaPixelX === 0 && deltaPixelY === 0) return;
+
+    if (tr.isDragging()) {
+        rectNode.x(rectNode.x() + deltaPixelX);
+        rectNode.y(rectNode.y() + deltaPixelY);
+        const memberNodes = bundleSel.groupId
+            ? getGroupMemberNodes(bundleSel.groupId)
+            : getCustomItemMemberNodes(bundleSel.customItemId);
+        memberNodes.forEach(m => {
+            m.x(m.x() + deltaPixelX);
+            m.y(m.y() + deltaPixelY);
+        });
+    } else if (node) {
+        node.x(node.x() + deltaPixelX);
+        node.y(node.y() + deltaPixelY);
     }
 }
 
 
 /* snap to object start */
 
-/* were can we snap our objects? If resize = true, ignore center */
-function getLineGuideStops(skipShape, resize = false) {
+/* were can we snap our objects? If resize = true, ignore center.
+ *
+ * `excludeBundle` (optional): { groupId, customItemId } — when set, the
+ * caller is snapping a Group / CustomItem bundle as a single unit. Drop
+ * every node carrying that groupId / customItemId so the bundle never
+ * snaps to itself. (Per the user's "exclude_all_bundles" choice we also
+ * drop ALL other bundle MEMBERS — only bundle rects + non-bundled items
+ * remain as snap targets, regardless of excludeBundle.) */
+function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
     /* we can snap to stage borders and the center of the stage */
 
     let outerWall = stage.find("#cOuterWall")[0];
@@ -18941,6 +19009,28 @@ function getLineGuideStops(skipShape, resize = false) {
         let groupName = node.getParent().name();
         /* ignore the shading and the temporary groups */
         if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+
+            /* Drop bundle MEMBER items globally — only bundle rects
+             * (data_deviceid 'group' / 'customItem') represent a bundle
+             * as a snap target. Member items inside any Group or
+             * CustomItem are not surfaced individually so the user
+             * doesn't see noisy "snap to one chair inside a bundle"
+             * guides; the bundle's rect serves the snap intent. */
+            if (node.data_groupId && node.data_deviceid !== 'group') return false;
+            if (node.data_customItemId && node.data_deviceid !== 'customItem') return false;
+
+            /* Drop the dragged bundle's own rect (skipShape only matches
+             * one specific node; member-direct drag passes a member as
+             * skipShape, not the bundle's rect, so this is needed to
+             * keep the bundle from snapping to itself). */
+            if (excludeBundle) {
+                if (excludeBundle.groupId
+                    && node.data_deviceid === 'group'
+                    && node.data_groupId === excludeBundle.groupId) return false;
+                if (excludeBundle.customItemId
+                    && node.data_deviceid === 'customItem'
+                    && node.data_customItemId === excludeBundle.customItemId) return false;
+            }
 
             if (node.draggable() && Konva.Util.haveIntersection(outerBox, node.getClientRect())) {
                 return true;
@@ -19211,9 +19301,145 @@ function snapToGuideLinesResize(moved) {
     }
 }
 
+/* Snap a Group / CustomItem bundle to other objects.
+ *
+ * Source: the bundle's RECT bounds (per the user's "rect_only" choice).
+ * Members never contribute snap edges.
+ *
+ * Two drag styles to handle:
+ *
+ *   1. Transformer drag (`tr.isDragging() === true`): Konva already moved
+ *      every node in tr.nodes() (rect + members) by the drag delta. The
+ *      rect's getClientRect() reflects the current dragged position. We
+ *      compute a snap delta against the rect and apply it to the rect +
+ *      every member. We do NOT call `e.target.absolutePosition(...)`
+ *      because the existing follower (followGroupDragFromMember /
+ *      followCustomItemDragFromMember) no-ops while tr.isDragging — so
+ *      shifting only e.target would split the bundle.
+ *
+ *   2. Member-direct drag (`tr.isDragging() === false`): only e.target
+ *      has moved. The rect is still at its dragstart position. We project
+ *      the rect's would-be position (rect.snapshotStartPos + member drag
+ *      delta) and compute the snap against that projected position. We
+ *      apply the snap delta to e.target only — the existing follower
+ *      runs at the tail of the dragmove handler and propagates the new
+ *      delta (which now includes the snap offset) to the rect + siblings.
+ *
+ * Idempotent across re-fires within a frame: after the first apply, the
+ * rect (or its projection) sits exactly on the snap line, so the next
+ * call computes delta = 0.
+ */
+function snapBundleToGuideLines(e, bundleSel) {
+    /* Resize is meaningless on a bundle — Transformer has no anchors. */
+    /* (Caller already filters resize, but be defensive.) */
+    const rectNode = bundleSel.rectNode;
+    if (!rectNode) return;
+
+    /* Clear any prior magenta guide lines before drawing new ones. */
+    allGuideLines.forEach(guideLine => { guideLine.destroy(); });
+    allGuideLines = [];
+
+    /* Identify the bundle so getLineGuideStops can drop both the rect AND
+     * its sibling members from the candidate list (member-direct drag
+     * passes a member as e.target, not the rect, so skipShape alone
+     * isn't enough to exclude the dragged bundle). */
+    const excludeBundle = bundleSel.groupId
+        ? { groupId: bundleSel.groupId, customItemId: null }
+        : { groupId: null, customItemId: bundleSel.customItemId };
+
+    /* Pull snap targets — pass the rect as skipShape so the dragged
+     * bundle's own rect is excluded; the new excludeBundle filter then
+     * also drops every member of this bundle. */
+    const lineGuideStops = getLineGuideStops(rectNode, false, excludeBundle);
+
+    /* Compute snap source — for member-direct drag we project the rect to
+     * its would-be position so the snap source matches what the user will
+     * see after the follower propagates. For Transformer drag the rect has
+     * already moved, so its current bounds are the source directly. */
+    let projectedRect = null;     /* {dx, dy} projection delta, member-direct only */
+
+    if (!tr.isDragging() && e && e.target && e.target !== rectNode) {
+        /* Member-direct path: read the snapshot captured at dragstart. */
+        const snapshot = bundleSel.groupId
+            ? _groupDragSnapshot
+            : _customItemDragSnapshot;
+        if (!snapshot || snapshot.target !== e.target) return;
+        projectedRect = {
+            dx: e.target.x() - snapshot.startPos.x,
+            dy: e.target.y() - snapshot.startPos.y,
+        };
+    }
+
+    /* Build itemBounds against the rect's projected (or actual) bounds. */
+    const itemBounds = getObjectSnappingEdges(rectNode, false);
+    if (projectedRect) {
+        /* Shift every guide/offset by the projection delta so getGuides
+         * compares against the would-be rect position. */
+        itemBounds.vertical.forEach(b => { b.guide += projectedRect.dx; });
+        itemBounds.horizontal.forEach(b => { b.guide += projectedRect.dy; });
+    }
+
+    const guides = getGuides(lineGuideStops, itemBounds);
+    if (!guides.length) return;
+
+    drawSnapGuides(guides);
+
+    /* Compute snap deltas (sdx, sdy) — how much to shift the bundle to
+     * land on the matched line guides. Each guide entry's offset is
+     * (rectAbsPos - rectBoxEdge), so the new rect absPos = lineGuide +
+     * offset. The delta is therefore (newAbsPos - currentRectAbsPos). */
+    const rectAbsPos = rectNode.absolutePosition();
+    let sdx = 0;
+    let sdy = 0;
+    guides.forEach((lg) => {
+        if (lg.orientation === 'V') {
+            const newAbsX = lg.lineGuide + lg.offset;
+            sdx = newAbsX - rectAbsPos.x;
+            if (projectedRect) sdx -= projectedRect.dx; /* rect hasn't moved yet in member-direct drag */
+        } else if (lg.orientation === 'H') {
+            const newAbsY = lg.lineGuide + lg.offset;
+            sdy = newAbsY - rectAbsPos.y;
+            if (projectedRect) sdy -= projectedRect.dy;
+        }
+    });
+    if (sdx === 0 && sdy === 0) return;
+
+    if (tr.isDragging()) {
+        /* Transformer drag — shift rect + every member by (sdx, sdy). */
+        rectNode.x(rectNode.x() + sdx);
+        rectNode.y(rectNode.y() + sdy);
+        const memberNodes = bundleSel.groupId
+            ? getGroupMemberNodes(bundleSel.groupId)
+            : getCustomItemMemberNodes(bundleSel.customItemId);
+        memberNodes.forEach(m => {
+            m.x(m.x() + sdx);
+            m.y(m.y() + sdy);
+        });
+    } else if (e && e.target) {
+        /* Member-direct drag — shift only e.target. The follower at the
+         * tail of the dragmove handler will recompute target.x() -
+         * snapshot.startPos.x (now drag delta + snap delta) and propagate
+         * to siblings + rect. */
+        e.target.x(e.target.x() + sdx);
+        e.target.y(e.target.y() + sdy);
+    }
+}
+
 function snapToGuideLines(e, resize = false) {
 
     if (!document.getElementById('snapGuidelinesCheckBox').checked) return; /* bail out if snap to guidelines not turned on */
+
+    /* Bundle (Group / CustomItem) selection has 2+ nodes in tr.nodes()
+     * (rect + members). Route to the bundle-aware snapper which uses the
+     * rect as the snap source. Resize-mode snap is meaningless on a
+     * bundle (Transformer has no resize anchors) so we skip it. */
+    const bundleSel = (typeof getActiveGroupSelection === 'function' ? getActiveGroupSelection() : null)
+        || (typeof getActiveCustomItemSelection === 'function' ? getActiveCustomItemSelection() : null);
+    if (bundleSel) {
+        if (resize) return;
+        snapBundleToGuideLines(e, bundleSel);
+        return;
+    }
 
     if (tr.nodes().length != 1) return;  /* only work if one node */
 

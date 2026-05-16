@@ -590,6 +590,13 @@ There are two distinct drag paths to keep in mind:
 
 The snapshot is cleared on each `dragend` (member's `dragend`, table's `dragend`, and `tr.on('dragend')` all call `endGroupDragFollow()`).
 
+#### Snap to Objects on a Group bundle
+
+The "Snap to Objects" feature (`snapToGuideLines()`) and the grid snapper (`snapCenterToIncrement()`) both engage on Group bundle drags via the bundle-aware helper `snapBundleToGuideLines()`. The bundle's RECT is the snap source — members never contribute snap edges. `getLineGuideStops()` accepts an `excludeBundle = { groupId, customItemId }` arg so the dragged bundle's own rect is excluded as a snap target; the same filter also drops every node carrying any `data_groupId` / `data_customItemId` from the candidate list, so only bundle rects + non-bundled items remain as snap targets. Drag-style branches:
+
+- **Transformer drag** (`tr.isDragging() === true`): the rect has already moved with everyone. Snap delta is computed against the rect's current bounds and applied to the rect + every member (Konva won't propagate to siblings during a Transformer drag, so we shift them all manually). Idempotent across re-fires within a frame — after the first apply the rect sits exactly on the snap line, so the next dragmove's call computes delta = 0.
+- **Member-direct drag** (`tr.isDragging() === false`): only `e.target` has moved. `_groupDragSnapshot` is read to project the rect's would-be position (`rect.startPos + member.dragDelta`); snap is computed against that projection; the snap delta is applied to `e.target` only. The existing `followGroupDragFromMember()` at the tail of the dragmove handler then propagates the new delta (drag delta + snap delta) to the rest of the bundle.
+
 #### Selection promotion in `dragmove`
 
 The existing item `dragmove` handlers in `tblWallFlr` and `imageItem` contain a "promote to tr.nodes() if not already there" block (so click-then-drag on an unselected item still works). For group members this would clobber the whole-group selection down to just the dragged item. Both handlers now branch on `data_groupId`:
@@ -927,6 +934,10 @@ visual tweaks:
 | `stroke` | `'blue'`, `dash:[6,4]` | `'green'`, `dash:[4,4]` |
 | `data_deviceid` | `'group'` | `'customItem'` |
 | Default `opacity` | `0` (opacity-only highlight on select) | `0` (same) |
+
+### Snap to Objects on a CustomItem bundle
+
+Snap to Objects and the grid snapper engage on CustomItem drags via the same `snapBundleToGuideLines()` helper used for Groups (see "Snap to Objects on a Group bundle" in the Group section above). The CustomItem rect drives the snap; member items never contribute snap edges. `getLineGuideStops()` drops every node carrying a `data_groupId` / `data_customItemId` — only bundle rects + non-bundled items remain as snap targets — and the `excludeBundle` arg additionally excludes the dragged CustomItem's own rect. Drag-style branches mirror the Group case (Transformer drag shifts rect + every member; member-direct drag shifts `e.target` and lets `followCustomItemDragFromMember()` propagate the snap delta).
 
 ### UI
 
