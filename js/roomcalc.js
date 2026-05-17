@@ -187,6 +187,33 @@ function getCustomItemRectsAllInGroup(groupId) {
     return result;
 }
 
+/* ---- Deferred canvasToJson sync model ----
+ *
+ * The per-handler dragend / transformend events (tr.dragend,
+ * tr.transformend, tblWallFlr.dragend, imageItem.dragend) intentionally
+ * do NOT call canvasToJson(). The single source-of-truth call lives in
+ * stage.on('mouseup touchend') and runs once per user gesture
+ * regardless of which Konva node was the drag target.
+ *
+ * A previous iteration added canvasToJson() to all four handlers to
+ * close a rare edge case (mouseup landing outside the canvas, or
+ * drawRoom(true, …) firing before stage mouseup, leaving roomObj
+ * stale). The cost — an extra updateRoomObjFromTrNode() walk over
+ * tr.nodes() at every drag / transform end — was measurable on 1000+
+ * item selections, for a benefit (catching off-canvas mouseup) that
+ * did NOT match the actual drift symptoms the project was hitting.
+ * Reverted.
+ *
+ * Known edge case (accepted): if the user drags off-canvas AND
+ * something triggers drawRoom(true, …) before they re-enter the
+ * canvas, the bundle's last drag may visually snap back. Mitigate via
+ * the existing undo button if it happens. The real drift work lives
+ * in the followers (footgun #26 in notes/TECH_NOTES_KONVA.md) and is
+ * a Phase B follow-up; that's where the opt-in drift diagnostic
+ * (window.VRC.debugDriftDetection — see beginDriftCheck() below) will
+ * continue to point us.
+ */
+
 /* Snapshot sibling + Group rect start positions for follower.
  * MUST be called from dragstart — by the first dragmove, target.x()
  * has already advanced, which would bake an offset into startPos. */
@@ -337,6 +364,187 @@ function followCustomItemDragFromMember(target) {
 
 function endCustomItemDragFollow() {
     _customItemDragSnapshot = null;
+}
+
+/* ---- Drift detection (opt-in diagnostic) ----
+ *
+ * Catches the "members of a Group / CustomItem lose relative position to
+ * each other during drag or rotation" symptom. Default off — zero
+ * production overhead. Enable from DevTools:
+ *
+ *    window.VRC.debugDriftDetection = true
+ *
+ * Then exercise the suspected drag/rotate sequence. Any drift fires a
+ * console.warn with the offending sibling, its delta, the reference
+ * delta, and the full snapshot. Reports are also pushed to
+ * `window.VRC._driftReports[]` so they can be exported after the fact:
+ *
+ *    JSON.stringify(window.VRC._driftReports, null, 2)
+ *
+ * Tolerances are intentionally tight (0.5 px on x/y, 0.01° on rotation).
+ * Within-frame snap rounding is well below that, so a real drift bug
+ * will register as a clear outlier rather than getting lost in noise.
+ *
+ * For Transformer rotations the position deltas legitimately differ
+ * per-member (each rotates around the bbox centre), so the rotation
+ * branch only checks that every member's `dRot` matches the reference;
+ * positions are recorded for forensic inspection but not compared.
+ */
+let _driftCheckSnapshot = null;
+
+function _driftCheckEnabled() {
+    return !!(typeof window !== 'undefined' && window.VRC && window.VRC.debugDriftDetection);
+}
+
+/* Returns Set<Konva.Node> of every bundle member relevant to the current
+ * drag / transform. Combines the dragged target's bundle siblings (via
+ * data_groupId / data_customItemId) with every bundle node already in
+ * tr.nodes(), so Transformer-driven drags (no specific target) and
+ * member-direct drags both produce a useful snapshot. */
+function _collectBundleMemberSet(target) {
+    const set = new Set();
+    const addByGroupId = (gid) => {
+        if (!gid || typeof getGroupMemberNodes !== 'function') return;
+        getGroupMemberNodes(gid).forEach(n => set.add(n));
+        if (typeof groupGroupRects !== 'undefined' && groupGroupRects) {
+            const r = groupGroupRects.find(n => n.data_groupId === gid)[0];
+            if (r) set.add(r);
+        }
+    };
+    const addByCustomItemId = (cid) => {
+        if (!cid || typeof getCustomItemMemberNodes !== 'function') return;
+        getCustomItemMemberNodes(cid).forEach(n => set.add(n));
+        if (typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
+            const r = groupCustomItemRects.find(n => n.data_customItemId === cid)[0];
+            if (r) set.add(r);
+        }
+    };
+    if (target) {
+        addByGroupId(target.data_groupId);
+        addByCustomItemId(target.data_customItemId);
+        set.add(target);
+    }
+    if (typeof tr !== 'undefined' && tr && tr.nodes) {
+        tr.nodes().forEach(n => {
+            addByGroupId(n.data_groupId);
+            addByCustomItemId(n.data_customItemId);
+            if (n.data_deviceid === 'group') addByGroupId(n.data_groupId);
+            if (n.data_deviceid === 'customItem') addByCustomItemId(n.data_customItemId);
+        });
+    }
+    return set;
+}
+
+function beginDriftCheck(source, target) {
+    if (!_driftCheckEnabled()) { _driftCheckSnapshot = null; return; }
+    const members = _collectBundleMemberSet(target);
+    if (members.size < 2) { _driftCheckSnapshot = null; return; }
+    const positions = new Map();
+    members.forEach(n => {
+        positions.set(n, {
+            x: n.x(),
+            y: n.y(),
+            rotation: n.rotation(),
+            id: n.id ? n.id() : null,
+            data_deviceid: n.data_deviceid || null,
+            data_groupId: n.data_groupId || null,
+            data_customItemId: n.data_customItemId || null,
+        });
+    });
+    _driftCheckSnapshot = {
+        source: source,
+        target: target || null,
+        targetId: (target && target.id) ? target.id() : null,
+        startedAt: Date.now(),
+        positions: positions,
+        kind: (source && source.indexOf('transform') >= 0) ? 'rotation' : 'translation',
+    };
+}
+
+function endDriftCheck(source) {
+    if (!_driftCheckEnabled() || !_driftCheckSnapshot) {
+        _driftCheckSnapshot = null;
+        return;
+    }
+    const snap = _driftCheckSnapshot;
+    _driftCheckSnapshot = null;
+
+    const POS_TOL = 0.5;   /* px */
+    const ROT_TOL = 0.01;  /* degrees */
+
+    const deltas = [];
+    snap.positions.forEach((startPos, node) => {
+        if (!node || typeof node.x !== 'function') return; /* destroyed mid-drag */
+        deltas.push({
+            id: startPos.id,
+            data_deviceid: startPos.data_deviceid,
+            data_groupId: startPos.data_groupId,
+            data_customItemId: startPos.data_customItemId,
+            startX: startPos.x, startY: startPos.y, startRot: startPos.rotation,
+            endX: node.x(), endY: node.y(), endRot: node.rotation(),
+            dx: node.x() - startPos.x,
+            dy: node.y() - startPos.y,
+            dRot: node.rotation() - startPos.rotation,
+        });
+    });
+
+    if (deltas.length < 2) return;
+
+    /* Pick the dragged target's deltas as the reference; fall back to
+     * the first snapshot entry for Transformer drags with no target. */
+    let referenceDelta = null;
+    if (snap.targetId) {
+        referenceDelta = deltas.find(d => d.id === snap.targetId) || null;
+    }
+    if (!referenceDelta) referenceDelta = deltas[0];
+
+    const drifted = deltas.filter(d => {
+        if (d === referenceDelta) return false;
+        if (snap.kind === 'rotation') {
+            return Math.abs(d.dRot - referenceDelta.dRot) > ROT_TOL;
+        }
+        return (
+            Math.abs(d.dx - referenceDelta.dx) > POS_TOL ||
+            Math.abs(d.dy - referenceDelta.dy) > POS_TOL
+        );
+    });
+
+    if (!drifted.length) return;
+
+    const report = {
+        source: source,
+        beganAt: snap.source,
+        kind: snap.kind,
+        durationMs: Date.now() - snap.startedAt,
+        targetId: snap.targetId,
+        targetDeviceId: snap.target ? snap.target.data_deviceid : null,
+        reference: {
+            id: referenceDelta.id,
+            data_deviceid: referenceDelta.data_deviceid,
+            dx: referenceDelta.dx, dy: referenceDelta.dy, dRot: referenceDelta.dRot,
+        },
+        drifted: drifted.map(d => ({
+            id: d.id,
+            data_deviceid: d.data_deviceid,
+            data_groupId: d.data_groupId,
+            data_customItemId: d.data_customItemId,
+            dx: d.dx, dy: d.dy, dRot: d.dRot,
+            expectedDx: referenceDelta.dx,
+            expectedDy: referenceDelta.dy,
+            expectedDRot: referenceDelta.dRot,
+            errorDx: d.dx - referenceDelta.dx,
+            errorDy: d.dy - referenceDelta.dy,
+            errorDRot: d.dRot - referenceDelta.dRot,
+        })),
+        allDeltas: deltas,
+    };
+
+    console.warn('[VRC drift detected]', report);
+    if (typeof window !== 'undefined') {
+        window.VRC = window.VRC || {};
+        window.VRC._driftReports = window.VRC._driftReports || [];
+        window.VRC._driftReports.push(report);
+    }
 }
 
 /* ---- Group helper functions ---- */
@@ -2183,10 +2391,23 @@ function updateCustomItemBounds(customItemId) {
             .filter(z => !isNaN(z));
         if (zPositions.length) c.data_zPosition = Math.min(...zPositions);
 
-        /* This is called every frame during a drag — the debounce in
-         * maybeAutoSaveCustomItemEdit collapses the burst into a single
-         * persist 750ms after movement stops. No-op when the template
-         * isn't in the library. */
+        /* updateCustomItemBounds() is currently called only from the
+         * roomObjToCanvas() bounds-missing fallback (see
+         * `if (!c.width || !c.height)` near the customItem rebuild loop),
+         * NOT every frame during a drag. The earlier docstring claiming
+         * a per-frame call was stale — the per-member dragmove paths
+         * (`followCustomItemDragFromMember` etc.) shift sibling Konva
+         * positions but never recompute the rect via this function.
+         *
+         * Net effect: the auto-save debounce below does NOT fire on
+         * drag-only edits today, only on Details-panel mutations and on
+         * cold loads where bounds had to be rebuilt. The drag-only auto-
+         * save gap is tracked as a follow-up: wire updateCustomItemBounds
+         * (or a lighter-weight equivalent) into the drag-follow path so
+         * library templates re-persist after geometry changes. Until
+         * then, dragging a library-tracked CustomItem does not refresh
+         * its IDB record — the user has to nudge a Details-panel field
+         * or re-add it to the library to capture the new layout. */
         maybeAutoSaveCustomItemEdit(c);
     }
 }
@@ -3542,7 +3763,9 @@ tr.on('dragstart', function trDragStart() {
         hideAllCoverageGroups(true);
     }
 
-
+    /* Opt-in drift diagnostic — see beginDriftCheck() docstring. No-op
+     * unless window.VRC.debugDriftDetection is true. */
+    beginDriftCheck('tr.dragstart');
 });
 
 tr.on('dragmove', function trDragMove() {
@@ -3564,6 +3787,10 @@ tr.on('dragend', function trDragStart() {
      * drag (catches missed-frame edge cases). */
     refreshGroupDetailsFromCanvas();
     refreshCustomItemDetailsFromCanvas();
+    endDriftCheck('tr.dragend');
+    /* canvasToJson() intentionally NOT called here — see the
+     * "Deferred canvasToJson sync model" note above
+     * beginGroupDragFollow for the rationale. */
 });
 
 /* Customize the rotation / rotater anchor */
@@ -14630,15 +14857,24 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         if (e.target.data_customItemId) {
             beginCustomItemDragFollow(e.target);
         }
+        /* Opt-in drift diagnostic — see beginDriftCheck() docstring. */
+        beginDriftCheck('tblWallFlr.dragstart', e.target);
     });
 
     tblWallFlr.on('dragmove', function tableOnDragMove(e) {
 
         if (isAllCoverageGroupHidden) return;
 
-        snapToGuideLines(e);
-
+        /* Order matches imageItem.dragmove: snap-to-grid first, then
+         * snap-to-objects. Finer alignment wins last — when both are
+         * active and the user is close to a sibling edge, the object
+         * snap takes precedence over the grid increment. Each snap is
+         * idempotent on the rect projection, so the order swap is a
+         * pure hygiene change with no behavioural regression for cases
+         * where only one snap is active. */
         snapCenterToIncrement(tblWallFlr);
+
+        snapToGuideLines(e);
 
         if (!tr.nodes().includes(e.target)) {
             if (e.target.data_groupId || e.target.data_customItemId) {
@@ -14691,6 +14927,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         endGroupDragFollow();
         endCustomItemDragFollow();
+        endDriftCheck('tblWallFlr.dragend');
+        /* canvasToJson() intentionally NOT called here — see the
+         * "Deferred canvasToJson sync model" note above
+         * beginGroupDragFollow for the rationale. */
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
@@ -18122,6 +18362,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         imageItem.on('dragend', function imageItemOnDragEnd() {
             endGroupDragFollow();
             endCustomItemDragFollow();
+            /* Drift diagnostic must run BEFORE the bundle early-return
+             * below so bundle drags are still measured — the early-return
+             * only skips the single-item guide-line cleanup +
+             * canvasToJson, which the bundle path defers to
+             * stage.on('mouseup') anyway (see "Deferred canvasToJson
+             * sync model" note above beginGroupDragFollow). */
+            endDriftCheck('imageItem.dragend');
             if (trNodesLength > 1) return;
             allGuideLines.forEach(guideLine => {
                 guideLine.destroy();
@@ -18145,6 +18392,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             if (e.target.data_customItemId) {
                 beginCustomItemDragFollow(e.target);
             }
+            /* Opt-in drift diagnostic — see beginDriftCheck() docstring. */
+            beginDriftCheck('imageItem.dragstart', e.target);
         });
 
         imageItem.on('dragmove', function imageItemOnDragMove(e) {
@@ -21515,8 +21764,10 @@ function addListeners(stage) {
 
         }
 
-
-
+        /* Opt-in drift diagnostic — see beginDriftCheck() docstring.
+         * Rotation branch only checks dRot uniformity (member positions
+         * legitimately differ post-rotation). */
+        beginDriftCheck('tr.transformstart');
     });
 
     tr.on('transform', function onTransform(e) {
@@ -21560,6 +21811,10 @@ function addListeners(stage) {
          * Transformer-driven rotation. */
         refreshGroupDetailsFromCanvas();
         refreshCustomItemDetailsFromCanvas();
+        endDriftCheck('tr.transformend');
+        /* canvasToJson() intentionally NOT called here — see the
+         * "Deferred canvasToJson sync model" note above
+         * beginGroupDragFollow for the rationale. */
     });
 
 }
