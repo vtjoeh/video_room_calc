@@ -424,7 +424,24 @@ function _collectBundleMemberSet(target) {
         addByCustomItemId(target.data_customItemId);
         set.add(target);
     }
-    if (typeof tr !== 'undefined' && tr && tr.nodes) {
+    /* Only walk tr.nodes() bundles if EITHER:
+     *   (a) we have no target (Transformer-handle drag — tr.nodes() is the
+     *       source of truth for the drag set), OR
+     *   (b) target IS in tr.nodes() (multi-bundle marquee — both bundles
+     *       are moving together via Konva.Transformer._proxyDrag).
+     *
+     * If target exists but is NOT in tr.nodes(), the user is click-then-
+     * dragging an unselected item — `tableOnDragMove` will REPLACE
+     * tr.nodes() with target's bundle on the first dragmove. The OLD
+     * tr.nodes() bundle is a stale leftover from a previous selection
+     * and is NOT actually being dragged. Including it in the drift
+     * snapshot was a false-positive driver: the OLD bundle members
+     * never move (correctly!) but the detector compared them to the
+     * NEW dragged bundle's reference and reported drift. */
+    const targetInTrNodes = target && typeof tr !== 'undefined' && tr && tr.nodes
+        ? tr.nodes().includes(target)
+        : false;
+    if ((!target || targetInTrNodes) && typeof tr !== 'undefined' && tr && tr.nodes) {
         tr.nodes().forEach(n => {
             addByGroupId(n.data_groupId);
             addByCustomItemId(n.data_customItemId);
@@ -437,6 +454,18 @@ function _collectBundleMemberSet(target) {
 
 function beginDriftCheck(source, target) {
     if (!_driftCheckEnabled()) { _driftCheckSnapshot = null; return; }
+    /* IMPORTANT: do NOT overwrite an existing snapshot. During a multi-node
+     * drag, Konva's Transformer._proxyDrag mechanism fires dragstart on
+     * every node in tr.nodes() in sequence, AND each non-target node is
+     * shifted via setAbsolutePosition() immediately BEFORE its own
+     * startDrag()/dragstart fires. If we overwrote on every dragstart,
+     * the FINAL snapshot would capture members at their post-shift
+     * positions while the bundle rect (no dragstart listener attached
+     * in VRC) remains at its pre-shift position — producing a phantom
+     * "drift" equal to the first-frame mouse delta. Snapshot once on
+     * the FIRST dragstart in the chain (before any proxyDrag shifts)
+     * to capture true starting positions for every node. */
+    if (_driftCheckSnapshot) return;
     const members = _collectBundleMemberSet(target);
     if (members.size < 2) { _driftCheckSnapshot = null; return; }
     const positions = new Map();
@@ -472,6 +501,17 @@ function endDriftCheck(source) {
     const POS_TOL = 0.5;   /* px */
     const ROT_TOL = 0.01;  /* degrees */
 
+    /* Normalize an angle delta to [-180, 180). Konva's node.rotation()
+     * returns raw degrees that can drift outside ±180 as the user keeps
+     * rotating, so a naive (end - start) subtraction wraps by 360 when
+     * the rotation value crosses the ±180 boundary mid-rotation. Without
+     * this normalization, the drift detector falsely reports a 360°
+     * rotation delta whenever the dRot of one member crosses ±180 while
+     * another member's does not — producing phantom rotation drift
+     * reports even though every member's physical rotation actually
+     * matches. (Two-modulo form handles negative inputs portably.) */
+    const _norm180 = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
+
     const deltas = [];
     snap.positions.forEach((startPos, node) => {
         if (!node || typeof node.x !== 'function') return; /* destroyed mid-drag */
@@ -501,7 +541,8 @@ function endDriftCheck(source) {
     const drifted = deltas.filter(d => {
         if (d === referenceDelta) return false;
         if (snap.kind === 'rotation') {
-            return Math.abs(d.dRot - referenceDelta.dRot) > ROT_TOL;
+            /* Compare normalized angle delta to absorb ±180 wrap. */
+            return Math.abs(_norm180(d.dRot - referenceDelta.dRot)) > ROT_TOL;
         }
         return (
             Math.abs(d.dx - referenceDelta.dx) > POS_TOL ||
@@ -19197,11 +19238,23 @@ function snapCenterToIncrement(node) {
     if (deltaPixelX === 0 && deltaPixelY === 0) return;
 
     if (tr.isDragging()) {
-        rectNode.x(rectNode.x() + deltaPixelX);
-        rectNode.y(rectNode.y() + deltaPixelY);
         const memberNodes = bundleSel.groupId
             ? getGroupMemberNodes(bundleSel.groupId)
             : getCustomItemMemberNodes(bundleSel.customItemId);
+        /* First-frame proxyDrag double-application guard — see the
+         * extended comment in snapBundleToGuideLines for the full
+         * rationale. Same drift mechanism applies here: if we shift
+         * rect + every member on the first member-direct dragmove,
+         * Konva.Transformer._proxyDrag (chained after this listener)
+         * uses the dragged member's POST-snap absPos to compute the
+         * delta it applies to siblings + rect, double-applying the
+         * snap. Skip snap entirely on the first frame where any
+         * non-target member is not yet dragging. */
+        if (node && memberNodes.some(m => m !== node && !m.isDragging())) {
+            return;
+        }
+        rectNode.x(rectNode.x() + deltaPixelX);
+        rectNode.y(rectNode.y() + deltaPixelY);
         memberNodes.forEach(m => {
             m.x(m.x() + deltaPixelX);
             m.y(m.y() + deltaPixelY);
@@ -19654,12 +19707,40 @@ function snapBundleToGuideLines(e, bundleSel) {
     if (sdx === 0 && sdy === 0) return;
 
     if (tr.isDragging()) {
-        /* Transformer drag — shift rect + every member by (sdx, sdy). */
-        rectNode.x(rectNode.x() + sdx);
-        rectNode.y(rectNode.y() + sdy);
         const memberNodes = bundleSel.groupId
             ? getGroupMemberNodes(bundleSel.groupId)
             : getCustomItemMemberNodes(bundleSel.customItemId);
+        /* CRITICAL: on the FIRST member-direct dragmove of a bundle,
+         * Konva.Transformer._proxyDrag (chained AFTER VRC's listener
+         * because tr.nodes() registers its proxyDrag listeners after the
+         * per-item listeners are bound at item creation time) has NOT
+         * yet shifted the siblings + rect into the "dragging" state.
+         * proxyDrag's first-frame forEach reads
+         *   dx = draggedMember.absPos - lastPos
+         * where lastPos was captured at dragstart (BEFORE any snap),
+         * and applies that dx to every other node in tr.nodes(). If we
+         * ALSO shift siblings + rect here, proxyDrag will then add the
+         * snap delta a second time on top, leaving siblings + rect at
+         *   start + delta1 + 2*sdx
+         * while the dragged member sits at
+         *   start + delta1 + sdx
+         * — a per-bundle drift of exactly sdx that persists for the
+         * rest of the drag (proxyDrag bakes the extra shift into each
+         * sibling's offset_member at _createDragElement time, so
+         * subsequent _setDragPosition calls can't recover lockstep).
+         * Detection: any non-target bundle member with isDragging()===
+         * false signals "first frame, proxyDrag.forEach hasn't run".
+         * Skipping snap entirely on that frame is correct — snap fires
+         * again on every subsequent frame where all members ARE
+         * dragging, and shifts everyone uniformly (lockstep). The
+         * single-frame snap delay is imperceptible. */
+        if (e && e.target && memberNodes.some(m => m !== e.target && !m.isDragging())) {
+            return;
+        }
+        /* Transformer drag OR subsequent member-direct frame — shift
+         * rect + every member by (sdx, sdy). */
+        rectNode.x(rectNode.x() + sdx);
+        rectNode.y(rectNode.y() + sdy);
         memberNodes.forEach(m => {
             m.x(m.x() + sdx);
             m.y(m.y() + sdy);
