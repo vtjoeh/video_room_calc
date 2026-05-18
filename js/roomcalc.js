@@ -2086,6 +2086,12 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
     const customitemid = createUuid();
     const newMembers = [];
 
+    /* Collected (deviceId, parentGroup, attrs, uuid) tuples for the
+     * surgical canvas inserts below. Built up alongside the
+     * roomObj.items pushes so we have a single place to drive the
+     * insertShapeItem loop after all roomObj mutations are done. */
+    const pendingInserts = [];
+
     /* Restore allow-list — mirror of the export field set. Drops unknown keys. */
     const RESTORE_VERBATIM = CUSTOM_ITEM_PART_VERBATIM_FIELDS;
     const RESTORE_UNIT_SCALED = CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS;
@@ -2139,6 +2145,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
         if (!roomObj.items[parentGroup]) roomObj.items[parentGroup] = [];
         roomObj.items[parentGroup].push(newItem);
         newMembers.push(uuid);
+        pendingInserts.push({ deviceId: part.data_deviceid, parentGroup, attrs: newItem, uuid });
     });
 
     if (!newMembers.length) {
@@ -2189,12 +2196,28 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
 
     roomObj.customItems.push(newCustomItem);
 
-    /* Full redraw — mirrors the VRC import path's approach. The
-     * customItem rect + member Konva nodes get created by drawRoom
-     * walking roomObj. canvasToJson then persists the canvas state
-     * to undo history. */
-    drawRoom(true, false, false);
-    canvasToJson();
+    /* Surgical canvas insert — mirrors the pasteItems() pattern. No
+     * drawRoom rebuild, which avoids:
+     *   (a) the +250ms deleteNegativeShapes cleanup pass (which
+     *       was destroying legitimate items when the user was
+     *       zoomed in and scrolled — see the
+     *       getAbsoluteTransform(stage) fix in deleteNegativeShapes),
+     *   (b) the grid/wall/scale rebuild overhead which scales with
+     *       total item count and made zoom + insert feel laggy.
+     * insertShapeItem already handles tables/walls/floors via its
+     * internal route to insertTable when the parentGroup matches. */
+    pendingInserts.forEach(({ deviceId, parentGroup, attrs, uuid }) => {
+        insertShapeItem(deviceId, parentGroup, attrs, uuid, false);
+    });
+    insertCustomItemRect(newCustomItem);
+
+    /* Select the new bundle (rect + every member) so the user can
+     * immediately drag/rotate it as a unit — matches the post-paste
+     * UX. trNodesFromUuids defers the selection 200ms to give Konva
+     * time to commit async Image.onload callbacks, then calls
+     * canvasToJson(save=true) which pushes the new state into the
+     * undo array and rebuilds the shareable URL. */
+    trNodesFromUuids([customitemid, ...newMembers], true);
 
     return customitemid;
 }
@@ -17222,11 +17245,20 @@ function deleteNegativeShapes() {
             corners[2] = { x: width, y: height }; // bottom right
             corners[3] = { x: 0, y: height }; // bottom left
 
-            /* And rotate the corners using the same transform as the rect. */
+            /* Rotate the corners using the node's transform relative to
+             * the stage (NOT absolute). Passing `stage` as the `top`
+             * argument excludes the stage's own transform — which
+             * matters at zoom > 100% because `repositionStage()` sets
+             * stage.x(-dx) / stage.y(-dy) to follow the DOM scroll, and
+             * stage.scaleX/Y = zoomValue/100. Including those would
+             * make every node's absolute corners massively negative
+             * whenever the user has scrolled while zoomed in, causing
+             * `deleteNegativeShapes` to destroy legitimate items.
+             * Stage-local coords keep the (xBound=1, yBound=1) check
+             * meaningful: it really does mean "all corners are
+             * upper-left of the room's pixel origin". */
             for (let i = 0; i < 4; i++) {
-                /* Here be the magic */
-                corners[i] = node.getAbsoluteTransform().point(corners[i]); // top left
-
+                corners[i] = node.getAbsoluteTransform(stage).point(corners[i]);
             }
 
             if ((corners[0].x < xBound && corners[1].x < xBound && corners[2].x < xBound && corners[3].x < xBound)
