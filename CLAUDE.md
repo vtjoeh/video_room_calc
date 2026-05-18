@@ -885,7 +885,7 @@ roomObj.customItems = [
         customItemBaseId: "uuid",      // per-TEMPLATE id, "family" id — STABLE across copies, pastes, exports,
                                        // and IDB library entries. Two canvas instances of the same library
                                        // template share one customItemBaseId. See "VRC Custom Item Library"
-        name: "Custom Item 1",         // editable display name (data_labelField in the export format)
+        name: "Custom Item 1",         // editable display name (customItemName in the export format; legacy alias data_labelField still read on import)
         data_layerId: "0",             // VRC layer all members share
         x: 1.5,                        // top-left of bounding rect, in current unit
         y: 3.84,
@@ -941,10 +941,18 @@ Snap to Objects and the grid snapper engage on CustomItem drags via the same `sn
 
 ### UI
 
-Custom Item actions are exposed **only** via the per-item ellipse
-button (`#btnUpdateItemEllipse` / `#btnMultiUpdateItemEllipse`) next
-to the `Update Item` / `Update Multiple Items` buttons in the Details
-panel. The ellipse menu (`#itemActionsMenu`, built by
+Custom Item actions are exposed via two surfaces:
+
+1. The per-item ellipse button (`#btnUpdateItemEllipse` /
+   `#btnMultiUpdateItemEllipse`) next to the `Update Item` /
+   `Update Multiple Items` buttons in the Details panel — this is the
+   primary surface and carries the full set of CustomItem actions
+   (create, unjoin, export, library add/remove).
+2. The canvas right-click menu — carries `Create Custom Item` only
+   (see "Right-click menu CustomItem entry" below). The right-click
+   surface is intentionally a subset so the menu stays compact.
+
+The ellipse menu (`#itemActionsMenu`, built by
 `toggleItemActionsMenu()`) carries:
 
 | Menu item | Enabled when |
@@ -957,12 +965,25 @@ panel. The ellipse menu (`#itemActionsMenu`, built by
 | `Add to Custom Library` | Single CustomItem bundle selected AND its `customItemBaseId` is NOT currently in the in-memory `customItemLibraryIds` cache (i.e. not in IDB). Shown mutually exclusive with `Remove from Library` |
 | `Remove from Library` | Single CustomItem bundle selected AND its `customItemBaseId` IS in the library. Deletes the IDB record and unmarks the cache. The canvas instance is untouched — the bundle still works, it just won't auto-save on edits or appear in the Quick Add palette |
 
-The right-click menu is intentionally **unchanged** in scope — it shows
-`Group` / `Ungroup` only. CustomItem actions are deliberately scoped
-to the ellipse menu so the right-click menu stays compact. Both
-surfaces use the same `canGroup` formula (see
+#### Right-click menu CustomItem entry
+
+The canvas right-click menu (built by `createRightClickMenu()`) carries
+a single CustomItem action — `Create Custom Item` — sitting just below
+`Quick Add`, where the legacy `Zoom 100%` entry used to live. Zoom
+reset is still available through the toolbar zoom controls and the
+existing zoom keyboard shortcuts, so removing it from the right-click
+menu loses no functionality. `Unjoin Custom Item`, `Export Custom
+Item`, `Add to Custom Library`, and `Remove from Library` remain
+ellipse-only — those actions need the Details panel context (single
+CustomItem bundle selected) and would be noise on the right-click
+menu.
+
+Both surfaces use the same `canGroup` / `canCustomItem` formulas (see
 `createRightClickMenu()` and `toggleItemActionsMenu()`), so they
-always agree about when Group is offered.
+always agree about when Group / Create Custom Item is offered. The
+right-click click handler dispatches to `openCreateCustomItemDialog()`
+— same entrypoint as the ellipse menu — so the name-required dialog
+flow is identical no matter which surface the user invoked from.
 
 #### `Create Custom Item` name-required dialog
 
@@ -989,7 +1010,7 @@ have a name**. Imported CustomItems (VRC `.vrc.json`, Workspace
 Designer JSON, shortened URLs, `.vrcCustomItems` library imports) are
 exempt — those paths build the customItem record directly on
 `roomObj.customItems` without going through `createCustomItem()`, so
-they can carry an unnamed (or `data_labelField: ""`) bundle through.
+they can carry an unnamed (or `customItemName: ""` / legacy `data_labelField: ""`) bundle through.
 Unnamed bundles are **canvas-only** — they never enter the Library DB
 (see "Unnamed customItems" in the Library section below).
 
@@ -1139,7 +1160,10 @@ they expect edits to flow back to the template, not branch silently.
 ```javascript
 {
     customItemBaseId: "uuid",       // primary key
-    data_labelField: "name",        // export-format name (mirrors customItem.name in roomObj)
+    customItemName: "name",         // export-format name (mirrors customItem.name in roomObj).
+                                    //   Legacy alias `data_labelField` is still read on
+                                    //   import / open but no longer written — rows
+                                    //   auto-migrate to the new key on first customItemPut.
     author: "Friendly Name",        // optional, set via Create / Edit dialog (free-form)
     description: "Short blurb",     // optional, set via Create / Edit dialog (free-form, up to 500 chars)
     version: "1",                   // wire format reserves string; UI writes "1" today
@@ -1202,9 +1226,35 @@ single IDB upsert when motion stops. Key invariants:
 - **No toast** on auto-save — drag flows are frequent. Toasts only fire
   for the initial create, explicit `Add to Library`, and import
 
+### Name key migration (`data_labelField` → `customItemName`)
+
+The export record / IDB row's user-visible name lives under the
+canonical key `customItemName`. The pre-May-2026 key `data_labelField`
+is still **read** by every consumer (so older `.vrcCustomItems.json`
+files and existing browser IDB rows keep working) but is **never
+written** by current code. The migration is single-shot per row: the
+first `customItemPut` after the upgrade rewrites the entry under the
+new key and drops the legacy alias. Files exported from an unmigrated
+row are also normalized on the way out by `exportCustomItemRecordFromLibrary`.
+
+Implementation cross-reference:
+
+| Site | Where | Behaviour |
+|------|-------|-----------|
+| Helper | `getCustomItemRecordName(rec)` in `js/roomcalc.js` | `String(rec.customItemName \|\| rec.data_labelField \|\| '')` — single source of truth for the read path |
+| Write — file export | `buildCustomItemExportRecord` in `js/roomcalc.js` | Emits `customItemName` only |
+| Write — IDB | `customItemPut` in `js/idbStorage.js` | Reads either key, persists `customItemName` only (no `data_labelField` in the stored entry) |
+| Write — Edit dialog | `confirmEditCustomItemFromDialog` in `js/roomcalc.js` | Sets `rec.customItemName` and `delete rec.data_labelField` before `customItemPut`; the Quick Add cache merge mirrors the same drop |
+| Write — Export-from-Library | `exportCustomItemRecordFromLibrary` in `js/roomcalc.js` | Normalises the fetched copy before `JSON.stringify` so never-edited legacy rows still produce a clean output file |
+
+If you add a NEW consumer that reads the customItem name from a
+library/export record, route it through `getCustomItemRecordName(rec)`
+— never read either raw key directly.
+
 ### Unnamed customItems (canvas-only invariant)
 
-CustomItems with empty/whitespace `name` (== `data_labelField`) are
+CustomItems with empty/whitespace `name` (== `customItemName` on the
+export record; legacy alias `data_labelField`) are
 **canvas-only**. They live in `roomObj.customItems` (so undo/redo,
 save-to-VRC, and shareable URLs preserve them) but they NEVER enter
 the Library DB.
@@ -1231,7 +1281,7 @@ multi-record library exports):
   "vrcCustomItems": [
     {
       "customItemBaseId": "<uuid>",
-      "data_labelField": "Friendly Name",
+      "customItemName": "Friendly Name",
       "width": 2.5, "height": 3.5,
       "customItemParts": [ /* ... */ ],
       "menuImage": "data:image/png;base64,...",

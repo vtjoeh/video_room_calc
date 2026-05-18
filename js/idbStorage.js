@@ -443,7 +443,10 @@
      *
      *   {
      *     customItemBaseId: '<uuid>',                // primary key
-     *     data_labelField:  'Friendly Name',
+     *     customItemName:   'Friendly Name',         // user-visible name.
+     *                                                //   Legacy alias `data_labelField`
+     *                                                //   is read but no longer written
+     *                                                //   (auto-migrated on first upsert).
      *     width:            <number, meters>,
      *     height:           <number, meters>,
      *     customItemParts:  [...],                   // normalized part list
@@ -490,7 +493,12 @@
                 out.isNew = !existing;
                 const entry = {
                     customItemBaseId: baseId,
-                    data_labelField: String(record.data_labelField || ''),
+                    /* Canonical key is `customItemName` (renamed from
+                     * the legacy `data_labelField` in May 2026). Read
+                     * either key so an incoming record (file import or
+                     * an older in-memory rec) migrates atomically on
+                     * this upsert; only the new key is persisted. */
+                    customItemName: String(record.customItemName || record.data_labelField || ''),
                     /* Optional descriptive metadata. Coerced to string
                      * (the on-disk shape never carries numbers / objects)
                      * and length-capped here defensively — the dialogs

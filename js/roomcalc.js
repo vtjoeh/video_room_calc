@@ -1110,6 +1110,18 @@ const CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS = [
     'tblRectRadiusRight',
 ];
 
+/* Shared read helper for the top-level customItem name on a library /
+ * .vrcCustomItems record. Reads the canonical `customItemName` key but
+ * falls back to the legacy `data_labelField` so files exported by
+ * older builds and IDB rows written before the May-2026 rename keep
+ * working. Every read site routes through this helper; every write
+ * site emits `customItemName` only and explicitly drops the legacy
+ * key, so an upserted record migrates atomically on first touch. */
+function getCustomItemRecordName(rec) {
+    if (!rec) return '';
+    return String(rec.customItemName || rec.data_labelField || '');
+}
+
 /* Build the serializable export record for a customItem. Matches
  * .vrcCustomItems file format and IDB record shape. All measurements
  * in METERS regardless of active unit. menuImage is left empty (the
@@ -1175,7 +1187,7 @@ function buildCustomItemExportRecord(customItem) {
      * current UI writes "1" but wire format reserves string shape. */
     return {
         customItemBaseId: customItem.customItemBaseId,
-        data_labelField: String(customItem.name || ''),
+        customItemName: String(customItem.name || ''),
         author: String(customItem.author || ''),
         description: String(customItem.description || ''),
         version: String(customItem.version || '1'),
@@ -1688,7 +1700,7 @@ function openEditCustomItemDialog(baseId) {
         /* Older RoomCalculator.html: fall back to the delete dialog. */
         const cached = (_customItemQuickAddRecordsCache || [])
             .find(r => r && r.customItemBaseId === baseId);
-        const fallbackName = cached ? (cached.data_labelField || '') : '';
+        const fallbackName = getCustomItemRecordName(cached);
         openDeleteCustomItemFromLibraryDialog(baseId, fallbackName);
         return;
     }
@@ -1699,7 +1711,7 @@ function openEditCustomItemDialog(baseId) {
 
     const fillFromRecord = (rec) => {
         _customItemEditDialogBaseId = baseId;
-        nameInput.value = rec ? String(rec.data_labelField || '') : '';
+        nameInput.value = getCustomItemRecordName(rec);
         const authorInput = document.getElementById('customItemEditAuthorInput');
         const descInput = document.getElementById('customItemEditDescriptionInput');
         if (authorInput) authorInput.value = rec ? String(rec.author || '') : '';
@@ -1710,8 +1722,8 @@ function openEditCustomItemDialog(baseId) {
         const exportBtn = document.getElementById('customItemEditExportBtn');
         const removeBtn = document.getElementById('customItemEditRemoveBtn');
         const deleteBtn = document.getElementById('customItemEditDeleteBtn');
-        const displayName = (rec && rec.data_labelField && rec.data_labelField.trim())
-            ? rec.data_labelField.trim() : '(unnamed)';
+        const displayNameRaw = getCustomItemRecordName(rec).trim();
+        const displayName = displayNameRaw || '(unnamed)';
 
         if (exportBtn) {
             exportBtn.onclick = function () {
@@ -1786,8 +1798,11 @@ function confirmEditCustomItemFromDialog() {
         /* Merge edits into the existing record. menuImage,
          * customItemParts, width, height, customItemBaseId, and addedAt
          * are all preserved verbatim by the customItemPut path (which
-         * reads them off `record` and passes them through). */
-        rec.data_labelField = newName;
+         * reads them off `record` and passes them through). Writes the
+         * new canonical name key + drops the legacy `data_labelField`
+         * so the next customItemPut atomically migrates the row. */
+        rec.customItemName = newName;
+        if ('data_labelField' in rec) delete rec.data_labelField;
         rec.author = newAuthor;
         rec.description = newDesc;
         if (!rec.version) rec.version = '1';
@@ -1827,13 +1842,19 @@ function confirmEditCustomItemFromDialog() {
                 const idx = _customItemQuickAddRecordsCache.findIndex(
                     r => r && r.customItemBaseId === baseId);
                 if (idx >= 0) {
-                    _customItemQuickAddRecordsCache[idx] = Object.assign(
+                    const merged = Object.assign(
                         {}, _customItemQuickAddRecordsCache[idx], {
-                            data_labelField: newName,
+                            customItemName: newName,
                             author: newAuthor,
                             description: newDesc,
                             version: rec.version || '1',
                         });
+                    /* Drop the legacy key from the cache entry so
+                     * helper-based reads always land on the new key
+                     * and the migrated shape is what the palette sees
+                     * on the next keystroke (no Object.assign carry-over). */
+                    if ('data_labelField' in merged) delete merged.data_labelField;
+                    _customItemQuickAddRecordsCache[idx] = merged;
                 }
             }
 
@@ -1872,13 +1893,20 @@ function exportCustomItemRecordFromLibrary(baseId) {
             showToast('Custom Item no longer in library');
             return;
         }
-        const name = (rec.data_labelField || '').trim();
+        const name = getCustomItemRecordName(rec).trim();
         if (!name) {
             /* Defensive — canvas-only invariant should prevent this. */
             alertDialog('Custom Item Name Required',
                 'This Custom Item has no name. Save a name before exporting.');
             return;
         }
+        /* Normalize on-the-fly: never-edited legacy rows still carry
+         * `data_labelField` in IDB; the exported file should always
+         * use the new canonical key. Mutates the fetched copy only
+         * (IDB record is unchanged — auto-migration happens on next
+         * customItemPut). */
+        rec.customItemName = name;
+        if ('data_labelField' in rec) delete rec.data_labelField;
         const fileObj = { vrcCustomItems: [rec] };
         const json = JSON.stringify(fileObj, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
@@ -2189,7 +2217,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
          * the very next render — no awkward "Add to Custom Library"
          * showing on a just-imported template. */
         customItemBaseId: record.customItemBaseId,
-        name: String(record.data_labelField || ''),
+        name: getCustomItemRecordName(record),
         /* Descriptive metadata round-trips with the record so the
          * Edit-from-Library dialog reads the most recent values
          * regardless of which canvas instance is consulted. Missing
@@ -2320,7 +2348,7 @@ function importCustomItemsFile(jsonFile) {
             valid.push(rec);
         } else {
             failures.push({
-                name: (rec && rec.data_labelField) || ('Entry ' + (idx + 1)),
+                name: getCustomItemRecordName(rec) || ('Entry ' + (idx + 1)),
                 reason: v.error,
             });
         }
@@ -2342,7 +2370,7 @@ function importCustomItemsFile(jsonFile) {
     const skippedNoName = [];
 
     valid.forEach(rec => {
-        const cleanName = (rec.data_labelField == null) ? '' : String(rec.data_labelField).trim();
+        const cleanName = getCustomItemRecordName(rec).trim();
         const baseId = rec.customItemBaseId;
         const alreadyExists = isCustomItemInLibrary(baseId) || willSaveBaseIds.has(baseId);
 
@@ -24047,24 +24075,26 @@ function onQuickAddChange(e) {
      *                 Doesn't collide with device ids because
      *                 allDeviceTypes lookup returns undefined for it,
      *                 which the renderer branch handles.
-     * - name:         data_labelField — what the user types against
-     *                 (matches searchQuickItem's match-on-name logic).
+     * - name:         customItemName (legacy: data_labelField) — what
+     *                 the user types against (matches searchQuickItem's
+     *                 match-on-name logic). Read via the helper so old
+     *                 IDB rows surface until they're auto-migrated.
      * - _isCustomItem:render-time discriminator. The marker fields use
      *                 a `_` prefix to avoid colliding with any
      *                 device-record fields and to signal "internal".
      * - _record:      full library record — passed to
      *                 insertCustomItemAtPosition on click.
      *
-     * Records with empty/whitespace data_labelField are filtered out
-     * defensively: an unnamed template would never match a real search
-     * term (`searchQuickItem` requires ≥ 2 chars) but the filter keeps
-     * the array tidy if a record somehow leaked through with no name
+     * Records with empty/whitespace name are filtered out defensively:
+     * an unnamed template would never match a real search term
+     * (`searchQuickItem` requires ≥ 2 chars) but the filter keeps the
+     * array tidy if a record somehow leaked through with no name
      * (e.g. legacy IDB row from before the canvas-only invariant). */
     const libraryEntries = (_customItemQuickAddRecordsCache || [])
-        .filter(rec => rec && (rec.data_labelField || '').trim())
+        .filter(rec => rec && getCustomItemRecordName(rec).trim())
         .map(rec => ({
             id: rec.customItemBaseId,
-            name: rec.data_labelField,
+            name: getCustomItemRecordName(rec),
             _isCustomItem: true,
             _record: rec,
         }));
@@ -30478,27 +30508,51 @@ function createRightClickMenu(usePreviousPosition = false) {
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        createMenuItem('zoomResetDiv', 'Zoom 100%', '', (zoomValue === 100));
-        rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', tr.nodes().length < 1)
-        rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        /* Group is enabled when there are 2+ real items in the selection AND
-         * they are not already all members of the same single Group.
-         * Excludes both Group rects AND CustomItem rects — neither becomes
-         * a Group member (`createGroup()` filters them both out of
-         * `finalNodes`); counting them here would mis-enable the menu when
-         * only one real item is selected alongside a CustomItem rect.
+        /* Group / CustomItem enable-state.
          *
-         * CustomItem state intentionally does NOT block Group creation: a
-         * Group can wrap one or more CustomItems (the items keep their
-         * `data_customItemId` and additionally get the new `data_groupId`).
-         * Matches the ellipse-menu equivalent in `toggleItemActionsMenu()`. */
-        const itemsOnly = tr.nodes().filter(n =>
+         * `itemsOnly` excludes both Group rects AND CustomItem rects —
+         * neither becomes a Group/CustomItem member (`createGroup()` /
+         * `createCustomItem()` filter them both out of `finalNodes`);
+         * counting them here would mis-enable the menu when only one
+         * real item is selected alongside a CustomItem rect.
+         *
+         * Group: enabled when 2+ real items selected AND they are not
+         * already all members of the same single Group. CustomItem
+         * state intentionally does NOT block Group creation: a Group
+         * can wrap one or more CustomItems (the items keep their
+         * `data_customItemId` and additionally get the new
+         * `data_groupId`).
+         *
+         * CustomItem: enabled when (2+ real items selected, OR a
+         * single `pathShape` selected) AND not already all in the same
+         * single CustomItem AND the selection is NOT exactly one
+         * CustomItem bundle. Matches the ellipse-menu equivalent in
+         * `toggleItemActionsMenu()` — single source of truth for the
+         * predicate so the two surfaces stay in lock-step.
+         *
+         * The right-click `Create Custom Item` entry replaces the old
+         * `Zoom 100%` entry (zoom reset is still reachable via the
+         * toolbar zoom controls and the existing zoom keyboard
+         * shortcuts). */
+        const trNodesRC = tr.nodes();
+        const itemsOnly = trNodesRC.filter(n =>
             n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');
         const distinctGroupIds = new Set(itemsOnly.map(n => n.data_groupId || null));
         const allSameExistingGroup = (distinctGroupIds.size === 1 && !distinctGroupIds.has(null));
-        const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup;
-        const canUngroup = tr.nodes().some(n => n.data_deviceid === 'group' || n.data_groupId);
+        const distinctCustomItemIds = new Set(itemsOnly.map(n => n.data_customItemId || null));
+        const allSameExistingCustomItem = (distinctCustomItemIds.size === 1 && !distinctCustomItemIds.has(null));
+        const activeCustomItemSelRC = getActiveCustomItemSelection(trNodesRC);
+        const singleCustomItemBundleSelectedRC = !!activeCustomItemSelRC;
+        const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup && !singleCustomItemBundleSelectedRC;
+        const canUngroup = trNodesRC.some(n => n.data_deviceid === 'group' || n.data_groupId);
+        const isSinglePathShape =
+            itemsOnly.length === 1 && itemsOnly[0].data_deviceid === 'pathShape';
+        const canCustomItem =
+            (itemsOnly.length >= 2 || isSinglePathShape) && !allSameExistingCustomItem;
+        createMenuItem('customItemMenuDiv', 'Create Custom Item', '', !canCustomItem);
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', trNodesRC.length < 1)
+        rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('groupMenuDiv',   'Group',   'ctrl+g',       !canGroup);
         createMenuItem('ungroupMenuDiv', 'Ungroup', 'ctrl+shift+g', !canUngroup);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
@@ -30577,8 +30631,8 @@ function createRightClickMenu(usePreviousPosition = false) {
             else if (e.target.id === 'duplicateMenuDiv') {
                 duplicateItems();
             }
-            else if (e.target.id === 'zoomResetDiv') {
-                zoomInOut('reset');
+            else if (e.target.id === 'customItemMenuDiv') {
+                openCreateCustomItemDialog();
             }
             else if (e.target.id === 'undoDiv') {
                 btnUndoClicked();
