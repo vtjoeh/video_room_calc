@@ -995,7 +995,18 @@ function markCustomItemInLibrary(customItemBaseId) {
     }
 }
 
-/* Inverse of mark — invoked after idbStore.customItemDelete() succeeds. */
+/* Inverse of mark — invoked after idbStore.customItemDelete() succeeds.
+ *
+ * Side-effects beyond the in-memory ID set:
+ *   1. Remove the matching tile from the sidebar #customItemsMenuContainer
+ *      (live "Custom Item Library" panel) so deletion is visible
+ *      immediately without waiting for the next populate trigger
+ *      (pill click / scroll-into-view / search focus). Direct DOM
+ *      removal — cheaper than a full re-populate and races-safe
+ *      against the just-completed delete (no IDB round-trip).
+ *   2. If the sidebar tile grid is now empty, surface the empty-state
+ *      banner (mirrors the populate path).
+ *   3. Refresh the "Export Custom Items" toolbar button enable state. */
 function unmarkCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
     const before = customItemLibraryIds.size;
@@ -1003,6 +1014,16 @@ function unmarkCustomItemInLibrary(customItemBaseId) {
     if (customItemLibraryIds.size !== before &&
         typeof updateExportCustomItemsButtonState === 'function') {
         updateExportCustomItemsButtonState();
+    }
+
+    const sidebarTile = document.getElementById('customItem-' + customItemBaseId + '-div');
+    if (sidebarTile && sidebarTile.parentNode) {
+        sidebarTile.parentNode.removeChild(sidebarTile);
+    }
+    const container = document.getElementById('customItemsMenuContainer');
+    const empty = document.getElementById('customItemsEmptyState');
+    if (container && empty && container.children.length === 0) {
+        empty.style.display = 'block';
     }
 }
 
@@ -11774,31 +11795,777 @@ function openTab(evt, tabName) {
 
     resetBackgroundImageFloorSettings();
     updateAllScrollHints();
+
+    /* When the Equipment tab becomes visible, nudge the scroll-spy
+     * so the active pill reflects the current scroll position (the
+     * scroll event doesn't auto-fire on visibility toggle, so without
+     * this the pill could be stale after switching tabs). */
+    if (tabName === 'Insert') {
+        const scrollArea = document.getElementById('equipmentScrollArea');
+        if (scrollArea) scrollArea.dispatchEvent(new Event('scroll'));
+    }
 }
 
+/* =====================================================================
+ * Equipment tab — pill row, inline search, Custom Items library
+ * ---------------------------------------------------------------------
+ * The Equipment tab (`#Insert`) was historically built from four
+ * `.subtablinks` sub-tabs (Video Devices / Peripherals / Displays /
+ * Furniture) plus a floating `.btnItemSearch` round button per panel
+ * that opened the Quick Add modal. Both were replaced in May 2026 by:
+ *
+ *   1. A horizontally-scrolling pill row (`.equipmentCategoryPills`)
+ *      that can hold arbitrarily many categories. A new "Custom Items"
+ *      category surfaces the VRC Custom Item Library as draggable
+ *      tiles in the sidebar.
+ *
+ *   2. An inline search bar (`#equipmentSearchBar`) that filters tiles
+ *      across ALL category panels in-place and auto-switches the
+ *      active pill if the best match is in another category.
+ *
+ * Quick Add (Space + canvas right-click) is unchanged — only the
+ * floating round button in each panel went away. The modal still
+ * builds its tiles via `buildCustomItemTile()` so the look stays in
+ * sync between the modal and the new sidebar Custom Items pill.
+ * =================================================================== */
+
+/* Currently-active equipment category panel id (one of:
+ * 'Cameras', 'Microphones', 'Tables', 'Panels', 'CustomItems').
+ * Set by either an explicit pill click (selectEquipmentCategory) or
+ * by the scroll-spy when the user scrolls past a panel boundary
+ * (_setActivePillSilent). */
+let _activeEquipmentCategory = 'Cameras';
+
+/* (Removed in the long-scroll refactor: _equipmentSearchPreviousCategory.
+ * The panel switch / restore-after-clear dance is no longer needed
+ * because all panels are always rendered — search just hides empty
+ * sections in place; clear restores them.) */
+
+/* Programmatic-scroll suppression flag for the scroll-spy. When
+ * `selectEquipmentCategory()` smooth-scrolls to a panel, the scroll
+ * event fires repeatedly during the animation. Without this flag the
+ * spy would re-compute the active pill mid-flight and could thrash
+ * the highlight before settling. The flag is cleared after a short
+ * timeout (long enough to cover the smooth scroll). */
+let _equipmentScrollProgrammatic = false;
+let _equipmentScrollProgrammaticTimer = null;
+
+/* Scroll to one Equipment category panel and mark its pill active.
+ * Replaces the old "hide every other panel" behaviour — in the long-
+ * scroll model all panels are always rendered; clicking a pill simply
+ * brings that panel to the top of the visible scroll area.
+ *
+ * Custom Items is also re-populated on each pill click so library
+ * writes from elsewhere (Create / Edit / Remove / Import) propagate
+ * the moment the user re-engages with the panel. */
+function selectEquipmentCategory(tabName) {
+    const panel = document.getElementById(tabName);
+    const scrollArea = document.getElementById('equipmentScrollArea');
+
+    if (panel && scrollArea) {
+        /* offsetTop is relative to offsetParent, which may NOT be
+         * scrollArea — fall back to getBoundingClientRect math, which
+         * is always relative to the viewport. */
+        const top = panel.getBoundingClientRect().top
+            - scrollArea.getBoundingClientRect().top
+            + scrollArea.scrollTop;
+
+        _equipmentScrollProgrammatic = true;
+        if (_equipmentScrollProgrammaticTimer) clearTimeout(_equipmentScrollProgrammaticTimer);
+        _equipmentScrollProgrammaticTimer = setTimeout(function () {
+            _equipmentScrollProgrammatic = false;
+        }, 600);
+
+        scrollArea.scrollTo({ top: Math.max(0, top - 4), behavior: 'smooth' });
+    }
+
+    _setActivePillSilent(tabName);
+
+    if (tabName === 'CustomItems') {
+        populateCustomItemsMenuContainer();
+    }
+}
+
+/* Update which pill carries `.active` without scrolling anywhere.
+ * Used by the scroll-spy on every scroll-tick and by
+ * selectEquipmentCategory itself (the scroll is handled separately). */
+function _setActivePillSilent(tabName) {
+    if (_activeEquipmentCategory === tabName) return;
+
+    const pills = document.getElementsByClassName('equipmentCategoryPill');
+    for (let i = 0; i < pills.length; i++) {
+        pills[i].classList.remove('active');
+    }
+    const pill = document.querySelector('.equipmentCategoryPill[data-target="' + tabName + '"]');
+    if (pill) {
+        pill.classList.add('active');
+        if (typeof pill.scrollIntoView === 'function') {
+            /* Keep the newly-active pill visible inside the horizontal
+             * pill row (no-op when already in view). */
+            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+    }
+
+    _activeEquipmentCategory = tabName;
+
+    /* Re-populate Custom Items whenever the user scrolls (or jumps)
+     * into the panel. Without this, the section appeared empty when
+     * the user scrolled down to it because the boot-time eager-load
+     * could lose the race with fast scrolling: the IDB Promise hadn't
+     * resolved yet, and the scroll path itself never re-fired
+     * populate (only the pill-click path did). Re-running populate
+     * is idempotent — innerHTML is replaced with the same tiles. */
+    if (tabName === 'CustomItems'
+        && typeof populateCustomItemsMenuContainer === 'function') {
+        populateCustomItemsMenuContainer();
+    }
+}
+
+/* Scroll-spy: as the user scrolls through the long Equipment list,
+ * pick whichever panel's top is closest to (but not past) the scroll
+ * area's top edge and mark its pill active. Runs throttled via rAF
+ * so even fast scrolling stays smooth.
+ *
+ * Implementation: each scroll tick measures each panel's `top`
+ * relative to the scroller viewport. The "active" panel is the LAST
+ * one whose top is ≤ `threshold` (above or just-below the
+ * scroll-area top). The threshold accounts for the perceptual
+ * "I'm now reading this section" boundary — a panel header that's
+ * 80px below the top still counts as the active section.
+ *
+ * Edge case: if the user scrolls to MAX scrollTop (bottom of the
+ * list) but the last panel is short enough that its top never reaches
+ * the threshold (think: short Custom Items section sitting at the
+ * bottom of an otherwise-tall list), the threshold rule would leave
+ * the previous panel marked active even though the user is plainly
+ * "in" the last panel. The "scrolled-to-max → last visible panel
+ * wins" override below fixes this. */
+function initEquipmentScrollSpy() {
+    const scrollArea = document.getElementById('equipmentScrollArea');
+    if (!scrollArea) return;
+    /* Exclude `.searchOnlyPanel` panels (currently just "Other") — they
+     * have no pill at the top of the row, so trying to activate one
+     * would silently clear every pill's `.active` and leave the user
+     * with no underline. The spy still pages naturally across the
+     * remaining 5 panels; scroll-driven re-population for "Other" is
+     * not needed because it's rebuilt on every keystroke. */
+    const panels = Array.from(scrollArea.querySelectorAll(
+        ':scope > .subtabcontent:not(.searchOnlyPanel)'));
+    if (!panels.length) return;
+
+    let ticking = false;
+
+    function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(function () {
+            ticking = false;
+            if (_equipmentScrollProgrammatic) return;
+
+            const scrollerRect = scrollArea.getBoundingClientRect();
+            const threshold = 80;
+            let active = null;
+            for (let i = 0; i < panels.length; i++) {
+                const p = panels[i];
+                /* Skip panels hidden by search. */
+                if (p.classList.contains('searchHidden')) continue;
+                const top = p.getBoundingClientRect().top - scrollerRect.top;
+                if (top <= threshold) {
+                    active = p;
+                } else {
+                    break;
+                }
+            }
+            /* If we scrolled before any panel hits the threshold (very
+             * top of the list), default to the first visible panel. */
+            if (!active) {
+                active = panels.find(function (p) { return !p.classList.contains('searchHidden'); });
+            }
+            /* Scrolled-to-max override: when the user has hit the
+             * bottom of the scroller, the last visible panel wins
+             * regardless of where its top lives — short last panels
+             * never reach the threshold by themselves. */
+            const atMax = scrollArea.scrollTop + scrollArea.clientHeight
+                >= scrollArea.scrollHeight - 2;
+            if (atMax) {
+                for (let i = panels.length - 1; i >= 0; i--) {
+                    if (!panels[i].classList.contains('searchHidden')) {
+                        active = panels[i];
+                        break;
+                    }
+                }
+            }
+            if (active) _setActivePillSilent(active.id);
+        });
+    }
+
+    scrollArea.addEventListener('scroll', onScroll, { passive: true });
+    /* Initial paint: position the active pill correctly for the
+     * default scroll position. */
+    onScroll();
+
+    /* IntersectionObserver on the Custom Items panel: re-populate
+     * the library whenever the panel comes into view (decoupled
+     * from active-pill state so it fires even when the panel is
+     * fully visible but its top never crosses the 80px threshold,
+     * which happens whenever the panel is the last one in the list).
+     * Threshold 0 = fire as soon as ANY part of the panel is
+     * intersecting the scroller. Idempotent — populate replaces
+     * innerHTML with the same tile list each time. */
+    const customItemsPanel = document.getElementById('CustomItems');
+    if (customItemsPanel && typeof IntersectionObserver !== 'undefined') {
+        const io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting
+                    && typeof populateCustomItemsMenuContainer === 'function') {
+                    populateCustomItemsMenuContainer();
+                }
+            });
+        }, { root: scrollArea, threshold: 0 });
+        io.observe(customItemsPanel);
+    }
+}
+
+/* Backwards-compat shim: the legacy `.subtablinks` markup is gone, but
+ * a `<button onclick="openSubTab(event, 'X')">` could still exist in
+ * a saved template or 3rd-party customization. Delegate to the new
+ * single-arg function. */
 function openSubTab(evt, tabName) {
-    /* Declare all variables */
-    let i, tabcontent, tablinks;
+    selectEquipmentCategory(tabName);
+}
 
-    /* Get all elements with class="tabcontent" and hide them */
-    tabcontent = document.getElementsByClassName("subtabcontent");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
+/* ----- Pill row interactions (chevrons + click) ------------------- */
+
+function initEquipmentCategoryPills() {
+    const pillRow = document.getElementById('equipmentCategoryPills');
+    const wrap = document.getElementById('equipmentCategoryPillsWrap');
+    if (!pillRow || !wrap) return;
+
+    const chevLeft = wrap.querySelector('.pillScrollChevronLeft');
+    const chevRight = wrap.querySelector('.pillScrollChevronRight');
+
+    pillRow.querySelectorAll('.equipmentCategoryPill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+            const target = pill.dataset.target;
+            if (target) selectEquipmentCategory(target);
+        });
+    });
+
+    /* Chevron visibility: shown only when there is content to scroll
+     * to in that direction. 4px slop avoids visual flicker right at
+     * the extremes due to sub-pixel scroll values. */
+    function updateChevrons() {
+        if (!chevLeft || !chevRight) return;
+        const canLeft = pillRow.scrollLeft > 4;
+        const canRight = pillRow.scrollLeft < pillRow.scrollWidth - pillRow.clientWidth - 4;
+        chevLeft.classList.toggle('visible', canLeft);
+        chevRight.classList.toggle('visible', canRight);
+    }
+    pillRow.addEventListener('scroll', updateChevrons, { passive: true });
+    window.addEventListener('resize', updateChevrons);
+
+    if (chevLeft) chevLeft.addEventListener('click', () =>
+        pillRow.scrollBy({ left: -120, behavior: 'smooth' }));
+    if (chevRight) chevRight.addEventListener('click', () =>
+        pillRow.scrollBy({ left: 120, behavior: 'smooth' }));
+
+    /* First paint: defer one frame so the row has its final layout
+     * width before we measure scrollWidth / clientWidth. */
+    requestAnimationFrame(updateChevrons);
+
+    /* ResizeObserver catches the case where the Equipment tab starts
+     * out hidden (display:none) — the pill row has clientWidth=0 at
+     * boot, so the initial rAF probe wrongly concludes "nothing to
+     * scroll" and leaves the right chevron hidden. When the user
+     * later clicks Equipment, `openTab` flips display:none → flex
+     * and the row's width jumps to its real value; this observer
+     * fires and re-evaluates the chevrons. Without it the right
+     * chevron stayed hidden until the user manually wiggled the
+     * pill-row scroll (the only other trigger). */
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(updateChevrons).observe(pillRow);
+    }
+}
+
+initEquipmentCategoryPills();
+initEquipmentScrollSpy();
+
+/* Eagerly populate the Custom Items panel at boot so it has content
+ * when the user scrolls down to it in the long-scroll view — without
+ * this, the panel would render empty until the user explicitly
+ * clicked the Custom Items pill. Fire-and-forget; the IDB query is
+ * async and the `.then()` callback inside populateCustomItemsMenuContainer
+ * re-fires onEquipmentSearchChange when it lands, so any keystrokes
+ * the user typed during the race window get applied to the late-
+ * arriving Custom Item tiles too. */
+if (typeof populateCustomItemsMenuContainer === 'function') {
+    populateCustomItemsMenuContainer();
+}
+
+/* Defense-in-depth against the boot race: re-fire the Custom Items
+ * load when the user focuses the search box. If the boot-time call
+ * somehow failed (browser threw, idbStore wasn't ready, etc.) or the
+ * library has been mutated in another tab, this guarantees Custom
+ * Items are available before the very first keystroke is filtered.
+ * Idempotent — re-running just re-renders the same tile DOM. */
+(function () {
+    const searchInput = document.getElementById('equipmentSearch');
+    if (searchInput) {
+        searchInput.addEventListener('focus', function () {
+            if (typeof populateCustomItemsMenuContainer === 'function') {
+                populateCustomItemsMenuContainer();
+            }
+        });
+    }
+})();
+
+/* ----- Inline search across all category panels ------------------- */
+
+/* Fires on every keystroke in #equipmentSearch. Two modes:
+ *   • query < 2 chars: restore every tile / divider / panel; clear
+ *     the search-only "Other" panel; exit search mode.
+ *   • query ≥ 2 chars: search the FULL device list (mirrors Quick Add
+ *     semantics — same naming rules from `getEquipmentSearchRegex`).
+ *     Then partition matches into "already in a curated panel" vs
+ *     "extra" — the extras are rendered into the search-only Other
+ *     panel below Custom Items via createItemsOnMenu (which gives
+ *     them the same draggable tile DOM as every other device).
+ *     Finally the existing per-tile / divider / panel show-and-hide
+ *     pass runs over the now-complete tile set (Other tiles included
+ *     — they all match by construction, so they survive the filter)
+ *     and the active pill auto-scrolls to the first matching panel
+ *     (Custom Items / Other have no auto-scroll because they have no
+ *     pill — Other has none, Custom Items has a pill but the user
+ *     curating "what I built" rarely needs a forced scroll). */
+function onEquipmentSearchChange(e) {
+    const bar = document.getElementById('equipmentSearchBar');
+    const insertTab = document.getElementById('Insert');
+    const scrollArea = document.getElementById('equipmentScrollArea');
+    const query = (e && e.target && e.target.value || '').trim();
+    if (bar) bar.classList.toggle('hasValue', query.length > 0);
+
+    /* Curated panels only — the search-only Other panel uses its own
+     * `.hasMatches` toggle path (it never participates in the
+     * `.searchHidden` per-panel pass). Selector mirrors the one in
+     * initEquipmentScrollSpy so the two stay in sync. */
+    const allPanels = scrollArea
+        ? Array.from(scrollArea.querySelectorAll(
+            ':scope > .subtabcontent:not(.searchOnlyPanel)'))
+        : [];
+
+    const otherPanel = document.getElementById('OtherSearch');
+    const otherContainer = document.getElementById('otherSearchMenuContainer');
+
+    /* ----- Below-threshold: restore everything ----- */
+    if (query.length < 2) {
+        if (insertTab) insertTab.classList.remove('searching');
+        /* Restore every tile. */
+        document.querySelectorAll('#Insert .equipmentItemOnMenu')
+            .forEach(t => { t.style.display = ''; });
+        /* Restore every divider / container / panel we hid. */
+        document.querySelectorAll('#Insert .menuDivider.searchHidden, '
+            + '#Insert .containerItems.searchHidden, '
+            + '#Insert .subtabcontent.searchHidden')
+            .forEach(el => el.classList.remove('searchHidden'));
+        /* Re-enable every pill. */
+        document.querySelectorAll('.equipmentCategoryPill.disabled')
+            .forEach(p => p.classList.remove('disabled'));
+        /* Wipe + hide the Other panel — its tiles only ever exist
+         * during search and should never leak into normal browsing. */
+        if (otherContainer) otherContainer.innerHTML = '';
+        if (otherPanel) otherPanel.classList.remove('hasMatches');
+        setEquipmentSearchNoResults(false);
+        return;
     }
 
-    /* Get all elements with class="tablinks" and remove the class "active" */
-    tablinks = document.getElementsByClassName("subtablinks");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    /* ----- Active search mode ----- */
+    if (insertTab) insertTab.classList.add('searching');
+
+    /* The same regex + ** stripping `searchQuickItem` uses. `stripped`
+     * is what we substring-match against device names AND tile labels;
+     * `regex` decides which devices we EXCLUDE (so `_name` is always
+     * dropped, `name*` is dropped unless WD-partial / `**` is in play,
+     * `name**` is dropped unless `**` is typed). */
+    const { regex, stripped } = (typeof getEquipmentSearchRegex === 'function')
+        ? getEquipmentSearchRegex(query)
+        : { regex: /(^_.*)|(.*\*$)/, stripped: query };
+
+    const needle = stripped.toLowerCase().replace(/\s/g, '');
+
+    /* ----- Build the Other panel from the full device list ----- */
+    if (otherContainer) {
+        otherContainer.innerHTML = '';
+        const fullDeviceList = [].concat(
+            tables, videoDevices, microphones, chairs, displays, boxes, stageFloors, rooms);
+        const matchedDevices = fullDeviceList.filter(function (d) {
+            if (!d || !d.name || !d.id) return false;
+            if (regex.test(d.name)) return false;
+            const hay = String(d.name).toLowerCase().replace(/\s/g, '');
+            return hay.length > 0 && hay.includes(needle);
+        });
+        /* Extras = devices that match BUT don't already have a tile
+         * in any curated panel. The deterministic tile id pattern
+         * (`${parentGroup}-${deviceId}-div` — see createItemsOnMenu)
+         * lets us detect "already shown" with a single getElementById. */
+        const extraIds = [];
+        const seen = new Set();
+        matchedDevices.forEach(function (d) {
+            if (seen.has(d.id)) return;
+            seen.add(d.id);
+            const existingTileId = (d.parentGroup ? d.parentGroup + '-' : '') + d.id + '-div';
+            if (d.parentGroup && document.getElementById(existingTileId)) return;
+            extraIds.push(d.id);
+        });
+        if (extraIds.length && typeof createItemsOnMenu === 'function') {
+            createItemsOnMenu('otherSearchMenuContainer', extraIds);
+        }
+        if (otherPanel) otherPanel.classList.toggle('hasMatches', extraIds.length > 0);
     }
 
-    /* Show the current tab, and add an "active" class to the button that opened the tab */
-    document.getElementById(tabName).style.display = "block";
+    const panelMatchCounts = {};
 
-    evt.currentTarget.className += " active";
+    /* 1) Tile-level: show only matching tiles. Match is a
+     *    case-insensitive, whitespace-stripped substring of the
+     *    tile's visible label. Device tiles use `.flexSubItemLabel`;
+     *    customItem tiles use a plain `<label>` (see
+     *    buildCustomItemTile()). The Other tiles just appended above
+     *    all match by construction, but they go through the same
+     *    pass for uniformity — and so they get a `display: ''`
+     *    rather than whatever the prior keystroke left them at. */
+    document.querySelectorAll('#Insert .equipmentItemOnMenu').forEach((tile) => {
+        const labelEl = tile.querySelector('.flexSubItemLabel') || tile.querySelector('label');
+        const labelText = (labelEl ? labelEl.textContent : '').toLowerCase().replace(/\s/g, '');
+        const match = labelText.length > 0 && labelText.includes(needle);
+        tile.style.display = match ? '' : 'none';
+        if (match) {
+            const panel = tile.closest('.subtabcontent');
+            if (panel && panel.id) {
+                panelMatchCounts[panel.id] = (panelMatchCounts[panel.id] || 0) + 1;
+            }
+        }
+    });
 
-    updateAllScrollHints();
+    /* 2) Section-level: walk every `.menuDivider`. For each, count
+     *    visible tiles in the immediately-following `.containerItems`
+     *    sibling chain (stops at the next divider). If zero matches,
+     *    hide both the divider and its container(s). Otherwise show.
+     *    This is what removes the "Cisco Cameras", "Navigators",
+     *    "Cable Lid with Cables" headers from a "mic" search result. */
+    document.querySelectorAll('#Insert .subtabcontent .menuDivider').forEach((divider) => {
+        const containers = [];
+        let sib = divider.nextElementSibling;
+        while (sib && !sib.classList.contains('menuDivider')) {
+            if (sib.classList.contains('containerItems')) containers.push(sib);
+            sib = sib.nextElementSibling;
+        }
+        const visibleCount = containers.reduce(function (acc, c) {
+            const tiles = c.querySelectorAll('.equipmentItemOnMenu');
+            let n = 0;
+            for (let i = 0; i < tiles.length; i++) {
+                if (tiles[i].style.display !== 'none') n++;
+            }
+            return acc + n;
+        }, 0);
 
+        divider.classList.toggle('searchHidden', visibleCount === 0);
+        containers.forEach(c => c.classList.toggle('searchHidden', visibleCount === 0));
+    });
+
+    /* 3) Panel-level: hide the whole curated panel when it has zero
+     *    matches AND mark its pill `.disabled` so it visually mutes
+     *    too. The search-only Other panel is intentionally NOT in
+     *    `allPanels` (the selector excludes `.searchOnlyPanel`); its
+     *    visibility is governed by the `.hasMatches` toggle set above
+     *    and the CSS gating it on `#Insert.searching`. */
+    allPanels.forEach((panel) => {
+        const matched = panelMatchCounts[panel.id] > 0;
+        panel.classList.toggle('searchHidden', !matched);
+        const pill = document.querySelector(
+            '.equipmentCategoryPill[data-target="' + panel.id + '"]');
+        if (pill) pill.classList.toggle('disabled', !matched);
+    });
+
+    /* 4) Auto-scroll to the first panel that has matches so the user
+     *    immediately sees results without manual scrolling. The
+     *    `_equipmentScrollProgrammatic` guard inside
+     *    selectEquipmentCategory keeps the scroll-spy from fighting
+     *    the smooth-scroll animation. If no curated panel matched but
+     *    Other did, jump there instead — calling scrollIntoView
+     *    directly because Other has no pill so selectEquipmentCategory
+     *    would silently no-op the pill activation half. */
+    const firstMatchPanel = allPanels.find(p => panelMatchCounts[p.id] > 0);
+    if (firstMatchPanel && _activeEquipmentCategory !== firstMatchPanel.id) {
+        selectEquipmentCategory(firstMatchPanel.id);
+    } else if (!firstMatchPanel && otherPanel
+        && otherPanel.classList.contains('hasMatches')
+        && typeof otherPanel.scrollIntoView === 'function') {
+        otherPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const curatedMatches = Object.values(panelMatchCounts).reduce((a, b) => a + b, 0);
+    const otherMatches = (otherPanel && otherPanel.classList.contains('hasMatches')) ? 1 : 0;
+    setEquipmentSearchNoResults((curatedMatches + otherMatches) === 0);
+}
+
+function clearEquipmentSearch() {
+    const input = document.getElementById('equipmentSearch');
+    if (input) input.value = '';
+    onEquipmentSearchChange({ target: { value: '' } });
+    if (input) input.focus();
+}
+
+/* Empty-state banner shown inline at the bottom of the Equipment tab
+ * when no tiles match across any category panel. Lazily created on
+ * first show; hidden (display: none) on clear. */
+function setEquipmentSearchNoResults(show) {
+    let el = document.getElementById('equipmentSearchNoResults');
+    if (!show) {
+        if (el) el.style.display = 'none';
+        return;
+    }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'equipmentSearchNoResults';
+        el.className = 'customItemsEmpty';
+        /* innerHTML is safe here: the markup is a fixed string with
+         * no caller-supplied data. */
+        el.innerHTML = '<b>No matches.</b><br />Press <code>Space</code> to open the full Quick Add palette.';
+        const insertTab = document.getElementById('Insert');
+        if (insertTab) insertTab.appendChild(el);
+    }
+    el.style.display = 'block';
+}
+
+/* ----- Shared customItem tile builder ----------------------------- */
+
+/* Build a single library customItem tile DOM. Used by BOTH the new
+ * Equipment-tab Custom Items pill (sidebar mode — `onClick: 'drag'`)
+ * AND the Space-bar Quick Add modal (modal mode — `onClick:
+ * 'insertCenter'`). Centralising the renderer here prevents the two
+ * surfaces from drifting apart over time.
+ *
+ * Sidebar mode: tile is draggable; drop on the canvas materialises
+ * the customItem via insertCustomItemAtPosition() — same gesture
+ * users learn from the regular device tiles in `createItemsOnMenu`.
+ *
+ * Modal mode: tile is click-to-insert (legacy modal behaviour); drag
+ * is disabled because the modal is a transient overlay that closes
+ * on first interaction. */
+function buildCustomItemTile(record, opts) {
+    opts = opts || {};
+    const name = (typeof getCustomItemRecordName === 'function'
+        ? getCustomItemRecordName(record)
+        : (record.customItemName || record.data_labelField || '')) || '';
+    const baseId = record.customItemBaseId;
+
+    const btnItem = document.createElement('button');
+    btnItem.type = 'button';
+
+    if (record.menuImage) {
+        const i = document.createElement('img');
+        i.src = record.menuImage;
+        i.draggable = false;
+        i.id = `customItem-${baseId}-img`;
+        /* Match the regular device-tile layout: 60px-tall contain
+         * image. Without this class the <img> renders at its natural
+         * 100×100 size and dwarfs the surrounding text. */
+        i.className = 'flexSubItemImage';
+        btnItem.appendChild(i);
+    }
+
+    const label = document.createElement('label');
+    label.innerText = name.slice(0, 30);
+    btnItem.title = `${name} — Custom Item`;
+    /* Same layout class regular device labels use — 11px centered
+     * text, fixed 3.55em height so adjacent tiles align bottom-edge
+     * regardless of how many lines the name wraps to. */
+    label.className = 'flexSubItemLabel';
+    btnItem.appendChild(label);
+
+    btnItem.classList.add('flexItems');
+    btnItem.classList.add('equipmentItemOnMenu');
+    btnItem.classList.add('customItemTile');
+    btnItem.id = `customItem-${baseId}-div`;
+
+    /* Ellipsis (more) span — see the long comment in the original
+     * onQuickAddChange (May 2026) explaining why this MUST be a
+     * <span role="button"> and not a <button>: nesting <button> in
+     * the parent <button> would be DOM-repaired by the browser
+     * (hoisted out as a sibling), silently breaking layout and the
+     * click handler. */
+    const moreBtn = document.createElement('span');
+    moreBtn.className = 'customItemTileDeleteBtn';
+    moreBtn.setAttribute('role', 'button');
+    moreBtn.setAttribute('tabindex', '0');
+    moreBtn.setAttribute('aria-label', 'More actions for ' + (name || 'Custom Item'));
+    moreBtn.title = 'More actions (rename, export, remove)';
+    moreBtn.innerHTML = '<i class="icon icon-more-bold"></i>';
+    moreBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        openEditCustomItemDialog(baseId);
+    });
+    moreBtn.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.stopPropagation();
+            ev.preventDefault();
+            openEditCustomItemDialog(baseId);
+        }
+    });
+    btnItem.appendChild(moreBtn);
+
+    if (opts.onClick === 'insertCenter') {
+        /* Quick Add modal mode — click-to-insert, no drag. */
+        btnItem.draggable = false;
+        btnItem.onclick = function () {
+            const { roomWidth, roomLength } = roomObj.room;
+            let dropX, dropY;
+            const b = roomObj.unit === 'feet' ? 0.6 : 0.2;
+            if (quickAddMouse.x > -b && quickAddMouse.x < (roomWidth + b) &&
+                quickAddMouse.y > -b && quickAddMouse.y < (roomLength + b)) {
+                dropX = quickAddMouse.x;
+                dropY = quickAddMouse.y;
+            } else {
+                dropX = roomWidth / 2;
+                dropY = roomLength / 2;
+            }
+            const newCustomitemid = insertCustomItemAtPosition(record, dropX, dropY);
+            if (newCustomitemid) showToast('Custom Item added: ' + name);
+            toggleQuickAdd(false);
+        };
+    } else {
+        /* Sidebar mode — draggable; click is a no-op (matches device-
+         * tile behaviour, which is drag-only in the sidebar). */
+        btnItem.draggable = true;
+        btnItem.addEventListener('dragstart', dragStart);
+        btnItem.addEventListener('drag', drag);
+        /* Use a custom dragEnd: the standard dragEnd() routes through
+         * insertItemFromMenu(deviceid), which doesn't recognise
+         * library customItem baseIds. Closure-capture the record so
+         * the drop handler can call insertCustomItemAtPosition. */
+        btnItem.addEventListener('dragend', function (event) {
+            dragEndCustomItemTile(event, record, name);
+        });
+
+        /* Touch support mirrors the device-tile path so mobile users
+         * get the same drag-to-canvas gesture. The end handler does
+         * the insert AND cleans up the floating drag preview node. */
+        btnItem.addEventListener('touchstart', touchStart);
+        btnItem.addEventListener('touchmove', touchMove);
+        btnItem.addEventListener('touchend', function (event) {
+            dragEndCustomItemTile(event, record, name);
+            if (typeof newInsertItem !== 'undefined' && newInsertItem && newInsertItem.parentNode) {
+                document.body.removeChild(newInsertItem);
+            }
+        });
+    }
+
+    return btnItem;
+}
+
+/* Custom-item-aware drop handler. Coordinate math mirrors `dragEnd()`
+ * (line ~22066) so the bundle lands at the same world position the
+ * cursor was over at release. Falls back through clientX → touch
+ * coords → cached `dragClientX/Y` to handle Chrome/Firefox, touch,
+ * and Safari respectively. */
+function dragEndCustomItemTile(event, record, displayName) {
+    if (!event.target || event.target.id === '') return;
+
+    const canvas = document.getElementById('canvasDiv');
+    if (!canvas) return;
+    const canvasBound = canvas.getBoundingClientRect();
+
+    const dx = scrollContainer.scrollLeft;
+    const dy = scrollContainer.scrollTop;
+
+    let cx, cy;
+    if ('clientX' in event && !isSafari) {
+        cx = event.clientX;
+        cy = event.clientY;
+    } else if (event.changedTouches && event.changedTouches.length) {
+        cx = event.changedTouches[0].clientX;
+        cy = event.changedTouches[0].clientY;
+    } else {
+        cx = dragClientX;
+        cy = dragClientY;
+    }
+
+    const canvasPixelX = (cx - canvasBound.x + dx) / zoomScaleX;
+    const canvasPixelY = (cy - canvasBound.y + dy) / zoomScaleY;
+    const unitX = (canvasPixelX - pxOffset) / scale + activeRoomX;
+    const unitY = (canvasPixelY - pxOffset) / scale + activeRoomY;
+
+    /* Same buffer as dragEnd: abort if the drop is outside the canvas
+     * area (negative or extremely small canvas coords). */
+    if (canvasPixelX < 10 || canvasPixelY < 10) return;
+
+    const newCustomitemid = insertCustomItemAtPosition(record, unitX, unitY);
+    if (newCustomitemid && displayName) {
+        showToast('Custom Item added: ' + displayName);
+    }
+
+    dragClientX = 0;
+    dragClientY = 0;
+}
+
+/* ----- Custom Items pill: populate from IndexedDB library --------- */
+
+/* Refresh `#customItemsMenuContainer` with one tile per library
+ * record. Called on every activation of the Custom Items pill so the
+ * panel always reflects the current library state (no observer / no
+ * dirty flag — IDB roundtrip is sub-millisecond locally). */
+function populateCustomItemsMenuContainer() {
+    const container = document.getElementById('customItemsMenuContainer');
+    const empty = document.getElementById('customItemsEmptyState');
+    if (!container) return;
+
+    if (!window.idbStore || typeof window.idbStore.customItemGetAll !== 'function') {
+        container.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+
+    window.idbStore.customItemGetAll().then(function (records) {
+        const list = Array.isArray(records) ? records : [];
+        /* Drop records with no display name — those are canvas-only
+         * (see "Unnamed customItems" in CLAUDE.md) and shouldn't
+         * appear in the library tile grid. */
+        const named = list.filter(function (rec) {
+            const n = (typeof getCustomItemRecordName === 'function'
+                ? getCustomItemRecordName(rec)
+                : (rec && (rec.customItemName || rec.data_labelField) || ''));
+            return rec && String(n).trim().length > 0;
+        });
+        /* Newest-first by updatedAt (ISO 8601 strings — lexicographic
+         * compare works). Falls back to addedAt for very old rows. */
+        named.sort(function (a, b) {
+            const ka = String(a.updatedAt || a.addedAt || '');
+            const kb = String(b.updatedAt || b.addedAt || '');
+            return kb.localeCompare(ka);
+        });
+
+        container.innerHTML = '';
+        named.forEach(function (rec) {
+            container.appendChild(buildCustomItemTile(rec, { onClick: 'drag' }));
+        });
+
+        if (empty) empty.style.display = named.length ? 'none' : 'block';
+
+        /* Async IDB query resolved AFTER the user may have already
+         * started typing in the search box. Re-apply the filter so
+         * the freshly-appended Custom Item tiles get show/hide-d
+         * along with the rest. Without this re-run, Custom Items
+         * appeared invisible to search until the user manually
+         * clicked the Custom Items pill (which re-fired populate
+         * AFTER tiles were in the DOM). Cheap — onEquipmentSearchChange
+         * only iterates `.equipmentItemOnMenu` nodes. */
+        const searchInput = document.getElementById('equipmentSearch');
+        if (searchInput && searchInput.value && searchInput.value.trim().length >= 2) {
+            onEquipmentSearchChange({ target: searchInput });
+        }
+    }).catch(function (e) {
+        console.warn('[customItemLibrary] sidebar fetch failed:', e && e.message);
+    });
 }
 
 function openSubTab2(evt, tabName) {
@@ -24037,28 +24804,44 @@ function toggleQuickAdd(show) {
 }
 
 
+/* Compute the include/exclude regex and the user-typed search string
+ * stripped of any `**` prefix sigil, given the raw search input.
+ *
+ * Three-way rule mirrors the historical Quick Add behaviour:
+ *   • Default          → exclude `_name` AND any `name*` (covers `*` and `**`).
+ *   • WD-partial on    → exclude `_name` AND `name**` only — `name*` is allowed
+ *                        in normal browsing because the WD-partial toggle is
+ *                        the user's explicit opt-in to non-WD-supported items.
+ *   • Query starts `**`→ exclude `_name` ONLY — both `name*` AND `name**`
+ *                        come through. The `**` is stripped from the query
+ *                        before name matching so `**phone` matches "Phone 9871".
+ *
+ * Shared by `searchQuickItem` (Quick Add modal) and `onEquipmentSearchChange`
+ * (sidebar search). Optional chaining on getElementById guards against the
+ * checkbox not being in the DOM yet during very early boot. */
+function getEquipmentSearchRegex(rawQuery) {
+    let regex = /(^_.*)|(.*\*$)/;
+    let stripped = rawQuery;
+    if (document.getElementById('useNonWorkspaceItemsCheckBox')?.checked) {
+        regex = /(^_.*)|(.*\*\*$)/;
+    }
+    if (/^\*\*.*/.test(rawQuery)) {
+        regex = /(^_.*)/;
+        stripped = rawQuery.replace(/\*\*/, '');
+    }
+    return { regex, stripped };
+}
+
 function searchQuickItem(items, word = '') {
     if (word.length < 2) return []
 
-
-    let regex = /(^_.*)|(.*\*$)/;
-
-    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked) {
-        regex = /(^_.*)|(.*\*\*$)/;
-    }
-
-    /* by typing ** in the Quick Search box, find hidden objects */
-    if (/^\*\*.*/.test(word)) {
-        regex = /(^_.*)/;
-        word = word.replace(/\*\*/, '');
-    }
-
+    const { regex, stripped } = getEquipmentSearchRegex(word);
 
     const match = (search = '', fullWord = '') =>
         fullWord.toLowerCase().replaceAll(' ', '')
             .includes(search.toLowerCase().replaceAll(' ', ''))
 
-    const all = items.filter(i => match(word, i.name))
+    const all = items.filter(i => match(stripped, i.name))
 
 
     return all.filter(i => !regex.test(i.name));
@@ -24111,109 +24894,20 @@ function onQuickAddChange(e) {
 
     gallery.innerHTML = '';
     matches.forEach((m, n) => {
-        const btnItem = document.createElement('button');
 
         if (m._isCustomItem) {
-            /* Library customItem tile. menuImage is a base64 PNG data
-             * URL (transparent background, 100x100 — see
-             * createCustomItemMenuImage). Setting <img>.src to a data
-             * URL is synchronous w.r.t. network state — no race. */
-            if (m._record && m._record.menuImage) {
-                const i = document.createElement('img');
-                i.src = m._record.menuImage;
-                i.draggable = false;
-                btnItem.appendChild(i);
-                i.id = `customItem-${m.id}-img`;
-            }
-            const label = document.createElement('label');
-            label.innerText = (m.name || '').slice(0, 30);
-            btnItem.title = `${m.name} — Custom Item (Tap to add to room)`;
-            btnItem.appendChild(label);
-
-            btnItem.classList.add('flexItems');
-            btnItem.classList.add('equipmentItemOnMenu');
-            btnItem.classList.add('customItemTile');
-            btnItem.id = `customItem-${m.id}-div`;
-            btnItem.draggable = false;
-
-            /* Ellipsis (more) button — small `...` glyph in the
-             * upper-right of every Quick Add library tile. Clicking
-             * opens the Edit Custom Item dialog (rename / re-author /
-             * re-describe + Export / Delete / Remove-From-Library),
-             * replacing the previous trash-only affordance. The trash
-             * action still lives inside the new dialog so users who
-             * just want to delete still have a one-confirmation path.
-             *
-             * CRITICAL: this is a <span role="button"> not a <button>,
-             * because btnItem itself is a <button> and HTML5 forbids
-             * <button> nested inside <button>. Browsers DOM-repair
-             * that nesting by hoisting the inner button out as a
-             * sibling, which silently broke the layout (and click
-             * handler) of the original delete-button implementation.
-             * The role + tabindex + keydown handler keep keyboard
-             * accessibility parity with a real button.
-             *
-             * CSS class is reused (`customItemTileDeleteBtn`) to avoid
-             * a CSS rule duplication; only the icon glyph and the
-             * click handler differ. The class name is no longer
-             * literally accurate but renaming it would require a
-             * coordinated CSS edit with no functional benefit. */
-            const moreBtn = document.createElement('span');
-            moreBtn.className = 'customItemTileDeleteBtn';
-            moreBtn.setAttribute('role', 'button');
-            moreBtn.setAttribute('tabindex', '0');
-            moreBtn.setAttribute('aria-label', 'More actions for ' + (m.name || 'Custom Item'));
-            moreBtn.title = 'More actions (rename, export, remove)';
-            /* Momentum icon (icon-more-bold) — three-dot ellipsis
-             * glyph. innerHTML is safe here: the markup is a fixed
-             * string with no caller-supplied data. */
-            moreBtn.innerHTML = '<i class="icon icon-more-bold"></i>';
-            /* stopPropagation prevents the parent btnItem.onclick from
-             * also firing — without it every ellipsis click would also
-             * insert the customItem onto the canvas. */
-            moreBtn.addEventListener('click', function (ev) {
-                ev.stopPropagation();
-                ev.preventDefault();
-                openEditCustomItemDialog(m.id);
-            });
-            moreBtn.addEventListener('keydown', function (ev) {
-                if (ev.key === 'Enter' || ev.key === ' ') {
-                    ev.stopPropagation();
-                    ev.preventDefault();
-                    openEditCustomItemDialog(m.id);
-                }
-            });
-            btnItem.appendChild(moreBtn);
-
-            btnItem.onclick = () => {
-                const { roomWidth, roomLength } = roomObj.room;
-
-                let dropX, dropY;
-                const b = roomObj.unit === 'feet' ? 0.6 : 0.2; /* boundary slop */
-                if (quickAddMouse.x > -b && quickAddMouse.x < (roomWidth + b) &&
-                    quickAddMouse.y > -b && quickAddMouse.y < (roomLength + b)) {
-                    dropX = quickAddMouse.x;
-                    dropY = quickAddMouse.y;
-                } else {
-                    dropX = roomWidth / 2;
-                    dropY = roomLength / 2;
-                }
-
-                /* (dropX, dropY) is the CENTER of where the bundle
-                 * should land — insertCustomItemAtPosition handles
-                 * upper-left math internally so the bundle is visually
-                 * centered on the cursor, matching device tile
-                 * behaviour at the perception level. */
-                const newCustomitemid = insertCustomItemAtPosition(m._record, dropX, dropY);
-                if (newCustomitemid) {
-                    showToast('Custom Item added: ' + (m.name || ''));
-                }
-                toggleQuickAdd(false);
-            };
-
-            gallery.appendChild(btnItem);
+            /* Library customItem tile — built by the shared
+             * buildCustomItemTile() helper so the Equipment-tab
+             * sidebar pill and the Quick Add modal render identical
+             * tiles. `insertCenter` opts triggers click-to-insert
+             * (modal behaviour, drag disabled). See the helper for
+             * the long-form comments about the ellipsis-span pattern
+             * and click-handler routing. */
+            gallery.appendChild(buildCustomItemTile(m._record, { onClick: 'insertCenter' }));
             return;
         }
+
+        const btnItem = document.createElement('button');
 
         /* Standard device tile (unchanged from the original handler). */
         const parentGroup = allDeviceTypes[m.id]?.parentGroup;

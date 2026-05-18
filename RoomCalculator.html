@@ -237,22 +237,52 @@
 
         <!-- Equipment tab is below -->
         <div id="Insert" class="tabcontent">
-          <div>
-
+          <!-- Inline search bar (replaces the four .btnItemSearch floating
+               buttons). Filters tiles across ALL category panels in-place
+               and auto-switches the active pill if the best match lives in
+               another category. Space still opens the full Quick Add modal
+               for users who prefer that flow. -->
+          <div id="equipmentSearchBar">
+            <i class="icon icon-search-bold"></i>
+            <input type="search" id="equipmentSearch" placeholder="Search devices, mics, tables..."
+              oninput="onEquipmentSearchChange(event)" autocomplete="off" />
+            <button type="button" id="equipmentSearchClear" aria-label="Clear search"
+              title="Clear" onclick="clearEquipmentSearch()">&#x2715;</button>
           </div>
-          <div class="tab">
 
-            <button class="subtablinks active" onclick="openSubTab(event, 'Cameras')">Video Devices</button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Microphones')">Peripherals&nbsp;&nbsp;</button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Panels')">Displays </button>
-            <button class="subtablinks" onclick="openSubTab(event, 'Tables')">Furniture&nbsp;&nbsp;&nbsp;</button>
-
-
-
+          <!-- Horizontally-scrolling category pills (replaces the four
+               hardcoded .subtablinks sub-tabs). The pill row scrolls
+               horizontally when it overflows; the chevron buttons appear
+               only when there's content to scroll to. Adding a new
+               category later = appending another button here. -->
+          <div class="equipmentCategoryPillsWrap" id="equipmentCategoryPillsWrap">
+            <button type="button" class="pillScrollChevron pillScrollChevronLeft"
+              aria-label="Scroll categories left">&lsaquo;</button>
+            <div class="equipmentCategoryPills" id="equipmentCategoryPills">
+              <button type="button" class="equipmentCategoryPill active"
+                data-target="Cameras">Video Devices</button>
+              <button type="button" class="equipmentCategoryPill"
+                data-target="Microphones">Peripherals</button>
+              <button type="button" class="equipmentCategoryPill"
+                data-target="Panels">Displays</button>
+              <button type="button" class="equipmentCategoryPill"
+                data-target="Tables">Furniture</button>
+              <button type="button" class="equipmentCategoryPill"
+                data-target="CustomItems">Custom Items</button>
+            </div>
+            <button type="button" class="pillScrollChevron pillScrollChevronRight"
+              aria-label="Scroll categories right">&rsaquo;</button>
           </div>
-          <div id="Cameras" class="subtabcontent" style="display: block;">
-            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
-                class="icon icon-search-bold"></i></button>
+
+          <!-- Single long-scroll container that holds all category panels.
+               All .subtabcontent children are visible at once (CSS overrides
+               the legacy display:none default scoped to this wrapper). The
+               scroll-spy in initEquipmentScrollSpy() listens to this element
+               and updates the active pill as the user scrolls past each
+               panel's boundary. -->
+          <div id="equipmentScrollArea">
+
+          <div id="Cameras" class="subtabcontent">
             <div class="tip2">
 
               <i class="icon icon-room-lights-bold"></i>
@@ -308,15 +338,6 @@
           </div>
           <div id="Microphones" class="subtabcontent">
 
-            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
-                class="icon icon-search-bold"></i></button>
-            <div class="tip2">
-
-              <i class="icon icon-room-lights-bold"></i>
-              <b>Tip:</b>
-              &nbsp;Drag and drop to room canvas
-            </div>
-
             <div class="menuDivider">
               Cisco Cameras
             </div>
@@ -363,14 +384,6 @@
           </div>
 
           <div id="Tables" class="subtabcontent">
-            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
-                class="icon icon-search-bold"></i></button>
-            <div class="tip2">
-
-              <i class="icon icon-room-lights-bold"></i>
-              <b>Tip:</b>
-              &nbsp;Drag and drop to room canvas
-            </div>
             <div class="menuDivider">
               Tables
             </div>
@@ -404,14 +417,6 @@
           </div>
 
           <div id="Panels" class="subtabcontent">
-            <button class="btnItemSearch" title="Quick Add Menu [space]" onclick="quickAddFromButton()"> <i
-                class="icon icon-search-bold"></i></button>
-            <div class="tip2">
-
-              <i class="icon icon-room-lights-bold"></i>
-              <b>Tip:</b>
-              &nbsp;Drag and drop to room canvas
-            </div>
             <div class="menuDivider">
               Displays
             </div>
@@ -419,6 +424,40 @@
               <!-- Menu will be inserted -->
             </div>
           </div>
+
+          <!-- New "Custom Items" panel: surfaces the user's VRC Custom
+               Item Library (IndexedDB) as draggable tiles alongside the
+               built-in device categories. Tiles are built by the shared
+               buildCustomItemTile() helper so they look identical to the
+               Quick Add modal tiles. Empty-state hint is shown when the
+               library has zero records. -->
+          <div id="CustomItems" class="subtabcontent">
+            <div class="menuDivider">
+              Custom Item Library
+            </div>
+            <div id="customItemsMenuContainer" class="containerItems">
+              <!-- Menu will be inserted by populateCustomItemsMenuContainer() -->
+            </div>
+            <div id="customItemsEmptyState" class="customItemsEmpty" style="display: none;">
+              <b>No saved Custom Items yet.</b><br />
+              Bundle items on the canvas and choose <b>Create Custom Item</b>
+              from the ellipsis menu to save reusable templates here.
+            </div>
+          </div>
+
+          <!-- Search-only "Other" panel. Holds devices that match the current
+               search query but are NOT in any of the 5 curated category
+               panels (e.g. items normally gated behind the WD-partial toggle
+               or the `**` query prefix). Hidden by default; revealed only
+               while `#Insert.searching` is active AND `.hasMatches` is set
+               by onEquipmentSearchChange. Excluded from the scroll-spy
+               (no pill exists for "Other"). -->
+          <div id="OtherSearch" class="subtabcontent searchOnlyPanel">
+            <div class="menuDivider">Other</div>
+            <div id="otherSearchMenuContainer" class="containerItems"></div>
+          </div>
+
+          </div><!-- /#equipmentScrollArea -->
 
         </div>
 

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equipment Menu Redesign — Preview</title>
+
+  <!-- Use the real app's stylesheet + icons so the preview matches the
+       production look (Inter font, momentum icons, --active blue). The
+       relative path resolves because this file lives in /notes/. -->
+  <link rel="stylesheet" href="../assets/momentum-icons.css" />
+  <link rel="stylesheet" href="../style.css" />
+
+  <style>
+    /* ------------------------------------------------------------------
+     * Preview-only styles. These mirror what will be added to style.css
+     * during the real implementation (Step 3 of the plan). Living here
+     * first lets the user click around and approve the design before
+     * any production file is touched.
+     * ----------------------------------------------------------------*/
+
+    body {
+      background: #f5f5f5;
+      padding: 24px;
+      overflow: auto;
+    }
+
+    .previewFrame {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      max-width: 380px;
+      margin: 0 auto 32px;
+      padding: 0;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .previewHeader {
+      background: #fafafa;
+      border-bottom: 1px solid #eee;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .previewBody {
+      padding: 16px;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Inline search bar (replaces the four .btnItemSearch buttons) */
+    #equipmentSearchBar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0f3f7;
+      border: 1px solid #d8dde4;
+      border-radius: 20px;
+      padding: 6px 12px;
+      margin-bottom: 12px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    #equipmentSearchBar:focus-within {
+      border-color: var(--active);
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(3, 82, 166, 0.15);
+    }
+
+    #equipmentSearchBar .icon {
+      color: #6e6e6e;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    #equipmentSearch {
+      border: 0;
+      background: transparent;
+      outline: none;
+      flex: 1 1 auto;
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 13px;
+      padding: 2px 0;
+      min-width: 0;
+    }
+
+    /* Hide the native clear button on type=search so we control it. */
+    #equipmentSearch::-webkit-search-cancel-button {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    #equipmentSearchClear {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: #6e6e6e;
+      cursor: pointer;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    #equipmentSearchBar.hasValue #equipmentSearchClear {
+      display: flex;
+    }
+
+    #equipmentSearchClear:hover {
+      background: #e2e6ec;
+      color: #222;
+    }
+
+    /* ---- Category pills (replaces the four .subtablinks sub-tabs) */
+    .equipmentCategoryPillsWrap {
+      position: relative;
+      margin-bottom: 12px;
+      padding: 0 24px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .equipmentCategoryPills {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      gap: 4px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .equipmentCategoryPills::-webkit-scrollbar {
+      display: none;
+    }
+
+    .equipmentCategoryPill {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: #545454;
+      padding: 8px 14px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .equipmentCategoryPill:hover {
+      color: #222;
+    }
+
+    .equipmentCategoryPill.active {
+      color: #000;
+      font-weight: 500;
+      border-bottom-color: var(--active);
+    }
+
+    .pillScrollChevron {
+      position: absolute;
+      top: 4px;
+      width: 22px;
+      height: 26px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.92);
+      color: #444;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+      border-radius: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 2;
+    }
+
+    .pillScrollChevron.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .pillScrollChevron:hover {
+      background: #f0f3f7;
+      color: #000;
+    }
+
+    .pillScrollChevronLeft {
+      left: 0;
+      box-shadow: 4px 0 4px -2px rgba(255, 255, 255, 0.9);
+    }
+
+    .pillScrollChevronRight {
+      right: 0;
+      box-shadow: -4px 0 4px -2px rgba(255, 255, 255, 0.9);
+    }
+
+    /* ---- Empty-state for the new Custom Items panel */
+    .customItemsEmpty {
+      padding: 24px 16px;
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      background: #fafafa;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .customItemsEmpty b {
+      color: #444;
+    }
+
+    /* ---- Sample-tile presentation in the preview (the real app reuses
+     *      .equipmentItemOnMenu / .flexItems from style.css). The mock
+     *      tile keeps the same sizing so the preview reads true. */
+    .sampleTile {
+      width: 92px;
+      padding: 4px 6px;
+      margin-top: 1em;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      position: relative;
+      cursor: move;
+    }
+
+    .sampleTile:hover {
+      background-color: #ADD8E6;
+      opacity: 0.9;
+    }
+
+    .sampleTileImg {
+      width: 100%;
+      height: 60px;
+      background: linear-gradient(135deg, #d8dde4 0%, #c4cad3 100%);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #6e6e6e;
+    }
+
+    .sampleTileLabel {
+      width: 100%;
+      font-size: 11px;
+      margin-top: 4px;
+      text-align: center;
+      color: #222;
+    }
+
+    .customSampleTile {
+      border-left: 3px solid #4caf50;
+    }
+
+    /* ---- Side-by-side panel for the explanation column */
+    .pageWrap {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .pageWrap {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .explainCol {
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    .explainCol h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+
+    .explainCol h2 {
+      font-size: 15px;
+      margin: 24px 0 6px;
+      color: #0352a6;
+    }
+
+    .explainCol p {
+      margin: 6px 0;
+    }
+
+    .explainCol code {
+      background: #eef1f4;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+
+    .explainCol ul {
+      margin: 6px 0 6px 18px;
+      padding: 0;
+    }
+
+    .explainCol li {
+      margin: 4px 0;
+    }
+
+    .demoHint {
+      font-size: 12px;
+      color: #777;
+      background: #fffbea;
+      border-left: 3px solid #f0c33c;
+      padding: 8px 12px;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="pageWrap">
+    <!-- LEFT: the live mockup -->
+    <div>
+      <div class="previewFrame">
+        <div class="previewHeader">Equipment (sidebar preview)</div>
+        <div class="previewBody">
+
+          <!-- ============ NEW: inline search bar ============ -->
+          <div id="equipmentSearchBar">
+            <i class="icon icon-search-bold"></i>
+            <input type="search" id="equipmentSearch" placeholder="Search devices, mics, tables..."
+              autocomplete="off" />
+            <button type="button" id="equipmentSearchClear" aria-label="Clear search" title="Clear">&#x2715;</button>
+          </div>
+
+          <!-- ============ NEW: scrolling category pills ============ -->
+          <div class="equipmentCategoryPillsWrap">
+            <button class="pillScrollChevron pillScrollChevronLeft" aria-label="Scroll left">&lsaquo;</button>
+            <div class="equipmentCategoryPills" id="equipmentCategoryPills">
+              <button class="equipmentCategoryPill active" data-target="Cameras">Video Devices</button>
+              <button class="equipmentCategoryPill" data-target="Microphones">Peripherals</button>
+              <button class="equipmentCategoryPill" data-target="Panels">Displays</button>
+              <button class="equipmentCategoryPill" data-target="Tables">Furniture</button>
+              <button class="equipmentCategoryPill" data-target="CustomItems">Custom Items</button>
+            </div>
+            <button class="pillScrollChevron pillScrollChevronRight" aria-label="Scroll right">&rsaquo;</button>
+          </div>
+
+          <!-- ============ Sample panels (one shown at a time) ============ -->
+          <div class="panelContainer">
+            <!-- Cameras (Video Devices) -->
+            <div class="previewPanel" data-panel="Cameras" style="display: block;">
+              <div class="tip2">
+                <i class="icon icon-room-lights-bold"></i>
+                <b>Tip:</b>&nbsp;Drag and drop to room canvas
+              </div>
+              <div class="menuDivider">Room Bar / Room Kit</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Room Bar Pro">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Room Bar Pro</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Room Bar">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Room Bar</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Room Kit EQ">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Room Kit EQ</div>
+                </div>
+              </div>
+              <div class="menuDivider">Board Pro G2</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Board Pro 55 G2">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Board Pro 55 G2</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Board Pro 75 G2">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Board Pro 75 G2</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Microphones (Peripherals) -->
+            <div class="previewPanel" data-panel="Microphones" style="display: none;">
+              <div class="tip2">
+                <i class="icon icon-room-lights-bold"></i>
+                <b>Tip:</b>&nbsp;Drag and drop to room canvas
+              </div>
+              <div class="menuDivider">Cisco Microphones</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Ceiling Mic Pro">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Ceiling Mic Pro</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Table Microphone">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Table Microphone</div>
+                </div>
+              </div>
+              <div class="menuDivider">Navigators</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Navigator">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Navigator</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panels (Displays) -->
+            <div class="previewPanel" data-panel="Panels" style="display: none;">
+              <div class="tip2">
+                <i class="icon icon-room-lights-bold"></i>
+                <b>Tip:</b>&nbsp;Drag and drop to room canvas
+              </div>
+              <div class="menuDivider">Displays</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="65&quot; Display">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">65" Display</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="75&quot; Display">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">75" Display</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="86&quot; Display">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">86" Display</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tables (Furniture) -->
+            <div class="previewPanel" data-panel="Tables" style="display: none;">
+              <div class="tip2">
+                <i class="icon icon-room-lights-bold"></i>
+                <b>Tip:</b>&nbsp;Drag and drop to room canvas
+              </div>
+              <div class="menuDivider">Tables</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Rectangle Table">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Rectangle Table</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Round Table">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Round Table</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Tapered Table">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Tapered Table</div>
+                </div>
+              </div>
+              <div class="menuDivider">Chairs / Doors / People</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile" draggable="true" data-name="Chair">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Chair</div>
+                </div>
+                <div class="sampleTile" draggable="true" data-name="Person">
+                  <div class="sampleTileImg">[img]</div>
+                  <div class="sampleTileLabel">Person</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CustomItems (NEW) -->
+            <div class="previewPanel" data-panel="CustomItems" style="display: none;">
+              <div class="tip2">
+                <i class="icon icon-room-lights-bold"></i>
+                <b>Tip:</b>&nbsp;Drag a saved bundle to the room canvas
+              </div>
+              <div class="menuDivider">VRC Custom Item Library</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px 8px;">
+                <div class="sampleTile customSampleTile" draggable="true" data-name="Conference Setup">
+                  <span class="customItemTileDeleteBtn" role="button" tabindex="0" title="More actions (rename, export, remove)">
+                    <i class="icon icon-more-bold"></i>
+                  </span>
+                  <div class="sampleTileImg">[bundle]</div>
+                  <div class="sampleTileLabel">Conference Setup</div>
+                </div>
+                <div class="sampleTile customSampleTile" draggable="true" data-name="Huddle Room Bar">
+                  <span class="customItemTileDeleteBtn" role="button" tabindex="0" title="More actions (rename, export, remove)">
+                    <i class="icon icon-more-bold"></i>
+                  </span>
+                  <div class="sampleTileImg">[bundle]</div>
+                  <div class="sampleTileLabel">Huddle Room Bar</div>
+                </div>
+                <div class="sampleTile customSampleTile" draggable="true" data-name="Boardroom Endpoint">
+                  <span class="customItemTileDeleteBtn" role="button" tabindex="0" title="More actions (rename, export, remove)">
+                    <i class="icon icon-more-bold"></i>
+                  </span>
+                  <div class="sampleTileImg">[bundle]</div>
+                  <div class="sampleTileLabel">Boardroom Endpoint</div>
+                </div>
+              </div>
+              <div class="customItemsEmpty" id="customItemsEmptyDemo" style="display: none;">
+                <b>No saved Custom Items yet.</b><br />
+                Bundle items on the canvas and choose <b>Create Custom Item</b> from the
+                ellipsis menu to save reusable templates here.
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty-state placeholder shown when search finds 0 results -->
+          <div id="searchNoResults" class="customItemsEmpty" style="display: none;">
+            <b>No matches.</b><br />
+            Press <code>Space</code> to open the full Quick Add palette.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: explanation column -->
+    <div class="explainCol">
+      <h1>Equipment Menu Redesign</h1>
+      <p>
+        This is a click-through preview of the proposed sidebar redesign.
+        Nothing in the live app (<code>RoomCalculator.html</code>) has changed yet.
+      </p>
+
+      <div class="demoHint">
+        Try it: click the pills, type in the search (try <code>mic</code>,
+        <code>table</code>, <code>bar</code>), and narrow your window to
+        see the horizontal scroll chevrons appear.
+      </div>
+
+      <h2>What changed</h2>
+      <ul>
+        <li><b>One inline search bar</b> at the top, replacing the four floating round
+            <code>.btnItemSearch</code> buttons.</li>
+        <li><b>Horizontally-scrolling category pills</b> replacing the four
+            hardcoded <code>.subtablinks</code> sub-tabs, with chevron buttons that
+            appear only when the row overflows.</li>
+        <li><b>New "Custom Items" pill</b> sourced from the VRC Custom Item
+            Library (IndexedDB) &mdash; same data the Space-bar Quick Add modal
+            uses.</li>
+      </ul>
+
+      <h2>Search behaviour</h2>
+      <p>
+        The search filters tiles <b>across all categories</b> in place &mdash;
+        no modal. If the currently-active pill has no matches but another
+        pill does, the active pill auto-switches to the best-matching panel.
+      </p>
+
+      <h2>Quick Add modal stays</h2>
+      <p>
+        <code>Space</code> and the canvas right-click menu still open the
+        existing full Quick Add palette. Power users keep that entry
+        point; only the four floating round search buttons go away.
+      </p>
+
+      <h2>How to test the real implementation</h2>
+      <p>
+        Once you approve this design, the production changes go into:
+      </p>
+      <ul>
+        <li><code>RoomCalculator.html</code> &mdash; replace markup at lines 245&ndash;248 &amp; 254/311/366/407; add Custom Items panel.</li>
+        <li><code>style.css</code> &mdash; delete <code>.btnItemSearch</code> rules; add the new pill / search-bar rules.</li>
+        <li><code>js/roomcalc.js</code> &mdash; refactor <code>openSubTab()</code>, add <code>onEquipmentSearchChange()</code>, populate Custom Items tiles from the library cache.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    /* ------------------------------------------------------------------
+     * Preview-only JS. This is throwaway demo logic so the user can click
+     * around. The real implementation will live in js/roomcalc.js (Step 4
+     * of the plan) and reuse the existing searchQuickItem() / library
+     * loader rather than this stub.
+     * ----------------------------------------------------------------*/
+
+    // ---- pill switching --------------------------------------------------
+    const pills = document.querySelectorAll('.equipmentCategoryPill');
+    const panels = document.querySelectorAll('.previewPanel');
+
+    function selectCategory(target) {
+      pills.forEach(p => p.classList.toggle('active', p.dataset.target === target));
+      panels.forEach(p => p.style.display = p.dataset.panel === target ? 'block' : 'none');
+      document.getElementById('searchNoResults').style.display = 'none';
+    }
+
+    pills.forEach(p => p.addEventListener('click', () => selectCategory(p.dataset.target)));
+
+    // ---- search ---------------------------------------------------------
+    const searchInput = document.getElementById('equipmentSearch');
+    const searchBar = document.getElementById('equipmentSearchBar');
+    const clearBtn = document.getElementById('equipmentSearchClear');
+    const allTiles = document.querySelectorAll('.sampleTile');
+
+    function applySearch(rawQuery) {
+      const q = (rawQuery || '').trim().toLowerCase();
+      searchBar.classList.toggle('hasValue', q.length > 0);
+
+      if (q.length < 2) {
+        allTiles.forEach(t => t.style.display = '');
+        document.getElementById('searchNoResults').style.display = 'none';
+        return;
+      }
+
+      // Show only matching tiles; count matches per panel.
+      const panelMatches = {};
+      allTiles.forEach(t => {
+        const name = (t.dataset.name || '').toLowerCase();
+        const match = name.includes(q);
+        t.style.display = match ? '' : 'none';
+        if (match) {
+          const panelId = t.closest('.previewPanel').dataset.panel;
+          panelMatches[panelId] = (panelMatches[panelId] || 0) + 1;
+        }
+      });
+
+      // Auto-switch to the best-matching panel if the current one has 0 matches.
+      const active = document.querySelector('.equipmentCategoryPill.active').dataset.target;
+      if (!panelMatches[active]) {
+        const best = Object.keys(panelMatches).sort((a, b) => panelMatches[b] - panelMatches[a])[0];
+        if (best) {
+          selectCategory(best);
+          // re-apply the hasValue class because selectCategory hides the no-results banner
+          searchBar.classList.add('hasValue');
+        }
+      }
+
+      // Total no-results state.
+      const totalMatches = Object.values(panelMatches).reduce((a, b) => a + b, 0);
+      document.getElementById('searchNoResults').style.display = totalMatches === 0 ? 'block' : 'none';
+    }
+
+    searchInput.addEventListener('input', e => applySearch(e.target.value));
+
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      applySearch('');
+      searchInput.focus();
+    });
+
+    // ---- horizontal scroll chevrons ------------------------------------
+    const pillRow = document.getElementById('equipmentCategoryPills');
+    const chevLeft = document.querySelector('.pillScrollChevronLeft');
+    const chevRight = document.querySelector('.pillScrollChevronRight');
+
+    function updateChevrons() {
+      const canScrollLeft = pillRow.scrollLeft > 4;
+      const canScrollRight = pillRow.scrollLeft < pillRow.scrollWidth - pillRow.clientWidth - 4;
+      chevLeft.classList.toggle('visible', canScrollLeft);
+      chevRight.classList.toggle('visible', canScrollRight);
+    }
+
+    pillRow.addEventListener('scroll', updateChevrons);
+    window.addEventListener('resize', updateChevrons);
+    chevLeft.addEventListener('click', () => pillRow.scrollBy({ left: -120, behavior: 'smooth' }));
+    chevRight.addEventListener('click', () => pillRow.scrollBy({ left: 120, behavior: 'smooth' }));
+
+    // First paint: show right chevron if the row already overflows.
+    requestAnimationFrame(updateChevrons);
+  </script>
+</body>
+</html>

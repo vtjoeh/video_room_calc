@@ -938,25 +938,311 @@ input:placeholder-shown {
 }
 
 
-.btnItemSearch {
+/* -----------------------------------------------------------------------
+ * Equipment tab — inline search bar and scrolling category pills.
+ *
+ * Replaces the legacy `.btnItemSearch` floating round button (which used
+ * to live in the top-left of every sub-tab panel and opened the Quick
+ * Add modal) AND the four hardcoded `.subtablinks` sub-tab buttons.
+ *
+ * The new layout puts an inline search input at the top of #Insert and
+ * a horizontally-scrolling pill row right below it. Search filters
+ * tiles across ALL category panels in-place (see onEquipmentSearchChange
+ * in js/roomcalc.js); the pill row scales to arbitrarily many
+ * categories without breaking on narrow widths thanks to overflow-x.
+ *
+ * The Space-bar Quick Add modal still exists; it just no longer has a
+ * dedicated round button in each panel. Power users keep that flow.
+ * --------------------------------------------------------------------- */
+
+#equipmentSearchBar {
+  position: relative;
+  display: flex;
   align-items: center;
-  background-color: transparent;
-  border: 0;
-  touch-action: manipulation;
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  color: #323131a5;
-  z-index: 1000;
-  background-color: #ffffff;
-  border-radius: 30px;
+  gap: 8px;
+  background: #f0f3f7;
+  border: 1px solid #d8dde4;
+  border-radius: 20px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
-.btnItemSearch:hover {
-  background-color: #6e6e6e18;
-  border-radius: 30px;
-  color: black;
-  font-weight: bolder;
+#equipmentSearchBar:focus-within {
+  border-color: var(--active);
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(3, 82, 166, 0.15);
+}
+
+#equipmentSearchBar > .icon {
+  color: #6e6e6e;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+#equipmentSearch {
+  border: 0;
+  background: transparent;
+  outline: none;
+  flex: 1 1 auto;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  padding: 2px 0;
+  min-width: 0;
+  color: #222;
+}
+
+/* Hide the browser's native search clear button so the custom button is
+ * the only affordance — keeps the look consistent across Chrome/Safari. */
+#equipmentSearch::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#equipmentSearchClear {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: #6e6e6e;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* The .hasValue class is toggled by onEquipmentSearchChange / clearEquipmentSearch
+ * so the X button only appears when there's something to clear. */
+#equipmentSearchBar.hasValue #equipmentSearchClear {
+  display: flex;
+}
+
+#equipmentSearchClear:hover {
+  background: #e2e6ec;
+  color: #222;
+}
+
+/* Category pills row. The wrapper exists so .pillScrollChevron buttons
+ * can absolute-position over the start/end of the scrollable row. The
+ * 1px bottom border matches the old `.tab` separator below the
+ * sub-tabs so the visual rhythm of the Equipment panel is preserved. */
+.equipmentCategoryPillsWrap {
+  position: relative;
+  margin-bottom: 12px;
+  padding: 0 24px;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+.equipmentCategoryPills {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  gap: 4px;
+  /* Hide the horizontal scrollbar — the chevrons are the affordance.
+   * Firefox uses scrollbar-width; Chrome/Safari use the pseudo-element. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.equipmentCategoryPills::-webkit-scrollbar {
+  display: none;
+}
+
+.equipmentCategoryPill {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: #545454;
+  padding: 8px 14px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  /* The -1px margin pulls the active pill's underline over the wrapper's
+   * 1px border-bottom so it visually replaces (not stacks under) that
+   * separator — same trick the old `.subtablinks.active` used. */
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.equipmentCategoryPill:hover {
+  color: #222;
+}
+
+.equipmentCategoryPill.active {
+  color: #000;
+  font-weight: 500;
+  border-bottom-color: var(--active);
+}
+
+/* Chevron scroll-affordance buttons. Hidden by default; the JS
+ * (initEquipmentCategoryPills in js/roomcalc.js) toggles `.visible` on
+ * each one based on scrollLeft / scrollWidth. */
+.pillScrollChevron {
+  position: absolute;
+  top: 4px;
+  width: 22px;
+  height: 26px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.92);
+  color: #444;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 2;
+}
+
+.pillScrollChevron.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pillScrollChevron:hover {
+  background: #f0f3f7;
+  color: #000;
+}
+
+.pillScrollChevronLeft {
+  left: 0;
+  /* Small white shadow on the inner edge so the leftmost pill content
+   * fades softly under the chevron instead of butting up against it. */
+  box-shadow: 4px 0 4px -2px rgba(255, 255, 255, 0.9);
+}
+
+.pillScrollChevronRight {
+  right: 0;
+  box-shadow: -4px 0 4px -2px rgba(255, 255, 255, 0.9);
+}
+
+/* Pill that has zero matching items during a search. Muted + non-
+ * interactive so the user can see at-a-glance which categories have
+ * results without us also auto-hiding pills (preserving the user's
+ * sense of "this is the whole list of categories"). Cleared on
+ * search-clear by removing the `.disabled` class. */
+.equipmentCategoryPill.disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------
+ * Equipment tab — single long-scroll area.
+ *
+ * BEFORE: each `.subtabcontent` panel was an independent scroller, and
+ * `selectEquipmentCategory()` toggled `display: block` / `none` to
+ * switch between them.
+ *
+ * NOW (May 2026): all five category panels live in a single
+ * `#equipmentScrollArea` and are visible at once. The user scrolls
+ * through Video Devices → Peripherals → Displays → Furniture → Custom
+ * Items in one continuous flow. Clicking a pill scroll-targets the
+ * matching panel; the scroll-spy (initEquipmentScrollSpy in
+ * js/roomcalc.js) updates which pill carries `.active` as the user
+ * scrolls past each panel's top boundary.
+ *
+ * Implementation note: we scope the panel overrides to
+ * `#equipmentScrollArea > .subtabcontent` so the `#Item` tab's panels
+ * (Items / Default Walls / Room Floor Plan / Settings) keep the
+ * original one-panel-at-a-time behaviour — they're a settings drawer,
+ * not a browsing flow, so the long-scroll model doesn't apply there.
+ * ------------------------------------------------------------------- */
+
+/* The Equipment tab's own overflow is disabled; the inner scroll area
+ * is the single scroller. Hiding `#Insert` overflow prevents the
+ * legacy `.tabcontent { overflow-y: auto }` rule from creating a
+ * second nested scrollbar. */
+#Insert.tabcontent {
+  overflow: hidden;
+}
+
+#equipmentScrollArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* All category panels visible together. Override the legacy
+ * `.subtabcontent { display: none; overflow-y: auto; flex: 1 1 auto }`
+ * defaults: they'd otherwise hide every panel and double-scroll. */
+#equipmentScrollArea > .subtabcontent {
+  display: block;
+  flex: none;
+  overflow: visible;
+  position: relative;
+  /* Padding-top creates breathing space below the sticky pill row when
+   * we scroll-into-view to a panel — without it, the scrolled-to
+   * heading sits flush against the pills with no visual gap. */
+  scroll-margin-top: 12px;
+}
+
+/* A panel entirely hidden by search (zero matches across all its
+ * sub-sections). The class is toggled by onEquipmentSearchChange. */
+#equipmentScrollArea > .subtabcontent.searchHidden {
+  display: none;
+}
+
+/* The "Tip: Drag and drop" hint repeats per panel. Useful guidance
+ * for first-time users, but redundant when the user is actively
+ * searching. Hidden by onEquipmentSearchChange via the `.searching`
+ * class on #Insert. */
+#Insert.searching .tip2 {
+  display: none;
+}
+
+/* Empty `.menuDivider` + `.containerItems` pair (e.g. "Cisco Cameras"
+ * heading when the user is searching for "mic" and no cameras match).
+ * Toggled by the per-divider visibility pass in
+ * onEquipmentSearchChange. */
+.menuDivider.searchHidden,
+.containerItems.searchHidden {
+  display: none;
+}
+
+/* Search-only panel (currently just the "Other" section that surfaces
+ * devices not present in the 5 curated category panels). Always hidden
+ * outside of search; revealed only when (a) #Insert.searching is set,
+ * AND (b) onEquipmentSearchChange has flagged the panel `.hasMatches`
+ * because it populated at least one tile. The double-gate prevents
+ * the "Other" header from flashing into view while the user is mid-
+ * type and the panel is briefly empty. */
+#equipmentScrollArea > .subtabcontent.searchOnlyPanel {
+  display: none;
+}
+#Insert.searching #equipmentScrollArea > .subtabcontent.searchOnlyPanel.hasMatches {
+  display: block;
+}
+
+/* Empty-state hint inside the Custom Items panel when the library is
+ * empty AND inside whichever panel is active when search has zero
+ * matches across all categories. Same look in both cases. */
+.customItemsEmpty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #888;
+  font-size: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin: 12px 16px;
+}
+
+.customItemsEmpty b {
+  color: #444;
 }
 
 .roleSelectButton {
@@ -3112,7 +3398,6 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
  * tiles as "the bundles I built". 3px is narrow enough to not crowd
  * the 92px tile width but visible against any background. */
 .equipmentItemOnMenu.customItemTile {
-  border-left: 3px solid #4caf50;
   /* Anchor for .customItemTileDeleteBtn — the absolutely-positioned
    * delete glyph nests inside the tile rather than the gallery, so it
    * tracks the tile through wrapping/reorder of search results. */
