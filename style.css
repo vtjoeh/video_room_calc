@@ -196,8 +196,12 @@ img {
 /* ----------------------------------------------------------------- */
 /* Sidebar inputs panel: bound to viewport via #sidebar's flex column */
 /* The whole page must NOT scroll - each subtab handles its own       */
-/* scrolling internally.  See @media (max-width: 900px) for the       */
-/* mobile-stacked override that re-allows page scrolling.             */
+/* scrolling internally. This applies at every breakpoint: the        */
+/* @media (max-width: 900px) override only repositions the sidebar    */
+/* (absolute, full-width overlay over the canvas) but preserves the   */
+/* viewport-bound flex layout so the Equipment list still scrolls     */
+/* inside #equipmentScrollArea. Mirror behaviour for split view at    */
+/* narrow content widths lives in body.svBp900 rules near the bottom. */
 /* ----------------------------------------------------------------- */
 #ContainerInputs {
   display: flex;
@@ -2785,23 +2789,12 @@ hr.rightClickHorizontalLine {
     max-width: unset;
     position: absolute;
     z-index: 99;
-    /* Undo desktop viewport-bound flex layout: stack naturally so the
-       page can scroll when the sidebar is rendered below the canvas. */
-    height: auto;
-    display: block;
-  }
-
-  #ContainerInputs,
-  #containerInputTabContent {
-    display: block;
-    overflow: visible;
-    flex: none;
-    min-height: unset;
-  }
-
-  .tabcontent {
-    flex: none;
-    min-height: unset;
+    /* Keep the desktop viewport-bound flex layout (height: calc(100vh
+       - 60px); display: flex; flex-direction: column;) so the Equipment
+       list scrolls inside #equipmentScrollArea instead of pushing the
+       whole page down. Mirrors the body.svBp900 (split-view) behaviour
+       — the only differences here are width/max-width/position needed
+       for the sidebar to float over the canvas at narrow widths. */
   }
 
   #controlButtons {
