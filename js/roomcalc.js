@@ -105,6 +105,27 @@ let defaultTwoPersonCrop = 3.2;  // default in meters
 
 let drawScaledLineMode = false; /* False by default.  True when scaled line is being drawn */
 let touchesLength = 0; /* hold the e.touches.length on start for a touch device */
+
+/* ---- Equipment-tile touch drag gating --------------------------------
+ * On touch devices the device-tile touchstart handler used to call
+ * preventDefault() immediately, which stops the browser from forwarding
+ * the swipe to the parent #equipmentScrollArea — leaving users with
+ * almost no scrollable surface between the tightly packed tiles.
+ *
+ * The new model: a touch on a tile arms a TOUCH_DRAG_HOLD_MS long-press
+ * timer. If the finger moves more than TOUCH_DRAG_MOVE_TOL_PX before the
+ * timer fires, we cancel arming and let the native scroll proceed
+ * (preventDefault is never called). If the timer fires while the finger
+ * is still, we transition to "armed" — create the floating preview node
+ * and from that point on the existing drag-to-canvas path runs unchanged.
+ * Desktop (non-touch) still uses the eager preventDefault path so HTML5
+ * drag behaviour is unaffected. See plan: Equipment touch drag gating. */
+const TOUCH_DRAG_HOLD_MS = 300;        /* long-press threshold (ms)      */
+const TOUCH_DRAG_MOVE_TOL_PX = 10;     /* >this px before arm => scroll  */
+let _touchDragArmed = false;           /* true once long-press timer fires */
+let _touchDragTimer = null;            /* setTimeout handle while pending  */
+let _touchDragStart = null;            /* { x, y, target } at touchstart   */
+
 let stage = new Konva.Stage({ container: 'canvasDiv', name: 'theCanvas', id: 'theId' });
 let layerGrid = new Konva.Layer({
     name: 'layerGrid',
@@ -12448,15 +12469,30 @@ function buildCustomItemTile(record, opts) {
 
         /* Touch support mirrors the device-tile path so mobile users
          * get the same drag-to-canvas gesture. The end handler does
-         * the insert AND cleans up the floating drag preview node. */
+         * the insert AND cleans up the floating drag preview node.
+         *
+         * Gated on `_touchDragArmed` so a quick tap (long-press timer
+         * never fired) doesn't fire an insert with stale dragClientX/Y
+         * from a previous gesture. See touch drag gating in touchStart. */
         btnItem.addEventListener('touchstart', touchStart);
         btnItem.addEventListener('touchmove', touchMove);
         btnItem.addEventListener('touchend', function (event) {
+            if (!_touchDragArmed) {
+                _clearTouchDragArmTimer();
+                _touchDragStart = null;
+                return;
+            }
             dragEndCustomItemTile(event, record, name);
             if (typeof newInsertItem !== 'undefined' && newInsertItem && newInsertItem.parentNode) {
                 document.body.removeChild(newInsertItem);
             }
+            if (_touchDragStart && _touchDragStart.target && _touchDragStart.target.classList) {
+                _touchDragStart.target.classList.remove('flexItems--dragArmed');
+            }
+            _touchDragArmed = false;
+            _touchDragStart = null;
         });
+        btnItem.addEventListener('touchcancel', touchCancel);
     }
 
     return btnItem;
@@ -23169,6 +23205,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         flexItemDiv.addEventListener('touchstart', touchStart);
         flexItemDiv.addEventListener('touchmove', touchMove);
         flexItemDiv.addEventListener('touchend', touchEnd);
+        flexItemDiv.addEventListener('touchcancel', touchCancel);
 
         flexItemDiv.addEventListener('pointerup', pointerupInsertMenu);
 
@@ -23269,6 +23306,28 @@ function createEquipmentMenu() {
 
 
 
+/* Build the floating drag-preview node from a tile element (the
+ * cloned <img> that follows the finger). Factored out so the eager
+ * desktop path AND the long-press timer callback can share one site. */
+function _createTouchDragPreview(tileEl) {
+    if (!tileEl || !tileEl.children || tileEl.children.length === 0) return null;
+    newInsertItem = tileEl.children[0].cloneNode(true);
+    newInsertItem.style.zIndex = 100;
+    document.body.appendChild(newInsertItem);
+    newInsertItem.style.position = 'absolute';
+    return newInsertItem;
+}
+
+/* Clear any pending long-press timer + state. Called whenever the
+ * gesture transitions out of the "pending arm" phase: arming finished,
+ * user scrolled, gesture ended, etc. */
+function _clearTouchDragArmTimer() {
+    if (_touchDragTimer !== null) {
+        clearTimeout(_touchDragTimer);
+        _touchDragTimer = null;
+    }
+}
+
 function touchStart(e) {
 
     touchesLength = e.touches.length;
@@ -23278,22 +23337,87 @@ function touchStart(e) {
     if (touchesLength != 1) {
         return;
     }
-    e.preventDefault();
-    /* create a new node to drag, then delete it on touchend */
-    newInsertItem = e.target.children[0].cloneNode(true);
-    newInsertItem.style.zIndex = 100;
-    document.body.appendChild(newInsertItem);
-    newInsertItem.style.position = 'absolute';
 
+    /* Desktop / non-touch (mouse-with-touchscreen-fallback) keeps the
+     * eager behaviour so HTML5 drag-and-drop on Chromebooks / hybrid
+     * devices still feels instant. The long-press gate is purely a
+     * mobile-touch ergonomics fix for the Equipment scroller. */
+    if (typeof mobileDevice === 'undefined' || mobileDevice === 'false') {
+        e.preventDefault();
+        _createTouchDragPreview(e.target);
+        _touchDragArmed = true;
+        return;
+    }
+
+    /* Touch device: arm the long-press timer but do NOT preventDefault
+     * yet. If the user swipes within TOUCH_DRAG_HOLD_MS the browser
+     * still owns the gesture and scrolls #equipmentScrollArea. */
+    _clearTouchDragArmTimer();
+    _touchDragArmed = false;
+    const startTouch = e.touches[0];
+    _touchDragStart = {
+        x: startTouch.clientX,
+        y: startTouch.clientY,
+        target: e.target,
+    };
+
+    const tileEl = e.target;
+    _touchDragTimer = setTimeout(function _armTouchDrag() {
+        _touchDragTimer = null;
+        _touchDragArmed = true;
+        /* Seed dragClientX/Y from the touchstart point so a release
+         * with zero further movement still has valid drop coords. */
+        if (_touchDragStart) {
+            dragClientX = _touchDragStart.x;
+            dragClientY = _touchDragStart.y;
+        }
+        _createTouchDragPreview(tileEl);
+        /* Position the preview at the finger so it doesn't pop in at
+         * the top-left corner of the page before the next touchmove. */
+        if (newInsertItem && _touchDragStart) {
+            const w = newInsertItem.width || newInsertItem.offsetWidth || 0;
+            const h = newInsertItem.height || newInsertItem.offsetHeight || 0;
+            /* clientX/Y -> pageX/Y; scrollX/Y added so the preview lands
+             * under the finger when the page is scrolled. */
+            newInsertItem.style.left = (_touchDragStart.x + window.scrollX - w / 2) + 'px';
+            newInsertItem.style.top = (_touchDragStart.y + window.scrollY - h / 2) + 'px';
+        }
+        if (tileEl && tileEl.classList) {
+            tileEl.classList.add('flexItems--dragArmed');
+        }
+    }, TOUCH_DRAG_HOLD_MS);
 }
 
 function touchMove(e) {
     if (touchesLength != 1) {
         return;
     }
+
+    /* Pending long-press: cancel arming if the finger moves far enough
+     * to look like a scroll; otherwise stay quiet and let the browser
+     * decide. Crucially do NOT preventDefault here so the parent
+     * #equipmentScrollArea can pan. */
+    if (!_touchDragArmed) {
+        if (_touchDragTimer !== null && _touchDragStart) {
+            const t = e.touches[0] || e.targetTouches[0];
+            if (t) {
+                const dx = t.clientX - _touchDragStart.x;
+                const dy = t.clientY - _touchDragStart.y;
+                if ((dx * dx + dy * dy) > (TOUCH_DRAG_MOVE_TOL_PX * TOUCH_DRAG_MOVE_TOL_PX)) {
+                    _clearTouchDragArmTimer();
+                    _touchDragStart = null;
+                }
+            }
+        }
+        return;
+    }
+
+    /* Armed: original drag-tracking path (unchanged behaviour). */
     e.preventDefault();
     /* grab the location of touch */
     let touchLocation = e.targetTouches[0];
+
+    if (!newInsertItem) return;
 
     newInsertItem.style.left = (touchLocation.pageX - newInsertItem.width / 2) + 'px';
     newInsertItem.style.top = (touchLocation.pageY - newInsertItem.height / 2) + 'px';
@@ -23320,68 +23444,50 @@ function touchMove(e) {
 
 function touchEnd(e) {
 
-    dragEnd(e)
-    document.body.removeChild(newInsertItem);
+    /* Quick tap (timer never fired): clear pending state and bail —
+     * no insert, no orphan preview node. */
+    if (!_touchDragArmed) {
+        _clearTouchDragArmTimer();
+        _touchDragStart = null;
+        return;
+    }
+
+    /* Armed: drop on canvas + clean up the floating preview + visual cue. */
+    dragEnd(e);
+    if (newInsertItem && newInsertItem.parentNode) {
+        document.body.removeChild(newInsertItem);
+    }
+    if (_touchDragStart && _touchDragStart.target && _touchDragStart.target.classList) {
+        _touchDragStart.target.classList.remove('flexItems--dragArmed');
+    }
+    _touchDragArmed = false;
+    _touchDragStart = null;
+}
+
+/* Handle touchcancel the same way as touchend — clear pending arming
+ * state and remove any in-flight preview/cue. Touchcancel fires when
+ * the OS interrupts the gesture (e.g. system gesture, alert popup);
+ * without this we'd leak the timer / armed flag / floating <img>. */
+function touchCancel(e) {
+    _clearTouchDragArmTimer();
+    if (_touchDragArmed && newInsertItem && newInsertItem.parentNode) {
+        document.body.removeChild(newInsertItem);
+    }
+    if (_touchDragStart && _touchDragStart.target && _touchDragStart.target.classList) {
+        _touchDragStart.target.classList.remove('flexItems--dragArmed');
+    }
+    _touchDragArmed = false;
+    _touchDragStart = null;
 }
 
 
 
-function addItemListeners(itemArray) {
-
-    itemArray.forEach((item) => {
-        let box = document.getElementById(item + '-div');
-        let newInsertItem; // will be the item inserted on touchstart, touchmove and touchinsert
-
-        box.addEventListener('dragstart', dragStart);
-        box.addEventListener('drag', drag);
-        box.addEventListener('dragend', dragEnd);
-
-        box.addEventListener('touchstart', function (e) {
-
-            e.preventDefault();
-            /* create a new node to drag, then delete it on touchend */
-            newInsertItem = e.target.children[0].cloneNode(true);
-            newInsertItem.style.zIndex = 1;
-            document.body.appendChild(newInsertItem);
-            newInsertItem.zIndex = 100;
-            newInsertItem.style.position = 'absolute';
-        })
-
-        box.addEventListener('touchmove', function (e) {
-            e.preventDefault();
-            /* grab the location of touch */
-            let touchLocation = e.targetTouches[0];
-
-            newInsertItem.style.left = (touchLocation.pageX - newInsertItem.width / 2) + 'px';
-            newInsertItem.style.top = (touchLocation.pageY - newInsertItem.height / 2) + 'px';
-
-            dragClientX = touchLocation.clientX;
-            dragClientY = touchLocation.clientY;
-            newInsertItem.style.position = 'absolute';
-
-            let canvasDiv = document.getElementById('canvasDiv');
-
-            let rect = canvasDiv.getBoundingClientRect();
-
-            /* scroll down automatically if device is being dragged down */
-            if (((rect.top) * 0.8) > touchLocation.clientY) {
-                window.scroll({
-                    top: rect.top,
-                    behavior: "smooth",
-                }
-                );
-            }
-
-        })
-
-        /* record the position of the touch when released using touchend event. This will be the drop position. */
-        box.addEventListener('touchend', function (event) {
-            dragEnd(event)
-            document.body.removeChild(newInsertItem);  /* Remove the temporary node  */
-
-        })
-    });
-}
+/* Note: an old addItemListeners(itemArray) helper used to live here as
+ * a duplicate of the createItemsOnMenu() wiring. It was never called
+ * anywhere in the codebase and was removed alongside the touch-drag
+ * gating work (May 2026) so future maintainers aren't tempted to
+ * extend stale, unused event registrations. createItemsOnMenu() is
+ * the single source of truth for tile event listeners. */
 
 
 /*

@@ -1193,6 +1193,16 @@ input:placeholder-shown {
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
+  /* Reserve a fixed gutter for the scrollbar so layout doesn't reflow
+   * when the scrollbar appears/disappears. */
+  scrollbar-gutter: stable;
+  /* 14px of always-present right-edge whitespace. On touch devices it
+   * gives users a guaranteed scroll lane that isn't covered by any
+   * .flexItems tile (and therefore not blocked by the long-press
+   * arming touchstart handler) — they can always swipe up/down in
+   * this column to pan the equipment list. Pairs with the long-press
+   * gating in js/roomcalc.js touchStart/touchMove. */
+  padding-right: 14px;
 }
 
 /* All category panels visible together. Override the legacy
@@ -1401,6 +1411,19 @@ input:placeholder-shown {
 .flexItems:hover {
   background-color: #ADD8E6;
   opacity: 0.9;
+}
+
+/* Touch long-press "drag armed" cue. Applied by the touchStart timer
+ * callback in js/roomcalc.js once the 300 ms long-press threshold
+ * fires, removed on touchend/touchcancel. Communicates that the tile
+ * is now in drag mode (the floating preview is following the finger)
+ * and that releasing will drop on the canvas. The subtle scale-down
+ * + outline mirrors common mobile patterns (Files, Photos, etc.). */
+.flexItems.flexItems--dragArmed {
+  outline: 2px solid var(--active);
+  outline-offset: 2px;
+  transform: scale(0.97);
+  transition: transform 80ms ease-out;
 }
 
 .flexItemsWallBuilder:hover {
