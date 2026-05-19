@@ -5,22 +5,26 @@ This site relates to the [Video Room Calculator](https://collabexperience.com).
 Is your question not listed below? Join the [Video Room Calculator discussion (Webex Space)](https://eurl.io/#4d-kKP6l1).
 
 ###  How long does the shareable link last?
-Indefinitely. The shareable link contains the full configuration of your design, except for a background image.  There is no cloud information saved about your room, it is a client side solution.
+Indefinitely. The shareable link contains the full configuration of your design, except for a background image. There is no cloud information saved about your room; it is a client-side solution.
 
 ###  How to get started?
 There are two ways to start the room:
 1) **Quick Setup** - works well when you are in a room doing measurements.
-2) **Drag and Drop** - Just go to the **Equipment tab** select devices and drag and drop.
-Double click on any object on the canvas to get details and to edit.
+2) **Drag and Drop** - just go to the **Equipment tab**, select devices, and drag and drop.
+
+Double-click on any object on the canvas to view its details and edit it.
 
 ### How do I export a design from the Workspace Designer?
 In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Import the file in the Video Room Calculator by clicking **New** --> **Open File**.
 
-### What are the short cut keys?
-The following list is also found under the help menu:
+### What are the shortcut keys?
+The following list is also found under the help menu. `cmd` is accepted in place of `ctrl` on macOS.
+
+`space` = open the Quick Add menu
+
 `ctrl-c / cmd-c` = copy
 
-`ctrl-v / cmd-v` = paste (at location of arrow click)
+`ctrl-v / cmd-v` = paste (at the location of the pointer)
 
 `ctrl-d / cmd-d` = duplicate
 
@@ -28,13 +32,17 @@ The following list is also found under the help menu:
 
 `ctrl-y / cmd-y` = redo
 
-`shift + [ctrl-z / cmd-z]` = redo
+`shift + ctrl-z / shift + cmd-z` = redo
 
 `ctrl-r / cmd-r` = rotate 90 degrees
 
+`ctrl-g / cmd-g` = Group selected items (2 or more required)
+
+`shift + ctrl-g / shift + cmd-g` = Ungroup (dissolve, keep items)
+
 `ctrl-m` = turn on the Measuring Tool
 
-`esc` = unselect items (or turn off Measuring Tool)
+`esc` = unselect items (or turn off the Measuring Tool)
 
 `Delete` / `Backspace` = delete items
 
@@ -42,11 +50,15 @@ The following list is also found under the help menu:
 
 `[shift / ctrl / cmd] + click` = select/unselect item
 
-`ctrl-s` = Save (download) Video Room Calculator JSON file.
+`ctrl-s / cmd-s` = Save (download) Video Room Calculator JSON file.
 
-`ctrl-e` = Export to Workspace Designer file format.
+`ctrl-e / cmd-e` = Export to Workspace Designer file format.
 
-`ctrl-i` = Import Video Room Calculator or Workspace Designer file.
+`shift + ctrl-e / shift + cmd-e` = Export to Cisco xConfiguration `.txt` file.
+
+`shift + ctrl-d / shift + cmd-d` = Export to AutoCAD R12 DXF file.
+
+`ctrl-i / cmd-i` = Import Video Room Calculator, Workspace Designer, or xConfiguration file.
 
 `c` = Camera coverage toggle
 
@@ -68,18 +80,21 @@ The goal is to support the following:
 If you see any issue with any of the above please let me know.
 
 ### When I zoom in and click the undo/redo buttons, it zooms out.
-Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas and how HTML canvas + Javascript is not truly synchronous. This could be optimized at a later date.
+Yes, this is how the program works and is based on some limits of how zoom is implemented by increasing the size of the HTML canvas, and how HTML canvas + JavaScript is not truly synchronous. This could be optimized at a later date.
 
-### What is the maximum Shareable Template Hyplerlink URL size or number of items in a design?
+### What is the maximum Shareable Template Hyperlink URL size or number of items in a design?
 The Shareable Template Hyperlink saves the full x, y, and z coordinates, as well as the sizes of every object in the query string parameter of the hyperlink. The size of the URL can be up to 8190 characters, which accommodates approximately 500 objects. The use of text fields, such as the Name or Label fields, contributes to the URL size. There is no enforced limit for downloading or uploading files.
 
 ### What about privacy and security? What information is tracked?
-The configuration and data is client side only. The Video Room Calculator does not save the room configuration or personal identifiable information in the cloud. Number of visitors and buttons clicked (sean as 'heartbeat') is stored by the Video Room Calculator cloud.
-**Third party javascript**: DomPurify by Mozilla Foundation distributed by Cloudfare CDN is used to help protect against XSS attacks, which means 3rd party.
-**Local Storage:** Browser local storage is used for saving settings and features like Undo between browser sessions.  No cookie trakcers are used.
-**Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions and cookies.
+The configuration and data are client-side only. The Video Room Calculator does not save the room configuration or personally identifiable information in the cloud. The number of visitors and buttons clicked (seen as 'heartbeat') is stored by the Video Room Calculator cloud.
 
-### I see a discrepancy between the Video Room Room Calculator and the Workspace Designer, what should I do?
+**Third-party JavaScript:** DOMPurify by Cure53, distributed via the Cloudflare CDN, is used to help protect against XSS attacks.
+
+**Browser Storage:** Browser `localStorage` and `IndexedDB` are used to save settings, undo/redo history, background images, and your Custom Item library between browser sessions. No cookie trackers are used.
+
+**Cisco Workspace Designer:** Cross-launch to the Workspace Designer has its own terms, conditions, and cookies.
+
+### I see a discrepancy between the Video Room Calculator and the Workspace Designer; what should I do?
 The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down flat view, whereas the Workspace Designer allows for a 3D side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
 
 ### How do I use a custom Path Shape object to make a table or curved wall?
@@ -92,12 +107,28 @@ The **Custom Path Shape** objects are powerful but complicated to use at first.
   - Units are in meters, regardless of whether you are using feet or meters for the design.
   - The path will draw the same shape in both the Video Room Calculator and the Workspace Designer.
   - The Video Room Calculator `height` is translated to the Workspace Designer `thickness` parameter.
-  - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicted objects might require more than one Custom Path Shape.
+  - You can't create objects with holes in them. SVG paths can consist of one or more sub-paths. Complicated objects might require more than one Custom Path Shape.
   - Center the object around 0,0.
   - The path shape needs to be closed, making it challenging to draw walls of a consistent thickness.
   - JSON objects are still permitted in the **Item Label** field, but if you use curly brackets `{ }` and do not have a properly formatted JSON, the **Path Shape field** will be empty, and `{"path":"<path>"}` will be moved to the **Item Label** field.  Fix the JSON and click **Update Item** to have your `{"path":"<path>"}` parsed and placed in the **Path Shape field**.
  - The tool at https://yqnn.github.io/svg-path-editor/ can be used to create your path, which can be copied to the Path Shape field.
   - For more details, see the beta [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) article.
+
+### What are Custom Items and how do I share them?
+**Custom Items** let you bundle two or more objects (for example: a video device with its display, a row of chairs, or a Custom Path Shape) into a single reusable unit that you can save to your local library and drop into other rooms.
+
+- **Create:** Select two or more items (or a single **Custom Path Shape**), then choose **Create Custom Item** from the right-click menu or the ellipse (`...`) button next to **Update Item**. A dialog asks for a **Name** (required) and optional **Author** and **Description**.
+- **Move and rotate as a unit:** Once created, a Custom Item behaves like a single object — drag, rotate, or change the layer of the whole bundle at once.
+- **Quick Add library:** Saved Custom Items appear as tiles in the **Quick Add** menu (press the space bar). Click a tile to drop a copy at the center of the room. Click the ellipse (`...`) on a tile to rename, edit Author/Description, export, or remove the entry.
+- **Auto-save:** Edits to a Custom Item on the canvas (move, rotate, layer changes, etc.) automatically update the saved library copy. All canvas instances of the same Custom Item share one library template.
+- **Unjoin:** To dissolve a Custom Item back into its individual items, select it and click **Unjoin Custom Item** from the ellipse (`...`) menu. This does not remove the template from your library.
+- **Storage:** Custom Items are stored in your browser's `IndexedDB` (up to 200 templates). They are NOT uploaded to any cloud, and the library is not included in shareable links or room JSON files.
+
+**Sharing Custom Item files:**
+- **Export:** With a Custom Item selected on the canvas, click the ellipse (`...`) next to **Update Item** and choose **Export Custom Item** to download a `.vrcCustomItems.json` file. You can also export an entry directly from a Quick Add library tile.
+- **Send the file** to a colleague by email, chat, or any other means — it is a small, self-contained JSON file.
+- **Import:** To use a `.vrcCustomItems.json` someone shared, either drag-and-drop the file onto the canvas or click **New** --> **Open File**. The Custom Item is added to your local library; if the file contains a single Custom Item, a copy is also placed at the center of the room. A summary dialog shows which entries were saved, were already in your library, or had errors.
+- **Custom Items vs Groups:** Both bundle items together so they move and rotate as a unit. Groups are temporary, room-specific bundles (similar to PowerPoint grouping). Custom Items can be saved to your local library and reused across rooms. A Custom Item can live inside a Group, but a Group cannot live inside a Custom Item.
 
 ### How is the display coverage for the closest and farthest participants determined?
 The Video Room Calculator display guidance now aligns with Workspace Designer. For a single 16:9 display, the recommended distance is 1x to 3.2x the diagonal measurement. For dual displays, the range extends to 1x to 3.65x the diagonal, allowing for a farther viewing distance since content and participants can be on separate, full screens.
@@ -131,19 +162,19 @@ From top to bottom, here are the different implicit levels of the objects:
 ## Pro Tips:
 - **Hyperlink:** Use the **Save** --> **Shareable Link**, which copies a _hyperlink_ instead of using the URL from the address bar.
 - **Duplicate chairs** Use ctrl-d to copy a row of chairs evenly and quickly.
-- **Undo is your friend:** Undo is persistent. If you accidently close the browser, just re-open and click undo 1x or 2x. Private/Incognito mode may disrupt this.
+- **Undo is your friend:** Undo is persistent. If you accidentally close the browser, just re-open and click undo once or twice. Private/Incognito mode may disrupt this.
 - **Snap to Objects:** Use **Snap to Objects** under **Details** --> **Settings** to help align objects better.
-- **Copy between tabs:** - Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it 1 time in the original tab.
-- **Unit Conversion:** - Number fields allows you to enter one type of unit and it converts to another. For example: 12 in => 1ft, 12' 3" => 12.25ft, 1 m => 3.28 ft, 100 cm => 0.33 ft.
+- **Copy between tabs:** Want to reuse part of a design? Copy items between tabs. If an object is not pasting to the new tab, paste it once in the original tab first.
+- **Unit Conversion:** Number fields allow you to enter one type of unit and convert it to another. For example: 12 in => 1 ft, 12' 3" => 12.25 ft, 1 m => 3.28 ft, 10 cm => 0.33 ft.
 - **Board Pro / Desk Pro** - Video Room Calc works on a Board Pro or Desk Pro as a web app. Uses a QR code to get the URL. The Workspace Designer Custom Rooms is not supported on the Desk Pro or Board Pro.
   - The QR code is limited to 2950 characters.
   - To see the QR code on a PC add 'qr' to the querystring parameter, **Save** tab --> **Load QR Code Script** button. For example: https://collabexperience.com/?qr
-- Checkout other useful (but not easy to find) tools and links on the Video Room Calculator **Resources** tab.
+- Check out other useful (but not easy to find) tools and links on the Video Room Calculator **Resources** tab.
 
 ### Item Label field, JSON and the Workspace Designer
 
 - Example: [Video Room Calc Labels with custom JSON](https://collabexperience.com/?x=A1v0.1.510b1000c1000~Video+Room+Calc+Label+JSON+example~B000101AG809a199b623~%7B%22scale%22%3A%5B1%2C-1%2C1%5D%7D~WA125a52c33e864~%7B%22color%22%3A%22red%22%2C+%22opacity%22%3A%220.5%22%7D~WD522a626b70c200e200j200~%7B%22color%22%3A%22blue%22%2C+%22rotation%22%3A%5B0.785%2C0%2C0.785%5D%7D~WA1003a0c33e1001~%7B%22hidden%22%3A%22true%22%7D~DA460a199b433g55~Tilted+display+%7B%22rotation%22%3A%5B0.3%2C0%2C0%5D%7D~) with JSON in the **Details** --> **Item:** **Label** field
-- In support of the **Custom Rooms**, when the Label field has JSON it is inserted direct into the Workspace Designer's JSON configuration:
+- In support of the **Custom Rooms**, when the Label field has JSON it is inserted directly into the Workspace Designer's JSON configuration:
   - Anything not in curly brackets {} in the Label field is ignored when this merge happens.
   - Examples:
     - For walls, glass walls or boxes: {"color":"#FF0000"}, {"opacity":"0.5"}
@@ -154,8 +185,8 @@ From top to bottom, here are the different implicit levels of the objects:
 - The Video Room Calculator and the Workspace Designer use different coordinate and degree systems.
 - The Workspace Designer JSON objects are always in meters.  The Video Room Calculator can be in feet or meters.
 - The JSON values and syntax might change without warning as we work out the details of this beta.
-- For more details see [Workspace Designer: Custom Rooms](https://designer.cisco.com//#/article/CustomRooms) documentation.
+- For more details, see the [Workspace Designer: Custom Rooms](https://designer.cisco.com/#/article/CustomRooms) documentation.
 
-- **Caution**  Labels are powerful but can create undesired results in the Workspace Designer.
+- **Caution:** Labels are powerful but can create undesired results in the Workspace Designer.
 
 
