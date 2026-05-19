@@ -1179,12 +1179,22 @@ input:placeholder-shown {
 
 /* All category panels visible together. Override the legacy
  * `.subtabcontent { display: none; overflow-y: auto; flex: 1 1 auto }`
- * defaults: they'd otherwise hide every panel and double-scroll. */
+ * defaults: they'd otherwise hide every panel and double-scroll.
+ * `height: auto !important` defeats the responsive
+ * `body.svBp900 .subtabcontent { height: 490px }` rule (line ~3131) —
+ * without it Safari (which trips svBp900 at the typical sidebar width)
+ * pins every panel to 490px and any panel whose content is taller
+ * spills its tiles visually on top of the next panel below. The
+ * !important is required because both rules carry an `.svBp900`
+ * (or `#equipmentScrollArea`) anchor of equal weight; the cleaner
+ * fix would be to rewrite the legacy rule, but it's load-bearing for
+ * the #Item tab's settings drawers which still want a fixed height. */
 #equipmentScrollArea > .subtabcontent {
   display: block;
   flex: none;
   overflow: visible;
   position: relative;
+  height: auto !important;
   /* Padding-top creates breathing space below the sticky pill row when
    * we scroll-into-view to a panel — without it, the scrolled-to
    * heading sits flush against the pills with no visual gap. */
