@@ -118,7 +118,21 @@ a:active {
   max-width: 400px;
   padding: 15px;
   padding-bottom: 7px;
+  /* iPad/iOS Safari Private mode footgun: 100vh evaluates against
+     the "large viewport" (excluding browser UI chrome) rather than
+     the actual visible viewport, so the sidebar overflows by ~66px
+     below the bottom of the screen. iOS Safari then treats that
+     overflow as scrollable headroom, scrolls the document up when
+     the on-screen keyboard appears, and parks the doc at
+     scrollTop=66 when the keyboard hides — which slides the tabs
+     row (Room / Equipment / Layers / Details) up behind the fixed
+     #ContainerHeader, leaving them unclickable.
+     100dvh = "dynamic viewport height", which tracks the actual
+     visible viewport and resolves the overflow at the source. The
+     calc(100vh - 60px) declaration above is the safety-net fallback
+     for browsers older than Safari 15.4 / Chrome 108 / FF 101. */
   height: calc(100vh - 60px);
+  height: calc(100dvh - 60px);
   margin-top: 1.3rem;
   box-sizing: border-box;
   display: flex;
@@ -2670,6 +2684,19 @@ hr.rightClickHorizontalLine {
   border: 2px solid transparent;
 }
 
+/* Quick Add: green left-border is a CustomItem-only marker.
+ * The green echoes the green CustomItem rect convention used on the
+ * canvas (#B6EAB0 fill / green dashed stroke — see "Konva rendering"
+ * in CLAUDE.md), so a user familiar with the canvas surface
+ * immediately recognizes these tiles as "the bundles I built". 3px is
+ * narrow enough not to crowd the 9em tile width but visible against
+ * the regular grey tile background. Regular device tiles in the same
+ * gallery intentionally do NOT carry this marker. */
+.gallery button.customItemTile {
+  border-left-color: #0fba0f;
+  border-left-width: 3px;
+}
+
 /* .gallery button:focus {
   border: 2px solid #52adc7;
   background-color: #296679;
@@ -3390,21 +3417,47 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
   transform: translateY(0);
 }
 
-/* ---- Quick Add palette: library customItem tile ----
+/* ---- Library customItem tile (shared between Equipment-tab sidebar
+ * and Quick Add modal) ----
  *
- * Library customItem tiles (.customItemTile) sit alongside regular
- * device tiles (.equipmentItemOnMenu) in the .quick-dialog .gallery.
- * The green left-border echoes the green CustomItem rect convention
- * used everywhere else in the app (CustomItem rects use #B6EAB0 fill
- * / green dashed stroke — see "Konva rendering" in CLAUDE.md), so a
- * user familiar with the canvas surface immediately recognizes these
- * tiles as "the bundles I built". 3px is narrow enough to not crowd
- * the 92px tile width but visible against any background. */
+ * Library customItem tiles (.customItemTile) live in two places:
+ *   - the Equipment-tab sidebar (#customItemsMenuContainer)
+ *   - the Quick Add modal (.quick-dialog .gallery)
+ *
+ * The green left-border distinguishing-marker (#0fba0f, 3px) is
+ * applied ONLY in the Quick Add gallery via `.gallery button.customItemTile`
+ * above — it echoes the green CustomItem rect convention used on the
+ * canvas (#B6EAB0 fill / green dashed stroke — see "Konva rendering"
+ * in CLAUDE.md), so a user familiar with the canvas surface
+ * immediately recognizes those tiles as "the bundles I built". The
+ * Equipment-tab sidebar copy intentionally omits the green marker so
+ * the customItem tiles blend with the surrounding device tiles in the
+ * sidebar grid (`cursor: move` is what visually grounds them there
+ * instead — see the #customItemsMenuContainer rule below). */
 .equipmentItemOnMenu.customItemTile {
   /* Anchor for .customItemTileDeleteBtn — the absolutely-positioned
    * delete glyph nests inside the tile rather than the gallery, so it
    * tracks the tile through wrapping/reorder of search results. */
   position: relative;
+}
+
+/* ---- Equipment tab sidebar: Custom Item Library tile cursor ----
+ *
+ * The Equipment-tab Custom Items pill renders each library tile as a
+ * <button> element (see buildCustomItemTile() in js/roomcalc.js), but
+ * the surrounding regular device tiles in `.containerItems` are <div>
+ * elements that inherit `cursor: move` from their parent. Browser UA
+ * stylesheets set an explicit cursor on <button>, which overrides the
+ * inherited `cursor: move` from `.containerItems` and leaves the
+ * Custom Item tiles showing the default arrow — visually inconsistent
+ * with the drag-and-drop affordance the rest of the equipment menu
+ * advertises. This rule restores the move cursor on those buttons.
+ *
+ * Scoped to `#customItemsMenuContainer` so the Quick Add modal copy
+ * (which is click-to-insert, not draggable) keeps its `cursor: pointer`
+ * inherited from `.gallery button`. */
+#customItemsMenuContainer .customItemTile {
+  cursor: move;
 }
 
 /* ---- Quick Add palette: customItem tile "more" (ellipsis) button ----

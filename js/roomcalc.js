@@ -7204,7 +7204,6 @@ function windowResizeEvent() {
 }
 
 
-
 /* resizePage moves ContainerFeedback between Container1 / Container2 and
  * sets scrolling. DOM tree: ContainerRoomSvg → controlButtons +
  * scroll-container → large-container → canvasDiv → konvajs-content. */
