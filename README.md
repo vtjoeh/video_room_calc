@@ -8,6 +8,25 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+
+**0.1.647 Release Notes**
+- Group and ungroup items.
+- Create a Custom Item. Custom Items are a special group.
+-- Add optional **Author** and **Description** fields when creating a Custom Item.
+-- Save a single **Custom Path Shape** as a Custom Item.
+-- Store in your local library. 📚
+-- Library Custom Items appear as tiles in the **Quick Add** menu (press space bar). 🌟
+-- Export Custom Item library files to back up or share with others. 🔄
+-- Import Custom Item library files. 📥
+- **Add a little Color**: Color and opacity for items like Walls, Boxes, and Columns. 🎨
+- **Equipment Menu**: Improved menu and search for items. 🔍
+- Select all items on a layer. 🗂️
+- xConfig import now accepts bare config dumps (no `xConfiguration` prefix required). 🛠️
+- Bug fixes. 🐞
+
+**v0.1.646**
+Bug fixes. 
+
 **v0.1.645 Release Notes**
 - Added **Reload Last Design** button on the start template. 🖼️ 
 - Previously updated background images are now selected under **Details → Room Floor Plan**. 🌄 
