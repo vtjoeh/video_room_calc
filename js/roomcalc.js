@@ -6062,6 +6062,7 @@ let tables = [{
     family: 'wallBox',
     resizeable: ['width', 'depth', 'vheight'],     
     configurableColor: true, 
+    wdOpacity: true,
              
 },
 
@@ -6133,7 +6134,6 @@ let tables = [{
     opacity: 0.4,
     resizeable: [],
     configurableColor: true,
-    wdOpacity: true,
 },
 {
     name: 'Custom Path Shape',
