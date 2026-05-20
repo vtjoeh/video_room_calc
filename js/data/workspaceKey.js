@@ -194,7 +194,7 @@ workspaceKey.doorDouble2Left = { objectType: 'door', scale: [-1, 1, 2] }
 
 workspaceKey.floor = { objectType: 'floor' };
 
-workspaceKey.stageFloor = { objectType: 'box', idRegex: '(^stage$)|(^step-)' };
+workspaceKey.stageFloor = { objectType: 'box', idRegex: '(^stage$)|(^step-)|(^stageFloor~)' };
 
 workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
 

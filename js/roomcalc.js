@@ -28779,6 +28779,18 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let family = deviceType.family || 'default'; /* default, resizeItem (tables), wallBox */
     let item = {};
     item.id = wdItem.id.replace(/ /g, "_").replace(/#/g, "__"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
+
+    /* Strip the VRC-emitted `stageFloor~` export prefix so the imported
+     * item keeps its original UUID. The exporter (see line ~30119) re-adds
+     * the prefix on the next export via its existing startsWith('stage')
+     * guard, so VRC -> WD JSON -> VRC -> WD JSON cycles stay stable
+     * instead of growing the id by `stageFloor~` each pass. Legacy
+     * WD-authored ids (the whole-string `stage` or `step-N`) are
+     * untouched. */
+    if (data_deviceid === 'stageFloor' && item.id.startsWith('stageFloor~')) {
+        item.id = item.id.slice('stageFloor~'.length);
+    }
+
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 

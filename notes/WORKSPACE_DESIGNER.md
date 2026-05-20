@@ -230,3 +230,45 @@ and the import branches are gated on `deviceType.colors` vs
 | Export — opacity emit | Same function, right after the color override |
 | Import — hex / named color | `wdItemToRoomObjItem()` (around the existing `'color' in wdItem` block) — new branch gated on `deviceType.configurableColor` |
 | Import — opacity | Same function, new `'opacity' in wdItem && deviceType.wdOpacity` block immediately after the color import |
+
+---
+
+## Box vs. Stage Floor Disambiguation
+
+Both `workspaceKey.box` and `workspaceKey.stageFloor` map to WD
+`objectType: 'box'`, so the import scoring loop (`js/roomcalc.js`
+around line 28412) gives both candidates the same +200 from the
+`objectType` match. The tie is broken by `workspaceKey.stageFloor`'s
+`idRegex` field, which adds another +100 when the WD item's id
+matches one of three patterns:
+
+- `^stage$` — legacy WD-authored "stage" floor
+- `^step-` — legacy WD-authored riser steps (`step-1`, `step-bigStep`, …)
+- `^stageFloor~` — VRC-emitted export prefix (see export prefix logic
+  in `workspaceObjWallPush()`'s caller around line 30119)
+
+Without the `^stageFloor~` alternative, every VRC-exported Stage Floor
+tied with `workspaceKey.box` at 200 and lost the tie-break because
+`box` is defined first in the iteration order, so every Stage Floor
+silently round-tripped as a Box. `workspaceKey.circulationSpace` (also
+`objectType: 'box'`) round-trips correctly via a different path — its
+`color: '#8FDBCE'` adds +4 hits when WD emits the matching colour.
+
+### Prefix strip on import
+
+`wdItemToRoomObjItem()` strips the `stageFloor~` prefix from
+`item.id` immediately after the spaces / hash sanitisation, so the
+imported VRC item keeps its original UUID. The exporter's existing
+`startsWith('stage') || startsWith('step')` guard re-adds the prefix
+on the next export, so `VRC → WD JSON → VRC → WD JSON` cycles stay
+stable instead of growing the id by `stageFloor~` each pass. Legacy
+WD-authored ids (`stage`, `step-N`) are untouched — only the
+VRC-emitted prefix is stripped.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Export — `stageFloor~` prefix add | `roomObj2.items.stageFloors.forEach()` in `exportRoomObjToWorkspace()`, around line 30119 in `js/roomcalc.js` |
+| Import — scoring regex | `workspaceKey.stageFloor.idRegex` in `js/data/workspaceKey.js` (`'(^stage$)|(^step-)|(^stageFloor~)'`) |
+| Import — prefix strip | `wdItemToRoomObjItem()` in `js/roomcalc.js`, just after the `item.id = wdItem.id.replace(...)` sanitisation |
