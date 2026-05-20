@@ -10608,6 +10608,9 @@ function measuringToolOn(event = true) {
     }
 
     if (turnOn) {
+        if (isWallBuilderOn) wallBuilderOn(false);
+        if (isWallWriterOn2) wallBuilderOn2(false);
+        if (isPolyBuilderOn) polyBuilderOn(false);
         document.getElementById("canvasDiv").style.cursor = "crosshair";
         tr.nodes([]);
         isMeasuringToolOn = true;
@@ -23013,6 +23016,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
     polyBuilderOn(false);
     wallBuilderOn(false);
     wallBuilderOn2(false);
+    if (isMeasuringToolOn) hideMeasuringTool();
 
     if (data_deviceid === 'polyRoom') {
         polyBuilderOn(true, 'polyRoom')
@@ -24790,6 +24794,9 @@ function onKeyDown(e) {
         if (isMeasuringToolOn) {
             hideMeasuringTool()
 
+        } else if (isSelectingTwoPointsOn) {
+            hideSelect2PointsShapes();
+            document.getElementById('btnUpdateImageScale').disabled = true;
         }
 
         closeAllDialogModals();
@@ -24956,6 +24963,12 @@ function toggleQuickAdd(show) {
 
     // already open
     if (show && dialog.style.display === 'flex') return
+
+    if (show) {
+        if (isWallBuilderOn) wallBuilderOn(false);
+        if (isWallWriterOn2) wallBuilderOn2(false);
+        if (isMeasuringToolOn) hideMeasuringTool();
+    }
 
     dialog.style.display = show ? 'flex' : 'none';
     const input = dialog.querySelector('input');
