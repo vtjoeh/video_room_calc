@@ -242,7 +242,7 @@ Current participants:
 | `columnRect`  | ✓ | ✓ | `gray`      | 0.8 |
 | `cylinder`    | ✓ | ✓ | `grey`      | 0.4 (device-def `opacity`) |
 | `sphere`      | ✓ | — | radial gradient (`white → grey → grey`) | 0.8 |
-| `pathShape`   | ✓ | ✓ | uses its own `data_labelField` JSON color/opacity (legacy — NOT yet routed through `data_fill`/`data_opacity`; see "pathShape footgun" below) | — |
+| `pathShape`   | ✓ | ✓ | `#D3D3D3` (with `data_labelField` JSON `"color"` / `"opacity"` as a secondary fallback — see "pathShape precedence" below) | device-def `opacity` (currently `1 / scale`-driven local default ≈ `0.8` after the `wdOpacity` adjustment chain) |
 
 Each Konva-rendering branch reads `attrs.data_fill || <device-default>`
 for fill and `(attrs.data_opacity == null ? <device-default> :
@@ -284,18 +284,47 @@ the `new Konva.Shape({...})` constructor but BEFORE the first redraw,
 so the `sceneFunc`'s read sees the correct value on every draw,
 including the very first one.
 
-### pathShape footgun
+### pathShape precedence
 
-`pathShape` carries `configurableColor: true` AND `wdOpacity: true` in
-its device definition for legacy reasons, but its rendering path still
-reads color/opacity from a `{"color":"…","opacity":…}` JSON embedded in
-`data_labelField` (see `insertTable()`'s `pathShape` branch). It does
-NOT yet route through `attrs.data_fill` / `attrs.data_opacity`. The
-Details panel exposes the fill picker for pathShapes — but typing in it
-will set `data_fill` on the item without affecting the canvas
-rendering. **Treat pathShape as legacy / out-of-scope** until someone
-unifies the two paths; the existing label-JSON convention is what the
-Workspace Designer round-trip relies on.
+`pathShape` is a first-class participant in the `configurableColor` /
+`wdOpacity` system, but its `insertTable()` branch still understands the
+legacy `data_labelField` JSON `{"color":"…","opacity":…}` shape as a
+fallback (xConfig Arrows and hand-authored Item-Label JSON depend on
+this). Precedence at render time (symmetric for fill and opacity):
+
+```
+attrs.data_fill      || (label-JSON "color")    || '#D3D3D3'
+attrs.data_opacity   ?? (label-JSON "opacity")  ?? device-def opacity
+```
+
+The Details panel inputs always win — picker > label-JSON > device
+default. Items created without a picker hex (xConfig Arrows, legacy
+pathShapes) keep rendering exactly as before via the label-JSON
+fallback. The same precedence applies on the WD export side (see
+"Workspace Designer Round-Trip" below).
+
+#### pathShape-only WD opacity sentinel (`0.999`)
+
+Two pathShape-specific WD quirks the round-trip works around:
+
+1. If `color` is sent without an `opacity`, the WD silently drops the
+   color tint. Mitigated by `workspaceObjFurniturePush()` always emitting
+   an `opacity` whenever `workspaceItem.color` is set (defaults to `"1"`
+   when no picker override).
+2. For pathShape specifically, an emitted opacity of EXACTLY `1`
+   ALSO prevents `color` from rendering. The fix: clamp pathShape
+   opacity down to `"0.999"` whenever the final emitted value would be
+   `1` / `"1"`. Visually indistinguishable. Covers all three sources
+   of opacity on the `workspaceItem` (the `"1"` auto-default from #1,
+   `parseDataLabelFieldJson()` injecting a label-JSON `{"opacity": 1}`
+   as the number `1`, and any defensive emit-`1` path).
+
+The `0.999` value is mirrored on the **import** side: the WD-import
+opacity branch (the `deviceType.wdOpacity` block) treats `opacity >= 0.999`
+as the implicit "no override" for pathShape specifically, snapping it
+back to no `data_opacity` so a `VRC → WD JSON → VRC` round-trip
+preserves the "default" state. Real user overrides (`0.5`, `0.7`, …)
+are untouched.
 
 ### Data shape
 
@@ -336,9 +365,24 @@ but each unique hex only converts once per session.
 
 ### Workspace Designer Round-Trip
 
-**Export** (`workspaceObjWallPush`): `workspaceItem.color = data_fill`
-(hex) and `workspaceItem.opacity = String(data_opacity)` (string to
-match the existing `wallGlass` / `circulationSpace` convention).
+**Export** — two parallel push functions, each with a `data_fill` /
+`data_opacity` block gated on the device-def flags:
+
+- `workspaceObjWallPush()` (`wallStd` / `columnRect` / `cylinder` /
+  `sphere` / `box` / `carpet` / `stageFloor`): `workspaceItem.color =
+  data_fill` (hex), `workspaceItem.opacity = String(data_opacity)`
+  (string to match the existing `wallGlass` / `circulationSpace`
+  convention).
+- `workspaceObjFurniturePush()` (currently `pathShape` only on the
+  `configurableColor` path): the `data_fill` / `data_opacity` push runs
+  **after** `parseDataLabelFieldJson()` so the Details picker wins over
+  a legacy label-JSON `"color"` / `"opacity"`. After that, two
+  pathShape-aware adjustments fire (both detailed in the "pathShape
+  precedence" section above):
+   - whenever `workspaceItem.color` is set without an `opacity`, default
+     `opacity` to `"1"` (WD drops the tint otherwise);
+   - for pathShape only, clamp a final `opacity == 1` down to `"0.999"`
+     (WD drops the tint again at exactly `1` for pathShape).
 
 **Import**: `wdItem.color` is fed through `normalizeColorToHex()`, which
 accepts both hex (`"#RRGGBB"`) and CSS named colors (`"AliceBlue"`,
@@ -346,7 +390,12 @@ accepts both hex (`"#RRGGBB"`) and CSS named colors (`"AliceBlue"`,
 `style.color` → `getComputedStyle()`) leans on the browser's CSS parser
 so we don't ship a named-color table. Results are cached in
 `_namedColorToHexCache` (invalid names cache as `null`). `wdItem.opacity`
-is parsed via `parseFloat` and clamped to [0, 1).
+is parsed via `parseFloat` and clamped to [0, 1) — with one
+pathShape-specific exception: opacity `>= 0.999` snaps back to the
+implicit "no override" (no `data_opacity` set) so a VRC → WD JSON → VRC
+round-trip of a default-opacity pathShape returns to the default state
+instead of pinning `data_opacity = 0.999`. Real overrides (any value
+`< 0.999`) are preserved untouched.
 
 Both import paths only fire when `deviceType.configurableColor` /
 `deviceType.wdOpacity` are set, so the existing roomBar-style dropdown

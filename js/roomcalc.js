@@ -6141,9 +6141,9 @@ let tables = [{
     key: 'WL',
     frontImage: 'pathShape-menu.png',
     strokeWidth: 1 / scale,
-    resizeable: [], 
+    resizeable: [],
     configurableColor: true,
-    wdOpacity: true
+    wdOpacity: true,
 },
 {
     name: 'Credenza / Cabinet',
@@ -15023,11 +15023,24 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * fill and the local default opacity, so existing pathShapes
          * remain visually unchanged. Regex (rather than JSON.parse) is
          * used to mirror the lenient parsing already applied above for
-         * "path" and "scale". */
+         * "path" and "scale".
+         *
+         * Precedence (symmetric for color and opacity):
+         *   attrs.data_fill / attrs.data_opacity (Details inputs)
+         *     > label-JSON "color" / "opacity"
+         *     > device defaults (#D3D3D3 fill, local `opacity` for
+         *       opacity — the device-def opacity)
+         * Picker values from the Details panel always win so a user
+         * edit visibly changes the canvas. The label-JSON fallback
+         * keeps xConfig Arrows and legacy pathShapes (authored via
+         * Item Label JSON) rendering exactly as before when no picker
+         * override is set. */
         let matchColor = label.match(/"color"\s*:\s*"([^"]+)"/);
-        let pathFillColor = matchColor ? matchColor[1] : '#D3D3D3';
+        let pathFillColor = attrs.data_fill || (matchColor ? matchColor[1] : '#D3D3D3');
         let matchOpacity = label.match(/"opacity"\s*:\s*"?([\d.]+)"?/);
-        let pathOpacity = matchOpacity ? parseFloat(matchOpacity[1]) : opacity;
+        let pathOpacity = (attrs.data_opacity != null)
+            ? Number(attrs.data_opacity)
+            : (matchOpacity ? parseFloat(matchOpacity[1]) : opacity);
 
         tblWallFlr = new Konva.Path({
             x: pixelX,
@@ -29115,7 +29128,15 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
     if (deviceType && deviceType.wdOpacity && 'opacity' in wdItem && wdItem.opacity != null) {
         const opNum = parseFloat(wdItem.opacity);
-        if (!isNaN(opNum) && opNum >= 0 && opNum < 1) {
+        /* pathShape-only: 0.999 is our export's "no override" sentinel
+         * (workspaceObjFurniturePush() clamps default opacity 1 -> 0.999
+         * to dodge a WD render bug that drops `color` when opacity == 1).
+         * Snap >= 0.999 back to default on import so a VRC -> WD JSON
+         * -> VRC round-trip preserves the implicit "1" default. */
+        const isPathShapeDefaultSentinel = (
+            item.data_deviceid === 'pathShape' && !isNaN(opNum) && opNum >= 0.999
+        );
+        if (!isNaN(opNum) && opNum >= 0 && opNum < 1 && !isPathShapeDefaultSentinel) {
             item.data_opacity = opNum;
         }
         delete wdItem.opacity;
@@ -30350,6 +30371,58 @@ function exportRoomObjToWorkspace() {
 
         if ('data_labelField' in item) {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
+        }
+
+        /* Configurable fill / opacity round-trip into WD JSON for
+         * furniture-path devices (currently only pathShape on this code
+         * path). MUST run AFTER parseDataLabelFieldJson() so per-item
+         * data_fill / data_opacity (from the Details inputs) win over
+         * legacy label-JSON "color" / "opacity" keys — mirrors the
+         * in-canvas render precedence in insertTable()'s pathShape
+         * branch. Gated on device-def flags so dropdown-style data_color
+         * (roomBar etc.) is unaffected. opacity is emitted as a STRING
+         * to match the wallGlass / circulationSpace convention the WD
+         * parser already accepts. */
+        const __deviceDefFurnRT = allDeviceTypes[item.data_deviceid];
+        if (__deviceDefFurnRT && __deviceDefFurnRT.configurableColor && item.data_fill) {
+            workspaceItem.color = item.data_fill;
+        }
+        if (__deviceDefFurnRT && __deviceDefFurnRT.wdOpacity && item.data_opacity != null) {
+            workspaceItem.opacity = String(item.data_opacity);
+        }
+
+        /* WD quirk (pathShape and similar furniture-path items with
+         * configurableColor): if `color` is sent without an `opacity`,
+         * the Workspace Designer drops the color tint silently. The
+         * workaround the user identified is: whenever `color` is set,
+         * always also send `opacity`. Default to "1" when no picker
+         * override has run. This block runs LAST so it sees the final
+         * color/opacity state after both parseDataLabelFieldJson and
+         * the data_fill / data_opacity pushes above. */
+        if (__deviceDefFurnRT && __deviceDefFurnRT.configurableColor
+            && workspaceItem.color && !('opacity' in workspaceItem)) {
+            workspaceItem.opacity = "1";
+        }
+
+        /* Second pathShape-specific WD quirk: an emitted opacity of
+         * EXACTLY 1 prevents the WD from applying `color` at all. Clamp
+         * to "0.999" (visually indistinguishable) whenever the final
+         * opacity equals 1 / "1" for a pathShape. Covers all sources
+         * of opacity on the workspaceItem:
+         *   - the "1" auto-default above
+         *   - parseDataLabelFieldJson() injecting a label-JSON
+         *     {"opacity": 1} as the number 1
+         *   - (defensive) any future code path that emits 1 directly
+         * The "0.999" sentinel is mirrored by the WD-import path
+         * (deviceType.wdOpacity branch in the WD importer), which snaps
+         * pathShape opacity >= 0.999 back to the implicit default so a
+         * VRC → WD JSON → VRC round-trip preserves the "no override"
+         * state. Other configurableColor devices on this push (none
+         * today, but future-proof) still get the literal "1". */
+        if (item.data_deviceid === 'pathShape'
+            && 'opacity' in workspaceItem
+            && Number(workspaceItem.opacity) === 1) {
+            workspaceItem.opacity = "0.999";
         }
 
         if ('vertOffset' in workspaceItem) {
