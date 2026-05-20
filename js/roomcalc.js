@@ -28322,6 +28322,43 @@ function importWorkspaceDesignerFile(workspaceObj) {
     }
 
 
+    /* Legacy dual Room Vision PTZ (front wall) WD pattern:
+     * a placeholder "mainDeviceVision*" item carries the dual-camera intent,
+     * and the two Room Vision PTZ cameras are marked role="mainCamera".
+     * VRC does not support the mainCamera role; mimic it with crossView.
+     * Gated on the auto-conversion toggle being ON (checkbox unchecked) —
+     * same gate as the tree -> plant rewrite below. */
+    if (document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
+        let mainDevicePlaceholderIdxs = [];
+        let roomVisionMainCamIdxs = [];
+        for (let i = 0; i < wdItems.length; i++) {
+            let w = wdItems[i];
+            if (!w) continue;
+            if (typeof w.id === 'string' && w.id.startsWith('mainDeviceVision')) {
+                mainDevicePlaceholderIdxs.push(i);
+            }
+            if (w.objectType === 'camera' && w.model === 'vision' && w.role === 'mainCamera') {
+                roomVisionMainCamIdxs.push(i);
+            }
+        }
+        if (mainDevicePlaceholderIdxs.length > 0 && roomVisionMainCamIdxs.length > 0) {
+            mainDevicePlaceholderIdxs.forEach(function (i) { wdItems[i] = null; });
+            roomVisionMainCamIdxs.forEach(function (i) { wdItems[i].role = 'crossview'; });
+            /* Defer the alert past importJson()'s 3000 ms
+             * closeAllDialogModals() timer (it dismisses the
+             * dialogLoadingTemplate); otherwise the same timeout would
+             * also force-close this alert before the user can read it.
+             * Same 3200 ms pattern as the xConfig post-import dialog. */
+            setTimeout(function () {
+                alertDialog(
+                    'Dual Room Vision PTZ Cameras Not Supported',
+                    'Workspace Designer custom API does not yet support front-wall dual Room Vision PTZ cameras. The role of the affected Room Vision PTZ cameras has been changed from Main Camera to Cross-View to mimic the experience.'
+                );
+            }, 3200);
+        }
+    }
+
+
     for (let i = 0; i < wdItems.length; i++) {
         let wdItem = wdItems[i];
         let candidateKey = {};
