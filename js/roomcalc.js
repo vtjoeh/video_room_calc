@@ -2906,6 +2906,79 @@ function applyAllLayerStates() {
      * children of layerTransform (NOT separate layers), so they ride the
      * same auto-redraw — the previous explicit *.batchDraw() calls were
      * silent no-ops because Konva.Group has no batchDraw method. */
+    updateModeStatusBadge();
+}
+
+/* Refresh the yellow status badge to the right of #controlButtons.
+ * Priority: any active drawing/measuring mode wins; otherwise summarise
+ * how many VRC layers are hidden/locked. Hidden entirely when no mode is
+ * active and no layers are hidden or locked. */
+function updateModeStatusBadge() {
+    const el = document.getElementById('modeStatusBadge');
+    if (!el) return;
+    let html = '';
+    /* `isMode` flips the badge to its blue-mode style. The layer-state
+     * branch (yellow) leaves it false. */
+    let isMode = true;
+    if (isWallBuilderOn || isWallWriterOn2) {
+        html = 'Wall Builder';
+    } else if (isPolyBuilderOn) {
+        html = polyBuilderMode === 'customPathEditor' ? 'Path Editor' : 'Irregular Room';
+    } else if (movingBackgroundImage) {
+        html = 'Move Floor Plan';
+    } else if (isMeasuringToolOn) {
+        html = 'Measuring Tool';
+    } else if (isSelectingTwoPointsOn) {
+        html = 'Select 2 Points';
+    } else if (roomObj && Array.isArray(roomObj.layers)) {
+        const hidden = roomObj.layers.filter(l => !l.visible).length;
+        const locked = roomObj.layers.filter(l => l.locked).length;
+        if (hidden || locked) {
+            const parts = ['Layer:'];
+            if (hidden) parts.push(`<i class="icon icon-hide-bold"></i> ${hidden}`);
+            if (locked) parts.push(`<i class="icon icon-secure-lock-bold"></i> ${locked}`);
+            html = parts.join(' ');
+            isMode = false;
+        } else {
+            isMode = false;
+        }
+    } else {
+        isMode = false;
+    }
+    el.innerHTML = html;
+    el.classList.toggle('mode-status-badge--mode', !!html && isMode);
+    /* visibility (not display) is used for the empty state so the
+     * badge's fixed-width slot stays reserved inside #controlButtons.
+     * Without this, hiding the badge would let the toolbar reflow and
+     * the other buttons would jump as soon as a mode toggled / layer
+     * was hidden / unlocked. */
+    el.style.visibility = html ? 'visible' : 'hidden';
+    if (html) fitBadgeTextSize(el);
+}
+
+/* Auto-shrink the badge's font-size until its content fits inside the
+ * fixed 120px frame on a single line. Reset to the CSS-default size
+ * first (so a previous, longer label doesn't permanently shrink the
+ * font for a subsequent shorter one), then step the font down in 0.5px
+ * increments until scrollWidth ≤ clientWidth or we hit the floor.
+ *
+ * The floor (9px) protects against runaway shrink in case the layer
+ * counts get into 3+ digit territory and the icons + numbers genuinely
+ * cannot fit; in that case the trailing content gets clipped by the
+ * badge's overflow:hidden, which is preferable to either wrapping or
+ * pushing the toolbar around. The 30-iter guard is paranoia against
+ * any browser quirk that might keep scrollWidth > clientWidth even at
+ * the floor. */
+function fitBadgeTextSize(el) {
+    if (!el) return;
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize) || 13;
+    const minSize = 9;
+    let guard = 30;
+    while (el.scrollWidth > el.clientWidth && size > minSize && guard-- > 0) {
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+    }
 }
 
 /* ---- Layer CRUD ---- */
@@ -8778,6 +8851,8 @@ function onLoad() {
     makeButtonsVisible();
 
     updateRemoveDefaultWallsCheckBox();
+
+    updateModeStatusBadge();
 }
 
 
@@ -10501,6 +10576,7 @@ function select2Points() {
     enableCopyDelBtn();
     isSelectingTwoPointsOn = true;
     select2PointsRect.show();
+    updateModeStatusBadge();
 }
 
 function measuringToolOn(event = true) {
@@ -10545,6 +10621,7 @@ function measuringToolOn(event = true) {
         document.getElementById('measureTool').checked = false;
     }
 
+    updateModeStatusBadge();
 }
 
 function insertKonvaBackgroundImageFloor(includeActiveRoomPart = false) {
@@ -10705,6 +10782,7 @@ function wallBuilderOn(event) {
 
     }
 
+    updateModeStatusBadge();
 }
 
 
@@ -10829,6 +10907,7 @@ function polyBuilderOn(event, mode = 'polyRoom') {
         });
     }
 
+    updateModeStatusBadge();
 }
 
 
@@ -10868,6 +10947,7 @@ function wallBuilderOn2(event) {
 
     }
 
+    updateModeStatusBadge();
 }
 
 function changeLayerBackgroundImageFl() {
@@ -10893,6 +10973,7 @@ function changeLayerBackgroundImageFl() {
     }
 
     hideSelect2PointsShapes();
+    updateModeStatusBadge();
 }
 
 function updateBackgroundImageScale() {
@@ -10967,6 +11048,7 @@ function hideSelect2PointsShapes() {
     isMeasuringToolOn = false;
     document.getElementById('measureTool').checked = false;
     document.getElementById("canvasDiv").style.cursor = "auto";
+    updateModeStatusBadge();
 }
 
 /* Reset the 2 select points if the page is resized */
@@ -23651,7 +23733,13 @@ repositionStage();
 /* the HTML.                                                          */
 /* ----------------------------------------------------------------- */
 
-const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2, .recentFloorPlansScroll';
+/* `#equipmentScrollArea` is the long-scroll wrapper that owns the
+ * Equipment tab's overflow (the .subtabcontent children inside it are
+ * `overflow: visible` and never scroll themselves — see the comment
+ * block above `#equipmentScrollArea` in style.css). It therefore needs
+ * its own sticky scroll-hint button instead of relying on the
+ * per-.subtabcontent path used everywhere else. */
+const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2, .recentFloorPlansScroll, #equipmentScrollArea';
 const SCROLL_HINT_OVERFLOW_SLOP_PX = 1;
 const SCROLL_HINT_PAGE_FRACTION = 0.8;
 

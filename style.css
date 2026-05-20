@@ -921,8 +921,48 @@ input:placeholder-shown {
   gap: 10px;
   margin: 1em 0;
   /* max-width: 850px; */
-  max-width: 650px;
+  max-width: 750px;
   overflow-x: auto;
+}
+
+.mode-status-badge {
+  /* Lives as the last flex child inside #controlButtons. Width is
+   * fixed at 120px regardless of content so the toolbar's geometry
+   * never reshuffles when modes / layer state change. Text inside
+   * is auto-shrunk by JS (fitBadgeTextSize) so longer labels still
+   * render on a single line — overflow:hidden is the safety net at
+   * the JS-floor font-size and also lets scrollWidth correctly
+   * report content overflow during the JS shrink loop.
+   *
+   * align-self:center vertically centers it against the 30px-tall
+   * buttons (the toolbar has no align-items, so the default
+   * `stretch` would otherwise distort it). */
+  flex: 0 0 auto;
+  width: 120px;
+  box-sizing: border-box;
+  overflow: hidden;
+  align-self: center;
+  background-color: #f6eca6;
+  color: #000;
+  border-radius: 16px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
+  font-weight: 400;
+  font-size: small;
+}
+
+/* Active drawing/measuring mode (Wall Builder, Measuring Tool, etc.) —
+ * swap to blue. Layer-state badge keeps the default yellow. */
+.mode-status-badge.mode-status-badge--mode {
+  background-color: #64bffa;
+}
+
+.mode-status-badge .icon {
+  font-size: 1em;
 }
 
 .button-group {
@@ -2393,7 +2433,8 @@ hr.rightClickHorizontalLine {
 
 .subtabcontent.hasScrollHint > .scrollHintBtn,
 .subtabcontent2.hasScrollHint > .scrollHintBtn,
-.recentFloorPlansScroll.hasScrollHint > .scrollHintBtn {
+.recentFloorPlansScroll.hasScrollHint > .scrollHintBtn,
+#equipmentScrollArea.hasScrollHint > .scrollHintBtn {
   display: flex;
 }
 
