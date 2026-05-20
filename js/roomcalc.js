@@ -1,4 +1,4 @@
-const version = "v0.1.647";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.648";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases (see CLAUDE.md / notes/TECH_NOTES.md).
  * window.convertMetersFeet is exposed for the inline onChange handler
@@ -7345,13 +7345,44 @@ function copyLinkToClipboard() {
     })];
 
     navigator.clipboard.write(data).then(
-        () => { alert('Hyperlink copied to clipboard') },
+        () => { showShareLinkCopiedBanner(); },
         () => { }
     );
 
 
     lastAction = 'clipboard link';
     postHeartbeat();
+}
+
+/* Show the "Hyperlink copied to clipboard" banner directly below the
+ * #shareLink button for ~3 seconds, then fade it out. The banner lives
+ * in RoomCalculator.html (#shareLinkCopiedBanner) inside the same
+ * position:relative .dropDownPNG container as the button, so the
+ * absolute positioning in style.css drops it just below the button
+ * without reflowing the Save dialog. Re-clicks while a previous banner
+ * is still visible reset the timer so the message stays on screen for
+ * a fresh 3s window. */
+let _shareLinkBannerHideTimer = null;
+function showShareLinkCopiedBanner() {
+    const banner = document.getElementById('shareLinkCopiedBanner');
+    if (!banner) return;
+    if (_shareLinkBannerHideTimer) {
+        clearTimeout(_shareLinkBannerHideTimer);
+        _shareLinkBannerHideTimer = null;
+    }
+    /* Two requestAnimationFrames so the browser commits the hidden
+     * state before the .shareLinkCopiedBanner-visible class triggers
+     * the fade-in transition (matches the .vrc-toast pattern). */
+    banner.classList.remove('shareLinkCopiedBanner-visible');
+    requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+            banner.classList.add('shareLinkCopiedBanner-visible');
+        });
+    });
+    _shareLinkBannerHideTimer = setTimeout(function () {
+        banner.classList.remove('shareLinkCopiedBanner-visible');
+        _shareLinkBannerHideTimer = null;
+    }, 3000);
 }
 
 function updateLabelUnits() {

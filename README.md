@@ -9,6 +9,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 ### Release Notes:
 
 
+**v0.1.648 Release Notes**
+- New badge to show when Layers are locked or hidden, and the current mode. 🏷️
+- Refactoring and Workspace Designer import improvements. 🛠️
+
 **0.1.647 Release Notes**
 - Group and ungroup items.
 - Create a Custom Item. Custom Items are a special group.
