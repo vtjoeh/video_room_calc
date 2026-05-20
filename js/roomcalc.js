@@ -3632,6 +3632,20 @@ function renderLayersList() {
     /* refresh the Layers-tab "Add Items to:" dropdown so it always reflects
      * the current set of layers and the active currentAddLayerId */
     populateAddItemLayerDropdown();
+
+    /* Keep the yellow "Layer: hide/lock count" status badge in
+     * #controlButtons in sync with the current layer state. Without this
+     * call, badge state would only refresh through the layer-toggle UI
+     * actions (via applyAllLayerStates()) — file-load / URL-load /
+     * undo-redo / drawRoom() paths all funnel through renderLayersList()
+     * but were never refreshing the badge, so a loaded design with
+     * hidden or locked layers would show no badge on load.
+     *
+     * The existing toggle paths already call updateModeStatusBadge()
+     * via applyAllLayerStates() before getting here, making this a
+     * harmless cheap double-call on that path; the function is just a
+     * DOM-text update + visibility toggle + font-fit. */
+    updateModeStatusBadge();
 }
 
 /* Inline rename via single-click on a custom layer's name span (reserved layers are not editable) */
