@@ -28517,6 +28517,73 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 candidateWdItem = structuredClone(wdItem);
             }
 
+            /* Wall vs. Column discriminator by WD `length`.
+             *
+             * Both `wallStd` and `columnRect` export as objectType:'wall'.
+             * The previous discriminator (workspaceKey.columnRect.color ===
+             * '#808080') fails when the user picks a custom column fill via
+             * configurableColor — without the color match, the scoring loop's
+             * +4 tie-break never fires and wallStd wins by iteration order.
+             *
+             * Heuristic: VRC's `wallStd` has a fixed `item.width = 0.10`
+             * (line ~14837 wallWidth + line ~15511 Konva.Shape; line ~6057
+             * `resizeable: ['depth', 'vheight']` makes the width un-resizable),
+             * and the exporter writes `"length": item.width` (line ~30834).
+             * So a VRC-exported wall has WD length = 0.10 and a column has
+             * WD length = its user-set width (default 0.305).
+             *
+             * Guards:
+             *  - Only fires when the scoring loop picked wallStd or
+             *    columnRect (wallGlass / wallWindow / any future wall variant
+             *    are skipped — they score higher via model/idRegex).
+             *  - xConfig coordinate-reference columns are handled by the
+             *    override immediately above and skipped here to keep that
+             *    dedicated override authoritative (their width 0.01 is
+             *    already outside [0.07, 0.13] so the result would match
+             *    anyway).
+             *  - display21_9 walls have their own legacy workaround above
+             *    (line ~28390) that forces color='#808080' and width=0.08;
+             *    skip them so a length near 0.10 doesn't flip them to
+             *    wallStd. */
+            if ((candidateKeyName === 'wallStd' || candidateKeyName === 'columnRect')
+                && wdItem.objectType === 'wall'
+                && typeof wdItem.length === 'number'
+                && wdItem.id
+                && !wdItem.id.startsWith('xConfig-x-0-')
+                && !wdItem.id.startsWith('xConfig-z-0-')
+                && !wdItem.id.startsWith('display21_9')) {
+                const wdLen = Number(wdItem.length);
+                if (wdLen >= 0.07 && wdLen <= 0.13) {
+                    candidateKeyName = 'wallStd';
+                    candidateKey = { id: wdItem.id };
+                    candidateWdItem = structuredClone(wdItem);
+                    candidateWdItem.length = 0.10; /* canonical wallStd thickness */
+                } else {
+                    candidateKeyName = 'columnRect';
+                    candidateKey = { id: wdItem.id };
+                    candidateWdItem = structuredClone(wdItem);
+                }
+                /* Mirror the scoring loop's "delete modifiedWdItem.color"
+                 * step (see line ~28480) so a default-color match doesn't
+                 * leak through configurableColor handling as an explicit
+                 * `data_fill`. Without this, a VRC-exported default column
+                 * (workspaceKey.columnRect.color === '#808080') would
+                 * re-import with `data_fill: '#808080'` set explicitly even
+                 * though the user never picked a color. Visually identical
+                 * (device default `gray` resolves to '#808080') but
+                 * pollutes URL encoding (extra `u128128128`) and changes the
+                 * Details picker from the `#FFFFFF` "no-override" sentinel
+                 * to '#808080'. A user-picked custom color falls through
+                 * because the workspaceKey.color !== wdItem.color check
+                 * fails — exactly the case this whole override was built
+                 * to fix. */
+                const __chosenKey = workspaceKey[candidateKeyName];
+                if (__chosenKey && 'color' in __chosenKey
+                    && candidateWdItem.color === __chosenKey.color) {
+                    delete candidateWdItem.color;
+                }
+            }
+
             if (Object.keys(candidateKey).length === 0) {
                 console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
 
