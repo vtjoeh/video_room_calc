@@ -118,8 +118,11 @@ VRC has THREE different "z-axis" concepts; do not mix them up:
 
 1. **VRC layers** (`roomObj.layers[]`) — logical grouping with
    show/hide/lock. See `CLAUDE.md` → "VRC Layer System".
-2. **Konva layers** (`layerGrid`, `layerTransform`, `grShadingCamera`,
-   etc.) — separate `<canvas>` elements stacked in the DOM.
+2. **Konva layers** (`layerGrid`, `layerTransform`, `layerSelectionBox`)
+   — separate `<canvas>` elements stacked in the DOM. (The
+   `*Coverage` / `overlayLabels` nodes are Konva.Group children of
+   `layerTransform`, NOT separate layers — see the table in
+   `CLAUDE.md`.)
 3. **Konva `zIndex`** — sibling-array order within a single Konva
    layer or group.
 
@@ -318,10 +321,12 @@ longer needed.
    `Konva.Group` does **NOT** have a `batchDraw` method (or a `draw`
    method that does anything useful). Calling `someGroup.batchDraw()`
    throws `TypeError: someGroup.batchDraw is not a function`. The
-   May 2026 audit found 5 such silent no-op calls (`grShadingMicrophone`,
-   `grShadingSpeaker`, `grShadingCamera`, `grDisplayDistance`, `grLabels`
-   — all `Konva.Group`s) plus one un-guarded crash on `grLabels`. All
-   were removed.
+   May 2026 audit found 5 such silent no-op calls (`microphoneCoverage`,
+   `speakerCoverage`, `cameraCoverage`, `displayDistanceCoverage`,
+   `overlayLabels` — all `Konva.Group`s; pre-rename these were
+   `grShadingMicrophone`, `grShadingSpeaker`, `grShadingCamera`,
+   `grDisplayDistance`, `grLabels`) plus one un-guarded crash on
+   `overlayLabels`. All were removed.
 3. The `setTimeout(..., n)` cluster documented in `TECH_NOTES.md` item 1
    exists because the rAF gap is real — even with auto-draw, code that
    reads pixel state in the same tick as the mutation reads stale data.
@@ -608,10 +613,11 @@ step 3. On a 50-item rotation this is the difference between
 For selections above a threshold (`> 50` in `rotateTrNodeItems()`),
 VRC also calls `hideAllCoverageGroups(true)` before the loop and
 re-enables them via a short `setTimeout` after reattach. The
-`grShadingCamera` / `grShadingMicrophone` / `grDisplayDistance` /
-`grLabels` Konva.Groups (children of `layerTransform`, NOT separate
-Konva layers) each redraw on every geometry change, and hiding
-them during the bulk update is the second half of the speed win.
+`cameraCoverage` / `microphoneCoverage` / `displayDistanceCoverage` /
+`overlayLabels` Konva.Groups (children of `layerTransform`, NOT
+separate Konva layers) each redraw on every geometry change, and
+hiding them during the bulk update is the second half of the speed
+win.
 
 ### Gotchas
 

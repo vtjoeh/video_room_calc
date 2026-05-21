@@ -81,9 +81,9 @@ layer.draw()       // SYNCHRONOUS — use only when you need pixels updated
 //                       mutation auto-queues a redraw on the next rAF.
 //                       See TECH_NOTES_KONVA.md trap #12.
 //                       Note: Konva.Group has NO batchDraw method —
-//                       calling it on grLabels / grShadingCamera /
-//                       grShadingMicrophone / grShadingSpeaker /
-//                       grDisplayDistance throws TypeError.
+//                       calling it on overlayLabels / cameraCoverage /
+//                       microphoneCoverage / speakerCoverage /
+//                       displayDistanceCoverage throws TypeError.
 
 // Events
 shape.on('click', handler)

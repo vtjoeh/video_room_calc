@@ -171,13 +171,13 @@ roomObj.authorVersion = ''; /* field for the author to change version numbers */
 roomObj.items = {}; /* all devices in the room will be stored here.  Video devices, displays, tables, etc. */
 roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
 roomObj.workspace = {}; /* settings used for exporting to the Workspace Designer */
-roomObj.layersVisible = {};
-roomObj.layersVisible.grShadingCamera = true;  /* true or false */
-roomObj.layersVisible.grDisplayDistance = true; /* true or false */
-roomObj.layersVisible.grShadingMicrophone = true;  /* true or false */
-roomObj.layersVisible.gridLines = true; /* true or false */
-roomObj.layersVisible.grShadingSpeaker = true;  /* true or false */
-roomObj.layersVisible.grLabels = false; /* true or false */
+roomObj.overlaysVisible = {};
+roomObj.overlaysVisible.cameraCoverage = true;  /* true or false */
+roomObj.overlaysVisible.displayDistanceCoverage = true; /* true or false */
+roomObj.overlaysVisible.microphoneCoverage = true;  /* true or false */
+roomObj.overlaysVisible.gridLines = true; /* true or false */
+roomObj.overlaysVisible.speakerCoverage = true;  /* true or false */
+roomObj.overlaysVisible.overlayLabels = false; /* true or false */
 
 roomObj.items.videoDevices = [];
 roomObj.items.chairs = [];
@@ -632,6 +632,28 @@ function getGroupById(groupId) {
 function ensureGroups(obj) {
     const target = obj || roomObj;
     if (!target.groups) target.groups = [];
+}
+
+/* Backward-compat for saved .vrc.json files written before the 2026-05
+ * overlay-rename. The old shape used `layersVisible` (a misnomer — it
+ * never had anything to do with VRC Layers) with `gr*` coverage-overlay
+ * keys. Rename to the new schema on load. One-way: we only ever WRITE
+ * the new keys, so files saved by the new build never carry the legacy
+ * shape. Called from importJson() right after the structuredClone of
+ * the uploaded JSON. */
+function migrateLegacyOverlayKeys(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    const src = obj.layersVisible;
+    if (!src || obj.overlaysVisible) return; /* already migrated */
+    const dst = {};
+    if ('grShadingCamera' in src) dst.cameraCoverage = src.grShadingCamera;
+    if ('grShadingMicrophone' in src) dst.microphoneCoverage = src.grShadingMicrophone;
+    if ('grShadingSpeaker' in src) dst.speakerCoverage = src.grShadingSpeaker;
+    if ('grDisplayDistance' in src) dst.displayDistanceCoverage = src.grDisplayDistance;
+    if ('grLabels' in src) dst.overlayLabels = src.grLabels;
+    if ('gridLines' in src) dst.gridLines = src.gridLines;
+    obj.overlaysVisible = dst;
+    delete obj.layersVisible;
 }
 
 /* Bounding box in layerTransform-local coords. Uses the same
@@ -2902,7 +2924,7 @@ function applyAllLayerStates() {
      * defaults to true, so the visibility/listening changes above auto-trigger
      * a redraw of layerTransform on the next animation frame.
      *
-     * The grShading* / grDisplayDistance / grLabels nodes are Konva.Group
+     * The *Coverage / overlayLabels nodes are Konva.Group
      * children of layerTransform (NOT separate layers), so they ride the
      * same auto-redraw — the previous explicit *.batchDraw() calls were
      * silent no-ops because Konva.Group has no batchDraw method. */
@@ -3832,36 +3854,36 @@ let clipShadingBorder = {  /* Outside of the border/wall guidance is feature are
     height: activeRoomWidth * scale,
 }
 
-let grShadingMicrophone = new Konva.Group({
-    name: 'grShadingMicrophone',
+let microphoneCoverage = new Konva.Group({
+    name: 'microphoneCoverage',
     clip: clipShadingBorder,
 });
 
-let grDisplayDistance = new Konva.Group(
+let displayDistanceCoverage = new Konva.Group(
     {
-        name: 'grDisplayDistance',
+        name: 'displayDistanceCoverage',
         clip: clipShadingBorder,
     }
 )
 
-let grShadingSpeaker = new Konva.Group(
+let speakerCoverage = new Konva.Group(
     {
-        name: 'grShadingSpeaker',
+        name: 'speakerCoverage',
         clip: clipShadingBorder,
     }
 )
 
-let grShadingCamera = new Konva.Group({
-    name: 'grShadingCamera',
+let cameraCoverage = new Konva.Group({
+    name: 'cameraCoverage',
     clip: clipShadingBorder,
 });
 
 
-let grLabels = new Konva.Group({
-    name: 'grLabels',
+let overlayLabels = new Konva.Group({
+    name: 'overlayLabels',
 });
 
-let allCoverageGroups = [grShadingMicrophone, grDisplayDistance, grShadingCamera, grShadingSpeaker, grLabels];
+let allCoverageGroups = [microphoneCoverage, displayDistanceCoverage, cameraCoverage, speakerCoverage, overlayLabels];
 
 let isAllCoverageGroupHidden = false; /* keep track if the coverGroups is hidden */
 
@@ -7996,27 +8018,27 @@ function parseShortenedXYUrl(parameters) {
 
 
                 if (shadeArray[0] == '1') {
-                    roomObj.layersVisible.grShadingCamera = true;
+                    roomObj.overlaysVisible.cameraCoverage = true;
                 } else {
-                    roomObj.layersVisible.grShadingCamera = false;
+                    roomObj.overlaysVisible.cameraCoverage = false;
                 }
 
                 if (shadeArray[1] == '1') {
-                    roomObj.layersVisible.grDisplayDistance = true;
+                    roomObj.overlaysVisible.displayDistanceCoverage = true;
                 } else {
-                    roomObj.layersVisible.grDisplayDistance = false;
+                    roomObj.overlaysVisible.displayDistanceCoverage = false;
                 }
 
                 if (shadeArray[2] == '1') {
-                    roomObj.layersVisible.grShadingMicrophone = true;
+                    roomObj.overlaysVisible.microphoneCoverage = true;
                 } else {
-                    roomObj.layersVisible.grShadingMicrophone = false;
+                    roomObj.overlaysVisible.microphoneCoverage = false;
                 }
 
                 if (shadeArray[3] == '1') {
-                    roomObj.layersVisible.gridLines = true;
+                    roomObj.overlaysVisible.gridLines = true;
                 } else {
-                    roomObj.layersVisible.gridLines = false;
+                    roomObj.overlaysVisible.gridLines = false;
                 }
 
                 if (shadeArray[4] == '1') {
@@ -8032,15 +8054,15 @@ function parseShortenedXYUrl(parameters) {
                 }
 
                 if (shadeArray[6] == '1') {
-                    roomObj.layersVisible.grLabels = true;
+                    roomObj.overlaysVisible.overlayLabels = true;
                 } else {
-                    roomObj.layersVisible.grLabels = false;
+                    roomObj.overlaysVisible.overlayLabels = false;
                 }
 
                 if (shadeArray[7] == '1') {
-                    roomObj.layersVisible.grShadingSpeaker = true;
+                    roomObj.overlaysVisible.speakerCoverage = true;
                 } else {
-                    roomObj.layersVisible.grShadingSpeaker = false;
+                    roomObj.overlaysVisible.speakerCoverage = false;
                 }
 
                 if (shadeArray[8] === '1') {
@@ -8612,12 +8634,12 @@ function resetRoomObj() {
 
     roomObj.name = ''; /* Pre-creating objects now so the order shows up on top in JSON file. */
     roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
-    roomObj.layersVisible.grShadingCamera = true;  /* true or false */
-    roomObj.layersVisible.grDisplayDistance = false; /* true or false */
-    roomObj.layersVisible.grShadingMicrophone = false;  /* true or false */
-    roomObj.layersVisible.gridLines = true; /* true or false */
-    roomObj.layersVisible.grShadingSpeaker = false;  /* true or false */
-    roomObj.layersVisible.grLabels = false;
+    roomObj.overlaysVisible.cameraCoverage = true;  /* true or false */
+    roomObj.overlaysVisible.displayDistanceCoverage = false; /* true or false */
+    roomObj.overlaysVisible.microphoneCoverage = false;  /* true or false */
+    roomObj.overlaysVisible.gridLines = true; /* true or false */
+    roomObj.overlaysVisible.speakerCoverage = false;  /* true or false */
+    roomObj.overlaysVisible.overlayLabels = false;
     roomObj.layers = getDefaultLayers();
 
     roomObj.items.videoDevices = [];
@@ -10346,10 +10368,10 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     clipShadingBorder.width = (activeRoomWidth * scale);
     clipShadingBorder.height = (activeRoomLength * scale);
 
-    grShadingMicrophone.clip(clipShadingBorder);
-    grShadingCamera.clip(clipShadingBorder);
-    grDisplayDistance.clip(clipShadingBorder);
-    grShadingSpeaker.clip(clipShadingBorder);
+    microphoneCoverage.clip(clipShadingBorder);
+    cameraCoverage.clip(clipShadingBorder);
+    displayDistanceCoverage.clip(clipShadingBorder);
+    speakerCoverage.clip(clipShadingBorder);
 
     let tableWidth = getNumberValue('tableWidth');
     roomObj.room.tableWidth = tableWidth;
@@ -10496,12 +10518,12 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     stageAddLayers();
 
-    labelsVisible(roomObj.layersVisible.grLabels)
-    gridLinesVisible(roomObj.layersVisible.gridLines);
-    shadingMicrophoneVisible(roomObj.layersVisible.grShadingMicrophone);
-    displayDistanceVisible(roomObj.layersVisible.grDisplayDistance);
-    shadingCameraVisible(roomObj.layersVisible.grShadingCamera);
-    shadingSpeakerVisible(roomObj.layersVisible.grShadingSpeaker);
+    overlayLabelsVisible(roomObj.overlaysVisible.overlayLabels)
+    gridLinesVisible(roomObj.overlaysVisible.gridLines);
+    microphoneCoverageVisible(roomObj.overlaysVisible.microphoneCoverage);
+    displayDistanceCoverageVisible(roomObj.overlaysVisible.displayDistanceCoverage);
+    cameraCoverageVisible(roomObj.overlaysVisible.cameraCoverage);
+    speakerCoverageVisible(roomObj.overlaysVisible.speakerCoverage);
 
     updateRemoveDefaultWallsCheckBox();
 
@@ -11760,25 +11782,25 @@ function createLinkSingleItemShadingDecimal(item) {
 
 function createShareableLinkItemShading() {
     let shadeArray = [];
-    if (roomObj.layersVisible.grShadingCamera) {
+    if (roomObj.overlaysVisible.cameraCoverage) {
         shadeArray[0] = 1;
     } else {
         shadeArray[0] = 0;
     }
 
-    if (roomObj.layersVisible.grDisplayDistance) {
+    if (roomObj.overlaysVisible.displayDistanceCoverage) {
         shadeArray[1] = 1;
     } else {
         shadeArray[1] = 0;
     }
 
-    if (roomObj.layersVisible.grShadingMicrophone) {
+    if (roomObj.overlaysVisible.microphoneCoverage) {
         shadeArray[2] = 1;
     } else {
         shadeArray[2] = 0;
     }
 
-    if (roomObj.layersVisible.gridLines) {
+    if (roomObj.overlaysVisible.gridLines) {
         shadeArray[3] = 1;
     } else {
         shadeArray[3] = 0;
@@ -11797,13 +11819,13 @@ function createShareableLinkItemShading() {
         shadeArray[5] = 0;
     }
 
-    if (roomObj.layersVisible.grLabels) {
+    if (roomObj.overlaysVisible.overlayLabels) {
         shadeArray[6] = 1;
     } else {
         shadeArray[6] = 0;
     }
 
-    if (roomObj.layersVisible.grShadingSpeaker) {
+    if (roomObj.overlaysVisible.speakerCoverage) {
         shadeArray[7] = 1;
     } else {
         shadeArray[7] = 0;
@@ -13575,16 +13597,16 @@ function stageAddLayers() {
     layerTransform.add(groupGroupRects); /* Group rects render behind all items */
     layerTransform.add(groupCustomItemRects); /* CustomItem rects render between Group rects and items */
     layerTransform.add(groupStageFloors);
-    layerTransform.add(grShadingCamera);
-    layerTransform.add(grDisplayDistance);
+    layerTransform.add(cameraCoverage);
+    layerTransform.add(displayDistanceCoverage);
     layerTransform.add(groupTables);
     layerTransform.add(groupChairs);
     layerTransform.add(groupBoxes);
 
 
-    layerTransform.add(grShadingMicrophone);
+    layerTransform.add(microphoneCoverage);
 
-    layerTransform.add(grShadingSpeaker);
+    layerTransform.add(speakerCoverage);
 
     layerTransform.add(groupDisplays);
     layerTransform.add(groupSpeakers);
@@ -13595,7 +13617,7 @@ function stageAddLayers() {
 
     layerTransform.add(groupRooms);
 
-    layerTransform.add(grLabels);
+    layerTransform.add(overlayLabels);
 
     stage.add(layerTransform);
 
@@ -13610,7 +13632,7 @@ function stageAddLayers() {
 document.getElementById('btnLabelToggle').disabled = true;
 
 
-function displayDistanceVisible(state = 'buttonPress') {
+function displayDistanceCoverageVisible(state = 'buttonPress') {
     closeTooltipTitleText();
 
     let button = document.getElementById('btnDisplayDistance');
@@ -13618,7 +13640,7 @@ function displayDistanceVisible(state = 'buttonPress') {
 
     if (state === 'buttonPress') {
         saveToUndo = true;
-        if (grDisplayDistance.visible() === true) {
+        if (displayDistanceCoverage.visible() === true) {
             state = false;
         }
         else {
@@ -13629,16 +13651,16 @@ function displayDistanceVisible(state = 'buttonPress') {
     if (state === true) {
         button.classList.toggle('active', true);
         // button.style["color"] = toggleButtonOnColor;
-        grDisplayDistance.visible(true);
+        displayDistanceCoverage.visible(true);
         // button.children[0].textContent = 'tv';
-        roomObj.layersVisible.grDisplayDistance = true;
+        roomObj.overlaysVisible.displayDistanceCoverage = true;
 
     } else {
         button.classList.toggle('active', false);
         // button.style["color"] = toggleButtonOffColor;
-        grDisplayDistance.visible(false);
+        displayDistanceCoverage.visible(false);
         // button.children[0].textContent = 'tv_off';
-        roomObj.layersVisible.grDisplayDistance = false;
+        roomObj.overlaysVisible.displayDistanceCoverage = false;
     }
 
     // updateFormatDetailsUpdate();
@@ -13647,7 +13669,7 @@ function displayDistanceVisible(state = 'buttonPress') {
 }
 
 
-function labelsVisible(state = 'buttonPress') {
+function overlayLabelsVisible(state = 'buttonPress') {
 
     testSearchShapeToNode();
 
@@ -13656,7 +13678,7 @@ function labelsVisible(state = 'buttonPress') {
 
     if (state === 'buttonPress') {
         saveToUndo = true;
-        if (grLabels.visible() === true) {
+        if (overlayLabels.visible() === true) {
             state = false;
         } else {
             state = true;
@@ -13665,16 +13687,16 @@ function labelsVisible(state = 'buttonPress') {
 
     if (state === true) {
 
-        grLabels.visible(true);
+        overlayLabels.visible(true);
         button.classList.toggle('active', true);
-        roomObj.layersVisible.grLabels = true;
+        roomObj.overlaysVisible.overlayLabels = true;
         /* When showing labels globally, hide the individual labels whose item is in a hidden VRC layer */
         applyLabelLayerVisibility();
     }
     else {
-        grLabels.visible(false);
+        overlayLabels.visible(false);
         button.classList.toggle('active', false);
-        roomObj.layersVisible.grLabels = false;
+        roomObj.overlaysVisible.overlayLabels = false;
     }
 
 
@@ -13684,10 +13706,10 @@ function labelsVisible(state = 'buttonPress') {
     }
 }
 
-/* For each label in grLabels, hide it if the parent item belongs to a hidden VRC layer */
+/* For each label in overlayLabels, hide it if the parent item belongs to a hidden VRC layer */
 function applyLabelLayerVisibility() {
-    if (typeof grLabels === 'undefined' || !grLabels.find) return;
-    grLabels.find('Label').forEach(labelNode => {
+    if (typeof overlayLabels === 'undefined' || !overlayLabels.find) return;
+    overlayLabels.find('Label').forEach(labelNode => {
         const labelId = labelNode.id();
         if (!labelId || !labelId.startsWith('label~')) return;
         const itemId = labelId.substring('label~'.length);
@@ -13697,7 +13719,7 @@ function applyLabelLayerVisibility() {
             labelNode.visible(layerVisible);
         }
     });
-    /* No batchDraw() here: grLabels is a Konva.Group (Groups have no
+    /* No batchDraw() here: overlayLabels is a Konva.Group (Groups have no
      * batchDraw method — calling it crashes), and Konva v8+ auto-redraws
      * the parent Layer on any visibility change anyway. */
 }
@@ -13720,21 +13742,21 @@ function gridLinesVisible(state = 'buttonPress') {
 
         titleGroup.visible(true);
 
-        grShadingCamera.clip(clipShadingBorder);
-        grShadingMicrophone.clip(clipShadingBorder);
+        cameraCoverage.clip(clipShadingBorder);
+        microphoneCoverage.clip(clipShadingBorder);
         kGroupLines.visible(true);
         button.classList.toggle('active', true);
-        roomObj.layersVisible.gridLines = true;
+        roomObj.overlaysVisible.gridLines = true;
     }
     else {
         button.classList.toggle('active', false);
         layerGrid.visible(true);
         kGroupLines.visible(false);
         titleGroup.visible(false);
-        grShadingCamera.clip(clipShadingBorder);
-        grShadingMicrophone.clip(clipShadingBorder);
+        cameraCoverage.clip(clipShadingBorder);
+        microphoneCoverage.clip(clipShadingBorder);
         gridToggleState = 'off';
-        roomObj.layersVisible.gridLines = false;
+        roomObj.overlaysVisible.gridLines = false;
     }
 
 
@@ -13743,7 +13765,7 @@ function gridLinesVisible(state = 'buttonPress') {
 }
 
 
-function shadingCameraVisible(state = 'buttonPress') {
+function cameraCoverageVisible(state = 'buttonPress') {
 
     closeTooltipTitleText();
 
@@ -13752,7 +13774,7 @@ function shadingCameraVisible(state = 'buttonPress') {
 
     if (state === 'buttonPress') {
         saveToUndo = true;
-        if (grShadingCamera.visible() === true) {
+        if (cameraCoverage.visible() === true) {
 
             state = false;
         } else {
@@ -13762,26 +13784,26 @@ function shadingCameraVisible(state = 'buttonPress') {
 
     if (state) {
         button.classList.toggle('active', true);
-        grShadingCamera.visible(true);
-        roomObj.layersVisible.grShadingCamera = true;
+        cameraCoverage.visible(true);
+        roomObj.overlaysVisible.cameraCoverage = true;
     } else {
         button.classList.toggle('active', false);
-        grShadingCamera.visible(false);
-        roomObj.layersVisible.grShadingCamera = false;
+        cameraCoverage.visible(false);
+        roomObj.overlaysVisible.cameraCoverage = false;
     }
 
     if (saveToUndo) saveToUndoArray();
 }
 
 
-function shadingMicrophoneVisible(state = 'buttonPress') {
+function microphoneCoverageVisible(state = 'buttonPress') {
     closeTooltipTitleText();
 
     let button = document.getElementById('btnMicShadeToggle');
     let saveToUndo = false;
     if (state === 'buttonPress') {
         saveToUndo = true;
-        if (grShadingMicrophone.visible() === true) {
+        if (microphoneCoverage.visible() === true) {
             state = false;
         } else {
             state = true;
@@ -13789,15 +13811,15 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
     }
 
     if (state === true) {
-        grShadingMicrophone.visible(true);
+        microphoneCoverage.visible(true);
 
         button.classList.toggle('active', true);
-        roomObj.layersVisible.grShadingMicrophone = true;
+        roomObj.overlaysVisible.microphoneCoverage = true;
     } else {
 
         button.classList.toggle('active', false);
-        grShadingMicrophone.visible(false);
-        roomObj.layersVisible.grShadingMicrophone = false;
+        microphoneCoverage.visible(false);
+        roomObj.overlaysVisible.microphoneCoverage = false;
     }
 
     // updateFormatDetailsUpdate();
@@ -13805,14 +13827,14 @@ function shadingMicrophoneVisible(state = 'buttonPress') {
     if (saveToUndo) saveToUndoArray();
 }
 
-function shadingSpeakerVisible(state = 'buttonPress') {
+function speakerCoverageVisible(state = 'buttonPress') {
     closeTooltipTitleText();
 
     let button = document.getElementById('btnSpeakerShadeToggle');
     let saveToUndo = false;
     if (state === 'buttonPress') {
         saveToUndo = true;
-        if (grShadingSpeaker.visible() === true) {
+        if (speakerCoverage.visible() === true) {
             state = false;
         } else {
             state = true;
@@ -13820,15 +13842,15 @@ function shadingSpeakerVisible(state = 'buttonPress') {
     }
 
     if (state === true) {
-        grShadingSpeaker.visible(true);
+        speakerCoverage.visible(true);
 
         button.classList.toggle('active', true);
-        roomObj.layersVisible.grShadingSpeaker = true;
+        roomObj.overlaysVisible.speakerCoverage = true;
     } else {
 
         button.classList.toggle('active', false);
-        grShadingSpeaker.visible(false);
-        roomObj.layersVisible.grShadingSpeaker = false;
+        speakerCoverage.visible(false);
+        roomObj.overlaysVisible.speakerCoverage = false;
     }
 
     if (saveToUndo) saveToUndoArray();
@@ -13867,11 +13889,11 @@ function toggleLabels(button) {
     if (button.children[0].textContent === 'label') {
         button.children[0].textContent = 'label_off';
         button.style["color"] = toggleButtonOffColor;
-        roomObj.layersVisible.grLabels = false;
+        roomObj.overlaysVisible.overlayLabels = false;
     } else {
         button.children[0].textContent = 'label'
         button.style["color"] = toggleButtonOnColor;
-        roomObj.layersVisible.grLabels = true;
+        roomObj.overlaysVisible.overlayLabels = true;
     }
 
 }
@@ -17348,23 +17370,23 @@ function addButtonListeners() {
 function buttonMouseDown(attributeType) {
 
     if (attributeType === 'hasMic') {
-        displayDistanceVisible(false);
-        shadingCameraVisible(false);
-        shadingSpeakerVisible(false);
+        displayDistanceCoverageVisible(false);
+        cameraCoverageVisible(false);
+        speakerCoverageVisible(false);
     }
     else if (attributeType === 'hasCamera') {
-        displayDistanceVisible(false);
-        shadingMicrophoneVisible(false);
-        shadingSpeakerVisible(false);
+        displayDistanceCoverageVisible(false);
+        microphoneCoverageVisible(false);
+        speakerCoverageVisible(false);
     }
     else if (attributeType === 'hasDisplay') {
-        shadingCameraVisible(false);
-        shadingMicrophoneVisible(false);
-        shadingSpeakerVisible(false);
+        cameraCoverageVisible(false);
+        microphoneCoverageVisible(false);
+        speakerCoverageVisible(false);
     } else if (attributeType === 'hasSpeaker') {
-        displayDistanceVisible(false);
-        shadingCameraVisible(false);
-        shadingMicrophoneVisible(false);
+        displayDistanceCoverageVisible(false);
+        cameraCoverageVisible(false);
+        microphoneCoverageVisible(false);
 
     }
 
@@ -17377,15 +17399,15 @@ function buttonMouseUp(attributeType) {
     if (menu) return;
 
     if (attributeType === 'hasMic') {
-        shadingMicrophoneVisible();
+        microphoneCoverageVisible();
     }
     else if (attributeType === 'hasCamera') {
-        shadingCameraVisible();
+        cameraCoverageVisible();
     }
     else if (attributeType === 'hasDisplay') {
-        displayDistanceVisible();
+        displayDistanceCoverageVisible();
     } else if (attributeType === 'hasSpeaker') {
-        shadingSpeakerVisible();
+        speakerCoverageVisible();
     }
 
 }
@@ -17393,16 +17415,16 @@ function buttonMouseUp(attributeType) {
 function buttonTurnOn(attributeType) {
 
     if (attributeType === 'hasMic') {
-        shadingMicrophoneVisible(true);
+        microphoneCoverageVisible(true);
     }
     else if (attributeType === 'hasCamera') {
-        shadingCameraVisible(true);
+        cameraCoverageVisible(true);
     }
     else if (attributeType === 'hasDisplay') {
-        displayDistanceVisible(true);
+        displayDistanceCoverageVisible(true);
     }
     else if (attributeType === 'hasSpeaker') {
-        shadingSpeakerVisible(true);
+        speakerCoverageVisible(true);
     }
 }
 
@@ -17793,10 +17815,10 @@ function previewCheckedDevices(opt, attributeType) {
             delete parentNode[attributeHidden]; /* delete .data_fovHidden value direct in the Konva canvas */
             delete item[attributeHidden]; /* delete .data_fovHidden direct to roomObj */
             closeAllMenus();
-            displayDistanceVisible(false);
-            shadingMicrophoneVisible(false);
-            shadingCameraVisible(false);
-            shadingSpeakerVisible(false);
+            displayDistanceCoverageVisible(false);
+            microphoneCoverageVisible(false);
+            cameraCoverageVisible(false);
+            speakerCoverageVisible(false);
         }
 
     });
@@ -17848,8 +17870,8 @@ function toggleMicShadingSingleItem() {
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
-    /* this function should note be called if grShadingMicrophone === false, but in case it is, give the user feedback */
-    if (roomObj.layersVisible.grShadingMicrophone === false) {
+    /* this function should note be called if microphoneCoverage === false, but in case it is, give the user feedback */
+    if (roomObj.overlaysVisible.microphoneCoverage === false) {
         document.getElementById('dialogSingleItemToggles').showModal();
         return;
     }
@@ -17879,8 +17901,8 @@ function toggleSpeakerShadingSingleItem() {
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
-    /* this function should not be called if grShadingSpeaker === false, but in case it is, give the user feedback */
-    if (roomObj.layersVisible.grShadingSpeaker === false) {
+    /* this function should not be called if speakerCoverage === false, but in case it is, give the user feedback */
+    if (roomObj.overlaysVisible.speakerCoverage === false) {
         document.getElementById('dialogSingleItemToggles').showModal();
         return;
     }
@@ -17909,7 +17931,7 @@ function toggleCamShadeSingleItem() {
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
-    if (roomObj.layersVisible.grShadingCamera === false) {
+    if (roomObj.overlaysVisible.cameraCoverage === false) {
         alert('To toggle this button, first toggle on the parent mics, cameras or display button found above the canvas drawing.');
         // document.getElementById('dialogSingleItemToggles').showModal();
         return;
@@ -17940,7 +17962,7 @@ function toggleDisplayDistanceSingleItem() {
     let id = document.getElementById('itemId').innerText;
     let parentGroup = document.getElementById('itemGroup').innerText;
 
-    if (roomObj.layersVisible.grDisplayDistance === false) {
+    if (roomObj.overlaysVisible.displayDistanceCoverage === false) {
         document.getElementById('dialogSingleItemToggles').showModal();
         return;
     }
@@ -18199,7 +18221,7 @@ function deleteNegativeShapes() {
 
     transformGroups.forEach((group) => {
         let groupName = group.name();
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+        if (!(groupName === 'theTransformer' || groupName === 'microphoneCoverage' || groupName === 'cameraCoverage' || groupName === 'displayDistanceCoverage' || groupName === 'speakerCoverage')) {
 
             deleteNegShapeGroups(group);
         }
@@ -19778,7 +19800,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         groupFov.add(teleOnePersonFOV);
         groupFov.add(wideFOV);
         groupFov.add(teleTwoPersonFOV);
-        grShadingCamera.add(groupFov);
+        cameraCoverage.add(groupFov);
 
     }
 
@@ -19858,7 +19880,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         groupAudioShading.add(audioShadingLine);
         groupAudioShading.add(audioShadingShade);
         groupAudioShading.add(txtAudio);
-        grShadingMicrophone.add(groupAudioShading);
+        microphoneCoverage.add(groupAudioShading);
     }
 
     if ('speakerRadius' in insertDevice && 'speakerDeg' in insertDevice) {
@@ -19947,7 +19969,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         groupSpeakerCoverage.add(speakerShadingLine);
         groupSpeakerCoverage.add(speakerShadingShade);
         // groupSpeakerCoverage.add(txtSpeaker);
-        grShadingSpeaker.add(groupSpeakerCoverage);
+        speakerCoverage.add(groupSpeakerCoverage);
     }
 
 
@@ -20045,7 +20067,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
         groupItemDisplayDistance.add(displayCoverage4x);
         groupItemDisplayDistance.add(displayDistanceWedge1);
-        grDisplayDistance.add(groupItemDisplayDistance);
+        displayDistanceCoverage.add(groupItemDisplayDistance);
 
         if (document.getElementById('showDisplayCoverage4x').checked === true) {
             displayCoverage4x.show();
@@ -20159,7 +20181,7 @@ function addLabel(node, attrs, alwaysLabel = false) {
         })
     );
 
-    grLabels.add(labelTip);
+    overlayLabels.add(labelTip);
 
     /* If the parent item is in a hidden VRC layer, hide the label too. */
     if (isItemInHiddenLayer(node)) {
@@ -20328,7 +20350,7 @@ function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
     layerTransform.find(node => {
         let groupName = node.getParent().name();
         /* ignore the shading and the temporary groups */
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+        if (!(groupName === 'theTransformer' || groupName === 'microphoneCoverage' || groupName === 'cameraCoverage' || groupName === 'displayDistanceCoverage' || groupName === 'speakerCoverage')) {
 
             /* Drop bundle MEMBER items globally — only bundle rects
              * (data_deviceid 'group' / 'customItem') represent a bundle
@@ -20421,7 +20443,7 @@ function getLineGuideStops2(skipShape, resize = false) {
     layerTransform.find(node => {
         let groupName = node.getParent().name();
         /* ignore the shading and the temporary groups */
-        if (!(groupName === 'theTransformer' || groupName === 'grShadingMicrophone' || groupName === 'grShadingCamera' || groupName === 'grDisplayDistance' || groupName === 'grShadingSpeaker')) {
+        if (!(groupName === 'theTransformer' || groupName === 'microphoneCoverage' || groupName === 'cameraCoverage' || groupName === 'displayDistanceCoverage' || groupName === 'speakerCoverage')) {
             /* only snap to objects inside the current room part */
             if (node.draggable() && Konva.Util.haveIntersection(outerBox, node.getClientRect())) {
                 return true;
@@ -20955,7 +20977,7 @@ function showDisplayCoverage4x(e) {
         setItemForLocalStorage('showDisplayCoverage4x', 'false');
     }
 
-    let displayCoverage4xs = grDisplayDistance.find('.displayCoverage4x');
+    let displayCoverage4xs = displayDistanceCoverage.find('.displayCoverage4x');
 
     displayCoverage4xs.forEach(displayCoverage => {
         if (e.srcElement.checked) {
@@ -21462,7 +21484,7 @@ function hideAllCoverageGroups(hide = true, minimumNodeCount = 150) {
         if (hide) {
             group.hide();
         } else {
-            if (roomObj.layersVisible[group.name()] === true) {
+            if (roomObj.overlaysVisible[group.name()] === true) {
                 group.show();
             }
         }
@@ -24811,19 +24833,19 @@ function onKeyDown(e) {
                 }
             }
             else if ((key === 'c')) { /* camera coverage toggle */
-                shadingCameraVisible();
-                displayDistanceVisible(false);
-                shadingMicrophoneVisible(false);
+                cameraCoverageVisible();
+                displayDistanceCoverageVisible(false);
+                microphoneCoverageVisible(false);
             }
             else if ((key === 'd')) { /* display coverage toggle */
-                shadingCameraVisible(false);
-                displayDistanceVisible();
-                shadingMicrophoneVisible(false);
+                cameraCoverageVisible(false);
+                displayDistanceCoverageVisible();
+                microphoneCoverageVisible(false);
             }
             else if ((key === 'm')) { /* display mic coverage toggle */
-                shadingCameraVisible(false);
-                displayDistanceVisible(false);
-                shadingMicrophoneVisible();
+                cameraCoverageVisible(false);
+                displayDistanceCoverageVisible(false);
+                microphoneCoverageVisible();
             }
         }
     }
@@ -26362,6 +26384,7 @@ function importJson(jsonFile) {
 
         setTimeout(() => {
             roomObj = structuredClone(jsonFile);
+            migrateLegacyOverlayKeys(roomObj);
             roomObj.trNodes = [];
             /* Third-party-authored .vrc.json files may omit `version`. Backfill from
              * the boot-time default so downstream consumers (createShareableLink in
@@ -26904,13 +26927,13 @@ function importXConfigFile(text, fileName) {
     roomObj2.workspace.removeDefaultWalls = true;
     roomObj2.workspace.theme = 'standard';
 
-    roomObj2.layersVisible = {
-        grShadingCamera: false,
-        grDisplayDistance: false,
-        grShadingMicrophone: false,
+    roomObj2.overlaysVisible = {
+        cameraCoverage: false,
+        displayDistanceCoverage: false,
+        microphoneCoverage: false,
         gridLines: true,
-        grShadingSpeaker: false,
-        grLabels: false,
+        speakerCoverage: false,
+        overlayLabels: false,
     };
 
     /* Convert each placement into a roomObj item. For non-table groups

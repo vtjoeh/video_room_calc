@@ -136,12 +136,13 @@ roomObj = {
     rightwall: { type: 'regular', acousticTreatment: false },
     backwall: { type: 'regular', acousticTreatment: false }
   },
-  layersVisible: {
-    grShadingCamera: true,
-    grDisplayDistance: true,
-    grShadingMicrophone: true,
+  overlaysVisible: {           // visibility of the 5 coverage/visualization overlays + gridlines
+    cameraCoverage: true,      // (NOT related to roomObj.layers / VRC Layers — historical misnomer was `layersVisible`)
+    displayDistanceCoverage: true,
+    microphoneCoverage: true,
+    speakerCoverage: true,
     gridLines: true,
-    grLabels: false
+    overlayLabels: false
   },
   layers: [                   // VRC Layer system for organizing items (distinct from Konva layers)
     { name: 'Default',  visible: true, locked: false, layerid: '0' },   // reserved - cannot be deleted
@@ -175,14 +176,20 @@ The canvas uses multiple Konva layers for rendering (defined around line 57-500)
 | Layer | Purpose |
 |-------|---------|
 | `stage` | Main Konva stage container |
-| `layerGrid` | Grid lines and room outline |
-| `layerBackgroundImageFloor` | Floor plan background images |
-| `layerTransform` | All draggable objects |
-| `layerSelectionBox` | Selection rectangle |
-| `grShadingCamera` | Camera FOV visualization |
-| `grShadingMicrophone` | Microphone coverage visualization |
-| `grDisplayDistance` | Display viewing distance lines |
-| `grLabels` | Item labels |
+| `layerGrid` | Grid lines and room outline (true `Konva.Layer`) |
+| `layerBackgroundImageFloor` | Floor plan background images (actually a `Konva.Group` despite the name — see [notes/TECH_NOTES.md](notes/TECH_NOTES.md) §6) |
+| `layerTransform` | All draggable objects (true `Konva.Layer`) |
+| `layerSelectionBox` | Selection rectangle (true `Konva.Layer`) |
+
+The next five live inside `layerTransform` as `Konva.Group`s, not as their own `Konva.Layer`s. They are toggled via `roomObj.overlaysVisible` (see `overlaysVisible` in the `roomObj` shape above). Each variable name, the Konva `name:` attribute, and the matching key in `overlaysVisible` are all the same string — the dynamic dispatch in `applyAllLayerStates` relies on it.
+
+| Konva.Group (variable / `name:` / `overlaysVisible` key) | Purpose |
+|----------------------------------------------------------|---------|
+| `cameraCoverage` | Camera FOV visualization |
+| `microphoneCoverage` | Microphone coverage visualization |
+| `speakerCoverage` | Speaker coverage visualization |
+| `displayDistanceCoverage` | Display viewing-distance lines |
+| `overlayLabels` | Item label tooltips |
 
 ### Groups (within layerTransform)
 
@@ -1525,7 +1532,7 @@ item.data_layerId = 'some-uuid';    // custom layer
 | `applyAllLayerStates()` | Re-applies all layer states to all canvas nodes (and coverage layers) |
 | `isItemInHiddenLayer(itemOrNode)` | Returns true if the item/node's `data_layerId` resolves to a layer with `visible=false` |
 | `removeHiddenLayerItemsForExport(roomObj2)` | Used by `exportRoomObjToWorkspace()` to drop every item whose layer is hidden from the cloned roomObj before export (mutates the cloned roomObj) |
-| `applyLabelLayerVisibility()` | Iterates all `Konva.Label` children of `grLabels` and hides the ones whose parent item is in a hidden VRC layer (called by `labelsVisible(true)`) |
+| `applyLabelLayerVisibility()` | Iterates all `Konva.Label` children of `overlayLabels` and hides the ones whose parent item is in a hidden VRC layer (called by `overlayLabelsVisible(true)`) |
 | `selectLayerItems(layerId)` | Selects all items in a layer via `tr.nodes()`. Bound to the per-layer "select items" button in the Layers tab (`icon-selection-bold`). Mirrors the rectangular drag-select finalize path: sources candidates from `selectAllNodes()` (NOT `getAllCanvasNodes()` — see footgun below), filters by `listening() && isVisible()` so locked/hidden-layer items are never picked up, replaces the current selection (items on other layers are dropped), expands Group / CustomItem bundles via `expandSelectionForGroups()`, then calls `refreshCopyDelBtnState()` (NOT `enableCopyDelBtn()`) so the user stays on the Layers tab. The Layers-tab button is also disabled when the layer is locked / hidden / empty, so the `listening() && isVisible()` filter is purely defensive. **Footgun:** the seemingly-equivalent `getAllCanvasNodes()` (which does `layerTransform.find('Image, Rect, Circle, Shape, Line, RegularPolygon')`) picks up nested child shapes inside compound items (sub-rects of outerWall constructs, internal polyRoom lines, etc.). Passing those nested children to `tr.nodes()` blows the Konva stack — the Transformer's `getClientRect` / cache-reset cycle recurses through their parents and fires Maximum-call-stack `RangeError`s. `selectAllNodes()` is the safe top-level item list (direct children of `groupVideoDevices`/`groupChairs`/… plus the Group/CustomItem rect groups) and is what the rectangular drag-select uses |
 | `getLayerItemCount(layerId)` | Counts selectable items in a layer. Used by `renderLayersList()` to (a) disable the per-layer "select items" button when the count is 0, and (b) show the count in the button's tooltip. Pulls from the same `selectAllNodes()` source list `selectLayerItems()` uses (excluding Group / CustomItem rects, which aren't standalone items), so the count is always exactly "how many items would land in `tr.nodes()` if the user clicked the button". Defensive null-check on `groupVideoDevices` because `renderLayersList()` can run before the device groups are constructed during early init |
 | `renderLayersList()` | Rebuilds the Layers tab HTML (header row + per-layer rows) and refreshes dropdowns |
@@ -1657,7 +1664,7 @@ when focus lands on the canvas.
 
 - **Add new device type:** Add to device arrays in `roomcalc.js`, add `workspaceKey`, add image to `assets/images/`
 - **Change UI layout:** Edit HTML structure and CSS
-- **Modify coverage visualization:** Look for `grShading*` groups
+- **Modify coverage visualization:** Look for `*Coverage` / `overlayLabels` Konva.Groups (`cameraCoverage`, `microphoneCoverage`, `speakerCoverage`, `displayDistanceCoverage`, `overlayLabels`)
 - **Change toolbar:** Edit `#controlButtons` in HTML
 - **Add new template:** Add to `templates.js`
 
