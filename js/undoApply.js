@@ -42,6 +42,13 @@
  *     List of keys under roomObj.overlaysVisible whose values differ.
  *     Empty array means the overlay flags are identical.
  *
+ *   VRC.undoApply.isOnlyTrNodesChanged(current, last) -> boolean
+ *     Write-path dedup for `saveToUndoArray()`. Returns true when
+ *     `current` and `last` are byte-identical after stripping
+ *     `trNodes` — i.e. the user merely changed the selection. Callers
+ *     skip the push in this case so click-around doesn't bloat the
+ *     undo stack.
+ *
  * Conservative-classifier rule: anything that would require rebuilding
  * the grid, walls, scale, offsets, or background image bytes triggers a
  * full-redraw fallback. Anything else is fair game for the fast path.
@@ -201,6 +208,29 @@ window.VRC = window.VRC || {};
         return changed;
     }
 
+    /* ---- write-path dedup helper ----
+     *
+     * Used by `saveToUndoArray()` to recognise a "selection-only"
+     * change between the current roomObj and the previous snapshot —
+     * the user clicked a different item but nothing else changed.
+     * Returns true ONLY when the two snapshots are byte-identical
+     * after stripping `trNodes`. The exact-equality case (nothing
+     * changed at all) is intentionally NOT folded in here; the caller
+     * already has its own exact-dedup branch and we want to keep the
+     * two semantics separate (exact dedup currently clears redo for
+     * legacy reasons; selection-only must preserve it).
+     *
+     * Pure data — same correctness assumption as the existing exact
+     * dedup: every snapshot path in this app comes from
+     * `structuredClone(roomObj)` so key order is stable across both
+     * sides. */
+    function isOnlyTrNodesChanged(current, last) {
+        if (!current || !last) return false;
+        var a = Object.assign({}, current); delete a.trNodes;
+        var b = Object.assign({}, last);    delete b.trNodes;
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
     window.VRC.undoApply = {
         MAX_PATCHABLE_ITEM_DELTAS: MAX_PATCHABLE_ITEM_DELTAS,
         requiresFullRedraw:        requiresFullRedraw,
@@ -209,5 +239,6 @@ window.VRC = window.VRC || {};
         diffCustomItems:           diffCustomItems,
         diffLayers:                diffLayers,
         diffOverlays:              diffOverlays,
+        isOnlyTrNodesChanged:      isOnlyTrNodesChanged,
     };
 })();

@@ -619,6 +619,35 @@ Otherwise returns **false** and the fast path runs.
   may currently be in `tr.nodes()`. Detaching first matches the
   bulk-mutate pattern documented in `notes/TECH_NOTES_KONVA.md`.
 
+#### Write-path dedup (selection-only changes skipped)
+
+`saveToUndoArray()` runs three dedup branches in order:
+
+1. **Exact match** (`strRoomObj === strUndoArrayLastItem`) — no-op.
+2. **Selection-only change** — `VRC.undoApply.isOnlyTrNodesChanged(current, last)`
+   returns true when the two snapshots are byte-identical after
+   stripping `roomObj.trNodes`. In that case the function skips the
+   `undoArray.push`, skips the `idbStore.undoAdd` write, and **preserves**
+   the existing `redoArray`. The user clicked a different item on the
+   canvas but no real edit happened, so the undo stack should not grow
+   and the redo stack should not be destroyed.
+3. **Real new edit** — push to `undoArray`, write to IDB, clear redo
+   (matches the original "new edit invalidates redo" behaviour).
+
+The trNodes-only branch is the reason `roomObj.trNodes` ("Does not need
+to be saved in URL" — see the comment at the top of `roomcalc.js`) never
+makes it into the undo stack as a standalone entry. Snapshots pushed for
+real edits still capture whatever `trNodes` was current at push time —
+the snapshot *shape* is unchanged. Selection IS restored on undo/redo
+because each real snapshot continues to carry the selection that was
+active at the moment of that edit.
+
+The redo-on-exact-dedup case got the same fix as a side benefit: the
+old code cleared `redoArray` unconditionally on every `saveToUndoArray()`
+call, even on an exact-dedup no-op. The new code only clears redo when
+a real new edit is pushed (`!trNodesOnlyChange` AND the exact-dedup
+branch falls through).
+
 #### Backward compatibility
 
 | Surface | Behaviour after this change |
@@ -636,13 +665,14 @@ Otherwise returns **false** and the fast path runs.
 before `js/roomcalc.js`. It exposes:
 
 ```js
-VRC.undoApply.requiresFullRedraw(prev, next) -> boolean
-VRC.undoApply.diffItems(prev, next)          -> { removedIds, addedIds, changedIds }
-VRC.undoApply.diffGroups(prev, next)         -> { removedIds, addedIds, changedIds }
-VRC.undoApply.diffCustomItems(prev, next)    -> { removedIds, addedIds, changedIds }
-VRC.undoApply.diffLayers(prev, next)         -> boolean
-VRC.undoApply.diffOverlays(prev, next)       -> Array<string>
-VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS      -> 50
+VRC.undoApply.requiresFullRedraw(prev, next)        -> boolean
+VRC.undoApply.diffItems(prev, next)                 -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffGroups(prev, next)                -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffCustomItems(prev, next)           -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffLayers(prev, next)                -> boolean
+VRC.undoApply.diffOverlays(prev, next)              -> Array<string>
+VRC.undoApply.isOnlyTrNodesChanged(current, last)   -> boolean  (write-path dedup; used by saveToUndoArray)
+VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS             -> 50
 ```
 
 The diffs use `JSON.stringify` equality (snapshots all come from

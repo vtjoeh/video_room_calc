@@ -3772,6 +3772,7 @@ let undoArray = [];
 let redoArray = [];
 
 let priorUndoArrayHasData = false; /* set true at onLoad if IndexedDB 'undoEntries' (or legacy localStorage 'undoArray') contained at least one saved design from a previous session — used to gate the "Reload last design" tile in the new-room dialog */
+
 let newRoomDialogOpenCount = 0;    /* incremented every time openNewRoomDialog() runs; used so the "Reload last design" tile only appears on the very first open after page load */
 let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `?x=` shareable-link querystring; suppresses the "Reload last design" tile so the user can't accidentally clobber a freshly-shared design with an unrelated previous-session restore */
 
@@ -8891,6 +8892,7 @@ function onLoad() {
     redirectToCollabExpereince();
     updateSelectVideoDeviceOptions();
     getQueryString();
+
     saveToUndoArray();
     postHeartbeat();
     setTimeout(() => {
@@ -9144,6 +9146,22 @@ function syncReloadLastDesignButton() {
 /* True iff obj.items has any non-empty array field. */
 function roomObjHasAnyItems(obj) {
     if (!obj || !obj.items) return false;
+    /* Current shape: flat array of items (post May 2026 flatten refactor).
+     * The IDB hydrate path runs the legacy-shape migration before
+     * roomObjHasAnyItems is ever called, so by the time we get here
+     * every snapshot's `items` is an Array. The legacy object-of-arrays
+     * branch is kept as a safety net for any caller that hands us a
+     * pre-migration snapshot.
+     *
+     * Before the flat-array branch existed, this function silently
+     * returned false for every current-shape roomObj, which caused
+     * reloadLastNonEmptyDesign()'s `while (!roomObjHasAnyItems(roomObj))`
+     * loop to walk the ENTIRE undo stack back to the oldest IDB entry
+     * (typically a huge legacy room) instead of stopping at the first
+     * non-empty room. See the "Reload last design walks too far back"
+     * fix. */
+    if (Array.isArray(obj.items)) return obj.items.length > 0;
+    /* Legacy object-of-arrays shape — kept for defence in depth. */
     for (const key in obj.items) {
         if (!Object.prototype.hasOwnProperty.call(obj.items, key)) continue;
         const arr = obj.items[key];
@@ -9152,8 +9170,6 @@ function roomObjHasAnyItems(obj) {
     return false;
 }
 
-/* "Reload last design" handler. Walks btnUndoClicked() back through
- * undoArray until finding a non-empty design, bounded by length===1. */
 function reloadLastNonEmptyDesign() {
     btnUndoClicked();
     while (undoArray.length > 1 && !roomObjHasAnyItems(roomObj)) {
@@ -13009,6 +13025,7 @@ function btnUndoClicked() {
     showUndoRedoRoomOs();
 
     clearTimeout(undoArrayTimer);
+
     if (undoArray.length > 0) {
         const movedEntry = undoArray.pop();
         redoArray.push(movedEntry);
@@ -14925,17 +14942,39 @@ function saveToUndoArray() {
     strUndoArrayLastItem = strUndoArrayLastItem.trim();
 
     let pushedNewEntry = false;
-    if ((strRoomObj === strUndoArrayLastItem)) {
-        /* do nothing */
+    let trNodesOnlyChange = false;
+
+    /* Dedup decision:
+     *   1. Exact match -> no-op (nothing changed at all).
+     *   2. Selection-only change -> no-op WRITE, but preserve redo.
+     *      `roomObj.trNodes` is just the list of selected node uuids
+     *      (see roomcalc.js header note "Does not need to be saved in
+     *      URL"). The user clicked a different item but no real edit
+     *      happened, so we skip the push (no undo bloat), skip the IDB
+     *      write, and intentionally DO NOT clear the redo stack so the
+     *      user can still Ctrl+Shift+Z to the post-edit state.
+     *   3. Real new edit -> push + clear redo (matches the existing
+     *      "new edit invalidates redo" behaviour). */
+    if (strRoomObj === strUndoArrayLastItem) {
+        /* exact dedup — nothing at all changed */
+    } else if (
+        undoArray.length > 0 &&
+        window.VRC &&
+        window.VRC.undoApply &&
+        window.VRC.undoApply.isOnlyTrNodesChanged(roomObj2, undoArray[undoArray.length - 1])
+    ) {
+        trNodesOnlyChange = true;
     } else {
         undoArray.push(structuredClone(roomObj2));
         pushedNewEntry = true;
         createShareableLink();
     }
 
-    /* New edits invalidate the redo history (matches in-memory behavior). */
-    const hadRedo = redoArray.length > 0;
-    redoArray = [];
+    /* Redo is invalidated only by a real new edit. A pure selection
+     * change (trNodesOnlyChange) preserves it so click-around between
+     * undo and redo doesn't kill the redo stack. */
+    const hadRedo = !trNodesOnlyChange && redoArray.length > 0;
+    if (!trNodesOnlyChange) redoArray = [];
 
     enableBtnUndoRedo();
 
