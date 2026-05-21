@@ -12964,6 +12964,38 @@ function closeDialogQuestions() {
     document.getElementById('dialogQuestions').close();
 }
 
+/* Routes an undo/redo restore through the incremental Konva patcher when
+ * safe, falling back to the legacy full `drawRoom(true, true, true)`
+ * rebuild for sweeping changes (unit change, room dimension change,
+ * walls / workspace / theme / software / background-image swap, or
+ * more than VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS items changed).
+ *
+ * The classifier in VRC.undoApply lives in js/undoApply.js. See the
+ * "Incremental undo/redo restore" section of CLAUDE.md for the contract.
+ *
+ * `prev` is the previous roomObj (still the live state at call time).
+ * `next` is the snapshot to apply; this function installs it on the
+ * global `roomObj` exactly once (so the orchestrator sees the new state
+ * when it queries roomObj-backed helpers like getGroupById). */
+function restoreSnapshotToCanvas(prev, next) {
+    const undoApply = window.VRC && window.VRC.undoApply;
+    const fallback = !undoApply || undoApply.requiresFullRedraw(prev, next);
+
+    roomObj = next;
+    unit = roomObj.unit;
+
+    if (fallback) {
+        /* The full-redraw path can clobber on-screen items while zoomed
+         * in (documented in notes/TECH_NOTES.md §1). Keep the zoom reset
+         * scoped to this branch — the incremental patcher doesn't need
+         * it because it never destroys unrelated nodes. */
+        zoomInOut('reset');
+        drawRoom(true, true, true);
+    } else {
+        applyRoomObjDelta(prev, next);
+    }
+}
+
 function btnUndoClicked() {
 
     if (!(polyBuilderMode === 'none' || polyBuilderMode === '')) {
@@ -12975,15 +13007,14 @@ function btnUndoClicked() {
 
 
     showUndoRedoRoomOs();
-    zoomInOut('reset');
 
     clearTimeout(undoArrayTimer);
     if (undoArray.length > 0) {
         const movedEntry = undoArray.pop();
         redoArray.push(movedEntry);
-        roomObj = structuredClone(undoArray[undoArray.length - 1]);
-        unit = roomObj.unit;
-        drawRoom(true, true, true);
+        const prev = roomObj;
+        const next = structuredClone(undoArray[undoArray.length - 1]);
+        restoreSnapshotToCanvas(prev, next);
         enableBtnUndoRedo();
         setTimeout(() => {
             createShareableLink();
@@ -13015,13 +13046,13 @@ function btnRedoClicked() {
     };
 
     showUndoRedoRoomOs()
-    zoomInOut('reset');
 
     if (redoArray.length > 0) {
         const movedEntry = redoArray.pop();
         undoArray.push(movedEntry);
-        roomObj = structuredClone(undoArray[undoArray.length - 1]);
-        drawRoom(true, true, true);
+        const prev = roomObj;
+        const next = structuredClone(undoArray[undoArray.length - 1]);
+        restoreSnapshotToCanvas(prev, next);
         setTimeout(() => {
             createShareableLink();
 
@@ -14157,6 +14188,183 @@ function roomObjToCanvas(updateExisting = false) {
 
 }
 
+/* ---- Incremental undo / redo apply ----------------------------------
+ *
+ * Targeted Konva patcher used by btnUndoClicked() / btnRedoClicked() on
+ * the FAST PATH. The caller has already replaced the global `roomObj`
+ * with the target snapshot (`next`); this function brings the Konva
+ * tree into alignment by destroying / re-inserting only the items,
+ * groups, customItems, and meta state that actually changed between
+ * `prev` and `next`. The classifier in `VRC.undoApply.requiresFullRedraw`
+ * decides whether this fast path is safe; if it returns true the caller
+ * runs the original `drawRoom(true, true, true)` full-rebuild instead.
+ *
+ * Implementation notes:
+ *
+ *   - The destroy + re-`insertItem` pattern mirrors `updateItem()` —
+ *     the only proven way to apply arbitrary attribute changes without
+ *     leaking Konva.Image / cached shape state. `insertItem()` is the
+ *     same call `roomObjToCanvas()` uses, so coverage / label children
+ *     are rebuilt as a side effect for free.
+ *   - `insertGroupRect()` / `insertCustomItemRect()` already destroy
+ *     any stale rect for the same id before inserting, so the
+ *     `changedIds` case re-uses the same call as `addedIds`.
+ *   - Selection restore is deferred via the existing 200 ms timeout
+ *     inside `trNodesFromUuids` so freshly-inserted nodes are findable
+ *     by id.
+ *   - This function MUST NOT call `saveToUndoArray()` directly or
+ *     indirectly — the caller is in the middle of consuming the undo
+ *     stack and a re-push would corrupt the timeline.
+ */
+function applyRoomObjDelta(prev, next) {
+    const undoApply = window.VRC && window.VRC.undoApply;
+    if (!undoApply) {
+        /* Defensive: module missing — surrender to the full-redraw path. */
+        drawRoom(true, true, true);
+        return;
+    }
+
+    const safeArr = (x) => (Array.isArray(x) ? x : []);
+
+    /* Detach the Transformer before destroying any item nodes. Two
+     * reasons: (1) some of the items we're about to destroy may be in
+     * tr.nodes(), and leaving them attached during destroy can leave
+     * Konva with dangling refs; (2) it's the documented bulk-mutate
+     * speed pattern (see notes/TECH_NOTES_KONVA.md "tr.nodes([])-detach-
+     * before-bulk-mutate"). trNodesFromUuids() reattaches the new
+     * selection at the end of this function. */
+    tr.nodes([]);
+
+    /* Look-up tables for the target snapshot. We need the full item /
+     * group / customItem object for any added or changed id so we can
+     * pass it to insertItem / insertGroupRect / insertCustomItemRect. */
+    const nextItemsById = new Map();
+    safeArr(next && next.items).forEach(i => {
+        if (i && i.id) nextItemsById.set(i.id, i);
+    });
+    const nextGroupsById = new Map();
+    safeArr(next && next.groups).forEach(g => {
+        if (g && g.groupid) nextGroupsById.set(g.groupid, g);
+    });
+    const nextCustomItemsById = new Map();
+    safeArr(next && next.customItems).forEach(c => {
+        if (c && c.customitemid) nextCustomItemsById.set(c.customitemid, c);
+    });
+
+    /* ---- Items ---- */
+    const itemDiff = undoApply.diffItems(prev, next);
+
+    function destroyItemNodeAndCoverage(id) {
+        const node = stage.find('#' + id)[0];
+        if (!node) return;
+        const audio       = stage.find('#audio~'    + id)[0]; if (audio)       audio.destroy();
+        const speaker     = stage.find('#speaker~'  + id)[0]; if (speaker)     speaker.destroy();
+        const fov         = stage.find('#fov~'      + id)[0]; if (fov)         fov.destroy();
+        const dispDist    = stage.find('#dispDist~' + id)[0]; if (dispDist)    dispDist.destroy();
+        stage.find('#label~' + id).forEach(l => l.destroy());
+        node.destroy();
+        canvasNodesMap.delete(id);
+    }
+
+    itemDiff.removedIds.forEach(id => {
+        destroyItemNodeAndCoverage(id);
+        roomObjItemsMap.delete(id);
+    });
+
+    itemDiff.changedIds.forEach(id => {
+        destroyItemNodeAndCoverage(id);
+        const item = nextItemsById.get(id);
+        if (item) {
+            insertItem(item, item.id);
+            roomObjItemsMap.set(item.id, item);
+        }
+    });
+
+    itemDiff.addedIds.forEach(id => {
+        const item = nextItemsById.get(id);
+        if (item) {
+            insertItem(item, item.id);
+            roomObjItemsMap.set(item.id, item);
+        }
+    });
+
+    /* ---- Groups ----
+     * insertGroupRect() already removes any stale rect for the same
+     * groupid before inserting, so we only need an explicit destroy
+     * for the removedIds set. */
+    const groupDiff = undoApply.diffGroups(prev, next);
+    groupDiff.removedIds.forEach(gid => {
+        if (typeof groupGroupRects !== 'undefined' && groupGroupRects) {
+            const rect = groupGroupRects.find(n => n.data_groupId === gid)[0];
+            if (rect) rect.destroy();
+        }
+    });
+    const reinsertGroup = (gid) => {
+        const g = nextGroupsById.get(gid);
+        if (g) insertGroupRect(g);
+    };
+    groupDiff.changedIds.forEach(reinsertGroup);
+    groupDiff.addedIds.forEach(reinsertGroup);
+
+    /* ---- CustomItems ---- */
+    const ciDiff = undoApply.diffCustomItems(prev, next);
+    ciDiff.removedIds.forEach(cid => {
+        if (typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
+            const rect = groupCustomItemRects.find(n => n.data_customItemId === cid)[0];
+            if (rect) rect.destroy();
+        }
+    });
+    const reinsertCustomItem = (cid) => {
+        const c = nextCustomItemsById.get(cid);
+        if (c) insertCustomItemRect(c);
+    };
+    ciDiff.changedIds.forEach(reinsertCustomItem);
+    ciDiff.addedIds.forEach(reinsertCustomItem);
+
+    /* ---- Layers ----
+     * Any add / remove / rename / visibility / locked change re-runs the
+     * whole "apply layer state to every node" pass. The list itself is
+     * tiny so the granular delta isn't worth the bookkeeping. */
+    if (undoApply.diffLayers(prev, next)) {
+        if (typeof applyAllLayerStates === 'function') applyAllLayerStates();
+        if (typeof renderLayersList    === 'function') renderLayersList();
+    }
+
+    /* ---- Overlay visibility toggles ----
+     * Pass an explicit boolean so each toggle's `state === 'buttonPress'`
+     * branch (which would otherwise call saveToUndoArray()) is skipped.
+     * The toggles also re-write the matching roomObj.overlaysVisible
+     * field, which is idempotent against the next snapshot we just
+     * installed. */
+    const overlayChanges = undoApply.diffOverlays(prev, next);
+    const nextOv = (next && next.overlaysVisible) || {};
+    overlayChanges.forEach(key => {
+        const v = !!nextOv[key];
+        switch (key) {
+            case 'cameraCoverage':          cameraCoverageVisible(v); break;
+            case 'microphoneCoverage':      microphoneCoverageVisible(v); break;
+            case 'speakerCoverage':         speakerCoverageVisible(v); break;
+            case 'displayDistanceCoverage': displayDistanceCoverageVisible(v); break;
+            case 'overlayLabels':           overlayLabelsVisible(v); break;
+            case 'gridLines':               gridLinesVisible(v); break;
+            /* Unknown keys (future additions) silently no-op on the
+             * fast path; the next full drawRoom() will reconcile. */
+        }
+    });
+
+    /* ---- Selection restore ----
+     * trNodesFromUuids uses a 200 ms timeout internally so newly
+     * inserted nodes are findable by id. `save=false` prevents it from
+     * triggering a canvasToJson() write-back. */
+    trNodesFromUuids(safeArr(next && next.trNodes), false);
+
+    /* Document title follows roomObj.name (matches the canvasToJson
+     * write path that runs on normal edits). */
+    document.title = (next && next.name)
+        ? ('VRC: ' + next.name)
+        : 'Video Room Calculator by Joe Hughes';
+}
+
 function canvasToJson() {
     if (!addressBarUpdate) return;
 
@@ -14262,7 +14470,6 @@ function canvasToJson() {
 
 function updateRoomObjFromTrNode() {
 
-    console.info('updating tr.nodes().length:', tr.nodes().length, 'out of total items:', itemCount);
     tr.nodes().forEach(node => {
         /* Group and CustomItem rects are stored in roomObj.groups /
          * roomObj.customItems, NOT roomObj.items. They have no

@@ -41,6 +41,7 @@ video_room_calculator/
 │   ├── util/
 │   │   ├── uuid.js          # createUuid() (Phase 2 extract; window.VRC.util)
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
+│   ├── undoApply.js         # VRC.undoApply diff helpers for incremental undo/redo restore (Konva-free; see "Incremental undo/redo restore" below)
 │   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
 │   ├── roomcalc.js          # Core application logic (~26,000 lines)
 │   ├── templates.js         # Pre-built room templates             (lazy-loaded — first new-room dialog open)
@@ -66,7 +67,7 @@ There is no build step. Open `RoomCalculator.html` directly in a browser.
 
 The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
 `data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
-`idbStorage.js` → `roomcalc.js`. Every module before `roomcalc.js`
+`undoApply.js` → `idbStorage.js` → `roomcalc.js`. Every module before `roomcalc.js`
 attaches to the shared `window.VRC` namespace (per the convention in
 `notes/TECH_NOTES.md`); `roomcalc.js` then aliases the public names back into
 local `const` bindings near the top of the file so existing call sites
@@ -539,6 +540,129 @@ white" is satisfied by simply clearing the override.
 | `btnUndoClicked()` | 5598 | Handles undo |
 | `btnRedoClicked()` | 5617 | Handles redo |
 | `enableBtnUndoRedo()` | 5632 | Updates button states |
+| `restoreSnapshotToCanvas(prev, next)` | — | Routes a snapshot restore through the incremental fast path or the full-redraw fallback. Called from `btnUndoClicked()` / `btnRedoClicked()` after the popped/pushed entry is selected. Installs `next` on the global `roomObj` and `unit`, then either calls `applyRoomObjDelta(prev, next)` or `zoomInOut('reset')` + `drawRoom(true, true, true)` based on `VRC.undoApply.requiresFullRedraw(prev, next)` |
+| `applyRoomObjDelta(prev, next)` | — | Incremental restore orchestrator: diffs items / groups / customItems / layers / overlays via `VRC.undoApply`, destroys + re-inserts only the changed Konva nodes, and reattaches selection via `trNodesFromUuids(next.trNodes, false)`. Sits next to `roomObjToCanvas()`. MUST NOT call `saveToUndoArray()` or `canvasToJson()` (would corrupt the timeline). Detaches `tr.nodes([])` up front per the documented bulk-mutate pattern in `notes/TECH_NOTES_KONVA.md` |
+
+### Incremental undo/redo restore
+
+The undo/redo button handlers were originally a full canvas rebuild via
+`drawRoom(true, true, true)` — every undo destroyed every Konva node and
+re-inserted the whole world from `roomObj`. As of the incremental-restore
+refactor, undo/redo apply a targeted Konva patcher when safe and fall back
+to the original `drawRoom()` path otherwise. Snapshot storage is unchanged:
+the IDB `undoEntries` / `redoEntries` stores still hold full
+`structuredClone(roomObj)` records, so existing browser undo stacks
+continue to work across the upgrade.
+
+```mermaid
+flowchart LR
+    btn["btnUndoClicked / btnRedoClicked"] --> restore["restoreSnapshotToCanvas(prev, next)"]
+    restore --> classifier{"VRC.undoApply.requiresFullRedraw"}
+    classifier -->|true| fallback["zoomInOut(reset) + drawRoom(true,true,true)"]
+    classifier -->|false| fast["applyRoomObjDelta(prev, next)"]
+    fast --> diff["VRC.undoApply.diffItems / diffGroups / diffCustomItems / diffLayers / diffOverlays"]
+    diff --> patch["destroy + insertItem / insertGroupRect / insertCustomItemRect / applyAllLayerStates / overlay toggles"]
+    patch --> sel["trNodesFromUuids(next.trNodes, false)"]
+```
+
+#### Classifier — when the fast path runs
+
+`VRC.undoApply.requiresFullRedraw(prev, next)` returns **true** (→ legacy
+`drawRoom()` fallback) when ANY of these differ between snapshots:
+
+- `unit` (feet ↔ meters reflows every coordinate)
+- `room.roomWidth` / `room.roomLength` / `room.roomHeight`
+- `roomSurfaces.*` (wall types / acoustic treatment redraws walls)
+- `workspace.removeDefaultWalls` / `workspace.addCeiling` / `workspace.theme`
+- `software` (changes some device wiring on insert)
+- `backgroundImage.bgImageId` (image swap — the existing
+  `rehydrateBackgroundImageFromIdb()` path handles it via the rebuild)
+- More than `VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS` (currently `50`)
+  items differ — past this threshold the per-node destroy + reinsert
+  overhead overtakes the global teardown.
+
+Otherwise returns **false** and the fast path runs.
+
+#### Fast path — what gets patched
+
+| Change kind | Action |
+|-------------|--------|
+| Removed item | Destroy node + coverage children (`#audio~${id}` / `#speaker~${id}` / `#fov~${id}` / `#dispDist~${id}`) + labels (`#label~${id}`). Remove from `roomObjItemsMap` and `canvasNodesMap`. |
+| Added item | `insertItem(item, item.id)` (the same call `roomObjToCanvas()` uses, so coverage / label children are rebuilt as a side effect). Add to `roomObjItemsMap`. |
+| Changed item | Destroy + coverage cleanup, then `insertItem(item, item.id)` (mirrors `updateItem()`'s destroy-and-rebuild pattern). |
+| Removed group / customItem | Find the matching rect in `groupGroupRects` / `groupCustomItemRects` and destroy it. |
+| Added / changed group | `insertGroupRect(group)` — it already self-destroys any stale rect for the same id. |
+| Added / changed customItem | `insertCustomItemRect(customItem)` — same self-destroy. |
+| Any layer list change (add / remove / rename / visible / locked) | `applyAllLayerStates()` + `renderLayersList()`. The delta is collapsed to a single boolean because every layer-list change has the same response. |
+| Any `roomObj.overlaysVisible.*` change | Re-invoke the matching toggle (`cameraCoverageVisible(true/false)` etc.) with an explicit boolean — bypasses the `state === 'buttonPress'` branch so the toggle never calls back into `saveToUndoArray()`. |
+| Selection (`roomObj.trNodes`) | `trNodesFromUuids(next.trNodes, false)` — the existing 200 ms timeout means freshly-inserted nodes are findable by id; `save=false` prevents a `canvasToJson()` write-back. |
+
+#### Why this is safe
+
+- **Conservative classifier**: anything that would require rebuilding the
+  grid, walls, scale, offsets, or background image bytes triggers the
+  fallback. We're never *worse* than the previous full-redraw path.
+- **Reversibility**: deleting the `VRC.undoApply` script tag (or making
+  `requiresFullRedraw` return `true` unconditionally) restores the old
+  behavior. The fast path is purely additive.
+- **No undo re-entry**: the orchestrator MUST NOT call `saveToUndoArray()`
+  or `canvasToJson()` — the overlay-toggle functions, `insertItem()`,
+  `insertGroupRect()`, `insertCustomItemRect()`, `applyAllLayerStates()`,
+  and `renderLayersList()` are all save-free, and we pass `save=false`
+  to `trNodesFromUuids`.
+- **No `zoomInOut('reset')` on the fast path**: the legacy reset was a
+  workaround for the documented "items disappear while zoomed in during
+  full rebuild" bug in `notes/TECH_NOTES.md` §1. The fast path doesn't
+  destroy unrelated nodes, so the workaround is unnecessary. The reset
+  is still applied inside the fallback branch for safety.
+- **`tr.nodes([])` detach up front**: the fast path destroys nodes that
+  may currently be in `tr.nodes()`. Detaching first matches the
+  bulk-mutate pattern documented in `notes/TECH_NOTES_KONVA.md`.
+
+#### Backward compatibility
+
+| Surface | Behaviour after this change |
+|---------|------------------------------|
+| `.vrc.json` import/export | Unchanged. |
+| Shareable URL (`?x=…`) | Unchanged. |
+| IDB schema (`undoEntries` / `redoEntries`, v2) | Unchanged. Same one-record-per-snapshot, same 100-entry cap, same shape (full `roomObj` minus `backgroundImageFile`). |
+| Existing browser undo stacks | Survive the upgrade verbatim. |
+| `roomObj` shape | Unchanged. |
+| Legacy items-shape migration | Unchanged ([js/migrateLegacyItemsShape.js](js/migrateLegacyItemsShape.js)). |
+
+#### Module surface ([js/undoApply.js](js/undoApply.js))
+
+`window.VRC.undoApply` is a Konva-free pure-data module loaded eagerly
+before `js/roomcalc.js`. It exposes:
+
+```js
+VRC.undoApply.requiresFullRedraw(prev, next) -> boolean
+VRC.undoApply.diffItems(prev, next)          -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffGroups(prev, next)         -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffCustomItems(prev, next)    -> { removedIds, addedIds, changedIds }
+VRC.undoApply.diffLayers(prev, next)         -> boolean
+VRC.undoApply.diffOverlays(prev, next)       -> Array<string>
+VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS      -> 50
+```
+
+The diffs use `JSON.stringify` equality (snapshots all come from
+`structuredClone(roomObj)` so key order is stable across both sides).
+All ids are sets; orchestrator iteration order is `removedIds` →
+`changedIds` → `addedIds` (destroy before insert).
+
+#### Forward-compatible foundations
+
+- **Future delta storage (the `notes/TECH_NOTES.md` "Phase 5"
+  direction)**: the diff functions here ARE the diff primitive a
+  delta-storage refactor would need. To switch storage from full
+  snapshots to incremental deltas, `saveToUndoArray()` would compute
+  the delta via the same `VRC.undoApply.diff*` helpers and persist it
+  instead of (or alongside) the full snapshot; the restore side
+  already knows how to apply diffs.
+- **Future multi-room mode**: `applyRoomObjDelta(prev, next)` is
+  `roomObj`-shape-only; it doesn't care whether `prev`/`next` come
+  from a single global `roomObj` or one of many entries in a
+  `roomObjs[i]` array. The diff helpers are equally shape-agnostic.
 
 ### Groups
 
