@@ -19,11 +19,12 @@ window.VRC.constants = Object.freeze({
 
     /* Paths to lazy-loaded scripts. Centralized so the loader and the
      * HTML never disagree on filename casing or relative path. */
-    SCRIPT_QRCODE:           './js/qrcode.js',
-    SCRIPT_DRPDOWN_OVERRIDE: './js/drpDownOverride.js',
-    SCRIPT_DXF_WRITER:       './js/dxfWriter.js',
-    SCRIPT_DXF_BLOCK_LIB:    './js/dxfBlockLibrary.js',
-    SCRIPT_TEMPLATES:        './js/templates.js',
+    SCRIPT_QRCODE:                 './js/qrcode.js',
+    SCRIPT_DRPDOWN_OVERRIDE:       './js/drpDownOverride.js',
+    SCRIPT_DXF_WRITER:             './js/dxfWriter.js',
+    SCRIPT_DXF_BLOCK_LIB:          './js/dxfBlockLibrary.js',
+    SCRIPT_TEMPLATES:              './js/templates.js',
+    SCRIPT_MIGRATE_LEGACY_ITEMS:   './js/migrateLegacyItemsShape.js',
 
     /* Debug overlay (?debug=1). Refresh interval for the item / node
      * count display in milliseconds. The FPS readout updates once per

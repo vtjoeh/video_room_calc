@@ -175,8 +175,9 @@ physically there.
 ### xConfig XYZ Tracking Columns
 
 After every successful import, two thin `columnRect` items are dropped
-into `roomObj.items.tables[]` to mark the xConfig coordinate origin in
-VRC space:
+into `roomObj.items[]` (their `parentGroup` resolves to `tables` via
+`allDeviceTypes['columnRect'].parentGroup`) to mark the xConfig
+coordinate origin in VRC space:
 
 | Column | id prefix | data_labelField | x | y | rotation | width | height |
 |--------|-----------|-----------------|---|---|----------|-------|--------|

@@ -168,7 +168,7 @@ roomObj.room.roomLength = 20; /* roomLength default value in feet */
 roomObj.room.roomHeight = ''; /* default value of room is blank*/
 roomObj.software = ''; /* mtr or webex. RoomOS = webex */
 roomObj.authorVersion = ''; /* field for the author to change version numbers */
-roomObj.items = {}; /* all devices in the room will be stored here.  Video devices, displays, tables, etc. */
+roomObj.items = []; /* Flat array of every device in the room. Item categories (videoDevices/chairs/tables/...) are derived on demand via allDeviceTypes[item.data_deviceid].parentGroup — see the parentGroup helpers above. Legacy bucketed shape from older saved files is auto-migrated on read via window.VRC.migrateLegacyItemsShape. */
 roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
 roomObj.workspace = {}; /* settings used for exporting to the Workspace Designer */
 roomObj.overlaysVisible = {};
@@ -179,17 +179,6 @@ roomObj.overlaysVisible.gridLines = true; /* true or false */
 roomObj.overlaysVisible.speakerCoverage = true;  /* true or false */
 roomObj.overlaysVisible.overlayLabels = false; /* true or false */
 
-roomObj.items.videoDevices = [];
-roomObj.items.chairs = [];
-roomObj.items.tables = [];
-roomObj.items.stageFloors = [];
-roomObj.items.boxes = [];
-roomObj.items.rooms = [];
-roomObj.items.displays = [];
-roomObj.items.speakers = [];
-roomObj.items.microphones = [];
-roomObj.items.touchPanels = [];
-
 roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to remove the default wall on export */
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
 roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Workspace Designer */
@@ -197,6 +186,83 @@ roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Worksp
 roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
 roomObj.customItems = [];
+
+/* ---- roomObj.items parentGroup helpers --------------------------------
+ *
+ * `roomObj.items` is a FLAT ARRAY of items. The historical bucketed
+ * shape (`{ videoDevices: [], chairs: [], tables: [], ... }`) is a
+ * "groupBy parentGroup" cache that no code logically requires — every
+ * read site that mattered already derived the category at runtime via
+ * `allDeviceTypes[item.data_deviceid].parentGroup`. The flat array is
+ * cleaner in saved .vrc.json files and removes the special-casing
+ * that grew up around the bucket keys.
+ *
+ * Legacy bucketed entries (in older .vrc.json files and IDB undo/redo
+ * stores from pre-flatten sessions) are auto-migrated on read via
+ * window.VRC.migrateLegacyItemsShape (lazy-loaded from
+ * js/migrateLegacyItemsShape.js).
+ *
+ * These four helpers cover the access patterns that used to be O(1)
+ * bucket reads. They are O(n) over the flat array but n is typically
+ * <100, so the cost is negligible.
+ *
+ * PERF RULE: any function that reads 2+ categories MUST call
+ * bucketItemsByParentGroup() once and read `(buckets.x || [])` per
+ * category — a single O(n) pass instead of N separate filters. Used
+ * by exportRoomObjToWorkspace (7 categories), isQuickSetupEnabled
+ * (7 categories), exportXConfigFile (3 categories),
+ * deletePossibleRoomKitEqxDisplays (2 categories), and the WD-import
+ * migration block. See "Performance budget" notes in CLAUDE.md.
+ *
+ * Helpers tolerate items whose data_deviceid has no allDeviceTypes
+ * entry (filter / find / count returns nothing for them, bucket
+ * skips them) — matches the existing `updateRoomObjFromTrNode`
+ * defensive guard which logs and returns when parentGroup is
+ * undefined. */
+function getItemsByParentGroup(parentGroup, obj) {
+    const room = obj || roomObj;
+    if (!room || !Array.isArray(room.items)) return [];
+    return room.items.filter(it =>
+        allDeviceTypes[it.data_deviceid] &&
+        allDeviceTypes[it.data_deviceid].parentGroup === parentGroup
+    );
+}
+
+function firstItemOfParentGroup(parentGroup, obj) {
+    const room = obj || roomObj;
+    if (!room || !Array.isArray(room.items)) return undefined;
+    return room.items.find(it =>
+        allDeviceTypes[it.data_deviceid] &&
+        allDeviceTypes[it.data_deviceid].parentGroup === parentGroup
+    );
+}
+
+function countItemsByParentGroup(parentGroup, obj) {
+    const room = obj || roomObj;
+    if (!room || !Array.isArray(room.items)) return 0;
+    let n = 0;
+    for (let i = 0; i < room.items.length; i++) {
+        const it = room.items[i];
+        const dt = allDeviceTypes[it.data_deviceid];
+        if (dt && dt.parentGroup === parentGroup) n++;
+    }
+    return n;
+}
+
+function bucketItemsByParentGroup(obj) {
+    const room = obj || roomObj;
+    const buckets = Object.create(null);
+    if (!room || !Array.isArray(room.items)) return buckets;
+    for (let i = 0; i < room.items.length; i++) {
+        const it = room.items[i];
+        const dt = allDeviceTypes[it.data_deviceid];
+        if (!dt || !dt.parentGroup) continue;
+        const pg = dt.parentGroup;
+        if (!buckets[pg]) buckets[pg] = [];
+        buckets[pg].push(it);
+    }
+    return buckets;
+}
 
 /* Group drag-follow state. Snapshot of sibling + rect start positions
  * so follower can shift them in lock-step during member-direct drags
@@ -803,7 +869,7 @@ function populateGroupDetails(rectNode) {
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
-        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
+        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
     hideIds.forEach(id => {
@@ -917,12 +983,9 @@ function updateGroupItem(group) {
              * that was never assigned a z before has no own property, so a
              * stale write order (or any future reorder) could miss it. The
              * direct mirror keeps roomObj.items in sync regardless. */
-            if (roomObj && roomObj.items) {
-                for (const cat in roomObj.items) {
-                    if (!Array.isArray(roomObj.items[cat])) continue;
-                    const entry = roomObj.items[cat].find(it => it.id === m.id());
-                    if (entry) { entry.data_zPosition = m.data_zPosition; break; }
-                }
+            if (roomObj && Array.isArray(roomObj.items)) {
+                const entry = roomObj.items.find(it => it.id === m.id());
+                if (entry) entry.data_zPosition = m.data_zPosition;
             }
         });
     }
@@ -1135,16 +1198,15 @@ function getPartRenderRect(item, customItem) {
     };
 }
 
-/* Look up a roomObj item entry by uuid across every category in
- * roomObj.items. Linear scan (customItemMembers is uuids only). */
+/* Look up a roomObj item entry by uuid. Flat-array linear scan
+ * (customItemMembers stores uuids only, so an O(n) scan is acceptable
+ * and avoids growing a parallel id→item index just for this path).
+ * O(1) lookups against the live canvas-node set go through
+ * roomObjItemsMap; this helper exists for code paths that need the
+ * roomObj.items entry rather than the Konva node. */
 function findRoomItemByUuid(uuid) {
-    if (!uuid || !roomObj || !roomObj.items) return null;
-    for (const category in roomObj.items) {
-        if (!Array.isArray(roomObj.items[category])) continue;
-        const found = roomObj.items[category].find(i => i && i.id === uuid);
-        if (found) return found;
-    }
-    return null;
+    if (!uuid || !roomObj || !Array.isArray(roomObj.items)) return null;
+    return roomObj.items.find(i => i && i.id === uuid) || null;
 }
 
 /* Per-part data_* fields that round-trip through the .vrcCustomItems
@@ -2247,8 +2309,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
 
         const parentGroup = dt.parentGroup;
         if (!parentGroup) return;
-        if (!roomObj.items[parentGroup]) roomObj.items[parentGroup] = [];
-        roomObj.items[parentGroup].push(newItem);
+        roomObj.items.push(newItem);
         newMembers.push(uuid);
         pendingInserts.push({ deviceId: part.data_deviceid, parentGroup, attrs: newItem, uuid });
     });
@@ -2262,14 +2323,10 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
      * zPosition — same convention as createCustomItem. */
     let minZ = Infinity;
     newMembers.forEach(uuid => {
-        for (const cat in roomObj.items) {
-            if (!Array.isArray(roomObj.items[cat])) continue;
-            const it = roomObj.items[cat].find(i => i.id === uuid);
-            if (it) {
-                const z = Number(it.data_zPosition) || 0;
-                if (z < minZ) minZ = z;
-                break;
-            }
+        const it = findRoomItemByUuid(uuid);
+        if (it) {
+            const z = Number(it.data_zPosition) || 0;
+            if (z < minZ) minZ = z;
         }
     });
     if (!isFinite(minZ)) minZ = 0;
@@ -2632,7 +2689,7 @@ function populateCustomItemDetails(rectNode) {
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
-        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv', 'isPrimaryDiv',
+        'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
     ];
     hideIds.forEach(id => {
@@ -2719,12 +2776,9 @@ function updateCustomItemItem(customItem) {
         members.forEach(m => {
             const existingZ = Number(m.data_zPosition) || 0;
             m.data_zPosition = existingZ + deltaZ;
-            if (roomObj && roomObj.items) {
-                for (const cat in roomObj.items) {
-                    if (!Array.isArray(roomObj.items[cat])) continue;
-                    const entry = roomObj.items[cat].find(it => it.id === m.id());
-                    if (entry) { entry.data_zPosition = m.data_zPosition; break; }
-                }
+            if (roomObj && Array.isArray(roomObj.items)) {
+                const entry = roomObj.items.find(it => it.id === m.id());
+                if (entry) entry.data_zPosition = m.data_zPosition;
             }
         });
     }
@@ -2800,18 +2854,15 @@ function isItemInHiddenLayer(itemOrNode) {
  * that belongs to a hidden VRC layer so it is not sent to the Workspace Designer.
  * Mutates the passed object. */
 function removeHiddenLayerItemsForExport(roomObj2) {
-    if (!roomObj2 || !roomObj2.items || !roomObj.layers) return;
+    if (!roomObj2 || !Array.isArray(roomObj2.items) || !roomObj.layers) return;
     const hiddenLayerIds = new Set(
         roomObj.layers.filter(l => l.visible === false).map(l => l.layerid)
     );
     if (hiddenLayerIds.size === 0) return;
-    for (const group in roomObj2.items) {
-        if (!Array.isArray(roomObj2.items[group])) continue;
-        roomObj2.items[group] = roomObj2.items[group].filter(item => {
-            const lid = item.data_layerId || '0';
-            return !hiddenLayerIds.has(lid);
-        });
-    }
+    roomObj2.items = roomObj2.items.filter(item => {
+        const lid = item.data_layerId || '0';
+        return !hiddenLayerIds.has(lid);
+    });
     /* Drop CustomItems whose own layer is hidden too — same rationale
      * as Groups (filtered later in exportRoomObjToWorkspace via the
      * hidden-layer filter on data.vrc.customItems[]). Done here to
@@ -3040,18 +3091,16 @@ function deleteLayer(layerId) {
         }
     });
     /* update roomObj items */
-    for (const group in roomObj.items) {
-        roomObj.items[group].forEach(item => {
-            if (item.data_layerId === layerId) {
-                if (targetLayerId === '0') {
-                    /* Default layer is implicit — omit data_layerId */
-                    delete item.data_layerId;
-                } else {
-                    item.data_layerId = targetLayerId;
-                }
+    roomObj.items.forEach(item => {
+        if (item.data_layerId === layerId) {
+            if (targetLayerId === '0') {
+                /* Default layer is implicit — omit data_layerId */
+                delete item.data_layerId;
+            } else {
+                item.data_layerId = targetLayerId;
             }
-        });
-    }
+        }
+    });
     roomObj.layers = roomObj.layers.filter(l => l.layerid !== layerId);
     renderLayersList();
     canvasToJson();
@@ -4781,7 +4830,7 @@ function finishPolyBuilder() {
 
                 attrs.id = uuid;
                 attrs.data_deviceid = 'polyRoom';
-                roomObj.items[allDeviceTypes['polyRoom'].parentGroup].push(attrs);
+                roomObj.items.push(attrs);
 
 
                 polyBuilderOn(false);
@@ -5152,7 +5201,7 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
         attrs.id = uuid;
         attrs.data_deviceid = wallBuilderType;
 
-        roomObj.items.tables.push(attrs);
+        roomObj.items.push(attrs);
     }
 
 
@@ -7350,8 +7399,9 @@ function copyLinkToClipboard() {
     const textUrl = document.getElementById('shareLink').getAttribute('href');
     if (roomObj.name === '') {
         hyperTextName = 'Video Room Calculator';
-        if (roomObj.items.videoDevices.length > 0) {
-            hyperTextName = hyperTextName + ' - ' + roomObj.items.videoDevices[0].name;
+        const firstVideoDevice = firstItemOfParentGroup('videoDevices');
+        if (firstVideoDevice) {
+            hyperTextName = hyperTextName + ' - ' + firstVideoDevice.name;
         }
     } else {
         hyperTextName = roomObj.name;
@@ -8322,10 +8372,6 @@ function parseShortenedXYUrl(parameters) {
 
         if (item.sid in keyIdObj) {
 
-            let groupName = keyIdObj[item.sid].groupName;
-
-            let groupLength = roomObj.items[groupName].length;
-
             let newItem = {};
 
             newItem.data_deviceid = keyIdObj[item.sid].data_deviceid;
@@ -8336,7 +8382,7 @@ function parseShortenedXYUrl(parameters) {
             newItem.height = keyIdObj[item.sid].height / 1000;
 
 
-            roomObj.items[groupName][groupLength] = newItem;
+            roomObj.items.push(newItem);
 
             if (roomObj.unit === 'feet') {
                 newItem.width = newItem.width * 3.28084;
@@ -8349,7 +8395,7 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('a' in item) {
-                roomObj.items[groupName][groupLength].y = item.a / 100;
+                newItem.y = item.a / 100;
             }
 
             if ('b' in item) {
@@ -8550,14 +8596,11 @@ function parseShortenedXYUrl(parameters) {
     if (roomObj.groups && roomObj.groups.length) {
         roomObj.groups.forEach(g => { g.groupMembers = []; });
 
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category].forEach(it => {
-                if (!it.data_groupId) return;
-                const g = roomObj.groups.find(grp => grp.groupid === it.data_groupId);
-                if (g) g.groupMembers.push(it.id);
-            });
-        }
+        roomObj.items.forEach(it => {
+            if (!it.data_groupId) return;
+            const g = roomObj.groups.find(grp => grp.groupid === it.data_groupId);
+            if (g) g.groupMembers.push(it.id);
+        });
 
         roomObj.groups = roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length);
     }
@@ -8567,14 +8610,11 @@ function parseShortenedXYUrl(parameters) {
     if (roomObj.customItems && roomObj.customItems.length) {
         roomObj.customItems.forEach(c => { c.customItemMembers = []; });
 
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category].forEach(it => {
-                if (!it.data_customItemId) return;
-                const c = roomObj.customItems.find(cit => cit.customitemid === it.data_customItemId);
-                if (c) c.customItemMembers.push(it.id);
-            });
-        }
+        roomObj.items.forEach(it => {
+            if (!it.data_customItemId) return;
+            const c = roomObj.customItems.find(cit => cit.customitemid === it.data_customItemId);
+            if (c) c.customItemMembers.push(it.id);
+        });
 
         roomObj.customItems = roomObj.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
 
@@ -8642,15 +8682,7 @@ function resetRoomObj() {
     roomObj.overlaysVisible.overlayLabels = false;
     roomObj.layers = getDefaultLayers();
 
-    roomObj.items.videoDevices = [];
-    roomObj.items.chairs = [];
-    roomObj.items.tables = [];
-    roomObj.items.stageFloors = [];
-    roomObj.items.boxes = [];
-    roomObj.items.displays = [];
-    roomObj.items.speakers = [];
-    roomObj.items.microphones = [];
-    roomObj.items.rooms = [];
+    roomObj.items = [];
 
     roomObj.workspace.theme = 'standard';
 
@@ -8799,12 +8831,50 @@ function binaryToBase26(binary) {
         undoArray = Array.isArray(state.undo) ? state.undo : [];
         redoArray = Array.isArray(state.redo) ? state.redo : [];
         priorUndoArrayHasData = !!state.priorHadData;
-        onLoad();
-        /* If onLoad's URL parsing produced a roomObj that references an
-         * image in the IDB library but doesn't have an inline data URL,
-         * fetch the Blob and re-apply it. Defined later in this file. */
-        if (typeof rehydrateBackgroundImageFromIdb === 'function') {
-            setTimeout(function () { rehydrateBackgroundImageFromIdb(); }, 250);
+
+        /* Legacy-shape walk: any pre-flatten undo/redo entry has
+         * `items` as an object-of-arrays. Lazy-load the migration
+         * helper if any entry needs it, then run it across all
+         * entries. Detection is inlined (no helper needed) so we
+         * don't introduce a circular dep on the lazy-loaded script.
+         * See plan flatten-roomobj-items-array. */
+        const hasLegacy = (arr) => arr.some(e => e && e.items
+            && !Array.isArray(e.items)
+            && typeof e.items === 'object');
+        const migrateAll = () => {
+            undoArray.forEach(e => window.VRC.migrateLegacyItemsShape(e));
+            redoArray.forEach(e => window.VRC.migrateLegacyItemsShape(e));
+        };
+        const needsMigration = hasLegacy(undoArray) || hasLegacy(redoArray);
+
+        const finishBoot = () => {
+            onLoad();
+            /* If onLoad's URL parsing produced a roomObj that references an
+             * image in the IDB library but doesn't have an inline data URL,
+             * fetch the Blob and re-apply it. Defined later in this file. */
+            if (typeof rehydrateBackgroundImageFromIdb === 'function') {
+                setTimeout(function () { rehydrateBackgroundImageFromIdb(); }, 250);
+            }
+        };
+
+        if (needsMigration) {
+            if (typeof window.VRC?.migrateLegacyItemsShape === 'function') {
+                migrateAll();
+                finishBoot();
+            } else {
+                loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS).then(() => {
+                    migrateAll();
+                    finishBoot();
+                }).catch(() => {
+                    /* If the helper fails to load, fall back to boot
+                     * without migration — the user can still see the URL-
+                     * driven roomObj; the legacy undo/redo entries will
+                     * just be malformed if accessed. */
+                    finishBoot();
+                });
+            }
+        } else {
+            finishBoot();
         }
     }).catch(function (err) {
         console.warn('IDB hydrate failed; starting with empty undo/redo:', err && err.message);
@@ -9169,13 +9239,21 @@ function disableDrawUpdateButtons(isDisabled) {
 function isQuickSetupEnabled() {
     let quickSetup = document.getElementById('quickSetup');
     let quickSetupItems = document.getElementById('quickSetupItems');
-    let videoDevicesNum = roomObj.items.videoDevices.length;
-    let displaysNum = roomObj.items.displays.length;
-    let tablesNum = roomObj.items.tables.length;
-    let chairsNum = roomObj.items.chairs.length;
-    let boxesNum = roomObj.items.boxes.length;
-    let touchPanlesNum = roomObj.items.touchPanels.length;
-    let microphones = roomObj.items.microphones.length;
+    /* PERF: bucket once across 7 parentGroups (vs 7 separate filter
+     * passes). Inner isPrimaryXequal() closes over the same buckets so
+     * the geometry checks for tables / videoDevices / displays don't
+     * pay a second O(n) scan. */
+    const buckets = bucketItemsByParentGroup();
+    const videoDevicesArr = buckets.videoDevices || [];
+    const displaysArr = buckets.displays || [];
+    const tablesArr = buckets.tables || [];
+    let videoDevicesNum = videoDevicesArr.length;
+    let displaysNum = displaysArr.length;
+    let tablesNum = tablesArr.length;
+    let chairsNum = (buckets.chairs || []).length;
+    let boxesNum = (buckets.boxes || []).length;
+    let touchPanlesNum = (buckets.touchPanels || []).length;
+    let microphones = (buckets.microphones || []).length;
     let otherDevices = chairsNum + boxesNum + touchPanlesNum + microphones;
 
     quickSetupState = 'disabled';
@@ -9235,11 +9313,11 @@ function isQuickSetupEnabled() {
     If so return true.
     */
     function isPrimaryXequal() {
-        if (roomObj.items.tables.length > 0) {
+        if (tablesArr.length > 0) {
 
-            let tableX = roomObj.items.tables[0].x;
-            let videoDeviceX = Math.round(roomObj.items.videoDevices[0].x * 100); /* check to the hundredths place */
-            let tableWidth = roomObj.items.tables[0].width;
+            let tableX = tablesArr[0].x;
+            let videoDeviceX = Math.round(videoDevicesArr[0].x * 100); /* check to the hundredths place */
+            let tableWidth = tablesArr[0].width;
             let tableCenterX = Math.round((tableX + (tableWidth / 2)) * 100);
 
             if (primaryDeviceIsAllInOne) {
@@ -9249,11 +9327,11 @@ function isQuickSetupEnabled() {
                     return false;
                 }
             } else {
-                if (roomObj.items.displays.length == 1) {
+                if (displaysArr.length == 1) {
 
-                    let displayX = Math.round(roomObj.items.displays[0].x * 100);
-                    let displayY = Math.round(roomObj.items.displays[0].y * 100);
-                    let videoDeviceY = Math.round(roomObj.items.videoDevices[0].y * 100);
+                    let displayX = Math.round(displaysArr[0].x * 100);
+                    let displayY = Math.round(displaysArr[0].y * 100);
+                    let videoDeviceY = Math.round(videoDevicesArr[0].y * 100);
                     if (videoDeviceX === tableCenterX && videoDeviceX == displayX && displayY == videoDeviceY) {
                         return true;
                     } else {
@@ -9272,14 +9350,7 @@ function isQuickSetupEnabled() {
 
 
 function quickSetupUpdate() {
-    roomObj.items.tables = [];
-    roomObj.items.chairs = [];
-    roomObj.items.displays = [];
-    roomObj.items.videoDevices = [];
-    roomObj.items.microphones = [];
-    roomObj.items.stageFloors = [];
-    roomObj.items.boxes = [];
-    roomObj.items.rooms = [];
+    roomObj.items = [];
     roomObj.room.roomWidth = document.getElementById('roomWidth2').value;
     roomObj.room.roomLength = document.getElementById('roomLength2').value;
     roomObj.name = document.getElementById('roomName2').value;
@@ -9291,7 +9362,7 @@ function quickSetupUpdate() {
 
 function addItemToRoomObj(attrs) {
     if ('x' in attrs && 'y' in attrs && 'id' in attrs && 'data_deviceid' in attrs) {
-        roomObj.items[allDeviceTypes[attrs.data_deviceid].parentGroup].push(attrs);
+        roomObj.items.push(attrs);
     } else {
         console.error('Attrs missing x, y, id or data_deviceid');
     }
@@ -10021,8 +10092,9 @@ function clearShapeNodesFromStage(closeDetailsTab) {
 function updateTitleGroup() {
     let nodes = layerGrid.find('#txtPrimaryDevice');
     let text = '';
-    if (roomObj.items.videoDevices.length > 0) {
-        text = 'Primary Device: ' + roomObj.items.videoDevices[0].name;
+    const firstVideoDevice = firstItemOfParentGroup('videoDevices');
+    if (firstVideoDevice) {
+        text = 'Primary Device: ' + firstVideoDevice.name;
     }
 
     if (nodes.length > 0) {
@@ -11345,12 +11417,9 @@ function createShareableLink() {
     _customItemUrlEncodeMap = {};
     if (roomObj.groups && roomObj.groups.length) {
         const groupsWithMembers = new Set();
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category].forEach(it => {
-                if (it.data_groupId) groupsWithMembers.add(it.data_groupId);
-            });
-        }
+        roomObj.items.forEach(it => {
+            if (it.data_groupId) groupsWithMembers.add(it.data_groupId);
+        });
         let urlGroupNum = 1;
         roomObj.groups.forEach(group => {
             if (!groupsWithMembers.has(group.groupid)) return;
@@ -11392,12 +11461,9 @@ function createShareableLink() {
      * since the bundle's `ll` already covers the layer. */
     if (roomObj.customItems && roomObj.customItems.length) {
         const customItemsWithMembers = new Set();
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category].forEach(it => {
-                if (it.data_customItemId) customItemsWithMembers.add(it.data_customItemId);
-            });
-        }
+        roomObj.items.forEach(it => {
+            if (it.data_customItemId) customItemsWithMembers.add(it.data_customItemId);
+        });
         let urlCustomItemNum = 1;
         roomObj.customItems.forEach(customItem => {
             if (!customItemsWithMembers.has(customItem.customitemid)) return;
@@ -11425,16 +11491,12 @@ function createShareableLink() {
         });
     }
 
-    let items = roomObj.items;
     let i = 0;
-    for (const category in items) {
-
-        items[category].forEach((item) => {
-            strUrlQuery2 += createShareableLinkItem(item);
-            i += 1;
-            previousItem = item;
-        })
-    }
+    roomObj.items.forEach((item) => {
+        strUrlQuery2 += createShareableLinkItem(item);
+        i += 1;
+        previousItem = item;
+    });
 
     fullShareLink = location.origin + location.pathname + '?x=' + strUrlQuery2;
     // fullShareLink = DOMPurify.sanitize(fullShareLink);
@@ -11918,8 +11980,9 @@ async function postHeartbeat() {
 
         let path = location.origin + "/heartbeat";
         let primaryDevice = 'none';
-        if (roomObj.items.videoDevices.length > 0) {
-            primaryDevice = roomObj.items.videoDevices[0].data_deviceid;
+        const firstVideoDevice = firstItemOfParentGroup('videoDevices');
+        if (firstVideoDevice) {
+            primaryDevice = firstVideoDevice.data_deviceid;
         }
         let data = {
             sessionId: roomObj.version + '_' + sessionId,
@@ -14002,12 +14065,11 @@ function deleteTrNodes(save = true) {
 
 
         /* remove from the roomObj */
-        for (let index = roomObj.items[parentGroup].length - 1; index >= 0; index--) {
-            if (roomObj.items[parentGroup][index].id === id) {
-                roomObj.items[parentGroup].splice(index, 1);
-                roomObjItemsMap.delete(id);
-                canvasNodesMap.delete(id);
-            }
+        const idx = roomObj.items.findIndex(i => i.id === id);
+        if (idx > -1) {
+            roomObj.items.splice(idx, 1);
+            roomObjItemsMap.delete(id);
+            canvasNodesMap.delete(id);
         }
 
         itemCount--;
@@ -14027,11 +14089,9 @@ function deleteTrNodes(save = true) {
 
 function initializeMap() {
     mapItems.clear();
-    for (const category in roomObj.items) {
-        roomObj.items[category].forEach(item => {
-            mapItems.set(item.id, item);
-        });
-    }
+    roomObj.items.forEach(item => {
+        mapItems.set(item.id, item);
+    });
 }
 
 
@@ -14049,18 +14109,14 @@ function roomObjToCanvas(updateExisting = false) {
     layerTransform.data_pxOffset = pxOffset;
     layerTransform.data_pyOffset = pyOffset;
 
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            let item = roomObj.items[category][i];
-
-            insertItem(item, item.id);
-            if (!updateExisting) {
-                roomObjItemsMap.set(item.id, item);
-            }
-
-            itemCount++;
+    roomObj.items.forEach(item => {
+        insertItem(item, item.id);
+        if (!updateExisting) {
+            roomObjItemsMap.set(item.id, item);
         }
-    }
+
+        itemCount++;
+    });
 
     console.info('total Items Inserted or Updated:', itemCount);
 
@@ -14144,167 +14200,15 @@ function canvasToJson() {
 
 
 
-    /* ⚠️ DEAD CODE — never called.
-     *
-     * The active canvas → roomObj.items writer is
-     * `updateRoomObjFromTrNode()` (called above), which only touches the
-     * current `tr.nodes()` selection. This nested function would walk
-     * EVERY child of a parentGroup and rebuild roomObj.items[groupName]
-     * from scratch, but no caller exists. It is left in place for git
-     * blame continuity and as a cross-reference for the per-attribute
-     * patterns it documents.
-     *
-     * IMPORTANT: when adding new `data_*` attributes, do NOT add them
-     * here and assume they're synced — they aren't. The four-place rule
-     * in CLAUDE.md (Critical Data Flow + Where `data_groupId` Must Be
-     * Updated) calls out `updateRoomObjFromTrNode()` as the active
-     * writer; mirror new attrs there too.
-     */
-    // eslint-disable-next-line no-unused-vars
-    function getNodesJson(parentGroup) {
-
-        let theObjects = parentGroup.getChildren();
-        let groupName = parentGroup.name();
-
-        roomObj.items[groupName] = [];
-        let itemAttr = {};
-
-        theObjects.forEach(node => {
-            /* Group rects are stored in roomObj.groups, not roomObj.items */
-            if (node.data_deviceid === 'group') return;
-
-            let x, y;
-            let attrs = node.attrs;
-            if (!('rotation' in attrs)) {
-                node.rotation(0);
-            }
-
-            let rotation = attrs.rotation;
-
-            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
-                x = attrs.x;
-                y = attrs.y;
-            } else {
-                let center = getNodeCenter(node);
-                x = center.x;
-                y = center.y;
-            }
-
-            itemAttr = {
-                x: ((x - pxOffset) / scale) + activeRoomX,
-                y: ((y - pyOffset) / scale) + activeRoomY,
-                rotation: rotation,
-                type: node.data_type,
-                data_deviceid: node.data_deviceid,
-                id: node.attrs.id,
-                name: node.attrs.name,
-            }
-
-            if ('cornerRadius' in attrs) {
-                if (attrs.cornerRadius.length > 1) {
-                    itemAttr.tblRectRadius = round(attrs.cornerRadius[2] / scale);
-                    if (attrs.cornerRadius[0] != attrs.cornerRadius[2]) {
-                        itemAttr.tblRectRadiusRight = round(attrs.cornerRadius[0] / scale);
-                    }
-                }
-            }
-
-
-            if ('data_diagonalInches' in node) {
-                itemAttr.data_diagonalInches = node.data_diagonalInches;
-            }
-
-            if ('data_zPosition' in node) {
-                itemAttr.data_zPosition = node.data_zPosition;
-            }
-
-            if ('data_vHeight' in node) {
-                itemAttr.data_vHeight = node.data_vHeight;
-            }
-
-            if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
-                itemAttr.width = (attrs.width / scale);
-                itemAttr.height = (attrs.height / scale);
-            }
-
-            if ('name' in attrs) {
-                itemAttr.name = attrs.name;
-            }
-
-            if ('data_labelField' in node) {
-                if (node.data_labelField !== '' && node.data_labelField.trim() !== '{}') {
-                    itemAttr.data_labelField = node.data_labelField;
-                }
-            }
-
-            if (node.data_fovHidden) {
-                itemAttr.data_fovHidden = node.data_fovHidden;
-            }
-
-            if (node.data_audioHidden) {
-                itemAttr.data_audioHidden = node.data_audioHidden;
-            }
-
-            if (node.data_dispDistHidden) {
-                itemAttr.data_dispDistHidden = node.data_dispDistHidden;
-            }
-
-            if ('data_trapNarrowWidth' in node) {
-                if (!isNaN(item.data_trapNarrowWidth)) {
-                    itemAttr.data_trapNarrowWidth = node.data_trapNarrowWidth;
-                } else {
-                    itemAttr.data_trapNarrowWidth = 0;
-                }
-            }
-
-            if ('data_role' in node) {
-                itemAttr.data_role = node.data_role;
-            }
-
-            if ('data_color' in node) {
-                itemAttr.data_color = node.data_color;
-            }
-
-            if ('data_mount' in node) {
-                itemAttr.data_mount = node.data_mount;
-            }
-
-            if ('data_tilt' in node) {
-                itemAttr.data_tilt = node.data_tilt;
-            }
-
-            if ('data_slant' in node) {
-                itemAttr.data_slant = node.data_slant;
-            }
-
-            if ('data_layerId' in node && node.data_layerId && node.data_layerId !== '0') {
-                itemAttr.data_layerId = node.data_layerId;
-            }
-
-            if (node.data_groupId) {
-                itemAttr.data_groupId = node.data_groupId;
-            }
-
-            if ('points' in attrs) {
-                let points = attrs.points;
-
-                const newPoints = points.map(function (point, index) {
-                    if (index % 2 !== 0) {
-                        point = (point / scale);
-                    } else {
-                        point = (point / scale);;
-                    }
-                    return point;
-                })
-
-                itemAttr.points = newPoints;
-            }
-
-            roomObj.items[groupName].push(itemAttr);
-
-        });
-
-    }
+    /* The active canvas → roomObj.items writer is
+     * `updateRoomObjFromTrNode()` (called above). It walks only the
+     * current `tr.nodes()` selection. There used to be a nested
+     * `getNodesJson(parentGroup)` here that rebuilt an entire
+     * roomObj.items[groupName] bucket from scratch — never called from
+     * anywhere; deleted when roomObj.items was flattened from an
+     * object-of-arrays into a single flat array. When adding new
+     * `data_*` attributes, follow the four-place rule in CLAUDE.md and
+     * mirror the new attr in `updateRoomObjFromTrNode()`. */
 
 
     /* Sync Group rect Konva positions back to roomObj.groups */
@@ -14595,49 +14499,18 @@ function updateRoomObjFromTrNode() {
             }
 
         } else {
-
-            let found = false;
-
-            roomObj.items[parentGroup].forEach((item, index) => {
-
-                if (item.id === node.id()) {
-                    found = true;
-                    item = itemAttr;
-                    roomObj.items[parentGroup][index] = itemAttr;
-                    roomObjItemsMap.set(itemAttr.id, itemAttr);
-                    canvasNodesMap.set(itemAttr.id, itemAttr);
-
-                }
-            });
-
-            if (!found) {
-                roomObj.items[parentGroup].push(itemAttr);
-                roomObjItemsMap.set(itemAttr.id, itemAttr);
-                canvasNodesMap.set(itemAttr.id, itemAttr);
-
-            }
-
-
-
+            /* New item (paste/duplicate created a node that's not yet in
+             * roomObjItemsMap). PERF RULE: trust the map — no linear
+             * findIndex scan. Just push and register; the map is the
+             * source of truth for "does this id exist in roomObj.items".
+             * See plan flatten-roomobj-items-array, rule #2. */
+            roomObj.items.push(itemAttr);
+            roomObjItemsMap.set(itemAttr.id, itemAttr);
+            canvasNodesMap.set(itemAttr.id, itemAttr);
         }
 
 
 
-        // let found = false;
-
-        // roomObj.items[parentGroup].forEach((item, index) => {
-
-        //     if (item.id === node.id()) {
-        //         found = true;
-        //         item = itemAttr;
-        //         roomObj.items[parentGroup][index] = itemAttr;
-        //     }
-        // });
-
-        // if (!found) {
-        //     roomObj.items[parentGroup].push(itemAttr);
-
-        // }
     });
 
 
@@ -16092,7 +15965,7 @@ function deepCopyNode(node) {
 /* The wallChairs object needs to be resized by deleting and reinserting or the background image does not size correctly */
 function updatWallChairsOnResize() {
     let redoTrNodes = false;
-    roomObj.items.tables.forEach((item) => {
+    getItemsByParentGroup('tables').forEach((item) => {
         if (item.data_deviceid === 'wallChairs') {
             let node = groupTables.findOne('#' + item.id);
             redoTrNodes = true;
@@ -16233,13 +16106,13 @@ function getBoundingBoxInUnit(node) {
         return getAbsolutePointsOfLine(node);
 
     } else {
-        let item;
         let shapeCorners = [];
-        roomObj.items[allDeviceTypes[node.data_deviceid].parentGroup].forEach(shape => {
-            if (shape.id === node.id()) {
-                item = shape;
-            }
-        });
+        /* O(1) by-id lookup against the flat-array roomObj.items via the
+         * existing roomObjItemsMap; falls back to a linear scan if the
+         * map hasn't been hydrated yet (shouldn't happen in this code
+         * path, but keep the helper resilient). */
+        let item = (typeof roomObjItemsMap !== 'undefined' && roomObjItemsMap.get(node.id()))
+            || (Array.isArray(roomObj.items) ? roomObj.items.find(s => s.id === node.id()) : undefined);
 
         let minX = Infinity;
         let minY = Infinity;
@@ -16774,14 +16647,14 @@ function updateMultipleItems() {
 
     tr.nodes().forEach(node => {
 
-        let parentGroup = node.getParent().name();
-        let length = roomObj.items[parentGroup].length;
+        /* O(1) lookup against the flat roomObj.items via the existing
+         * id→item map. parentGroup is no longer required to find the
+         * entry. */
+        let item = roomObjItemsMap.get(node.id());
 
-        for (let i = 0; i < length; i++) {
+        if (item) {
 
-            if (node.id() === roomObj.items[parentGroup][i].id) {
-
-                let item = roomObj.items[parentGroup][i];
+            {
 
                 let xyUpdated = false;
 
@@ -17005,24 +16878,15 @@ function updateItem() {
         really gets deleted and rebuilt versus updated */
 
 
-    let deleteDuplicateItemsArray = [];
-
     let item = roomObjItemsMap.get(id);
 
     if (item) {
-        /*once found, incoroprate the new parentGroup based on changes */
-
-        if (parentGroup !== allDeviceTypes[data_deviceid].parentGroup) {
-            deleteDuplicateItemsArray.push({ oldParentGroup: parentGroup, id: item.id });
-
-            item = structuredClone(item);
-
-            roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(item);
-
-            roomObjItemsMap.set(item.id, item);
-
-        }
-
+        /* Items live in a flat roomObj.items array; the parentGroup
+         * derived from data_deviceid is just a runtime lookup. Mutating
+         * data_deviceid here keeps the same array entry and the same
+         * roomObjItemsMap binding. The pre-flatten code used to clone
+         * the entry into a different bucket and queue a second-pass
+         * cleanup against the old bucket — no longer needed. */
         parentGroup = allDeviceTypes[data_deviceid].parentGroup;
 
         item.data_deviceid = data_deviceid;
@@ -17231,10 +17095,6 @@ function updateItem() {
 
         item.rotation = rotation;
 
-        if (document.getElementById('isPrimaryCheckBox').disabled === false && document.getElementById('isPrimaryCheckBox').checked === true) {
-            arrayMove(roomObj.items[parentGroup], index, 0);
-        }
-
         /*
         right now I destroy the node and rebuild.  It was just easier to quickly code with FOV/guidance shadings.  Should work on updating values including shading instead for efficiency.
         */
@@ -17293,21 +17153,6 @@ function updateItem() {
 
 
     };
-
-
-    deleteDuplicateItemsArray.forEach(duplicateItem => {
-
-        let length = roomObj.items[duplicateItem.oldParentGroup].length;
-
-        for (let i = length - 1; i >= 0; i--) {
-
-            if (duplicateItem.id === roomObj.items[duplicateItem.oldParentGroup][i].id) {
-                roomObj.items[duplicateItem.oldParentGroup].splice(i, 1);
-            }
-
-            break; /* assuumig only one match, break early */
-        };
-    });
 
 }
 
@@ -17724,30 +17569,24 @@ function getMenuItems(itemArray, attributeType) {
 function getDevicesWithAttribute(attributeType) {
     let itemArray = [];
 
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            let item = roomObj.items[category][i];
-
-            if (attributeType === 'hasMic' && 'micRadius' in allDeviceTypes[item.data_deviceid]) {
-                itemArray.push(item);
-            }
-
-            if (attributeType === 'hasSpeaker' && 'speakerRadius' in allDeviceTypes[item.data_deviceid]) {
-                itemArray.push(item);
-            }
-
-
-            if (attributeType === 'hasDisplay' && 'data_diagonalInches' in item) {
-                itemArray.push(item);
-            }
-
-            if (attributeType === 'hasCamera' && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
-                itemArray.push(item);
-            }
-
-
+    roomObj.items.forEach(item => {
+        if (attributeType === 'hasMic' && 'micRadius' in allDeviceTypes[item.data_deviceid]) {
+            itemArray.push(item);
         }
-    }
+
+        if (attributeType === 'hasSpeaker' && 'speakerRadius' in allDeviceTypes[item.data_deviceid]) {
+            itemArray.push(item);
+        }
+
+
+        if (attributeType === 'hasDisplay' && 'data_diagonalInches' in item) {
+            itemArray.push(item);
+        }
+
+        if (attributeType === 'hasCamera' && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
+            itemArray.push(item);
+        }
+    });
 
     return itemArray;
 }
@@ -17868,7 +17707,6 @@ function hightlightOverlayForDevice(opt, attributeType, highlight, checkbox) {
 
 function toggleMicShadingSingleItem() {
     let id = document.getElementById('itemId').innerText;
-    let parentGroup = document.getElementById('itemGroup').innerText;
 
     /* this function should note be called if microphoneCoverage === false, but in case it is, give the user feedback */
     if (roomObj.overlaysVisible.microphoneCoverage === false) {
@@ -17876,30 +17714,31 @@ function toggleMicShadingSingleItem() {
         return;
     }
 
-    roomObj.items[parentGroup].forEach((item, index) => {
-        if (item.id === id) {
-            let node = stage.find('#' + id)[0];
-            const layerHidden = isItemInHiddenLayer(node);
-            if ('data_audioHidden' in item && item.data_audioHidden === true) {
-                /* Per-item flag clears, but actual node visibility still depends on layer */
-                stage.find('#audio~' + id)[0].visible(!layerHidden);
-                delete node.data_audioHidden;
-                delete item.data_audioHidden;
-            } else {
-                stage.find('#audio~' + id)[0].visible(false);
-                node.data_audioHidden = true;
-                item.data_audioHidden = true;
-            }
-
+    /* PERF RULE: roomObjItemsMap.get(id) is O(1); the previous
+     * roomObj.items[parentGroup].forEach scan + DOM read of #itemGroup
+     * was O(b) plus a sync DOM hit. See plan flatten-roomobj-items-array
+     * rule #3. */
+    const item = roomObjItemsMap.get(id);
+    if (item) {
+        let node = stage.find('#' + id)[0];
+        const layerHidden = isItemInHiddenLayer(node);
+        if ('data_audioHidden' in item && item.data_audioHidden === true) {
+            /* Per-item flag clears, but actual node visibility still depends on layer */
+            stage.find('#audio~' + id)[0].visible(!layerHidden);
+            delete node.data_audioHidden;
+            delete item.data_audioHidden;
+        } else {
+            stage.find('#audio~' + id)[0].visible(false);
+            node.data_audioHidden = true;
+            item.data_audioHidden = true;
         }
-    });
+    }
     canvasToJson();
 
 }
 
 function toggleSpeakerShadingSingleItem() {
     let id = document.getElementById('itemId').innerText;
-    let parentGroup = document.getElementById('itemGroup').innerText;
 
     /* this function should not be called if speakerCoverage === false, but in case it is, give the user feedback */
     if (roomObj.overlaysVisible.speakerCoverage === false) {
@@ -17907,29 +17746,27 @@ function toggleSpeakerShadingSingleItem() {
         return;
     }
 
-    roomObj.items[parentGroup].forEach((item, index) => {
-        if (item.id === id) {
-            let node = stage.find('#' + id)[0];
-            const layerHidden = isItemInHiddenLayer(node);
-            if ('data_speakerHidden' in item && item.data_speakerHidden === true) {
-                stage.find('#speaker~' + id)[0].visible(!layerHidden);
-                delete node.data_speakerHidden;
-                delete item.data_speakerHidden;
-            } else {
-                stage.find('#speaker~' + id)[0].visible(false);
-                node.data_speakerHidden = true;
-                item.data_speakerHidden = true;
-            }
-
+    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
+    const item = roomObjItemsMap.get(id);
+    if (item) {
+        let node = stage.find('#' + id)[0];
+        const layerHidden = isItemInHiddenLayer(node);
+        if ('data_speakerHidden' in item && item.data_speakerHidden === true) {
+            stage.find('#speaker~' + id)[0].visible(!layerHidden);
+            delete node.data_speakerHidden;
+            delete item.data_speakerHidden;
+        } else {
+            stage.find('#speaker~' + id)[0].visible(false);
+            node.data_speakerHidden = true;
+            item.data_speakerHidden = true;
         }
-    });
+    }
     canvasToJson();
 
 }
 
 function toggleCamShadeSingleItem() {
     let id = document.getElementById('itemId').innerText;
-    let parentGroup = document.getElementById('itemGroup').innerText;
 
     if (roomObj.overlaysVisible.cameraCoverage === false) {
         alert('To toggle this button, first toggle on the parent mics, cameras or display button found above the canvas drawing.');
@@ -17937,30 +17774,27 @@ function toggleCamShadeSingleItem() {
         return;
     }
 
-    roomObj.items[parentGroup].forEach((item, index) => {
-
-        if (item.id === id) {
-            let node = stage.find('#' + id)[0];
-            const layerHidden = isItemInHiddenLayer(node);
-            if ('data_fovHidden' in item && item.data_fovHidden === true) {
-                stage.find('#fov~' + id)[0].visible(!layerHidden);
-                delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
-                delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
-            } else {
-                stage.find('#fov~' + id)[0].visible(false);
-                node.data_fovHidden = true;
-                item.data_fovHidden = true;
-            }
-
+    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
+    const item = roomObjItemsMap.get(id);
+    if (item) {
+        let node = stage.find('#' + id)[0];
+        const layerHidden = isItemInHiddenLayer(node);
+        if ('data_fovHidden' in item && item.data_fovHidden === true) {
+            stage.find('#fov~' + id)[0].visible(!layerHidden);
+            delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
+            delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
+        } else {
+            stage.find('#fov~' + id)[0].visible(false);
+            node.data_fovHidden = true;
+            item.data_fovHidden = true;
         }
-    });
+    }
 
     canvasToJson();
 }
 //
 function toggleDisplayDistanceSingleItem() {
     let id = document.getElementById('itemId').innerText;
-    let parentGroup = document.getElementById('itemGroup').innerText;
 
     if (roomObj.overlaysVisible.displayDistanceCoverage === false) {
         document.getElementById('dialogSingleItemToggles').showModal();
@@ -17968,22 +17802,21 @@ function toggleDisplayDistanceSingleItem() {
     }
 
 
-    roomObj.items[parentGroup].forEach((item, index) => {
-        if (item.id === id) {
-            let node = stage.find('#' + id)[0];
-            const layerHidden = isItemInHiddenLayer(node);
-            if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
-                stage.find('#dispDist~' + id)[0].visible(!layerHidden);
-                delete item.data_dispDistHidden;
-                delete node.data_dispDistHidden;
-            } else {
-                stage.find('#dispDist~' + id)[0].visible(false);
-                item.data_dispDistHidden = true;
-                node.data_dispDistHidden = true;
-            }
-
+    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
+    const item = roomObjItemsMap.get(id);
+    if (item) {
+        let node = stage.find('#' + id)[0];
+        const layerHidden = isItemInHiddenLayer(node);
+        if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
+            stage.find('#dispDist~' + id)[0].visible(!layerHidden);
+            delete item.data_dispDistHidden;
+            delete node.data_dispDistHidden;
+        } else {
+            stage.find('#dispDist~' + id)[0].visible(false);
+            item.data_dispDistHidden = true;
+            node.data_dispDistHidden = true;
         }
-    });
+    }
 
     canvasToJson();
 
@@ -18397,21 +18230,19 @@ function listItemsOffStage() {
     }
 
 
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            let item = structuredClone(roomObj.items[category][i]);
-            if (!(item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom') && 'data_deviceid' in item) {
+    roomObj.items.forEach(rawItem => {
+        let item = structuredClone(rawItem);
+        if (!(item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom') && 'data_deviceid' in item) {
 
 
-                let fourCorners = findFourCorners(item);
+            let fourCorners = findFourCorners(item);
 
-                if (!doPolygonsIntersect2(border, fourCorners)) {
-                    itemsOffStageId.push(item.id);
-                }
-
+            if (!doPolygonsIntersect2(border, fourCorners)) {
+                itemsOffStageId.push(item.id);
             }
+
         }
-    }
+    });
 
 }
 
@@ -18579,18 +18410,13 @@ function testSearchShapeToNode() {
     console.time('findNodes');
     let nodeCount = 0;
     let itemCount = 0;
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            itemCount++;
-            let item = roomObj.items[category][i];
-
-            let node = stage.findOne('#' + item.id);
-
-            if (node) {
-                nodeCount++;
-            }
+    roomObj.items.forEach(item => {
+        itemCount++;
+        let node = stage.findOne('#' + item.id);
+        if (node) {
+            nodeCount++;
         }
-    }
+    });
 
     console.log('total items', itemCount, 'total foundNodes:', nodeCount);
     console.timeEnd('findNodes');
@@ -18616,19 +18442,14 @@ function testSearchShapeToNode() {
 
     nodeCount = 0;
     itemCount = 0;
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            itemCount++;
-            let item = roomObj.items[category][i];
-
-            let node = canvasNodesMap.get(item.id);
-
-            if (node) {
-                nodeCount++;
-                console.log(node.id(), node.data_deviceid);
-            }
+    roomObj.items.forEach(item => {
+        itemCount++;
+        let node = canvasNodesMap.get(item.id);
+        if (node) {
+            nodeCount++;
+            console.log(node.id(), node.data_deviceid);
         }
-    }
+    });
 
     console.timeEnd('findAllNodes2');
     console.log('total items', itemCount, 'total foundNodes:', nodeCount);
@@ -18650,11 +18471,8 @@ function ungroupItems(groupId, keepItems) {
         if (keepItems) {
             /* Members already had listening:true; nothing to restore.
              * Just clear the group attribute from the roomObj.items entry. */
-            for (const category in roomObj.items) {
-                if (!Array.isArray(roomObj.items[category])) continue;
-                const entry = roomObj.items[category].find(i => i.id === node.id());
-                if (entry) delete entry.data_groupId;
-            }
+            const entry = roomObj.items.find(i => i.id === node.id());
+            if (entry) delete entry.data_groupId;
         } else {
             /* Hard-delete: destroy member and its coverage nodes */
             ['audio~', 'speaker~', 'fov~', 'dispDist~'].forEach(prefix => {
@@ -18678,10 +18496,7 @@ function ungroupItems(groupId, keepItems) {
 
     if (!keepItems) {
         /* Clean up roomObj.items entries for hard-deleted members */
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category] = roomObj.items[category].filter(i => i.data_groupId !== groupId);
-        }
+        roomObj.items = roomObj.items.filter(i => i.data_groupId !== groupId);
     }
 
     /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
@@ -18779,11 +18594,8 @@ function createGroup(nodesToGroup) {
     finalNodes.forEach(node => {
         node.data_groupId = newGroup.groupid;
         /* Tag roomObj.items entry */
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            const entry = roomObj.items[category].find(i => i.id === node.id());
-            if (entry) entry.data_groupId = newGroup.groupid;
-        }
+        const entry = roomObj.items.find(i => i.id === node.id());
+        if (entry) entry.data_groupId = newGroup.groupid;
     });
 
     const groupRectNode = insertGroupRect(newGroup);
@@ -18835,11 +18647,8 @@ function ungroupCustomItem(customItemId, keepItems) {
     members.forEach(node => {
         node.data_customItemId = null;
         if (keepItems) {
-            for (const category in roomObj.items) {
-                if (!Array.isArray(roomObj.items[category])) continue;
-                const entry = roomObj.items[category].find(i => i.id === node.id());
-                if (entry) delete entry.data_customItemId;
-            }
+            const entry = roomObj.items.find(i => i.id === node.id());
+            if (entry) delete entry.data_customItemId;
         } else {
             ['audio~', 'speaker~', 'fov~', 'dispDist~'].forEach(prefix => {
                 const cov = stage.find('#' + prefix + node.id())[0];
@@ -18859,10 +18668,7 @@ function ungroupCustomItem(customItemId, keepItems) {
     roomObj.customItems = roomObj.customItems.filter(c => c.customitemid !== customItemId);
 
     if (!keepItems) {
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            roomObj.items[category] = roomObj.items[category].filter(i => i.data_customItemId !== customItemId);
-        }
+        roomObj.items = roomObj.items.filter(i => i.data_customItemId !== customItemId);
     }
 
     /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
@@ -19013,11 +18819,8 @@ function createCustomItem(nodesToGroup, name, author, description) {
 
     finalNodes.forEach(node => {
         node.data_customItemId = newCustomItem.customitemid;
-        for (const category in roomObj.items) {
-            if (!Array.isArray(roomObj.items[category])) continue;
-            const entry = roomObj.items[category].find(i => i.id === node.id());
-            if (entry) entry.data_customItemId = newCustomItem.customitemid;
-        }
+        const entry = roomObj.items.find(i => i.id === node.id());
+        if (entry) entry.data_customItemId = newCustomItem.customitemid;
     });
 
     const customItemRectNode = insertCustomItemRect(newCustomItem);
@@ -21754,9 +21557,11 @@ function updateRoomDetails() {
 }
 
 function updateQuickSetupItems() {
-    let primaryVideoDevice = roomObj.items.videoDevices[0];
-    let primaryTable = roomObj.items.tables[0];
-    let primaryDisplay = roomObj.items.displays[0];
+    /* PERF: bucket once for the 3 parentGroups we care about. */
+    const buckets = bucketItemsByParentGroup();
+    let primaryVideoDevice = (buckets.videoDevices || [])[0];
+    let primaryTable = (buckets.tables || [])[0];
+    let primaryDisplay = (buckets.displays || [])[0];
 
     if (primaryTable) {
         document.getElementById('tableWidth').value = round(primaryTable.width);
@@ -22221,17 +22026,6 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         return;
     }
     let x, y;
-
-
-
-    let isPrimaryDiv = document.getElementById('isPrimaryDiv');
-    let isPrimaryCheckBox = document.getElementById('isPrimaryCheckBox');
-
-    isPrimaryCheckBox.disabled = true;
-    isPrimaryCheckBox.checked = false;
-    isPrimaryDiv.style.display = 'none';
-
-
 
     if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
         x = shape.x();
@@ -23144,7 +22938,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
 
-        roomObj.items[allDeviceTypes[data_deviceid].parentGroup].push(attrs);
+        roomObj.items.push(attrs);
 
         roomObjItemsMap.set(attrs.id, attrs);
 
@@ -23178,10 +22972,10 @@ function checkForMultipleCodecsOnDragEnd(droppedItem) {
         /* verify the device is in the videoDevices group && not a camera  */
         if (allDeviceTypes[droppedItem].parentGroup && allDeviceTypes[droppedItem].parentGroup === 'videoDevices' && !allDeviceTypes[droppedItem].cameraOnly) {
 
-            /* count up all the roomObj.items.videoDevices that are not cameras only. */
+            /* count up all the videoDevices (parentGroup) that are not cameras only. */
             let videoDeviceCount = 0;
 
-            roomObj.items.videoDevices.forEach((item) => {
+            getItemsByParentGroup('videoDevices').forEach((item) => {
 
                 if ('data_deviceid' in item) {
                     if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
@@ -23278,7 +23072,7 @@ function checkForMultipleCodecsOnPaste(pasteItems) {
         }
     });
 
-    roomObj.items.videoDevices.forEach((item) => {
+    getItemsByParentGroup('videoDevices').forEach((item) => {
         if (!(allDeviceTypes[item.data_deviceid].cameraOnly)) {
             videoDeviceCanvasCount++;
         }
@@ -23941,15 +23735,11 @@ function getListOfSmallDeviceTypes(minimumSize = 500) {
 
 function getListOfNodes(smallDeviceTypeIdArray) {
     let arraySmallItems = [];
-    for (const category in roomObj.items) {
-        for (const i in roomObj.items[category]) {
-            let item = roomObj.items[category][i];
-            if (smallDeviceTypeIdArray.includes(item.data_deviceid)) {
-                arraySmallItems.push(item);
-
-            }
+    roomObj.items.forEach(item => {
+        if (smallDeviceTypeIdArray.includes(item.data_deviceid)) {
+            arraySmallItems.push(item);
         }
-    }
+    });
 
     return arraySmallItems;
 }
@@ -26440,40 +26230,37 @@ function importJson(jsonFile) {
             ensureCustomItems();
             ensureCustomItemBaseIds();
 
-            /* update roomObj items so they can be moved between parentGroups */
-            let items = {};
-            items.videoDevices = [];
-            items.chairs = [];
-            items.tables = [];
-            items.stageFloors = [];
-            items.boxes = [];
-            items.rooms = [];
-            items.displays = [];
-            items.speakers = [];
-            items.microphones = [];
-            items.touchPanels = [];
+            /* Legacy-shape auto-migration: older .vrc.json files have
+             * `items: { videoDevices: [...], chairs: [...], ... }`. The
+             * current shape is a flat array. Detect inline (avoids a
+             * circular dep on the lazy-loaded helper) and either run
+             * the migration synchronously when it's already loaded, or
+             * lazy-load it and finish the import inside the .then().
+             * See plan flatten-roomobj-items-array. */
+            const needsLegacyMigration = roomObj.items
+                && !Array.isArray(roomObj.items)
+                && typeof roomObj.items === 'object';
 
+            const finishVrcImport = () => {
+                document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
+                document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
+                document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
+                drawRoom(true, false, false);
+            };
 
-            for (const parentGroup in roomObj.items) {
-                roomObj.items[parentGroup].forEach(item => {
-                    if (!(allDeviceTypes[item.data_deviceid].parentGroup in items)) {
-                        items[allDeviceTypes[item.data_deviceid].parentGroup] = [];
-                    }
-
-                    items[allDeviceTypes[item.data_deviceid].parentGroup].push(item);
-                });
+            if (needsLegacyMigration) {
+                if (typeof window.VRC?.migrateLegacyItemsShape === 'function') {
+                    window.VRC.migrateLegacyItemsShape(roomObj);
+                    finishVrcImport();
+                } else {
+                    loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS).then(() => {
+                        window.VRC.migrateLegacyItemsShape(roomObj);
+                        finishVrcImport();
+                    });
+                }
+            } else {
+                finishVrcImport();
             }
-
-            roomObj.items = items;
-
-
-
-            document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
-            document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
-
-
-            document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
-            drawRoom(true, false, false);
         }, 1500);
 
     }
@@ -26979,9 +26766,8 @@ function importXConfigFile(text, fileName) {
             item.data_color = { value: 'dark', index: 1 };
         }
 
-        const parentGroup = dev.parentGroup;
-        if (!roomObj2.items[parentGroup]) roomObj2.items[parentGroup] = [];
-        roomObj2.items[parentGroup].push(item);
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        roomObj2.items.push(item);
     });
 
     /* xConfig XYZ tracking columns.
@@ -27028,7 +26814,7 @@ function importXConfigFile(text, fileName) {
         _urlNum: xConfigUrlNum,
     });
 
-    if (!roomObj2.items.tables) roomObj2.items.tables = [];
+    if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
 
     /* Blue column: xConfig X = 0 axis line.
      *
@@ -27036,7 +26822,7 @@ function importXConfigFile(text, fileName) {
      * VRC coords). Anchored at (vrcOriginX, 0) with rotation 0 so it
      * spans the full depth of the room. The exporter reads `column.x`
      * to recover the xConfig X origin in VRC meters. */
-    roomObj2.items.tables.push({
+    roomObj2.items.push({
         id: `xConfig-x-0-${createUuid()}`,
         data_deviceid: 'columnRect',
         name: 'Column',
@@ -27057,7 +26843,7 @@ function importXConfigFile(text, fileName) {
      * the right across the room — yielding a horizontal sliver at
      * VRC y = vrcOriginY, spanning the full room width. The exporter
      * reads `column.y` to recover the xConfig Z origin in VRC meters. */
-    roomObj2.items.tables.push({
+    roomObj2.items.push({
         id: `xConfig-z-0-${createUuid()}`,
         data_deviceid: 'columnRect',
         name: 'Column',
@@ -27164,7 +26950,7 @@ function importXConfigFile(text, fileName) {
         const arrowElevM = (p.deviceId === 'ceilingMicPro')
             ? Math.max(0, baseElevM - MIC_ARROW_Z_OFFSET_M)
             : baseElevM;
-        roomObj2.items.tables.push({
+        roomObj2.items.push({
             id: createUuid(),
             data_deviceid: 'pathShape',
             name: 'Custom Path Shape',
@@ -27267,8 +27053,12 @@ function exportXConfigFile() {
      * we need for the relative-position math below. */
     canvasToJson();
 
-    const videoDevices = (roomObj.items && roomObj.items.videoDevices) || [];
-    const microphones = (roomObj.items && roomObj.items.microphones) || [];
+    /* PERF: bucket once across the 3 parentGroups xConfig export reads
+     * (videoDevices / microphones / tables). One O(n) pass instead of
+     * three. */
+    const xConfigBuckets = bucketItemsByParentGroup();
+    const videoDevices = xConfigBuckets.videoDevices || [];
+    const microphones = xConfigBuckets.microphones || [];
 
     /* Either a bare `quadCam` or a `roomKitEqQuadCam` (Room Kit EQ: Quad
      * Camera) is treated as Camera 1 — the importer creates the latter,
@@ -27320,7 +27110,7 @@ function exportXConfigFile() {
      * Column id matching is case-insensitive so that older saves using the
      * lowercase `xconfig-x-…` form (see the example `xconfig with xyz
      * planes.vrc.json`) still round-trip. */
-    const tables = (roomObj.items && roomObj.items.tables) || [];
+    const tables = xConfigBuckets.tables || [];
     const isXConfigCol = (it, axis) => (
         it
         && it.data_deviceid === 'columnRect'
@@ -28729,16 +28519,13 @@ function importWorkspaceDesignerFile(workspaceObj) {
          * group whose members never resolved (empty H block on a
          * hand-edited file, or all members landed in a hidden layer that
          * was filtered on export). */
-        if (roomObj2.groups.length) {
+        if (roomObj2.groups.length && Array.isArray(roomObj2.items)) {
             roomObj2.groups.forEach(grp => { grp.groupMembers = []; });
-            for (const category in roomObj2.items) {
-                if (!Array.isArray(roomObj2.items[category])) continue;
-                roomObj2.items[category].forEach(it => {
-                    if (!it.data_groupId) return;
-                    const grp = roomObj2.groups.find(gr => gr.groupid === it.data_groupId);
-                    if (grp) grp.groupMembers.push(it.id);
-                });
-            }
+            roomObj2.items.forEach(it => {
+                if (!it.data_groupId) return;
+                const grp = roomObj2.groups.find(gr => gr.groupid === it.data_groupId);
+                if (grp) grp.groupMembers.push(it.id);
+            });
             roomObj2.groups = roomObj2.groups.filter(gr => gr.groupMembers && gr.groupMembers.length);
         }
     }
@@ -28779,16 +28566,13 @@ function importWorkspaceDesignerFile(workspaceObj) {
             });
         });
 
-        if (roomObj2.customItems.length) {
+        if (roomObj2.customItems.length && Array.isArray(roomObj2.items)) {
             roomObj2.customItems.forEach(cit => { cit.customItemMembers = []; });
-            for (const category in roomObj2.items) {
-                if (!Array.isArray(roomObj2.items[category])) continue;
-                roomObj2.items[category].forEach(it => {
-                    if (!it.data_customItemId) return;
-                    const cit = roomObj2.customItems.find(c => c.customitemid === it.data_customItemId);
-                    if (cit) cit.customItemMembers.push(it.id);
-                });
-            }
+            roomObj2.items.forEach(it => {
+                if (!it.data_customItemId) return;
+                const cit = roomObj2.customItems.find(c => c.customitemid === it.data_customItemId);
+                if (cit) cit.customItemMembers.push(it.id);
+            });
             roomObj2.customItems = roomObj2.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
         }
         /* Proactive backfill — assigns customItemBaseId to any imported
@@ -29428,7 +29212,8 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         document.getElementById('removeDefaultWallsCheckBox').checked = false;
         document.getElementById("removeDefaultWallsCheckBox2").checked = false;
     } else {
-        roomObj2.items[deviceType.parentGroup].push(item);
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        roomObj2.items.push(item);
     }
 
 }
@@ -29436,8 +29221,15 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 /* find any roomKitEqx in the roomObj, then look for duplicate displays and delete them */
 function deletePossibleRoomKitEqxDisplays(roomObj) {
 
-    let displays = roomObj.items.displays;
-    let videoDevices = roomObj.items.videoDevices;
+    /* PERF: bucket once for the 2 parentGroups read below. The local
+     * `displays` / `videoDevices` arrays are filtered views; matching
+     * displays are deleted from the canonical roomObj.items array via
+     * id, so the splice that used to mutate roomObj.items.displays
+     * directly still removes the same entries. */
+    const dpBuckets = bucketItemsByParentGroup(roomObj);
+    let displays = dpBuckets.displays || [];
+    let videoDevices = dpBuckets.videoDevices || [];
+    const idsToRemove = new Set();
     videoDevices.forEach(videoDevice => {
         if (videoDevice.data_deviceid.startsWith('roomKitEqx')) {
 
@@ -29452,20 +29244,21 @@ function deletePossibleRoomKitEqxDisplays(roomObj) {
             smallDisplays = getLocationOfRoomKitEqxDisplay(smallEqx);
             largeDisplays = getLocationOfRoomKitEqxDisplay(largeEqx);
 
-            for (let i = displays.length - 1; i >= 0; i--) {
-                let display = displays[i];
+            displays.forEach(display => {
                 let inLeftArea = isDisplayInArea(display, smallDisplays.left, largeDisplays.left);
                 let inRightArea = isDisplayInArea(display, smallDisplays.right, largeDisplays.right);
                 if (inLeftArea || inRightArea) {
                     if (65 <= display.data_diagonalInches && display.data_diagonalInches <= 85) {
                         videoDevice.data_diagonalInches = display.data_diagonalInches;
-                        displays.splice(i, 1);
+                        idsToRemove.add(display.id);
                     }
                 }
-
-            }
+            });
         }
     });
+    if (idsToRemove.size > 0) {
+        roomObj.items = roomObj.items.filter(it => !idsToRemove.has(it.id));
+    }
 }
 
 function isDisplayInArea(display, smallDisp, largeDisp) {
@@ -29919,7 +29712,7 @@ function exportRoomObjToWorkspace() {
 
             wall.data_labelField = JSON.stringify(jsonLabel);
 
-            roomObj2.items.tables.push(wall);
+            roomObj2.items.push(wall);
 
         });
 
@@ -30146,7 +29939,12 @@ function exportRoomObjToWorkspace() {
         workspaceObj.title = roomObj2.name;
     }
 
-    roomObj2.items.chairs.forEach((item) => {
+    /* PERF RULE: bucket roomObj2.items once by parentGroup so the
+     * per-category iterations below are O(n) total instead of N filter
+     * passes (N=7). See plan flatten-roomobj-items-array. */
+    const wdBuckets = bucketItemsByParentGroup(roomObj2);
+
+    (wdBuckets.chairs || []).forEach((item) => {
 
         if (item.data_deviceid === 'wheelchairTurnCycle') {
             let newItem = structuredClone(item);
@@ -30191,7 +29989,7 @@ function exportRoomObjToWorkspace() {
 
     });
 
-    roomObj2.items.microphones.forEach((item) => {
+    (wdBuckets.microphones || []).forEach((item) => {
 
         if ((item.data_mount && item.data_mount.value.startsWith('ceilingMount')) || ((item.data_deviceid === 'ceilingMicPro') && !item.data_mount)) {
             let ceilingMount = structuredClone(item);
@@ -30216,7 +30014,7 @@ function exportRoomObjToWorkspace() {
         workspaceObjItemPush(item);
     });
 
-    roomObj2.items.tables.forEach((item) => {
+    (wdBuckets.tables || []).forEach((item) => {
 
         if (item.data_deviceid) {
             if (item.data_deviceid.startsWith('tbl') || item.data_deviceid.startsWith('couch') || item.data_deviceid.startsWith('credenza')) {
@@ -30245,7 +30043,7 @@ function exportRoomObjToWorkspace() {
         }
     });
 
-    roomObj2.items.stageFloors.forEach((item) => {
+    (wdBuckets.stageFloors || []).forEach((item) => {
         if (item.data_deviceid) {
 
             if (item.data_deviceid.startsWith('stageFloor')) {
@@ -30263,16 +30061,16 @@ function exportRoomObjToWorkspace() {
         }
     });
 
-    roomObj2.items.boxes.forEach((item) => {
+    (wdBuckets.boxes || []).forEach((item) => {
         workspaceObjWallPush(item);
     });
 
 
-    roomObj2.items.rooms.forEach((item) => {
+    (wdBuckets.rooms || []).forEach((item) => {
         workspaceObjWallPush(item);
     });
 
-    roomObj2.items.videoDevices.forEach((item) => {
+    (wdBuckets.videoDevices || []).forEach((item) => {
         /* Adjust the height and create a pole for a flipped camera */
         if (item.data_mount && item.data_mount.value.startsWith('flippedPole')) {
 
@@ -30309,7 +30107,7 @@ function exportRoomObjToWorkspace() {
         workspaceObjItemPush(item);
     });
 
-    roomObj2.items.displays.forEach((item) => {
+    (wdBuckets.displays || []).forEach((item) => {
 
         let displayRatio = 0.995;
 

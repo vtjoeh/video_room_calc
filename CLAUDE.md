@@ -115,17 +115,21 @@ roomObj = {
   },
   software: "",             // "mtr" or "webex"
   authorVersion: "",        // User-defined version
-  items: {
-    videoDevices: [],       // Cameras, Room Bars, etc.
-    chairs: [],
-    tables: [],
-    stageFloors: [],
-    boxes: [],
-    displays: [],
-    speakers: [],
-    microphones: [],
-    touchPanels: []
-  },
+  items: [                  // FLAT array. Each item's category is derived
+                            // dynamically from
+                            // allDeviceTypes[item.data_deviceid].parentGroup
+                            // (e.g. 'videoDevices' / 'chairs' / 'tables' / ...) —
+                            // there is NO bucket-by-category map here.
+                            // Insertion order is preserved; no sorting at write
+                            // time. Legacy `.vrc.json` files that carry the
+                            // older `items: { videoDevices: [...], ... }` shape
+                            // are auto-migrated on read via
+                            // `js/migrateLegacyItemsShape.js` (see "Legacy
+                            // items shape migration" below).
+    { data_deviceid: "roomBarPro", id: "uuid", x: 1.2, y: 3.4, /* ... */ },
+    { data_deviceid: "tblRect",    id: "uuid", x: 2.5, y: 4.5, /* ... */ }
+    // ...
+  ],
   workspace: {
     removeDefaultWalls: false,
     addCeiling: false
@@ -168,8 +172,65 @@ roomObj = {
 }
 ```
 
+### Legacy items shape migration
 
+Pre–May 2026 `roomObj.items` was an object-of-arrays keyed by
+`parentGroup`:
 
+```javascript
+items: { videoDevices: [], chairs: [], tables: [], stageFloors: [],
+         boxes: [], displays: [], speakers: [], microphones: [],
+         touchPanels: [] }
+```
+
+That bucket structure was a cache — `allDeviceTypes[item.data_deviceid].parentGroup`
+is the actual source of truth for an item's category. The current
+shape is a flat array; the buckets are removed entirely.
+
+Backward compatibility is transparent. Three load paths can encounter
+the legacy shape:
+
+| Load path | Where | Behaviour |
+|-----------|-------|-----------|
+| `.vrc.json` file import | `importJson()` in `js/roomcalc.js` | Inline shape check; if legacy, lazy-loads `js/migrateLegacyItemsShape.js` via `loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS)`, runs the migration, then continues the import. |
+| IndexedDB undo/redo hydration | Boot IIFE in `js/roomcalc.js` (after `idbReady.then(...)`) | Walks `undoArray` + `redoArray`; if any entry has the legacy shape, lazy-loads the helper and runs `window.VRC.migrateLegacyItemsShape(entry)` across both arrays before `onLoad()`. |
+| Shareable URL parser | `parseShortenedXYUrl()` | Builds the flat array directly; no migration needed. |
+
+`js/migrateLegacyItemsShape.js` exposes a single function
+`window.VRC.migrateLegacyItemsShape(obj)`:
+
+- No-op if `obj.items` is already an array.
+- Otherwise flattens the bucket map into a single array (insertion
+  order across buckets is preserved by iterating `for..in` in
+  declaration order).
+- Logs `[VRC] Migrating legacy items shape …` once per session via a
+  module-local sentinel.
+
+Helpers for working with the flat shape:
+
+- `getItemsByParentGroup('videoDevices')` — filter (O(n)).
+- `firstItemOfParentGroup('videoDevices')` — first match (O(n) until
+  hit).
+- `countItemsByParentGroup('videoDevices')` — count (O(n)).
+- `bucketItemsByParentGroup(obj?)` — one O(n) pass that returns
+  `{ videoDevices: [], chairs: [], ... }` for callers that need
+  multiple buckets at once (WD export, xConfig export, etc.).
+
+**Performance rules (locked in by the flatten refactor):**
+
+1. **Multi-category reads MUST bucket once.** Any function that
+   reads 2+ parentGroups calls `bucketItemsByParentGroup()` once at
+   the top — O(n) total — rather than calling
+   `getItemsByParentGroup()` N times (which would be O(N×n)).
+2. **`updateRoomObjFromTrNode()` push branch MUST NOT linear-scan.**
+   The function uses `roomObjItemsMap.get(node.id())` at the top; if
+   the map says "not found", it just pushes to `roomObj.items` and
+   registers the new entry in the map — no `findIndex` scan.
+3. **Single-item shading toggles MUST use the map directly.**
+   `toggleMicShadingSingleItem`, `toggleSpeakerShadingSingleItem`,
+   `toggleCamShadeSingleItem`, `toggleDisplayDistanceSingleItem` all
+   call `roomObjItemsMap.get(id)` — O(1) instead of O(b) plus a sync
+   DOM read of the (now removed) `#itemGroup` textbox.
 
 The canvas uses multiple Konva layers for rendering (defined around line 57-500):
 
@@ -221,7 +282,7 @@ The next five live inside `layerTransform` as `Konva.Group`s, not as their own `
 |----------|----------|---------|
 | `insertShapeItem()` ~line 9831 | `imageItem.data_xxx = attrs.data_xxx` | Set on Konva node for non-table items |
 | `insertTable()` ~line 7793 | `tblWallFlr.data_xxx = attrs.data_xxx` | Set on Konva node for tables/walls |
-| `canvasToJson()` → `updateRoomObjFromTrNode()` | `itemAttr.data_xxx = node.data_xxx` | Read from node, write to roomObj — **NOT** in the dead `getNodesJson()` defined inside `canvasToJson()`; that nested function is never called and is annotated as such in source |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | `itemAttr.data_xxx = node.data_xxx`, then `roomObj.items.push(itemAttr)` (new item) or patch on the existing `roomObjItemsMap.get(id)` entry | Read from node, write to the flat `roomObj.items` array. The legacy nested `getNodesJson()` was removed in May 2026 when `roomObj.items` was flattened — see the short pointer comment in `canvasToJson()`. |
 | `copyToCanvasClipBoard()` | `newAttr.data_xxx = node.data_xxx` | Preserve during copy/paste |
 
 ### Why this matters:
@@ -615,7 +676,7 @@ roomObj.groups = [
 ]
 ```
 
-Each item in `roomObj.items.*` carries:
+Each item in `roomObj.items` carries:
 ```javascript
 item.data_groupId = "groupid-string"  // omitted if not in a group (matches the node.data_groupId Konva attribute)
 ```
@@ -797,16 +858,16 @@ When adding new data to items, the four-place rule still applies. For `data_grou
 | `canvasToJson()` → `updateRoomObjFromTrNode()` | `if (node.data_groupId) itemAttr.data_groupId = node.data_groupId` (push branch); also patches the existing entry's `data_groupId` in the `roomObjItemsMap`-hit branch so groups added/removed via direct `roomObj.items[].data_groupId` mutation stay in sync after the next canvasToJson | ✓ |
 | `copyToCanvasClipBoard()` | Copy `data_groupId` with UUID remapping on paste | ✓ |
 
-> **Why this matters / why `getNodesJson()` is the wrong place:** the
-> nested `getNodesJson()` function inside `canvasToJson()` is dead —
-> never invoked. The actual canvas → `roomObj.items` writer is
+> **Why this matters:** the actual canvas → `roomObj.items` writer is
 > `updateRoomObjFromTrNode()`, which only walks `tr.nodes()`. After a
 > paste/duplicate, the new items aren't in `roomObjItemsMap` yet, so
 > they go through the "push fresh `itemAttr`" branch — which means the
 > writer code itself must include the field, otherwise it's silently
 > dropped on the round-trip and `createShareableLink()` emits no
 > `s{n}` for the affected members (URL persistence breaks for pasted
-> groups).
+> groups). (The legacy nested `getNodesJson()` was removed in May 2026
+> when `roomObj.items` was flattened from an object-of-arrays to a
+> flat array.)
 
 ### Details panel for a selected Group
 
@@ -820,7 +881,7 @@ Fields shown for a Group:
 - **Width / Length** — display-only (`disabled = true`); these reflect the bounding box of the members and are recomputed by `updateGroupBounds()` / the Konva Transformer, never typed in directly
 - **Rotation** (backed by `rectNode.rotation()`)
 
-Fields hidden for a Group: `itemNameDiv`, `labelPathId`, `itemTopElevationDiv`, `itemDiagonalTvDiv`, `itemVheightDiv`, `trapNarrowWidthDiv`, `tblRectRadiusRow`, `tblRectRadiusDiv`, `tblRectRadiusRightDiv`, `itemTiltSlantDiv`, `itemTiltDiv`, `itemSlantDiv`, `isPrimaryDiv`, `itemOffsetDiv`, `roleDiv`, `mountDiv`, `colorDiv`. The non-group branch of `updateFormatDetails()` re-shows `itemNameDiv` at the top so a subsequent click on a normal item finds the div in its default-visible state.
+Fields hidden for a Group: `itemNameDiv`, `labelPathId`, `itemTopElevationDiv`, `itemDiagonalTvDiv`, `itemVheightDiv`, `trapNarrowWidthDiv`, `tblRectRadiusRow`, `tblRectRadiusDiv`, `tblRectRadiusRightDiv`, `itemTiltSlantDiv`, `itemTiltDiv`, `itemSlantDiv`, `itemOffsetDiv`, `roleDiv`, `mountDiv`, `colorDiv`. The non-group branch of `updateFormatDetails()` re-shows `itemNameDiv` at the top so a subsequent click on a normal item finds the div in its default-visible state.
 
 Click-on-a-member also reroutes to Group fields: `updateFormatDetails()` swaps the clicked member's `shape` over to the Group rect when `shape.data_groupId` is set, so the very first click immediately shows Group details (no flicker between member details and group details).
 
@@ -954,7 +1015,7 @@ roomObj.customItems = [
 ]
 ```
 
-Each item in `roomObj.items.*` carries:
+Each item in `roomObj.items` carries:
 
 ```javascript
 item.data_customItemId = "customitemid-string"   // omitted if not in a customItem
@@ -1548,7 +1609,7 @@ When adding new data to items, the critical four places still apply (see Critica
 |----------|----------|-------|
 | `insertShapeItem()` → `updateNodeAttributes()` | `node.data_layerId = attrs.data_layerId \|\| '0'` | ✓ |
 | `insertTable()` | `tblWallFlr.data_layerId = attrs.data_layerId \|\| '0'` | ✓ |
-| `canvasToJson()` → `updateRoomObjFromTrNode()` | Save `data_layerId` to `itemAttr` (the `getNodesJson()` defined inside `canvasToJson()` is dead code — see the `data_groupId` table for details) | ✓ |
+| `canvasToJson()` → `updateRoomObjFromTrNode()` | Save `data_layerId` to `itemAttr` (the legacy nested `getNodesJson()` was removed in May 2026 when `roomObj.items` was flattened — see the short pointer comment in `canvasToJson()`) | ✓ |
 | `copyToCanvasClipBoard()` | Copy `data_layerId` in `newAttr` | ✓ |
 
 ### Layer Encoding in `_layerUrlEncodeMap`

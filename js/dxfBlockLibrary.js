@@ -162,8 +162,8 @@
         rooms: LAYER.ROOM_PATH,
     };
 
-    /* Items that always live on the people layer, even though they're
-     * stored in roomObj.items.chairs alongside actual seating. */
+    /* Items that always live on the people layer, even though their
+     * parentGroup is 'chairs' (same bucket as actual seating). */
     const PEOPLE_DEVICE_IDS = new Set([
         'personStanding', 'personStandingMan', 'plant', 'tree', 'pouf'
     ]);
@@ -175,7 +175,7 @@
         'doorDoubleRight', 'doorDoubleLeft'
     ]);
 
-    /* Wall-builder primitives in roomObj.items.tables. */
+    /* Wall-builder primitives whose parentGroup is 'tables'. */
     const WALL_DEVICE_IDS = new Set(['wallStd', 'wallGlass', 'wallWindow', 'wallChairs']);
     const COLUMN_DEVICE_IDS = new Set(['columnRect', 'cylinder']);
 

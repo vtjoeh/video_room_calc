@@ -114,7 +114,7 @@ but is dropped on the post-parse rebuild.
 | `data.vrc.groups[]` encoder | `exportRoomObjToWorkspace()` — block immediately after the `data.vrc.backgroundImage` emit. Reads `roomObj.groups` directly (not `roomObj2.groups` — `convertToMeters()` drops `groups` from the clone) and applies `groupRatio = (roomObj.unit === 'feet') ? (1/3.28084) : 1` |
 | Per-item `group` attribute decoder | `wdItemToRoomObjItem()` — `if ('group' in wdItem)` block immediately after the `wdItem.layer` extraction. Strips the key from `wdItem` so it doesn't leak into `data_labelField` |
 | `data.vrc.groups[]` decoder + post-parse member rebuild | `importWorkspaceDesignerFile()` — block immediately after the `data.vrc.backgroundImageFile` import. Calls `ensureGroups(roomObj2)`, then walks `data.vrc.groups[]` and pushes new entries into `roomObj2.groups`, then mirrors the URL parser's `roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length)` rebuild |
-| Group rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group') return;` so group rects never enter `roomObj.items.*` and therefore never reach the WD push helpers |
+| Group rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group') return;` so group rects never enter `roomObj.items` and therefore never reach the WD push helpers |
 
 ---
 
@@ -169,7 +169,7 @@ discussion in `CLAUDE.md`.
 | `data.vrc.customItems[]` encoder | `exportRoomObjToWorkspace()` — block immediately after the `data.vrc.groups` emit. Mirror of the groups block, walks `roomObj.customItems` |
 | Per-item `customItem` attribute decoder | `wdItemToRoomObjItem()` — `if ('customItem' in wdItem)` block immediately after the `'group' in wdItem` block. Strips the key from `wdItem` |
 | `data.vrc.customItems[]` decoder + post-parse member rebuild | `importWorkspaceDesignerFile()` — block immediately after the `data.vrc.groups` import. Calls `ensureCustomItems(roomObj2)`, walks `data.vrc.customItems[]`, and rebuilds `customItemMembers` from `data_customItemId` references |
-| CustomItem rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group' \|\| node.data_deviceid === 'customItem') return;` so CustomItem rects never enter `roomObj.items.*` and therefore never reach the WD push helpers |
+| CustomItem rect skip in `customObjects[]` | `canvasToJson()` already enforces `if (node.data_deviceid === 'group' \|\| node.data_deviceid === 'customItem') return;` so CustomItem rects never enter `roomObj.items` and therefore never reach the WD push helpers |
 
 ## ConfigurableColor & Opacity Round-Trip
 
@@ -269,6 +269,6 @@ VRC-emitted prefix is stripped.
 
 | Concern | Location |
 |---------|----------|
-| Export — `stageFloor~` prefix add | `roomObj2.items.stageFloors.forEach()` in `exportRoomObjToWorkspace()`, around line 30119 in `js/roomcalc.js` |
+| Export — `stageFloor~` prefix add | `(wdBuckets.stageFloors \|\| []).forEach()` in `exportRoomObjToWorkspace()` — `wdBuckets` is the one-shot result of `bucketItemsByParentGroup(roomObj2)` populated at the top of the function (see `js/roomcalc.js`) |
 | Import — scoring regex | `workspaceKey.stageFloor.idRegex` in `js/data/workspaceKey.js` (`'(^stage$)|(^step-)|(^stageFloor~)'`) |
 | Import — prefix strip | `wdItemToRoomObjItem()` in `js/roomcalc.js`, just after the `item.id = wdItem.id.replace(...)` sanitisation |

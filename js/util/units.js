@@ -101,16 +101,10 @@ window.VRC.util = window.VRC.util || {};
 
         let roomObjTemp = {};
         roomObjTemp.room = {};
-        roomObjTemp.items = {};
+        roomObjTemp.items = [];
 
         let roomX;
         let roomY;
-
-
-
-        Object.keys(roomObj2.items).forEach(key => {
-            roomObjTemp.items[key] = [];
-        });
 
         let ratio = 1;
 
@@ -157,67 +151,59 @@ window.VRC.util = window.VRC.util || {};
             roomObjTemp.backgroundImage.opacity = roomObj2.backgroundImage.opacity;
         }
 
-        for (const category in roomObj2.items) {
-            roomObjTemp.items[category] = [];
-            for (const i in roomObj2.items[category]) {
+        (roomObj2.items || []).forEach(item => {
+            const isItemOnStage = !itemsOffStageId.includes(item.id);
 
-                const isItemOnStage = !itemsOffStageId.includes(roomObj2.items[category][i].id)
+            if (!(isItemOnStage || isActiveRoomPart)) return; /* only add the node if it is onstage */
 
-                if (isItemOnStage || isActiveRoomPart) {    /* only add the node if it is onstage */
-
-                    let item = roomObj2.items[category][i];
-
-                    if ('x' in item) {
-                        item.x = (item.x * ratio) - roomX;
-                    }
-
-                    if ('y' in item) {
-                        item.y = (item.y * ratio) - roomY;
-                    }
-
-                    if ('width' in item) {
-                        item.width = item.width * ratio;
-                    }
-
-                    if ('height' in item) {
-                        item.height = item.height * ratio;
-                    }
-
-                    if ('radius' in item) {
-                        item.radius = item.radius * ratio;
-                    }
-
-                    if ('data_zPosition' in item) {
-                        item.data_zPosition = round(item.data_zPosition * ratio);
-                    }
-
-                    if ('data_vHeight' in item) {
-                        item.data_vHeight = round(item.data_vHeight * ratio);
-                    }
-
-                    if ('tblRectRadius' in item) {
-                        item.tblRectRadius = round(item.tblRectRadius * ratio);
-                    }
-
-                    if ('data_trapNarrowWidth' in item) {
-                        item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
-                    }
-
-                    if ('tblRectRadiusRight' in item) {
-                        item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
-                    }
-
-                    if (isItemOnStage) {
-                        item.data_isItemOnStage = true;
-                    } else {
-                        item.data_isItemOnStage = false;
-                    }
-
-                    roomObjTemp.items[category].push(item);
-                }
+            if ('x' in item) {
+                item.x = (item.x * ratio) - roomX;
             }
 
-        }
+            if ('y' in item) {
+                item.y = (item.y * ratio) - roomY;
+            }
+
+            if ('width' in item) {
+                item.width = item.width * ratio;
+            }
+
+            if ('height' in item) {
+                item.height = item.height * ratio;
+            }
+
+            if ('radius' in item) {
+                item.radius = item.radius * ratio;
+            }
+
+            if ('data_zPosition' in item) {
+                item.data_zPosition = round(item.data_zPosition * ratio);
+            }
+
+            if ('data_vHeight' in item) {
+                item.data_vHeight = round(item.data_vHeight * ratio);
+            }
+
+            if ('tblRectRadius' in item) {
+                item.tblRectRadius = round(item.tblRectRadius * ratio);
+            }
+
+            if ('data_trapNarrowWidth' in item) {
+                item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
+            }
+
+            if ('tblRectRadiusRight' in item) {
+                item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
+            }
+
+            if (isItemOnStage) {
+                item.data_isItemOnStage = true;
+            } else {
+                item.data_isItemOnStage = false;
+            }
+
+            roomObjTemp.items.push(item);
+        });
 
         return roomObjTemp;
 
@@ -289,13 +275,9 @@ window.VRC.util = window.VRC.util || {};
             roomObj.backgroundImage.height = roomObj.backgroundImage.height * ratio;
         }
 
-        for (const category in roomObj.items) {
-            for (const i in roomObj.items[category]) {
-                let item = roomObj.items[category][i];
-                item = convertItemUnitBasedOnRatio(item, ratio);
-            }
-
-        }
+        roomObj.items.forEach((item, i) => {
+            roomObj.items[i] = convertItemUnitBasedOnRatio(item, ratio);
+        });
 
         /* VRC Groups: roomObj.groups[].x/y/width/height/data_zPosition are
          * stored in unit-space (same convention as items + data.vrc.groups
