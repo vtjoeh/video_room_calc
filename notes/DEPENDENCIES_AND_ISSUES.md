@@ -19,9 +19,10 @@ All other dependencies are local in the `js/` folder. There is **no**
 build step — every JS file under `js/` is loaded directly from disk.
 The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
 `data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
-`idbStorage.js` → `roomcalc.js`. Lazy-loaded modules
-(`templates.js`, `qrcode.js`, `drpDownOverride.js`, `dxfWriter.js`,
-`dxfBlockLibrary.js`) are pulled in on demand by `loadScriptOnce()`.
+`undoApply.js` → `idbStorage.js` → `templates.js` → `roomcalc.js`.
+Lazy-loaded modules (`qrcode.js`, `drpDownOverride.js`, `dxfWriter.js`,
+`dxfBlockLibrary.js`, `migrateLegacyItemsShape.js`) are pulled in on
+demand by `loadScriptOnce()`.
 
 ## Common Issues & Solutions
 

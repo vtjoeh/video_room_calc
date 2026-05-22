@@ -44,7 +44,7 @@ video_room_calculator/
 │   ├── undoApply.js         # VRC.undoApply diff helpers for incremental undo/redo restore (Konva-free; see "Incremental undo/redo restore" below)
 │   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
 │   ├── roomcalc.js          # Core application logic (~26,000 lines)
-│   ├── templates.js         # Pre-built room templates             (lazy-loaded — first new-room dialog open)
+│   ├── templates.js         # Pre-built room templates             (eager-loaded so the New Room dialog opens with tiles populated)
 │   ├── qrcode.js            # QR code generation                   (lazy-loaded — first QR render)
 │   ├── drpDownOverride.js   # Dropdown UI for RoomOS               (lazy-loaded — RoomOS only)
 │   ├── dxfWriter.js         # DXF (CAD) writer                     (lazy-loaded — first DXF export)
@@ -67,16 +67,19 @@ There is no build step. Open `RoomCalculator.html` directly in a browser.
 
 The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
 `data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
-`undoApply.js` → `idbStorage.js` → `roomcalc.js`. Every module before `roomcalc.js`
-attaches to the shared `window.VRC` namespace (per the convention in
-`notes/TECH_NOTES.md`); `roomcalc.js` then aliases the public names back into
-local `const` bindings near the top of the file so existing call sites
-stay unchanged. See the Phase 2 header comment in `roomcalc.js` and the
-IIFE pattern note in `js/data/workspaceKey.js`.
+`undoApply.js` → `idbStorage.js` → `templates.js` → `roomcalc.js`. Every
+module before `roomcalc.js` attaches to the shared `window.VRC` namespace
+(per the convention in `notes/TECH_NOTES.md`); `roomcalc.js` then aliases
+the public names back into local `const` bindings near the top of the
+file so existing call sites stay unchanged. See the Phase 2 header
+comment in `roomcalc.js` and the IIFE pattern note in
+`js/data/workspaceKey.js`. `templates.js` is plain data (`const templates
+= [...]`) and carries no `VRC` surface — it is eager-loaded so the New
+Room dialog can render its tiles synchronously the first time it opens.
 
-The lazy-loaded scripts (`templates.js`, `qrcode.js`,
-`drpDownOverride.js`, `dxfWriter.js`, `dxfBlockLibrary.js`) are pulled
-in on demand by `loadScriptOnce()` and are *not* listed in
+The lazy-loaded scripts (`qrcode.js`, `drpDownOverride.js`,
+`dxfWriter.js`, `dxfBlockLibrary.js`, `migrateLegacyItemsShape.js`) are
+pulled in on demand by `loadScriptOnce()` and are *not* listed in
 `RoomCalculator.html`.
 
 `notes/TECH_NOTES.md` documents the long-term refactor direction. Read it
@@ -1828,10 +1831,15 @@ coordinate transform, and instructions for adding a new device block.
 Pre-built room templates surface in the **Templates** tab of
 `#newRoomDialog`. Each template is a single encoded `?x=…` URL fed
 to `loadTemplate(url)`. Definitions live in `js/templates.js`
-(lazy-loaded on first dialog open via `ensureTemplatesPopulated()`).
+(eager-loaded with the other scripts in `RoomCalculator.html`).
+`ensureTemplatesPopulated()` is called synchronously from the top of
+`onLoad()`, so the dialog's tiles are in the DOM before the no-URL-
+params boot path opens it; PNG thumbnails under
+`assets/images/templates/` then load with their natural network delay.
 
 See `notes/TEMPLATES.md` for the entry shape, the placeholder-swap
-flow in `populateTemplates()`, and the loading-state CSS contract.
+flow in `populateTemplates()`, and the (now defensive-only) loading-
+state CSS contract.
 
 ---
 

@@ -170,6 +170,19 @@ Lazy-load:
 Use the improved `loadScriptOnce()` helper (added in Phase 0) which has
 double-load protection and error handling.
 
+### Update (May 2026): templates.js lazy-load reverted
+
+The `templates.js` lazy-load was reverted in May 2026. It now ships in
+the eager `<script>` block of `RoomCalculator.html` (just before
+`roomcalc.js`), and `ensureTemplatesPopulated()` runs synchronously
+from the top of `onLoad()`. Rationale: the New Room dialog opens on
+every fresh page load with no `?x=` URL params, and opening it with
+blurred placeholder tiles that wait for a separate script fetch felt
+visibly slow. The file is ~10 KB of pure data so the eager-load cost
+is negligible. PNG thumbnails under `assets/images/templates/`
+still load with their natural network delay — that part remains "lazy"
+in the user-visible sense.
+
 ---
 
 ## 4. Future feature impact on the refactor

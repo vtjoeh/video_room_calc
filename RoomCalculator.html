@@ -13,8 +13,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
     integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- templates.js is lazy-loaded the first time openNewRoomDialog()
-       runs. See notes/TECH_NOTES.md (Phase 1) for the rationale. -->
+  <!-- templates.js is eager-loaded (see bottom <script> block) so the
+       New Room dialog's tile data is parsed alongside roomcalc.js and
+       populateTemplates() runs synchronously from the top of onLoad().
+       PNG thumbnails under assets/images/templates/ still load with
+       their natural network delay. -->
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./assets/momentum-icons.css" />
 </head>
@@ -1714,13 +1717,15 @@
     </header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
     <!--
-      `templates-loading` blurs the grid until templates.js is fetched and
-      `populateTemplates()` replaces these 9 `.room-template-placeholder`
-      tiles in-place. Seeding the placeholders directly in HTML keeps the
-      grid the right size on the very first frame so the
-      `#btnReloadLastDesign` tile (added later) doesn't visually bounce
-      around as templates pop in. See `populateTemplates()` and
-      `openNewRoomDialog()` in js/roomcalc.js.
+      Defensive fallback only. templates.js is now eager-loaded at the
+      bottom of this file, and `populateTemplates()` runs from the top
+      of `onLoad()` BEFORE the dialog ever paints — so in normal
+      operation these 9 `.room-template-placeholder` tiles (and the
+      `templates-loading` blur) are replaced before the user sees the
+      dialog. They remain here purely so the dialog still has a
+      sensibly-sized grid if `templates.js` ever fails to parse. See
+      `populateTemplates()`, `ensureTemplatesPopulated()`, and the call
+      from the top of `onLoad()` in js/roomcalc.js.
     -->
     <main id="room-templates" class="templates-loading" style="max-height: none; min-height: 600px;">
       <div class="room-template room-template-placeholder" aria-hidden="true">
@@ -2766,6 +2771,7 @@
   <!-- dxfWriter.js + dxfBlockLibrary.js are lazy-loaded by exportDxfFile()
        on first DXF export. See notes/TECH_NOTES.md (Phase 1) for the rationale. -->
   <script src="./js/idbStorage.js"></script>
+  <script src="./js/templates.js"></script>
   <script src="./js/roomcalc.js"></script>
   <!-- <script src="./js/drpDownOverride.js"></script> -->
 

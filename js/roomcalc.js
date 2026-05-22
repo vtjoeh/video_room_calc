@@ -8385,6 +8385,12 @@ function binaryToBase26(binary) {
 
 function onLoad() {
 
+    /* Populate template tiles synchronously up front so the New Room
+     * dialog has its tiles in place before getQueryString()'s no-URL-
+     * params branch calls openNewRoomDialog(). Eager-loaded templates.js
+     * makes this safe. */
+    ensureTemplatesPopulated();
+
     redirectToCollabExpereince();
     updateSelectVideoDeviceOptions();
     getQueryString();
@@ -8540,18 +8546,21 @@ function populateTemplates() {
     parent.classList.remove('templates-loading');
 }
 
-/* Lazy-load templates.js once; openNewRoomDialog() shows modal immediately. */
+/* templates.js is eager-loaded (see RoomCalculator.html script block),
+ * so populateTemplates() can run synchronously. Single-flight guard
+ * keeps a second call a no-op. The Promise return type is preserved so
+ * the existing `.then(syncReloadLastDesignButton)` callsite in
+ * openNewRoomDialog() works unchanged. */
 let _templatesPopulationPromise = null;
 function ensureTemplatesPopulated() {
     if (_templatesPopulationPromise) return _templatesPopulationPromise;
-    _templatesPopulationPromise = loadScriptOnce(VRC.constants.SCRIPT_TEMPLATES)
-        .then(() => {
-            populateTemplates();
-        })
-        .catch(err => {
-            _templatesPopulationPromise = null;
-            console.error('Failed to load templates.js for new-room dialog', err);
-        });
+    try {
+        populateTemplates();
+        _templatesPopulationPromise = Promise.resolve();
+    } catch (err) {
+        console.error('populateTemplates() failed', err);
+        _templatesPopulationPromise = Promise.reject(err);
+    }
     return _templatesPopulationPromise;
 }
 

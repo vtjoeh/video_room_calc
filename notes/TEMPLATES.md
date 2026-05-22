@@ -29,11 +29,18 @@ const templates = [
 ```
 
 Templates are loaded via the `loadTemplate(url)` function. The
-`templates` array is lazy-loaded from `js/templates.js` on the first
-open of `newRoomDialog` (single-flight via
-`ensureTemplatesPopulated()`); see `populateTemplates()` in
-`js/roomcalc.js` for the placeholder-swap and "Reload last design"
-tile insertion details.
+`templates` array lives in `js/templates.js`, which is now
+**eager-loaded** with the other scripts in `RoomCalculator.html` (it
+sits just before `roomcalc.js` in the bottom `<script>` block).
+`ensureTemplatesPopulated()` is invoked synchronously from the top of
+`onLoad()` (single-flight via the `_templatesPopulationPromise`
+guard) so the dialog's tiles are already in the DOM by the time the
+first `openNewRoomDialog()` call paints — the `.templates-loading`
+blur and `.room-template-placeholder` tiles in
+`RoomCalculator.html` / `style.css` are now a defensive fallback
+only (visible only if `populateTemplates()` ever throws). See
+`populateTemplates()` in `js/roomcalc.js` for the placeholder-swap
+and "Reload last design" tile insertion details.
 
 Template thumbnail images live under
 `assets/images/templates/<image>` and are sized to fit a fixed 120 px
