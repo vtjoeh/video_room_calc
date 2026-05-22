@@ -1,8 +1,6 @@
 const version = "v0.1.649";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
-/* Phase 2 module-split aliases (see CLAUDE.md / notes/TECH_NOTES.md).
- * window.convertMetersFeet is exposed for the inline onChange handler
- * in RoomCalculator.html. */
+/* Phase 2 module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const createUuid        = window.VRC.util.createUuid;
 const convertToUnit     = window.VRC.util.convertToUnit;
 const convertToMeters   = window.VRC.util.convertToMeters;
@@ -37,17 +35,7 @@ let itemCount = 0; /* Keeps track of number of items in the roomObj when writing
 let postMessageToWorkspaceCount = 0; /* for troubleshooting, count the number of times to send the postMessageToWorkspace message */
 let trNodesLength = 0; /* Keep track of the active trNodeLength */
 
-/* Cached at tr.on('transformstart'): does the current selection contain
- * any Group or CustomItem rect? Used by tr.on('transform') to skip the
- * per-frame refreshGroupDetailsFromCanvas() / refreshCustomItemDetails
- * FromCanvas() calls when there's no bundle to refresh. Konva fires
- * the `transform` event hundreds of thousands of times during a 1000-
- * item marquee rotation, and the .filter()/.some() inside the two
- * getActive*Selection() helpers run O(N) each; gating on a single
- * boolean here drops the per-gesture overhead from ~5-8 sec of CPU to
- * effectively zero for non-bundle rotations. The selection can't
- * change mid-rotation (Konva locks tr.nodes() once the rotate handle
- * is grabbed), so a one-shot snapshot at transformstart is safe. */
+/* Cached at tr.on('transformstart'): does selection contain any Group/CustomItem rect? Gates per-frame refresh*DetailsFromCanvas() calls during rotation. Selection can't change mid-rotation. */
 let _bundleInRotateSelection = false;
 
 let mobileDevice; /* Either 'true' / 'false' as a string */
@@ -106,20 +94,7 @@ let defaultTwoPersonCrop = 3.2;  // default in meters
 let drawScaledLineMode = false; /* False by default.  True when scaled line is being drawn */
 let touchesLength = 0; /* hold the e.touches.length on start for a touch device */
 
-/* ---- Equipment-tile touch drag gating --------------------------------
- * On touch devices the device-tile touchstart handler used to call
- * preventDefault() immediately, which stops the browser from forwarding
- * the swipe to the parent #equipmentScrollArea — leaving users with
- * almost no scrollable surface between the tightly packed tiles.
- *
- * The new model: a touch on a tile arms a TOUCH_DRAG_HOLD_MS long-press
- * timer. If the finger moves more than TOUCH_DRAG_MOVE_TOL_PX before the
- * timer fires, we cancel arming and let the native scroll proceed
- * (preventDefault is never called). If the timer fires while the finger
- * is still, we transition to "armed" — create the floating preview node
- * and from that point on the existing drag-to-canvas path runs unchanged.
- * Desktop (non-touch) still uses the eager preventDefault path so HTML5
- * drag behaviour is unaffected. See plan: Equipment touch drag gating. */
+/* Equipment-tile touch drag gating: long-press to arm drag (so finger swipes scroll the tile list instead). Desktop uses eager preventDefault. */
 const TOUCH_DRAG_HOLD_MS = 300;        /* long-press threshold (ms)      */
 const TOUCH_DRAG_MOVE_TOL_PX = 10;     /* >this px before arm => scroll  */
 let _touchDragArmed = false;           /* true once long-press timer fires */
@@ -145,8 +120,7 @@ let _layerUrlEncodeMap = {}; /* maps layerid → URL layer number (20+), rebuilt
 let _groupUrlEncodeMap = {}; /* maps groupid → URL group number (1+), rebuilt by createShareableLink() */
 let _customItemUrlEncodeMap = {}; /* maps customitemid → URL customItem number (1+), rebuilt by createShareableLink() */
 
-/* Synchronous mirror of IDB STORE_CUSTOMITEMS baseIds. UI cache for
- * the ellipse menu and Quick Add palette; reconciled on every write. */
+/* Synchronous mirror of IDB STORE_CUSTOMITEMS baseIds; reconciled on every write. */
 let customItemLibraryIds = new Set();
 
 let lastAction = "load";
@@ -187,38 +161,10 @@ roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
 roomObj.customItems = [];
 
-/* ---- roomObj.items parentGroup helpers --------------------------------
- *
- * `roomObj.items` is a FLAT ARRAY of items. The historical bucketed
- * shape (`{ videoDevices: [], chairs: [], tables: [], ... }`) is a
- * "groupBy parentGroup" cache that no code logically requires — every
- * read site that mattered already derived the category at runtime via
- * `allDeviceTypes[item.data_deviceid].parentGroup`. The flat array is
- * cleaner in saved .vrc.json files and removes the special-casing
- * that grew up around the bucket keys.
- *
- * Legacy bucketed entries (in older .vrc.json files and IDB undo/redo
- * stores from pre-flatten sessions) are auto-migrated on read via
- * window.VRC.migrateLegacyItemsShape (lazy-loaded from
- * js/migrateLegacyItemsShape.js).
- *
- * These four helpers cover the access patterns that used to be O(1)
- * bucket reads. They are O(n) over the flat array but n is typically
- * <100, so the cost is negligible.
- *
- * PERF RULE: any function that reads 2+ categories MUST call
- * bucketItemsByParentGroup() once and read `(buckets.x || [])` per
- * category — a single O(n) pass instead of N separate filters. Used
- * by exportRoomObjToWorkspace (7 categories), isQuickSetupEnabled
- * (7 categories), exportXConfigFile (3 categories),
- * deletePossibleRoomKitEqxDisplays (2 categories), and the WD-import
- * migration block. See "Performance budget" notes in CLAUDE.md.
- *
- * Helpers tolerate items whose data_deviceid has no allDeviceTypes
- * entry (filter / find / count returns nothing for them, bucket
- * skips them) — matches the existing `updateRoomObjFromTrNode`
- * defensive guard which logs and returns when parentGroup is
- * undefined. */
+/* roomObj.items parentGroup helpers (flat-array shape; legacy bucketed
+ * shape auto-migrated by window.VRC.migrateLegacyItemsShape).
+ * PERF RULE: any function reading 2+ categories MUST call
+ * bucketItemsByParentGroup() once instead of N filter() calls. */
 function getItemsByParentGroup(parentGroup, obj) {
     const room = obj || roomObj;
     if (!room || !Array.isArray(room.items)) return [];
@@ -264,16 +210,11 @@ function bucketItemsByParentGroup(obj) {
     return buckets;
 }
 
-/* Group drag-follow state. Snapshot of sibling + rect start positions
- * so follower can shift them in lock-step during member-direct drags
- * (Transformer drags don't need this — Konva moves all nodes natively). */
+/* Snapshot of sibling + rect start positions for member-direct drag follow. */
 let _groupDragSnapshot = null;
 
-/* Return every CustomItem rect whose members ALL belong to groupId.
- * Used by member-direct drag follow + updateGroupItem so the Group drag
- * also carries fully-contained CustomItem rects. "All members" (not
- * "any") because split-membership CustomItems aren't rigid with one
- * Group. See CLAUDE.md "Group / CustomItem nesting model". */
+/* CustomItem rects whose members ALL belong to groupId — these ride
+ * along on Group drags/rotates. Split-membership CustomItems stay put. */
 function getCustomItemRectsAllInGroup(groupId) {
     if (!groupId || typeof groupCustomItemRects === 'undefined' || !groupCustomItemRects) return [];
     const result = [];
@@ -287,36 +228,11 @@ function getCustomItemRectsAllInGroup(groupId) {
     return result;
 }
 
-/* ---- Deferred canvasToJson sync model ----
- *
- * The per-handler dragend / transformend events (tr.dragend,
- * tr.transformend, tblWallFlr.dragend, imageItem.dragend) intentionally
- * do NOT call canvasToJson(). The single source-of-truth call lives in
- * stage.on('mouseup touchend') and runs once per user gesture
- * regardless of which Konva node was the drag target.
- *
- * A previous iteration added canvasToJson() to all four handlers to
- * close a rare edge case (mouseup landing outside the canvas, or
- * drawRoom(true, …) firing before stage mouseup, leaving roomObj
- * stale). The cost — an extra updateRoomObjFromTrNode() walk over
- * tr.nodes() at every drag / transform end — was measurable on 1000+
- * item selections, for a benefit (catching off-canvas mouseup) that
- * did NOT match the actual drift symptoms the project was hitting.
- * Reverted.
- *
- * Known edge case (accepted): if the user drags off-canvas AND
- * something triggers drawRoom(true, …) before they re-enter the
- * canvas, the bundle's last drag may visually snap back. Mitigate via
- * the existing undo button if it happens. The real drift work lives
- * in the followers (footgun #26 in notes/TECH_NOTES_KONVA.md) and is
- * a Phase B follow-up; that's where the opt-in drift diagnostic
- * (window.VRC.debugDriftDetection — see beginDriftCheck() below) will
- * continue to point us.
- */
+/* Per-handler dragend/transformend intentionally do NOT call canvasToJson().
+ * Single source-of-truth call is in stage.on('mouseup touchend'). */
 
-/* Snapshot sibling + Group rect start positions for follower.
- * MUST be called from dragstart — by the first dragmove, target.x()
- * has already advanced, which would bake an offset into startPos. */
+/* Snapshot sibling + Group rect positions. MUST be called from dragstart
+ * — by the first dragmove, target.x() has already advanced. */
 function beginGroupDragFollow(target) {
     if (!target || !target.data_groupId) return;
     if (tr.isDragging()) { _groupDragSnapshot = null; return; }
@@ -336,11 +252,7 @@ function beginGroupDragFollow(target) {
             _groupDragSnapshot.others.set(rectNode, { x: rectNode.x(), y: rectNode.y() });
         }
     }
-    /* Also pull in CustomItem rects whose members all belong to this Group
-     * — without this, dragging the Group leaves the "fully-contained"
-     * CustomItem rects behind. The CustomItem follower only handles the
-     * dragged item's own CustomItem rect, so siblings B/C in a "3 CustomItems
-     * in 1 Group" layout would otherwise stay put. (May 2026 fix.) */
+    /* Pull in fully-contained CustomItem rects so they don't get left behind. */
     getCustomItemRectsAllInGroup(target.data_groupId).forEach(rect => {
         if (rect === target) return;
         if (_groupDragSnapshot.others.has(rect)) return;
@@ -349,13 +261,7 @@ function beginGroupDragFollow(target) {
 }
 
 /* Apply group drag-follow during a member-direct drag.
- * Skips when the Transformer itself is being dragged (in which case Konva
- * already moves every node in tr.nodes() natively — double-shift would
- * compound the move). The snapshot is normally captured by the dragstart
- * hooks on imageItem/tblWallFlr; the `if (!_groupDragSnapshot)` block here
- * is a fallback for any code path that calls this without a prior dragstart
- * (the resulting snapshot will still be at the pre-mouse-move position
- * because Konva fires dragstart before the first dragmove). */
+ * No-op during Transformer drag (Konva moves nodes natively). */
 function followGroupDragFromMember(target) {
     if (!target || !target.data_groupId) return;
     if (tr.isDragging()) { _groupDragSnapshot = null; return; }
@@ -371,25 +277,12 @@ function followGroupDragFromMember(target) {
     _groupDragSnapshot.others.forEach((startPos, node) => {
         node.x(startPos.x + dx);
         node.y(startPos.y + dy);
-        /* Each moved sibling has its own coverage (#fov~, #audio~,
-         * #dispDist~, #speaker~) and label (#label~) that need to track
-         * the move — same call the single-item dragmove handler makes for
-         * the dragged item itself. Skip the Group rect (data_deviceid='group'
-         * isn't in allDeviceTypes, which moveShading's `allDeviceTypes[id].depth`
-         * would crash on if a stale shading node ever existed) AND skip
-         * CustomItem rects (data_deviceid='customItem' — no coverage either,
-         * and they are now snapshotted alongside the Group rect when a Group
-         * fully contains a CustomItem; see beginGroupDragFollow). */
+        /* Sync coverage (#fov~/#audio~/#dispDist~/#speaker~/#label~).
+         * Skip group/customItem rects — no coverage, and not in allDeviceTypes. */
         if (node.data_deviceid !== 'group' && node.data_deviceid !== 'customItem') {
             updateShading(node);
         }
     });
-    /* No batchDraw() — Konva v8+ auto-redraws on the next animation frame
-     * after the .x()/.y() mutations above (Konva.autoDrawEnabled defaults
-     * to true). Calling batchDraw() here would just queue a duplicate rAF. */
-    /* Keep the Details-panel X/Y in sync with the live drag, same as the
-     * `if (tr.nodes().length === 1) updateFormatDetails(...)` call in the
-     * single-item branch of imageItem/tblWallFlr dragmove. */
     refreshGroupDetailsFromCanvas();
 }
 
@@ -397,9 +290,7 @@ function endGroupDragFollow() {
     _groupDragSnapshot = null;
 }
 
-/* CustomItem drag-follow state. Parallels Group drag-follow above.
- * When an item is in both a Group and CustomItem, the Group follower
- * runs first; the CustomItem rect is moved separately here. */
+/* CustomItem drag-follow state (parallels Group drag-follow above). */
 let _customItemDragSnapshot = null;
 
 function beginCustomItemDragFollow(target) {
@@ -423,9 +314,8 @@ function beginCustomItemDragFollow(target) {
     }
 }
 
-/* Apply customItem drag-follow during a member-direct drag. No-op when
- * the Transformer is being dragged. Skips items already moved by the
- * Group follower (would otherwise double-shift). */
+/* Apply customItem drag-follow during a member-direct drag. Skips items
+ * already moved by the Group follower (would otherwise double-shift). */
 function followCustomItemDragFromMember(target) {
     if (!target || !target.data_customItemId) return;
     if (tr.isDragging()) { _customItemDragSnapshot = null; return; }
@@ -442,12 +332,7 @@ function followCustomItemDragFromMember(target) {
     const dragGroupId = target.data_groupId || null;
 
     _customItemDragSnapshot.others.forEach((startPos, node) => {
-        /* Skip sibling items that the Group follower already moved.
-         * The Group follower runs first (its `data_groupId` check) and
-         * shifts every Group member by the same delta; if we re-shift
-         * here, the item drifts ahead of the rest of the Group. The
-         * customItem rect itself has no data_groupId set (rects are
-         * stored separately) so it always follows. */
+        /* Skip siblings already moved by the Group follower (avoid double-shift). */
         if (dragGroupId && node.data_groupId === dragGroupId && node.data_deviceid !== 'customItem') {
             return;
         }
@@ -457,8 +342,6 @@ function followCustomItemDragFromMember(target) {
             updateShading(node);
         }
     });
-    /* No batchDraw() — see beginGroupDragFollow / followGroupDragFromMember
-     * for the rationale. Konva v8+ auto-redraws on next rAF. */
     refreshCustomItemDetailsFromCanvas();
 }
 
@@ -466,41 +349,16 @@ function endCustomItemDragFollow() {
     _customItemDragSnapshot = null;
 }
 
-/* ---- Drift detection (opt-in diagnostic) ----
- *
- * Catches the "members of a Group / CustomItem lose relative position to
- * each other during drag or rotation" symptom. Default off — zero
- * production overhead. Enable from DevTools:
- *
- *    window.VRC.debugDriftDetection = true
- *
- * Then exercise the suspected drag/rotate sequence. Any drift fires a
- * console.warn with the offending sibling, its delta, the reference
- * delta, and the full snapshot. Reports are also pushed to
- * `window.VRC._driftReports[]` so they can be exported after the fact:
- *
- *    JSON.stringify(window.VRC._driftReports, null, 2)
- *
- * Tolerances are intentionally tight (0.5 px on x/y, 0.01° on rotation).
- * Within-frame snap rounding is well below that, so a real drift bug
- * will register as a clear outlier rather than getting lost in noise.
- *
- * For Transformer rotations the position deltas legitimately differ
- * per-member (each rotates around the bbox centre), so the rotation
- * branch only checks that every member's `dRot` matches the reference;
- * positions are recorded for forensic inspection but not compared.
- */
+/* Drift detection (opt-in diagnostic). Enable via window.VRC.debugDriftDetection = true.
+ * Reports pushed to window.VRC._driftReports[]. Tolerances: 0.5px x/y, 0.01° rotation.
+ * Rotation branch checks dRot only (per-member position deltas differ legitimately). */
 let _driftCheckSnapshot = null;
 
 function _driftCheckEnabled() {
     return !!(typeof window !== 'undefined' && window.VRC && window.VRC.debugDriftDetection);
 }
 
-/* Returns Set<Konva.Node> of every bundle member relevant to the current
- * drag / transform. Combines the dragged target's bundle siblings (via
- * data_groupId / data_customItemId) with every bundle node already in
- * tr.nodes(), so Transformer-driven drags (no specific target) and
- * member-direct drags both produce a useful snapshot. */
+/* Returns Set<Konva.Node> of bundle members for current drag/transform. */
 function _collectBundleMemberSet(target) {
     const set = new Set();
     const addByGroupId = (gid) => {
@@ -524,20 +382,9 @@ function _collectBundleMemberSet(target) {
         addByCustomItemId(target.data_customItemId);
         set.add(target);
     }
-    /* Only walk tr.nodes() bundles if EITHER:
-     *   (a) we have no target (Transformer-handle drag — tr.nodes() is the
-     *       source of truth for the drag set), OR
-     *   (b) target IS in tr.nodes() (multi-bundle marquee — both bundles
-     *       are moving together via Konva.Transformer._proxyDrag).
-     *
-     * If target exists but is NOT in tr.nodes(), the user is click-then-
-     * dragging an unselected item — `tableOnDragMove` will REPLACE
-     * tr.nodes() with target's bundle on the first dragmove. The OLD
-     * tr.nodes() bundle is a stale leftover from a previous selection
-     * and is NOT actually being dragged. Including it in the drift
-     * snapshot was a false-positive driver: the OLD bundle members
-     * never move (correctly!) but the detector compared them to the
-     * NEW dragged bundle's reference and reported drift. */
+    /* Only walk tr.nodes() if no target (Transformer-handle drag) OR target IS in tr.nodes()
+     * (multi-bundle marquee). Otherwise it's a click-then-drag of an unselected item and
+     * the OLD tr.nodes() is a stale leftover that produces false drift positives. */
     const targetInTrNodes = target && typeof tr !== 'undefined' && tr && tr.nodes
         ? tr.nodes().includes(target)
         : false;
@@ -554,17 +401,9 @@ function _collectBundleMemberSet(target) {
 
 function beginDriftCheck(source, target) {
     if (!_driftCheckEnabled()) { _driftCheckSnapshot = null; return; }
-    /* IMPORTANT: do NOT overwrite an existing snapshot. During a multi-node
-     * drag, Konva's Transformer._proxyDrag mechanism fires dragstart on
-     * every node in tr.nodes() in sequence, AND each non-target node is
-     * shifted via setAbsolutePosition() immediately BEFORE its own
-     * startDrag()/dragstart fires. If we overwrote on every dragstart,
-     * the FINAL snapshot would capture members at their post-shift
-     * positions while the bundle rect (no dragstart listener attached
-     * in VRC) remains at its pre-shift position — producing a phantom
-     * "drift" equal to the first-frame mouse delta. Snapshot once on
-     * the FIRST dragstart in the chain (before any proxyDrag shifts)
-     * to capture true starting positions for every node. */
+    /* Snapshot once on the FIRST dragstart only — Konva's _proxyDrag fires
+     * dragstart per-node after shifting each, so overwriting later would
+     * capture post-shift positions and produce phantom drift. */
     if (_driftCheckSnapshot) return;
     const members = _collectBundleMemberSet(target);
     if (members.size < 2) { _driftCheckSnapshot = null; return; }
@@ -601,15 +440,8 @@ function endDriftCheck(source) {
     const POS_TOL = 0.5;   /* px */
     const ROT_TOL = 0.01;  /* degrees */
 
-    /* Normalize an angle delta to [-180, 180). Konva's node.rotation()
-     * returns raw degrees that can drift outside ±180 as the user keeps
-     * rotating, so a naive (end - start) subtraction wraps by 360 when
-     * the rotation value crosses the ±180 boundary mid-rotation. Without
-     * this normalization, the drift detector falsely reports a 360°
-     * rotation delta whenever the dRot of one member crosses ±180 while
-     * another member's does not — producing phantom rotation drift
-     * reports even though every member's physical rotation actually
-     * matches. (Two-modulo form handles negative inputs portably.) */
+    /* Normalize angle delta to [-180, 180) — absorbs ±180 wrap when one
+     * member's rotation crosses the boundary mid-rotation but others don't. */
     const _norm180 = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
 
     const deltas = [];
@@ -630,8 +462,7 @@ function endDriftCheck(source) {
 
     if (deltas.length < 2) return;
 
-    /* Pick the dragged target's deltas as the reference; fall back to
-     * the first snapshot entry for Transformer drags with no target. */
+    /* Pick dragged target's deltas as reference; fall back to first snapshot entry. */
     let referenceDelta = null;
     if (snap.targetId) {
         referenceDelta = deltas.find(d => d.id === snap.targetId) || null;
@@ -700,13 +531,7 @@ function ensureGroups(obj) {
     if (!target.groups) target.groups = [];
 }
 
-/* Backward-compat for saved .vrc.json files written before the 2026-05
- * overlay-rename. The old shape used `layersVisible` (a misnomer — it
- * never had anything to do with VRC Layers) with `gr*` coverage-overlay
- * keys. Rename to the new schema on load. One-way: we only ever WRITE
- * the new keys, so files saved by the new build never carry the legacy
- * shape. Called from importJson() right after the structuredClone of
- * the uploaded JSON. */
+/* Backward-compat: rename legacy `layersVisible` + `gr*` keys to new schema on load. */
 function migrateLegacyOverlayKeys(obj) {
     if (!obj || typeof obj !== 'object') return;
     const src = obj.layersVisible;
@@ -722,31 +547,8 @@ function migrateLegacyOverlayKeys(obj) {
     delete obj.layersVisible;
 }
 
-/* Defensive normalizer: makes sure obj.overlaysVisible exists with every
- * key the rendering code (drawRoom, applyRoomObjDelta, the per-overlay
- * toggles) expects. Three cases:
- *
- *   1. obj.overlaysVisible is already a valid object with all keys ->
- *      no-op (idempotent).
- *   2. obj.overlaysVisible is missing/null but obj.layersVisible
- *      exists -> migrate via migrateLegacyOverlayKeys (legacy
- *      v0.1.648-and-earlier shape).
- *   3. Neither exists, or the migrated/existing object is missing some
- *      keys -> fill the gaps with the per-key defaults used by the
- *      initial roomObj at script-load (gridLines + cameraCoverage true,
- *      everything else false).
- *
- * Why both at restore AND at boot? Because:
- *   - At boot we walk all undo/redo entries and fix them in-place so
- *     subsequent saveToUndoArray() snapshots inherit the new schema.
- *   - At restore (inside restoreSnapshotToCanvas) we belt-and-suspender
- *     defend the actual roomObj assignment so any snapshot that slipped
- *     past the boot walk (different code path, hand-crafted import, etc.)
- *     still doesn't crash drawRoom / cameraCoverageVisible / etc.
- *
- * This is the function the user explicitly asked for: "If it fails,
- * just make it the same as the default settings which is everything is
- * false except gridLines and cameraCoverage." */
+/* Ensures obj.overlaysVisible exists with every required key. Migrates
+ * legacy `layersVisible` and fills missing keys with defaults. */
 function ensureOverlaysVisibleDefaulted(obj) {
     if (!obj || typeof obj !== 'object') return;
     migrateLegacyOverlayKeys(obj);
@@ -769,9 +571,7 @@ function ensureOverlaysVisibleDefaulted(obj) {
     }
 }
 
-/* Bounding box in layerTransform-local coords. Uses the same
- * getClientRect the Transformer calls so the Group rect hugs items
- * exactly like the blue Transformer box. */
+/* Bounding box in layerTransform-local coords (same getClientRect the Transformer uses). */
 function getMemberBoundingRect(node) {
     return node.getClientRect({
         skipShadow: true,
@@ -836,8 +636,7 @@ function updateGroupBounds(groupId) {
 }
 
 /* Returns { rectNode, group, groupId } when tr.nodes() is exactly one
- * Group bundle (rect + only members of that group); null otherwise.
- * Used to recognise a "single conceptual item" group selection. */
+ * Group bundle (rect + only its members); null otherwise. */
 function getActiveGroupSelection(nodes) {
     nodes = nodes || tr.nodes();
     if (!nodes || !nodes.length) return null;
@@ -846,8 +645,7 @@ function getActiveGroupSelection(nodes) {
     const rectNode = groupRects[0];
     const groupId = rectNode.data_groupId;
     if (!groupId) return null;
-    /* Allow fellow-traveler CustomItem rects (their members are in
-     * this group); expandSelectionForGroups pulls them in alongside. */
+    /* Allow fellow-traveler CustomItem rects (members are in this group). */
     const allBelong = nodes.every(n =>
         n === rectNode ||
         n.data_deviceid === 'customItem' ||
@@ -859,9 +657,7 @@ function getActiveGroupSelection(nodes) {
     return { rectNode: rectNode, group: group, groupId: groupId };
 }
 
-/* Visual centre of a (possibly rotated) Konva.Rect in parent coords.
- * Used as the rotation pivot when the user changes Group rotation so
- * the group's apparent centre stays put. */
+/* Visual centre of a (possibly rotated) Konva.Rect in parent coords. */
 function getRotatedRectCenter(rectNode) {
     const r = rectNode.rotation();
     const rad = Math.PI / 180 * r;
@@ -875,9 +671,7 @@ function getRotatedRectCenter(rectNode) {
     };
 }
 
-/* Rigid-body rotation of a Konva node around a parent-space point.
- * Rotates the node's origin around (cx, cy) AND increments its rotation
- * by deltaR — keeps every point of the node rigid with that rotation. */
+/* Rigid-body rotation of a Konva node around parent-space (cx, cy). */
 function rotateNodeAroundPoint(node, cx, cy, deltaR) {
     if (!deltaR) return;
     const newPos = rotatePointAroundOrigin(node.x(), node.y(), cx, cy, deltaR);
@@ -886,8 +680,7 @@ function rotateNodeAroundPoint(node, cx, cy, deltaR) {
     node.rotation(node.rotation() + deltaR);
 }
 
-/* Lightweight live-refresh of the Group's X/Y/Rotation/Width/Length
- * Details-panel inputs during drag/rotate. No-op outside a Group bundle. */
+/* Live-refresh Group Details-panel X/Y/Rotation/W/L during drag/rotate. */
 function refreshGroupDetailsFromCanvas() {
     const sel = getActiveGroupSelection();
     if (!sel) return;
@@ -1024,12 +817,8 @@ function updateGroupItem(group) {
         members.forEach(m => {
             const existingZ = Number(m.data_zPosition) || 0;
             m.data_zPosition = existingZ + deltaZ;
-            /* Mirror to roomObj.items immediately. canvasToJson() at the end
-             * of this function rebuilds roomObj from canvas state, but only
-             * writes data_zPosition when it's `in` the node — and a member
-             * that was never assigned a z before has no own property, so a
-             * stale write order (or any future reorder) could miss it. The
-             * direct mirror keeps roomObj.items in sync regardless. */
+            /* Mirror to roomObj.items directly — canvasToJson() only writes
+             * data_zPosition when `in` the node, missing fresh assignments. */
             if (roomObj && Array.isArray(roomObj.items)) {
                 const entry = roomObj.items.find(it => it.id === m.id());
                 if (entry) entry.data_zPosition = m.data_zPosition;
@@ -1058,8 +847,6 @@ function updateGroupItem(group) {
     /* 6) Re-align FOV / audio / display-distance / labels for moved members. */
     members.forEach(m => updateShading(m));
 
-    /* No batchDraw() — Konva v8+ auto-redraws on next rAF after the
-     * x/y/rotation mutations above (Konva.autoDrawEnabled === true). */
     canvasToJson();
 
     /* Match the existing single-item updateItem button-debounce. */
@@ -1071,9 +858,7 @@ function updateGroupItem(group) {
 }
 
 /* ---- CustomItem helper functions ----
- * Parallel bundling concept to Groups; weaker selection precedence
- * (Group wins when an item is in both). See CLAUDE.md "VRC Custom Item
- * System" for the conventions. Rects render in groupCustomItemRects. */
+ * Parallel to Groups; weaker selection precedence (Group wins on overlap). */
 
 function getCustomItemById(customItemId) {
     if (!roomObj.customItems) return null;
@@ -1085,9 +870,7 @@ function ensureCustomItems(obj) {
     if (!target.customItems) target.customItems = [];
 }
 
-/* Defensive backfill — assign customItemBaseId to any customItem that
- * lacks one (older JSON / URL / WD imports / pre-baseId undo). Idempotent.
- * Returns count of items backfilled. */
+/* Backfill customItemBaseId on any customItem lacking one. Idempotent. */
 function ensureCustomItemBaseIds(obj) {
     const target = obj || roomObj;
     if (!target || !Array.isArray(target.customItems)) return 0;
@@ -1102,8 +885,7 @@ function ensureCustomItemBaseIds(obj) {
     return assigned;
 }
 
-/* Populate customItemLibraryIds Set from IndexedDB at page load.
- * Resolves on completion; never rejects (logs and leaves cache empty). */
+/* Populate customItemLibraryIds Set from IndexedDB at page load. Never rejects. */
 function hydrateCustomItemLibraryIds() {
     if (!window.idbStore || typeof window.idbStore.customItemGetAllIds !== 'function') {
         return Promise.resolve();
@@ -1122,44 +904,25 @@ function hydrateCustomItemLibraryIds() {
         });
 }
 
-/* Synchronous predicate — UI hot path. Falsy / unknown baseIds always
- * return false so callers can pass through possibly-missing values. */
+/* Synchronous predicate. Falsy/unknown baseIds always return false. */
 function isCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return false;
     return customItemLibraryIds.has(customItemBaseId);
 }
 
-/* Record that a baseId now exists in IDB. Callers MUST invoke this
- * immediately after a successful idbStore.customItemPut() so the menu /
- * Quick Add UI reflects the new library state on the next render —
- * crucial because the IDB write is async but the menu re-renders
- * synchronously on the next pointer event. */
+/* Record baseId in cache. Call after every successful idbStore.customItemPut(). */
 function markCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
     const before = customItemLibraryIds.size;
     customItemLibraryIds.add(customItemBaseId);
-    /* Only refresh the Settings export-button state when the membership
-     * count actually changed (re-mark of an existing baseId is a no-op
-     * on the Set, but we'd otherwise still pay a DOM-reflow cost on
-     * every save). */
     if (customItemLibraryIds.size !== before &&
         typeof updateExportCustomItemsButtonState === 'function') {
         updateExportCustomItemsButtonState();
     }
 }
 
-/* Inverse of mark — invoked after idbStore.customItemDelete() succeeds.
- *
- * Side-effects beyond the in-memory ID set:
- *   1. Remove the matching tile from the sidebar #customItemsMenuContainer
- *      (live "Custom Item Library" panel) so deletion is visible
- *      immediately without waiting for the next populate trigger
- *      (pill click / scroll-into-view / search focus). Direct DOM
- *      removal — cheaper than a full re-populate and races-safe
- *      against the just-completed delete (no IDB round-trip).
- *   2. If the sidebar tile grid is now empty, surface the empty-state
- *      banner (mirrors the populate path).
- *   3. Refresh the "Export Custom Items" toolbar button enable state. */
+/* Inverse of markCustomItemInLibrary. Also removes sidebar tile and
+ * surfaces empty-state banner if the grid is now empty. */
 function unmarkCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
     const before = customItemLibraryIds.size;
@@ -1181,22 +944,16 @@ function unmarkCustomItemInLibrary(customItemBaseId) {
 }
 
 /* Compute a customItem member's geometry in the customItem's normalized
- * local frame (upper-left at 0,0, rotation removed). Shared by
- * buildCustomItemExportRecord() and createCustomItemMenuImage().
- * Returns { data_deviceid, localX, localY, width, height, localRotation }
- * in roomObj.unit (caller scales to meters for JSON), or null on invalid.
- *
- * Math (θ = customItem.rotation, dx = part.x - ci.x, dy = part.y - ci.y):
- *     localX =  cos(θ) * dx + sin(θ) * dy
- *     localY = -sin(θ) * dx + cos(θ) * dy
- *     localRotation = part.rotation - θ */
+ * local frame (UL at 0,0, rotation removed). Returns null on invalid.
+ * Math (θ = ci.rotation, dx = part.x - ci.x, dy = part.y - ci.y):
+ *   localX =  cos(θ)*dx + sin(θ)*dy, localY = -sin(θ)*dx + cos(θ)*dy
+ *   localRotation = part.rotation - θ */
 function getPartRenderRect(item, customItem) {
     if (!item || !customItem) return null;
     if (!item.data_deviceid) return null;
 
-    /* Resolve width/height. Fixed-size devices (cameras, mics, room bars)
-     * pull from device library (mm). Device library .height is 3D vHeight,
-     * NOT floor footprint — use .depth for floor-plan height. */
+    /* Resolve w/h. Fixed-size devices pull from device library (mm).
+     * Device .height is 3D vHeight; use .depth for floor-plan height. */
     let w = Number(item.width);
     let h = Number(item.height);
     if (!w || !h) {
@@ -1245,22 +1002,15 @@ function getPartRenderRect(item, customItem) {
     };
 }
 
-/* Look up a roomObj item entry by uuid. Flat-array linear scan
- * (customItemMembers stores uuids only, so an O(n) scan is acceptable
- * and avoids growing a parallel id→item index just for this path).
- * O(1) lookups against the live canvas-node set go through
- * roomObjItemsMap; this helper exists for code paths that need the
- * roomObj.items entry rather than the Konva node. */
+/* Look up a roomObj item entry by uuid (O(n) flat-array scan).
+ * For Konva nodes, use roomObjItemsMap (O(1)) instead. */
 function findRoomItemByUuid(uuid) {
     if (!uuid || !roomObj || !Array.isArray(roomObj.items)) return null;
     return roomObj.items.find(i => i && i.id === uuid) || null;
 }
 
-/* Per-part data_* fields that round-trip through the .vrcCustomItems
- * export/IDB/import path. Fields not listed are dropped intentionally
- * (id, data_layerId, data_groupId, data_customItemId, x/y/rotation/width/
- * height are handled separately). Unit-scaled fields are in the
- * CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS list below. */
+/* Per-part data_* fields that round-trip through .vrcCustomItems export.
+ * Fields not listed are dropped intentionally. */
 const CUSTOM_ITEM_PART_VERBATIM_FIELDS = [
     'data_color',
     'data_fill',
@@ -1275,8 +1025,7 @@ const CUSTOM_ITEM_PART_VERBATIM_FIELDS = [
     'data_audioHidden',
 ];
 
-/* Per-part fields whose stored value is in roomObj.unit (meters / feet)
- * and therefore must be scaled to meters for the export JSON. */
+/* Per-part fields stored in roomObj.unit; scaled to meters on export. */
 const CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS = [
     'data_zPosition',
     'data_vHeight',
@@ -1285,23 +1034,14 @@ const CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS = [
     'tblRectRadiusRight',
 ];
 
-/* Shared read helper for the top-level customItem name on a library /
- * .vrcCustomItems record. Reads the canonical `customItemName` key but
- * falls back to the legacy `data_labelField` so files exported by
- * older builds and IDB rows written before the May-2026 rename keep
- * working. Every read site routes through this helper; every write
- * site emits `customItemName` only and explicitly drops the legacy
- * key, so an upserted record migrates atomically on first touch. */
+/* Read top-level customItem name; falls back to legacy data_labelField. */
 function getCustomItemRecordName(rec) {
     if (!rec) return '';
     return String(rec.customItemName || rec.data_labelField || '');
 }
 
-/* Build the serializable export record for a customItem. Matches
- * .vrcCustomItems file format and IDB record shape. All measurements
- * in METERS regardless of active unit. menuImage is left empty (the
- * caller merges it in after createCustomItemMenuImage() resolves).
- * Returns null on missing baseId or empty members. Side-effect-free. */
+/* Build serializable export record for a customItem (METERS, menuImage empty).
+ * Returns null on missing baseId or empty members. */
 function buildCustomItemExportRecord(customItem) {
     if (!customItem || !customItem.customItemBaseId) return null;
     if (!Array.isArray(customItem.customItemMembers) || !customItem.customItemMembers.length) return null;
@@ -1358,8 +1098,7 @@ function buildCustomItemExportRecord(customItem) {
 
     if (!parts.length) return null;
 
-    /* `version` is a string (forward-compat for "1.2", "alpha", …);
-     * current UI writes "1" but wire format reserves string shape. */
+    /* `version` is a string (forward-compat); UI writes "1" currently. */
     return {
         customItemBaseId: customItem.customItemBaseId,
         customItemName: String(customItem.name || ''),
@@ -1373,11 +1112,8 @@ function buildCustomItemExportRecord(customItem) {
     };
 }
 
-/* Render a 100×100 PNG thumbnail of a customItem template (Quick Add
- * tile + IDB record). Parts fit in a centered 90×90 inner box. Renders
- * in NORMALIZED pose (rotation=0, UL origin) — matches what the import
- * path inserts. Multi-image safe: Promise.all on every part Image()
- * load before toDataURL. Returns Promise<dataURL|''>. */
+/* Render a 100×100 PNG thumbnail in normalized pose (rotation=0, UL origin).
+ * Parts fit in a centered 90×90 box. Returns Promise<dataURL|''>. */
 function createCustomItemMenuImage(record) {
     const FULL = 100;          /* total thumbnail size, px */
     const INNER = 90;          /* drawable region inside the padding, px */
@@ -1386,18 +1122,10 @@ function createCustomItemMenuImage(record) {
         return Promise.resolve('');
     }
 
-    /* Per-part anchor convention. updateRoomObjFromTrNode() stores
-     * roomObj.items[].x/y as the UPPER-LEFT for tables / stageFloors /
-     * boxes / rooms (Konva's default-pivot devices), and as the CENTER
-     * for every other parentGroup (the offsetX=w/2 / offsetY=h/2 idiom).
-     * pathShape is in the 'tables' parentGroup BUT its (x, y) is the
-     * Konva.Path's local origin (where path-(0,0) lands) — not a UL.
-     *
-     * getPartRenderRect() preserves whichever convention the source item
-     * used into the exported `part.x` / `part.y` — it never normalises.
-     * So this function MUST branch per-device when both placing the
-     * Konva node (anchor offsets) AND when rendering it (rect vs path,
-     * which style to apply). */
+    /* Per-part anchor: tables/stageFloors/boxes/rooms use UL; everything
+     * else uses CENTER (offsetX=w/2 idiom). pathShape is in 'tables' but
+     * (x,y) is the path's local origin. getPartRenderRect() preserves
+     * the source convention, so branch per-device when placing nodes. */
     function partAnchorIsUL(part) {
         const dt = (typeof allDeviceTypes !== 'undefined' && allDeviceTypes)
             ? allDeviceTypes[part.data_deviceid] : null;
@@ -1406,9 +1134,7 @@ function createCustomItemMenuImage(record) {
         return pg === 'tables' || pg === 'stageFloors' || pg === 'boxes' || pg === 'rooms';
     }
 
-    /* Temporary off-DOM container for the Konva stage. Unique id per call
-     * so concurrent renders (rare but possible: import of N customItems)
-     * never collide. Cleaned up on resolution OR rejection. */
+    /* Off-DOM Konva stage; unique id per call avoids concurrent collisions. */
     const divContainerId = 'containerCustomItemMenuImageCreate-' + createUuid();
     const existing = document.getElementById(divContainerId);
     if (existing) existing.remove();
@@ -1471,18 +1197,11 @@ function createCustomItemMenuImage(record) {
 
             /* pathShape — Konva.Path. (x, y) is where path-(0,0) lands;
              * rotation pivots around that point (Konva default offset).
-             * Scale comes from the labelField JSON's "scale" array.
-             *
-             * strokeScaleEnabled: false keeps the stroke at a fixed
-             * pixel width regardless of how aggressively layer.scale()
-             * inflates the geometry — without it a small customItem
-             * (scaleFactor ~200) would render a 2px-meter stroke as
-             * a 400px slab. */
+             * Scale from labelField JSON "scale". strokeScaleEnabled:false
+             * keeps stroke at fixed pixel width despite layer.scale(). */
             if (part.data_deviceid === 'pathShape') {
                 const lf = parsePathShapeLabel(part.data_labelField);
-                /* Precedence mirrors the canvas insertTable pathShape
-                 * branch: Details picker (part.data_fill / data_opacity)
-                 * > label-JSON > device default. */
+                /* Precedence: Details picker > label-JSON > device default. */
                 const pathFill = part.data_fill || lf.fill;
                 const pathOpacity = (part.data_opacity != null)
                     ? Number(part.data_opacity)
@@ -1497,28 +1216,14 @@ function createCustomItemMenuImage(record) {
                     opacity: pathOpacity,
                     scale: { x: lf.scaleX, y: lf.scaleY },
                     rotation: rotation,
-                    /* getClientRect needs the path bbox to participate
-                     * in the layer-wide measure. Konva.Path computes it
-                     * synchronously from the parsed `data`. */
                 }));
                 resolveOne();
                 return;
             }
 
             const isUl = partAnchorIsUL(part);
-            /* Style mapping. We faithfully replicate the canvas
-             * insertItem() branch per device-id so the thumbnail
-             * matches what the user dragged onto the canvas:
-             *
-             *   - box / carpet / stageFloor: fill #FFFFFF99 (canvas
-             *     hard-codes this), dashed black stroke from the device
-             *     library. data_labelField "color" is METADATA on these
-             *     devices and intentionally NOT applied as fill.
-             *   - other UL-anchor rects (tables/rooms): use device
-             *     stroke + a light grey fill.
-             *   - center-anchor + topImage: Konva.Image (async load).
-             *   - center-anchor without topImage: device fill if known
-             *     else a neutral grey. */
+            /* Style mapping replicates the canvas insertItem() branch per device-id
+             * so the thumbnail matches what the user dragged onto the canvas. */
             let nodeAttrs = {
                 x: cx, y: cy,
                 width: w, height: h,
@@ -1530,10 +1235,6 @@ function createCustomItemMenuImage(record) {
             if (part.data_deviceid === 'box' ||
                 part.data_deviceid === 'carpet' ||
                 part.data_deviceid === 'stageFloor') {
-                /* Per-item override via configurableColor (data_fill /
-                 * data_opacity). Falls back to the hardcoded canvas
-                 * defaults when absent, matching insertTable()'s
-                 * `attrs.data_fill || '#FFFFFF99'` precedence. */
                 nodeAttrs.fill = part.data_fill || '#FFFFFF99';
                 if (part.data_opacity != null) {
                     nodeAttrs.opacity = Number(part.data_opacity);
@@ -1542,12 +1243,6 @@ function createCustomItemMenuImage(record) {
                 nodeAttrs.strokeWidth = 1;
                 nodeAttrs.strokeScaleEnabled = false; /* see pathShape */
                 if (dt && Array.isArray(dt.dash)) {
-                    /* Pass the device's dash pattern through verbatim.
-                     * With strokeScaleEnabled=false the dash values are
-                     * interpreted in PIXELS at the visible canvas
-                     * resolution, so the on/off pattern looks the same
-                     * regardless of how big the customItem is (and
-                     * matches the canvas appearance more closely). */
                     nodeAttrs.dash = dt.dash.slice();
                 }
                 if (typeof part.cornerRadius === 'number') {
@@ -1561,10 +1256,8 @@ function createCustomItemMenuImage(record) {
             }
 
             if (dt && dt.topImage) {
-                /* Konva.Image — create FIRST so it participates in
-                 * layer.getClientRect() (which uses width/height, not
-                 * the loaded image pixels). The image bitmap attaches
-                 * later inside onload, and we trigger a redraw then. */
+                /* Create Image node FIRST so it participates in getClientRect();
+                 * bitmap attaches later inside onload. */
                 const imageNode = new Konva.Image(Object.assign({ image: null }, nodeAttrs));
                 layer.add(imageNode);
                 const imgObj = new Image();
@@ -1574,9 +1267,7 @@ function createCustomItemMenuImage(record) {
                     resolveOne();
                 };
                 imgObj.onerror = function () {
-                    /* Asset missing — leave as an empty rect outline so
-                     * the thumbnail still completes and the user can
-                     * tell something is there. */
+                    /* Asset missing — leave empty outline so thumbnail still completes. */
                     imageNode.stroke('#888888');
                     imageNode.strokeWidth(1);
                     imageNode.strokeScaleEnabled(false);
@@ -1588,13 +1279,7 @@ function createCustomItemMenuImage(record) {
                 return;
             }
 
-            /* Final fallback: rect with a best-effort fill. Centre-
-             * anchor devices without topImage include the configurable-
-             * color shapes (wallStd / columnRect / cylinder / sphere)
-             * plus any generic placeholders. Honor the per-item
-             * data_fill / data_opacity overrides so a coloured shape
-             * inside a CustomItem reads as coloured in the library
-             * thumbnail. Light grey when no override is supplied. */
+            /* Fallback: rect with best-effort fill (honors data_fill/data_opacity). */
             nodeAttrs.fill = part.data_fill || '#cccccc';
             if (part.data_opacity != null) {
                 nodeAttrs.opacity = Number(part.data_opacity);
@@ -1607,24 +1292,11 @@ function createCustomItemMenuImage(record) {
         });
     }
 
-    /* Sort parts to match drawRoom()'s z-stacking before rendering.
-     * The canvas keeps every item type in a dedicated Konva.Group, and
-     * `allNodeShapeGroups` defines their bottom-to-top order on the
-     * stage:
-     *
-     *   rooms → boxes → touchPanels → speakers → displays →
-     *   stageFloors → tables → chairs → microphones → videoDevices
-     *
-     * (so a videoDevice always paints on top of a stageFloor or display
-     * it sits on, etc.). Konva.Layer renders children in addition order,
-     * so to reproduce that stack we add bottom-to-top per parentGroup,
-     * preserving member-insertion order within each group as a tie-
-     * breaker. Reading the order from `allNodeShapeGroups` (rather than
-     * hard-coding here) keeps this in lockstep with any future canvas
-     * reordering — drawRoom() is the source of truth. Unknown
-     * parentGroups (defensive: legacy device entries) sort to the end so
-     * they paint on top and remain visible rather than getting hidden
-     * under a videoDevice's topImage. */
+    /* Sort parts to match drawRoom()'s z-stacking (rooms → boxes →
+     * touchPanels → speakers → displays → stageFloors → tables → chairs
+     * → microphones → videoDevices). Reads from `allNodeShapeGroups` so
+     * any future canvas reorder stays in lockstep. Unknown parentGroups
+     * sort to the end so they paint on top and remain visible. */
     const groupZOrder = (typeof allNodeShapeGroups !== 'undefined' && Array.isArray(allNodeShapeGroups))
         ? allNodeShapeGroups.map(g => g.name())
         : [];
@@ -1640,29 +1312,14 @@ function createCustomItemMenuImage(record) {
         .sort((a, b) => (a.z - b.z) || (a.idx - b.idx))
         .map(entry => entry.part);
 
-    /* Pass 1: synchronously create every node at meter scale. Image
-     * loads continue in the background but the nodes' width/height
-     * (and Path's `data`) are set NOW, so layer.getClientRect() returns
-     * the correct bbox even before images finish loading. */
+    /* Pass 1: synchronously create every node at meter scale (image loads continue in background). */
     const partPromises = orderedParts.map(addPartNodeAtMeterScale);
 
-    /* Pass 2: measure layer bbox in meters and apply a layer-wide fit-
-     * and-center transform. We re-measure each call (rather than
-     * accumulating manually) so any future device-type additions
-     * automatically participate without bbox-math changes.
-     *
-     * skipStroke: true so the placeholder 1-meter strokeWidth we use
-     * to anchor `strokeScaleEnabled: false` doesn't poison the bbox —
-     * Konva's getClientRect adds halfStrokeWidth on each side by
-     * default. The visible stroke at thumbnail render time is small
-     * enough (1 px fixed) that the unstroked geometry is what we
-     * want fit into INNER × INNER. */
+    /* Pass 2: measure layer bbox in meters and apply layer-wide fit-and-center transform.
+     * skipStroke:true so placeholder strokeWidth doesn't poison the bbox. */
     let bbox = layer.getClientRect({ skipTransform: false, skipStroke: true });
     if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) ||
         bbox.width <= 0 || bbox.height <= 0) {
-        /* Defensive fallback — should never trigger if any part has
-         * non-zero geometry. Use the customItem's own bbox so we still
-         * produce a valid scale. */
         bbox = { x: 0, y: 0,
                  width: Number(record.width)  || 1,
                  height: Number(record.height) || 1 };
@@ -1672,11 +1329,6 @@ function createCustomItemMenuImage(record) {
     const drawH = bbox.height * scaleFactor;
     const offsetX = (FULL - drawW) / 2;
     const offsetY = (FULL - drawH) / 2;
-    /* Composing a layer-wide scale + translate is equivalent to
-     * shifting every node into stage coords manually, but is one
-     * transform instead of N. Konva applies it in the standard order
-     * (scale first, then translate), so the translate values are in
-     * STAGE coords, i.e. px — note the `bbox.x * scaleFactor` term. */
     layer.scale({ x: scaleFactor, y: scaleFactor });
     layer.position({
         x: offsetX - bbox.x * scaleFactor,
@@ -1685,23 +1337,7 @@ function createCustomItemMenuImage(record) {
 
     return Promise.all(partPromises).then(function () {
         layer.draw();
-        /* PNG (not JPEG) because the thumbnail MUST have a transparent
-         * background — it'll be composited over different palette /
-         * panel backgrounds in the Quick Add UI and on top of arbitrary
-         * room contents at insert time. JPEG has no alpha channel; its
-         * flatten-to-background renders empty pixels as black, which
-         * looks wrong on every UI surface in the app.
-         *
-         * Size impact is acceptable: a sparse 100×100 PNG with flat
-         * colours compresses to ~5–15 KB. At the MAX_CUSTOM_ITEMS = 200
-         * library cap that's ~3 MB worst-case, far inside the IDB
-         * per-origin quota (effectively GB-scale).
-         *
-         * pixelRatio:1 keeps the data URL at exactly 100×100 even on
-         * high-DPI displays — devicePixelRatio defaults to whatever the
-         * screen reports, which would otherwise inflate the data URL
-         * 4× on Retina and produce thumbnails that don't match the
-         * receiver's expected size. */
+        /* PNG (alpha) + pixelRatio:1 (avoid devicePixelRatio inflation on Retina). */
         let dataUrl;
         try {
             dataUrl = stage.toDataURL({ mimeType: 'image/png', pixelRatio: 1 });
@@ -1720,18 +1356,14 @@ function createCustomItemMenuImage(record) {
     });
 }
 
-/* Build + persist a customItem to the VRC Custom Item Library (IDB).
- * Single chokepoint for createCustomItem, maybeAutoSaveCustomItemEdit,
- * and importCustomItemsFile. Resolves to baseId on success or null.
- * Never throws — failures log + resolve cleanly. */
+/* Build + persist customItem to IDB Library. Resolves to baseId or null. */
 function persistCustomItemToLibrary(customItem) {
     if (!customItem || !customItem.customItemBaseId) return Promise.resolve(null);
     if (!window.idbStore || typeof window.idbStore.customItemPut !== 'function') {
         return Promise.resolve(null);
     }
 
-    /* Unnamed customItems are CANVAS-ONLY (skip persist silently).
-     * See CLAUDE.md "Unnamed customItems (canvas-only invariant)". */
+    /* Unnamed customItems are CANVAS-ONLY (skip persist silently). */
     const cleanName = (customItem.name == null) ? '' : String(customItem.name).trim();
     if (!cleanName) return Promise.resolve(null);
 
@@ -1753,9 +1385,7 @@ function persistCustomItemToLibrary(customItem) {
     });
 }
 
-/* Quick Add palette library cache. Loaded on dialog OPEN, cleared on
- * CLOSE (releases menuImage payloads). Synchronous read during search;
- * fetch .then() re-fires onQuickAddChange when records arrive. */
+/* Quick Add palette library cache. Loaded on dialog open, cleared on close. */
 let _customItemQuickAddRecordsCache = [];
 let _customItemQuickAddRecordsLoading = null; /* in-flight fetch Promise */
 
@@ -1785,11 +1415,7 @@ function loadCustomItemLibraryRecordsForQuickAdd() {
 const _customItemAutoSaveTimers = new Map();
 const _CUSTOM_ITEM_AUTO_SAVE_DEBOUNCE_MS = 750;
 
-/* Debounced auto-save of a CustomItem to the Library. Only fires for
- * templates already in the library (silent no-op otherwise — URL/room-
- * loaded customItems don't grow the library on every drag). Re-resolves
- * the customItem at timer fire so ungroup/delete during the debounce
- * cleanly no-ops. No toast — too frequent. */
+/* Debounced auto-save. Only fires for templates already in the library. */
 function maybeAutoSaveCustomItemEdit(customItem) {
     if (!customItem || !customItem.customItemBaseId) return;
     if (!isCustomItemInLibrary(customItem.customItemBaseId)) return;
@@ -1816,8 +1442,7 @@ function maybeAutoSaveCustomItemEdit(customItem) {
     _customItemAutoSaveTimers.set(baseId, timer);
 }
 
-/* "Add to Custom Library" — explicit user opt-in. Same persist pipeline
- * as createCustomItem's initial save; upserts by baseId. */
+/* Explicit "Add to Library" opt-in; upserts by baseId. */
 function addCustomItemToLibrary(customItem) {
     if (!customItem) return;
     persistCustomItemToLibrary(customItem).then(function (savedBaseId) {
@@ -1825,9 +1450,7 @@ function addCustomItemToLibrary(customItem) {
     });
 }
 
-/* "Remove from Library" — explicit user opt-out. Deletes the IDB record
- * only; canvas instance untouched. All canvas instances sharing the
- * same baseId become "not in library" (strict-family model). */
+/* Explicit "Remove from Library" — deletes IDB record only; canvas untouched. */
 function removeCustomItemFromLibrary(customItem) {
     if (!customItem || !customItem.customItemBaseId) return;
     if (!window.idbStore || typeof window.idbStore.customItemDelete !== 'function') return;
@@ -1840,10 +1463,8 @@ function removeCustomItemFromLibrary(customItem) {
     });
 }
 
-/* "Delete Custom Item" confirmation modal — from the Quick Add tile
- * trash button. Deletes the IDB record, syncs cache, splices Quick Add
- * cache, re-fires onQuickAddChange. Canvas instances are intentionally
- * left in place — deletion targets the library template only. */
+/* "Delete Custom Item" confirmation modal from the Quick Add tile trash button.
+ * Deletes IDB record + syncs caches; canvas instances are left in place. */
 function openDeleteCustomItemFromLibraryDialog(baseId, name) {
     if (!baseId) return;
     const dialog = document.getElementById('dialogCustomItemDelete');
@@ -1882,9 +1503,8 @@ function openDeleteCustomItemFromLibraryDialog(baseId, name) {
     dialog.showModal();
 }
 
-/* Edit Custom Item dialog (Quick Add tile ellipsis). Reads/writes the
- * IDB library record. On save, cascades Name/Author/Description to
- * every canvas instance with matching baseId (strict-family model). */
+/* Edit Custom Item dialog (Quick Add ellipsis). Cascades Name/Author/Description
+ * to every canvas instance with matching baseId on save. */
 let _customItemEditDialogBaseId = null;
 
 function openEditCustomItemDialog(baseId) {
@@ -1892,7 +1512,7 @@ function openEditCustomItemDialog(baseId) {
     const dialog = document.getElementById('dialogCustomItemEdit');
     const nameInput = document.getElementById('customItemEditNameInput');
     if (!dialog || !nameInput) {
-        /* Older RoomCalculator.html: fall back to the delete dialog. */
+        /* Older HTML: fall back to delete dialog. */
         const cached = (_customItemQuickAddRecordsCache || [])
             .find(r => r && r.customItemBaseId === baseId);
         const fallbackName = getCustomItemRecordName(cached);
@@ -1900,7 +1520,7 @@ function openEditCustomItemDialog(baseId) {
         return;
     }
 
-    /* Prefer the Quick Add cache; fall through to IDB read defensively. */
+    /* Prefer Quick Add cache; fall through to IDB read defensively. */
     const cached = (_customItemQuickAddRecordsCache || [])
         .find(r => r && r.customItemBaseId === baseId);
 
@@ -1912,8 +1532,7 @@ function openEditCustomItemDialog(baseId) {
         if (authorInput) authorInput.value = rec ? String(rec.author || '') : '';
         if (descInput) descInput.value = rec ? String(rec.description || '') : '';
 
-        /* Rewire action buttons on every open so captured baseId
-         * stays in lock-step with whichever tile the user clicked. */
+        /* Rewire action buttons each open so captured baseId tracks the clicked tile. */
         const exportBtn = document.getElementById('customItemEditExportBtn');
         const removeBtn = document.getElementById('customItemEditRemoveBtn');
         const deleteBtn = document.getElementById('customItemEditDeleteBtn');
@@ -1925,8 +1544,7 @@ function openEditCustomItemDialog(baseId) {
                 exportCustomItemRecordFromLibrary(baseId);
             };
         }
-        /* Delete and Remove-From-Library are the same destructive op
-         * (one labelled each way). Both route through the confirmation. */
+        /* Delete and Remove-From-Library both route through the same confirmation. */
         const destructive = function () {
             dialog.close();
             openDeleteCustomItemFromLibraryDialog(baseId, displayName);
@@ -1949,10 +1567,7 @@ function openEditCustomItemDialog(baseId) {
     }
 }
 
-/* Save handler for dialogCustomItemEdit. Sanitizes form, customItemPuts
- * the record (upsert by baseId), cascades Name/Author/Description to
- * matching canvas instances. Geometry/parts/menuImage are preserved
- * verbatim — descriptive metadata only. */
+/* Save handler — descriptive metadata only; geometry/parts/menuImage preserved verbatim. */
 function confirmEditCustomItemFromDialog() {
     const baseId = _customItemEditDialogBaseId;
     if (!baseId) return;
@@ -2392,9 +2007,7 @@ function confirmClearAllStorage() {
     });
 }
 
-/* Export-from-Library button handler. Reads the verbatim IDB record
- * (the tile being edited may not be on the canvas) and writes the
- * same .vrcCustomItems.json shape — no rebuild of menuImage/parts. */
+/* Export-from-Library: verbatim IDB record → .vrcCustomItems.json (no menuImage rebuild). */
 function exportCustomItemRecordFromLibrary(baseId) {
     if (!baseId) return;
     if (!window.idbStore || typeof window.idbStore.customItemGet !== 'function') {
@@ -2413,11 +2026,7 @@ function exportCustomItemRecordFromLibrary(baseId) {
                 'This Custom Item has no name. Save a name before exporting.');
             return;
         }
-        /* Normalize on-the-fly: never-edited legacy rows still carry
-         * `data_labelField` in IDB; the exported file should always
-         * use the new canonical key. Mutates the fetched copy only
-         * (IDB record is unchanged — auto-migration happens on next
-         * customItemPut). */
+        /* Export uses canonical customItemName; legacy data_labelField dropped from copy only. */
         rec.customItemName = name;
         if ('data_labelField' in rec) delete rec.data_labelField;
         const fileObj = { vrcCustomItems: [rec] };
@@ -2439,9 +2048,7 @@ function exportCustomItemRecordFromLibrary(baseId) {
     });
 }
 
-/* "Export Custom Item" — download as <safe-name>.vrcCustomItems.json
- * and persist to IDB library. Requires a non-empty customItem.name.
- * Safe-name filter strips chars that break Windows/macOS/Linux paths. */
+/* Export Custom Item to .vrcCustomItems.json + IDB upsert; name required. */
 function exportCustomItem(customItem) {
     if (!customItem) return;
 
@@ -2491,9 +2098,7 @@ function exportCustomItem(customItem) {
     });
 }
 
-/* "Export Custom Items" — Settings tab entry-point. Bundles every IDB
- * library record into one .vrcCustomItems.json (same shape as single-
- * item export, N records). Verbatim from IDB; no menuImage re-render. */
+/* Settings tab: export all IDB library records as one .vrcCustomItems.json. */
 function exportAllCustomItemsFromLibrary() {
     if (!window.idbStore || typeof window.idbStore.customItemGetAll !== 'function') {
         alertDialog(
@@ -2539,9 +2144,7 @@ function exportAllCustomItemsFromLibrary() {
     });
 }
 
-/* Toggle the "Export Custom Items" button enabled/disabled state from
- * the in-memory customItemLibraryIds Set. Kept disabled (not hidden)
- * so the affordance stays discoverable when the library is empty. */
+/* Enable Export Custom Items button when customItemLibraryIds is non-empty. */
 function updateExportCustomItemsButtonState() {
     const btn = document.getElementById('btnExportAllCustomItems');
     if (!btn) return;
@@ -2553,11 +2156,7 @@ function updateExportCustomItemsButtonState() {
           ' as a single .vrcCustomItems.json file.';
 }
 
-/* Strict validator for a .vrcCustomItems record.
- * Returns { valid: true } or { valid: false, error: <string> }.
- * Requires: customItemBaseId, width>0, height>0, non-empty
- * customItemParts; each part needs data_deviceid (known in
- * allDeviceTypes) and numeric x/y/width/height. */
+/* Validate .vrcCustomItems record schema; returns { valid, error? }. */
 function validateCustomItemRecord(rec) {
     if (!rec || typeof rec !== 'object') return { valid: false, error: 'Not an object' };
     if (typeof rec.customItemBaseId !== 'string' || !rec.customItemBaseId.trim()) {
@@ -2608,8 +2207,7 @@ function validateCustomItemRecord(rec) {
 
 /* Drop a validated customItem record at the center of the active room. */
 function insertCustomItemAtRoomCenter(record) {
-    /* Prefer activeRoomWidth/Length (set inside a polyRoom part); 
-     * activeRoomX/Y are 0 outside a part so the math works for both. */
+    /* activeRoomWidth/Length when inside a polyRoom part; activeRoomX/Y are 0 otherwise. */
     const roomW = Number(activeRoomWidth)  || (roomObj.room && Number(roomObj.room.roomWidth))  || 5;
     const roomL = Number(activeRoomLength) || (roomObj.room && Number(roomObj.room.roomLength)) || 5;
     const roomCenterX = (Number(activeRoomX) || 0) + roomW / 2;
@@ -2617,11 +2215,7 @@ function insertCustomItemAtRoomCenter(record) {
     return insertCustomItemAtPosition(record, roomCenterX, roomCenterY);
 }
 
-/* Materialize a validated customItem record at (worldX, worldY) CENTER
- * in roomObj.unit coords. Inverse of buildCustomItemExportRecord
- * (meters→unit, rotation always 0 on insert so local→world is just
- * translation). Items adopt the "Add Items to:" dropdown's layer.
- * Returns the new customitemid, or null if no members materialized. */
+/* Insert customItem at world center (meters→unit); uses Add Items to: layer. */
 function insertCustomItemAtPosition(record, worldX, worldY) {
     ensureCustomItems();
 
@@ -2640,13 +2234,9 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
     const customitemid = createUuid();
     const newMembers = [];
 
-    /* Collected (deviceId, parentGroup, attrs, uuid) tuples for the
-     * surgical canvas inserts below. Built up alongside the
-     * roomObj.items pushes so we have a single place to drive the
-     * insertShapeItem loop after all roomObj mutations are done. */
     const pendingInserts = [];
 
-    /* Restore allow-list — mirror of the export field set. Drops unknown keys. */
+    /* Restore allow-list matches export field set. */
     const RESTORE_VERBATIM = CUSTOM_ITEM_PART_VERBATIM_FIELDS;
     const RESTORE_UNIT_SCALED = CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS;
 
@@ -2697,15 +2287,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
         const parentGroup = dt.parentGroup;
         if (!parentGroup) return;
         roomObj.items.push(newItem);
-        /* Pair the push with a roomObjItemsMap registration — canonical
-         * pattern matching every other `roomObj.items.push(...)` site
-         * (e.g. the drag-drop branch around line 23670). Without this,
-         * the deferred trNodesFromUuids(..., true) at the tail of this
-         * function fires canvasToJson → updateRoomObjFromTrNode, which
-         * queries `roomObjItemsMap.get(node.id())`, misses, and falls
-         * into the "new item" else branch — pushing a SECOND itemAttr
-         * with the same id and producing duplicated entries in the
-         * round-tripped .vrc.json / shareable URL. */
+        /* Must register in roomObjItemsMap before trNodesFromUuids → canvasToJson. */
         roomObjItemsMap.set(newItem.id, newItem);
         newMembers.push(uuid);
         pendingInserts.push({ deviceId: part.data_deviceid, parentGroup, attrs: newItem, uuid });
@@ -2716,8 +2298,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
         return null;
     }
 
-    /* Use the lowest zPosition among members as the customItem's
-     * zPosition — same convention as createCustomItem. */
+    /* Lowest member zPosition (same as createCustomItem). */
     let minZ = Infinity;
     newMembers.forEach(uuid => {
         const it = findRoomItemByUuid(uuid);
@@ -2730,16 +2311,8 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
 
     const newCustomItem = {
         customitemid: customitemid,
-        /* Preserve the family / template id so the inserted instance is
-         * recognized as "in the library" by isCustomItemInLibrary on
-         * the very next render — no awkward "Add to Custom Library"
-         * showing on a just-imported template. */
         customItemBaseId: record.customItemBaseId,
         name: getCustomItemRecordName(record),
-        /* Descriptive metadata round-trips with the record so the
-         * Edit-from-Library dialog reads the most recent values
-         * regardless of which canvas instance is consulted. Missing
-         * fields on older records collapse to '' / '1'. */
         author: String(record.author || ''),
         description: String(record.description || ''),
         version: String(record.version || '1'),
@@ -2755,37 +2328,18 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
 
     roomObj.customItems.push(newCustomItem);
 
-    /* Surgical canvas insert — mirrors the pasteItems() pattern. No
-     * drawRoom rebuild, which avoids:
-     *   (a) the +250ms deleteNegativeShapes cleanup pass (which
-     *       was destroying legitimate items when the user was
-     *       zoomed in and scrolled — see the
-     *       getAbsoluteTransform(stage) fix in deleteNegativeShapes),
-     *   (b) the grid/wall/scale rebuild overhead which scales with
-     *       total item count and made zoom + insert feel laggy.
-     * insertShapeItem already handles tables/walls/floors via its
-     * internal route to insertTable when the parentGroup matches. */
+    /* Insert without full drawRoom rebuild (pasteItems pattern). */
     pendingInserts.forEach(({ deviceId, parentGroup, attrs, uuid }) => {
         insertShapeItem(deviceId, parentGroup, attrs, uuid, false);
     });
     insertCustomItemRect(newCustomItem);
 
-    /* Select the new bundle (rect + every member) so the user can
-     * immediately drag/rotate it as a unit — matches the post-paste
-     * UX. trNodesFromUuids defers the selection 200ms to give Konva
-     * time to commit async Image.onload callbacks, then calls
-     * canvasToJson(save=true) which pushes the new state into the
-     * undo array and rebuilds the shareable URL. */
     trNodesFromUuids([customitemid, ...newMembers], true);
 
     return customitemid;
 }
 
-/* Tiny HTML escaper for strings rendered into the import summary
- * dialog via alertDialog (which uses innerHTML). data_labelField is
- * end-user input from arbitrary files, so even though the export
- * path sanitizes on save, we double-escape on display to defend
- * against hand-crafted .vrcCustomItems files. */
+/* HTML-escape user strings for import summary dialog (innerHTML). */
 function _escapeHtmlForCustomItemDialog(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
@@ -2795,10 +2349,7 @@ function _escapeHtmlForCustomItemDialog(s) {
         .replace(/'/g, '&#39;');
 }
 
-/* Post-import summary dialog. Buckets: saved (new in library),
- * alreadyHad (baseId existed; local wins), skippedNoName (canvas-only
- * per the unnamed invariant), failures (schema or save errors).
- * insertedOnCanvas footnotes the single-record auto-insert. */
+/* Import summary: saved / alreadyHad / skippedNoName / failures buckets. */
 function showCustomItemsImportSummaryDialog(saved, alreadyHad, skippedNoName, failures, insertedOnCanvas) {
     const esc = _escapeHtmlForCustomItemDialog;
     const totalAccepted = saved.length + alreadyHad.length + skippedNoName.length;
@@ -2852,8 +2403,7 @@ function showCustomItemsImportSummaryDialog(saved, alreadyHad, skippedNoName, fa
     alertDialog(header, body);
 }
 
-/* Top-level entry point for .vrcCustomItems file imports. See CLAUDE.md
- * "Import flow" + "No-overwrite-on-import policy" for the four phases. */
+/* .vrcCustomItems file import entry point. */
 function importCustomItemsFile(jsonFile) {
     if (!jsonFile || !Array.isArray(jsonFile.vrcCustomItems)) return;
     const incoming = jsonFile.vrcCustomItems;
@@ -2880,8 +2430,7 @@ function importCustomItemsFile(jsonFile) {
     /* Library save is best-effort; canvas-insert still works without it. */
     const idbAvailable = !!(window.idbStore && typeof window.idbStore.customItemPut === 'function');
 
-    /* Bucket each record: unnamed → canvas-only; baseId already in IDB
-     * → alreadyHad (local wins). willSaveBaseIds dedupes within one file. */
+    /* Unnamed/duplicate baseId bucketing for library import. */
     const willSaveBaseIds = new Set();
     const toSave = [];
     const alreadyHad = [];
@@ -2904,12 +2453,10 @@ function importCustomItemsFile(jsonFile) {
         toSave.push({ rec: rec, name: cleanName });
     });
 
-    /* Short-circuit when no library work is needed. */
     if (!idbAvailable || !toSave.length) {
         const saved = []; /* nothing persisted */
         if (!idbAvailable) {
-            /* IDB unavailable — promote toSave into "saved" bucket so the
-             * dialog still acknowledges; canvas-only for this session. */
+            /* IDB down: still list toSave in dialog (canvas-only this session). */
             toSave.forEach(t => saved.push({ customItemBaseId: t.rec.customItemBaseId, name: t.name }));
         }
         let insertedOnCanvas = false;
@@ -2922,7 +2469,6 @@ function importCustomItemsFile(jsonFile) {
     }
 
     const persistPromises = toSave.map(entry => {
-        /* IDB record shape == file payload — put rec directly. */
         return window.idbStore.customItemPut(entry.rec)
             .then(savedBaseId => ({ entry: entry, savedBaseId: savedBaseId }))
             .catch(_e => ({ entry: entry, savedBaseId: null }));
@@ -2953,7 +2499,6 @@ function importCustomItemsFile(jsonFile) {
 
         showCustomItemsImportSummaryDialog(saved, alreadyHad, skippedNoName, failures, insertedOnCanvas);
 
-        /* Toast only when a new record was actually saved. */
         if (saved.length === 1 && insertedOnCanvas) {
             showToast('Imported 1 Custom Item — saved to library');
         } else if (saved.length > 1) {
@@ -2973,9 +2518,7 @@ function getCustomItemMemberNodes(customItemId) {
     return members;
 }
 
-/* Recalculate the CustomItem rect's x, y, width, height from current member
- * positions. Mirrors updateGroupBounds() — see its docstring for the
- * `getMemberBoundingRect` rationale. */
+/* Recalculate CustomItem rect bounds from members (getMemberBoundingRect). */
 function updateCustomItemBounds(customItemId) {
     if (!groupCustomItemRects) return;
     const members = getCustomItemMemberNodes(customItemId);
@@ -3014,37 +2557,15 @@ function updateCustomItemBounds(customItemId) {
             .filter(z => !isNaN(z));
         if (zPositions.length) c.data_zPosition = Math.min(...zPositions);
 
-        /* updateCustomItemBounds() is currently called only from the
-         * roomObjToCanvas() bounds-missing fallback (see
-         * `if (!c.width || !c.height)` near the customItem rebuild loop),
-         * NOT every frame during a drag. The earlier docstring claiming
-         * a per-frame call was stale — the per-member dragmove paths
-         * (`followCustomItemDragFromMember` etc.) shift sibling Konva
-         * positions but never recompute the rect via this function.
-         *
-         * Net effect: the auto-save debounce below does NOT fire on
-         * drag-only edits today, only on Details-panel mutations and on
-         * cold loads where bounds had to be rebuilt. The drag-only auto-
-         * save gap is tracked as a follow-up: wire updateCustomItemBounds
-         * (or a lighter-weight equivalent) into the drag-follow path so
-         * library templates re-persist after geometry changes. Until
-         * then, dragging a library-tracked CustomItem does not refresh
-         * its IDB record — the user has to nudge a Details-panel field
-         * or re-add it to the library to capture the new layout. */
+        /* Not called per drag frame today — drag-only library sync is a known gap. */
         maybeAutoSaveCustomItemEdit(c);
     }
 }
 
-/* Returns { rectNode, customItem, customItemId } when the current selection
- * is exactly one CustomItem's bundle — a single CustomItem rect plus only
- * members of that same customItem, AND no Group rect is in the selection
- * (Group precedence wins). Mirrors getActiveGroupSelection(). */
+/* Single CustomItem bundle selected (Group precedence). Mirrors getActiveGroupSelection(). */
 function getActiveCustomItemSelection(nodes) {
     nodes = nodes || tr.nodes();
     if (!nodes || !nodes.length) return null;
-    /* Group precedence: if any Group rect is selected, we are in a Group
-     * bundle (or a multi-selection that contains a group rect). The
-     * Details panel routes via getActiveGroupSelection() in that case. */
     if (nodes.some(n => n.data_deviceid === 'group')) return null;
     const customItemRects = nodes.filter(n => n.data_deviceid === 'customItem');
     if (customItemRects.length !== 1) return null;
@@ -3058,9 +2579,7 @@ function getActiveCustomItemSelection(nodes) {
     return { rectNode: rectNode, customItem: customItem, customItemId: customItemId };
 }
 
-/* Lightweight live-refresh of the CustomItem Details inputs from the
- * rect's current canvas state. Hooked to drag/transform events when a
- * CustomItem is the active selection. Mirrors refreshGroupDetailsFromCanvas(). */
+/* Live-refresh CustomItem Details panel during drag/rotate. */
 function refreshCustomItemDetailsFromCanvas() {
     const sel = getActiveCustomItemSelection();
     if (!sel) return;
@@ -3077,8 +2596,7 @@ function refreshCustomItemDetailsFromCanvas() {
     if (itemL)   itemL.value   = round(r.height() / scale);
 }
 
-/* Populate the right-hand Details panel with CustomItem fields when the
- * selection is a single VRC CustomItem. Mirrors populateGroupDetails(). */
+/* Populate Details panel for a selected CustomItem. */
 function populateCustomItemDetails(rectNode) {
     const customItem = getCustomItemById(rectNode.data_customItemId);
     if (!customItem) return;
@@ -3124,10 +2642,7 @@ function populateCustomItemDetails(rectNode) {
     populateLayerDropdown('drpItemLayer', customItem.data_layerId || '0');
 }
 
-/* Apply a CustomItem-level edit from the Details panel: X/Y/Z deltas
- * translate every member (and the rect) by the same offset; a rotation
- * delta rotates every member around the CustomItem rect's current visual
- * centre. Mirrors updateGroupItem(). */
+/* Apply CustomItem Details-panel edits (translate/rotate members). Mirrors updateGroupItem(). */
 function updateCustomItemItem(customItem) {
     if (!customItem || !groupCustomItemRects) return;
     const rectNode = groupCustomItemRects.find(n => n.data_customItemId === customItem.customitemid)[0];
@@ -3156,11 +2671,7 @@ function updateCustomItemItem(customItem) {
         members.forEach(m => { m.x(m.x() + deltaX_px); m.y(m.y() + deltaY_px); });
         rectNode.x(rectNode.x() + deltaX_px);
         rectNode.y(rectNode.y() + deltaY_px);
-        /* CustomItem move may also need to drag along any Group rect that
-         * contains all our members — but only if every member of the
-         * Group is also a member of this CustomItem (otherwise the Group
-         * would partially de-sync). Skip that case for v1; the user can
-         * always select the Group bundle instead to drag everything. */
+        /* v1: skip shifting a Group rect when membership is only partial. */
     }
 
     if (deltaR !== 0) {
@@ -3199,14 +2710,9 @@ function updateCustomItemItem(customItem) {
 
     members.forEach(m => updateShading(m));
 
-    /* No batchDraw() — Konva v8+ auto-redraws on next rAF (see updateGroupItem
-     * for the same pattern). Konva.autoDrawEnabled === true. */
     canvasToJson();
 
-    /* If this CustomItem template is in the VRC Custom Item Library,
-     * persist the edit (debounced) so the library record stays in sync
-     * with the canvas. Defined after canvasToJson() so roomObj is fully
-     * reconciled by the time the debounced timer fires and reads it. */
+    /* Debounced library auto-save after roomObj is reconciled. */
     maybeAutoSaveCustomItemEdit(customItem);
 
     const btn = document.getElementById("btnUpdateItemId");
@@ -3247,9 +2753,7 @@ function isItemInHiddenLayer(itemOrNode) {
     return !!(layer && layer.visible === false);
 }
 
-/* Walk the cloned roomObj used by exportRoomObjToWorkspace() and remove every item
- * that belongs to a hidden VRC layer so it is not sent to the Workspace Designer.
- * Mutates the passed object. */
+/* Drop hidden-layer items from a WD export clone (mutates roomObj2). */
 function removeHiddenLayerItemsForExport(roomObj2) {
     if (!roomObj2 || !Array.isArray(roomObj2.items) || !roomObj.layers) return;
     const hiddenLayerIds = new Set(
@@ -3260,10 +2764,7 @@ function removeHiddenLayerItemsForExport(roomObj2) {
         const lid = item.data_layerId || '0';
         return !hiddenLayerIds.has(lid);
     });
-    /* Drop CustomItems whose own layer is hidden too — same rationale
-     * as Groups (filtered later in exportRoomObjToWorkspace via the
-     * hidden-layer filter on data.vrc.customItems[]). Done here to
-     * keep roomObj2 internally consistent. */
+    /* Also drop customItems on hidden layers (export consistency). */
     if (Array.isArray(roomObj2.customItems)) {
         roomObj2.customItems = roomObj2.customItems.filter(c => {
             const lid = c.data_layerId || '0';
@@ -3282,12 +2783,7 @@ function nextLayerUrlNumber() {
     }
 }
 
-/* Apply a layer's visible/locked state to a Konva node and its coverage nodes
- * (audio~id, speaker~id, fov~id, dispDist~id, label~id).
- *
- * When layer is HIDDEN: all coverage nodes for this item are hidden, regardless of per-item flags.
- * When layer is VISIBLE: coverage nodes are restored according to their per-item flag (data_audioHidden, data_speakerHidden, data_fovHidden, data_dispDistHidden). Labels follow layer visibility (no per-item flag).
- */
+/* Apply layer visible/locked to node + coverage children. Hidden layer hides all coverage. */
 function applyLayerStateToNode(node, layerId) {
     if (!layerId || layerId === '') layerId = '0';
     const layer = getLayerById(layerId);
@@ -3302,10 +2798,7 @@ function applyLayerStateToNode(node, layerId) {
     applyLayerStateToCoverageNodes(node, layer.visible);
 }
 
-/* Dim a node to 0.7x of its original opacity when its layer is locked, and restore it
- * to its original opacity when unlocked. The original opacity is captured the first time
- * the node is dimmed (data_originalOpacity) so repeat-locks don't compound the dimming.
- * data_lockOpacityApplied tracks whether we currently hold the dimmed state. */
+/* Dim locked-layer nodes to 0.7× original opacity (idempotent via data_lockOpacityApplied). */
 function applyLayerLockOpacity(node, locked) {
     if (!node || typeof node.opacity !== 'function') return;
     if (locked) {
@@ -3326,8 +2819,7 @@ function applyLayerLockOpacity(node, locked) {
     }
 }
 
-/* Show/hide the per-item coverage nodes (audio, speaker, fov, dispDist, label)
- * based on layer visibility AND existing per-item hidden flags. */
+/* Coverage/label visibility = layer visible AND per-item hidden flags. */
 function applyLayerStateToCoverageNodes(node, layerVisible) {
     const id = node.id();
     if (!id) return;
@@ -3359,8 +2851,7 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
     }
 }
 
-/* Re-apply all layer states to every canvas node (called after layer toggle).
- * Also updates the coverage / label layers for each node. */
+/* Re-apply layer visible/locked to all canvas nodes + coverage. */
 function applyAllLayerStates() {
     const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon');
     allNodes.forEach(node => {
@@ -3368,27 +2859,15 @@ function applyAllLayerStates() {
             applyLayerStateToNode(node, node.data_layerId);
         }
     });
-    /* No explicit batchDraw() needed in Konva v8+ — `Konva.autoDrawEnabled`
-     * defaults to true, so the visibility/listening changes above auto-trigger
-     * a redraw of layerTransform on the next animation frame.
-     *
-     * The *Coverage / overlayLabels nodes are Konva.Group
-     * children of layerTransform (NOT separate layers), so they ride the
-     * same auto-redraw — the previous explicit *.batchDraw() calls were
-     * silent no-ops because Konva.Group has no batchDraw method. */
     updateModeStatusBadge();
 }
 
-/* Refresh the yellow status badge to the right of #controlButtons.
- * Priority: any active drawing/measuring mode wins; otherwise summarise
- * how many VRC layers are hidden/locked. Hidden entirely when no mode is
- * active and no layers are hidden or locked. */
+/* Status badge beside #controlButtons: active mode or hidden/locked layer counts. */
 function updateModeStatusBadge() {
     const el = document.getElementById('modeStatusBadge');
     if (!el) return;
     let html = '';
-    /* `isMode` flips the badge to its blue-mode style. The layer-state
-     * branch (yellow) leaves it false. */
+    /* isMode: blue for active tool; yellow for layer hide/lock counts. */
     let isMode = true;
     if (isWallBuilderOn || isWallWriterOn2) {
         html = 'Wall Builder';
@@ -3417,28 +2896,12 @@ function updateModeStatusBadge() {
     }
     el.innerHTML = html;
     el.classList.toggle('mode-status-badge--mode', !!html && isMode);
-    /* visibility (not display) is used for the empty state so the
-     * badge's fixed-width slot stays reserved inside #controlButtons.
-     * Without this, hiding the badge would let the toolbar reflow and
-     * the other buttons would jump as soon as a mode toggled / layer
-     * was hidden / unlocked. */
+    /* visibility (not display) keeps the badge slot reserved so toolbar buttons don't jump. */
     el.style.visibility = html ? 'visible' : 'hidden';
     if (html) fitBadgeTextSize(el);
 }
 
-/* Auto-shrink the badge's font-size until its content fits inside the
- * fixed 120px frame on a single line. Reset to the CSS-default size
- * first (so a previous, longer label doesn't permanently shrink the
- * font for a subsequent shorter one), then step the font down in 0.5px
- * increments until scrollWidth ≤ clientWidth or we hit the floor.
- *
- * The floor (9px) protects against runaway shrink in case the layer
- * counts get into 3+ digit territory and the icons + numbers genuinely
- * cannot fit; in that case the trailing content gets clipped by the
- * badge's overflow:hidden, which is preferable to either wrapping or
- * pushing the toolbar around. The 30-iter guard is paranoia against
- * any browser quirk that might keep scrollWidth > clientWidth even at
- * the floor. */
+/* Shrink badge font until content fits 120px frame (floor 9px). */
 function fitBadgeTextSize(el) {
     if (!el) return;
     el.style.fontSize = '';
@@ -3471,16 +2934,13 @@ function addLayer(name) {
 function deleteLayer(layerId) {
     if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
 
-    /* Per UX spec: items in the deleted layer move to the user's currently
-     * selected "Add Items to:" target. If that target IS the layer being
-     * deleted, reset the dropdown to Default ('0') and move items there. */
+    /* Items move to currentAddLayerId, or Default if that layer is being deleted. */
     let targetLayerId = currentAddLayerId;
     if (targetLayerId === layerId || !getLayerById(targetLayerId)) {
         currentAddLayerId = '0';
         targetLayerId = '0';
     }
 
-    /* move all items in this layer to the target layer */
     getAllCanvasNodes().forEach(node => {
         if (node.data_layerId === layerId) {
             node.data_layerId = targetLayerId;
@@ -3520,10 +2980,9 @@ function renameLayer(layerId, newName) {
     return true;
 }
 
-/* ---- Layer dialog modals (replaces prompt()/confirm()/alert()) ---- */
+/* ---- Layer dialog modals ---- */
 
-/* Counts the number of canvas items currently assigned to a given layer.
- * Items without an explicit data_layerId are treated as the Default ('0') layer. */
+/* Count canvas items on a layer (implicit Default when data_layerId absent). */
 function countItemsInLayer(layerId) {
     if (typeof layerTransform === 'undefined' || !layerTransform.find) return 0;
     return getAllCanvasNodes().filter(node => {
@@ -3532,8 +2991,7 @@ function countItemsInLayer(layerId) {
     }).length;
 }
 
-/* Opens the "Add Layer" modal (replaces the legacy prompt()).
- * Pre-fills the input with a unique default name and focuses it on open. */
+/* Add Layer modal — unique default name, focused on open. */
 function openAddLayerDialog() {
     const dlg = document.getElementById('dialogLayerAdd');
     const input = document.getElementById('layerAddNameInput');
@@ -3547,9 +3005,7 @@ function openAddLayerDialog() {
     setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 
-/* Called by the "Add" button inside dialogLayerAdd. Validates the name
- * against existing layers (showing a follow-up alertDialog on conflict)
- * and creates the layer on success. */
+/* dialogLayerAdd "Add" handler — duplicate-name check, then addLayer(). */
 function confirmAddLayerFromDialog() {
     const input = document.getElementById('layerAddNameInput');
     if (!input) return;
@@ -3566,9 +3022,7 @@ function confirmAddLayerFromDialog() {
     addLayer(name);
 }
 
-/* "Create Custom Item" name-required dialog. Forces non-empty name
- * for user-created customItems (the canvas-only invariant). Pre-
- * validates selection so we don't prompt for an unusable name. */
+/* "Create Custom Item" dialog — name required for user-created bundles. */
 function openCreateCustomItemDialog() {
     const dlg = document.getElementById('dialogCustomItemAdd');
     const input = document.getElementById('customItemAddNameInput');
@@ -3579,8 +3033,7 @@ function openCreateCustomItemDialog() {
         return;
     }
 
-    /* Same selection predicate createCustomItem() applies. Single
-     * pathShape exception mirrors canCustomItem in toggleItemActionsMenu(). */
+    /* Same selection rules as createCustomItem() / canCustomItem. */
     const candidates = (typeof tr !== 'undefined' && tr && tr.nodes) ? tr.nodes() : [];
     const itemNodes = candidates.filter(n =>
         n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
@@ -3604,8 +3057,7 @@ function openCreateCustomItemDialog() {
     setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 
-/* "Create" handler for dialogCustomItemAdd. Trim + DOMPurify-sanitize
- * the inputs. Empty → alertDialog (not silent no-op). */
+/* dialogCustomItemAdd "Create" handler — empty name → alertDialog. */
 function confirmCreateCustomItemFromDialog() {
     const input = document.getElementById('customItemAddNameInput');
     if (!input) return;
@@ -3625,13 +3077,7 @@ function confirmCreateCustomItemFromDialog() {
         return;
     }
 
-    /* Optional author / description — sanitize the same way the name is
-     * so downstream consumers (alertDialog HTML, filenames, dialog
-     * renderer using innerHTML through _escapeHtmlForCustomItemDialog)
-     * see uniformly clean values. DOMPurify-stripping an entire field
-     * to '' is a legitimate outcome (e.g. user pasted all-HTML) and
-     * silently degrades to empty — author / description are optional,
-     * not required. */
+    /* Optional author/description — same DOMPurify path as name; empty after strip is OK. */
     const authorInput = document.getElementById('customItemAddAuthorInput');
     const descInput = document.getElementById('customItemAddDescriptionInput');
     const cleanField = (val) => {
@@ -3649,16 +3095,13 @@ function confirmCreateCustomItemFromDialog() {
     createCustomItem(undefined, cleaned, cleanedAuthor, cleanedDesc);
 }
 
-/* Opens the "Delete Layer" confirmation modal (replaces the legacy confirm()).
- * Shows the layer's name, the number of items it currently contains, the
- * destination layer they will move to, and a notice when the layer is hidden. */
+/* Delete Layer confirmation modal. */
 function openDeleteLayerDialog(layerId) {
     if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
     const layer = getLayerById(layerId);
     if (!layer) return;
 
-    /* Mirror the destination logic in deleteLayer(): items move to currentAddLayerId,
-     * unless that IS the layer being deleted — in which case they go to Default. */
+    /* Mirror deleteLayer() destination logic. */
     let destName = 'Default';
     if (currentAddLayerId !== '0' && currentAddLayerId !== layerId) {
         const dest = getLayerById(currentAddLayerId);
@@ -3695,7 +3138,6 @@ function toggleLayerVisible(layerId) {
     if (!layer) return;
     layer.visible = !layer.visible;
     applyAllLayerStates();
-    /* If the layer is now hidden or still locked, remove its items from current selection */
     if (!layer.visible || layer.locked) {
         removeLayerNodesFromSelection(layerId);
     }
@@ -3708,7 +3150,6 @@ function toggleLayerLocked(layerId) {
     if (!layer) return;
     layer.locked = !layer.locked;
     applyAllLayerStates();
-    /* If the layer is now locked or still hidden, remove its items from current selection */
     if (layer.locked || !layer.visible) {
         removeLayerNodesFromSelection(layerId);
     }
@@ -3716,18 +3157,14 @@ function toggleLayerLocked(layerId) {
     canvasToJson();
 }
 
-/* Remove all nodes belonging to the given layer from the current tr selection.
- * Called from Layers-tab Hide/Lock toggles; uses refreshCopyDelBtnState() so the
- * user is not switched off the Layers tab when more than one node remains. */
+/* Remove layer's nodes from tr selection (Layers tab hide/lock). */
 function removeLayerNodesFromSelection(layerId) {
     const remaining = tr.nodes().filter(n => (n.data_layerId || '0') !== layerId);
     tr.nodes(remaining);
     refreshCopyDelBtnState();
-    /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
 }
 
-/* Toggle visibility for ALL layers (used by global hide/unhide button).
- * If any layer is hidden, show all. Otherwise hide all. */
+/* Global hide/show: any hidden layer → show all, else hide all. */
 function toggleAllLayersVisible() {
     if (!roomObj.layers) return;
     const anyHidden = roomObj.layers.some(l => !l.visible);
@@ -3735,17 +3172,14 @@ function toggleAllLayersVisible() {
     roomObj.layers.forEach(l => { l.visible = newVisible; });
     applyAllLayerStates();
     if (!newVisible) {
-        /* Hiding all → clear entire selection (stay on Layers tab) */
         tr.nodes([]);
         refreshCopyDelBtnState();
-        /* No batchDraw() — Konva v8+ auto-redraws on next rAF. */
     }
     renderLayersList();
     canvasToJson();
 }
 
-/* Toggle lock for ALL layers (used by global lock/unlock button).
- * If any layer is locked, unlock all. Otherwise lock all. */
+/* Global lock/unlock: any locked layer → unlock all, else lock all. */
 function toggleAllLayersLocked() {
     if (!roomObj.layers) return;
     const anyLocked = roomObj.layers.some(l => l.locked);
@@ -3753,10 +3187,8 @@ function toggleAllLayersLocked() {
     roomObj.layers.forEach(l => { l.locked = newLocked; });
     applyAllLayerStates();
     if (newLocked) {
-        /* Locking all → clear entire selection (stay on Layers tab) */
         tr.nodes([]);
         refreshCopyDelBtnState();
-        /* No batchDraw() — Konva v8+ auto-redraws on next rAF. */
     }
     renderLayersList();
     canvasToJson();
@@ -3767,9 +3199,7 @@ function isLayerNameDuplicate(name, excludeLayerId) {
     const lower = String(name).trim().toLowerCase();
     if (!lower) return false;
 
-    /* Reserved built-in layer names — always considered "taken" so users
-     * cannot create or rename a custom layer to "Default" or "Ceiling",
-     * even if the reserved entries happen to be missing from roomObj.layers. */
+    /* Block renaming custom layers to reserved names Default/Ceiling. */
     if (lower === 'default' && excludeLayerId !== '0') return true;
     if (lower === 'ceiling' && excludeLayerId !== '1') return true;
 
@@ -3791,8 +3221,7 @@ function getAllCanvasNodes() {
     return layerTransform.find('Image, Rect, Circle, Shape, Line, RegularPolygon');
 }
 
-/* Change a single item's layer by node id. For Group / CustomItem rects
- * cascades the layer change to every member (one-layer invariant). */
+/* Change one item's layer; Group/CustomItem rects cascade to all members. */
 function updateItemLayer(nodeId, newLayerId) {
     if (!newLayerId) newLayerId = '0';
     const node = stage.find('#' + nodeId)[0];
@@ -3826,9 +3255,7 @@ function updateItemLayer(nodeId, newLayerId) {
     renderLayersList();
 }
 
-/* Change layer for all currently selected nodes.
- * Treats "none" (or empty/undefined) as a no-op so users can select multiple items
- * with mixed layers without forcing them all to a single layer until they pick one. */
+/* Multi-select layer change; "none"/empty is a no-op. */
 function updateMultipleItemsLayer(newLayerId) {
     if (!newLayerId || newLayerId === 'none') return;
     tr.nodes().forEach(node => {
@@ -3839,8 +3266,7 @@ function updateMultipleItemsLayer(newLayerId) {
     renderLayersList();
 }
 
-/* Count selectable items in a layer. Mirrors selectLayerItems()'s
- * source list (selectAllNodes()); Group/CustomItem rects excluded. */
+/* Layer item count via selectAllNodes() (excludes bundle rects). */
 function getLayerItemCount(layerId) {
     if (typeof groupVideoDevices === 'undefined' || !groupVideoDevices) return 0;
     return selectAllNodes().filter(n => {
@@ -3849,10 +3275,7 @@ function getLayerItemCount(layerId) {
     }).length;
 }
 
-/* Select all canvas nodes belonging to a layer. Mirrors the drag-select
- * finalize path. See CLAUDE.md `selectLayerItems` row for the
- * `selectAllNodes()` vs `getAllCanvasNodes()` footgun (deep find picks
- * up nested children and overflows the Konva stack). */
+/* Select layer items via selectAllNodes() — NOT getAllCanvasNodes() (nested children overflow Konva stack). */
 function selectLayerItems(layerId) {
     const nodes = selectAllNodes().filter(node => {
         if (!node.listening() || !node.isVisible()) return false;
@@ -3864,11 +3287,9 @@ function selectLayerItems(layerId) {
         expandSelectionForGroups();
     }
     refreshCopyDelBtnState();
-    /* No batchDraw() — Konva v8+ auto-redraws after tr.nodes() change. */
 }
 
-/* Reset per-item fill/opacity overrides to device defaults via the
- * standard updateItem() pipeline. See CLAUDE.md "Reset semantics". */
+/* Reset fill/opacity overrides via updateItem() pipeline. */
 function resetFillToDefault() {
     if (!tr || tr.nodes().length !== 1) return;
     const node = tr.nodes()[0];
@@ -3886,13 +3307,7 @@ function resetFillToDefault() {
     }
 }
 
-/* Layer ID that NEW items (added via the equipment menu, quick-add dialog,
- * polyRoom builder, wall builder, quick-setup, etc.) are assigned to.
- * Driven by the "Add Items to:" dropdown in the Layers tab.
- *
- * Per UX spec: this is a session-only preference — it is NOT persisted in
- * roomObj or the shareable URL, and resets to '0' (Default) on page reload
- * or whenever the selected layer is deleted. */
+/* Session-only target layer for new items (Add Items to: dropdown); not persisted in roomObj/URL. */
 let currentAddLayerId = '0';
 
 /* Setter wired to the "Add Items to:" dropdown's onchange handler. */
@@ -3900,9 +3315,7 @@ function setCurrentAddLayerId(layerId) {
     currentAddLayerId = (layerId && getLayerById(layerId)) ? layerId : '0';
 }
 
-/* Returns the layer id new items should be assigned to. Falls back to
- * '0' (Default) and resets currentAddLayerId if the previously-selected
- * layer no longer exists (e.g., it was just deleted). */
+/* New-item layer id; reset currentAddLayerId to Default if selection was deleted. */
 function getDefaultLayerForNewItems() {
     if (currentAddLayerId && getLayerById(currentAddLayerId)) {
         return currentAddLayerId;
@@ -3911,9 +3324,7 @@ function getDefaultLayerForNewItems() {
     return '0';
 }
 
-/* Populate the Layers-tab "Add Items to:" dropdown with the current set of
- * layers and select currentAddLayerId. If currentAddLayerId no longer
- * references an existing layer, reset it to '0' (Default) first. */
+/* Populate Add Items to: dropdown; reset to Default if selected layer gone. */
 function populateAddItemLayerDropdown() {
     const sel = document.getElementById('drpAddItemLayer');
     if (!sel) return;
@@ -3921,10 +3332,7 @@ function populateAddItemLayerDropdown() {
     populateLayerDropdown('drpAddItemLayer', currentAddLayerId);
 }
 
-/* Populate a <select> element with current layers.
- * When includeNoneOption is true, a leading blank option with value "none" is added.
- * Used for the multi-item layer dropdown (drpItemLayer2) so a mixed selection can
- * show a blank value, and so picking "none" on update is treated as a no-op. */
+/* Layer <select>; includeNoneOption adds blank "none" (multi-select no-op on update). */
 function populateLayerDropdown(selectId, selectedLayerId, includeNoneOption) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
@@ -3953,7 +3361,6 @@ function renderLayersList() {
     if (container) {
         container.innerHTML = '';
 
-        /* ---- Global header row (global hide + global lock buttons) ---- */
         const anyHidden = roomObj.layers.some(l => !l.visible);
         const anyLocked = roomObj.layers.some(l => l.locked);
 
@@ -3961,14 +3368,12 @@ function renderLayersList() {
         headerRow.className = 'layer-row layer-header-row';
         headerRow.dataset.layerid = '__header__';
 
-        /* Global visibility button */
         const globalVisBtn = document.createElement('button');
         globalVisBtn.className = 'layer-icon-btn' + (!anyHidden ? ' layer-btn-active' : '');
         globalVisBtn.title = anyHidden ? 'Show all layers' : 'Hide all layers';
         globalVisBtn.innerHTML = `<i class="icon ${anyHidden ? 'icon-hide-bold' : 'icon-show-bold'}"></i>`;
         globalVisBtn.onclick = () => toggleAllLayersVisible();
 
-        /* Global lock button */
         const globalLockBtn = document.createElement('button');
         globalLockBtn.className = 'layer-icon-btn' + (anyLocked ? ' layer-btn-active layer-btn-locked' : '');
         globalLockBtn.title = anyLocked ? 'Unlock all layers' : 'Lock all layers';
@@ -3979,9 +3384,7 @@ function renderLayersList() {
         headerLabel.className = 'layer-name layer-header-label';
         headerLabel.textContent = 'All Layers';
 
-        /* Two spacers reserve the per-row "select items" + "delete" columns
-         * so the header row's hide/lock buttons stay column-aligned with
-         * the per-layer hide/lock buttons. */
+        /* Spacers align header hide/lock with per-row columns. */
         const headerSpacerSelect = document.createElement('span');
         headerSpacerSelect.className = 'layer-header-spacer';
         const headerSpacerDel = document.createElement('span');
@@ -3994,7 +3397,6 @@ function renderLayersList() {
         headerRow.appendChild(headerSpacerDel);
         container.appendChild(headerRow);
 
-        /* ---- Per-layer rows ---- */
         roomObj.layers.forEach(layer => {
             const isReserved = (layer.layerid === '0' || layer.layerid === '1');
 
@@ -4002,21 +3404,18 @@ function renderLayersList() {
             row.className = 'layer-row';
             row.dataset.layerid = layer.layerid;
 
-            /* visibility button */
             const visBtn = document.createElement('button');
             visBtn.className = 'layer-icon-btn' + (layer.visible ? ' layer-btn-active' : '');
             visBtn.title = layer.visible ? 'Hide layer' : 'Show layer';
             visBtn.innerHTML = `<i class="icon ${layer.visible ? 'icon-show-bold' : 'icon-hide-bold'}"></i>`;
             visBtn.onclick = () => toggleLayerVisible(layer.layerid);
 
-            /* lock button */
             const lockBtn = document.createElement('button');
             lockBtn.className = 'layer-icon-btn' + (layer.locked ? ' layer-btn-active layer-btn-locked' : '');
             lockBtn.title = layer.locked ? 'Unlock layer' : 'Lock layer';
             lockBtn.innerHTML = `<i class="icon ${layer.locked ? 'icon-secure-lock-bold' : 'icon-unsecure-unlocked-bold'}"></i>`;
             lockBtn.onclick = () => toggleLayerLocked(layer.layerid);
 
-            /* layer name — single-click to rename for custom layers */
             const nameSpan = document.createElement('span');
             nameSpan.className = 'layer-name' + (!layer.visible ? ' layer-name-hidden' : '');
             nameSpan.textContent = layer.name;
@@ -4028,15 +3427,7 @@ function renderLayersList() {
                 nameSpan.onclick = (e) => startInlineRename(e, layer.layerid, nameSpan);
             }
 
-            /* select-items button — selects every canvas item on this layer
-             * (mirrors what a rectangular drag-select around the layer would
-             * produce). Disabled when:
-             *   - the layer is hidden (items aren't interactively visible)
-             *   - the layer is locked (items aren't interactively selectable)
-             *   - the layer is empty (nothing to select)
-             * The `layer-select-btn` class gives it distinct :hover and
-             * :active (press) styling (see style.css) without changing how
-             * the existing vis/lock buttons feel on hover. */
+            /* Select all layer items; disabled when hidden, locked, or empty. */
             const layerItemCount = getLayerItemCount(layer.layerid);
             const canSelectLayerItems =
                 layer.visible && !layer.locked && layerItemCount > 0;
@@ -4056,16 +3447,12 @@ function renderLayersList() {
             selBtn.innerHTML = `<i class="icon icon-selection-bold"></i>`;
             selBtn.onclick = () => selectLayerItems(layer.layerid);
 
-            /* delete button */
             const delBtn = document.createElement('button');
             delBtn.className = 'layer-icon-btn layer-delete-btn';
             delBtn.title = isReserved ? 'Reserved layer cannot be deleted' : 'Delete layer';
             delBtn.disabled = isReserved;
             delBtn.innerHTML = `<i class="icon icon-delete-bold"></i>`;
             delBtn.onclick = () => {
-                /* Determine the destination layer name for the confirm prompt:
-                 * items move to currentAddLayerId, unless that IS the layer
-                 * being deleted — in which case they move to Default. */
                 let destName = 'Default';
                 if (currentAddLayerId !== '0' && currentAddLayerId !== layer.layerid) {
                     const dest = getLayerById(currentAddLayerId);
@@ -4085,7 +3472,6 @@ function renderLayersList() {
         });
     } /* end if (container) */
 
-    /* refresh layer dropdowns in Details panels if visible */
     const singleSel = document.getElementById('drpItemLayer');
     if (singleSel) {
         const cur = singleSel.value;
@@ -4097,22 +3483,9 @@ function renderLayersList() {
         populateLayerDropdown('drpItemLayer2', cur2, true);
     }
 
-    /* refresh the Layers-tab "Add Items to:" dropdown so it always reflects
-     * the current set of layers and the active currentAddLayerId */
     populateAddItemLayerDropdown();
 
-    /* Keep the yellow "Layer: hide/lock count" status badge in
-     * #controlButtons in sync with the current layer state. Without this
-     * call, badge state would only refresh through the layer-toggle UI
-     * actions (via applyAllLayerStates()) — file-load / URL-load /
-     * undo-redo / drawRoom() paths all funnel through renderLayersList()
-     * but were never refreshing the badge, so a loaded design with
-     * hidden or locked layers would show no badge on load.
-     *
-     * The existing toggle paths already call updateModeStatusBadge()
-     * via applyAllLayerStates() before getting here, making this a
-     * harmless cheap double-call on that path; the function is just a
-     * DOM-text update + visibility toggle + font-fit. */
+    /* Sync layer hide/lock badge on load/undo paths (toggle path already calls this). */
     updateModeStatusBadge();
 }
 
@@ -4389,10 +3762,7 @@ let groupGroupRects = new Konva.Group({
     name: 'groupGroupRects',
 });
 
-/* CustomItem rects live in their own Konva group, rendered behind all
- * items but ON TOP of group rects (so a CustomItem rect inside a Group's
- * bbox visually layers over the Group rect). See `stageAddLayers()` for
- * the order. */
+/* CustomItem rects: behind items, above group rects (see stageAddLayers()). */
 let groupCustomItemRects = new Konva.Group({
     name: 'groupCustomItemRects',
 });
@@ -4473,10 +3843,7 @@ tr.on('dragstart', function trDragStart() {
 
 tr.on('dragmove', function trDragMove() {
 
-    /* When the user drags the Transformer's bounding box (rather than a
-     * single member) Konva moves every node in tr.nodes() natively and the
-     * per-member dragmove handlers don't always fire — push the live rect
-     * coords into the bundle Details panel so X/Y track the drag. */
+    /* Transformer drag: per-member dragmove may not fire — refresh bundle Details. */
     refreshGroupDetailsFromCanvas();
     refreshCustomItemDetailsFromCanvas();
 });
@@ -4486,14 +3853,10 @@ tr.on('dragend', function trDragStart() {
     hideAllCoverageGroups(false);
     endGroupDragFollow();
     endCustomItemDragFollow();
-    /* Final flush of the bundle Details panel after a Transformer-driven
-     * drag (catches missed-frame edge cases). */
     refreshGroupDetailsFromCanvas();
     refreshCustomItemDetailsFromCanvas();
     endDriftCheck('tr.dragend');
-    /* canvasToJson() intentionally NOT called here — see the
-     * "Deferred canvasToJson sync model" note above
-     * beginGroupDragFollow for the rationale. */
+    /* canvasToJson() not here — single call in stage.on('mouseup touchend'). */
 });
 
 /* Customize the rotation / rotater anchor */
@@ -5370,15 +4733,7 @@ function convertPointsToPixel(points) {
     return newPoints;
 }
 
-/**
- * Returns true if a polyline has any self-intersection.
- *
- * points: [x1,y1,x2,y2,...]
- * opts.closed: boolean (default false)  -> if true, last vertex connects to first
- * opts.ignoreEndpointTouches: boolean (default true)
- *    - when true: intersections that occur only at endpoints of BOTH segments are ignored
- *    - when false: any segment intersection counts
- */
+/* Polyline self-intersection test. opts: closed, ignoreEndpointTouches (default true). */
 function polylineSelfIntersects(points, opts = {}) {
     const {
         closed = false,
@@ -5614,40 +4969,20 @@ function pointAtDistanceFromP2TowardP1(x1, y1, x2, y2, D) {
     return { x: x2 + dx * t, y: y2 + dy * t };
 }
 
-/**
- * Angle (slope) of the line from (x1,y1) to (x2,y2), in degrees.
- * 0° points along +X, 90° along +Y. Returns in (-180, 180].
- */
 function lineAngleDegrees(x1, y1, x2, y2) {
     const dy = y2 - y1;
     const dx = x2 - x1;
     return (Math.atan2(dy, dx) * (180 / Math.PI)) - 90;
 }
 
-/**
- * Calculates the rotation of an endpoint from another endpoints.
- */
-
 function findEndPointCoordinates(x1, y1, length, angleDegrees) {
-    // Convert angle from degrees to radians
-
-
     const angleRadians = (angleDegrees * (Math.PI / 180));
-
-    // Calculate X2 and Y2
     const x2 = x1 + length * Math.cos(angleRadians);
     const y2 = y1 + length * Math.sin(angleRadians);
 
     return { x: x2, y: y2 };
 }
 
-/**
- * Calculates the angle at point B between vectors BA and BC in degrees.
- * @param {object} A - The first point {x, y}.
- * @param {object} B - The middle point (vertex) {x, y}.
- * @param {object} C - The third point {x, y}.
- * @returns {number} The angle in degrees, in the range (-180, 180].
- */
 function getVectorAngleDegrees(A, B, C) {
 
     const BA_x = A.x - B.x;
@@ -5656,8 +4991,6 @@ function getVectorAngleDegrees(A, B, C) {
     const BC_y = C.y - B.y;
 
     const angleRadians = Math.atan2(BA_y * BC_x - BA_x * BC_y, BA_x * BC_x + BA_y * BC_y);
-
-    // Convert radians to degrees
     const angleDegrees = angleRadians * 180 / Math.PI;
 
     return angleDegrees;
@@ -5983,17 +5316,12 @@ layerSelectionBox.add(panRectangle);
 layerSelectionBox.add(select2PointsRect);
 
 
-/************************************************************************** */
-
 document.getElementById('lblVersion').innerText = version;
 
 
 
 
-/*
-    videoDevices key starts with A or B
-    videoDevices requires either: onePersonZoom & twoPersonZoom OR onePersonDistance & twoPersonDistance (OR codecParent or  cameraParent with those fields)
-*/
+/* videoDevices keys: A/B; need zoom or distance fields (or codecParent/cameraParent). */
 let videoDevices = [
 
     { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
@@ -6068,12 +5396,7 @@ let ptzCameraRoles = [{ crossview: 'Cross-View' }, { extended_reach: 'Extended S
 
 let roomVisionRoles = [...ptzCameraRoles, { crossviewPresenterTrack: 'Cross-View & PresenterTrack' }]
 
-/*
-    camera key starts with C
-
-    cameras requires either onePersonZoom & twoPersonZoom or onePersonDistance & twoPersonDistance
-*/
-
+/* camera keys: C; need zoom or distance fields. */
 let ptzCameraMounts = [{ stdMount: 'Standard' }, { flipped: 'Flipped' }, { flippedPole: 'Flipped & Ceiling Pole' }];
 
 let cameras = [
@@ -7280,12 +6603,7 @@ let rooms = [
 
 expandVideoDeviceArray();
 
-/*
-    Purpuse to merge videoDevice array and camera array.
-    Each videoDevice can have a codecParent and a cameraParent.
-    If the parent device has an attribute missing on the child device, it is added to the child device.
-    cameraParent is applied before the codecParent.
-*/
+/* Merge cameras into videoDevices; inherit missing attrs from cameraParent then codecParent. */
 function expandVideoDeviceArray() {
     videoDevices = videoDevices.concat(cameras);
     videoDevices.forEach((primaryDevice, index) => {
@@ -7321,7 +6639,6 @@ function expandVideoDeviceArray() {
         }
     })
 
-    /* Add camera only devices with camerOnly = true; */
     videoDevices.forEach((primaryDevice, index) => {
         cameras.forEach((camera) => {
             if (camera.id === primaryDevice.id) {
@@ -7335,23 +6652,14 @@ function expandVideoDeviceArray() {
 
 creatArrayKeysTypes();
 
-/* createUuid() lives in js/util/uuid.js (Phase 2 module split). It is
- * aliased back to a local `const` at the top of this file so the call
- * sites here keep working. See notes/TECH_NOTES.md. */
-
 function createRoomId() {
     let roomId = createUuid();
     return roomId;
 }
 
-/* determine if touchenabled */
 function isTouchEnabled() {
     return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 }
-
-/* convertToUnit() lives in js/util/units.js (Phase 2 module split).
- * Aliased to a local `const` at the top of this file. */
-
 
 function addOnBlurUnitInputListener() {
 
@@ -7392,9 +6700,7 @@ function addOnBlurUnitInputListener() {
 
 addOnBlurUnitInputListener();
 
-/* Wire change/blur/debounced-input listeners on #itemFill and
- * #itemOpacity. Native <input type="color"> needs a debounce (500ms)
- * so updateItem isn't called dozens of times during a picker scrub. */
+/* #itemFill: debounce input (500ms) so picker scrub doesn't spam updateItem(). */
 function addOnFillInputListeners() {
     const fillEl = document.getElementById('itemFill');
     const opEl = document.getElementById('itemOpacity');
@@ -7632,32 +6938,13 @@ let quickAddMouse = {}; /* keep track of where the mouse was when initiating the
 quickAddMouse.x = 0;
 quickAddMouse.y = 0;
 
-/* log last mouse movement for Copy / Cut / Paste */
-
-
 function logMouseMovements(event) {
-
-    // let canvas = document.getElementById('canvasDiv');
-    // let canvasDivBound = canvas.getBoundingClientRect();
-
-    // dx = scrollContainer.scrollLeft;
-    // dy = scrollContainer.scrollTop;
 
     if (event.clientX) {
         mouse.x = event.clientX;
         mouse.y = event.clientY;
     }
 
-
-    // canvasPixel.x = (mouse.x - canvasDivBound.x + dx) / zoomScaleX;
-    // canvasPixel.y = (mouse.y - canvasDivBound.y + dy) / zoomScaleY;
-
-    // let unitX = (canvasPixel.x - pxOffset) / scale + activeRoomX;
-    // let unitY = (canvasPixel.y - pxOffset) / scale + activeRoomY;
-
-    // mouseUnit.x = round(unitX);
-
-    // mouseUnit.y = round(unitY);
 
     const location = convertMouseToCanvasPixel(mouse.x, mouse.y);
 
@@ -7719,7 +7006,6 @@ function windowResizeEventName() {
     clearTimeout(resizeWindowTimer);
 
     resizeWindowTimer = setTimeout(function resizingCanvas() {
-        // zoomInOut('reset');
         drawRoom(false, false, true);
 
         setTimeout(() => {
@@ -7729,11 +7015,7 @@ function windowResizeEventName() {
         setTimeout(updatWallChairsOnResize, 100);
     }, 550);
 
-
-    //   positionCloseArrow();
 }
-
-// positionCloseArrow();
 
 
 function positionCloseArrow() {
@@ -7781,14 +7063,6 @@ function windowResizeEvent() {
 }
 
 
-/* resizePage moves ContainerFeedback between Container1 / Container2 and
- * sets scrolling. DOM tree: ContainerRoomSvg → controlButtons +
- * scroll-container → large-container → canvasDiv → konvajs-content. */
-
-
-/*
- Copy a hyperlink to the clipboard. Uses the name of the room or Video Room Calculator
-*/
 function copyLinkToClipboard() {
     createShareableLink();
 
@@ -7824,14 +7098,7 @@ function copyLinkToClipboard() {
     postHeartbeat();
 }
 
-/* Show the "Hyperlink copied to clipboard" banner directly below the
- * #shareLink button for ~3 seconds, then fade it out. The banner lives
- * in RoomCalculator.html (#shareLinkCopiedBanner) inside the same
- * position:relative .dropDownPNG container as the button, so the
- * absolute positioning in style.css drops it just below the button
- * without reflowing the Save dialog. Re-clicks while a previous banner
- * is still visible reset the timer so the message stays on screen for
- * a fresh 3s window. */
+/* #shareLinkCopiedBanner: 3s toast below Save dialog share button; re-click resets timer. */
 let _shareLinkBannerHideTimer = null;
 function showShareLinkCopiedBanner() {
     const banner = document.getElementById('shareLinkCopiedBanner');
@@ -7840,9 +7107,7 @@ function showShareLinkCopiedBanner() {
         clearTimeout(_shareLinkBannerHideTimer);
         _shareLinkBannerHideTimer = null;
     }
-    /* Two requestAnimationFrames so the browser commits the hidden
-     * state before the .shareLinkCopiedBanner-visible class triggers
-     * the fade-in transition (matches the .vrc-toast pattern). */
+    /* Double rAF before fade-in (matches .vrc-toast). */
     banner.classList.remove('shareLinkCopiedBanner-visible');
     requestAnimationFrame(function () {
         requestAnimationFrame(function () {
@@ -7871,12 +7136,6 @@ function updateLabelUnits() {
 }
 
 
-
-/* convertToMeters() lives in js/util/units.js (Phase 2 module split).
- * Aliased to a local `const` at the top of this file. It still reads
- * the activeRoom* / itemsOffStageId / isActiveRoomPart / round globals
- * declared further down in this file via the shared classic-script
- * lexical scope. */
 
 function toggleFeetMeters() {
     if (roomObj.unit === 'feet') {
@@ -7970,16 +7229,7 @@ function convertItemUnitBasedOnRatio(item, ratio) {
 
 }
 
-/* convertMetersFeet() lives in js/util/units.js (Phase 2 module split).
- * Aliased to a local `const` at the top of this file (and re-exposed on
- * window so the inline onChange="convertMetersFeet()" in
- * RoomCalculator.html keeps working). It still calls back into
- * roomcalc.js for DOM and Konva side effects (drawRoom, wallBuilderOn,
- * zoomInOut, etc.) via the shared classic-script lexical scope. */
-
 function getQueryString() {
-    // TODO temp fix for not having online connection
-    // return;
 
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
@@ -7995,21 +7245,14 @@ function getQueryString() {
 
         drawRoom(true, true, false);
 
-        /* Mark the room as loaded from a shareable link. The "Reload
-         * last design" tile in the new-room dialog is suppressed in
-         * this case so the user can't accidentally undo away from the
-         * design they just opened via the link — see
-         * `syncReloadLastDesignButton()`. */
         roomLoadedFromXQuery = true;
     }
 
     else if (urlParams.has('ver')) {
         if (urlParams.has('ver')) versionQueryString = DOMPurify.sanitize(urlParams.get('ver'));
-        //  if (urlParams.has('ver')) versionQueryString = urlParams.get('ver');
 
         lastAction = 'load from querystring';
 
-        /* possibley remove the below code */
         if (!(versionQueryString == version)) {
             versionQueryString = DOMPurify.sanitize(versionQueryString);
             lastAction = "redirect to " + versionQueryString;
@@ -8019,7 +7262,7 @@ function getQueryString() {
         openNewRoomDialog();
     }
 
-    /* Google search shows an old URL format, which then auto redirects to the v0.0. Block that redirect, but still support older formats */
+    /* Legacy Google URL redirect — block auto-redirect but still support older formats. */
     let googleWrongUrl = "https://collabexperience.com/?drpMetersFeet=feet&roomWidth=12&roomLength=20&tableWidth=4&tableLength=10&distDisplayToTable=5&frntWallToTv=0.5&tvDiag=65&drpTvNum=1&drpVideoDevice=roomBarPro&wideFOV=112&teleFOV=70&zoom=5&fieldOfViewDist=5&roomName=";
 
     if ((urlParams.has('roomWidth')) && window.location.href != googleWrongUrl) {
@@ -8060,11 +7303,7 @@ function getQueryString() {
 
     }
 
-    /* `?debug=1` (or `?debug` / `?debug=on`) shows the small fps / item /
-     * Konva-node count overlay in the top-right corner. Persisted in
-     * localStorage so refreshes keep it on; `?debug=0` clears it.
-     * See debugOverlayEnable() for details and notes/TECH_NOTES.md for the
-     * rationale (Phase 4/5 redraw / sync refactor measurement). */
+    /* ?debug=1: fps/item/node overlay; persisted in localStorage. */
     const QS_DEBUG = (window.VRC && VRC.constants && VRC.constants.QS_DEBUG) || 'debug';
     if (urlParams.has(QS_DEBUG)) {
         const debugValue = urlParams.get(QS_DEBUG);
@@ -8114,7 +7353,6 @@ function getQueryString() {
         testOffset = true;
     }
 
-    /* testNew parameters relate to the new orientation settings for the Workspace Designer */
     if (urlParams.has('testNew')) {
         let testNewQueryString = urlParams.get('testNew');
         if (testNewQueryString == '0') {
@@ -8164,25 +7402,13 @@ function getQueryString() {
 
     }
 
-    /* Workspace Designer site selection.
-     *
-     * The WD site can be picked three ways, in order of precedence:
-     *   1. `?wd=` query string (legacy / shareable links).
-     *   2. The `drpWdSite` dropdown in Details > Settings (live, no page
-     *      refresh required — see `wdSiteChange()` below).
-     *   3. Persisted `localStorage.wd` value from a previous session.
-     *
-     * All three paths funnel through `applyWdSiteSelection()` so the
-     * dropdown UI, the in-memory `workspaceDesignerTestUrl`, the
-     * `testiFrame` flag, and `localStorage.wd` always stay in sync. */
+    /* WD site: ?wd= > drpWdSite dropdown > localStorage.wd — all via applyWdSiteSelection(). */
     if (urlParams.has('wd')) {
         const wd = urlParams.get('wd');
         if (wd == '0') {
             console.info('urlParams wd=0, custom Workspace Designer tab is turned off');
             applyWdSiteSelection('default');
         } else if (wd === '1') {
-            /* `?wd=1` is the legacy "reset to default Webex site" form,
-             * which also clears the experimental `testNew` flag. */
             applyWdSiteSelection('default');
             testNew = false;
             setItemForLocalStorage('testNew', testNew);
@@ -8201,15 +7427,11 @@ function getQueryString() {
             console.info('urlParams wd=', workspaceDesignerTestUrl, 'custom Workspace Designer tab is set.');
         }
     } else {
-        /* No `?wd=` — fall back to whatever the previous session stored
-         * in localStorage and reflect that selection in the dropdown. */
         const stored = localStorage.getItem('wd');
         const mode = detectWdSiteMode(stored);
         if (mode === 'beta') {
             applyWdSiteSelection('beta');
         } else if (mode === 'custom') {
-            /* Show the bare user-entered URL in the textbox — strip the
-             * canonical `/#/room/custom` we appended on save. */
             const display = String(stored).replace(/\/?#\/room\/custom$/, '');
             applyWdSiteSelection('custom', display);
         } else {
@@ -8217,9 +7439,6 @@ function getQueryString() {
         }
     }
 
-    /* If the active mode is default/beta but the user previously typed
-     * a Custom URL, pre-populate the textbox from `localStorage.wdCustom`
-     * so flipping the dropdown to Custom restores it instantly. */
     preloadWdCustomFromStorage();
 
     if (urlParams.has('test2')) {
@@ -8282,14 +7501,6 @@ function parseShortenedXYUrl(parameters) {
             objCount += 1;
             lastCharType = charType.CapLetter;
         }
-        /* a space or + could be used as another control character, need to work out decode */
-        /*
-        else if (char === ' ' && lastCharType != charType.BetweenTilde) {
-            output.push(structuredClone(output[objCount]));
-            objCount += 1;
-            lastCharType = charType.CapLetter;
-        }
-        */
         else if (lastCharType === charType.Start) {
             if (isUpperCaseLetter(char)) {
                 output.push({ "sid": char });
@@ -8330,7 +7541,6 @@ function parseShortenedXYUrl(parameters) {
             output[objCount][lowerCaseLetters] += char;
             lastCharType = charType.LowNum;
         }
-        /*  New below */
         else if (char === '~' && lastCharType === charType.LowLetter) {
             lastCharType = charType.OpenLowLetterTilde;
 
@@ -8339,7 +7549,6 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.OpenTilde;
 
         }
-        /*  new below */
         else if (lastCharType === charType.OpenLowLetterTilde && char != '~') {
             lowerCaseLetters = strBldrLowerCase;
             strBldrLowerCase = '';
@@ -8352,7 +7561,6 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.BetweenTilde;
 
         }
-        /* new below */
         else if (lastCharType === charType.BetweenLowLetterTilde && char != '~') {
             output[objCount][lowerCaseLetters] += char;
             lastCharType = charType.BetweenLowLetterTilde;
@@ -8363,7 +7571,6 @@ function parseShortenedXYUrl(parameters) {
             lastCharType = charType.BetweenTilde;
 
         }
-        /* new below */
         else if ((lastCharType === charType.OpenLowLetterTilde || lastCharType === charType.OpenTilde) && char === '~') {
             output[objCount].text = "";
             lastCharType = charType.EndTilde;
@@ -8383,7 +7590,6 @@ function parseShortenedXYUrl(parameters) {
             objCount += 1;
             lastCharType = charType.CapLetter;
         }
-        /* if the very last character is a letter set of characters are an Upper Case Letter and a Lower Case*/
         if ((parameters.length - 1) === i && Object.keys(output[objCount]).length === 1) {
             output[objCount].value = strBldrLowerCase;
         }
@@ -8393,21 +7599,11 @@ function parseShortenedXYUrl(parameters) {
 
     }
 
-    /* delete the last object that has values '.' */
     deleteBlankDotKeys(output[objCount]);
 
-    /* if the value is a '.' (as in a dot) then delete the key. If it is
-     * `t.`, then delete the text key too — but ONLY when t.value is the
-     * literal '.' sentinel. Bug fix May 2026: the original `if (outputObj.t = '.')`
-     * was an assignment, which always evaluated truthy and stripped t/text
-     * from EVERY item that had a `t` key. With customItem references now
-     * encoded as `t{n}` (numeric), that bug would silently corrupt the
-     * customItem refs (and any associated `text` label) for the last item
-     * in the URL plus any item followed by `_` repeat. Comment above also
-     * documents the originally intended behaviour. */
+    /* deleteBlankDotKeys: t==='.' sentinel (was assignment bug). */
     function deleteBlankDotKeys(outputObj) {
 
-        /* t. represents not repeating the previous object */
         if (outputObj.t === '.') {
             delete outputObj.t;
             delete outputObj.text;
@@ -8421,7 +7617,6 @@ function parseShortenedXYUrl(parameters) {
         }
     }
 
-    /* create a new rmObj and then copy to the roomObj */
     output.forEach((item) => {
 
         if (item.sid === "A") {
@@ -8529,11 +7724,6 @@ function parseShortenedXYUrl(parameters) {
             }
         }
         else if (item.sid === "L" && 'value' in item) {
-            /* Layer definitions:
-             *   - L0[v0][k1]            → Reserved Default layer state (only present if non-default)
-             *   - L1[v0][k1]            → Reserved Ceiling layer state (only present if non-default)
-             *   - L20~name~ / L20v0~name~ (hidden) / L20k1~name~ (locked) → Custom layer
-             */
             const urlNum = parseInt(item.value, 10);
             if (!isNaN(urlNum)) {
                 const visible = !('v' in item && item.v === '0');
@@ -8541,7 +7731,6 @@ function parseShortenedXYUrl(parameters) {
                 if (!roomObj.layers) roomObj.layers = getDefaultLayers();
 
                 if (urlNum === 0 || urlNum === 1) {
-                    /* Reserved layer state update — name is fixed, only visible/locked flags */
                     const reservedId = String(urlNum);
                     const reserved = roomObj.layers.find(l => l.layerid === reservedId);
                     if (reserved) {
@@ -8550,7 +7739,6 @@ function parseShortenedXYUrl(parameters) {
                     }
                 } else if (urlNum >= 20) {
                     const layerName = DOMPurify.sanitize('text' in item ? decodeURIComponent(item.text.replaceAll('+', ' ')) : 'Layer ' + urlNum);
-                    /* avoid duplicates if already created by lazy fallback for item ll references */
                     let existing = roomObj.layers.find(l => l._urlNum === urlNum);
                     if (existing) {
                         existing.name = layerName;
@@ -8563,30 +7751,7 @@ function parseShortenedXYUrl(parameters) {
             }
         }
         else if (item.sid === "H" && 'value' in item) {
-            /* Group definition (created by createShareableLink()):
-             *   H{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
-             *
-             * Notes vs Layers:
-             *   - Group numbers start at 1 (no reserved range).
-             *   - Members are NOT enumerated in the H block; they are populated
-             *     after the forEach pass from items that carry `s{num}`.
-             *   - x / y / data_zPosition / width / height ARE encoded explicitly
-             *     in the H block. The previous design tried to derive them from
-             *     member nodes via `updateGroupBounds()` after `roomObjToCanvas()`
-             *     finished its insert loop, but item `Konva.Image` nodes are
-             *     created inside an asynchronous `imageObj.onload` callback —
-             *     so at the moment `updateGroupBounds()` runs, the members
-             *     don't yet exist as children of `groupChairs` etc., and the
-             *     bounds compute returns 0/0/1/1.
-             *
-             * H{n} blocks are always emitted by the encoder before any item
-             * that references them, but we keep a lazy-create fallback (mirror
-             * of the layer parser) so a hand-edited URL can still load. Any
-             * geometry attribute missing from the URL defaults to 0; the
-             * defensive `updateGroupBounds()` call in `roomObjToCanvas()` then
-             * recomputes from members once they're rendered (works for old or
-             * malformed URLs, just produces a brief flicker for fresh loads).
-             */
+            /* H{n}: group geometry; members from item s{n}. */
             const grpUrlNum = parseInt(item.value, 10);
             if (!isNaN(grpUrlNum) && grpUrlNum > 0) {
                 ensureGroups(roomObj);
@@ -8595,8 +7760,6 @@ function parseShortenedXYUrl(parameters) {
                     'text' in item
                         ? decodeURIComponent(item.text.replaceAll('+', ' ')) 
                         : ''
-
-           //              : 'Group ' + grpUrlNum
                 );
 
                 let grpLayerId = '0';
@@ -8608,7 +7771,6 @@ function parseShortenedXYUrl(parameters) {
                         if (!roomObj.layers) roomObj.layers = getDefaultLayers();
                         let matchedLayer = roomObj.layers.find(l => l._urlNum === layerUrlNum);
                         if (!matchedLayer) {
-                            /* L{n} not yet seen — same lazy fallback used by the item `ll` parser */
                             matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: layerUrlNum };
                             roomObj.layers.push(matchedLayer);
                         }
@@ -8623,9 +7785,6 @@ function parseShortenedXYUrl(parameters) {
                 const grpW        = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
                 const grpH        = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
 
-                /* Patch a placeholder if items registered an unknown group ref
-                 * before the H block (defensive — encoder won't do this), else
-                 * push a fresh group object. */
                 let existingGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
                 if (existingGroup) {
                     existingGroup.name = grpName;
@@ -8654,10 +7813,6 @@ function parseShortenedXYUrl(parameters) {
             }
         }
         else if (item.sid === "J" && 'value' in item) {
-            /* CustomItem definition: J{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
-             *
-             * Mirrors the H{n} parser — see that block for the full rationale
-             * (lazy-create fallback, geometry encoding decisions, etc.). */
             const cUrlNum = parseInt(item.value, 10);
             if (!isNaN(cUrlNum) && cUrlNum > 0) {
                 ensureCustomItems(roomObj);
@@ -8874,18 +8029,15 @@ function parseShortenedXYUrl(parameters) {
                 newItem.points = parseUrlPoints(item.r)
             }
 
-            /* layer assignment: ll1=Ceiling, ll20+=custom layer */
             if ('ll' in item) {
                 const urlNum = parseInt(item.ll, 10);
                 if (urlNum === 1) {
                     newItem.data_layerId = '1';
                 } else {
-                    /* look up layer by URL number; it should have been parsed already */
                     const matchedLayer = roomObj.layers ? roomObj.layers.find(l => l._urlNum === urlNum) : null;
                     if (matchedLayer) {
                         newItem.data_layerId = matchedLayer.layerid;
                     } else {
-                        /* layer referenced but not defined: create it lazily */
                         const fallbackLayer = { name: 'Layer ' + urlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: urlNum };
                         if (!roomObj.layers) roomObj.layers = getDefaultLayers();
                         roomObj.layers.push(fallbackLayer);
@@ -8894,26 +8046,14 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* group assignment: s{num} → roomObj.groups[i] where _urlNum === num.
-             * The encoder omits per-item `ll` when an item belongs to a group
-             * (the H{n} block already encodes the layer), so when only `s` is
-             * present we inherit the layer from the group here. If a hand-
-             * edited URL carries both `s` AND `ll`, the per-item `ll` parsed
-             * just above already won and we leave it alone. */
             if ('s' in item) {
                 const grpUrlNum = parseInt(item.s, 10);
                 if (!isNaN(grpUrlNum) && grpUrlNum > 0) {
                     ensureGroups(roomObj);
                     let matchedGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
                     if (!matchedGroup) {
-                        /* H{n} block hasn't been parsed yet (defensive — the
-                         * encoder always emits H blocks before items). Create
-                         * a placeholder; if the H block appears later in the
-                         * URL it will patch this entry in place via _urlNum. */
                         matchedGroup = {
                             groupid: createUuid(),
-                        //    name: 'Group ' + grpUrlNum,
-
                             data_layerId: '0',
                             x: 0, y: 0, width: 0, height: 0,
                             rotation: 0,
@@ -8930,11 +8070,6 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* customItem assignment: t{num} → roomObj.customItems[i] where
-             * _urlNum === num. Same lazy-fallback pattern as `s` above. When
-             * an item carries both `s` and `t`, the Group's `ll` already
-             * won (above) so this branch only runs for layer inheritance
-             * if `s` was absent. */
             if ('t' in item) {
                 const cUrlNum = parseInt(item.t, 10);
                 if (!isNaN(cUrlNum) && cUrlNum > 0) {
@@ -8959,10 +8094,6 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* Configurable fill (`u{RRRGGGBBB}`) and opacity (`v{NN}`).
-             * Decoder is uncached — runs once per URL parse. Invalid input
-             * falls back to defaults so a malformed URL doesn't blank out
-             * the rest of the item. */
             if ('u' in item) {
                 newItem.data_fill = urlRgbToHex(String(item.u));
             }
@@ -8985,12 +8116,6 @@ function parseShortenedXYUrl(parameters) {
 
     })
 
-    /* Post-parse: rebuild Group membership from items now that every item has
-     * its `data_groupId` set (and a fresh UUID). x/y/width/height/rotation/
-     * data_zPosition stay at the values parsed from the H block. Empty groups
-     * are dropped — the encoder already skips them, but a hand-edited URL
-     * could carry an H block whose only `s{n}` references never appeared on
-     * any item. */
     if (roomObj.groups && roomObj.groups.length) {
         roomObj.groups.forEach(g => { g.groupMembers = []; });
 
@@ -9003,8 +8128,6 @@ function parseShortenedXYUrl(parameters) {
         roomObj.groups = roomObj.groups.filter(g => g.groupMembers && g.groupMembers.length);
     }
 
-    /* Same post-parse rebuild for CustomItem membership from `t{n}` refs.
-     * Mirror of the Group block above — empty customItems are dropped. */
     if (roomObj.customItems && roomObj.customItems.length) {
         roomObj.customItems.forEach(c => { c.customItemMembers = []; });
 
@@ -9016,13 +8139,6 @@ function parseShortenedXYUrl(parameters) {
 
         roomObj.customItems = roomObj.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
 
-        /* Assign a fresh customItemBaseId to every URL-decoded
-         * customItem — the shareable URL deliberately does NOT carry
-         * baseId (it would bloat the link with a UUID per template
-         * and gives no value to the recipient's link). A URL-loaded
-         * customItem is therefore a brand-new template from the IDB
-         * library's perspective; it only joins the user's library
-         * when they later choose "Add to Custom Library". */
         ensureCustomItemBaseIds();
     }
 
@@ -9120,8 +8236,6 @@ function resetRoomObj() {
     isActiveRoomPart = false;
     activeRoomPartItem = null;
 
-    /* reset fields */
-
     document.getElementById("tvDiag").value = "65";
 
     document.getElementById('tableWidth').value = 4;
@@ -9167,10 +8281,6 @@ function base26ToBinaryString(characters) {
     return binaryString;
 }
 
-/*
-    converts binaryToBase26().  00000
-    Only goes up to 'zz' or 1010100011, which is 675 entries
-*/
 function binaryToBase26(binary) {
     let array = createTable();
 
@@ -9204,23 +8314,12 @@ function binaryToBase26(binary) {
 
 
 
-/* Hydrate undo/redo from IndexedDB before running onLoad() so the
- * "Reload last design" tile and the in-memory undo stack are populated
- * before any user interaction. If IDB is unavailable (Safari private mode,
- * disabled by policy, etc.) the wrapper resolves to safe defaults and
- * onLoad() proceeds with an empty undo stack — equivalent to a first run. */
+/* Boot: hydrate undo/redo from IDB, then onLoad(). Empty stack if IDB unavailable. */
 (function bootHydrateThenOnLoad() {
     const idbReady = (typeof window !== 'undefined' && window.idbStore && typeof window.idbStore.hydrateUndoRedoFromIdb === 'function')
         ? window.idbStore.hydrateUndoRedoFromIdb()
         : Promise.resolve({ undo: [], redo: [], priorHadData: false });
 
-    /* Fire-and-forget hydrate of the customItemLibraryIds Set — runs in
-     * parallel with the undo/redo hydrate. Page rendering does not block
-     * on this; the Set is empty until IDB returns, which is fine because
-     * the only consumers (itemActionsMenu, Quick Add palette) cannot be
-     * opened by the user before the initial render completes. If IDB is
-     * unavailable the Set stays empty and every "in library?" check
-     * returns false, which the UI handles gracefully. */
     if (typeof hydrateCustomItemLibraryIds === 'function') {
         hydrateCustomItemLibraryIds();
     }
@@ -9230,12 +8329,6 @@ function binaryToBase26(binary) {
         redoArray = Array.isArray(state.redo) ? state.redo : [];
         priorUndoArrayHasData = !!state.priorHadData;
 
-        /* Legacy-shape walk: any pre-flatten undo/redo entry has
-         * `items` as an object-of-arrays. Lazy-load the migration
-         * helper if any entry needs it, then run it across all
-         * entries. Detection is inlined (no helper needed) so we
-         * don't introduce a circular dep on the lazy-loaded script.
-         * See plan flatten-roomobj-items-array. */
         const hasLegacy = (arr) => arr.some(e => e && e.items
             && !Array.isArray(e.items)
             && typeof e.items === 'object');
@@ -9245,34 +8338,12 @@ function binaryToBase26(binary) {
         };
         const needsMigration = hasLegacy(undoArray) || hasLegacy(redoArray);
 
-        /* Recompute priorUndoArrayHasData based on actual ITEM content
-         * (not just undo array length). idbStorage.hydrateUndoRedoFromIdb
-         * returns `priorHadData = undo.length > 0` which is over-broad:
-         * empty boot-push snapshots accumulate in IDB across reloads
-         * (each fresh tab creates a brand-new roomObj with a fresh roomId
-         * and then `saveToUndoArray()` pushes it, because the roomId
-         * differs from whatever was in the array). After two or more
-         * empty-room sessions this leaves the "Reload last design"
-         * tile visible but pointing at an empty room. We re-do the
-         * check here using `roomObjHasAnyItems`, which works for both
-         * the flat-array shape and the legacy bucketed shape. */
+        /* Recompute priorUndoArrayHasData from item content (IDB priorHadData is over-broad on empty boot snapshots). */
         const refinePriorHadData = () => {
             priorUndoArrayHasData = undoArray.some(e => e && roomObjHasAnyItems(e));
         };
 
-        /* Normalize roomObj.overlaysVisible on every hydrated undo/redo
-         * entry. Handles two failure modes in one pass:
-         *   (a) Legacy v0.1.648-and-earlier entries that carry
-         *       `layersVisible.gr*` instead of `overlaysVisible.*`
-         *       (migrated by ensureOverlaysVisibleDefaulted -> the
-         *       wrapped migrateLegacyOverlayKeys helper).
-         *   (b) Entries that lost overlaysVisible entirely (defensive
-         *       case; future schema regressions / hand-edited snapshots)
-         *       get the per-key defaults (gridLines + cameraCoverage
-         *       true, everything else false) — matches the freshly-
-         *       initialised roomObj at script load.
-         * Eager, idempotent, runs unconditionally. Cheap (O(n) over
-         * undo+redo, where each entry is a tiny shallow patch). */
+        /* Normalize overlaysVisible on hydrated undo/redo snapshots. */
         const normalizeAllOverlays = () => {
             undoArray.forEach(ensureOverlaysVisibleDefaulted);
             redoArray.forEach(ensureOverlaysVisibleDefaulted);
@@ -9280,14 +8351,8 @@ function binaryToBase26(binary) {
 
         const finishBoot = () => {
             normalizeAllOverlays();
-            /* refinePriorHadData runs AFTER both migrations have settled
-             * so it sees the canonical flat-array `items` shape that
-             * roomObjHasAnyItems expects. */
             refinePriorHadData();
             onLoad();
-            /* If onLoad's URL parsing produced a roomObj that references an
-             * image in the IDB library but doesn't have an inline data URL,
-             * fetch the Blob and re-apply it. Defined later in this file. */
             if (typeof rehydrateBackgroundImageFromIdb === 'function') {
                 setTimeout(function () { rehydrateBackgroundImageFromIdb(); }, 250);
             }
@@ -9302,10 +8367,6 @@ function binaryToBase26(binary) {
                     migrateAll();
                     finishBoot();
                 }).catch(() => {
-                    /* If the helper fails to load, fall back to boot
-                     * without migration — the user can still see the URL-
-                     * driven roomObj; the legacy undo/redo entries will
-                     * just be malformed if accessed. */
                     finishBoot();
                 });
             }
@@ -9332,7 +8393,6 @@ function onLoad() {
     postHeartbeat();
     setTimeout(() => {
         addressBarUpdate = true;
-        //  canvasToJson();
     }, pageLoadTimeBeforeAddresBarUpdate);
 
     if (localStorage.getItem('snapGuidelinesCheckBox') === 'true') {
@@ -9411,11 +8471,6 @@ function onLoad() {
         document.getElementById('snapToIncrement').value = localStorage.getItem('snapToIncrement');
     }
 
-    /* templates.js is lazy-loaded by openNewRoomDialog() on first open.
-     * The dialog auto-opens via getQueryString() in the default-room path
-     * (which runs earlier in onLoad), so the load is already in flight by
-     * the time we get here. See notes/TECH_NOTES.md (Phase 1). */
-
     firstLoad = false;
 
     createEquipmentMenu();
@@ -9445,15 +8500,6 @@ function createTemplateButton(template) {
     const img = document.createElement('img');
     img.src = `./assets/images/templates/${image}`;
     img.inert = true; /* used to remove the Edge image search */
-    /* `.room-template img` defaults to a fixed 122 × 120 footprint so
-     * the tile reserves its space before the image bytes have decoded
-     * (avoids the thin vertical-line flash). Once the image actually
-     * loads, the `.loaded` class drops the width back to `auto` so each
-     * thumbnail renders at its own aspect ratio (the original look —
-     * fixed height, width fits the image). The `complete` short-circuit
-     * handles the case where the browser served the image straight from
-     * cache and the load event has already fired by the time we get
-     * here. */
     const markImgLoaded = () => img.classList.add('loaded');
     if (img.complete && img.naturalWidth > 0) {
         markImgLoaded();
@@ -9478,12 +8524,6 @@ function createTemplateButton(template) {
 
 function populateTemplates() {
     const parent = document.querySelector('#room-templates');
-    /* RoomCalculator.html seeds 9 `.room-template-placeholder` tiles
-     * inside `#room-templates` so the dialog has the right grid size on
-     * the very first frame (before templates.js has finished loading).
-     * Replace those placeholders in-place with the real tiles so layout
-     * stays stable; templates beyond the 9th get appended; any unused
-     * placeholders (templates.length < 9) are dropped. */
     const placeholders = Array.from(parent.querySelectorAll('.room-template-placeholder'));
     templates.forEach((template, idx) => {
         const tile = createTemplateButton(template);
@@ -9497,23 +8537,10 @@ function populateTemplates() {
     for (let i = templates.length; i < placeholders.length; i++) {
         placeholders[i].remove();
     }
-    /* Real templates are now in the DOM — drop the blur from the
-     * placeholders' loading state. */
     parent.classList.remove('templates-loading');
-    /* The "Reload last design" tile is added by the caller
-     * (`openNewRoomDialog()`) via `ensureTemplatesPopulated().then()`
-     * so it lands AFTER the placeholders have been swapped out — that
-     * way it doesn't get inserted next to loading placeholders and
-     * visually bounce when the real templates pop in. */
 }
 
-/* Single-flight lazy loader for templates.js + populateTemplates(). The
- * first openNewRoomDialog() call kicks this off; the modal shows
- * synchronously and the templates pop into the grid as soon as the
- * script finishes loading (typically a few ms from disk cache). Repeat
- * calls return the same Promise so the templates are never double-added
- * to the DOM. On load failure the promise is cleared so the next dialog
- * open retries. */
+/* Lazy-load templates.js once; openNewRoomDialog() shows modal immediately. */
 let _templatesPopulationPromise = null;
 function ensureTemplatesPopulated() {
     if (_templatesPopulationPromise) return _templatesPopulationPromise;
@@ -9528,9 +8555,7 @@ function ensureTemplatesPopulated() {
     return _templatesPopulationPromise;
 }
 
-/* Show "Reload last design" tile only when first dialog open AND
- * priorUndoArrayHasData AND not loaded from a ?x= shareable link.
- * Click triggers btnUndoClicked() — pops the startup default. */
+/* "Reload last design" tile: first dialog open + prior undo data + not ?x= link. */
 function syncReloadLastDesignButton() {
     const parent = document.querySelector('#room-templates');
     if (!parent) return;
@@ -9544,7 +8569,6 @@ function syncReloadLastDesignButton() {
         return;
     }
     if (existing) {
-        /* Already present — keep it at the front. */
         if (parent.firstChild !== existing) {
             parent.insertBefore(existing, parent.firstChild);
         }
@@ -9578,25 +8602,10 @@ function syncReloadLastDesignButton() {
     parent.insertBefore(box, parent.firstChild);
 }
 
-/* True iff obj.items has any non-empty array field. */
+/* True iff obj.items has any entries (flat array or legacy buckets). */
 function roomObjHasAnyItems(obj) {
     if (!obj || !obj.items) return false;
-    /* Current shape: flat array of items (post May 2026 flatten refactor).
-     * The IDB hydrate path runs the legacy-shape migration before
-     * roomObjHasAnyItems is ever called, so by the time we get here
-     * every snapshot's `items` is an Array. The legacy object-of-arrays
-     * branch is kept as a safety net for any caller that hands us a
-     * pre-migration snapshot.
-     *
-     * Before the flat-array branch existed, this function silently
-     * returned false for every current-shape roomObj, which caused
-     * reloadLastNonEmptyDesign()'s `while (!roomObjHasAnyItems(roomObj))`
-     * loop to walk the ENTIRE undo stack back to the oldest IDB entry
-     * (typically a huge legacy room) instead of stopping at the first
-     * non-empty room. See the "Reload last design walks too far back"
-     * fix. */
     if (Array.isArray(obj.items)) return obj.items.length > 0;
-    /* Legacy object-of-arrays shape — kept for defence in depth. */
     for (const key in obj.items) {
         if (!Object.prototype.hasOwnProperty.call(obj.items, key)) continue;
         const arr = obj.items[key];
@@ -9606,14 +8615,6 @@ function roomObjHasAnyItems(obj) {
 }
 
 function reloadLastNonEmptyDesign() {
-    /* Defensive pre-check: never restore an empty room. If no entry in
-     * the current undoArray carries items, bail. The tile that calls
-     * this function is normally hidden in that case (gated by
-     * priorUndoArrayHasData, which the boot path recomputes from
-     * `undoArray.some(e => roomObjHasAnyItems(e))`). This pre-check
-     * exists so any future code path that flips the tile visible (race
-     * with an async hydrate, stale UI state, etc.) still can't lead the
-     * user into an empty restore. */
     if (!undoArray.some(e => e && roomObjHasAnyItems(e))) return;
     btnUndoClicked();
     while (undoArray.length > 1 && !roomObjHasAnyItems(roomObj)) {
@@ -9657,9 +8658,6 @@ function update() {
 
 
 
-/*
-if site is wwww.collabexperienc.com redirect to collabexperience.com
-*/
 function redirectToCollabExpereince() {
     if (location.href.match(/^https:\/\/www\.collabexperience\.com/)) {
         let redirectUrl = location.href;
@@ -9667,12 +8665,7 @@ function redirectToCollabExpereince() {
     }
 }
 
-/*
-if the canvas is updated too quickly with a draw(true) followed by canvasToJSON() a
-race condition occurs that deletes all nodes.  To keep this from happening, drawRoom() has a
-setTimeout(canvasToJSON()) command for delay. Any button or input that causes  a
-drawRoom(true) will be disabled for the duration of that setTimeout in case the enduser clicks quickly.
-*/
+/* Disable inputs briefly after drawRoom(true) to avoid canvasToJson race. */
 function disableDrawUpdateButtons(isDisabled) {
 
     let unitInputs = document.querySelectorAll(".unitInput");
@@ -9688,21 +8681,10 @@ function disableDrawUpdateButtons(isDisabled) {
 
 }
 
-/*
-    Determine if Quick Setup menu should be displayed.
-    Primary videodevice, primary table & primary display should be centered on the X axis.
-    Primary videoDevice and primary display should be on the same Y axis.
-    Check to see if the videoDevice is an all in one device.
-    quickSetupState = 'insert', 'disabled' or 'update'
-*/
-
 function isQuickSetupEnabled() {
     let quickSetup = document.getElementById('quickSetup');
     let quickSetupItems = document.getElementById('quickSetupItems');
-    /* PERF: bucket once across 7 parentGroups (vs 7 separate filter
-     * passes). Inner isPrimaryXequal() closes over the same buckets so
-     * the geometry checks for tables / videoDevices / displays don't
-     * pay a second O(n) scan. */
+    /* Quick Setup: enabled when sole primary table/video/display are axis-aligned. */
     const buckets = bucketItemsByParentGroup();
     const videoDevicesArr = buckets.videoDevices || [];
     const displaysArr = buckets.displays || [];
@@ -9761,17 +8743,10 @@ function isQuickSetupEnabled() {
     else if (quickSetupState === 'disabled') {
         quickSetup.innerHTML = `Quick Setup is disabled ` + quickSetupIconTooltip; /* This should be innerHTML, no data is passed from QR String */
         quickSetupItems.style.display = 'none';
-        /* disable buttons */
     }
-
 
     createShareableLink();
 
-    /* internal functions
-    Determine if the primary devices have the same X value to the 100th place.
-    Determin if the primary display & primary video device have the same Y value to the hundreds place.
-    If so return true.
-    */
     function isPrimaryXequal() {
         if (tablesArr.length > 0) {
 
@@ -9851,11 +8826,8 @@ function createTableChairs(table, tableUuid) {
         baseUuid = createUuid();
     }
 
-    /* Auto-generated chairs inherit the table's layer so the whole quick-setup
-     * group lands in the user's selected "Add Items to:" layer. */
     const chairLayerId = (table && table.data_layerId) ? table.data_layerId : getDefaultLayerForNewItems();
 
-    /* Chairs on left site of table */
     for (let i = 0; i < numberOfChairsLength; i++) {
         let chairAttr = {};
         chairAttr.x = table.x - chairWidth / 2.5;
@@ -9869,7 +8841,6 @@ function createTableChairs(table, tableUuid) {
         insertItem(chairAttr, chairUuid);
     }
 
-    /* Chairs on right site of table */
     for (let i = 0; i < numberOfChairsLength; i++) {
         let chairAttr = {};
         chairAttr.x = table.x + table.width + chairWidth / 2.5;
@@ -9883,7 +8854,6 @@ function createTableChairs(table, tableUuid) {
         addItemToRoomObj(chairAttr);
     }
 
-    /* Chairs head of table */
     for (let i = 0; i < numberOfChairsWidth; i++) {
         let chairAttr = {};
         chairAttr.x = startingPointX + chairWidth * i;
@@ -9913,10 +8883,8 @@ function quickSetupInsert() {
     let roomWidth = getNumberValue('roomWidth');
 
 
-    /* All quick-setup items go into the user's selected "Add Items to:" layer */
     const newItemLayerId = getDefaultLayerForNewItems();
 
-    /* insert Table */
     let tableUuid = createUuid();
     let tblAttrs = {};
     tblAttrs.x = roomWidth / 2 - tableWidth / 2;
@@ -9933,13 +8901,11 @@ function quickSetupInsert() {
 
     createTableChairs(tblAttrs, tableUuid);
 
-    /* insert videoDevice */
     let videoDeviceUuid = createUuid();
     let videoAttr = {};
     videoAttr.x = roomWidth / 2;
     videoAttr.rotation = 0;
 
-    /* determine if defaultVert is available for device and use if available */
     if ('defaultVert' in allDeviceTypes[videoDeviceId]) {
         let defaultVert = allDeviceTypes[videoDeviceId].defaultVert / 1000;
         if (roomObj.unit === 'feet') {
@@ -9948,7 +8914,6 @@ function quickSetupInsert() {
         videoAttr.data_zPosition = defaultVert;
     }
 
-    /* only insert a display if the video device does not have diagonalInches */
     videoDevices.forEach((item) => {
         if (videoDeviceId === item.id) {
             let displayId;
@@ -9969,7 +8934,6 @@ function quickSetupInsert() {
                 primaryDeviceIsAllInOne = true;
             } else {
                 primaryDeviceIsAllInOne = false;
-                /* insert Display */
                 let displayUuid = createUuid();
                 let displayAttr = {};
 
@@ -9985,11 +8949,9 @@ function quickSetupInsert() {
                     displayId = 'displayDbl_2';
                 }
                 else if (drpTvNum == 3) {
-                    /* triple */
                     displayId = 'displayTrpl_3';
                 }
 
-                /* get defaultVert if available */
                 if ('defaultVert' in allDeviceTypes[displayId]) {
                     let defaultVert = allDeviceTypes[displayId].defaultVert / 1000;
                     defaultVert = defaultVert - 0.23;
@@ -10047,10 +9009,6 @@ function updateButtonRoomDimensions() {
     zoomInOut('reset');
     update();
 
-    /*
-    clicking the Update Room Dimensions updateButtonId too quickly like a five year old can create a race condition.
-    Disable button for short period. Because of the current CSS, the button does not appear disabled to the end user
-    */
     document.getElementById("updateButtonId").disabled = true;
     setTimeout(() => {
         document.getElementById("updateButtonId").disabled = false;
@@ -10085,8 +9043,6 @@ function drpVideoDeviceChange(firstRun = false) {
 
     videoDevices.forEach((device) => {
         if (device.id === drpVideoDevice.value) {
-
-            // videoDeviceKey = device.key;
 
             document.getElementById('wideFOV').value = device.wideHorizontalFOV;
             document.getElementById('teleFOV').value = device.teleHorizontalFOV;
@@ -10152,9 +9108,6 @@ function kAddCenteredText(text, x1, y1, x2, y2, groups = '') {
     return centeredText;
 
 }
-
-/*  Geomerty reference: https://www2.clarku.edu/faculty/djoyce/trig/right.html
- formula distanceA = distanceB / (Tan degreeB) */
 
 function getDistanceA(degreeB, distanceB) {
 
@@ -10313,7 +9266,7 @@ function drawOutsideWall(grOuterWall) {
 
                 clearTimeout(defaultWallHighlightTimer);
 
-                /* sometimes the pointerout event does not trigger on touch devices, so set a timer to turn off highlighting */
+                /* sometimes pointerout does not fire on touch — auto-clear highlight */
                 defaultWallHighlightTimer = setTimeout(() => {
                     let tempWall = stage.findOne('#tempWall');
                     if (tempWall) {
@@ -10377,7 +9330,6 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
     lightLine.strokeWidth = 0.3;
     lightLine.opacity = 0.4;
 
-    /* draw horizontal lines */
     let measurementY = 0;
     let pxMeasurementY = 0;
 
@@ -10402,11 +9354,6 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
         }
 
     }
-
-    // if (increment < 1) {
-    //     toFixedValue = 2;
-    //     smallIncrementTextOffset = 25;
-    // }
 
     if (increment < 1) {
         toFixedValue = 1;
@@ -10439,16 +9386,12 @@ function kDrawGrid(startX, startY, endX, endY, scale, increment = 1) {
 
         kGroupLines.add(lineHorizontal);
 
-        // kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX, pxMeasurementY, kGroupLines);
-
         if (countY++ % 2 !== 0) {
             kAddCenteredText(measurementY.toFixed(toFixedValue), 0 - smallIncrementTextOffset, pxMeasurementY, startX - outerWallWidth, pxMeasurementY, kGroupLines);
         }
 
 
     } while (pxMeasurementY <= (endY - increment * scale));
-
-    /* draw vertical lines; */
 
     let measurementX = 0;
 
@@ -10566,7 +9509,6 @@ function updateTitleGroup() {
 /* Adds the title and unit measurement for the layer grid */
 function drawTitleGroup() {
 
-    //  let txtPrimaryDeviceLabel = 'Video Devices: ';
     let groupTitle = new Konva.Group({
         name: 'groupTitle',
     })
@@ -10601,76 +9543,7 @@ function drawTitleGroup() {
 
     txtAttribution.visible(false);
 
-    // if (roomObj.items.videoDevices.length > 0) {
-
-    //     if (roomObj.items.videoDevices.length > 1) {
-    //         txtPrimaryDeviceLabel = 'Video Devices: ';
-    //     } else {
-    //         txtPrimaryDeviceLabel = 'Video Device: ';
-    //     }
-    //     roomObj.items.videoDevices.forEach(videoDevice => {
-    //         txtPrimaryDeviceLabel += ' ' + videoDevice.name + ';';
-    //     });
-
-    //     txtPrimaryDeviceLabel = txtPrimaryDeviceLabel.replace(/;$/, '');
-    // }
-
-    // let txtPrimaryDevice = new Konva.Text({
-    //     x: pxOffset,
-    //     y: pyOffset + roomLength * scale + 5,
-    //     text: txtPrimaryDeviceLabel,
-    //     fontSize: 13,
-    //     fontFamily: 'Arial, Helvetica, sans-serif',
-    //     padding: 1,
-    //     opacity: 0.8,
-    //     id: 'txtPrimaryDevice',
-
-    // })
-
-
-    // let txtName = new Konva.Label({
-    //     x: pxOffset,
-    //     y: pyOffset + roomLength * scale + 22,
-    //     opacity: 1,
-    // });
-
-    // txtName.add(
-    //     new Konva.Tag({
-    //         // fill: 'lightgrey',
-    //     })
-    // );
-
-    // txtName.add(
-    //     new Konva.Text({
-    //         text: roomObj.name,
-    //         fontFamily: 'Arial, Helvetica, sans-serif',
-    //         fontSize: 18,
-    //         padding: 1,
-    //         fill: 'black',
-    //     })
-    // );
-
-    // if (txtName.width() > roomObj.room.roomWidth * scale) {
-    //     let newScale = (roomObj.room.roomWidth * scale) / txtName.width();
-    //     txtName.scaleX(newScale);
-    //     txtName.scaleY(newScale);
-    // } else {
-    //     txtName.scaleX(1);
-    //     txtName.scaleY(1);
-    // }
-
-    // if (txtPrimaryDevice.width() > roomObj.room.roomWidth * scale - 30) {
-    //     let newScale = (roomObj.room.roomWidth * scale) / txtPrimaryDevice.width();
-    //     txtPrimaryDevice.scaleX(newScale);
-    //     txtPrimaryDevice.scaleY(newScale);
-    // } else {
-    //     txtPrimaryDevice.scaleX(1);
-    //     txtPrimaryDevice.scaleY(1);
-    // }
-
     groupTitle.add(txtAttribution);
-    // groupTitle.add(txtName);
-    //     groupTitle.add(txtPrimaryDevice);
     groupTitle.add(unitText);
 
     return groupTitle;
@@ -10722,7 +9595,6 @@ function zoomRoomPart(roomPart) {
 
     disableRoomSettings(true);
 
-    /* keep track of the activeRoomPartItem in the roomObj */
     let id = roomPart.id();
 
     activeRoomPartItem = roomObjItemsMap.get(id);
@@ -10745,7 +9617,6 @@ function zoomRoomPart(roomPart) {
 
     drawRoom(true, true, true, true);
 
-    /* hade the activeRoomPartItem */
     let newNode = stage.findOne('#' + id);
     if (newNode) {
         newNode.show();
@@ -10787,7 +9658,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     updateFeetMetersToggleBtn();
 
-    /* Do if there is a Unit change or Room Width/Length Change */
     if (redrawShapes) {
         clearShapeNodesFromStage(dontCloseDetailsTab);
     }
@@ -10827,7 +9697,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     let minWindowWidth = 300;
     let minWindowHeight = 600;
-    /* getting full width */
     let rightBuffer = 82;
     let bottomBuffer = 180;
 
@@ -10879,7 +9748,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     }
 
 
-    /* redo scale based on pxOffset ratio */
     if (pxOffset < (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3)) {
         pxOffset = (scale * ((roomObj.unit === 'feet') ? 0.397 : 0.1) * 3);
         pyOffset = pxOffset;
@@ -10995,7 +9863,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     layerGrid.add(groupBackground);
 
-    /* create the outerWall (border) */
     let innerWall = new Konva.Rect({
         x: pxOffset,
         y: pyOffset,
@@ -11076,7 +9943,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
 
         if (!dontSaveUndo) {
-            /* canvasToJSON() needs a little time before running or else it won't capture the recenlty drawn room */
             setTimeout(() => {
 
                 canvasToJson();
@@ -11106,10 +9972,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     addListeners(stage);
 
-    /* the Canvas scroll visully gets reset to 0,0 on a redraw, but the scrollContainer.scrollLeft && scrollContainer.scrollTop keep the same value.
-        Setting the srollContainer.scrollLeft = dx does nothing since Javscript thinks it is the same value and keeps the incorrect 0,0 position.
-        Changing the value a little does the trick to reset scroll values.
-    */
     if (dx > 0) {
         scrollContainer.scrollLeft = dx - 0.01;
 
@@ -11123,7 +9985,6 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     renderLayersList();
 
     clearSelect2Points();
-    /* turn off the measuring tool if on */
     setTimeout(() => {
 
         if (isMeasuringToolOn) {
@@ -11613,11 +10474,7 @@ function updateBackgroundImageScale() {
 
         konvaBackgroundImageFloor.width(imageWidth * measurement / pointsActualDistance);
 
-        /* Persist the user calibrated scale to the IndexedDB library entry
-         * so re-applying this image later via "Recent Floor Plans" can
-         * restore the same scale instead of auto fitting to the new room.
-         * Fire and forget. No effect if the image is not in the library
-         * (no bgImageId) or IDB is unavailable. */
+        /* Persist calibrated scale to IDB for Recent Floor Plans re-apply. */
         if (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId
             && typeof window !== 'undefined' && window.idbStore
             && typeof window.idbStore.bgImagesUpdate === 'function') {
@@ -11711,12 +10568,6 @@ function createShareableLink() {
     listItemsOffStage();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
-    /* Belt-and-braces guard: a missing roomObj.version would interpolate as the
-     * literal string "undefined", which the parseShortenedXYUrl() lowercase-letter
-     * accumulator then absorbs into the next attribute key (e.g. `undefinedb` instead
-     * of `b`), silently corrupting roomWidth on re-parse. Falling back to the boot
-     * `version` constant keeps the URL grammar valid even if some future code path
-     * leaves roomObj.version unset. The importJson() loader also backfills this field. */
     strUrlQuery2 += `${roomObj.version || version}`;
     strUrlQuery2 += `b${expand(roomObj.room.roomWidth)}c${expand(roomObj.room.roomLength)}`;
 
@@ -11802,9 +10653,7 @@ function createShareableLink() {
         })
     }
 
-    /* Reserved layers (L0=Default, L1=Ceiling): only encode if non-default state
-     * (hidden or locked). When at default state (visible:true, locked:false) we skip
-     * them to keep the URL short — they are assumed to exist by the parser. */
+    /* L0/L1 reserved layers: omit from URL when visible+unlocked (parser assumes defaults). */
     if (roomObj.layers) {
         roomObj.layers.forEach(layer => {
             if (layer.layerid === '0' || layer.layerid === '1') {
@@ -11812,7 +10661,6 @@ function createShareableLink() {
                     let layerStr = 'L' + layer.layerid;
                     if (!layer.visible) layerStr += 'v0';
                     if (layer.locked) layerStr += 'k1';
-                    /* Reserved layer names are fixed — no ~name~ tilde block emitted */
                     strUrlQuery2 += layerStr;
                 }
             }
@@ -11837,42 +10685,7 @@ function createShareableLink() {
         });
     }
 
-    /* Build groupid → URL number map and emit H{n} blocks for each group that
-     * has at least one member. Empty groups are skipped so stale entries can't
-     * survive in the URL forever.
-     *
-     * Format: H{num}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
-     *
-     * Why x/y/z/w/h are encoded explicitly (not derived from members):
-     *   Item Konva.Image nodes are created inside `imageObj.onload` (an async
-     *   callback). When `roomObjToCanvas()` finishes its synchronous insert
-     *   loop and tries to compute group bounds via `updateGroupBounds()`, the
-     *   member nodes don't yet exist as children of `groupChairs` /
-     *   `groupVideoDevices` / etc., so `getGroupMemberNodes()` returns empty
-     *   and the call no-ops. Encoding bounds explicitly removes the async
-     *   dependency entirely — the rect renders correctly on the first frame.
-     *
-     *   `updateGroupBounds()` is still called as a defensive recompute in
-     *   `roomObjToCanvas()`, so a hand-edited URL or an old URL missing some
-     *   of these attributes is still recoverable once the images load.
-     *
-     * Letter assignments (mnemonic, scoped to H blocks only — no conflict
-     * with item attribute letters because the parser keys output[obj][letter]
-     * by `sid`, and these letters are only read by the H branch):
-     *   - x : x position (×100)
-     *   - y : y position (×100)        — only emitted when != 0
-     *   - z : data_zPosition (×100)    — only emitted when != 0
-     *   - w : width (×100)
-     *   - h : height (×100)
-     *   - f : rotation (×10)           — only emitted when != 0
-     *   - ll : layer ref               — only emitted for non-default layer.
-     *          Group members never re-emit `ll` themselves (the decoder
-     *          inherits the layer from the group), saving URL bytes.
-     *   - ~text~ : group name (URL-encoded; always emitted)
-     *
-     * H{n} blocks are emitted AFTER L{n} blocks so the group's `ll` ref can
-     * resolve immediately, and BEFORE items so each item's `s{n}` ref can
-     * resolve immediately. */
+    /* H{n} group blocks: explicit bounds (async image load breaks member-derived bounds on first frame). Emit after L{n}, before items. */
     _groupUrlEncodeMap = {};
     _customItemUrlEncodeMap = {};
     if (roomObj.groups && roomObj.groups.length) {
@@ -11885,10 +10698,6 @@ function createShareableLink() {
             if (!groupsWithMembers.has(group.groupid)) return;
             _groupUrlEncodeMap[group.groupid] = urlGroupNum;
             let grpStr = 'H' + urlGroupNum;
-            /* Geometry (always emit x and w; y/z/h only when non-zero to save
-             * bytes for the common "group flush against (0,*) corner" case
-             * and groups at z=0). x and w are always meaningful even at 0/1,
-             * so encode them unconditionally to keep the parser simple. */
             grpStr += 'x' + Math.round((group.x || 0) * 100);
             if (group.y) grpStr += 'y' + Math.round(group.y * 100);
             if (group.data_zPosition) grpStr += 'z' + Math.round(group.data_zPosition * 100);
@@ -11904,7 +10713,6 @@ function createShareableLink() {
             if (group.rotation) {
                 grpStr += 'f' + Math.round(group.rotation * 10);
             }
-           // const safeName = group.name && group.name.trim() ? group.name : ('Group ' + urlGroupNum);
             const safeName = group.name && group.name.trim() ? group.name : ('');
             grpStr += '~' + encodeURIComponent(safeName).replaceAll('%20', '+') + '~';
             strUrlQuery2 += grpStr;
@@ -11912,13 +10720,7 @@ function createShareableLink() {
         });
     }
 
-    /* CustomItem definitions: J{n}[x{x×100}][y{y×100}][z{z×100}][w{w×100}][h{h×100}][ll{layerNum}][f{rotation×10}]~name~
-     *
-     * Mirrors the H{n} block above. Per-item back-reference uses `t{n}`.
-     * Empty / member-less customItems are skipped, same as Groups. Items
-     * carry both `s{n}` (group ref) AND `t{n}` (customItem ref) when
-     * applicable; `ll` is suppressed for any item that has either ref
-     * since the bundle's `ll` already covers the layer. */
+    /* J{n} customItem blocks — mirror H{n}; per-item ref is t{n}. */
     if (roomObj.customItems && roomObj.customItems.length) {
         const customItemsWithMembers = new Set();
         roomObj.items.forEach(it => {
@@ -11959,7 +10761,6 @@ function createShareableLink() {
     });
 
     fullShareLink = location.origin + location.pathname + '?x=' + strUrlQuery2;
-    // fullShareLink = DOMPurify.sanitize(fullShareLink);
     fullShareLink = fullShareLink.replaceAll(' ', '+');
     fullShareLinkCollabExpBase = 'https://collabexperience.com/' + fullShareLink.match(/\?x=.*/);
 
@@ -12033,11 +10834,7 @@ function expand(num) {
     return Math.round(num * 100);
 }
 
-/* Hex ↔ 9-digit zero-padded RGB triple, used by the `u` URL letter for
- * configurableColor / data_fill. Encoder is cached because the URL is
- * regenerated on every drag/resize/paste and the same handful of hex
- * values typically come up repeatedly per session. Decoder is
- * uncached — parseShortenedXYUrl() runs once per page load. */
+/* u-letter RGB triple (hexToUrlRgb cached; urlRgbToHex uncached). */
 let _hexToUrlRgbCache = new Map();
 function hexToUrlRgb(hex) {
     if (!hex || typeof hex !== 'string') return '255255255';
@@ -12065,9 +10862,7 @@ function urlRgbToHex(rgb9) {
                + b.toString(16).padStart(2, '0').toUpperCase();
 }
 
-/* Normalize a WD color to 6-digit uppercase hex. Accepts hex or CSS
- * named colors via getComputedStyle(); returns null on unparseable.
- * Memoized in _namedColorToHexCache (one DOM probe per unique input). */
+/* WD color → #RRGGBB (hex or CSS name via getComputedStyle); cached. */
 let _namedColorToHexCache = new Map();
 function normalizeColorToHex(input) {
     if (input == null) return null;
@@ -12075,8 +10870,6 @@ function normalizeColorToHex(input) {
     if (!key) return null;
     if (_namedColorToHexCache.has(key)) return _namedColorToHexCache.get(key);
 
-    /* Direct hex shortcut — skip the DOM probe entirely when it's
-     * obviously already #RRGGBB or #RGB. */
     let h = key.replace(/^#/, '');
     if (/^[0-9a-fA-F]{3}$/.test(h)) {
         h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
@@ -12087,9 +10880,6 @@ function normalizeColorToHex(input) {
         return hex;
     }
 
-    /* CSS-name path: ask the browser to resolve. We DON'T cache the
-     * temp div across calls because the DOM probe is cheap (<1ms) and
-     * the cache hit on the *result* is what matters for performance. */
     let result = null;
     try {
         const probe = document.createElement('div');
@@ -12182,7 +10972,7 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* don't store data_role index if the value is 0 - this will be the default value */
+    /* don't store non-default data_role index */
     if ('data_role' in item && item.data_role) {
         let place = item.data_role.index - 1;
         if (place > -1) {
@@ -12190,7 +10980,6 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* don't store data_color index if the value is 0 - this will be the default value */
     if ('data_color' in item && item.data_color) {
         let place = item.data_color.index - 1;
         if (place > -1) {
@@ -12217,7 +11006,6 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* don't store data_role index if the value is 0 - this will be the default value */
     if ('data_mount' in item && item.data_mount) {
         let place = item.data_mount.index - 1;
         if (place > -1) {
@@ -12234,12 +11022,7 @@ function createShareableLinkItem(item) {
         strItem += 'r' + points.join(' ');
     }
 
-    /* When the item belongs to a Group / CustomItem that was emitted as an
-     * H{n} / J{n} block, the bundle's `ll` already encodes the layer for
-     * every member. Group / CustomItem members always share the bundle's
-     * layer by definition, so we skip the per-item `ll` to keep the URL
-     * short. The decoder inherits data_layerId from the bundle when an
-     * item carries `s` or `t` but no `ll`. */
+    /* Group/CustomItem members inherit bundle layer — skip per-item ll. */
     const itemHasGroupRef = item.data_groupId && _groupUrlEncodeMap[item.data_groupId] != null;
     const itemHasCustomItemRef = item.data_customItemId && _customItemUrlEncodeMap[item.data_customItemId] != null;
 
@@ -12252,24 +11035,15 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* encode group reference: s{n} where n is the URL number assigned to the
-     * group during the H{n} room-level emission earlier in this run. */
     if (itemHasGroupRef) {
         strItem += 's' + _groupUrlEncodeMap[item.data_groupId];
     }
 
-    /* encode customItem reference: t{n} where n is the URL number assigned
-     * to the customItem during the J{n} room-level emission. An item can
-     * carry both `s{n}` and `t{n}` when it belongs to both bundles. */
     if (itemHasCustomItemRef) {
         strItem += 't' + _customItemUrlEncodeMap[item.data_customItemId];
     }
 
-    /* Configurable fill / opacity letters (per notes/URL_ENCODING.md):
-     *   u{RRR}{GGG}{BBB} — zero-padded RGB triple, always 9 digits.
-     *                       Encoder uses cached hexToUrlRgb().
-     *   v{NN}            — opacity × 100 (0..99). Default (1.0) omitted.
-     * Both are absent ⇒ device default per the spec. */
+    /* u=RGB triple (9 digits); v=opacity×100 (omit at 1.0). */
     if (item.data_fill) {
         strItem += 'u' + hexToUrlRgb(item.data_fill);
     }
@@ -12282,7 +11056,6 @@ function createShareableLinkItem(item) {
 
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
-            /* Trim all starting/trailing spaces or _underscores, then encode, then replace all spaces (%20) with + */
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
         }
     }
@@ -12292,7 +11065,7 @@ function createShareableLinkItem(item) {
     return strItem;
 }
 
-/* This field is stored as a decimal then converted to binary on the decode */
+/* Per-item shading flags as decimal (decoded to binary). */
 function createLinkSingleItemShadingDecimal(item) {
     let totalDecimal = 0;
     if (item.data_fovHidden) totalDecimal += 1;
@@ -12468,22 +11241,17 @@ async function postHeartbeat() {
 
 function openTab(evt, tabName) {
     let i, tabcontent, tablinks;
-    /* Get all elements with class="tabcontent" and hide them */
     tabcontent = document.getElementsByClassName("tabcontent");
     for (i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
     }
 
-    /* Get all elements with class="tablinks" and remove the class "active" */
     tablinks = document.getElementsByClassName("tablinks");
     for (i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
     }
 
-    /* Show the current tab, and add an "active" class to the button that opened
-       the tab.  display: flex (rather than block) keeps #Insert and #Item as
-       flex-column containers so their inner sub-tab bar stays at the top and
-       the active subtab fills the remaining height (CSS .tabcontent rule). */
+    /* Show tab (display:flex keeps sub-tab layout per CSS .tabcontent). */
     document.getElementById(tabName).style.display = "flex";
 
     evt.currentTarget.className += " active";
@@ -12491,76 +11259,23 @@ function openTab(evt, tabName) {
     resetBackgroundImageFloorSettings();
     updateAllScrollHints();
 
-    /* When the Equipment tab becomes visible, nudge the scroll-spy
-     * so the active pill reflects the current scroll position (the
-     * scroll event doesn't auto-fire on visibility toggle, so without
-     * this the pill could be stale after switching tabs). */
     if (tabName === 'Insert') {
         const scrollArea = document.getElementById('equipmentScrollArea');
         if (scrollArea) scrollArea.dispatchEvent(new Event('scroll'));
     }
 }
 
-/* =====================================================================
- * Equipment tab — pill row, inline search, Custom Items library
- * ---------------------------------------------------------------------
- * The Equipment tab (`#Insert`) was historically built from four
- * `.subtablinks` sub-tabs (Video Devices / Peripherals / Displays /
- * Furniture) plus a floating `.btnItemSearch` round button per panel
- * that opened the Quick Add modal. Both were replaced in May 2026 by:
- *
- *   1. A horizontally-scrolling pill row (`.equipmentCategoryPills`)
- *      that can hold arbitrarily many categories. A new "Custom Items"
- *      category surfaces the VRC Custom Item Library as draggable
- *      tiles in the sidebar.
- *
- *   2. An inline search bar (`#equipmentSearchBar`) that filters tiles
- *      across ALL category panels in-place and auto-switches the
- *      active pill if the best match is in another category.
- *
- * Quick Add (Space + canvas right-click) is unchanged — only the
- * floating round button in each panel went away. The modal still
- * builds its tiles via `buildCustomItemTile()` so the look stays in
- * sync between the modal and the new sidebar Custom Items pill.
- * =================================================================== */
-
-/* Currently-active equipment category panel id (one of:
- * 'Cameras', 'Microphones', 'Tables', 'Panels', 'CustomItems').
- * Set by either an explicit pill click (selectEquipmentCategory) or
- * by the scroll-spy when the user scrolls past a panel boundary
- * (_setActivePillSilent). */
+/* Equipment tab: pill row + inline search (replaces legacy subtabs / floating search). */
 let _activeEquipmentCategory = 'Cameras';
-
-/* (Removed in the long-scroll refactor: _equipmentSearchPreviousCategory.
- * The panel switch / restore-after-clear dance is no longer needed
- * because all panels are always rendered — search just hides empty
- * sections in place; clear restores them.) */
-
-/* Programmatic-scroll suppression flag for the scroll-spy. When
- * `selectEquipmentCategory()` smooth-scrolls to a panel, the scroll
- * event fires repeatedly during the animation. Without this flag the
- * spy would re-compute the active pill mid-flight and could thrash
- * the highlight before settling. The flag is cleared after a short
- * timeout (long enough to cover the smooth scroll). */
 let _equipmentScrollProgrammatic = false;
 let _equipmentScrollProgrammaticTimer = null;
 
-/* Scroll to one Equipment category panel and mark its pill active.
- * Replaces the old "hide every other panel" behaviour — in the long-
- * scroll model all panels are always rendered; clicking a pill simply
- * brings that panel to the top of the visible scroll area.
- *
- * Custom Items is also re-populated on each pill click so library
- * writes from elsewhere (Create / Edit / Remove / Import) propagate
- * the moment the user re-engages with the panel. */
+/* Scroll to category panel; re-populate Custom Items on each visit. */
 function selectEquipmentCategory(tabName) {
     const panel = document.getElementById(tabName);
     const scrollArea = document.getElementById('equipmentScrollArea');
 
     if (panel && scrollArea) {
-        /* offsetTop is relative to offsetParent, which may NOT be
-         * scrollArea — fall back to getBoundingClientRect math, which
-         * is always relative to the viewport. */
         const top = panel.getBoundingClientRect().top
             - scrollArea.getBoundingClientRect().top
             + scrollArea.scrollTop;
@@ -12581,9 +11296,6 @@ function selectEquipmentCategory(tabName) {
     }
 }
 
-/* Update which pill carries `.active` without scrolling anywhere.
- * Used by the scroll-spy on every scroll-tick and by
- * selectEquipmentCategory itself (the scroll is handled separately). */
 function _setActivePillSilent(tabName) {
     if (_activeEquipmentCategory === tabName) return;
 
@@ -12595,55 +11307,23 @@ function _setActivePillSilent(tabName) {
     if (pill) {
         pill.classList.add('active');
         if (typeof pill.scrollIntoView === 'function') {
-            /* Keep the newly-active pill visible inside the horizontal
-             * pill row (no-op when already in view). */
             pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
     }
 
     _activeEquipmentCategory = tabName;
 
-    /* Re-populate Custom Items whenever the user scrolls (or jumps)
-     * into the panel. Without this, the section appeared empty when
-     * the user scrolled down to it because the boot-time eager-load
-     * could lose the race with fast scrolling: the IDB Promise hadn't
-     * resolved yet, and the scroll path itself never re-fired
-     * populate (only the pill-click path did). Re-running populate
-     * is idempotent — innerHTML is replaced with the same tiles. */
     if (tabName === 'CustomItems'
         && typeof populateCustomItemsMenuContainer === 'function') {
         populateCustomItemsMenuContainer();
     }
 }
 
-/* Scroll-spy: as the user scrolls through the long Equipment list,
- * pick whichever panel's top is closest to (but not past) the scroll
- * area's top edge and mark its pill active. Runs throttled via rAF
- * so even fast scrolling stays smooth.
- *
- * Implementation: each scroll tick measures each panel's `top`
- * relative to the scroller viewport. The "active" panel is the LAST
- * one whose top is ≤ `threshold` (above or just-below the
- * scroll-area top). The threshold accounts for the perceptual
- * "I'm now reading this section" boundary — a panel header that's
- * 80px below the top still counts as the active section.
- *
- * Edge case: if the user scrolls to MAX scrollTop (bottom of the
- * list) but the last panel is short enough that its top never reaches
- * the threshold (think: short Custom Items section sitting at the
- * bottom of an otherwise-tall list), the threshold rule would leave
- * the previous panel marked active even though the user is plainly
- * "in" the last panel. The "scrolled-to-max → last visible panel
- * wins" override below fixes this. */
+/* Scroll-spy: active pill = last panel with top ≤ 80px; at scroll max → last panel. */
 function initEquipmentScrollSpy() {
     const scrollArea = document.getElementById('equipmentScrollArea');
     if (!scrollArea) return;
-    /* Exclude `.searchOnlyPanel` panels (currently just "Other") — they
-     * have no pill at the top of the row, so trying to activate one
-     * would silently clear every pill's `.active` and leave the user
-     * with no underline. The spy still pages naturally across the
-     * remaining 5 panels; scroll-driven re-population for "Other" is
-     * not needed because it's rebuilt on every keystroke. */
+    /* Skip searchOnlyPanel (no matching pill). */
     const panels = Array.from(scrollArea.querySelectorAll(
         ':scope > .subtabcontent:not(.searchOnlyPanel)'));
     if (!panels.length) return;
@@ -12662,7 +11342,6 @@ function initEquipmentScrollSpy() {
             let active = null;
             for (let i = 0; i < panels.length; i++) {
                 const p = panels[i];
-                /* Skip panels hidden by search. */
                 if (p.classList.contains('searchHidden')) continue;
                 const top = p.getBoundingClientRect().top - scrollerRect.top;
                 if (top <= threshold) {
@@ -12671,15 +11350,9 @@ function initEquipmentScrollSpy() {
                     break;
                 }
             }
-            /* If we scrolled before any panel hits the threshold (very
-             * top of the list), default to the first visible panel. */
             if (!active) {
                 active = panels.find(function (p) { return !p.classList.contains('searchHidden'); });
             }
-            /* Scrolled-to-max override: when the user has hit the
-             * bottom of the scroller, the last visible panel wins
-             * regardless of where its top lives — short last panels
-             * never reach the threshold by themselves. */
             const atMax = scrollArea.scrollTop + scrollArea.clientHeight
                 >= scrollArea.scrollHeight - 2;
             if (atMax) {
@@ -12695,18 +11368,9 @@ function initEquipmentScrollSpy() {
     }
 
     scrollArea.addEventListener('scroll', onScroll, { passive: true });
-    /* Initial paint: position the active pill correctly for the
-     * default scroll position. */
     onScroll();
 
-    /* IntersectionObserver on the Custom Items panel: re-populate
-     * the library whenever the panel comes into view (decoupled
-     * from active-pill state so it fires even when the panel is
-     * fully visible but its top never crosses the 80px threshold,
-     * which happens whenever the panel is the last one in the list).
-     * Threshold 0 = fire as soon as ANY part of the panel is
-     * intersecting the scroller. Idempotent — populate replaces
-     * innerHTML with the same tile list each time. */
+    /* IntersectionObserver: re-populate Custom Items when panel enters scroller. */
     const customItemsPanel = document.getElementById('CustomItems');
     if (customItemsPanel && typeof IntersectionObserver !== 'undefined') {
         const io = new IntersectionObserver(function (entries) {
@@ -12721,15 +11385,10 @@ function initEquipmentScrollSpy() {
     }
 }
 
-/* Backwards-compat shim: the legacy `.subtablinks` markup is gone, but
- * a `<button onclick="openSubTab(event, 'X')">` could still exist in
- * a saved template or 3rd-party customization. Delegate to the new
- * single-arg function. */
+/* Legacy openSubTab shim → selectEquipmentCategory. */
 function openSubTab(evt, tabName) {
     selectEquipmentCategory(tabName);
 }
-
-/* ----- Pill row interactions (chevrons + click) ------------------- */
 
 function initEquipmentCategoryPills() {
     const pillRow = document.getElementById('equipmentCategoryPills');
@@ -12814,24 +11473,7 @@ if (typeof populateCustomItemsMenuContainer === 'function') {
     }
 })();
 
-/* ----- Inline search across all category panels ------------------- */
-
-/* Fires on every keystroke in #equipmentSearch. Two modes:
- *   • query < 2 chars: restore every tile / divider / panel; clear
- *     the search-only "Other" panel; exit search mode.
- *   • query ≥ 2 chars: search the FULL device list (mirrors Quick Add
- *     semantics — same naming rules from `getEquipmentSearchRegex`).
- *     Then partition matches into "already in a curated panel" vs
- *     "extra" — the extras are rendered into the search-only Other
- *     panel below Custom Items via createItemsOnMenu (which gives
- *     them the same draggable tile DOM as every other device).
- *     Finally the existing per-tile / divider / panel show-and-hide
- *     pass runs over the now-complete tile set (Other tiles included
- *     — they all match by construction, so they survive the filter)
- *     and the active pill auto-scrolls to the first matching panel
- *     (Custom Items / Other have no auto-scroll because they have no
- *     pill — Other has none, Custom Items has a pill but the user
- *     curating "what I built" rarely needs a forced scroll). */
+/* Equipment search: filter tiles/panels; extras go to Other panel. */
 function onEquipmentSearchChange(e) {
     const bar = document.getElementById('equipmentSearchBar');
     const insertTab = document.getElementById('Insert');
@@ -12839,10 +11481,7 @@ function onEquipmentSearchChange(e) {
     const query = (e && e.target && e.target.value || '').trim();
     if (bar) bar.classList.toggle('hasValue', query.length > 0);
 
-    /* Curated panels only — the search-only Other panel uses its own
-     * `.hasMatches` toggle path (it never participates in the
-     * `.searchHidden` per-panel pass). Selector mirrors the one in
-     * initEquipmentScrollSpy so the two stay in sync. */
+    /* Curated panels only; Other panel uses `.hasMatches` (excludes `.searchOnlyPanel`). */
     const allPanels = scrollArea
         ? Array.from(scrollArea.querySelectorAll(
             ':scope > .subtabcontent:not(.searchOnlyPanel)'))
@@ -12851,43 +11490,32 @@ function onEquipmentSearchChange(e) {
     const otherPanel = document.getElementById('OtherSearch');
     const otherContainer = document.getElementById('otherSearchMenuContainer');
 
-    /* ----- Below-threshold: restore everything ----- */
     if (query.length < 2) {
         if (insertTab) insertTab.classList.remove('searching');
-        /* Restore every tile. */
         document.querySelectorAll('#Insert .equipmentItemOnMenu')
             .forEach(t => { t.style.display = ''; });
-        /* Restore every divider / container / panel we hid. */
         document.querySelectorAll('#Insert .menuDivider.searchHidden, '
             + '#Insert .containerItems.searchHidden, '
             + '#Insert .subtabcontent.searchHidden')
             .forEach(el => el.classList.remove('searchHidden'));
-        /* Re-enable every pill. */
         document.querySelectorAll('.equipmentCategoryPill.disabled')
             .forEach(p => p.classList.remove('disabled'));
-        /* Wipe + hide the Other panel — its tiles only ever exist
-         * during search and should never leak into normal browsing. */
+        /* Other panel tiles exist only during search. */
         if (otherContainer) otherContainer.innerHTML = '';
         if (otherPanel) otherPanel.classList.remove('hasMatches');
         setEquipmentSearchNoResults(false);
         return;
     }
 
-    /* ----- Active search mode ----- */
     if (insertTab) insertTab.classList.add('searching');
 
-    /* The same regex + ** stripping `searchQuickItem` uses. `stripped`
-     * is what we substring-match against device names AND tile labels;
-     * `regex` decides which devices we EXCLUDE (so `_name` is always
-     * dropped, `name*` is dropped unless WD-partial / `**` is in play,
-     * `name**` is dropped unless `**` is typed). */
+    /* Same regex/stripping as searchQuickItem. */
     const { regex, stripped } = (typeof getEquipmentSearchRegex === 'function')
         ? getEquipmentSearchRegex(query)
         : { regex: /(^_.*)|(.*\*$)/, stripped: query };
 
     const needle = stripped.toLowerCase().replace(/\s/g, '');
 
-    /* ----- Build the Other panel from the full device list ----- */
     if (otherContainer) {
         otherContainer.innerHTML = '';
         const fullDeviceList = [].concat(
@@ -12898,10 +11526,7 @@ function onEquipmentSearchChange(e) {
             const hay = String(d.name).toLowerCase().replace(/\s/g, '');
             return hay.length > 0 && hay.includes(needle);
         });
-        /* Extras = devices that match BUT don't already have a tile
-         * in any curated panel. The deterministic tile id pattern
-         * (`${parentGroup}-${deviceId}-div` — see createItemsOnMenu)
-         * lets us detect "already shown" with a single getElementById. */
+        /* Devices matching search but not already in a curated panel tile. */
         const extraIds = [];
         const seen = new Set();
         matchedDevices.forEach(function (d) {
@@ -12919,14 +11544,7 @@ function onEquipmentSearchChange(e) {
 
     const panelMatchCounts = {};
 
-    /* 1) Tile-level: show only matching tiles. Match is a
-     *    case-insensitive, whitespace-stripped substring of the
-     *    tile's visible label. Device tiles use `.flexSubItemLabel`;
-     *    customItem tiles use a plain `<label>` (see
-     *    buildCustomItemTile()). The Other tiles just appended above
-     *    all match by construction, but they go through the same
-     *    pass for uniformity — and so they get a `display: ''`
-     *    rather than whatever the prior keystroke left them at. */
+    /* Tile-level: show only label substring matches. */
     document.querySelectorAll('#Insert .equipmentItemOnMenu').forEach((tile) => {
         const labelEl = tile.querySelector('.flexSubItemLabel') || tile.querySelector('label');
         const labelText = (labelEl ? labelEl.textContent : '').toLowerCase().replace(/\s/g, '');
@@ -12940,12 +11558,7 @@ function onEquipmentSearchChange(e) {
         }
     });
 
-    /* 2) Section-level: walk every `.menuDivider`. For each, count
-     *    visible tiles in the immediately-following `.containerItems`
-     *    sibling chain (stops at the next divider). If zero matches,
-     *    hide both the divider and its container(s). Otherwise show.
-     *    This is what removes the "Cisco Cameras", "Navigators",
-     *    "Cable Lid with Cables" headers from a "mic" search result. */
+    /* Section-level: hide empty divider/container chains. */
     document.querySelectorAll('#Insert .subtabcontent .menuDivider').forEach((divider) => {
         const containers = [];
         let sib = divider.nextElementSibling;
@@ -12966,12 +11579,7 @@ function onEquipmentSearchChange(e) {
         containers.forEach(c => c.classList.toggle('searchHidden', visibleCount === 0));
     });
 
-    /* 3) Panel-level: hide the whole curated panel when it has zero
-     *    matches AND mark its pill `.disabled` so it visually mutes
-     *    too. The search-only Other panel is intentionally NOT in
-     *    `allPanels` (the selector excludes `.searchOnlyPanel`); its
-     *    visibility is governed by the `.hasMatches` toggle set above
-     *    and the CSS gating it on `#Insert.searching`. */
+    /* Panel-level: hide empty panels and mute pills. */
     allPanels.forEach((panel) => {
         const matched = panelMatchCounts[panel.id] > 0;
         panel.classList.toggle('searchHidden', !matched);
@@ -12980,14 +11588,7 @@ function onEquipmentSearchChange(e) {
         if (pill) pill.classList.toggle('disabled', !matched);
     });
 
-    /* 4) Auto-scroll to the first panel that has matches so the user
-     *    immediately sees results without manual scrolling. The
-     *    `_equipmentScrollProgrammatic` guard inside
-     *    selectEquipmentCategory keeps the scroll-spy from fighting
-     *    the smooth-scroll animation. If no curated panel matched but
-     *    Other did, jump there instead — calling scrollIntoView
-     *    directly because Other has no pill so selectEquipmentCategory
-     *    would silently no-op the pill activation half. */
+    /* Auto-scroll to first matching panel (or Other if only match). */
     const firstMatchPanel = allPanels.find(p => panelMatchCounts[p.id] > 0);
     if (firstMatchPanel && _activeEquipmentCategory !== firstMatchPanel.id) {
         selectEquipmentCategory(firstMatchPanel.id);
@@ -13009,9 +11610,7 @@ function clearEquipmentSearch() {
     if (input) input.focus();
 }
 
-/* Empty-state banner shown inline at the bottom of the Equipment tab
- * when no tiles match across any category panel. Lazily created on
- * first show; hidden (display: none) on clear. */
+/* Empty-state banner when equipment search has no matches. */
 function setEquipmentSearchNoResults(show) {
     let el = document.getElementById('equipmentSearchNoResults');
     if (!show) {
@@ -13022,8 +11621,7 @@ function setEquipmentSearchNoResults(show) {
         el = document.createElement('div');
         el.id = 'equipmentSearchNoResults';
         el.className = 'customItemsEmpty';
-        /* innerHTML is safe here: the markup is a fixed string with
-         * no caller-supplied data. */
+        /* Fixed markup only — no caller data. */
         el.innerHTML = '<b>No matches.</b><br />Press <code>Space</code> to open the full Quick Add palette.';
         const insertTab = document.getElementById('Insert');
         if (insertTab) insertTab.appendChild(el);
@@ -13031,21 +11629,7 @@ function setEquipmentSearchNoResults(show) {
     el.style.display = 'block';
 }
 
-/* ----- Shared customItem tile builder ----------------------------- */
-
-/* Build a single library customItem tile DOM. Used by BOTH the new
- * Equipment-tab Custom Items pill (sidebar mode — `onClick: 'drag'`)
- * AND the Space-bar Quick Add modal (modal mode — `onClick:
- * 'insertCenter'`). Centralising the renderer here prevents the two
- * surfaces from drifting apart over time.
- *
- * Sidebar mode: tile is draggable; drop on the canvas materialises
- * the customItem via insertCustomItemAtPosition() — same gesture
- * users learn from the regular device tiles in `createItemsOnMenu`.
- *
- * Modal mode: tile is click-to-insert (legacy modal behaviour); drag
- * is disabled because the modal is a transient overlay that closes
- * on first interaction. */
+/* Shared customItem tile builder for sidebar drag and Quick Add modal. */
 function buildCustomItemTile(record, opts) {
     opts = opts || {};
     const name = (typeof getCustomItemRecordName === 'function'
@@ -13061,9 +11645,7 @@ function buildCustomItemTile(record, opts) {
         i.src = record.menuImage;
         i.draggable = false;
         i.id = `customItem-${baseId}-img`;
-        /* Match the regular device-tile layout: 60px-tall contain
-         * image. Without this class the <img> renders at its natural
-         * 100×100 size and dwarfs the surrounding text. */
+        /* Match regular device-tile image sizing. */
         i.className = 'flexSubItemImage';
         btnItem.appendChild(i);
     }
@@ -13071,9 +11653,6 @@ function buildCustomItemTile(record, opts) {
     const label = document.createElement('label');
     label.innerText = name.slice(0, 30);
     btnItem.title = `${name} — Custom Item`;
-    /* Same layout class regular device labels use — 11px centered
-     * text, fixed 3.55em height so adjacent tiles align bottom-edge
-     * regardless of how many lines the name wraps to. */
     label.className = 'flexSubItemLabel';
     btnItem.appendChild(label);
 
@@ -13082,12 +11661,7 @@ function buildCustomItemTile(record, opts) {
     btnItem.classList.add('customItemTile');
     btnItem.id = `customItem-${baseId}-div`;
 
-    /* Ellipsis (more) span — see the long comment in the original
-     * onQuickAddChange (May 2026) explaining why this MUST be a
-     * <span role="button"> and not a <button>: nesting <button> in
-     * the parent <button> would be DOM-repaired by the browser
-     * (hoisted out as a sibling), silently breaking layout and the
-     * click handler. */
+    /* Must be <span role="button"> — nested <button> breaks DOM/layout. */
     const moreBtn = document.createElement('span');
     moreBtn.className = 'customItemTileDeleteBtn';
     moreBtn.setAttribute('role', 'button');
@@ -13134,21 +11708,12 @@ function buildCustomItemTile(record, opts) {
         btnItem.draggable = true;
         btnItem.addEventListener('dragstart', dragStart);
         btnItem.addEventListener('drag', drag);
-        /* Use a custom dragEnd: the standard dragEnd() routes through
-         * insertItemFromMenu(deviceid), which doesn't recognise
-         * library customItem baseIds. Closure-capture the record so
-         * the drop handler can call insertCustomItemAtPosition. */
+        /* Custom dragEnd — insertItemFromMenu doesn't know library baseIds. */
         btnItem.addEventListener('dragend', function (event) {
             dragEndCustomItemTile(event, record, name);
         });
 
-        /* Touch support mirrors the device-tile path so mobile users
-         * get the same drag-to-canvas gesture. The end handler does
-         * the insert AND cleans up the floating drag preview node.
-         *
-         * Gated on `_touchDragArmed` so a quick tap (long-press timer
-         * never fired) doesn't fire an insert with stale dragClientX/Y
-         * from a previous gesture. See touch drag gating in touchStart. */
+        /* Touch drag; gated on _touchDragArmed to ignore quick taps. */
         btnItem.addEventListener('touchstart', touchStart);
         btnItem.addEventListener('touchmove', touchMove);
         btnItem.addEventListener('touchend', function (event) {
@@ -13173,11 +11738,7 @@ function buildCustomItemTile(record, opts) {
     return btnItem;
 }
 
-/* Custom-item-aware drop handler. Coordinate math mirrors `dragEnd()`
- * (line ~22066) so the bundle lands at the same world position the
- * cursor was over at release. Falls back through clientX → touch
- * coords → cached `dragClientX/Y` to handle Chrome/Firefox, touch,
- * and Safari respectively. */
+/* Drop handler; coordinate math mirrors dragEnd(). */
 function dragEndCustomItemTile(event, record, displayName) {
     if (!event.target || event.target.id === '') return;
 
@@ -13218,12 +11779,7 @@ function dragEndCustomItemTile(event, record, displayName) {
     dragClientY = 0;
 }
 
-/* ----- Custom Items pill: populate from IndexedDB library --------- */
-
-/* Refresh `#customItemsMenuContainer` with one tile per library
- * record. Called on every activation of the Custom Items pill so the
- * panel always reflects the current library state (no observer / no
- * dirty flag — IDB roundtrip is sub-millisecond locally). */
+/* Refresh Custom Items pill from IDB on each open. */
 function populateCustomItemsMenuContainer() {
     const container = document.getElementById('customItemsMenuContainer');
     const empty = document.getElementById('customItemsEmptyState');
@@ -13237,17 +11793,14 @@ function populateCustomItemsMenuContainer() {
 
     window.idbStore.customItemGetAll().then(function (records) {
         const list = Array.isArray(records) ? records : [];
-        /* Drop records with no display name — those are canvas-only
-         * (see "Unnamed customItems" in CLAUDE.md) and shouldn't
-         * appear in the library tile grid. */
+        /* Canvas-only unnamed bundles — skip library grid. */
         const named = list.filter(function (rec) {
             const n = (typeof getCustomItemRecordName === 'function'
                 ? getCustomItemRecordName(rec)
                 : (rec && (rec.customItemName || rec.data_labelField) || ''));
             return rec && String(n).trim().length > 0;
         });
-        /* Newest-first by updatedAt (ISO 8601 strings — lexicographic
-         * compare works). Falls back to addedAt for very old rows. */
+        /* Newest-first by updatedAt (ISO 8601). */
         named.sort(function (a, b) {
             const ka = String(a.updatedAt || a.addedAt || '');
             const kb = String(b.updatedAt || b.addedAt || '');
@@ -13261,14 +11814,7 @@ function populateCustomItemsMenuContainer() {
 
         if (empty) empty.style.display = named.length ? 'none' : 'block';
 
-        /* Async IDB query resolved AFTER the user may have already
-         * started typing in the search box. Re-apply the filter so
-         * the freshly-appended Custom Item tiles get show/hide-d
-         * along with the rest. Without this re-run, Custom Items
-         * appeared invisible to search until the user manually
-         * clicked the Custom Items pill (which re-fired populate
-         * AFTER tiles were in the DOM). Cheap — onEquipmentSearchChange
-         * only iterates `.equipmentItemOnMenu` nodes. */
+        /* Re-apply search filter if user typed before async IDB returned. */
         const searchInput = document.getElementById('equipmentSearch');
         if (searchInput && searchInput.value && searchInput.value.trim().length >= 2) {
             onEquipmentSearchChange({ target: searchInput });
@@ -13279,22 +11825,17 @@ function populateCustomItemsMenuContainer() {
 }
 
 function openSubTab2(evt, tabName) {
-    /* Declare all variables */
     let i, tabcontent, tablinks;
-
-    /* Get all elements with class="tabcontent" and hide them */
     tabcontent = document.getElementsByClassName("subtabcontent2");
     for (i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
     }
 
-    /* Get all elements with class="tablinks" and remove the class "active" */
     tablinks = document.getElementsByClassName("subtablinks2");
     for (i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
     }
 
-    /* Show the current tab, and add an "active" class to the button that opened the tab */
     document.getElementById(tabName).style.display = "block";
 
     evt.currentTarget.className += " active";
@@ -13306,19 +11847,16 @@ function openSubTab2(evt, tabName) {
 
 function openTabBottom(evt, tabName) {
     let i, tabcontent, tablinks;
-    /* Get all elements with class="tabcontent" and hide them */
     tabcontent = document.getElementsByClassName("tabcontent2");
     for (i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
     }
 
-    /* Get all elements with class="tablinks" and remove the class "active" */
     tablinks = document.getElementsByClassName("tablinks2");
     for (i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
     }
 
-    /* Show the current tab, and add an "active" class to the button that opened the tab */
     document.getElementById(tabName).style.display = "block";
 
     evt.currentTarget.className += " active";
@@ -13391,21 +11929,10 @@ function openNewRoomDialog() {
     document.getElementById('roomWidth2').value = roomObj.room.roomWidth;
     document.getElementById('roomLength2').value = roomObj.room.roomLength;
     document.getElementById('roomName2').value = roomObj.name;
-    /* Track every dialog open. The "Reload last design" tile is gated
-     * on `newRoomDialogOpenCount <= 1` so it only appears the very first
-     * time the dialog is shown on this page load (whether auto-shown
-     * during onLoad() or manually opened by the user). */
+    /* "Reload last design" tile only on first dialog open this session. */
     newRoomDialogOpenCount++;
-    /* Lazy-load templates.js + populate the grid on first open. The
-     * modal shows synchronously below; templates pop in a moment later
-     * by replacing the seeded `.room-template-placeholder` tiles. */
     const populated = ensureTemplatesPopulated();
-    /* Defer the "Reload last design" tile until the real templates are
-     * in place. If we called `syncReloadLastDesignButton()` synchronously
-     * here, the tile would be inserted alongside the loading
-     * placeholders and then visually bounce around as the real
-     * templates pop in. On subsequent opens this promise is already
-     * resolved so the call effectively runs synchronously. */
+    /* Defer reload tile until templates replace placeholders. */
     populated.then(() => {
         syncReloadLastDesignButton();
     });
@@ -13424,39 +11951,18 @@ function closeDialogQuestions() {
     document.getElementById('dialogQuestions').close();
 }
 
-/* Routes an undo/redo restore through the incremental Konva patcher when
- * safe, falling back to the legacy full `drawRoom(true, true, true)`
- * rebuild for sweeping changes (unit change, room dimension change,
- * walls / workspace / theme / software / background-image swap, or
- * more than VRC.undoApply.MAX_PATCHABLE_ITEM_DELTAS items changed).
- *
- * The classifier in VRC.undoApply lives in js/undoApply.js. See the
- * "Incremental undo/redo restore" section of CLAUDE.md for the contract.
- *
- * `prev` is the previous roomObj (still the live state at call time).
- * `next` is the snapshot to apply; this function installs it on the
- * global `roomObj` exactly once (so the orchestrator sees the new state
- * when it queries roomObj-backed helpers like getGroupById). */
+/* Undo/redo restore: incremental patch when safe, else full drawRoom(). */
 function restoreSnapshotToCanvas(prev, next) {
     const undoApply = window.VRC && window.VRC.undoApply;
     const fallback = !undoApply || undoApply.requiresFullRedraw(prev, next);
 
     roomObj = next;
-    /* Graceful failure: any snapshot missing `overlaysVisible` (e.g.
-     * v0.1.648 IDB entries that still carry the legacy `layersVisible`
-     * shape; future schema changes that drop a key) gets normalised to
-     * defaults right here, before drawRoom / applyRoomObjDelta read
-     * roomObj.overlaysVisible.<key>. Without this every overlay-reading
-     * site would have to defend itself, and the saved JSON would still
-     * leak `layersVisible`. Defined near migrateLegacyOverlayKeys. */
+    /* Backfill missing overlaysVisible before any reader touches it. */
     ensureOverlaysVisibleDefaulted(roomObj);
     unit = roomObj.unit;
 
     if (fallback) {
-        /* The full-redraw path can clobber on-screen items while zoomed
-         * in (documented in notes/TECH_NOTES.md §1). Keep the zoom reset
-         * scoped to this branch — the incremental patcher doesn't need
-         * it because it never destroys unrelated nodes. */
+        /* Full redraw can lose items while zoomed — reset zoom first. */
         zoomInOut('reset');
         drawRoom(true, true, true);
     } else {
@@ -13489,16 +11995,12 @@ function btnUndoClicked() {
             createShareableLink();
         }, 750);
 
-        /* Mirror the in-memory pop onto IDB so a refresh resumes at the same
-         * position in the undo timeline. Fire-and-forget. */
+        /* Mirror in-memory pop onto IDB. */
         if (typeof window !== 'undefined' && window.idbStore) {
             window.idbStore.undoPopLast();
             window.idbStore.redoAdd(structuredClone(movedEntry));
         }
 
-        /* If this restored snapshot references a library image, fetch the
-         * Blob and re-apply it. No-op if the same image was already loaded
-         * or the snapshot has no image. */
         if (typeof rehydrateBackgroundImageFromIdb === 'function') {
             rehydrateBackgroundImageFromIdb();
         }
@@ -13527,13 +12029,12 @@ function btnRedoClicked() {
 
         }, 500);
 
-        /* Mirror onto IDB so a refresh resumes at the same position. */
+        /* Mirror onto IDB. */
         if (typeof window !== 'undefined' && window.idbStore) {
             window.idbStore.redoPopLast();
             window.idbStore.undoAdd(structuredClone(movedEntry));
         }
 
-        /* See btnUndoClicked() — same rehydrate logic for redo. */
         if (typeof rehydrateBackgroundImageFromIdb === 'function') {
             rehydrateBackgroundImageFromIdb();
         }
@@ -13565,16 +12066,7 @@ function copyToCanvasClipBoard(nodes) {
 
     let clipBoardArray = [];
 
-    /* ---- Group / CustomItem selection bookkeeping ----
-     * A bundle (group or customItem) is "complete" when its rect AND every
-     * current member are in the selection. Only complete bundles
-     * round-trip through the clipboard with their structure intact:
-     * members keep data_groupId / data_customItemId (remapped on paste)
-     * and a fresh rect is materialized on paste. Members of incomplete
-     * bundles paste as ungrouped/uncustom-itemed, mirroring the URL/WD-
-     * import rule that empty / partial bundles are dropped.
-     * expandSelectionForGroups() normally guarantees complete bundles,
-     * but this is the defensive backstop. */
+    /* Complete bundle only: rect + all members round-trip; else paste ungrouped. */
     const selectedRectGroupIds = new Set();
     const selectedMemberIdsByGroup = {};
     const selectedRectCustomItemIds = new Set();
@@ -13584,19 +12076,7 @@ function copyToCanvasClipBoard(nodes) {
             selectedRectGroupIds.add(n.data_groupId);
         } else if (n.data_deviceid === 'customItem' && n.data_customItemId) {
             selectedRectCustomItemIds.add(n.data_customItemId);
-            /* Defensive: a CustomItem rect can also carry a data_groupId
-             * in legacy buggy state — pre-May-2026 createGroup didn't filter
-             * customItem rects out of itemNodes, so they ended up in
-             * group.groupMembers AND got tagged with data_groupId. Without
-             * this branch, the completeness check below would reject the
-             * Group (its groupMembers includes the CustomItem rect's UUID,
-             * but the rect goes into selectedRectCustomItemIds rather than
-             * selectedMemberIdsByGroup) and the Group would be silently
-             * dropped from the clipboard. The paste path's "rebuild
-             * groupMembers from new item uuids" pass naturally drops the
-             * stale CustomItem-rect UUID, so this rescue is also a
-             * cleanup — pasted Group ends up with only real items as
-             * members. */
+            /* Legacy: customItem rect may also carry data_groupId. */
             if (n.data_groupId) {
                 (selectedMemberIdsByGroup[n.data_groupId] = selectedMemberIdsByGroup[n.data_groupId] || new Set()).add(n.id());
             }
@@ -13627,12 +12107,7 @@ function copyToCanvasClipBoard(nodes) {
     });
 
     nodes.forEach(node => {
-        /* Group rect: emit a special clipboard entry so pasteItems() can
-         * mint a fresh roomObj.groups entry with a remapped groupid and
-         * recreate the rect. Skip the regular item-attr pipeline (the
-         * rect has no Konva.Image, no diagonal/role/colour/etc., and its
-         * canonical x/y/width/height live in roomObj.groups, not on the
-         * Konva attrs in unit space). */
+        /* Group rect: special clipboard entry (geometry lives in roomObj.groups). */
         if (node.data_deviceid === 'group') {
             const oldGroupId = node.data_groupId;
             if (!completeGroupIds.has(oldGroupId)) return;
@@ -13655,12 +12130,7 @@ function copyToCanvasClipBoard(nodes) {
             return;
         }
 
-        /* CustomItem rect: same pattern as the Group rect above.
-         * customItemBaseId is preserved verbatim across copy/paste —
-         * the strict-family rule means every canvas instance of the
-         * same template shares one baseId, so a duplicated CustomItem
-         * remains "the same template" in the IDB library. Only the
-         * per-instance customitemid is remapped (in pasteItems). */
+        /* CustomItem rect: preserve customItemBaseId (strict-family). */
         if (node.data_deviceid === 'customItem') {
             const oldCustomItemId = node.data_customItemId;
             if (!completeCustomItemIds.has(oldCustomItemId)) return;
@@ -13671,11 +12141,6 @@ function copyToCanvasClipBoard(nodes) {
                 oldCustomItemId: oldCustomItemId,
                 customItemAttrs: {
                     name: customItem.name,
-                    /* Descriptive metadata travels with the clipboard
-                     * so paste/duplicate preserves Author / Description
-                     * / Version. Defaults match the create-dialog
-                     * defaults so paste of a pre-author-fields template
-                     * still produces a coherent v1 record. */
                     author: customItem.author || '',
                     description: customItem.description || '',
                     version: customItem.version || '1',
@@ -13796,10 +12261,7 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_layerId = node.data_layerId;
         }
 
-        /* Group membership — only carried for members of "complete" group
-         * selections (rect + all members present). pasteItems() remaps
-         * this old groupid to the freshly minted one. Drop it for
-         * incomplete groups so those members paste as ungrouped. */
+        /* Complete-group members only; pasteItems remaps groupid. */
         if (node.data_groupId && completeGroupIds.has(node.data_groupId)) {
             newAttr.data_groupId = node.data_groupId;
         }
@@ -13809,9 +12271,7 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_customItemId = node.data_customItemId;
         }
 
-        /* Configurable fill / opacity — preserved verbatim through
-         * copy/paste/duplicate. data_fill is just a hex string and
-         * data_opacity a 0..1 number; neither needs UUID remapping. */
+        /* Configurable fill/opacity — no UUID remapping needed. */
         if (node.data_fill) {
             newAttr.data_fill = node.data_fill;
         }
@@ -13889,11 +12349,7 @@ function pasteItems(duplicate = true) {
             }
 
             itemsObj.items.forEach((item, index) => {
-                /* Group / CustomItem rect entries carry their dims in
-                 * `groupAttrs` / `customItemAttrs` (unit space) instead of
-                 * `newAttr`. All three bags share the same
-                 * x/y/width/height/data_zPosition keys that
-                 * convertItemUnitBasedOnRatio handles. */
+                /* Group/CustomItem rects use groupAttrs/customItemAttrs for unit conversion. */
                 if (item.isGroupRect) {
                     item.groupAttrs = convertItemUnitBasedOnRatio(item.groupAttrs, ratio);
                 } else if (item.isCustomItemRect) {
@@ -13905,20 +12361,13 @@ function pasteItems(duplicate = true) {
 
         }
 
-        /* Skip Group / CustomItem rect entries — they have no
-         * allDeviceTypes mapping and the codec-count check only cares
-         * about regular items. */
         checkForMultipleCodecsOnPaste(itemsObj.items.filter(it => !it.isGroupRect && !it.isCustomItemRect));
 
     } else {
         return;
     }
 
-    /* ---- Build oldGroupId → newGroupId map ----
-     * Every Group rect in the clipboard mints a fresh groupid; member
-     * items that were copied alongside a Group rect get their
-     * data_groupId remapped below. Members whose old groupid is NOT in
-     * the map (no rect copied → incomplete group) paste as ungrouped. */
+    /* oldGroupId/oldCustomItemId → fresh ids for remapping members. */
     const oldToNewGroupId = {};
     const oldToNewCustomItemId = {};
     itemsObj.items.forEach(it => {
@@ -13967,16 +12416,14 @@ function pasteItems(duplicate = true) {
     }
 
 
-    /* Track new member uuids per new groupid / customitemid so we can
-     * populate groupMembers / customItemMembers on the freshly minted
-     * roomObj.groups / roomObj.customItems entries. */
+    /* Collect member uuids per new group/customItem for groupMembers arrays. */
     const newMembersByGroupId = {};
     const newMembersByCustomItemId = {};
 
     itemsObj.items.forEach(item => {
 
-        if (item.isGroupRect) return; /* materialized in the second pass below */
-        if (item.isCustomItemRect) return; /* materialized in the second pass below */
+        if (item.isGroupRect) return;
+        if (item.isCustomItemRect) return;
 
         /* if pasted item references a layer that no longer exists, assign to Default */
         if (item.newAttr.data_layerId && item.newAttr.data_layerId !== '0' && item.newAttr.data_layerId !== '1') {
@@ -13985,9 +12432,7 @@ function pasteItems(duplicate = true) {
             }
         }
 
-        /* Remap data_groupId: complete-group members point at the new
-         * groupid; members of incomplete groups (no rect in clipboard)
-         * paste as ungrouped. */
+        /* Remap or drop group/customItem ids for incomplete bundles. */
         if (item.newAttr.data_groupId) {
             const newGid = oldToNewGroupId[item.newAttr.data_groupId];
             if (newGid) {
@@ -13997,7 +12442,7 @@ function pasteItems(duplicate = true) {
             }
         }
 
-        /* Same remap for data_customItemId. */
+        /* Same remap for customItem. */
         if (item.newAttr.data_customItemId) {
             const newCid = oldToNewCustomItemId[item.newAttr.data_customItemId];
             if (newCid) {
@@ -14024,13 +12469,7 @@ function pasteItems(duplicate = true) {
     })
 
 
-    /* ---- Second pass: materialize each pasted Group ----
-     * Pushes a fresh entry into roomObj.groups (with the remapped
-     * groupid, the offset top-left, and groupMembers populated from the
-     * uuids generated above) and inserts a new Group rect on the canvas
-     * via insertGroupRect(). The rect's groupid is added to `uuids` so
-     * trNodesFromUuids() selects the whole bundle (rect + members) — the
-     * same selection shape the user had before copying. */
+    /* Second pass: materialize pasted Groups. */
     itemsObj.items.forEach(item => {
         if (!item.isGroupRect) return;
         const newGroupId = oldToNewGroupId[item.oldGroupId];
@@ -14061,8 +12500,7 @@ function pasteItems(duplicate = true) {
         uuids.push(newGroupId);
     });
 
-    /* ---- Third pass: materialize each pasted CustomItem ----
-     * Mirror of the Group pass above. */
+    /* Third pass: materialize pasted CustomItems. */
     itemsObj.items.forEach(item => {
         if (!item.isCustomItemRect) return;
         const newCustomItemId = oldToNewCustomItemId[item.oldCustomItemId];
@@ -14076,19 +12514,8 @@ function pasteItems(duplicate = true) {
 
         const newCustomItem = {
             customitemid: newCustomItemId,
-            /* Preserve the family / template id verbatim from the
-             * clipboard — see copyToCanvasClipBoard()'s CustomItem rect
-             * branch for the strict-family rule. Falls back to a fresh
-             * UUID for clipboard payloads minted before this field
-             * existed (mixed-session paste). */
             customItemBaseId: item.customItemAttrs.customItemBaseId || createUuid(),
             name: item.customItemAttrs.name || '',
-            /* Restore descriptive metadata from the clipboard so a
-             * pasted/duplicated bundle keeps its Author / Description
-             * / Version. Older clipboard entries (pre-2026-05) lack
-             * these keys — collapse to '' / '1' defaults rather than
-             * leaving them undefined so dialog renderers always see
-             * string types. */
             author: item.customItemAttrs.author || '',
             description: item.customItemAttrs.description || '',
             version: item.customItemAttrs.version || '1',
@@ -14282,9 +12709,7 @@ function applyLabelLayerVisibility() {
             labelNode.visible(layerVisible);
         }
     });
-    /* No batchDraw() here: overlayLabels is a Konva.Group (Groups have no
-     * batchDraw method — calling it crashes), and Konva v8+ auto-redraws
-     * the parent Layer on any visibility change anyway. */
+    /* No batchDraw — Konva Groups have no batchDraw; v8+ auto-redraws. */
 }
 
 function gridLinesVisible(state = 'buttonPress') {
@@ -14620,22 +13045,7 @@ function roomObjToCanvas(updateExisting = false) {
 
     console.info('total Items Inserted or Updated:', itemCount);
 
-    /* Draw Group rects after all items are on stage.
-     *
-     * `updateGroupBounds()` is called as a defensive recompute ONLY for groups
-     * whose bounds are missing (width/height === 0). This handles old or
-     * hand-edited URLs that carry an `H{n}` block without `w` / `h`. For
-     * fresh URLs and JSON loads, x/y/width/height are already set correctly
-     * from the source, so we skip the recompute to avoid two pitfalls:
-     *
-     *   1. Item Konva.Image nodes are queued via async `imageObj.onload`
-     *      callbacks, so at this point `getGroupMemberNodes()` typically
-     *      returns empty and the call would no-op anyway.
-     *   2. Browser image cache can make SOME members load synchronously while
-     *      others stay async. If we recomputed in that partial state, the
-     *      resulting (smaller) bbox would overwrite the correct bounds we
-     *      just placed via `insertGroupRect()`. The gate below avoids that.
-     */
+    /* Recompute group bounds only when missing (async image load pitfall). */
     if (roomObj.groups && roomObj.groups.length) {
         roomObj.groups.forEach(g => {
             insertGroupRect(g);
@@ -14645,7 +13055,7 @@ function roomObjToCanvas(updateExisting = false) {
         });
     }
 
-    /* Same defensive recompute for CustomItem rects. */
+    /* Same gate for CustomItem rects. */
     if (roomObj.customItems && roomObj.customItems.length) {
         roomObj.customItems.forEach(c => {
             insertCustomItemRect(c);
@@ -14657,34 +13067,7 @@ function roomObjToCanvas(updateExisting = false) {
 
 }
 
-/* ---- Incremental undo / redo apply ----------------------------------
- *
- * Targeted Konva patcher used by btnUndoClicked() / btnRedoClicked() on
- * the FAST PATH. The caller has already replaced the global `roomObj`
- * with the target snapshot (`next`); this function brings the Konva
- * tree into alignment by destroying / re-inserting only the items,
- * groups, customItems, and meta state that actually changed between
- * `prev` and `next`. The classifier in `VRC.undoApply.requiresFullRedraw`
- * decides whether this fast path is safe; if it returns true the caller
- * runs the original `drawRoom(true, true, true)` full-rebuild instead.
- *
- * Implementation notes:
- *
- *   - The destroy + re-`insertItem` pattern mirrors `updateItem()` —
- *     the only proven way to apply arbitrary attribute changes without
- *     leaking Konva.Image / cached shape state. `insertItem()` is the
- *     same call `roomObjToCanvas()` uses, so coverage / label children
- *     are rebuilt as a side effect for free.
- *   - `insertGroupRect()` / `insertCustomItemRect()` already destroy
- *     any stale rect for the same id before inserting, so the
- *     `changedIds` case re-uses the same call as `addedIds`.
- *   - Selection restore is deferred via the existing 200 ms timeout
- *     inside `trNodesFromUuids` so freshly-inserted nodes are findable
- *     by id.
- *   - This function MUST NOT call `saveToUndoArray()` directly or
- *     indirectly — the caller is in the middle of consuming the undo
- *     stack and a re-push would corrupt the timeline.
- */
+/* Incremental undo/redo Konva patcher — must not call saveToUndoArray(). */
 function applyRoomObjDelta(prev, next) {
     const undoApply = window.VRC && window.VRC.undoApply;
     if (!undoApply) {
@@ -14695,18 +13078,9 @@ function applyRoomObjDelta(prev, next) {
 
     const safeArr = (x) => (Array.isArray(x) ? x : []);
 
-    /* Detach the Transformer before destroying any item nodes. Two
-     * reasons: (1) some of the items we're about to destroy may be in
-     * tr.nodes(), and leaving them attached during destroy can leave
-     * Konva with dangling refs; (2) it's the documented bulk-mutate
-     * speed pattern (see notes/TECH_NOTES_KONVA.md "tr.nodes([])-detach-
-     * before-bulk-mutate"). trNodesFromUuids() reattaches the new
-     * selection at the end of this function. */
+    /* Detach tr before destroying nodes that may be selected. */
     tr.nodes([]);
 
-    /* Look-up tables for the target snapshot. We need the full item /
-     * group / customItem object for any added or changed id so we can
-     * pass it to insertItem / insertGroupRect / insertCustomItemRect. */
     const nextItemsById = new Map();
     safeArr(next && next.items).forEach(i => {
         if (i && i.id) nextItemsById.set(i.id, i);
@@ -14720,7 +13094,6 @@ function applyRoomObjDelta(prev, next) {
         if (c && c.customitemid) nextCustomItemsById.set(c.customitemid, c);
     });
 
-    /* ---- Items ---- */
     const itemDiff = undoApply.diffItems(prev, next);
 
     function destroyItemNodeAndCoverage(id) {
@@ -14757,10 +13130,7 @@ function applyRoomObjDelta(prev, next) {
         }
     });
 
-    /* ---- Groups ----
-     * insertGroupRect() already removes any stale rect for the same
-     * groupid before inserting, so we only need an explicit destroy
-     * for the removedIds set. */
+    /* Groups — insertGroupRect self-destroys stale rects. */
     const groupDiff = undoApply.diffGroups(prev, next);
     groupDiff.removedIds.forEach(gid => {
         if (typeof groupGroupRects !== 'undefined' && groupGroupRects) {
@@ -14775,7 +13145,6 @@ function applyRoomObjDelta(prev, next) {
     groupDiff.changedIds.forEach(reinsertGroup);
     groupDiff.addedIds.forEach(reinsertGroup);
 
-    /* ---- CustomItems ---- */
     const ciDiff = undoApply.diffCustomItems(prev, next);
     ciDiff.removedIds.forEach(cid => {
         if (typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
@@ -14790,21 +13159,13 @@ function applyRoomObjDelta(prev, next) {
     ciDiff.changedIds.forEach(reinsertCustomItem);
     ciDiff.addedIds.forEach(reinsertCustomItem);
 
-    /* ---- Layers ----
-     * Any add / remove / rename / visibility / locked change re-runs the
-     * whole "apply layer state to every node" pass. The list itself is
-     * tiny so the granular delta isn't worth the bookkeeping. */
+    /* Layers — any list change reruns applyAllLayerStates. */
     if (undoApply.diffLayers(prev, next)) {
         if (typeof applyAllLayerStates === 'function') applyAllLayerStates();
         if (typeof renderLayersList    === 'function') renderLayersList();
     }
 
-    /* ---- Overlay visibility toggles ----
-     * Pass an explicit boolean so each toggle's `state === 'buttonPress'`
-     * branch (which would otherwise call saveToUndoArray()) is skipped.
-     * The toggles also re-write the matching roomObj.overlaysVisible
-     * field, which is idempotent against the next snapshot we just
-     * installed. */
+    /* Overlays — explicit boolean skips saveToUndoArray in toggles. */
     const overlayChanges = undoApply.diffOverlays(prev, next);
     const nextOv = (next && next.overlaysVisible) || {};
     overlayChanges.forEach(key => {
@@ -14816,19 +13177,11 @@ function applyRoomObjDelta(prev, next) {
             case 'displayDistanceCoverage': displayDistanceCoverageVisible(v); break;
             case 'overlayLabels':           overlayLabelsVisible(v); break;
             case 'gridLines':               gridLinesVisible(v); break;
-            /* Unknown keys (future additions) silently no-op on the
-             * fast path; the next full drawRoom() will reconcile. */
         }
     });
 
-    /* ---- Selection restore ----
-     * trNodesFromUuids uses a 200 ms timeout internally so newly
-     * inserted nodes are findable by id. `save=false` prevents it from
-     * triggering a canvasToJson() write-back. */
     trNodesFromUuids(safeArr(next && next.trNodes), false);
 
-    /* Document title follows roomObj.name (matches the canvasToJson
-     * write path that runs on normal edits). */
     document.title = (next && next.name)
         ? ('VRC: ' + next.name)
         : 'Video Room Calculator by Joe Hughes';
@@ -14845,11 +13198,6 @@ function canvasToJson() {
 
     document.getElementById('itemZposition').style.backgroundColor = '';
 
-    /* Defensive backfill for any customItem missing a family / template
-     * id — catches URL-decoded customItems, older room JSON files, and
-     * any other load path that pushes into roomObj.customItems without
-     * setting customItemBaseId. Idempotent and O(n) over customItems,
-     * which is typically a handful, so the cost is negligible. */
     ensureCustomItemBaseIds(roomObj);
 
     updateRoomObjFromTrNode();
@@ -14857,9 +13205,7 @@ function canvasToJson() {
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
     if (konvaBackgroundImageFloor && konvaBackgroundImageFloor.attrs.name) {
-        /* Preserve bgImageId across the rebuild — it references the
-         * IndexedDB "Recent Floor Plans" record so the same image can be
-         * rehydrated on reload without needing the full data URL. */
+        /* Preserve bgImageId (IndexedDB ref, not inline bytes). */
         const preservedBgImageId = (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId) || undefined;
         roomObj.backgroundImage = {};
         roomObj.backgroundImage.name = konvaBackgroundImageFloor.attrs.name;
@@ -14874,19 +13220,6 @@ function canvasToJson() {
     }
 
     trNodesUuidToRoomObj();
-
-
-
-    /* The active canvas → roomObj.items writer is
-     * `updateRoomObjFromTrNode()` (called above). It walks only the
-     * current `tr.nodes()` selection. There used to be a nested
-     * `getNodesJson(parentGroup)` here that rebuilt an entire
-     * roomObj.items[groupName] bucket from scratch — never called from
-     * anywhere; deleted when roomObj.items was flattened from an
-     * object-of-arrays into a single flat array. When adding new
-     * `data_*` attributes, follow the four-place rule in CLAUDE.md and
-     * mirror the new attr in `updateRoomObjFromTrNode()`. */
-
 
     /* Sync Group rect Konva positions back to roomObj.groups */
     if (groupGroupRects && roomObj.groups && roomObj.groups.length) {
@@ -14940,12 +13273,7 @@ function canvasToJson() {
 function updateRoomObjFromTrNode() {
 
     tr.nodes().forEach(node => {
-        /* Group and CustomItem rects are stored in roomObj.groups /
-         * roomObj.customItems, NOT roomObj.items. They have no
-         * allDeviceTypes mapping, so the parentGroup lookup below would
-         * fail (logged as "parentGroup not found"). canvasToJson() syncs
-         * their canvas positions back to roomObj.groups /
-         * roomObj.customItems separately. */
+        /* Group/customItem rects live in roomObj.groups/customItems, not items. */
         if (node.data_deviceid === 'group' || node.data_deviceid === 'customItem') return;
 
         let x, y;
@@ -14971,17 +13299,7 @@ function updateRoomObjFromTrNode() {
             y = center.y;
         }
 
-        /* Round x/y/rotation to match the URL encoder's precision
-         * (0.01 unit for x/y, 0.1° for rotation). Full-precision Konva-
-         * derived values caused floating-point drift on first selection
-         * of URL-loaded items (e.g. y: 7.74 -> 7.740000000000001),
-         * which broke the trNodes-only dedup in saveToUndoArray()
-         * because the JSON-string equality check saw the items[] entry
-         * as "changed". Rounding here aligns the canvas-derived values
-         * with the URL-quantized values so selection-only clicks
-         * cleanly dedup. Confirmed via debug session c5ee79 (log line 5
-         * showed exactly the 1e-15 drift before this rounding was
-         * added). */
+        /* Round to URL encoder precision — avoids trNodes-only dedup false positives. */
         itemAttr = {
             x: round(((x - pxOffset) / scale) + activeRoomX),
             y: round(((y - pyOffset) / scale) + activeRoomY),
@@ -15029,9 +13347,7 @@ function updateRoomObjFromTrNode() {
         }
 
         if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-            /* Match URL-encoder precision (Math.round(round(width)*100))
-             * so first selection of a URL-loaded table doesn't trip the
-             * trNodes-only dedup via float drift. */
+            /* Match URL encoder width/height rounding. */
             itemAttr.width  = round(attrs.width  / scale);
             itemAttr.height = round(attrs.height / scale);
         }
@@ -15090,31 +13406,14 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_layerId = node.data_layerId;
         }
 
-        /* Group membership — must be propagated here, NOT in the dead
-         * `getNodesJson()` defined inside canvasToJson(). This function
-         * (`updateRoomObjFromTrNode`) is the active canvas → roomObj.items
-         * writer, so when paste/duplicate creates brand-new items they
-         * fall through the "push fresh itemAttr" branch below, and
-         * without this line the new entries land in roomObj.items
-         * WITHOUT data_groupId — which then breaks URL persistence
-         * (createShareableLink can't emit `s{n}` for a member with no
-         * data_groupId, so the round-trip drops the group). See the
-         * "Where data_groupId Must Be Updated" four-place table in
-         * CLAUDE.md. */
         if (node.data_groupId) {
             itemAttr.data_groupId = node.data_groupId;
         }
 
-        /* CustomItem membership — same rationale as data_groupId above. */
         if (node.data_customItemId) {
             itemAttr.data_customItemId = node.data_customItemId;
         }
 
-        /* Configurable fill / opacity (box / carpet / stageFloor today,
-         * any future configurableColor / wdOpacity device). Same
-         * four-place-rule rationale as data_groupId above. Default
-         * (opacity exactly 1.0) is omitted entirely so the JSON / URL
-         * round-trip stays compact for the common case. */
         if (node.data_fill) {
             itemAttr.data_fill = node.data_fill;
         }
@@ -15128,15 +13427,7 @@ function updateRoomObjFromTrNode() {
             item.x = itemAttr.x;
             item.y = itemAttr.y;
             item.rotation = itemAttr.rotation;
-            /* Only propagate width/height when itemAttr actually carries
-             * them. Non-table parentGroups (chairs, microphones, cameras,
-             * displays, etc.) never write width/height onto itemAttr
-             * above, so the previous unconditional assignment would
-             * clobber an existing `item.width` (loaded from URL / file)
-             * with `undefined`. That stripped the width on first
-             * selection of each item and broke the trNodes-only dedup
-             * in saveToUndoArray() — confirmed via debug session
-             * c5ee79 (chair `width: 2.1 → undefined` on first click). */
+            /* Only patch width/height when itemAttr carries them. */
             if ('width' in itemAttr) {
                 item.width = itemAttr.width;
             }
@@ -15158,34 +13449,19 @@ function updateRoomObjFromTrNode() {
                 delete item.data_layerId;
             }
 
-            /* Sync group membership too — otherwise an item that gets
-             * added to a group (or removed from one) via the existing
-             * roomObjItemsMap entry would never have its data_groupId
-             * updated on subsequent canvasToJson calls, and the URL
-             * would drift from the canvas. */
             if (itemAttr.data_groupId) {
                 item.data_groupId = itemAttr.data_groupId;
             } else {
                 delete item.data_groupId;
             }
 
-            /* Same for customItem membership. */
             if (itemAttr.data_customItemId) {
                 item.data_customItemId = itemAttr.data_customItemId;
             } else {
                 delete item.data_customItemId;
             }
 
-            /* Configurable fill / opacity — explicit-delete-on-absent
-             * so the Details-panel Reset button cleanly propagates the
-             * deletion back to roomObj.items[]. resetFillToDefault()
-             * routes through updateItem() which rebuilds the Konva
-             * node via insertTable()/insertShapeItem() with data_fill
-             * / data_opacity unset; the rebuilt node lands here on the
-             * next canvasToJson with both attrs absent and we must
-             * mirror that absence onto the existing roomObj entry —
-             * otherwise the cleared values would silently reappear
-             * from the prior roomObj state. */
+            /* Explicit-delete-on-absent for fill/opacity after Reset. */
             if (itemAttr.data_fill) {
                 item.data_fill = itemAttr.data_fill;
             } else {
@@ -15198,11 +13474,7 @@ function updateRoomObjFromTrNode() {
             }
 
         } else {
-            /* New item (paste/duplicate created a node that's not yet in
-             * roomObjItemsMap). PERF RULE: trust the map — no linear
-             * findIndex scan. Just push and register; the map is the
-             * source of truth for "does this id exist in roomObj.items".
-             * See plan flatten-roomobj-items-array, rule #2. */
+            /* New item — trust map, no findIndex scan. */
             roomObj.items.push(itemAttr);
             roomObjItemsMap.set(itemAttr.id, itemAttr);
             canvasNodesMap.set(itemAttr.id, itemAttr);
@@ -15218,9 +13490,7 @@ function updateRoomObjFromTrNode() {
 
 
 
-/*
-    Save the tr.nodes() UUIDs to roomObj.trNodes[] array for the purpose of undo/redo shape items being shown selected.
-*/
+/* Save tr.nodes() UUIDs to roomObj.trNodes for undo/redo selection restore. */
 function trNodesUuidToRoomObj() {
     let trNodes = tr.nodes();
     let trNodesIdArray = [];
@@ -15246,14 +13516,7 @@ function setItemForLocalStorage(key, value) {
 }
 
 
-/* === Workspace Designer site dropdown helpers ===
- * Three modes: 'default' (designer.webex.com), 'beta' (designer.cisco.com),
- * 'custom' (user URL). Beta/custom enable testiFrame for iframe loading.
- * All handlers tolerate missing DOM elements as no-ops. */
-
-/** Append the canonical "/#/room/custom" hash if the caller only typed
- *  an origin or a bare path. Idempotent — leaves any existing hash
- *  alone so users can target a specific WD route if they want to. */
+/* WD site dropdown: default / beta / custom URL modes. */
 function ensureRoomCustomPath(url) {
     if (!url) return url;
     const trimmed = String(url).trim().replace(/\/+$/, '');
@@ -15262,7 +13525,6 @@ function ensureRoomCustomPath(url) {
     return trimmed + '/#/room/custom';
 }
 
-/** Map a stored WD URL back to one of the three dropdown modes. */
 function detectWdSiteMode(url) {
     if (!url) return 'default';
     if (/^https?:\/\/designer\.webex\.com\b/i.test(url)) return 'default';
@@ -15270,9 +13532,6 @@ function detectWdSiteMode(url) {
     return 'custom';
 }
 
-/** Apply a dropdown selection to all related state at once.
- *  localStorage: `wd` is the active URL (with /#/room/custom hash);
- *  `wdCustom` remembers the bare URL across mode flips. */
 function applyWdSiteSelection(mode, customUrl) {
     const drp = document.getElementById('drpWdSite');
     const customDiv = document.getElementById('wdSiteCustomDiv');
@@ -15284,7 +13543,7 @@ function applyWdSiteSelection(mode, customUrl) {
         testiFrame = true;
         if (drp) drp.value = 'beta';
         if (customDiv) customDiv.style.display = 'none';
-        /* Keep customInput / wdCustom so flipping back to Custom is instant. */
+        /* Keep customInput/wdCustom for instant flip back to Custom. */
     } else if (mode === 'custom') {
         const urlIn = (customUrl == null ? '' : String(customUrl)).trim();
         const finalUrl = urlIn ? ensureRoomCustomPath(urlIn) : '';
@@ -15294,7 +13553,7 @@ function applyWdSiteSelection(mode, customUrl) {
             setItemForLocalStorage('wdCustom', urlIn);
             testiFrame = true;
         } else {
-            /* Empty Custom textbox → explicit clear of both wd and wdCustom. */
+            /* Empty custom URL clears wd + wdCustom. */
             workspaceDesignerTestUrl = null;
             localStorage.removeItem('wd');
             localStorage.removeItem('wdCustom');
@@ -15303,8 +13562,7 @@ function applyWdSiteSelection(mode, customUrl) {
         if (customDiv) customDiv.style.display = '';
         if (customInput) customInput.value = urlIn;
     } else {
-        /* default (also the fallback for any unrecognized value).
-         * Don't reset testiFrame (RoomOS / ?testiFrame may have set it). */
+        /* default — don't reset testiFrame (RoomOS may have set it). */
         newWorkspaceTab = defaultWorkspaceTab;
         workspaceDesignerTestUrl = null;
         localStorage.removeItem('wd');
@@ -15313,34 +13571,24 @@ function applyWdSiteSelection(mode, customUrl) {
     }
 }
 
-/** Dropdown change handler. Refreshes the split-view iframe for preset
- *  sites and for Custom when a URL is already available; empty Custom
- *  waits for textbox blur to avoid churning during typing. */
 function wdSiteChange() {
     const drp = document.getElementById('drpWdSite');
     if (!drp) return;
     if (drp.value === 'custom') {
         const customInput = document.getElementById('wdSiteCustom');
         let urlIn = customInput ? customInput.value : '';
-        /* Empty textbox → fall back to remembered wdCustom. */
         if (!urlIn) {
             const remembered = localStorage.getItem('wdCustom');
             if (remembered) urlIn = remembered;
         }
         applyWdSiteSelection('custom', urlIn);
         if (urlIn) refreshSplitViewIframe();
-        /* Empty urlIn: wait for wdSiteCustomBlur() to refresh. */
     } else {
         applyWdSiteSelection(drp.value);
         refreshSplitViewIframe();
     }
 }
 
-/** Pre-populate the Custom URL textbox from `localStorage.wdCustom` if
- *  the textbox is currently empty. Called during bootstrap so the
- *  user's last-typed Custom URL is restored across page refreshes —
- *  even when the active mode is currently default or beta — and a
- *  later flip to Custom shows the remembered value without retyping. */
 function preloadWdCustomFromStorage() {
     const customInput = document.getElementById('wdSiteCustom');
     if (!customInput || customInput.value) return;
@@ -15348,19 +13596,12 @@ function preloadWdCustomFromStorage() {
     if (remembered) customInput.value = remembered;
 }
 
-/** Custom URL textbox `oninput` handler — re-applies the user's URL on
- *  every keystroke so the WD button and any future split-view open
- *  pick up changes without a page refresh. The split-view iframe is
- *  intentionally NOT reloaded here (see `wdSiteCustomBlur`). */
 function wdSiteCustomChange() {
     const customInput = document.getElementById('wdSiteCustom');
     if (!customInput) return;
     applyWdSiteSelection('custom', customInput.value);
 }
 
-/** Custom URL textbox `onblur` handler — applies the latest typed URL
- *  and (only now) reloads the split-view iframe. Waiting until blur
- *  avoids reloading the iframe on every character the user types. */
 function wdSiteCustomBlur() {
     const customInput = document.getElementById('wdSiteCustom');
     if (customInput) {
@@ -15369,30 +13610,20 @@ function wdSiteCustomBlur() {
     refreshSplitViewIframe();
 }
 
-/** Force the split-view iframe to reload using the current WD site.
- *  Safe when no iframe exists; setSplitViewToPercent picks up the URL
- *  on the next open. */
 function refreshSplitViewIframe() {
     if (typeof splitViewState === 'undefined' || !splitViewState
         || !splitViewState.iframeLoaded) {
-        /* Iframe was never loaded — nothing to refresh. The next call
-         * to setSplitViewToPercent() will use the current URL. */
         return;
     }
     const iframe = document.getElementById('splitViewIframe');
     if (!iframe) return;
 
-    /* Mirror the URL composition used by setSplitViewToPercent() so the
-     * two paths can never drift. */
     let wdUrl = (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl)
         ? workspaceDesignerTestUrl
         : newWorkspaceTab;
     if (!wdUrl) return;
 
     iframe.src = wdUrl + '?preview=1&removeEditButton=1';
-    /* Re-push room state once the new WD instance has had a chance to
-     * load and wire up its message listener. Same cadence as the
-     * initial load in setSplitViewToPercent(). */
     setTimeout(function () { postMessageToWorkspace(); }, 1500);
     setTimeout(function () { postMessageToWorkspace(); }, 3500);
     setTimeout(function () { postMessageToWorkspace(); }, 6000);
@@ -15419,19 +13650,9 @@ function saveToUndoArray() {
     let pushedNewEntry = false;
     let trNodesOnlyChange = false;
 
-    /* Dedup decision:
-     *   1. Exact match -> no-op (nothing changed at all).
-     *   2. Selection-only change -> no-op WRITE, but preserve redo.
-     *      `roomObj.trNodes` is just the list of selected node uuids
-     *      (see roomcalc.js header note "Does not need to be saved in
-     *      URL"). The user clicked a different item but no real edit
-     *      happened, so we skip the push (no undo bloat), skip the IDB
-     *      write, and intentionally DO NOT clear the redo stack so the
-     *      user can still Ctrl+Shift+Z to the post-edit state.
-     *   3. Real new edit -> push + clear redo (matches the existing
-     *      "new edit invalidates redo" behaviour). */
+    /* Dedup: exact match noop; selection-only preserves redo; else push+clear redo. */
     if (strRoomObj === strUndoArrayLastItem) {
-        /* exact dedup — nothing at all changed */
+        /* exact dedup */
     } else if (
         undoArray.length > 0 &&
         window.VRC &&
@@ -15445,9 +13666,7 @@ function saveToUndoArray() {
         createShareableLink();
     }
 
-    /* Redo is invalidated only by a real new edit. A pure selection
-     * change (trNodesOnlyChange) preserves it so click-around between
-     * undo and redo doesn't kill the redo stack. */
+    /* Selection-only change preserves redo stack. */
     const hadRedo = !trNodesOnlyChange && redoArray.length > 0;
     if (!trNodesOnlyChange) redoArray = [];
 
@@ -15457,10 +13676,7 @@ function saveToUndoArray() {
         undoArray.shift();
     }
 
-    /* Persist to IndexedDB. Fire-and-forget — IDB failures must never break
-     * the in-memory undo stack. The wrapper itself enforces the per-store
-     * cap (MAX_UNDO_ENTRIES) via storeTrim() so we don't have to track the
-     * shift() above on the IDB side. */
+    /* Fire-and-forget IDB persist; cap enforced in idbStore. */
     if (pushedNewEntry && typeof window !== 'undefined' && window.idbStore) {
         window.idbStore.undoAdd(structuredClone(roomObj2));
         if (hadRedo) window.idbStore.redoClearAll();
@@ -15675,27 +13891,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             jsonScaleY = matchScale[2];
         }
 
-        /* Honour {"color": "..."} and {"opacity": ...|"..."} keys in the
-         * label JSON so pathShapes with explicit fill/opacity render in
-         * those colours on the canvas (xConfig Arrows are the first
-         * caller, but this also matches what the Workspace Designer
-         * exporter already does via parseDataLabelFieldJson()). When the
-         * keys are absent, fall back to the historical gray (#D3D3D3)
-         * fill and the local default opacity, so existing pathShapes
-         * remain visually unchanged. Regex (rather than JSON.parse) is
-         * used to mirror the lenient parsing already applied above for
-         * "path" and "scale".
-         *
-         * Precedence (symmetric for color and opacity):
-         *   attrs.data_fill / attrs.data_opacity (Details inputs)
-         *     > label-JSON "color" / "opacity"
-         *     > device defaults (#D3D3D3 fill, local `opacity` for
-         *       opacity — the device-def opacity)
-         * Picker values from the Details panel always win so a user
-         * edit visibly changes the canvas. The label-JSON fallback
-         * keeps xConfig Arrows and legacy pathShapes (authored via
-         * Item Label JSON) rendering exactly as before when no picker
-         * override is set. */
+        /* pathShape fill/opacity: data_* > label JSON > device default. */
         let matchColor = label.match(/"color"\s*:\s*"([^"]+)"/);
         let pathFillColor = attrs.data_fill || (matchColor ? matchColor[1] : '#D3D3D3');
         let matchOpacity = label.match(/"opacity"\s*:\s*"?([\d.]+)"?/);
@@ -15893,12 +14089,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (insertDevice.id === 'sphere') {
-        /* configurableColor: per-item override on attrs.data_fill (read from
-         * shape.data_fill inside sceneFunc — populated by the four-place rule
-         * after construction but BEFORE the first draw, so by the time the
-         * gradient is built the override is available). Sphere is intentionally
-         * configurableColor-only (no wdOpacity), so opacity stays on the
-         * historical device-default fallback. */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -15919,10 +14109,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 shape.fillRadialGradientStartRadius(0)
                 shape.fillRadialGradientEndPoint({ x: shape.width() * 0.3, y: shape.height() * 0.3 });
                 shape.fillRadialGradientEndRadius(shape.width());
-                /* Body color: per-item override via shape.data_fill, falling
-                 * back to the historical 'grey'. Inner stop stays 'white' so
-                 * the 3D highlight effect is preserved even when the sphere
-                 * is tinted to a custom color. */
                 const sphereBodyColor = shape.data_fill || 'grey';
                 shape.fillRadialGradientColorStops([0, 'white', 0.5, sphereBodyColor, 1, sphereBodyColor]);
                 context.fillStrokeShape(shape);
@@ -15932,9 +14118,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
 
     } else if (insertDevice.id === 'cylinder') {
-        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
-         * and attrs.data_opacity. Absent ⇒ historical cylinder defaults
-         * (`grey` fill, device-def opacity 0.4). */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -16095,9 +14278,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         });
     } else if (insertDevice.id === 'box') {
-        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
-         * (6-digit hex) and attrs.data_opacity (0..1). Absent ⇒ device default
-         * (#FFFFFF99 / opacity 1). resetFillToDefault() relies on this fallback. */
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -16146,11 +14326,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
         });
     } else if (insertDevice.id === 'wallStd') {
-        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
-         * and attrs.data_opacity. Absent ⇒ historical wallStd defaults
-         * (`gray` fill, 0.8 opacity), so resetFillToDefault() (which deletes
-         * both attrs and triggers a rebuild via updateItem()) restores the
-         * original look. */
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -16345,9 +14520,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         });
     } else if (insertDevice.id === 'columnRect') {
-        /* configurableColor / wdOpacity: per-item overrides on attrs.data_fill
-         * and attrs.data_opacity. Absent ⇒ historical columnRect defaults
-         * (`gray` fill, 0.8 opacity). */
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -16446,12 +14618,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_groupId = attrs.data_groupId || null;
     tblWallFlr.data_customItemId = attrs.data_customItemId || null;
 
-    /* Configurable fill / opacity (box, carpet, stageFloor). Stored on the
-     * node so canvasToJson() can round-trip them. The Konva rect's actual
-     * fill/opacity are wired above from the same attrs (with the
-     * #FFFFFF99 / 1.0 hardcoded fallback). Absent ⇒ null so the
-     * four-place rule writer can detect "no override" and omit the key
-     * on roomObj.items. */
     tblWallFlr.data_fill = attrs.data_fill || null;
     tblWallFlr.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
 
@@ -16511,12 +14677,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     });
 
     tblWallFlr.on('dragstart', function tableOnDragStart(e) {
-        /* Capture the pre-drag snapshot for group / customItem drag-follow
-         * BEFORE Konva's drag system advances the target's position. If we
-         * waited until dragmove (followGroupDragFromMember's lazy fallback)
-         * the snapshot would bake in the first-frame jump and the
-         * rect/siblings would drift behind by that amount on every
-         * subsequent dragmove. */
+        /* Snapshot pre-drag positions in dragstart, not dragmove. */
         if (e.target.data_groupId) {
             beginGroupDragFollow(e.target);
         }
@@ -16531,21 +14692,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         if (isAllCoverageGroupHidden) return;
 
-        /* Order matches imageItem.dragmove: snap-to-grid first, then
-         * snap-to-objects. Finer alignment wins last — when both are
-         * active and the user is close to a sibling edge, the object
-         * snap takes precedence over the grid increment. Each snap is
-         * idempotent on the rect projection, so the order swap is a
-         * pure hygiene change with no behavioural regression for cases
-         * where only one snap is active. */
+        /* Grid snap first, then object snap. */
         snapCenterToIncrement(tblWallFlr);
 
         snapToGuideLines(e);
 
         if (!tr.nodes().includes(e.target)) {
             if (e.target.data_groupId || e.target.data_customItemId) {
-                /* Bundle member dragged solo — select the whole bundle
-                 * (rect + every member) instead of just this one item. */
+                /* Bundle member — expand to full bundle selection. */
                 tr.nodes([e.target]);
                 expandSelectionForGroups();
             } else {
@@ -16572,14 +14726,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             updateShading(tblWallFlr);
         }
 
-        /* If this table belongs to a Group / CustomItem, drag the rest of
-         * the bundle along with it (siblings + the rect). Same pattern as
-         * `updateShading()` above for coverage nodes — the follower runs
-         * from the dragged item's own dragmove. No-op when the Transformer
-         * itself is being dragged (Konva handles that). The Group follower
-         * runs first; the CustomItem follower then handles items that are
-         * ONLY in a customItem (its internal guard skips siblings already
-         * shifted by the Group follower). */
         followGroupDragFromMember(tblWallFlr);
         followCustomItemDragFromMember(tblWallFlr);
     });
@@ -16594,9 +14740,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         endGroupDragFollow();
         endCustomItemDragFollow();
         endDriftCheck('tblWallFlr.dragend');
-        /* canvasToJson() intentionally NOT called here — see the
-         * "Deferred canvasToJson sync model" note above
-         * beginGroupDragFollow for the rationale. */
+        /* canvasToJson() deferred — see stage mouseup/touchend. */
     });
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
@@ -16715,19 +14859,14 @@ function findUpperLeftXY(shape) {
     };
 }
 
-/* Find the four courners of an item in units feet/meter after rotation.  Assumes any item with a 'width' uses upper left as the x,y.
-SVG path shapes are more simplified and use the bounding getClientRect(). All other objects use center for x,y.
-
-boudingBox = true means use the getClientRect() bounding box.
-
-*/
+/* Four corners in room units; pathShape/polyRoom use getClientRect. */
 function findFourCorners(item) {
 
     let shapeCorners = [];
 
     let width, height;
 
-    /* for pathshape, determine if it is on the canvas by using the Node object and Konva .getClientRect to get four corners. */
+    /* pathShape/polyRoom: bbox from live Konva node. */
     if (item.data_deviceid === 'pathShape' || item.data_deviceid === 'polyRoom') {
         const node = stage.findOne('#' + item.id);
         if (node) {
@@ -16828,10 +14967,6 @@ function getBoundingBoxInUnit(node) {
 
     } else {
         let shapeCorners = [];
-        /* O(1) by-id lookup against the flat-array roomObj.items via the
-         * existing roomObjItemsMap; falls back to a linear scan if the
-         * map hasn't been hydrated yet (shouldn't happen in this code
-         * path, but keep the helper resilient). */
         let item = (typeof roomObjItemsMap !== 'undefined' && roomObjItemsMap.get(node.id()))
             || (Array.isArray(roomObj.items) ? roomObj.items.find(s => s.id === node.id()) : undefined);
 
@@ -16977,8 +15112,7 @@ function updateLayerSelectionOnNewScale() {
     layerSelectionBox
 }
 
-/* updateShapesBasedOnNewScale: rescale all layerTransform nodes when
- * the canvas scale changes (e.g. on unit switch or zoom). */
+/* Rescale layerTransform nodes when canvas scale changes. */
 function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
     let oldScale, oldPxOffset, oldPyOffset;
     /* data_scale keeps track of the scale of the stage related to units of metric/feet */
@@ -16998,9 +15132,6 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
         }
 
         updateLayerSelection(layerSelectionBox);
-
-        /* No batchDraw() — Konva v8+ auto-redraws after the per-node
-         * mutations inside updateNodeScaleLayer (Konva.autoDrawEnabled === true). */
 
         function updateNodeScaleLayer(layer) {
 
@@ -17146,11 +15277,7 @@ function removeShadingTrNodes() {
     lastTrNodesWithShading.forEach(node => {
         if (('data_deviceid' in node)) {
 
-            /* Group / CustomItem rect: deselect just hides the rect again.
-             * Stroke / fill are kept at their insert*Rect defaults so we
-             * don't touch them — and allDeviceTypes['group'/'customItem']
-             * are undefined, so the device-type lookups below would
-             * crash. */
+            /* Group/customItem rects: opacity-only deselect; skip device-type lookups. */
             if (node.data_deviceid === 'group' || node.data_deviceid === 'customItem') {
                 node.opacity(0);
                 return;
@@ -17188,10 +15315,7 @@ function removeShadingTrNodes() {
     tr.nodes(copyTrNodes);
 }
 
-/* Group-aware selection expansion. Call after setting tr.nodes() from
- * any click/drag-select path. Pulls Group rect + all members into
- * tr.nodes() so the Transformer moves the bundle natively. CustomItem
- * rects ride along in parallel. */
+/* Expand tr.nodes() to include group/customItem rect + all members. */
 function expandSelectionForGroups() {
     const current = tr.nodes().slice();
     let expanded = false;
@@ -17214,8 +15338,6 @@ function expandSelectionForGroups() {
         getGroupMemberNodes(id).forEach(member => {
             if (!current.includes(member)) {
                 current.push(member); expanded = true;
-                /* New member may carry its own customItem ref; record it so the
-                 * customItem-expansion pass below picks it up. */
                 if (member.data_customItemId) customItemIds.add(member.data_customItemId);
             }
         });
@@ -17236,8 +15358,7 @@ function expandSelectionForGroups() {
 
     if (expanded) tr.nodes(current);
 
-    /* Resize is meaningless on a bundle: items move together but never need
-     * to be re-sized as a unit. Rotation stays enabled (separate anchor). */
+    /* Bundles: rotation only, no resize. */
     if (current.some(n => n.data_deviceid === 'group' || n.data_deviceid === 'customItem')) {
         tr.enabledAnchors([]);
         tr.resizeEnabled(false);
@@ -17276,13 +15397,7 @@ function updateTrNodesShading() {
 
     copyTrNodes.forEach(node => {
 
-        /* Group / CustomItem members are excluded from the blue-outline
-         * shading; only the rect itself shows a selection visual. The
-         * Group rect's blue/#8FD9FB and the CustomItem rect's green/#B6EAB0
-         * are baked in — the "highlight" is just a fade-up from opacity
-         * 0 to 0.2. When an item belongs to BOTH bundles, the Group rect
-         * takes precedence visually (we'd still highlight both, but the
-         * Details panel routes via Group). */
+        /* Bundle members skip blue outline; only rect gets opacity highlight. */
         if ((node.data_groupId || node.data_customItemId) &&
             node.data_deviceid !== 'group' && node.data_deviceid !== 'customItem') return;
 
@@ -17368,9 +15483,6 @@ function updateMultipleItems() {
 
     tr.nodes().forEach(node => {
 
-        /* O(1) lookup against the flat roomObj.items via the existing
-         * id→item map. parentGroup is no longer required to find the
-         * entry. */
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -17530,11 +15642,7 @@ function updateMultipleItems() {
 
 /* Item is updated after clicking Update item on web page from Details tab */
 function updateItem() {
-    /* Group fast-path: when the Details panel is showing a Group (itemId
-     * === group.groupid), apply X/Y/Z deltas + rotation around the rect
-     * centre to all members and cascade label/layer. The rest of this
-     * function is built around `roomObjItemsMap.get(id)` which has no entry
-     * for groups, so the regular flow would silently no-op. */
+    /* Group fast-path — regular flow uses roomObjItemsMap which has no group entry. */
     const __detailsItemId = document.getElementById('itemId').innerText;
     const __activeGroup = getGroupById(__detailsItemId);
     if (__activeGroup) {
@@ -17542,7 +15650,7 @@ function updateItem() {
         return;
     }
 
-    /* CustomItem fast-path: same rationale as Groups. */
+    /* CustomItem fast-path. */
     const __activeCustomItem = getCustomItemById(__detailsItemId);
     if (__activeCustomItem) {
         updateCustomItemItem(__activeCustomItem);
@@ -17602,12 +15710,6 @@ function updateItem() {
     let item = roomObjItemsMap.get(id);
 
     if (item) {
-        /* Items live in a flat roomObj.items array; the parentGroup
-         * derived from data_deviceid is just a runtime lookup. Mutating
-         * data_deviceid here keeps the same array entry and the same
-         * roomObjItemsMap binding. The pre-flatten code used to clone
-         * the entry into a different bucket and queue a second-pass
-         * cleanup against the old bucket — no longer needed. */
         parentGroup = allDeviceTypes[data_deviceid].parentGroup;
 
         item.data_deviceid = data_deviceid;
