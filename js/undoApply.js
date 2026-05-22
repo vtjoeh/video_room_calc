@@ -224,11 +224,34 @@ window.VRC = window.VRC || {};
      * dedup: every snapshot path in this app comes from
      * `structuredClone(roomObj)` so key order is stable across both
      * sides. */
+    /* Stringify with numeric snap to 2 decimal places. Item x/y/width/
+     * height/rotation are stored at the URL encoder's 0.01-unit / 0.1°
+     * precision (see createShareableLinkItem in roomcalc.js), but
+     * legacy undoArray entries hydrated from IndexedDB, unit-converted
+     * values (m <-> ft via 3.28084), and various Konva-derived
+     * recomputations can land tiny float-precision artifacts in
+     * roomObj.items (e.g. width: 5.97 stored as 5.969999999999999, or
+     * y: 7.74 stored as 7.740000000000001). Those artifacts represent
+     * the SAME physical position but make JSON.stringify equality miss,
+     * which broke the trNodes-only dedup on first selection of an
+     * affected item. The replacer below snaps each finite number to
+     * 0.01 precision for comparison purposes ONLY — the underlying
+     * roomObj data is untouched. Confirmed via debug session c5ee79
+     * (log line 5 of the second post-fix run showed exactly this
+     * pattern for a table loaded from a stale IDB snapshot). */
+    function _snapNumbersReplacer(key, value) {
+        if (typeof value === 'number' && isFinite(value)) {
+            return Math.round(value * 100) / 100;
+        }
+        return value;
+    }
+
     function isOnlyTrNodesChanged(current, last) {
         if (!current || !last) return false;
         var a = Object.assign({}, current); delete a.trNodes;
         var b = Object.assign({}, last);    delete b.trNodes;
-        return JSON.stringify(a) === JSON.stringify(b);
+        return JSON.stringify(a, _snapNumbersReplacer) ===
+               JSON.stringify(b, _snapNumbersReplacer);
     }
 
     window.VRC.undoApply = {

@@ -1263,6 +1263,8 @@ function findRoomItemByUuid(uuid) {
  * CUSTOM_ITEM_UNIT_SCALED_PART_FIELDS list below. */
 const CUSTOM_ITEM_PART_VERBATIM_FIELDS = [
     'data_color',
+    'data_fill',
+    'data_opacity',
     'data_labelField',
     'data_role',
     'data_mount',
@@ -1478,14 +1480,21 @@ function createCustomItemMenuImage(record) {
              * a 400px slab. */
             if (part.data_deviceid === 'pathShape') {
                 const lf = parsePathShapeLabel(part.data_labelField);
+                /* Precedence mirrors the canvas insertTable pathShape
+                 * branch: Details picker (part.data_fill / data_opacity)
+                 * > label-JSON > device default. */
+                const pathFill = part.data_fill || lf.fill;
+                const pathOpacity = (part.data_opacity != null)
+                    ? Number(part.data_opacity)
+                    : (typeof lf.opacity === 'number' ? lf.opacity : 0.4);
                 layer.add(new Konva.Path({
                     x: cx, y: cy,
                     data: lf.path,
-                    fill: lf.fill,
+                    fill: pathFill,
                     stroke: (dt && dt.stroke) || 'black',
                     strokeWidth: 1,
                     strokeScaleEnabled: false,
-                    opacity: (typeof lf.opacity === 'number' ? lf.opacity : 0.4),
+                    opacity: pathOpacity,
                     scale: { x: lf.scaleX, y: lf.scaleY },
                     rotation: rotation,
                     /* getClientRect needs the path bbox to participate
@@ -1521,7 +1530,14 @@ function createCustomItemMenuImage(record) {
             if (part.data_deviceid === 'box' ||
                 part.data_deviceid === 'carpet' ||
                 part.data_deviceid === 'stageFloor') {
-                nodeAttrs.fill = '#FFFFFF99';
+                /* Per-item override via configurableColor (data_fill /
+                 * data_opacity). Falls back to the hardcoded canvas
+                 * defaults when absent, matching insertTable()'s
+                 * `attrs.data_fill || '#FFFFFF99'` precedence. */
+                nodeAttrs.fill = part.data_fill || '#FFFFFF99';
+                if (part.data_opacity != null) {
+                    nodeAttrs.opacity = Number(part.data_opacity);
+                }
                 nodeAttrs.stroke = (dt && dt.stroke) || 'black';
                 nodeAttrs.strokeWidth = 1;
                 nodeAttrs.strokeScaleEnabled = false; /* see pathShape */
@@ -1573,10 +1589,16 @@ function createCustomItemMenuImage(record) {
             }
 
             /* Final fallback: rect with a best-effort fill. Centre-
-             * anchor devices without topImage are rare (e.g. some
-             * generic placeholders) — render with a light grey so
-             * they're visible. */
-            nodeAttrs.fill = '#cccccc';
+             * anchor devices without topImage include the configurable-
+             * color shapes (wallStd / columnRect / cylinder / sphere)
+             * plus any generic placeholders. Honor the per-item
+             * data_fill / data_opacity overrides so a coloured shape
+             * inside a CustomItem reads as coloured in the library
+             * thumbnail. Light grey when no override is supplied. */
+            nodeAttrs.fill = part.data_fill || '#cccccc';
+            if (part.data_opacity != null) {
+                nodeAttrs.opacity = Number(part.data_opacity);
+            }
             nodeAttrs.stroke = (dt && dt.stroke) || '#666666';
             nodeAttrs.strokeWidth = 1;
             nodeAttrs.strokeScaleEnabled = false;
@@ -2675,6 +2697,16 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
         const parentGroup = dt.parentGroup;
         if (!parentGroup) return;
         roomObj.items.push(newItem);
+        /* Pair the push with a roomObjItemsMap registration — canonical
+         * pattern matching every other `roomObj.items.push(...)` site
+         * (e.g. the drag-drop branch around line 23670). Without this,
+         * the deferred trNodesFromUuids(..., true) at the tail of this
+         * function fires canvasToJson → updateRoomObjFromTrNode, which
+         * queries `roomObjItemsMap.get(node.id())`, misses, and falls
+         * into the "new item" else branch — pushing a SECOND itemAttr
+         * with the same id and producing duplicated entries in the
+         * round-tripped .vrc.json / shareable URL. */
+        roomObjItemsMap.set(newItem.id, newItem);
         newMembers.push(uuid);
         pendingInserts.push({ deviceId: part.data_deviceid, parentGroup, attrs: newItem, uuid });
     });
@@ -14939,10 +14971,21 @@ function updateRoomObjFromTrNode() {
             y = center.y;
         }
 
+        /* Round x/y/rotation to match the URL encoder's precision
+         * (0.01 unit for x/y, 0.1° for rotation). Full-precision Konva-
+         * derived values caused floating-point drift on first selection
+         * of URL-loaded items (e.g. y: 7.74 -> 7.740000000000001),
+         * which broke the trNodes-only dedup in saveToUndoArray()
+         * because the JSON-string equality check saw the items[] entry
+         * as "changed". Rounding here aligns the canvas-derived values
+         * with the URL-quantized values so selection-only clicks
+         * cleanly dedup. Confirmed via debug session c5ee79 (log line 5
+         * showed exactly the 1e-15 drift before this rounding was
+         * added). */
         itemAttr = {
-            x: ((x - pxOffset) / scale) + activeRoomX,
-            y: ((y - pyOffset) / scale) + activeRoomY,
-            rotation: rotation,
+            x: round(((x - pxOffset) / scale) + activeRoomX),
+            y: round(((y - pyOffset) / scale) + activeRoomY),
+            rotation: round(rotation, -1),
             type: node.data_type,
             data_deviceid: node.data_deviceid,
             id: node.attrs.id,
@@ -14986,8 +15029,11 @@ function updateRoomObjFromTrNode() {
         }
 
         if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-            itemAttr.width = (attrs.width / scale);
-            itemAttr.height = (attrs.height / scale);
+            /* Match URL-encoder precision (Math.round(round(width)*100))
+             * so first selection of a URL-loaded table doesn't trip the
+             * trNodes-only dedup via float drift. */
+            itemAttr.width  = round(attrs.width  / scale);
+            itemAttr.height = round(attrs.height / scale);
         }
 
         if ('name' in attrs) {
@@ -15082,10 +15128,19 @@ function updateRoomObjFromTrNode() {
             item.x = itemAttr.x;
             item.y = itemAttr.y;
             item.rotation = itemAttr.rotation;
-            if ('width' in item) {
+            /* Only propagate width/height when itemAttr actually carries
+             * them. Non-table parentGroups (chairs, microphones, cameras,
+             * displays, etc.) never write width/height onto itemAttr
+             * above, so the previous unconditional assignment would
+             * clobber an existing `item.width` (loaded from URL / file)
+             * with `undefined`. That stripped the width on first
+             * selection of each item and broke the trNodes-only dedup
+             * in saveToUndoArray() — confirmed via debug session
+             * c5ee79 (chair `width: 2.1 → undefined` on first click). */
+            if ('width' in itemAttr) {
                 item.width = itemAttr.width;
             }
-            if ('height' in item) {
+            if ('height' in itemAttr) {
                 item.height = itemAttr.height;
             }
 
