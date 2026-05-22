@@ -1236,13 +1236,17 @@ input:placeholder-shown {
   /* Reserve a fixed gutter for the scrollbar so layout doesn't reflow
    * when the scrollbar appears/disappears. */
   scrollbar-gutter: stable;
-  /* 14px of always-present right-edge whitespace. On touch devices it
-   * gives users a guaranteed scroll lane that isn't covered by any
-   * .flexItems tile (and therefore not blocked by the long-press
-   * arming touchstart handler) — they can always swipe up/down in
-   * this column to pan the equipment list. Pairs with the long-press
-   * gating in js/roomcalc.js touchStart/touchMove. */
-  padding-right: 14px;
+  /* No dedicated right-edge "touch scroll lane" — the long-press gate
+   * in js/roomcalc.js touchStart/touchMove already lets touch users
+   * swipe directly on a tile to scroll the list (touchstart does NOT
+   * preventDefault on touch devices; a >10px move within 300ms cancels
+   * the arming timer and the browser scrolls natively). A previous
+   * padding-right: 14px guaranteed a no-tile column on the right, but
+   * it ate into the per-row tile budget and at the .containerItems
+   * margin-left: 17px setting it pushed the sidebar onto the boundary
+   * where the row flips between 3 and 2 columns mid-resize. Removing
+   * it adds ~14px of horizontal slack so 3 columns stays stable across
+   * the split-view drag range. */
 }
 
 /* All category panels visible together. Override the legacy
@@ -1414,7 +1418,7 @@ input:placeholder-shown {
 
 /* Following items control the Flex box */
 .containerItems {
-  margin-left: 20px;
+  margin-left: 17px;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
