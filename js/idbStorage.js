@@ -214,6 +214,26 @@
         });
     }
 
+    /* Lightweight per-store count. Used by the Storage and Local Data
+     * dialog to render per-bucket usage without paying the cost of
+     * deserializing every record. Resolves to 0 when IDB is unavailable
+     * so callers don't need to gate on isAvailable() before rendering. */
+    function storeCount(storeName) {
+        if (!idbAvailable) return Promise.resolve(0);
+        return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                const transaction = db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const req = store.count();
+                req.onsuccess = function () { resolve(req.result || 0); };
+                req.onerror = function () { reject(req.error); };
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] count', storeName, 'failed:', e && e.message);
+            return 0;
+        });
+    }
+
     function storeGetAllPayloads(storeName) {
         if (!idbAvailable) return Promise.resolve([]);
         return openDb().then(function (db) {
@@ -712,6 +732,19 @@
         return Promise.all([storeClear(STORE_UNDO), storeClear(STORE_REDO)]);
     }
 
+    /* Nuclear option — wipes every IDB store this module manages. Used by
+     * the Storage and Local Data dialog's "Clear All" action. The caller
+     * is expected to also clear localStorage and reload the page so any
+     * in-memory caches (e.g. customItemLibraryIds) don't go stale. */
+    function clearAllStores() {
+        return Promise.all([
+            storeClear(STORE_UNDO),
+            storeClear(STORE_REDO),
+            storeClear(STORE_BG),
+            storeClear(STORE_CUSTOMITEMS)
+        ]);
+    }
+
     window.idbStore = {
         /* Capabilities */
         isAvailable: function () { return idbAvailable; },
@@ -726,6 +759,7 @@
         },
         undoPopLast: function () { return storeDeleteHighest(STORE_UNDO); },
         undoClearAll: function () { return storeClear(STORE_UNDO); },
+        undoCount: function () { return storeCount(STORE_UNDO); },
         redoAdd: function (payload) {
             return storeAddPayload(STORE_REDO, payload).then(function () {
                 return storeTrim(STORE_REDO, MAX_REDO_ENTRIES);
@@ -733,7 +767,9 @@
         },
         redoPopLast: function () { return storeDeleteHighest(STORE_REDO); },
         redoClearAll: function () { return storeClear(STORE_REDO); },
+        redoCount: function () { return storeCount(STORE_REDO); },
         clearAllUndoRedo: clearAllUndoRedo,
+        clearAllStores: clearAllStores,
 
         /* Background images (FIFO library, capped at MAX_BG_IMAGES) */
         bgImagesAdd: bgImagesAdd,
@@ -741,6 +777,7 @@
         bgImagesGetById: bgImagesGetById,
         bgImagesDelete: bgImagesDelete,
         bgImagesUpdate: bgImagesUpdate,
+        bgImagesCount: function () { return storeCount(STORE_BG); },
         bgImagesMax: function () { return MAX_BG_IMAGES; },
 
         /* VRC Custom Item Library (FIFO library, capped at MAX_CUSTOM_ITEMS,
@@ -751,6 +788,7 @@
         customItemGetAllIds: customItemGetAllIds,
         customItemDelete: customItemDelete,
         customItemHas: customItemHas,
+        customItemCount: function () { return storeCount(STORE_CUSTOMITEMS); },
         customItemMax: function () { return MAX_CUSTOM_ITEMS; },
 
         /* Exposed for tests / future tooling */

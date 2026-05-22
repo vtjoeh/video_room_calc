@@ -1,4 +1,4 @@
-const version = "v0.1.648";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.649";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases (see CLAUDE.md / notes/TECH_NOTES.md).
  * window.convertMetersFeet is exposed for the inline onChange handler
@@ -720,6 +720,53 @@ function migrateLegacyOverlayKeys(obj) {
     if ('gridLines' in src) dst.gridLines = src.gridLines;
     obj.overlaysVisible = dst;
     delete obj.layersVisible;
+}
+
+/* Defensive normalizer: makes sure obj.overlaysVisible exists with every
+ * key the rendering code (drawRoom, applyRoomObjDelta, the per-overlay
+ * toggles) expects. Three cases:
+ *
+ *   1. obj.overlaysVisible is already a valid object with all keys ->
+ *      no-op (idempotent).
+ *   2. obj.overlaysVisible is missing/null but obj.layersVisible
+ *      exists -> migrate via migrateLegacyOverlayKeys (legacy
+ *      v0.1.648-and-earlier shape).
+ *   3. Neither exists, or the migrated/existing object is missing some
+ *      keys -> fill the gaps with the per-key defaults used by the
+ *      initial roomObj at script-load (gridLines + cameraCoverage true,
+ *      everything else false).
+ *
+ * Why both at restore AND at boot? Because:
+ *   - At boot we walk all undo/redo entries and fix them in-place so
+ *     subsequent saveToUndoArray() snapshots inherit the new schema.
+ *   - At restore (inside restoreSnapshotToCanvas) we belt-and-suspender
+ *     defend the actual roomObj assignment so any snapshot that slipped
+ *     past the boot walk (different code path, hand-crafted import, etc.)
+ *     still doesn't crash drawRoom / cameraCoverageVisible / etc.
+ *
+ * This is the function the user explicitly asked for: "If it fails,
+ * just make it the same as the default settings which is everything is
+ * false except gridLines and cameraCoverage." */
+function ensureOverlaysVisibleDefaulted(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    migrateLegacyOverlayKeys(obj);
+    const defaults = {
+        cameraCoverage: true,
+        displayDistanceCoverage: false,
+        microphoneCoverage: false,
+        gridLines: true,
+        speakerCoverage: false,
+        overlayLabels: false
+    };
+    if (!obj.overlaysVisible || typeof obj.overlaysVisible !== 'object') {
+        obj.overlaysVisible = Object.assign({}, defaults);
+        return;
+    }
+    for (const k in defaults) {
+        if (!Object.prototype.hasOwnProperty.call(obj.overlaysVisible, k)) {
+            obj.overlaysVisible[k] = defaults[k];
+        }
+    }
 }
 
 /* Bounding box in layerTransform-local coords. Uses the same
@@ -2002,6 +2049,324 @@ function confirmEditCustomItemFromDialog() {
     }).catch(function (e) {
         console.warn('[customItemLibrary] save edit failed:', e && e.message);
         showToast('Save failed');
+    });
+}
+
+/* ============================================================================
+ * Storage and Local Data dialog
+ *
+ * Opened from Details -> Settings -> "Storage and Local Data..." button.
+ * Shows per-bucket counts plus a navigator.storage.estimate() total when
+ * available, and offers two destructive actions:
+ *
+ *   - Clear Undo/Redo History (recommended) - safe; addresses "many tabs
+ *     sluggish" complaints. Clears IDB undo/redo stores and resets in-memory
+ *     undoArray/redoArray. No page reload.
+ *
+ *   - Clear All - wipes every IDB store this app manages (undo, redo,
+ *     Custom Item Library, Background Image Library) plus localStorage
+ *     (snap settings, default unit, wd overrides, copyItemsObj, etc.).
+ *     Reloads the page so every in-memory cache (customItemLibraryIds,
+ *     undoArray, etc.) restarts from a clean slate.
+ *
+ * Both buttons are no-ops with a tooltip when idbStore.isAvailable() is
+ * false (Safari private mode quirks etc.); see "fallbacks" below.
+ *
+ * Numbers are point-in-time (fetched on dialog open). The Clear Undo/Redo
+ * path refreshes them after running so the user sees the bucket drop to 0.
+ * ============================================================================ */
+
+/* Format a byte count as a human-friendly string (MB to one decimal,
+ * or GB once we cross ~1 GB). Used for the navigator.storage.estimate()
+ * total + quota lines. */
+function _formatStorageBytes(bytes) {
+    if (bytes == null || !isFinite(bytes) || bytes < 0) return '—';
+    const KB = 1024;
+    const MB = KB * 1024;
+    const GB = MB * 1024;
+    if (bytes >= GB) return (bytes / GB).toFixed(2) + ' GB';
+    if (bytes >= MB) return (bytes / MB).toFixed(1) + ' MB';
+    if (bytes >= KB) return (bytes / KB).toFixed(0) + ' KB';
+    return String(bytes) + ' B';
+}
+
+/* Format "N / cap" for the per-bucket rows. If cap is null/undefined,
+ * just shows the count. */
+function _formatStorageCount(count, cap) {
+    if (typeof count !== 'number' || !isFinite(count)) return '—';
+    if (typeof cap === 'number' && isFinite(cap) && cap > 0) {
+        return String(count) + ' / ' + String(cap);
+    }
+    return String(count);
+}
+
+/* Refresh the per-bucket count cells and the total/IDB lines. Called on
+ * dialog open AND after a Clear Undo/Redo so the table updates without
+ * closing the dialog. */
+function _refreshStorageDialogCounts() {
+    const totalLineEl = document.getElementById('storageDialogTotalLine');
+    const idbLineEl = document.getElementById('storageDialogIdbLine');
+    const undoCellEl = document.getElementById('storageCountUndo');
+    const redoCellEl = document.getElementById('storageCountRedo');
+    const customCellEl = document.getElementById('storageCountCustomItems');
+    const bgCellEl = document.getElementById('storageCountBgImages');
+
+    const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
+
+    if (idbLineEl) {
+        idbLineEl.textContent = idbAvailable
+            ? 'IndexedDB: available'
+            : 'IndexedDB: unavailable (undo/redo and library features disabled)';
+    }
+
+    /* Per-bucket caps — pulled from idbStore._constants when exposed,
+     * otherwise hardcoded fallbacks that match the values in
+     * js/idbStorage.js. */
+    let caps = { undo: 100, redo: 100, customItems: 200, bgImages: 10 };
+    if (window.idbStore && window.idbStore._constants) {
+        const c = window.idbStore._constants;
+        caps.undo = c.MAX_UNDO_ENTRIES || caps.undo;
+        caps.redo = c.MAX_REDO_ENTRIES || caps.redo;
+        caps.customItems = c.MAX_CUSTOM_ITEMS || caps.customItems;
+        caps.bgImages = c.MAX_BG_IMAGES || caps.bgImages;
+    }
+
+    /* When IDB is unavailable every count is "—". Skip the IDB calls
+     * entirely so we don't show "0 / 100" which would be misleading. */
+    if (!idbAvailable) {
+        if (undoCellEl) undoCellEl.textContent = '—';
+        if (redoCellEl) redoCellEl.textContent = '—';
+        if (customCellEl) customCellEl.textContent = '—';
+        if (bgCellEl) bgCellEl.textContent = '—';
+        if (totalLineEl) totalLineEl.textContent = 'Storage usage unavailable in this browser.';
+        return;
+    }
+
+    /* Pull all four counts in parallel. Each helper resolves to 0 on
+     * failure so the table never blocks on an error. */
+    const idb = window.idbStore;
+    Promise.all([
+        (typeof idb.undoCount === 'function') ? idb.undoCount() : Promise.resolve(null),
+        (typeof idb.redoCount === 'function') ? idb.redoCount() : Promise.resolve(null),
+        (typeof idb.customItemCount === 'function') ? idb.customItemCount() : Promise.resolve(null),
+        (typeof idb.bgImagesCount === 'function') ? idb.bgImagesCount() : Promise.resolve(null)
+    ]).then(function (counts) {
+        if (undoCellEl) undoCellEl.textContent = _formatStorageCount(counts[0], caps.undo);
+        if (redoCellEl) redoCellEl.textContent = _formatStorageCount(counts[1], caps.redo);
+        if (customCellEl) customCellEl.textContent = _formatStorageCount(counts[2], caps.customItems);
+        if (bgCellEl) bgCellEl.textContent = _formatStorageCount(counts[3], caps.bgImages);
+    }).catch(function (e) {
+        console.warn('[storageDialog] count refresh failed:', e && e.message);
+    });
+
+    /* navigator.storage.estimate() is broadly supported (Chrome / Edge /
+     * Firefox / Safari 15.4+) but we feature-detect anyway and fall back
+     * to a generic message on older browsers. The total is per-origin so
+     * it includes ANY other apps hosted at the same origin (see the
+     * footnote in the modal text). */
+    if (totalLineEl) {
+        if (navigator && navigator.storage && typeof navigator.storage.estimate === 'function') {
+            totalLineEl.textContent = 'Calculating storage usage...';
+            navigator.storage.estimate().then(function (est) {
+                const usage = (est && typeof est.usage === 'number') ? est.usage : null;
+                const quota = (est && typeof est.quota === 'number') ? est.quota : null;
+                if (usage != null && quota != null) {
+                    totalLineEl.textContent = 'Browser storage used: ' + _formatStorageBytes(usage)
+                        + ' (of ' + _formatStorageBytes(quota) + ' available)';
+                } else if (usage != null) {
+                    totalLineEl.textContent = 'Browser storage used: ' + _formatStorageBytes(usage);
+                } else {
+                    totalLineEl.textContent = 'Browser storage usage not reported by this browser.';
+                }
+            }).catch(function () {
+                totalLineEl.textContent = 'Browser storage usage not reported by this browser.';
+            });
+        } else {
+            totalLineEl.textContent = 'Browser storage usage not reported by this browser.';
+        }
+    }
+}
+
+/* Open the Storage and Local Data dialog. Refreshes the count table,
+ * resets the inline-confirm row, and disables the action buttons when
+ * IDB is unavailable. */
+function openStorageDialog() {
+    const dialog = document.getElementById('dialogStorage');
+    if (!dialog) return;
+
+    /* Always start with the inline confirm row hidden — a previous open
+     * may have left it visible if the user closed the dialog mid-confirm. */
+    const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
+    if (inlineConfirm) inlineConfirm.style.display = 'none';
+
+    /* Toggle disabled state of action buttons based on IDB availability.
+     * When IDB is down both clears are no-ops, so we grey them out and
+     * surface the reason via the title tooltip. */
+    const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
+    const btnUndoRedo = document.getElementById('btnClearUndoRedoStorage');
+    const btnAll = document.getElementById('btnClearAllStorage');
+    if (btnUndoRedo) {
+        btnUndoRedo.disabled = !idbAvailable;
+        btnUndoRedo.title = idbAvailable ? '' : 'IndexedDB unavailable in this browser';
+    }
+    if (btnAll) {
+        /* Clear All also wipes localStorage which is independent of IDB,
+         * so we keep it enabled even when IDB is down — clearing prefs
+         * may still help troubleshooting. */
+        btnAll.title = idbAvailable ? '' : 'IndexedDB unavailable — only preferences will be cleared';
+    }
+
+    _refreshStorageDialogCounts();
+    dialog.showModal();
+}
+
+/* "Clear Undo/Redo History (recommended)" button handler. Shows the
+ * inline confirm row inside the same dialog (one fewer modal step than
+ * a full nested dialog). The actual clear runs from
+ * confirmClearUndoRedoInline(). */
+function onClearUndoRedoClicked() {
+    const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
+    if (!idbAvailable) {
+        showToast('IndexedDB unavailable — nothing to clear');
+        return;
+    }
+    const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
+    if (inlineConfirm) inlineConfirm.style.display = '';
+}
+
+function cancelClearUndoRedoInline() {
+    const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
+    if (inlineConfirm) inlineConfirm.style.display = 'none';
+}
+
+/* Actually clear undo/redo. Wipes both IDB stores, resets the in-memory
+ * arrays, and re-syncs the toolbar undo/redo button states. No reload —
+ * the user keeps their current canvas. */
+function confirmClearUndoRedoInline() {
+    const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
+    if (inlineConfirm) inlineConfirm.style.display = 'none';
+
+    if (!window.idbStore || typeof window.idbStore.clearAllUndoRedo !== 'function') {
+        showToast('IndexedDB unavailable — clear failed');
+        return;
+    }
+
+    window.idbStore.clearAllUndoRedo().then(function () {
+        /* Reset in-memory mirrors. saveToUndoArray() handles the
+         * "length === 0" case (treats last item as empty string), so
+         * the next real edit will push the current roomObj as the new
+         * baseline. enableBtnUndoRedo() greys out the toolbar buttons
+         * immediately because both arrays are now empty. */
+        undoArray = [];
+        redoArray = [];
+        if (typeof enableBtnUndoRedo === 'function') enableBtnUndoRedo();
+
+        _refreshStorageDialogCounts();
+        showToast('Cleared undo and redo history');
+    }).catch(function (e) {
+        console.warn('[storageDialog] clear undo/redo failed:', e && e.message);
+        showToast('Clear failed — see console');
+    });
+}
+
+/* "Clear All" button handler. Opens the separate confirmation dialog
+ * because the action is irreversible and reloads the page; an inline
+ * confirm row would be too easy to brush past. */
+function onClearAllClicked() {
+    const dialogConfirm = document.getElementById('dialogStorageClearAllConfirm');
+    const main = document.getElementById('dialogStorageClearAllMain');
+    if (!dialogConfirm || !main) return;
+
+    /* Fetch fresh counts so the warning text shows the user exactly
+     * what they're about to lose. Resolves to 0 on any failure. */
+    const idb = window.idbStore || {};
+    const customCountP = (typeof idb.customItemCount === 'function') ? idb.customItemCount() : Promise.resolve(0);
+    const bgCountP = (typeof idb.bgImagesCount === 'function') ? idb.bgImagesCount() : Promise.resolve(0);
+
+    Promise.all([customCountP, bgCountP]).then(function (counts) {
+        const customCount = counts[0] || 0;
+        const bgCount = counts[1] || 0;
+        /* Build the warning as DOM nodes (not innerHTML) — counts are
+         * numbers and the strings are static, but keep the safe pattern
+         * anyway so future edits can't accidentally introduce an XSS. */
+        main.textContent = '';
+
+        const intro = document.createElement('div');
+        intro.style.marginBottom = '8px';
+        intro.textContent = 'This will permanently delete:';
+        main.appendChild(intro);
+
+        const ul = document.createElement('ul');
+        ul.style.margin = '0 0 12px 18px';
+        ul.style.padding = '0';
+        const items = [
+            'All undo and redo history',
+            'Your Custom Item Library (' + customCount + ' template' + (customCount === 1 ? '' : 's') + ')',
+            'Your Background Image Library (' + bgCount + ' image' + (bgCount === 1 ? '' : 's') + ')',
+            'All saved preferences (snap settings, default unit, Workspace Designer site, etc.)'
+        ];
+        items.forEach(function (label) {
+            const li = document.createElement('li');
+            li.textContent = label;
+            ul.appendChild(li);
+        });
+        main.appendChild(ul);
+
+        const note = document.createElement('div');
+        note.style.marginBottom = '8px';
+        note.textContent = 'Your current room is not affected, but if it uses a background image from the library, the image will be removed on reload.';
+        main.appendChild(note);
+
+        const reloadNote = document.createElement('div');
+        reloadNote.style.fontWeight = '600';
+        reloadNote.textContent = 'The page will reload.';
+        main.appendChild(reloadNote);
+
+        dialogConfirm.showModal();
+    }).catch(function (e) {
+        console.warn('[storageDialog] count fetch for Clear All failed:', e && e.message);
+        /* Fall back to a generic warning if the count fetch failed. */
+        main.textContent = 'This will permanently delete all local data (undo/redo history, libraries, and preferences) and reload the page. Your current room is not affected.';
+        dialogConfirm.showModal();
+    });
+}
+
+/* Confirm button on the Clear All dialog. Wipes IDB + localStorage, then
+ * reloads. The reload is essential because in-memory caches
+ * (customItemLibraryIds, undoArray, redoArray, _customItemQuickAddRecordsCache,
+ * the rehydrated bgImage on canvas, etc.) all need to restart from a
+ * clean slate. */
+function confirmClearAllStorage() {
+    /* Disable the button so the user can't double-click while the
+     * async IDB clear is in flight. */
+    const btn = document.getElementById('btnConfirmClearAllStorage');
+    if (btn) btn.disabled = true;
+
+    const idbClearP = (window.idbStore && typeof window.idbStore.clearAllStores === 'function')
+        ? window.idbStore.clearAllStores()
+        : Promise.resolve();
+
+    idbClearP.then(function () {
+        try {
+            if (typeof localStorage !== 'undefined') localStorage.clear();
+        } catch (e) {
+            console.warn('[storageDialog] localStorage.clear failed:', e && e.message);
+        }
+        /* Reload from the current URL so any shareable-link params
+         * survive (the user's current room is encoded in the URL).
+         * location.reload() is fine here — it's a same-origin
+         * synchronous trigger, not a navigation. */
+        try {
+            location.reload();
+        } catch (e) {
+            console.warn('[storageDialog] reload failed:', e && e.message);
+            if (btn) btn.disabled = false;
+        }
+    }).catch(function (e) {
+        console.warn('[storageDialog] clearAllStores failed:', e && e.message);
+        showToast('Clear All failed — see console');
+        if (btn) btn.disabled = false;
+        closeAllDialogModals();
     });
 }
 
@@ -3771,7 +4136,7 @@ let undoArray = [];
 
 let redoArray = [];
 
-let priorUndoArrayHasData = false; /* set true at onLoad if IndexedDB 'undoEntries' (or legacy localStorage 'undoArray') contained at least one saved design from a previous session — used to gate the "Reload last design" tile in the new-room dialog */
+let priorUndoArrayHasData = false; /* set true at boot iff at least one IndexedDB 'undoEntries' (or legacy-localStorage-migrated) entry holds a roomObj snapshot with non-empty `items`. An empty IDB undo stack OR a stack containing only empty-room boot-push snapshots from prior sessions leaves this false — used to gate the "Reload last design" tile in the new-room dialog so the user is never sent into another empty room. Recomputed by `refinePriorHadData` inside bootHydrateThenOnLoad AFTER the legacy items/overlay migrations run, so the check sees the canonical flat-array `items` shape that `roomObjHasAnyItems` expects. */
 
 let newRoomDialogOpenCount = 0;    /* incremented every time openNewRoomDialog() runs; used so the "Reload last design" tile only appears on the very first open after page load */
 let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `?x=` shareable-link querystring; suppresses the "Reload last design" tile so the user can't accidentally clobber a freshly-shared design with an unrelated previous-session restore */
@@ -8848,7 +9213,45 @@ function binaryToBase26(binary) {
         };
         const needsMigration = hasLegacy(undoArray) || hasLegacy(redoArray);
 
+        /* Recompute priorUndoArrayHasData based on actual ITEM content
+         * (not just undo array length). idbStorage.hydrateUndoRedoFromIdb
+         * returns `priorHadData = undo.length > 0` which is over-broad:
+         * empty boot-push snapshots accumulate in IDB across reloads
+         * (each fresh tab creates a brand-new roomObj with a fresh roomId
+         * and then `saveToUndoArray()` pushes it, because the roomId
+         * differs from whatever was in the array). After two or more
+         * empty-room sessions this leaves the "Reload last design"
+         * tile visible but pointing at an empty room. We re-do the
+         * check here using `roomObjHasAnyItems`, which works for both
+         * the flat-array shape and the legacy bucketed shape. */
+        const refinePriorHadData = () => {
+            priorUndoArrayHasData = undoArray.some(e => e && roomObjHasAnyItems(e));
+        };
+
+        /* Normalize roomObj.overlaysVisible on every hydrated undo/redo
+         * entry. Handles two failure modes in one pass:
+         *   (a) Legacy v0.1.648-and-earlier entries that carry
+         *       `layersVisible.gr*` instead of `overlaysVisible.*`
+         *       (migrated by ensureOverlaysVisibleDefaulted -> the
+         *       wrapped migrateLegacyOverlayKeys helper).
+         *   (b) Entries that lost overlaysVisible entirely (defensive
+         *       case; future schema regressions / hand-edited snapshots)
+         *       get the per-key defaults (gridLines + cameraCoverage
+         *       true, everything else false) — matches the freshly-
+         *       initialised roomObj at script load.
+         * Eager, idempotent, runs unconditionally. Cheap (O(n) over
+         * undo+redo, where each entry is a tiny shallow patch). */
+        const normalizeAllOverlays = () => {
+            undoArray.forEach(ensureOverlaysVisibleDefaulted);
+            redoArray.forEach(ensureOverlaysVisibleDefaulted);
+        };
+
         const finishBoot = () => {
+            normalizeAllOverlays();
+            /* refinePriorHadData runs AFTER both migrations have settled
+             * so it sees the canonical flat-array `items` shape that
+             * roomObjHasAnyItems expects. */
+            refinePriorHadData();
             onLoad();
             /* If onLoad's URL parsing produced a roomObj that references an
              * image in the IDB library but doesn't have an inline data URL,
@@ -9171,6 +9574,15 @@ function roomObjHasAnyItems(obj) {
 }
 
 function reloadLastNonEmptyDesign() {
+    /* Defensive pre-check: never restore an empty room. If no entry in
+     * the current undoArray carries items, bail. The tile that calls
+     * this function is normally hidden in that case (gated by
+     * priorUndoArrayHasData, which the boot path recomputes from
+     * `undoArray.some(e => roomObjHasAnyItems(e))`). This pre-check
+     * exists so any future code path that flips the tile visible (race
+     * with an async hydrate, stale UI state, etc.) still can't lead the
+     * user into an empty restore. */
+    if (!undoArray.some(e => e && roomObjHasAnyItems(e))) return;
     btnUndoClicked();
     while (undoArray.length > 1 && !roomObjHasAnyItems(roomObj)) {
         btnUndoClicked();
@@ -12998,6 +13410,14 @@ function restoreSnapshotToCanvas(prev, next) {
     const fallback = !undoApply || undoApply.requiresFullRedraw(prev, next);
 
     roomObj = next;
+    /* Graceful failure: any snapshot missing `overlaysVisible` (e.g.
+     * v0.1.648 IDB entries that still carry the legacy `layersVisible`
+     * shape; future schema changes that drop a key) gets normalised to
+     * defaults right here, before drawRoom / applyRoomObjDelta read
+     * roomObj.overlaysVisible.<key>. Without this every overlay-reading
+     * site would have to defend itself, and the saved JSON would still
+     * leak `layersVisible`. Defined near migrateLegacyOverlayKeys. */
+    ensureOverlaysVisibleDefaulted(roomObj);
     unit = roomObj.unit;
 
     if (fallback) {
