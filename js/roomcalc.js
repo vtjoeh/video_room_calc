@@ -1698,13 +1698,17 @@ function confirmEditCustomItemFromDialog() {
  *
  *   - Clear Undo/Redo History (recommended) - safe; addresses "many tabs
  *     sluggish" complaints. Clears IDB undo/redo stores and resets in-memory
- *     undoArray/redoArray. No page reload.
+ *     undoArray/redoArray. Also closes the Workspace Designer iframe so
+ *     the heaviest in-memory consumer is released alongside undo history.
+ *     No page reload — the user keeps their current canvas.
  *
  *   - Clear All - wipes every IDB store this app manages (undo, redo,
  *     Custom Item Library, Background Image Library) plus localStorage
- *     (snap settings, default unit, wd overrides, copyItemsObj, etc.).
- *     Reloads the page so every in-memory cache (customItemLibraryIds,
- *     undoArray, etc.) restarts from a clean slate.
+ *     (snap settings, default unit, wd overrides, copyItemsObj, etc.)
+ *     and navigates to the base URL so the user lands on a fresh
+ *     default room with no shareable-link params (?x=…) carried over.
+ *     The page reload restarts every in-memory cache
+ *     (customItemLibraryIds, undoArray, etc.) from a clean slate.
  *
  * Both buttons are no-ops with a tooltip when idbStore.isAvailable() is
  * false (Safari private mode quirks etc.); see "fallbacks" below.
@@ -1737,6 +1741,69 @@ function _formatStorageCount(count, cap) {
     return String(count);
 }
 
+/* Current open/closed status of the Workspace Designer iframe(s).
+ * Returns true when ANY of the WD iframes is loaded in memory: the
+ * split-view iframe (`#splitViewIframe`, tracked via
+ * `splitViewState.iframeLoaded`) and / or the Cisco-internal floating
+ * iframe (`#iFrameFloatingWorkspace`, gated by `testiFrame`). Once an
+ * iframe has loaded its src it continues to consume DOM + JS memory
+ * even after the split-view panel is visually closed, so the row in
+ * the storage dialog reflects the memory state rather than the panel
+ * visibility. */
+function _isWorkspaceDesignerIframeOpen() {
+    if (typeof splitViewState !== 'undefined' && splitViewState && splitViewState.iframeLoaded) {
+        return true;
+    }
+    const floatIframe = document.getElementById('iFrameFloatingWorkspace');
+    if (floatIframe) {
+        const src = floatIframe.getAttribute('src') || floatIframe.src || '';
+        if (src && src !== 'about:blank') return true;
+    }
+    return false;
+}
+
+/* Close any open Workspace Designer iframe(s) and release the loaded
+ * WD page so the browser can reclaim memory. Used by the Storage and
+ * Local Data dialog's Clear Undo/Redo path (the iframe is heavyweight
+ * and shares the "old session state the user no longer needs" bucket
+ * with undo/redo). Clear All also reloads the page, which wipes the
+ * iframe naturally, so this helper is invoked there only for symmetry.
+ *
+ * Steps, in order:
+ *   1. If the split-view panel is visible, close it via splitViewClose()
+ *      so the layout reflows back to full-width canvas.
+ *   2. Clear `#splitViewIframe`.src and reset `splitViewState.iframeLoaded`
+ *      so the next Open WD click reloads cleanly.
+ *   3. Clear `#iFrameFloatingWorkspace`.src (Cisco-internal testiFrame
+ *      path) and reset `testiFrameInitialized` for the same reason.
+ *
+ * No-op when nothing is loaded. */
+function _closeWorkspaceDesignerIframe() {
+    if (typeof splitViewState !== 'undefined' && splitViewState
+        && splitViewState.isActive && typeof splitViewClose === 'function') {
+        try { splitViewClose(); } catch (e) {
+            console.warn('[storageDialog] splitViewClose failed:', e && e.message);
+        }
+    }
+    const splitIframe = document.getElementById('splitViewIframe');
+    if (splitIframe) {
+        try { splitIframe.src = 'about:blank'; } catch (e) { /* ignore */ }
+    }
+    if (typeof splitViewState !== 'undefined' && splitViewState) {
+        splitViewState.iframeLoaded = false;
+    }
+    const floatIframe = document.getElementById('iFrameFloatingWorkspace');
+    if (floatIframe) {
+        const src = floatIframe.getAttribute('src') || floatIframe.src || '';
+        if (src && src !== 'about:blank') {
+            try { floatIframe.src = 'about:blank'; } catch (e) { /* ignore */ }
+        }
+    }
+    if (typeof testiFrameInitialized !== 'undefined') {
+        testiFrameInitialized = false;
+    }
+}
+
 /* Refresh the per-bucket count cells and the total/IDB lines. Called on
  * dialog open AND after a Clear Undo/Redo so the table updates without
  * closing the dialog. */
@@ -1747,6 +1814,14 @@ function _refreshStorageDialogCounts() {
     const redoCellEl = document.getElementById('storageCountRedo');
     const customCellEl = document.getElementById('storageCountCustomItems');
     const bgCellEl = document.getElementById('storageCountBgImages');
+    const wdCellEl = document.getElementById('storageWorkspaceDesignerStatus');
+
+    /* The Workspace Designer row is independent of IDB — it reflects
+     * the in-memory iframe state, not on-disk storage. Populate it
+     * first so the row updates even when IDB is unavailable below. */
+    if (wdCellEl) {
+        wdCellEl.textContent = _isWorkspaceDesignerIframeOpen() ? 'Open' : 'Closed';
+    }
 
     const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
 
@@ -1877,8 +1952,10 @@ function cancelClearUndoRedoInline() {
 }
 
 /* Actually clear undo/redo. Wipes both IDB stores, resets the in-memory
- * arrays, and re-syncs the toolbar undo/redo button states. No reload —
- * the user keeps their current canvas. */
+ * arrays, and re-syncs the toolbar undo/redo button states. Also closes
+ * the Workspace Designer iframe (if open) so the user's "free up
+ * resources" intent covers the heaviest in-memory consumer too. No page
+ * reload — the user keeps their current canvas. */
 function confirmClearUndoRedoInline() {
     const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
     if (inlineConfirm) inlineConfirm.style.display = 'none';
@@ -1887,6 +1964,12 @@ function confirmClearUndoRedoInline() {
         showToast('IndexedDB unavailable — clear failed');
         return;
     }
+
+    /* Capture WD state BEFORE closing so the toast message accurately
+     * reflects what happened. Close fires regardless — no-op if nothing
+     * is loaded. */
+    const wdWasOpen = _isWorkspaceDesignerIframeOpen();
+    _closeWorkspaceDesignerIframe();
 
     window.idbStore.clearAllUndoRedo().then(function () {
         /* Reset in-memory mirrors. saveToUndoArray() handles the
@@ -1899,7 +1982,9 @@ function confirmClearUndoRedoInline() {
         if (typeof enableBtnUndoRedo === 'function') enableBtnUndoRedo();
 
         _refreshStorageDialogCounts();
-        showToast('Cleared undo and redo history');
+        showToast(wdWasOpen
+            ? 'Cleared undo/redo history and closed Workspace Designer'
+            : 'Cleared undo and redo history');
     }).catch(function (e) {
         console.warn('[storageDialog] clear undo/redo failed:', e && e.message);
         showToast('Clear failed — see console');
@@ -1951,7 +2036,7 @@ function onClearAllClicked() {
 
         const note = document.createElement('div');
         note.style.marginBottom = '8px';
-        note.textContent = 'Your current room is not affected, but if it uses a background image from the library, the image will be removed on reload.';
+        note.textContent = 'The page will reload to a fresh default room — your current room layout will be lost. Save it first if you need to keep it.';
         main.appendChild(note);
 
         const reloadNote = document.createElement('div');
@@ -1963,16 +2048,19 @@ function onClearAllClicked() {
     }).catch(function (e) {
         console.warn('[storageDialog] count fetch for Clear All failed:', e && e.message);
         /* Fall back to a generic warning if the count fetch failed. */
-        main.textContent = 'This will permanently delete all local data (undo/redo history, libraries, and preferences) and reload the page. Your current room is not affected.';
+        main.textContent = 'This will permanently delete all local data (undo/redo history, libraries, and preferences) and reload the page to a fresh default room. Your current room layout will be lost.';
         dialogConfirm.showModal();
     });
 }
 
-/* Confirm button on the Clear All dialog. Wipes IDB + localStorage, then
- * reloads. The reload is essential because in-memory caches
+/* Confirm button on the Clear All dialog. Wipes IDB + localStorage,
+ * closes the Workspace Designer iframe, then navigates to the base
+ * URL (no ?x=… shareable-link params) so the user lands on a fresh
+ * default room. The reload is essential because in-memory caches
  * (customItemLibraryIds, undoArray, redoArray, _customItemQuickAddRecordsCache,
  * the rehydrated bgImage on canvas, etc.) all need to restart from a
- * clean slate. */
+ * clean slate, and the URL drop guarantees the in-memory roomObj also
+ * resets to the default rather than re-decoding from `?x=`. */
 function confirmClearAllStorage() {
     /* Disable the button so the user can't double-click while the
      * async IDB clear is in flight. */
@@ -1989,14 +2077,21 @@ function confirmClearAllStorage() {
         } catch (e) {
             console.warn('[storageDialog] localStorage.clear failed:', e && e.message);
         }
-        /* Reload from the current URL so any shareable-link params
-         * survive (the user's current room is encoded in the URL).
-         * location.reload() is fine here — it's a same-origin
-         * synchronous trigger, not a navigation. */
+        /* Also close any open WD iframe before reloading. Strictly
+         * unnecessary (the navigation below tears down the whole
+         * document) but keeps behaviour symmetric with Clear Undo/Redo. */
+        try { _closeWorkspaceDesignerIframe(); } catch (e) { /* ignore */ }
+        /* Reload to the base URL (drop ?x=… shareable-link params and
+         * any other query string / hash) so the user lands on a fresh
+         * default room. Without this, location.reload() would re-decode
+         * the current room from the URL — defeating the "wipe
+         * everything" intent of Clear All. location.assign() with the
+         * explicit origin + pathname avoids the trailing-`?` quirks
+         * some browsers exhibit when setting `location.search = ''`. */
         try {
-            location.reload();
+            window.location.assign(window.location.origin + window.location.pathname);
         } catch (e) {
-            console.warn('[storageDialog] reload failed:', e && e.message);
+            console.warn('[storageDialog] reset URL failed:', e && e.message);
             if (btn) btn.disabled = false;
         }
     }).catch(function (e) {

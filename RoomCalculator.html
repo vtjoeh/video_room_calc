@@ -2517,11 +2517,17 @@
   <!--
     Storage and Local Data — opened from Details → Settings → Storage row.
     Shows per-bucket counts (undo, redo, custom items, background images)
-    plus navigator.storage.estimate() total when available, and offers two
+    + Workspace Designer iframe open/closed status, plus a
+    navigator.storage.estimate() total when available, and offers two
     destructive actions:
       * Clear Undo/Redo History — safe, addresses "many tabs sluggish"
-                                  complaints. No page reload.
-      * Clear All — wipes IDB stores + localStorage prefs. Reloads page.
+                                  complaints. Also closes the Workspace
+                                  Designer iframe so its in-memory page
+                                  is released alongside undo history.
+                                  No page reload.
+      * Clear All — wipes IDB stores + localStorage prefs and navigates
+                    to the base URL (drops ?x=… shareable-link params)
+                    so the user lands on a fresh default room.
     See CLAUDE.md "Storage settings modal" section (the plan that introduced
     this dialog) and js/roomcalc.js openStorageDialog() for behaviour.
   -->
@@ -2557,6 +2563,10 @@
           <tr>
             <td style="padding: 4px 8px 4px 0;">Background Image Library</td>
             <td id="storageCountBgImages" style="padding: 4px 0; text-align: right; font-variant-numeric: tabular-nums;">&mdash;</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 8px 4px 0;">Workspace Designer iFrame</td>
+            <td id="storageWorkspaceDesignerStatus" style="padding: 4px 0; text-align: right; font-variant-numeric: tabular-nums;">&mdash;</td>
           </tr>
         </tbody>
       </table>
