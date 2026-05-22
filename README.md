@@ -13,6 +13,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - 💾 New **Storage and Local Data** viewer (Details → Settings) — see browser storage usage and clear undo/redo history or all local data. 
 - 🏃 Templates tab in the New Room dialog now populates instantly.
 - 🐞 Bug fixes, CSS fixes and internal refactoring.
+- Underlying JSON format for vrc.json items array and coverage toggles have changed. Old files are backwards compatible on upload. 
 
 **v0.1.648 Release Notes**
 - New badge to show when Layers are locked or hidden, and the current mode. 🏷️
