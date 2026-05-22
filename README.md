@@ -8,6 +8,11 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.649 Release Notes** 🚀
+- ⚡ Refactored undo/redo for speed, undo no longer forces 100% zoom. 
+- 💾 New **Storage and Local Data** viewer (Details → Settings) — see browser storage usage and clear undo/redo history or all local data. 
+- 🏃 Templates tab in the New Room dialog now populates instantly.
+- 🐞 Bug fixes, CSS fixes and internal refactoring.
 
 **v0.1.648 Release Notes**
 - New badge to show when Layers are locked or hidden, and the current mode. 🏷️
