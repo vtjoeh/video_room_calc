@@ -161,6 +161,16 @@ roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
 roomObj.customItems = [];
 
+/* Konva.Label-based text items (wdText + vrcText) share the same render
+ * structure and therefore share every code path that special-cases
+ * "compound text" semantics (clicks resolving up to the Label, no Shape
+ * stroke methods, auto-sized width/height, font-size on zoom, etc.).
+ * Centralize the membership test here so adding a third text-like device
+ * is a single-line edit. */
+function isTextItem(deviceId) {
+    return deviceId === 'wdText' || deviceId === 'vrcText';
+}
+
 /* roomObj.items parentGroup helpers (flat-array shape; legacy bucketed
  * shape auto-migrated by window.VRC.migrateLegacyItemsShape).
  * PERF RULE: any function reading 2+ categories MUST call
@@ -6680,7 +6690,26 @@ let boxes = [
         resizeable: [],
         configurableColor: true, /* user picks text fill via #itemFill (canvas + WD); default 'black' */
         wdOpacity: true,         /* user picks text opacity via #itemOpacity (canvas + WD); default 1 */
-        default_fontSize: 20,
+        default_fontSize: 50,
+    },
+    {
+        /* VRC-only text item. Renders identically to wdText (Konva.Label with
+         * Tag + Text children) but with a near-transparent white tag
+         * (fill: 'white', opacity: 0.1). Unlike wdText, vrcText is NOT
+         * emitted into workspaceObj.customObjects on WD export — instead
+         * it round-trips via workspaceObj.data.vrc.vrcTexts[] (mirror of
+         * data.vrc.groups / data.vrc.customItems). The Workspace Designer
+         * does not render vrcText; it is purely a VRC annotation that
+         * survives the WD save/open cycle. */
+        name: 'VRC Text',
+        id: 'vrcText',
+        key: 'XA',
+        frontImage: 'box-front.png',
+        family: 'wdText', /* reuse wdText family — all Konva.Label-specific code paths apply equally */
+        resizeable: [],
+        configurableColor: true,
+        wdOpacity: true,
+        default_fontSize: 50,
     }
 ]
 
@@ -8210,10 +8239,10 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* w=wdText font size (integer pt-like units, mirror of the
-             * encoder above). Absent ⇒ device-def default applied at
-             * render time. */
-            if ('w' in item && newItem.data_deviceid === 'wdText') {
+            /* w=wdText/vrcText font size (integer pt-like units, mirror
+             * of the encoder above). Absent ⇒ device-def default applied
+             * at render time. */
+            if ('w' in item && isTextItem(newItem.data_deviceid)) {
                 const fsNum = parseInt(item.w, 10);
                 if (!isNaN(fsNum) && fsNum > 0) {
                     newItem.data_fontSize = fsNum;
@@ -11191,11 +11220,13 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* w=wdText font size (integer). Omitted when equal to the device-def
-     * default (currently 20) so the common case stays compact. */
-    if (item.data_deviceid === 'wdText' && item.data_fontSize != null) {
+    /* w=wdText/vrcText font size (integer). Omitted when equal to the
+     * device-def default (currently 20 for both) so the common case
+     * stays compact. */
+    if (isTextItem(item.data_deviceid) && item.data_fontSize != null) {
         const __fsNum = Number(item.data_fontSize);
-        const __fsDefault = (allDeviceTypes['wdText'] && allDeviceTypes['wdText'].default_fontSize) || 20;
+        const __deviceDef = allDeviceTypes[item.data_deviceid];
+        const __fsDefault = (__deviceDef && __deviceDef.default_fontSize) || 20;
         if (!isNaN(__fsNum) && __fsNum > 0 && __fsNum !== __fsDefault) {
             strItem += 'w' + Math.round(__fsNum);
         }
@@ -13499,14 +13530,14 @@ function updateRoomObjFromTrNode() {
         }
 
         if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-            /* Match URL encoder width/height rounding. wdText is a
-             * Konva.Label whose width/height are auto-computed from the
-             * inner Konva.Text — `attrs.width` is undefined for Labels, so
-             * read via node.width() / node.height() to get the actual
-             * rendered bounds. The serialized values keep the WD export's
-             * getItemCenter() math happy and feed accurate values into the
-             * boxes-bucket round-trip. */
-            if (node.data_deviceid === 'wdText') {
+            /* Match URL encoder width/height rounding. wdText/vrcText
+             * are Konva.Labels whose width/height are auto-computed from
+             * the inner Konva.Text — `attrs.width` is undefined for
+             * Labels, so read via node.width() / node.height() to get the
+             * actual rendered bounds. The serialized values keep the WD
+             * export's getItemCenter() math happy and feed accurate
+             * values into the boxes-bucket round-trip. */
+            if (isTextItem(node.data_deviceid)) {
                 itemAttr.width  = round((node.width()  || 0) / scale);
                 itemAttr.height = round((node.height() || 0) / scale);
             } else {
@@ -14090,18 +14121,24 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         })
 
     }
+ƒ
 
-
-    if (insertDevice.id === 'wdText') {
-        /* Konva.Label with a blue Konva.Tag background + a Konva.Text
-         * child whose fill and opacity track the user's picker values
+    if (isTextItem(insertDevice.id)) {
+        /* Konva.Label with a Konva.Tag background + a Konva.Text child
+         * whose fill and opacity track the user's picker values
          * (configurableColor + wdOpacity on the device def). The black
          * stroke keeps light fills (white / yellow) readable against
-         * the blue tag. Font size scales with both data_fontSize and
+         * the tag. Font size scales with both data_fontSize and
          * canvas `scale` so the on-canvas text approximates the WD
          * result (20pt ≈ 0.20 m tall, refined by the 1.31×
-         * WDTEXT_CANVAS_FONT_SCALE calibration). */
-        const dataFontSize = Number(attrs.data_fontSize) || allDeviceTypes['wdText'].default_fontSize || 20;
+         * WDTEXT_CANVAS_FONT_SCALE calibration).
+         *
+         * wdText vs vrcText: only the Konva.Tag fill/opacity diverges.
+         * wdText uses an opaque light-grey tag (mirrors what WD renders
+         * for objectType:'text'); vrcText uses a near-transparent white
+         * tag so it reads as a soft annotation on the canvas. */
+        const isVrcText = insertDevice.id === 'vrcText';
+        const dataFontSize = Number(attrs.data_fontSize) || allDeviceTypes[insertDevice.id].default_fontSize || 20;
         const rawText = (attrs.data_labelField || '').replace(/{.*?}/g, '').trim();
         const textContent = rawText || 'Text';
         const konvaFontSize = computeWdTextKonvaFontSize(dataFontSize);
@@ -14109,7 +14146,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         /* fill / opacity defaults mirror workspaceObjTextPush so a
          * never-edited wdText paints with WD's effective defaults
          * (black @ opacity 1). data_fill absent ⇒ 'black'; data_opacity
-         * absent ⇒ 1 (== "no override" sentinel for the picker). */
+         * absent ⇒ 1 (== "no override" sentinel for the picker).
+         * vrcText shares the same text defaults — only the tag bg differs. */
         const textFill    = attrs.data_fill    || 'black';
         const textOpacity = (attrs.data_opacity == null) ? 1 : Number(attrs.data_opacity);
 
@@ -14122,7 +14160,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
 
         tblWallFlr.add(new Konva.Tag({
-            fill: '#e0e0e0',
+            fill: isVrcText ? 'white' : '#e0e0e0',
+            opacity: isVrcText ? 0.1 : 1,
             stroke: 'white',
             strokeWidth: 1,
             cornerRadius: 5,
@@ -15026,10 +15065,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
-    /* wdText already renders its text directly in the canvas (the inner
-     * Konva.Text child of the Konva.Label), so the floating overlay
-     * label tooltip would be a redundant duplicate. */
-    if (attrs.data_labelField && insertDevice.id !== 'wdText') {
+    /* wdText/vrcText already render their text directly in the canvas
+     * (the inner Konva.Text child of the Konva.Label), so the floating
+     * overlay label tooltip would be a redundant duplicate. */
+    if (attrs.data_labelField && !isTextItem(insertDevice.id)) {
         addLabel(tblWallFlr, attrs);
     }
 
@@ -15447,17 +15486,19 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 node.scaleY(newScaleY);
             }
 
-            /* wdText renders as a Konva.Label whose Konva.Text child uses
-             * an explicit fontSize derived from `data_fontSize` and the
-             * current canvas `scale` (see computeWdTextKonvaFontSize).
-             * After a zoom the global `scale` has already updated, so we
-             * just recompute the child's fontSize. The standard
-             * `if ('x' in attrs)` branch below handles the x/y reposition. */
-            if (node.data_deviceid === 'wdText') {
+            /* wdText/vrcText render as a Konva.Label whose Konva.Text
+             * child uses an explicit fontSize derived from
+             * `data_fontSize` and the current canvas `scale` (see
+             * computeWdTextKonvaFontSize). After a zoom the global
+             * `scale` has already updated, so we just recompute the
+             * child's fontSize. The standard `if ('x' in attrs)` branch
+             * below handles the x/y reposition. */
+            if (isTextItem(node.data_deviceid)) {
                 const inner = node.findOne('Text');
                 if (inner) {
+                    const __deviceDef = allDeviceTypes[node.data_deviceid];
                     const dataFs = (node.data_fontSize == null)
-                        ? ((allDeviceTypes['wdText'] && allDeviceTypes['wdText'].default_fontSize) || 20)
+                        ? ((__deviceDef && __deviceDef.default_fontSize) || 20)
                         : Number(node.data_fontSize);
                     inner.fontSize(computeWdTextKonvaFontSize(dataFs));
                 }
@@ -15569,10 +15610,10 @@ function removeShadingTrNodes() {
                 return;
             }
 
-            /* wdText is a Konva.Label (Group) with no Shape stroke methods.
-             * updateTrNodesShading() skipped the highlight, so there's
-             * nothing to undo here either. */
-            if (node.data_deviceid === 'wdText') {
+            /* wdText/vrcText are Konva.Label (Group) instances with no
+             * Shape stroke methods. updateTrNodesShading() skipped the
+             * highlight, so there's nothing to undo here either. */
+            if (isTextItem(node.data_deviceid)) {
                 return;
             }
 
@@ -15700,12 +15741,12 @@ function updateTrNodesShading() {
             return;
         }
 
-        /* wdText renders as a Konva.Label (Group), which doesn't expose
-         * Shape stroke methods. The Transformer's bounding-box anchors
-         * already provide the visual "this is selected" feedback, so
-         * we skip the blue-outline pass entirely. Mirror this skip in
-         * removeShadingTrNodes(). */
-        if (node.data_deviceid === 'wdText') {
+        /* wdText/vrcText render as a Konva.Label (Group), which doesn't
+         * expose Shape stroke methods. The Transformer's bounding-box
+         * anchors already provide the visual "this is selected"
+         * feedback, so we skip the blue-outline pass entirely. Mirror
+         * this skip in removeShadingTrNodes(). */
+        if (isTextItem(node.data_deviceid)) {
             return;
         }
 
@@ -16213,9 +16254,10 @@ function updateItem() {
             }
         }
 
-        /* wdText: read Font Size from the Details panel input. Bad/empty
-         * inputs fall back to the device default (currently 20). */
-        if (item.data_deviceid === 'wdText') {
+        /* wdText/vrcText: read Font Size from the Details panel input.
+         * Bad/empty inputs fall back to the device default
+         * (currently 20 for both). */
+        if (isTextItem(item.data_deviceid)) {
             const __fsInput = document.getElementById('itemFontSize');
             if (__fsInput) {
                 const __fsNum = Number(__fsInput.value);
@@ -21091,7 +21133,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     if (['polyRoom', 'boxRoomPart'].includes(shape.data_deviceid)) {
         document.getElementById('itemLabeldiv').textContent = 'Room Name:'
-    } else if (shape.data_deviceid === 'wdText') {
+    } else if (isTextItem(shape.data_deviceid)) {
         document.getElementById('itemLabeldiv').textContent = 'Text:'
     } else {
         document.getElementById('itemLabeldiv').textContent = 'Item Label:'
@@ -21150,11 +21192,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheight').disabled = false;
     }
 
-    /* wdText: width/length are auto-sized by Konva.Label from the inner
-     * Konva.Text — disable both inputs (hidden below by the
-     * `both-disabled` collapse rule, which the wdText branch lower in
-     * this function also drives). */
-    if (shape.data_deviceid === 'wdText') {
+    /* wdText/vrcText: width/length are auto-sized by Konva.Label from
+     * the inner Konva.Text — disable both inputs (hidden below by the
+     * `both-disabled` collapse rule, which the text-item branch lower
+     * in this function also drives). */
+    if (isTextItem(shape.data_deviceid)) {
         document.getElementById('itemWidth').disabled = true;
         document.getElementById('itemLength').disabled = true;
         document.getElementById('itemVheight').disabled = true;
@@ -21398,7 +21440,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('labelField').value = pathLabel.label.trim();
             document.getElementById('labelPath').value = pathLabel.path.trim();
 
-        } else if (shape.data_deviceid === 'wdText') {
+        } else if (isTextItem(shape.data_deviceid)) {
             /* Mirror of updateItem's "\\n" → real-newline conversion.
              * The stored label has real newlines (so Konva.Text renders
              * multi-line and the JSON export emits a literal "\n"); the
@@ -21453,19 +21495,21 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     /* populate layer dropdown for single item */
     populateLayerDropdown('drpItemLayer', item.data_layerId || '0');
 
-    /* wdText: surface Font Size + Tilt/Lean and hide every field that
-     * doesn't apply (the inner Konva.Text auto-sizes the bounding box
-     * from the text + fontSize, so width/length/diagonal/vheight/
-     * cornerRadius are meaningless for this device). Tilt + Lean ARE
-     * applicable — they ride out as rotation[0] / rotation[2] on the
-     * WD export (mirror of wallStd / cylinder), so the standard input
-     * divs surface unchanged. */
+    /* wdText/vrcText: surface Font Size + Tilt/Lean and hide every field
+     * that doesn't apply (the inner Konva.Text auto-sizes the bounding
+     * box from the text + fontSize, so width/length/diagonal/vheight/
+     * cornerRadius are meaningless for these devices). Tilt + Lean ARE
+     * applicable for wdText — they ride out as rotation[0] / rotation[2]
+     * on the WD export (mirror of wallStd / cylinder), so the standard
+     * input divs surface unchanged. vrcText round-trips verbatim via
+     * data.vrc.vrcTexts, so Tilt/Lean stay visible for it too. */
     const fontSizeDiv = document.getElementById('itemFontSizeDiv');
     if (fontSizeDiv) {
-        if (shape.data_deviceid === 'wdText') {
+        if (isTextItem(shape.data_deviceid)) {
             fontSizeDiv.style.display = '';
             const fsInput = document.getElementById('itemFontSize');
-            const defaultFs = (allDeviceTypes['wdText'] && allDeviceTypes['wdText'].default_fontSize) || 20;
+            const __deviceDef = allDeviceTypes[shape.data_deviceid];
+            const defaultFs = (__deviceDef && __deviceDef.default_fontSize) || 20;
             if (fsInput) {
                 fsInput.value = (shape.data_fontSize != null) ? shape.data_fontSize : defaultFs;
             }
@@ -21477,7 +21521,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
             /* Tilt + Lean stay visible (data_tilt / data_slant export
-             * as rotation[0] / rotation[2] in workspaceObjTextPush). */
+             * as rotation[0] / rotation[2] in workspaceObjTextPush for
+             * wdText; vrcText preserves them through data.vrc.vrcTexts). */
             document.getElementById('itemTiltSlantDiv').style.display = '';
             document.getElementById('itemTiltDiv').style.display = '';
             document.getElementById('itemSlantDiv').style.display = '';
@@ -22143,10 +22188,11 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_vHeight = default_vHeight;
     }
 
-    /* wdText needs an initial text string so the user sees something on
-     * the canvas immediately. Set a default 'Text' label if the caller
-     * hasn't provided one (paste/import paths already carry text). */
-    if (data_deviceid === 'wdText' && !attrs.data_labelField) {
+    /* wdText/vrcText need an initial text string so the user sees
+     * something on the canvas immediately. Set a default 'Text' label if
+     * the caller hasn't provided one (paste/import paths already carry
+     * text). */
+    if (isTextItem(data_deviceid) && !attrs.data_labelField) {
         attrs.data_labelField = 'Text';
     }
 
@@ -22445,7 +22491,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -27701,6 +27747,32 @@ function importWorkspaceDesignerFile(workspaceObj) {
         roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
     }
 
+    /* Restore VRC-only vrcText items from data.vrc.vrcTexts. The exporter
+     * wrote each item's full record verbatim in meters (VRC top-left
+     * frame, no roomX/roomY shift) — matches the in-meters convention
+     * used by data.vrc.groups / data.vrc.customItems — so we just clone
+     * each entry back into roomObj2.items. Layer is reconstructed from
+     * layerName via resolveImportLayerName() (creates a custom layer if
+     * the name isn't already present). MUST run BEFORE the groups /
+     * customItems restore blocks below: those blocks rebuild
+     * groupMembers / customItemMembers by scanning roomObj2.items for
+     * data_groupId / data_customItemId references, so any vrcText
+     * carrying bundle membership needs to be in items[] by then. */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.vrcTexts)) {
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        workspaceObj.data.vrc.vrcTexts.forEach(vt => {
+            if (!vt || vt.data_deviceid !== 'vrcText') return;
+            const item = structuredClone(vt);
+            /* layerName ⇒ layerid (mirror of the groups / customItems
+             * restore pattern). Empty/missing ⇒ Default ('0'). */
+            item.data_layerId = vt.layerName
+                ? resolveImportLayerName(vt.layerName, roomObj2)
+                : '0';
+            delete item.layerName;
+            roomObj2.items.push(item);
+        });
+    }
+
     /* Restore VRC Groups from data.vrc.groups (paired with the per-item
      * "group" attribute already extracted by wdItemToRoomObjItem). The
      * import roomObj2 is always meters (line ~23300 sets roomObj2.unit =
@@ -29091,6 +29163,64 @@ function exportRoomObjToWorkspace() {
         }
     }
 
+    /* VRC-only text items (data_deviceid === 'vrcText') round-trip via
+     * workspaceObj.data.vrc.vrcTexts[]. Workspace Designer cannot render
+     * vrcText (it has no matching objectType), so we deliberately
+     * exclude it from `customObjects` (see the wdBuckets.boxes dispatch
+     * above) and instead stash the full item record here in VRC's own
+     * JSON namespace — same approach the background image / groups /
+     * customItems blocks use. Stored in meters always (apply ratio if
+     * the source roomObj is in feet); coordinates stay in VRC top-left
+     * frame (no roomX/roomY shift) so the importer can push the item
+     * straight back into roomObj2.items. The layer is emitted as
+     * `layerName` (matching the groups / customItems convention) so
+     * hand-edited WD JSON is human-readable and stable across
+     * round-trips that may regenerate layer UUIDs. data_groupId /
+     * data_customItemId ride through verbatim and feed into the
+     * existing post-import group / customItem member rebuild passes. */
+    if (Array.isArray(roomObj.items)) {
+        const vrcTextRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedVrcTexts = [];
+        roomObj.items.forEach(it => {
+            if (!it || it.data_deviceid !== 'vrcText') return;
+            const exportedVrcText = structuredClone(it);
+            /* Unit-scaled numeric fields. width/height are auto-sized
+             * from the inner Konva.Text on insert but we preserve the
+             * last-canvas-measured values for completeness (matches the
+             * wdText round-trip's getItemCenter() math). data_zPosition
+             * is included even when 0 to keep the wire shape uniform. */
+            if (typeof exportedVrcText.x === 'number') {
+                exportedVrcText.x = round(exportedVrcText.x * vrcTextRatio);
+            }
+            if (typeof exportedVrcText.y === 'number') {
+                exportedVrcText.y = round(exportedVrcText.y * vrcTextRatio);
+            }
+            if (typeof exportedVrcText.width === 'number') {
+                exportedVrcText.width = round(exportedVrcText.width * vrcTextRatio);
+            }
+            if (typeof exportedVrcText.height === 'number') {
+                exportedVrcText.height = round(exportedVrcText.height * vrcTextRatio);
+            }
+            if (typeof exportedVrcText.data_zPosition === 'number') {
+                exportedVrcText.data_zPosition = round(exportedVrcText.data_zPosition * vrcTextRatio);
+            }
+            /* Swap data_layerId UUID for the human-readable layerName.
+             * Default ('0') is implicit — omit on the wire. Lookups go
+             * through roomObj.layers (the global / source of truth);
+             * convertToMeters() drops layers from roomObj2. */
+            const vrcTextLayerId = exportedVrcText.data_layerId;
+            if (vrcTextLayerId && vrcTextLayerId !== '0' && roomObj.layers) {
+                const vrcTextLayer = roomObj.layers.find(l => l.layerid === vrcTextLayerId);
+                if (vrcTextLayer && vrcTextLayer.name) exportedVrcText.layerName = vrcTextLayer.name;
+            }
+            delete exportedVrcText.data_layerId;
+            exportedVrcTexts.push(exportedVrcText);
+        });
+        if (exportedVrcTexts.length > 0) {
+            workspaceObj.data.vrc.vrcTexts = exportedVrcTexts;
+        }
+    }
+
 
     if (altDefaultWall && document.getElementById('removeDefaultWallsCheckBox').checked === false) {
         delete workspaceObj.roomShape;
@@ -29302,6 +29432,13 @@ function exportRoomObjToWorkspace() {
     (wdBuckets.boxes || []).forEach((item) => {
         if (item.data_deviceid === 'wdText') {
             workspaceObjTextPush(item);
+        } else if (item.data_deviceid === 'vrcText') {
+            /* vrcText is VRC-only — Workspace Designer cannot render it,
+             * so we deliberately skip the customObjects push. The full
+             * item is emitted separately under workspaceObj.data.vrc.vrcTexts
+             * (see the data.vrc.vrcTexts block below in this function)
+             * so it round-trips cleanly through "Save Workspace" /
+             * "Open Workspace". */
         } else {
             workspaceObjWallPush(item);
         }

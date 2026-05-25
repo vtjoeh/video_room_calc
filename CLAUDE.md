@@ -295,7 +295,7 @@ The next five live inside `layerTransform` as `Konva.Group`s, not as their own `
 - `canvasToJson()` calls `updateRoomObjFromTrNode()`, which syncs the current `tr.nodes()` selection back to `roomObj.items` (the source of truth). For brand-new items (e.g. just pasted), this is the *only* writer that creates the `roomObj.items[]` entry, so the field MUST be added to its `itemAttr` builder. Mirror it on both code paths inside that function: the `roomObjItemsMap.get(...)`-hit branch (existing item — patch on the existing entry) AND the `else` branch (new item — push a fresh `itemAttr`).
 - If you skip any step, the attribute will appear to save but then disappear when clicking another item, OR — more subtly — round-trip correctly for items created in-place but vanish for items created via paste/duplicate (the bug pattern that broke group URL persistence on copy/paste in May 2026).
 
-Recent example: `data_fontSize` (wdText Workspace Designer text item) follows the same four-place rule — wired into `insertTable()`, the defensive mirror in `insertShapeItem()` → `updateNodeAttributes()`, the push + map-hit branches in `updateRoomObjFromTrNode()`, and `copyToCanvasClipBoard()`. The Details-panel form input is read in `updateItem()` under the `item.data_deviceid === 'wdText'` branch.
+Recent example: `data_fontSize` (wdText / vrcText text items) follows the same four-place rule — wired into `insertTable()`, the defensive mirror in `insertShapeItem()` → `updateNodeAttributes()`, the push + map-hit branches in `updateRoomObjFromTrNode()`, and `copyToCanvasClipBoard()`. The Details-panel form input is read in `updateItem()` under the `isTextItem(item.data_deviceid)` branch (single helper that returns `true` for both `wdText` and `vrcText` — see "VRC-only text item (vrcText)" below).
 
 ---
 
@@ -318,6 +318,7 @@ Current participants:
 | `sphere`      | ✓ | — | radial gradient (`white → grey → grey`) | 0.8 |
 | `pathShape`   | ✓ | ✓ | `#D3D3D3` (with `data_labelField` JSON `"color"` / `"opacity"` as a secondary fallback — see "pathShape precedence" below) | device-def `opacity` (currently `1 / scale`-driven local default ≈ `0.8` after the `wdOpacity` adjustment chain) |
 | `wdText`      | ✓ | — | (canvas: blue tag `#588ce5ff` with white text — not affected by the picker; WD-export `color` defaults to `"black"` and IS driven by the picker) | n/a |
+| `vrcText`     | ✓ | ✓ | (canvas: white tag with `opacity: 0.1` — not affected by the picker; the picker drives the inner text fill / opacity, same as wdText) | n/a |
 
 Each Konva-rendering branch reads `attrs.data_fill || <device-default>`
 for fill and `(attrs.data_opacity == null ? <device-default> :
@@ -782,6 +783,123 @@ coordinate mapping: VRC x = WD x, VRC y = WD z, VRC `data_zPosition`
 See `notes/WORKSPACE_DESIGNER.md` for the per-item mapping conventions
 and the VRC Group round-trip (per-member `"group": "<groupid>"` plus
 the room-level `data.vrc.groups[]` block).
+
+---
+
+## VRC-only text item (vrcText)
+
+`vrcText` is a sibling device of `wdText`. Both render as a `Konva.Label`
+containing a `Konva.Tag` background plus a `Konva.Text` child; the
+**only** rendering difference is the tag background:
+
+| Device    | Tag fill   | Tag opacity | Inner text fill (default) | Inner text opacity (default) |
+|-----------|------------|-------------|---------------------------|------------------------------|
+| `wdText`  | `#e0e0e0`  | `1`         | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
+| `vrcText` | `'white'`  | `0.1`       | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
+
+Everything else — `data_fontSize`, `configurableColor`, `wdOpacity`,
+tilt/lean, rotation, the multi-line `\n` literal handling, the
+Details-panel surface, the four-place rule for `data_fontSize`, the URL
+`w{n}` font-size encoding, perfectDrawEnabled guarding, the
+`removeShadingTrNodes` / `updateTrNodesShading` skip, the
+`computeWdTextKonvaFontSize` scale calibration, the `addLabel` skip in
+`insertTable` — applies identically to both. The single helper
+`isTextItem(deviceId)` is the membership test; every Konva.Label-only
+branch routes through it so adding a third text-like item is a
+one-line edit.
+
+### Workspace Designer round-trip — the only meaningful divergence
+
+Workspace Designer has no rendering for `vrcText`. To keep WD-side
+imports clean (`vrcText` items don't appear as anomalous untyped
+objects in WD's canvas) while still surviving a "Save Workspace" →
+"Open Workspace" round-trip, the export deliberately **skips** the
+`customObjects` push for vrcText and instead writes the full item
+record into `workspaceObj.data.vrc.vrcTexts[]` — same VRC-namespaced
+escape hatch the background image, VRC Groups, and VRC CustomItems
+use.
+
+```mermaid
+flowchart TB
+    canvas["Canvas vrcText<br/>(white tag @ opacity 0.1)"]
+    items["roomObj.items[]"]
+    bucket["wdBuckets.boxes<br/>(after convertToMeters)"]
+    dispatch{"wdBuckets.boxes dispatch"}
+    skip["SKIP customObjects"]
+    wdtext["customObjects (wdText)"]
+    walls["customObjects (boxes)"]
+    vrcBlock["workspaceObj.data.vrc.vrcTexts[]<br/>(verbatim, meters, layerName)"]
+    wdFile["WD JSON file"]
+    restore["Import: push verbatim to roomObj2.items<br/>(BEFORE groups/customItems restore)"]
+    rebuild["insertTable -> Konva.Label<br/>render with white tag"]
+
+    canvas --> items
+    items --> bucket
+    bucket --> dispatch
+    dispatch -->|wdText| wdtext
+    dispatch -->|vrcText| skip
+    dispatch -->|other| walls
+    items -. iterate, pick vrcText .-> vrcBlock
+    vrcBlock --> wdFile
+    wdFile --> vrcBlock
+    vrcBlock --> restore
+    restore --> rebuild
+    rebuild --> canvas
+```
+
+### Wire shape — `workspaceObj.data.vrc.vrcTexts[]`
+
+The wire entry is the **full `roomObj.items[]` record**, with three
+adjustments:
+
+1. **Always meters.** `x` / `y` / `width` / `height` / `data_zPosition`
+   are multiplied by `(1 / 3.28084)` when `roomObj.unit === 'feet'`.
+   Mirror of the `data.vrc.groups` / `data.vrc.customItems` blocks.
+2. **`data_layerId` → `layerName`.** The layer's display name (string)
+   is emitted instead of the UUID so hand-edited WD JSON stays
+   human-readable and round-trips don't break when the receiving file
+   regenerates layer UUIDs. Default ('0') is implicit. Import resolves
+   the name back to a UUID via `resolveImportLayerName()` (creates a
+   custom layer if the name isn't already present).
+3. **`data_groupId` / `data_customItemId` pass through verbatim.** Same
+   `"group"` / `"customItem"` semantics other items use on
+   `customObjects`. The vrcText restore runs **before** the
+   `data.vrc.groups` / `data.vrc.customItems` restore blocks so the
+   group / customItem membership-rebuild passes (which scan
+   `roomObj2.items` for matching ids) pick them up automatically.
+
+Implementation cross-reference:
+
+| Site | Where | Behaviour |
+|------|-------|-----------|
+| Device def | `boxes` array in `js/roomcalc.js` (`id: 'vrcText'`, `key: 'XA'`, `family: 'wdText'`) | URL prefix `XA`; family aligned with wdText so any family-gated code path (currently the WD-import position-math skip) treats them identically |
+| Menu | `wallsMenu` array in `createItemsOnMenu` setup | Sits next to `wdText` in the Walls menu |
+| Render | `insertTable()` text branch | Single branch (`isTextItem(insertDevice.id)`) with `isVrcText` boolean choosing tag fill/opacity |
+| WD export — skip | `(wdBuckets.boxes || []).forEach` dispatch | Explicit `else if (item.data_deviceid === 'vrcText') { /* skip */ }` branch sits between wdText and the default wallPush |
+| WD export — emit | After the `data.vrc.customItems` emission block | Iterates `roomObj.items`, picks `vrcText`, converts units, swaps layer UUID for layerName |
+| WD import — restore | Right after the `data.vrc.backgroundImage` block, **before** groups / customItems restore | `resolveImportLayerName` for layer, push verbatim to `roomObj2.items` |
+
+### Adding a third text-like item
+
+The pattern is now centralized:
+
+1. Add the device-def with `family: 'wdText'` and (typically) a unique
+   2-char URL key.
+2. Add the device id to `isTextItem(deviceId)` near the top of
+   `js/roomcalc.js`.
+3. Add the device id to the `insertTable()` text branch with the
+   appropriate tag fill / opacity override.
+4. Add the device id to the appropriate `wallsMenu` (or other menu)
+   array.
+5. If the device should be VRC-only like vrcText, mirror the
+   `data.vrc.vrcTexts` skip/emit/restore pattern; otherwise add a
+   matching `workspaceObjTextPush`-style export branch.
+
+Every other surface (URL encode/decode, font-size on zoom,
+removeShadingTrNodes / updateTrNodesShading skip, Details panel,
+`updateItem`, copy/paste of `data_fontSize`, the `addLabel` skip in
+`insertTable`, etc.) routes through `isTextItem()` and picks up the
+new device automatically.
 
 ---
 
