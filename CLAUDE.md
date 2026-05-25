@@ -295,6 +295,8 @@ The next five live inside `layerTransform` as `Konva.Group`s, not as their own `
 - `canvasToJson()` calls `updateRoomObjFromTrNode()`, which syncs the current `tr.nodes()` selection back to `roomObj.items` (the source of truth). For brand-new items (e.g. just pasted), this is the *only* writer that creates the `roomObj.items[]` entry, so the field MUST be added to its `itemAttr` builder. Mirror it on both code paths inside that function: the `roomObjItemsMap.get(...)`-hit branch (existing item — patch on the existing entry) AND the `else` branch (new item — push a fresh `itemAttr`).
 - If you skip any step, the attribute will appear to save but then disappear when clicking another item, OR — more subtly — round-trip correctly for items created in-place but vanish for items created via paste/duplicate (the bug pattern that broke group URL persistence on copy/paste in May 2026).
 
+Recent example: `data_fontSize` (wdText Workspace Designer text item) follows the same four-place rule — wired into `insertTable()`, the defensive mirror in `insertShapeItem()` → `updateNodeAttributes()`, the push + map-hit branches in `updateRoomObjFromTrNode()`, and `copyToCanvasClipBoard()`. The Details-panel form input is read in `updateItem()` under the `item.data_deviceid === 'wdText'` branch.
+
 ---
 
 ## Configurable Fill & Opacity (configurableColor / wdOpacity)
@@ -315,6 +317,7 @@ Current participants:
 | `cylinder`    | ✓ | ✓ | `grey`      | 0.4 (device-def `opacity`) |
 | `sphere`      | ✓ | — | radial gradient (`white → grey → grey`) | 0.8 |
 | `pathShape`   | ✓ | ✓ | `#D3D3D3` (with `data_labelField` JSON `"color"` / `"opacity"` as a secondary fallback — see "pathShape precedence" below) | device-def `opacity` (currently `1 / scale`-driven local default ≈ `0.8` after the `wdOpacity` adjustment chain) |
+| `wdText`      | ✓ | — | (canvas: blue tag `#588ce5ff` with white text — not affected by the picker; WD-export `color` defaults to `"black"` and IS driven by the picker) | n/a |
 
 Each Konva-rendering branch reads `attrs.data_fill || <device-default>`
 for fill and `(attrs.data_opacity == null ? <device-default> :

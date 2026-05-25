@@ -272,3 +272,68 @@ VRC-emitted prefix is stripped.
 | Export — `stageFloor~` prefix add | `(wdBuckets.stageFloors \|\| []).forEach()` in `exportRoomObjToWorkspace()` — `wdBuckets` is the one-shot result of `bucketItemsByParentGroup(roomObj2)` populated at the top of the function (see `js/roomcalc.js`) |
 | Import — scoring regex | `workspaceKey.stageFloor.idRegex` in `js/data/workspaceKey.js` (`'(^stage$)|(^step-)|(^stageFloor~)'`) |
 | Import — prefix strip | `wdItemToRoomObjItem()` in `js/roomcalc.js`, just after the `item.id = wdItem.id.replace(...)` sanitisation |
+
+---
+
+## wdText (Workspace Designer Text) Round-Trip
+
+`wdText` (`data_deviceid: 'wdText'`, parentGroup `boxes`, family
+`wdText`) round-trips through Workspace Designer using the simple
+`objectType: "text"` shape from the user-supplied spec:
+
+```json
+{
+  "id": "<id>",
+  "objectType": "text",
+  "text": "Executive suite",
+  "position": [0, 1, 0],
+  "size": 20,
+  "color": "black"
+}
+```
+
+### Field mapping
+
+| WD field | VRC source | Notes |
+|----------|-----------|-------|
+| `id` | `item.id` | UUID; unchanged on import |
+| `objectType` | always `"text"` | Matched on import via `workspaceKey.wdText.objectType` |
+| `text` | `item.data_labelField` | Inline JSON `{...}` blobs stripped on export (mirrors the rest of the boxes-bucket exporters); captured up front on import so the "unused keys → data_labelField" merger doesn't double-stringify it |
+| `position` | `[item.x - roomWidth/2, item.data_zPosition, item.y - roomLength/2]` | `wdText` uses the **text-origin** convention (no center math) — the upper-left of the Konva.Label is treated as the WD position. On import, the same shift in reverse |
+| `size` | `item.data_fontSize` (default `20`) | Routed to `data_fontSize` on import via the wdText-specific branch in the `'size' in wdItem` block of `wdItemToRoomObjItem()` (other devices' `size` → `data_diagonalInches` is unaffected) |
+| `color` | `item.data_fill` (default `"black"`) | Driven by the `configurableColor` color picker. Default emit (`"black"`) is intentional so unconfigured wdText items show up in WD instead of rendering as an empty / invisible default |
+
+### Width / height / rotation
+
+The WD spec for `text` does not have `width`, `height`, or `rotation`
+fields, so none are emitted. Width and height on the VRC side are
+auto-computed by `Konva.Label` from the inner `Konva.Text` (text
+content × fontSize) — `canvasToJson()` reads them via `node.width()`
+/ `node.height()` (special-cased for `wdText` because `attrs.width` is
+undefined for auto-sized Labels). VRC canvas rotation still works
+locally but is intentionally not round-tripped through the WD JSON.
+
+### Coordinate model
+
+`wdText` lives in the boxes parentGroup, but its `family: 'wdText'`
+opts it out of the existing `wallBox`-family upper-left-to-center
+math. On the import side, the position branch in
+`wdItemToRoomObjItem()` includes a `data_deviceid === 'wdText'`
+clause that treats the WD position as the text origin (same as the
+`default` family path) rather than the centre of a (non-existent)
+rectangle.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Device registration | `js/roomcalc.js` `boxes[]` (wdText entry with `key: 'WM'`, `family: 'wdText'`, `configurableColor: true`, `default_fontSize: 20`) |
+| `workspaceKey` mapping | `workspaceKey.wdText = { objectType: 'text' }` in `js/data/workspaceKey.js` |
+| Export push function | `workspaceObjTextPush()` in `js/roomcalc.js` (sits next to `workspaceObjWallPush()`) |
+| Export routing | `(wdBuckets.boxes \|\| []).forEach()` branches on `item.data_deviceid === 'wdText'` to call `workspaceObjTextPush()` instead of `workspaceObjWallPush()` |
+| Canvas rendering | `insertTable()` `if (insertDevice.id === 'wdText')` branch — `Konva.Label` + blue `Konva.Tag` + white `Konva.Text` |
+| Font-size scaling | `computeWdTextKonvaFontSize()` helper next to `findUpperLeftXY()` |
+| Import — text capture | `wdItemToRoomObjItem()`, immediately after the `customItem` extraction block |
+| Import — size → font | `wdItemToRoomObjItem()`, inside the existing `'size' in wdItem` block (wdText branch) |
+| Import — position | `wdItemToRoomObjItem()`, position branch extended `if (family === 'default' || data_deviceid === 'wdText')` |
+| Import — color | Existing `configurableColor` branch (no wdText-specific code needed) |

@@ -170,6 +170,7 @@ Each device/furniture type has a 2-character uppercase key:
 | `WJ` | Column Cylinder |
 | `WK` | Sphere |
 | `WL` | Path Shape |
+| `WM` | Workspace Designer Text (`wdText`) |
 
 **Chairs (S_):**
 
@@ -217,14 +218,16 @@ After an item type prefix, lowercase letters encode attributes:
 | `t` | customItem reference | Number | Points at the room-level `J{n}` block. Omitted when not in a customItem. When present alongside `s`, the per-item `ll` is omitted (group's `ll` wins); when only `t` is present, customItem's `ll` covers the item |
 | `u` | fill color (RGB) | RGB triple | `data_fill` for `configurableColor` devices. Always 9 zero-padded digits: `u{RRR}{GGG}{BBB}`. `#FFFFFF` → `u255255255`; `#0F0F0F` → `u015015015`. Default (absent) ⇒ device default fill (`#FFFFFF99`). Encoder uses cached `hexToUrlRgb()`; decoder uses `urlRgbToHex()` |
 | `v` | opacity (×100) | Number | `data_opacity` for `wdOpacity` devices. `v{NN}` where NN = opacity × 100 in range [0, 99]. `v50` = 0.50; `v0` = 0. Default (1.0) is omitted entirely |
+| `w` | wdText font size | Integer | `data_fontSize` for `wdText` items only. `w{N}` (integer pt-like units). Default (20) is omitted entirely; encoder also gates on `item.data_deviceid === 'wdText'` so other items can never emit `w` |
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
-**AVAILABLE for future ITEM use:** `w`, `x`, `y`, `z`. (`u` is fill
-color, `v` is opacity — both added in the 2026 configurableColor work.
-`w`/`x`/`y`/`z`/`h` are also used inside `H{n}` / `J{n}` blocks for
-group/customItem geometry; the parser keys by `sid` so they could still
-be reused on items, but prefer the remaining unused letters first.)
+**AVAILABLE for future ITEM use:** `x`, `y`, `z`. (`u` is fill color,
+`v` is opacity — both added in the 2026 configurableColor work. `w`
+was claimed in 2026 for wdText `data_fontSize`. `w`/`x`/`y`/`z`/`h`
+are also used inside `H{n}` / `J{n}` blocks for group/customItem
+geometry; the parser keys by `sid` so they could still be reused on
+items, but prefer the remaining unused letters first.)
 
 **Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility),
 `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H`

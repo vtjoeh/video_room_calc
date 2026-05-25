@@ -179,6 +179,8 @@ workspaceKey.columnRect = { objectType: 'wall', color: '#808080' };
 
 workspaceKey.box = { objectType: 'box' }
 
+workspaceKey.wdText = { objectType: 'text' };
+
 workspaceKey.doorRight = { objectType: 'door', yOffset: -0.47, scale: [1, 1, 1] }
 workspaceKey.doorLeft = { objectType: 'door', yOffset: -0.47, scale: [-1, 1, 1] }
 
