@@ -3233,6 +3233,111 @@ function confirmCreateCustomItemFromDialog() {
     createCustomItem(undefined, cleaned, cleanedAuthor, cleanedDesc);
 }
 
+/* dialogTextInsert — pending insertion state for wdText/vrcText.
+ * Captured by openTextInsertDialog() and consumed in
+ * confirmTextInsertFromDialog(). Reset on confirm so a stale pending
+ * insert (e.g. user opened then closed the dialog without confirming)
+ * doesn't leak into the next item insert. Single global is safe because
+ * only one modal can be open at a time. */
+let _pendingTextInsertDeviceid = null;
+let _pendingTextInsertAttrs = null;
+
+/* Insertion-time text-input modal for wdText / vrcText. Called from
+ * insertItemFromMenu() instead of inserting immediately, so the user
+ * can type the text BEFORE the item lands on canvas (mirror of the
+ * rolesDialog flow for cameras like ptzVision2). Cancelling the dialog
+ * aborts the insert entirely. For vrcText only, surfaces a note that
+ * the item does not appear in the Workspace Designer. */
+function openTextInsertDialog(data_deviceid, attrs) {
+    const dlg = document.getElementById('dialogTextInsert');
+    const input = document.getElementById('textInsertInput');
+    if (!dlg || !input) {
+        /* Defensive: older RoomCalculator.html without the dialog
+         * markup. Fall back to the previous synchronous path with the
+         * 'Text' placeholder so the item still inserts. */
+        attrs.data_labelField = attrs.data_labelField || 'Text';
+        attrs.data_deviceid = data_deviceid;
+        const fallbackUuid = createUuid();
+        attrs.id = fallbackUuid;
+        insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, fallbackUuid, true);
+        roomObj.items.push(attrs);
+        roomObjItemsMap.set(attrs.id, attrs);
+        setTimeout(() => { canvasToJson() }, 100);
+        canvasToJson();
+        return;
+    }
+
+    _pendingTextInsertDeviceid = data_deviceid;
+    _pendingTextInsertAttrs = attrs;
+
+    const header = document.getElementById('dialogTextInsertHeader');
+    const vrcNote = document.getElementById('textInsertVrcNote');
+    if (header) {
+        header.innerText = (data_deviceid === 'vrcText')
+            ? 'Add VRC Text'
+            : 'Add Workspace Designer Text';
+    }
+    if (vrcNote) {
+        vrcNote.style.display = (data_deviceid === 'vrcText') ? '' : 'none';
+    }
+
+    input.value = '';
+    dlg.showModal();
+    /* setTimeout(0) lets <dialog>.showModal finish opening before focus. */
+    setTimeout(() => { input.focus(); }, 0);
+}
+
+/* dialogTextInsert "Add" handler — sanitize the text, attach it as
+ * data_labelField on the pending attrs, and complete the wdText /
+ * vrcText insertion (the same insert that insertItemFromMenu()'s
+ * else-branch performs for non-roles items). Empty input falls back
+ * to the 'Text' placeholder so the Konva.Label is still visible on
+ * canvas — matches the pre-dialog default behaviour of
+ * insertItemFromMenu(). The single-line input mirrors the Details
+ * panel convention: any literal "\n" two-char escape the user typed
+ * is converted to a real newline before storing so Konva.Text
+ * renders multi-line correctly (matches updateItem()'s wdText /
+ * vrcText branch). */
+function confirmTextInsertFromDialog() {
+    const input = document.getElementById('textInsertInput');
+    if (!input) return;
+    if (!_pendingTextInsertDeviceid || !_pendingTextInsertAttrs) {
+        /* No pending insert (e.g. dialog opened by some other code
+         * path or state got cleared). Close defensively. */
+        closeAllDialogModals();
+        return;
+    }
+    const raw = (input.value || '').trim();
+    const sanitized = (typeof DOMPurify !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function')
+        ? (DOMPurify.sanitize(raw) || '')
+        : raw;
+    /* Same "\\n" → real-newline conversion the Details-panel
+     * updateItem() branch performs. The user types the literal
+     * two-char "\n" escape; we store a real newline so the
+     * Konva.Label renders multi-line. JSON / WD export re-escape
+     * back to "\n" automatically via JSON.stringify. */
+    const cleaned = sanitized.replace(/\\n/g, '\n');
+
+    const data_deviceid = _pendingTextInsertDeviceid;
+    const attrs = _pendingTextInsertAttrs;
+    _pendingTextInsertDeviceid = null;
+    _pendingTextInsertAttrs = null;
+
+    attrs.data_labelField = cleaned || 'Text';
+    attrs.data_deviceid = data_deviceid;
+
+    const dlg = document.getElementById('dialogTextInsert');
+    if (dlg) dlg.close();
+
+    const uuid = createUuid();
+    attrs.id = uuid;
+    insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
+    roomObj.items.push(attrs);
+    roomObjItemsMap.set(attrs.id, attrs);
+    setTimeout(() => { canvasToJson() }, 100);
+    canvasToJson();
+}
+
 /* Delete Layer confirmation modal. */
 function openDeleteLayerDialog(layerId) {
     if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
@@ -10504,13 +10609,22 @@ function hideSimplePathEditorId(hide = true) {
     }
 }
 
-function simplePathEditor() {
-    let id = document.getElementById('itemId').innerText;
+/* idOverride: optional uuid. When supplied, the editor uses it directly
+ * and writes it back into the Details panel so the close-path handler's
+ * updateItem() (which reads #itemId.innerText) targets the right node.
+ * Used by insertItemFromMenu() to launch the editor immediately after a
+ * fresh pathShape insertion, before the user has clicked anything. The
+ * default no-arg form (HTML `Draw Simple Path` button) is unchanged. */
+function simplePathEditor(idOverride) {
+    let id = (typeof idOverride === 'string' && idOverride)
+        ? idOverride
+        : document.getElementById('itemId').innerText;
 
     let node = stage.findOne('#' + id);
     if (node) {
         node.hide();
         simplePathEditorId = id;
+        document.getElementById('itemId').innerText = id;
     } else {
         alert('item.id not found', id);
     }
@@ -22935,12 +23049,18 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_vHeight = default_vHeight;
     }
 
-    /* wdText/vrcText need an initial text string so the user sees
-     * something on the canvas immediately. Set a default 'Text' label if
-     * the caller hasn't provided one (paste/import paths already carry
-     * text). */
+    /* wdText/vrcText: prompt the user for the text in a modal before
+     * inserting (similar to the rolesDialog flow for cameras like
+     * ptzVision2). The dialog handler (confirmTextInsertFromDialog)
+     * completes the insertion after the user clicks Add; Cancel aborts
+     * the insert. Paste/import paths bypass this because they don't go
+     * through insertItemFromMenu() — they go through insertItem() /
+     * pasteItems() with data_labelField already set. The
+     * !attrs.data_labelField guard also lets any future programmatic
+     * caller that pre-populates the label skip the dialog. */
     if (isTextItem(data_deviceid) && !attrs.data_labelField) {
-        attrs.data_labelField = 'Text';
+        openTextInsertDialog(data_deviceid, attrs);
+        return;
     }
 
 
@@ -22967,6 +23087,16 @@ function insertItemFromMenu(data_deviceid, attrs) {
         /* add device to roomObj */
 
         canvasToJson();
+
+        /* pathShape: auto-launch the simple path editor so the user
+         * starts drawing immediately rather than having to select the
+         * placeholder shape and click "Draw Simple Path". The 300 ms
+         * defer is past the 250 ms tr.nodes()/updateFormatDetails()
+         * timer inside insertShapeItem() so #itemId is fully populated
+         * before the editor hides the node and enters polyBuilder mode. */
+        if (data_deviceid === 'pathShape') {
+            setTimeout(() => { simplePathEditor(uuid); }, 300);
+        }
 
     }
 

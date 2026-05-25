@@ -2477,6 +2477,39 @@
   </dialog>
 
   <!--
+    Text Insert — opened from insertItemFromMenu() when the user inserts a
+    wdText or vrcText item (drag from the Walls menu, Quick Add palette,
+    etc.). Prompts for the text before the item lands on canvas, similar
+    to the cameras' rolesDialog flow. For vrcText only, a note explains
+    that VRC Text does not appear in the Workspace Designer (vrcText
+    round-trips via workspaceObj.data.vrc.vrcTexts[] rather than being
+    emitted into customObjects on WD export). Cancelling aborts the
+    insert. The text input mirrors the Details-panel label-field
+    convention: a single-line <input type="text"> where the user types
+    the literal two-char "\n" escape for multi-line text;
+    confirmTextInsertFromDialog() converts it to real newlines before
+    storing so Konva.Text renders multi-line correctly.
+  -->
+  <dialog id="dialogTextInsert" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader" id="dialogTextInsertHeader">Add Text</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div class="inputField" style="max-width: none;">
+        <label for="textInsertInput" style="margin-bottom: 6px; display: block;">Text:</label>
+        <input type="text" id="textInsertInput" maxlength="500" style="width: 100%; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmTextInsertFromDialog();}" />
+      </div>
+      <div id="textInsertVrcNote" style="display: none; font-size: 12px; color: #555; margin-top: 6px; font-style: italic;">
+        VRC Text do not appear in the Workspace Designer.
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" onclick="confirmTextInsertFromDialog()">Add</button>
+    </div>
+  </dialog>
+
+  <!--
     Edit Custom Item — opened from the Quick Add palette's per-tile ellipsis button.
     Lets the user rename / re-author / re-describe a library template AND surfaces
     Export / Delete / Remove-From-Library actions. The form fields mirror
