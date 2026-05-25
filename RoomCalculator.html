@@ -650,8 +650,10 @@
                 <div class="inputField" id="itemLineWidthDiv" style="display: none;">
                   <label class="tooltip">Line Width:
                     <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">Stroke width of the Dimension Line arrow shaft (in
-                      canvas pixels). Default is 2.</span></label>
+                    <span class="tooltiptext">Stroke width of the Dimension Line arrow shaft.
+                      Same pt-like unit as Font Size (1 unit ≈ 1 cm of physical extent), so the
+                      stroke scales with the room and zoom level just like the label glyphs.
+                      Default is 2.</span></label>
                   <input type="text" id="itemLineWidth" maxlength="4" size="4" class="numberInput" value="2">
                 </div>
 
@@ -659,8 +661,10 @@
                   <label class="tooltip">Pointer Size:
                     <i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext">Size of the arrowheads at each end of the Dimension
-                      Line — sets both Konva.Arrow pointerLength and pointerWidth (in canvas
-                      pixels). Default is 10.</span></label>
+                      Line — sets both Konva.Arrow pointerLength and pointerWidth. Same pt-like
+                      unit as Font Size (1 unit ≈ 1 cm of physical extent), so the arrowheads
+                      scale with the room and zoom level just like the label glyphs. Default is
+                      10.</span></label>
                   <input type="text" id="itemPointerSize" maxlength="4" size="4" class="numberInput" value="10">
                 </div>
               </div>

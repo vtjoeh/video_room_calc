@@ -183,6 +183,20 @@ function isDimensionLine(deviceId) {
     return deviceId === 'dimensionLine';
 }
 
+/* Returns the "containing rect" child to paint for the multi-select
+ * highlight (Konva.Tag for wdText/vrcText, '.dim-rect' Konva.Rect for
+ * dimensionLine). Returns null otherwise. The top-level node for these
+ * items is a Konva.Label (text) or Konva.Group (dimensionLine), neither
+ * of which exposes Shape stroke methods — so the multi-select highlight
+ * in updateTrNodesShading() / removeShadingTrNodes() targets this inner
+ * child instead. */
+function getCompositeHighlightRect(node) {
+    if (!node || !node.data_deviceid) return null;
+    if (isTextItem(node.data_deviceid))      return node.findOne('Tag');
+    if (isDimensionLine(node.data_deviceid)) return node.findOne('.dim-rect');
+    return null;
+}
+
 /* roomObj.items parentGroup helpers (flat-array shape; legacy bucketed
  * shape auto-migrated by window.VRC.migrateLegacyItemsShape).
  * PERF RULE: any function reading 2+ categories MUST call
@@ -11291,12 +11305,17 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* y=dimensionLine line width (integer; canvas pixels of stroke).
-     * z=dimensionLine pointer size (integer; canvas pixels). Both omitted
+    /* y=dimensionLine line width (integer; WD pt-like unit, 1 ≈ 0.01 m).
+     * z=dimensionLine pointer size (integer; same unit). Both omitted
      * when equal to the device-def default (2 / 10). Single-letter codes
      * chosen because y/z are unused at the per-item URL level (they ARE
      * used inside the H{n} group / J{n} customItem blocks for grpY/grpZ
-     * but those are sid='H'/'J' records, separate from per-item records). */
+     * but those are sid='H'/'J' records, separate from per-item records).
+     * Storage convention is unit-agnostic — the renderer applies the
+     * `* 0.01 m * scale` conversion in updateDimensionLineWidget() via
+     * computeDimensionLineCanvasPx(), so a round-trip through the URL,
+     * the .vrc.json, or the WD JSON preserves the visual result without
+     * any feet/meters bookkeeping. */
     if (isDimensionLine(item.data_deviceid)) {
         const __deviceDef = allDeviceTypes['dimensionLine'] || {};
         if (item.data_lineWidth != null) {
@@ -14320,7 +14339,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          *      label so anchor positions stay flush with the rect edges.
          *   2. Konva.Arrow (listening: false) — black, pointerAtBeginning
          *      and pointerAtEnding, stroke/pointer attrs driven by
-         *      data_lineWidth / data_pointerSize.
+         *      data_lineWidth / data_pointerSize. Stored as WD pt-like
+         *      units (1 unit ≈ 0.01 m physical extent — same convention
+         *      as data_fontSize); converted to canvas pixels via
+         *      computeDimensionLineCanvasPx() so the stroke + arrowhead
+         *      scale with the room the same way the label glyphs do.
          *   3. Konva.Label (listening: false) — centered, auto-text is
          *      the current width converted to the current unit
          *      ("1.22 m" / "4.00 ft").
@@ -14335,6 +14358,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         const dataFontSize    = (attrs.data_fontSize    != null) ? Number(attrs.data_fontSize)    : (ddef.default_fontSize    || 10);
         const dataLineWidth   = (attrs.data_lineWidth   != null) ? Number(attrs.data_lineWidth)   : (ddef.default_lineWidth   || 2);
         const dataPointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : (ddef.default_pointerSize || 10);
+        /* dataLineWidth / dataPointerSize are stored in WD pt-like
+         * units (1 unit ≈ 0.01 m physical extent); convert to canvas
+         * pixels for the Konva.Arrow constructor below. The same
+         * conversion runs again inside updateDimensionLineWidget()
+         * called at the tail of this branch, but we seed correct
+         * values up-front to avoid a one-frame flash of wrong-sized
+         * arrows on first paint. */
+        const lwPxInit = computeDimensionLineCanvasPx(dataLineWidth,   ddef.default_lineWidth   || 2);
+        const psPxInit = computeDimensionLineCanvasPx(dataPointerSize, ddef.default_pointerSize || 10);
 
         tblWallFlr = new Konva.Group({
             x: pixelX,
@@ -14366,9 +14398,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             points: [0, height / 2, width, height / 2],
             stroke: 'black',
             fill: 'black',
-            strokeWidth: dataLineWidth,
-            pointerLength: dataPointerSize,
-            pointerWidth: dataPointerSize,
+            strokeWidth: lwPxInit,
+            pointerLength: psPxInit,
+            pointerWidth: psPxInit,
             pointerAtBeginning: true,
             pointerAtEnding: true,
             listening: false,
@@ -14398,26 +14430,30 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         /* Non-listening label — black tag with white text, mimics the
          * visual reference image. Tag corner radius gives the "pill"
-         * shape. updateDimensionLineWidget() sets the text, font size,
-         * and centers via offsetX/Y. */
+         * shape. updateDimensionLineWidget() is the single source of
+         * truth for the text content, font size, padding, tag stroke,
+         * corner radius, and centering — we seed the constructor with
+         * computed values here only to avoid a one-frame flash of
+         * legacy fixed-pixel chrome before the update call runs. */
         const dimLabel = new Konva.Label({
             name: 'dim-label',
             x: width / 2,
             y: height / 2,
             listening: false,
         });
+        const labelFontPxInit = computeWdTextKonvaFontSize(dataFontSize);
         dimLabel.add(new Konva.Tag({
             fill: 'white',
             stroke: 'black',
-            strokeWidth: 1,
-            cornerRadius: 6,
+            strokeWidth: labelFontPxInit * LABEL_TAG_STROKE_RATIO,
+            cornerRadius: labelFontPxInit * LABEL_TAG_CORNER_RATIO,
             lineJoin: 'round',
         }));
         dimLabel.add(new Konva.Text({
             text: formatDimensionMeasurement(width / scale, roomObj.unit),
-            fontSize: computeWdTextKonvaFontSize(dataFontSize),
+            fontSize: labelFontPxInit,
             fontFamily: 'Helvetica',
-            padding: 6,
+            padding: labelFontPxInit * LABEL_PADDING_RATIO,
             fill: 'black',
         }));
         /* Same empty-bbox trick as the arrow. For very narrow dimension
@@ -15463,6 +15499,31 @@ function computeWdTextKonvaFontSize(dataFontSize) {
     return px;
 }
 
+/* Convert a Dimension Line `data_lineWidth` / `data_pointerSize` value
+ * (in WD pt-like units — same convention as `data_fontSize`: 1 unit
+ * ≈ 0.01 m of physical extent) into a canvas-pixel size, multiplied
+ * by the current `scale` so the rendered stroke / arrowhead tracks
+ * zoom AND room size the same way the dimension line's label glyphs
+ * do. Without this, the line/pointer would stay a fixed canvas-pixel
+ * size while the label (which IS scale-aware) shrank or grew with
+ * the room — small rooms ended up with a huge label and tiny arrows,
+ * large rooms with a tiny label and oversized arrows.
+ *
+ * `fallbackValue` is the per-attr device-def default (the
+ * `default_lineWidth` / `default_pointerSize` integer) and is used
+ * both for missing/non-numeric/non-positive inputs AND for the early-
+ * boot path where `scale` has not yet been computed and the multiply
+ * would otherwise land at 0. */
+function computeDimensionLineCanvasPx(dataValue, fallbackValue) {
+    let n = Number(dataValue);
+    if (!isFinite(n) || n <= 0) n = fallbackValue;
+    let extentInMeters = n * 0.01;
+    let extentInCurrentUnit = (unit === 'feet') ? extentInMeters * 3.28084 : extentInMeters;
+    let px = extentInCurrentUnit * scale;
+    if (!isFinite(px) || px <= 0) px = fallbackValue; /* defensive: before scale is computed */
+    return px;
+}
+
 /* Format the auto-computed measurement string shown inside a Dimension
  * Line's label tag. `widthInUnit` is the current rect width in roomObj.unit
  * (meters or feet). Two-decimal output with the current unit suffix —
@@ -15476,6 +15537,18 @@ function formatDimensionMeasurement(widthInUnit, roomUnit) {
     const suffix = (roomUnit === 'feet') ? 'ft' : 'm';
     return v.toFixed(2) + ' ' + suffix;
 }
+
+/* Dimension Line label chrome ratios — each is the legacy hard-coded
+ * canvas-pixel value divided by the typical label font px (≈ 16 at
+ * an 8 m room with default fontSize 10). Applied to
+ * `labelKonvaFontSize` in updateDimensionLineWidget() so the padding
+ * / stroke / corner radius scale with the rest of the widget. The
+ * 8 m reference room is what kept the legacy fixed-pixel values
+ * looking right; preserving those ratios means existing items at
+ * typical room sizes barely shift. */
+const LABEL_PADDING_RATIO     = 6 / 16;   /* 0.375 */
+const LABEL_TAG_STROKE_RATIO  = 1 / 16;   /* 0.0625 */
+const LABEL_TAG_CORNER_RATIO  = 6 / 16;   /* 0.375 */
 
 /* Repaint a Dimension Line group's children (Rect / Arrow / Label) from
  * the group's current width + data_fontSize / data_lineWidth /
@@ -15507,14 +15580,30 @@ function updateDimensionLineWidget(group) {
 
     const w = Math.max(1, group.width() || 0);
 
+    /* Convert the WD pt-like Line Width / Pointer Size attrs into
+     * canvas-pixel sizes via computeDimensionLineCanvasPx (mirror of
+     * the fontSize -> px conversion done by computeWdTextKonvaFontSize).
+     * This is what makes the whole widget — label glyphs, stroke
+     * width, and arrowhead size — scale together with the room: every
+     * value goes through the same `* 0.01 m * scale` pipeline so a
+     * single set of {fontSize, lineWidth, pointerSize} attrs renders
+     * proportionally identical across a 2 m, 8 m, or 16 m room.
+     * Without this both pixel-units mismatched the meter-units font,
+     * producing tiny arrows + huge label in small rooms and the
+     * opposite in large rooms. */
+    const labelKonvaFontSize = computeWdTextKonvaFontSize(fs);
+    const lwDefault = deviceDef.default_lineWidth || 2;
+    const psDefault = deviceDef.default_pointerSize || 10;
+    const lwPx = computeDimensionLineCanvasPx(lw, lwDefault);
+    const psPx = computeDimensionLineCanvasPx(ps, psDefault);
+
     /* Rect height = max(arrow vertical extent, label vertical extent, 30px).
      * pointerWidth controls how tall the arrowhead wings are at the tip,
      * so the arrow's effective vertical bbox is roughly `pointerWidth + lw`.
      * Label glyphs are roughly `fontSize` tall in canvas pixels (via
      * computeWdTextKonvaFontSize); the Tag adds padding both sides.
      * Floor of 30px keeps the hit area generous for narrow lines. */
-    const labelKonvaFontSize = computeWdTextKonvaFontSize(fs);
-    const h = Math.max(ps + lw, labelKonvaFontSize * 1.6, 30);
+    const h = Math.max(psPx + lwPx, labelKonvaFontSize * 1.6, 30);
     group.height(h);
 
     const rect = group.findOne('.dim-rect');
@@ -15528,18 +15617,39 @@ function updateDimensionLineWidget(group) {
     const arrow = group.findOne('.dim-arrow');
     if (arrow) {
         arrow.points([0, h / 2, w, h / 2]);
-        arrow.strokeWidth(lw);
-        arrow.pointerLength(ps);
-        arrow.pointerWidth(ps);
+        arrow.strokeWidth(lwPx);
+        arrow.pointerLength(psPx);
+        arrow.pointerWidth(psPx);
     }
 
     const label = group.findOne('.dim-label');
     if (label) {
         const innerText = label.findOne('Text');
+        const innerTag = label.findOne('Tag');
         const widthInUnit = w / scale;
         if (innerText) {
             innerText.text(formatDimensionMeasurement(widthInUnit, roomObj.unit));
             innerText.fontSize(labelKonvaFontSize);
+            /* Text padding scales with the rendered font px so the
+             * white space inside the label tag stays a consistent
+             * fraction of the glyph height across room sizes. Without
+             * this, a fixed `padding: 6` made small-font rooms (16 m)
+             * look loose / puffy and large-font rooms (2 m) look
+             * pinched. 0.375 = 6 / 16, where 16 px is the typical
+             * label font px at an ~8 m room — so existing items at
+             * the typical room size keep their current look. */
+            innerText.padding(labelKonvaFontSize * LABEL_PADDING_RATIO);
+        }
+        if (innerTag) {
+            /* Tag stroke + corner radius scale with the font px for
+             * the same reason as padding. 1/16 = legacy strokeWidth
+             * (1) at typical font px (16); 6/16 = legacy cornerRadius
+             * (6) at typical font px (16). Konva.Tag auto-sizes to
+             * fit its parent Konva.Label's inner Text, so we don't
+             * need to touch width/height here — Konva picks up the
+             * new text padding on next draw. */
+            innerTag.strokeWidth(labelKonvaFontSize * LABEL_TAG_STROKE_RATIO);
+            innerTag.cornerRadius(labelKonvaFontSize * LABEL_TAG_CORNER_RATIO);
         }
         /* Center the Label by offsetting half its (now-recomputed) size.
          * Konva.Label auto-sizes from its inner Text after the text/font
@@ -16028,13 +16138,40 @@ function removeShadingTrNodes() {
 
             /* wdText/vrcText are Konva.Label (Group) instances and
              * dimensionLine is a Konva.Group — none of them expose Shape
-             * stroke methods. updateTrNodesShading() skipped the
-             * highlight, so there's nothing to undo here either.
-             * Without this skip, Konva would throw
-             * `node.strokeEnabled is not a function` mid-forEach and
-             * the function's lastTrNodesWithShading bookkeeping would
-             * desync. */
+             * stroke methods, so we restore the multi-select highlight
+             * on the inner containing rect (Konva.Tag for text,
+             * '.dim-rect' Konva.Rect for dimensionLine). Originals were
+             * stashed by updateTrNodesShading() onto the inner child as
+             * data_origFill / data_origStroke / data_origStrokeWidth.
+             * The `'data_origFill' in inner` guard makes this a no-op
+             * for any node that didn't actually get painted (e.g. if
+             * single-select skipped the paint branch but the node still
+             * ended up in lastTrNodesWithShading from an unrelated
+             * code path). Without restoring here the blue tint /
+             * stroke would persist after deselect.
+             *
+             * CRITICAL: never call strokeEnabled() on the top-level
+             * node here either — same throw as in updateTrNodesShading(),
+             * which would mid-forEach and leave lastTrNodesWithShading
+             * desynced from the canvas state. */
             if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
+                const inner = getCompositeHighlightRect(node);
+                if (inner && 'data_origFill' in inner) {
+                    inner.fill(inner.data_origFill);
+                    inner.stroke(inner.data_origStroke);
+                    inner.strokeWidth(inner.data_origStrokeWidth);
+                    delete inner.data_origFill;
+                    delete inner.data_origStroke;
+                    delete inner.data_origStrokeWidth;
+                    /* Restore the temporary opacity bump applied to
+                     * low-opacity inner rects (currently vrcText's Tag).
+                     * The presence of data_origOpacity is the signal —
+                     * absent for rects whose opacity was already >= 0.7. */
+                    if ('data_origOpacity' in inner) {
+                        inner.opacity(inner.data_origOpacity);
+                        delete inner.data_origOpacity;
+                    }
+                }
                 return;
             }
 
@@ -16165,18 +16302,52 @@ function updateTrNodesShading() {
         /* wdText/vrcText render as a Konva.Label (Group) and
          * dimensionLine renders as a Konva.Group containing Rect +
          * Arrow + Label — none of these top-level nodes expose Shape
-         * stroke methods. The Transformer's bounding-box anchors
-         * already provide the visual "this is selected" feedback, so
-         * we skip the blue-outline pass entirely. Mirror this skip in
-         * removeShadingTrNodes().
+         * stroke methods, so we never touch them directly here. In
+         * single-select the Transformer's bounding-box anchors are
+         * enough visual feedback; in MULTI-select the Transformer
+         * collapses into one big bbox around everything, so per-item
+         * items get no highlight without this branch. We paint the
+         * containing rect (Konva.Tag for text, '.dim-rect' Konva.Rect
+         * for dimensionLine) with a blue tint + stroke, stashing the
+         * original fill/stroke/strokeWidth on the inner child so the
+         * cleanup pass in removeShadingTrNodes() can restore them
+         * verbatim.
          *
-         * CRITICAL: Without this skip Konva throws
-         * `node.strokeEnabled is not a function` partway through the
-         * forEach, the function's tail `tr.nodes(copyTrNodes)` restore
-         * never runs, and the user's entire selection is wiped on
-         * every click / drag / resize / rotate / marquee involving a
-         * dimensionLine. */
+         * CRITICAL: never call strokeEnabled() / stroke() / strokeWidth()
+         * on the top-level node — Konva throws
+         * `node.strokeEnabled is not a function` and the function's
+         * tail `tr.nodes(copyTrNodes)` restore never runs, wiping the
+         * user's entire selection on every click / drag / resize /
+         * rotate / marquee involving one of these items. The inner
+         * child (Tag / Rect) IS a real Konva.Shape and is safe to
+         * paint. Mirror this branch in removeShadingTrNodes(). */
         if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
+            if (copyTrNodes.length > 1) {
+                const inner = getCompositeHighlightRect(node);
+                if (inner) {
+                    inner.data_origFill        = inner.fill();
+                    inner.data_origStroke      = inner.stroke();
+                    inner.data_origStrokeWidth = inner.strokeWidth();
+                    inner.fill('rgba(0, 161, 255, 0.2)');
+                    inner.stroke('rgb(0, 161, 255)');
+                    inner.strokeWidth(2);
+                    /* vrcText's Konva.Tag has opacity 0.1 by default
+                     * (so it reads as a soft, near-invisible annotation
+                     * on canvas). At that opacity the blue tint + stroke
+                     * we just applied would be barely visible during a
+                     * multi-select. Temporarily bump any inner rect
+                     * whose current opacity is below 0.7 up to 0.7 so
+                     * the highlight is actually visible. wdText's Tag
+                     * (opacity 1) and dimensionLine's dim-rect (opacity
+                     * 1) are untouched by the threshold check.
+                     * Restored verbatim by removeShadingTrNodes(). */
+                    if (inner.opacity() < 0.7) {
+                        inner.data_origOpacity = inner.opacity();
+                        inner.opacity(0.7);
+                    }
+                    lastTrNodesWithShading.push(node);
+                }
+            }
             return;
         }
 
@@ -29916,10 +30087,13 @@ function exportRoomObjToWorkspace() {
             if (typeof exported.data_zPosition === 'number') {
                 exported.data_zPosition = round(exported.data_zPosition * dimLineRatio);
             }
-            /* data_lineWidth and data_pointerSize are CANVAS PIXEL units
-             * (not unit-scaled) — they describe stroke width and
-             * arrowhead size in screen-space, same convention as the
-             * Konva attrs. No ratio applied. */
+            /* data_lineWidth and data_pointerSize are stored as WD pt-like
+             * units (1 unit ≈ 0.01 m physical extent — same convention
+             * as data_fontSize). The unit is fixed and unit-agnostic
+             * (no feet/meters bookkeeping needed): the renderer applies
+             * `* 0.01 m * scale` via computeDimensionLineCanvasPx() at
+             * paint time so the on-canvas widget scales with the room.
+             * No ratio applied here on export. */
             const lineLayerId = exported.data_layerId;
             if (lineLayerId && lineLayerId !== '0' && roomObj.layers) {
                 const lineLayer = roomObj.layers.find(l => l.layerid === lineLayerId);
