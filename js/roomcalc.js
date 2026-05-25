@@ -171,6 +171,18 @@ function isTextItem(deviceId) {
     return deviceId === 'wdText' || deviceId === 'vrcText';
 }
 
+/* VRC Dimension Line membership test. Mirrors isTextItem() — gates every
+ * dimensionLine-specific branch (insertTable rendering, addLabel skip,
+ * URL encode/decode, WD round-trip skip, Details panel, four-place rule
+ * for data_lineWidth / data_pointerSize, transform-time live width
+ * widget update). data_fontSize also flows through dimensionLine but
+ * uses the existing wdText/vrcText four-place wiring — the
+ * isTextItem-OR-isDimensionLine predicate is used by the encoder /
+ * decoder to widen acceptance. */
+function isDimensionLine(deviceId) {
+    return deviceId === 'dimensionLine';
+}
+
 /* roomObj.items parentGroup helpers (flat-array shape; legacy bucketed
  * shape auto-migrated by window.VRC.migrateLegacyItemsShape).
  * PERF RULE: any function reading 2+ categories MUST call
@@ -721,6 +733,7 @@ function populateGroupDetails(rectNode) {
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
+        'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -731,6 +744,7 @@ function populateGroupDetails(rectNode) {
     const showIds = [
         'labelFieldDiv', 'itemLayerDiv', 'itemWidthLengthDiv',
         'itemWidthDiv', 'itemLengthDiv', 'itemRotationDiv',
+        'itemZpositionDiv',
     ];
     showIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2711,6 +2725,7 @@ function populateCustomItemDetails(rectNode) {
         'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
+        'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2720,6 +2735,7 @@ function populateCustomItemDetails(rectNode) {
     const showIds = [
         'labelFieldDiv', 'itemLayerDiv', 'itemWidthLengthDiv',
         'itemWidthDiv', 'itemLengthDiv', 'itemRotationDiv',
+        'itemZpositionDiv',
     ];
     showIds.forEach(id => {
         const el = document.getElementById(id);
@@ -6713,6 +6729,30 @@ let boxes = [
         configurableColor: true,
         wdOpacity: true,
         default_fontSize: 20,
+    },
+    {
+        /* VRC Dimension Line — a measurement annotation that renders as
+         * a transparent listening Konva.Rect parent (provides hit testing)
+         * holding a non-listening Konva.Arrow (pointers at both ends) and
+         * a non-listening Konva.Label whose text is auto-computed from
+         * the rect's current width in the current unit ("1.22 m" /
+         * "4.00 ft"). Two end-anchors (yellow bars styled like Row of
+         * Chairs / Couch) let the user resize the line by dragging.
+         *
+         * Like vrcText, the Workspace Designer has no native dimension-
+         * line concept — the export skips the customObjects push and
+         * round-trips the full record via workspaceObj.data.vrc.dimensionLines[]
+         * (mirror of data.vrc.vrcTexts) so the item survives a
+         * "Save Workspace" / "Open Workspace" cycle. */
+        name: 'VRC Dimension Line',
+        id: 'dimensionLine',
+        key: 'XB',
+        frontImage: 'dimensionLine-menu.png',
+        family: 'dimensionLine',
+        resizeable: ['width'],
+        default_fontSize: 10,
+        default_lineWidth: 2,
+        default_pointerSize: 10,
     }
 ]
 
@@ -8242,13 +8282,29 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* w=wdText/vrcText font size (integer pt-like units, mirror
-             * of the encoder above). Absent ⇒ device-def default applied
-             * at render time. */
-            if ('w' in item && isTextItem(newItem.data_deviceid)) {
+            /* w=wdText/vrcText/dimensionLine font size (integer pt-like
+             * units, mirror of the encoder above). Absent ⇒ device-def
+             * default applied at render time. */
+            if ('w' in item && (isTextItem(newItem.data_deviceid) || isDimensionLine(newItem.data_deviceid))) {
                 const fsNum = parseInt(item.w, 10);
                 if (!isNaN(fsNum) && fsNum > 0) {
                     newItem.data_fontSize = fsNum;
+                }
+            }
+
+            /* y=dimensionLine line width, z=dimensionLine pointer size.
+             * Integer canvas pixels. Absent ⇒ device-def default applied
+             * at render time. */
+            if ('y' in item && isDimensionLine(newItem.data_deviceid)) {
+                const lwNum = parseInt(item.y, 10);
+                if (!isNaN(lwNum) && lwNum > 0) {
+                    newItem.data_lineWidth = lwNum;
+                }
+            }
+            if ('z' in item && isDimensionLine(newItem.data_deviceid)) {
+                const psNum = parseInt(item.z, 10);
+                if (!isNaN(psNum) && psNum > 0) {
+                    newItem.data_pointerSize = psNum;
                 }
             }
 
@@ -11223,15 +11279,39 @@ function createShareableLinkItem(item) {
         }
     }
 
-    /* w=wdText/vrcText font size (integer). Omitted when equal to the
-     * device-def default (currently 20 for both) so the common case
-     * stays compact. */
-    if (isTextItem(item.data_deviceid) && item.data_fontSize != null) {
+    /* w=wdText/vrcText/dimensionLine font size (integer). Omitted when
+     * equal to the device-def default so the common case stays compact.
+     * dimensionLine reuses the wdText four-place rule for data_fontSize. */
+    if ((isTextItem(item.data_deviceid) || isDimensionLine(item.data_deviceid)) && item.data_fontSize != null) {
         const __fsNum = Number(item.data_fontSize);
         const __deviceDef = allDeviceTypes[item.data_deviceid];
-        const __fsDefault = (__deviceDef && __deviceDef.default_fontSize) || 20;
+        const __fsDefault = (__deviceDef && __deviceDef.default_fontSize) || (isDimensionLine(item.data_deviceid) ? 10 : 20);
         if (!isNaN(__fsNum) && __fsNum > 0 && __fsNum !== __fsDefault) {
             strItem += 'w' + Math.round(__fsNum);
+        }
+    }
+
+    /* y=dimensionLine line width (integer; canvas pixels of stroke).
+     * z=dimensionLine pointer size (integer; canvas pixels). Both omitted
+     * when equal to the device-def default (2 / 10). Single-letter codes
+     * chosen because y/z are unused at the per-item URL level (they ARE
+     * used inside the H{n} group / J{n} customItem blocks for grpY/grpZ
+     * but those are sid='H'/'J' records, separate from per-item records). */
+    if (isDimensionLine(item.data_deviceid)) {
+        const __deviceDef = allDeviceTypes['dimensionLine'] || {};
+        if (item.data_lineWidth != null) {
+            const __lwNum = Number(item.data_lineWidth);
+            const __lwDefault = __deviceDef.default_lineWidth || 2;
+            if (!isNaN(__lwNum) && __lwNum > 0 && __lwNum !== __lwDefault) {
+                strItem += 'y' + Math.round(__lwNum);
+            }
+        }
+        if (item.data_pointerSize != null) {
+            const __psNum = Number(item.data_pointerSize);
+            const __psDefault = __deviceDef.default_pointerSize || 10;
+            if (!isNaN(__psNum) && __psNum > 0 && __psNum !== __psDefault) {
+                strItem += 'z' + Math.round(__psNum);
+            }
         }
     }
 
@@ -12465,6 +12545,15 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_fontSize = Number(node.data_fontSize);
         }
 
+        /* Dimension Line line width + pointer size — preserve through
+         * copy/paste so a duplicated line keeps its styling. */
+        if (node.data_lineWidth != null) {
+            newAttr.data_lineWidth = Number(node.data_lineWidth);
+        }
+        if (node.data_pointerSize != null) {
+            newAttr.data_pointerSize = Number(node.data_pointerSize);
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -13622,6 +13711,14 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_fontSize = Number(node.data_fontSize);
         }
 
+        if (node.data_lineWidth != null) {
+            itemAttr.data_lineWidth = Number(node.data_lineWidth);
+        }
+
+        if (node.data_pointerSize != null) {
+            itemAttr.data_pointerSize = Number(node.data_pointerSize);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -13678,6 +13775,18 @@ function updateRoomObjFromTrNode() {
                 item.data_fontSize = itemAttr.data_fontSize;
             } else {
                 delete item.data_fontSize;
+            }
+
+            if (itemAttr.data_lineWidth != null) {
+                item.data_lineWidth = itemAttr.data_lineWidth;
+            } else {
+                delete item.data_lineWidth;
+            }
+
+            if (itemAttr.data_pointerSize != null) {
+                item.data_pointerSize = itemAttr.data_pointerSize;
+            } else {
+                delete item.data_pointerSize;
             }
 
         } else {
@@ -13975,6 +14084,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2 * scale;
         height = 2.5 * scale;
     }
+    else if (insertDevice.id === 'dimensionLine') {
+        /* Default span 1.22 m (≈ 4 ft). Expressed in meters here because
+         * the unit-conversion block below (`if (unit === 'feet') { width
+         * = width * 3.28084; ... }`) unconditionally converts the
+         * device default from meters to feet. A previous version of
+         * this branch returned 4 in feet mode and was double-converted
+         * to ~13 ft. Rect height is recomputed by
+         * updateDimensionLineWidget() from fontSize/pointerSize, so the
+         * 30px placeholder here is just for the Konva.Group constructor
+         * before the first widget paint. */
+        width = 1.22 * scale;
+        height = 30; /* placeholder — recomputed by updateDimensionLineWidget */
+    }
 
     if ('data_vHeight' in attrs) {
         data_vHeight = attrs.data_vHeight;
@@ -14188,6 +14310,140 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             opacity: textOpacity,
             fontStyle: isVrcText ? 'normal' : 'bold',
         }));
+    }
+
+    if (isDimensionLine(insertDevice.id)) {
+        /* VRC Dimension Line — top-level Konva.Group containing:
+         *   1. Konva.Rect (listening: true) — transparent hit area + the
+         *      authoritative bbox the Transformer reads via getClientRect.
+         *      Sized to be wider than the arrow's pointer wings + the
+         *      label so anchor positions stay flush with the rect edges.
+         *   2. Konva.Arrow (listening: false) — black, pointerAtBeginning
+         *      and pointerAtEnding, stroke/pointer attrs driven by
+         *      data_lineWidth / data_pointerSize.
+         *   3. Konva.Label (listening: false) — centered, auto-text is
+         *      the current width converted to the current unit
+         *      ("1.22 m" / "4.00 ft").
+         *
+         * The Group carries data_deviceid, draggable, and id. Clicks on
+         * any child resolve up to the Group via resolveItemAncestor()
+         * (existing wdText / vrcText mechanism). The `transform` handler
+         * absorbs scaleX into actual width + child sizes so the
+         * measurement updates live. updateDimensionLineWidget() is the
+         * single source of truth for painting the three children. */
+        const ddef = allDeviceTypes['dimensionLine'] || {};
+        const dataFontSize    = (attrs.data_fontSize    != null) ? Number(attrs.data_fontSize)    : (ddef.default_fontSize    || 10);
+        const dataLineWidth   = (attrs.data_lineWidth   != null) ? Number(attrs.data_lineWidth)   : (ddef.default_lineWidth   || 2);
+        const dataPointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : (ddef.default_pointerSize || 10);
+
+        tblWallFlr = new Konva.Group({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            id: uuid,
+            width: width,   /* logical width — kept in sync with the Rect child by updateDimensionLineWidget */
+            height: height, /* placeholder — recomputed by updateDimensionLineWidget */
+            draggable: true,
+        });
+
+        /* Listening rect provides the hit area and the dominant bbox.
+         * fill: 'rgba(0,0,0,0)' (transparent) so it's invisible but
+         * still hit-testable. The `name` attribute is used by
+         * updateDimensionLineWidget() to find this child via findOne. */
+        tblWallFlr.add(new Konva.Rect({
+            name: 'dim-rect',
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+            fill: 'rgba(0,0,0,0)',
+            listening: true,
+        }));
+
+        /* Non-listening arrow — points are set by updateDimensionLineWidget. */
+        const dimArrow = new Konva.Arrow({
+            name: 'dim-arrow',
+            points: [0, height / 2, width, height / 2],
+            stroke: 'black',
+            fill: 'black',
+            strokeWidth: dataLineWidth,
+            pointerLength: dataPointerSize,
+            pointerWidth: dataPointerSize,
+            pointerAtBeginning: true,
+            pointerAtEnding: true,
+            listening: false,
+        });
+        /* Force an empty bbox so this arrow does NOT participate in the
+         * Group's getClientRect union (the Transformer reads that union to
+         * size its blue selection box). Konva's Container.getClientRect
+         * explicitly skips children whose returned bbox has width===0 &&
+         * height===0, so this is the documented "ignore me" contract.
+         *
+         * Why this matters: Konva.Arrow's sharp pointer triangles, with the
+         * default lineJoin='miter' and miterLimit=10, inflate the natural
+         * bbox by up to (miterLimit * strokeWidth / 2) ≈ 10px BEYOND each
+         * tip. That outset is what was leaving a visible gap between the
+         * arrow tips and the Transformer selection box. By making the arrow
+         * contribute nothing, the Group's bbox collapses to the dim-rect
+         * child's bounds [0, 0, w, h] — and the arrow tips at x=0 and x=w
+         * sit exactly on the box edges, matching the visual spec.
+         *
+         * A previous attempt overrode getClientRect to pass {skipStroke:true}
+         * through to the prototype method, but that didn't fully eliminate
+         * the miter outset path. The empty-bbox return is bulletproof. */
+        dimArrow.getClientRect = function () {
+            return { x: 0, y: 0, width: 0, height: 0 };
+        };
+        tblWallFlr.add(dimArrow);
+
+        /* Non-listening label — black tag with white text, mimics the
+         * visual reference image. Tag corner radius gives the "pill"
+         * shape. updateDimensionLineWidget() sets the text, font size,
+         * and centers via offsetX/Y. */
+        const dimLabel = new Konva.Label({
+            name: 'dim-label',
+            x: width / 2,
+            y: height / 2,
+            listening: false,
+        });
+        dimLabel.add(new Konva.Tag({
+            fill: 'white',
+            stroke: 'black',
+            strokeWidth: 1,
+            cornerRadius: 6,
+            lineJoin: 'round',
+        }));
+        dimLabel.add(new Konva.Text({
+            text: formatDimensionMeasurement(width / scale, roomObj.unit),
+            fontSize: computeWdTextKonvaFontSize(dataFontSize),
+            fontFamily: 'Helvetica',
+            padding: 6,
+            fill: 'black',
+        }));
+        /* Same empty-bbox trick as the arrow. For very narrow dimension
+         * lines, the label can be wider than the Rect (e.g. a 0.05m line
+         * showing "0.05 m" still needs a readable tag), which would push
+         * the Group's bbox out beyond [0, w] and re-introduce a gap on the
+         * X axis. The label's height can also exceed the Rect height for
+         * large font sizes. Zeroing the label's bbox makes the dim-rect
+         * the sole authoritative source of the Group's bbox. */
+        dimLabel.getClientRect = function () {
+            return { x: 0, y: 0, width: 0, height: 0 };
+        };
+        tblWallFlr.add(dimLabel);
+
+        /* data_* attrs are written to the group below via the existing
+         * four-place rule mirrors at the tail of insertTable() (data_fontSize)
+         * and the new data_lineWidth / data_pointerSize mirrors. Set them
+         * up-front here too so updateDimensionLineWidget() (called right
+         * after) reads the user-provided values rather than device defaults. */
+        tblWallFlr.data_fontSize    = (attrs.data_fontSize    != null) ? Number(attrs.data_fontSize)    : null;
+        tblWallFlr.data_lineWidth   = (attrs.data_lineWidth   != null) ? Number(attrs.data_lineWidth)   : null;
+        tblWallFlr.data_pointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : null;
+
+        /* Repaint children with the correct dimensions / font / line / pointer.
+         * Also recomputes height from the font/pointer sizes. */
+        updateDimensionLineWidget(tblWallFlr);
     }
 
 
@@ -14903,6 +15159,18 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
      * → updateNodeAttributes). Stored as a Number; absent ⇒ null. */
     tblWallFlr.data_fontSize = (attrs.data_fontSize == null) ? null : Number(attrs.data_fontSize);
 
+    /* Dimension Line line width + pointer size (four-place rule mirror — see
+     * updateRoomObjFromTrNode, copyToCanvasClipBoard, and the defensive
+     * write in insertShapeItem → updateNodeAttributes). Stored as Numbers;
+     * absent ⇒ null. The Dimension Line branch above (isDimensionLine) also
+     * sets these explicitly before calling updateDimensionLineWidget so the
+     * first paint reflects the user-provided values; this final write
+     * normalises types and covers the device-default-fallback case for
+     * non-dimensionLine items (which is a no-op since their attrs are
+     * absent). */
+    tblWallFlr.data_lineWidth   = (attrs.data_lineWidth   == null) ? null : Number(attrs.data_lineWidth);
+    tblWallFlr.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
+
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
     } else {
@@ -14945,6 +15213,36 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.on('transform', function tableOnTransform(e) {
 
         if (isAllCoverageGroupHidden) return;
+
+        /* Dimension Line live-resize: the global `tr.on('transform')`
+         * handler (registered near addListeners, around line ~22420)
+         * is what absorbs scaleX/scaleY into the Group's width/height
+         * and resets the scales — same path every other resizable item
+         * uses. Critically, Konva fires `target.fire('transform')` BEFORE
+         * `tr.fire('transform')`, so by the time we get here, scaleX is
+         * still non-1 and group.width() is still the pre-resize value.
+         *
+         * We bake the impending width change ourselves (group.width *
+         * scaleX), reset scaleX/scaleY to 1, set the new width, and
+         * repaint the children. The global tr.on('transform') handler
+         * then runs, sees scaleX === 1 (its `!(scaleX === 1)` guard
+         * short-circuits), and does nothing — clean hand-off. The
+         * Konva.Group's children (rect / arrow / label) would otherwise
+         * visually pop back to the old width on the next frame because
+         * Konva.Group children don't inherit width changes the way they
+         * inherit scale. */
+        if (e && e.target && e.target.data_deviceid === 'dimensionLine' && tr.nodes().length === 1) {
+            const sx = tblWallFlr.scaleX();
+            const sy = tblWallFlr.scaleY();
+            if (sx !== 1 || sy !== 1) {
+                const newWidth = Math.max(1, (tblWallFlr.width() || 0) * sx);
+                tblWallFlr.scaleX(1);
+                tblWallFlr.scaleY(1);
+                tblWallFlr.width(newWidth);
+            }
+            updateDimensionLineWidget(tblWallFlr);
+            updateFormatDetails(e);
+        }
 
         //  snapToGuideLines(e);
         if (tblWallFlr.data_labelField) {
@@ -15064,7 +15362,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             setTimeout((theDeviceId) => {
 
-                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet' || theDeviceId === 'dimensionLine') {
                     updateItem();
                 }
 
@@ -15076,8 +15374,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     /* wdText/vrcText already render their text directly in the canvas
      * (the inner Konva.Text child of the Konva.Label), so the floating
-     * overlay label tooltip would be a redundant duplicate. */
-    if (attrs.data_labelField && !isTextItem(insertDevice.id)) {
+     * overlay label tooltip would be a redundant duplicate. Dimension
+     * Line also auto-renders its measurement text via its own inner
+     * Konva.Label child, so it joins the same skip list. */
+    if (attrs.data_labelField && !isTextItem(insertDevice.id) && !isDimensionLine(insertDevice.id)) {
         addLabel(tblWallFlr, attrs);
     }
 
@@ -15161,6 +15461,94 @@ function computeWdTextKonvaFontSize(dataFontSize) {
     let px = heightInCurrentUnit * scale * WDTEXT_CANVAS_FONT_SCALE;
     if (!isFinite(px) || px <= 0) px = 12; /* defensive: before scale is computed */
     return px;
+}
+
+/* Format the auto-computed measurement string shown inside a Dimension
+ * Line's label tag. `widthInUnit` is the current rect width in roomObj.unit
+ * (meters or feet). Two-decimal output with the current unit suffix —
+ * "1.22 m" or "4.00 ft". Negative values are rounded toward zero to keep
+ * a clean reading during fast drags through the origin (Konva's
+ * transform handler can briefly emit slightly negative scaleX values). */
+function formatDimensionMeasurement(widthInUnit, roomUnit) {
+    let v = Number(widthInUnit);
+    if (!isFinite(v)) v = 0;
+    if (v < 0) v = 0;
+    const suffix = (roomUnit === 'feet') ? 'ft' : 'm';
+    return v.toFixed(2) + ' ' + suffix;
+}
+
+/* Repaint a Dimension Line group's children (Rect / Arrow / Label) from
+ * the group's current width + data_fontSize / data_lineWidth /
+ * data_pointerSize attrs. Single source of truth used by:
+ *   1. insertTable() at first paint
+ *   2. the live `transform` handler (after absorbing scaleX into width)
+ *   3. zoom changes (so the font/pointer/line-width canvas sizes track
+ *      the current `scale`)
+ *
+ * Children are found by `name` ('dim-rect' / 'dim-arrow' / 'dim-label')
+ * — these are private to the Dimension Line group and never collide
+ * with other devices since each is scoped under its own Konva.Group.
+ *
+ * The rect is sized larger than the arrow's pointer wings + the label
+ * so the group's getClientRect (which the Transformer reads to size
+ * the bounding box / anchor positions) is rect-dominated. Without this,
+ * the Transformer's middle-left / middle-right anchors would drift up
+ * with very large pointer sizes. */
+function updateDimensionLineWidget(group) {
+    if (!group || typeof group.findOne !== 'function') return;
+
+    /* Pull current attr values from the node, falling back to device
+     * defaults if data_* is absent (e.g. just-inserted item before any
+     * Details-panel edit). */
+    const deviceDef = allDeviceTypes['dimensionLine'] || {};
+    const fs = (group.data_fontSize != null) ? Number(group.data_fontSize) : (deviceDef.default_fontSize || 10);
+    const lw = (group.data_lineWidth != null) ? Number(group.data_lineWidth) : (deviceDef.default_lineWidth || 2);
+    const ps = (group.data_pointerSize != null) ? Number(group.data_pointerSize) : (deviceDef.default_pointerSize || 10);
+
+    const w = Math.max(1, group.width() || 0);
+
+    /* Rect height = max(arrow vertical extent, label vertical extent, 30px).
+     * pointerWidth controls how tall the arrowhead wings are at the tip,
+     * so the arrow's effective vertical bbox is roughly `pointerWidth + lw`.
+     * Label glyphs are roughly `fontSize` tall in canvas pixels (via
+     * computeWdTextKonvaFontSize); the Tag adds padding both sides.
+     * Floor of 30px keeps the hit area generous for narrow lines. */
+    const labelKonvaFontSize = computeWdTextKonvaFontSize(fs);
+    const h = Math.max(ps + lw, labelKonvaFontSize * 1.6, 30);
+    group.height(h);
+
+    const rect = group.findOne('.dim-rect');
+    if (rect) {
+        rect.x(0);
+        rect.y(0);
+        rect.width(w);
+        rect.height(h);
+    }
+
+    const arrow = group.findOne('.dim-arrow');
+    if (arrow) {
+        arrow.points([0, h / 2, w, h / 2]);
+        arrow.strokeWidth(lw);
+        arrow.pointerLength(ps);
+        arrow.pointerWidth(ps);
+    }
+
+    const label = group.findOne('.dim-label');
+    if (label) {
+        const innerText = label.findOne('Text');
+        const widthInUnit = w / scale;
+        if (innerText) {
+            innerText.text(formatDimensionMeasurement(widthInUnit, roomObj.unit));
+            innerText.fontSize(labelKonvaFontSize);
+        }
+        /* Center the Label by offsetting half its (now-recomputed) size.
+         * Konva.Label auto-sizes from its inner Text after the text/font
+         * change above, so width() / height() reflect the new content. */
+        label.x(w / 2);
+        label.y(h / 2);
+        label.offsetX(label.width() / 2);
+        label.offsetY(label.height() / 2);
+    }
 }
 
 function findUpperLeftXY(shape) {
@@ -15593,6 +15981,25 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
             //     layerTransform.batchDraw();
             // }
 
+            /* dimensionLine is a Konva.Group; the standard width/height
+             * branches above rescaled the GROUP's own attrs, but the
+             * inner Rect / Arrow / Label children live in the Group's
+             * local coordinate space and aren't iterated by this loop
+             * (updateNodeScaleLayer descends one level — into the per-
+             * category Konva.Groups like groupBoxes / groupTables — and
+             * stops there). Without this branch the inner widgets would
+             * keep their pre-zoom pixel dimensions while the hit-rect
+             * silently grew/shrank around them: the arrow shaft would
+             * end short of the new anchor positions and the measurement
+             * label would float off-center. updateDimensionLineWidget()
+             * reads the (now-rescaled) `node.width()` and repaints all
+             * three children + recomputes the Konva.Text fontSize via
+             * computeWdTextKonvaFontSize() (which is scale-aware), so
+             * the rendered widget matches the new zoom level. */
+            if (isDimensionLine(node.data_deviceid)) {
+                updateDimensionLineWidget(node);
+            }
+
 
         }
     }
@@ -15619,10 +16026,15 @@ function removeShadingTrNodes() {
                 return;
             }
 
-            /* wdText/vrcText are Konva.Label (Group) instances with no
-             * Shape stroke methods. updateTrNodesShading() skipped the
-             * highlight, so there's nothing to undo here either. */
-            if (isTextItem(node.data_deviceid)) {
+            /* wdText/vrcText are Konva.Label (Group) instances and
+             * dimensionLine is a Konva.Group — none of them expose Shape
+             * stroke methods. updateTrNodesShading() skipped the
+             * highlight, so there's nothing to undo here either.
+             * Without this skip, Konva would throw
+             * `node.strokeEnabled is not a function` mid-forEach and
+             * the function's lastTrNodesWithShading bookkeeping would
+             * desync. */
+            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
                 return;
             }
 
@@ -15750,12 +16162,21 @@ function updateTrNodesShading() {
             return;
         }
 
-        /* wdText/vrcText render as a Konva.Label (Group), which doesn't
-         * expose Shape stroke methods. The Transformer's bounding-box
-         * anchors already provide the visual "this is selected"
-         * feedback, so we skip the blue-outline pass entirely. Mirror
-         * this skip in removeShadingTrNodes(). */
-        if (isTextItem(node.data_deviceid)) {
+        /* wdText/vrcText render as a Konva.Label (Group) and
+         * dimensionLine renders as a Konva.Group containing Rect +
+         * Arrow + Label — none of these top-level nodes expose Shape
+         * stroke methods. The Transformer's bounding-box anchors
+         * already provide the visual "this is selected" feedback, so
+         * we skip the blue-outline pass entirely. Mirror this skip in
+         * removeShadingTrNodes().
+         *
+         * CRITICAL: Without this skip Konva throws
+         * `node.strokeEnabled is not a function` partway through the
+         * forEach, the function's tail `tr.nodes(copyTrNodes)` restore
+         * never runs, and the user's entire selection is wiped on
+         * every click / drag / resize / rotate / marquee involving a
+         * dimensionLine. */
+        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
             return;
         }
 
@@ -16284,6 +16705,47 @@ function updateItem() {
             if (item.data_labelField && typeof item.data_labelField === 'string') {
                 item.data_labelField = item.data_labelField.replace(/\\n/g, '\n');
             }
+        }
+
+        /* Dimension Line: read Font Size + Line Width + Pointer Size
+         * from the Details panel inputs. Bad/empty values fall back to
+         * device defaults. The destroy-and-rebuild loop below picks up
+         * the new attrs and feeds them into insertTable() →
+         * updateDimensionLineWidget() so the rect / arrow / label
+         * repaint in the new style. */
+        if (isDimensionLine(item.data_deviceid)) {
+            const __fsInput = document.getElementById('itemFontSize');
+            if (__fsInput) {
+                const __fsNum = Number(__fsInput.value);
+                const __fsDefault = (__deviceDef && __deviceDef.default_fontSize) || 10;
+                item.data_fontSize = (!isNaN(__fsNum) && __fsNum > 0) ? __fsNum : __fsDefault;
+            }
+            const __lwInput = document.getElementById('itemLineWidth');
+            if (__lwInput) {
+                const __lwNum = Number(__lwInput.value);
+                const __lwDefault = (__deviceDef && __deviceDef.default_lineWidth) || 2;
+                item.data_lineWidth = (!isNaN(__lwNum) && __lwNum > 0) ? __lwNum : __lwDefault;
+            }
+            const __psInput = document.getElementById('itemPointerSize');
+            if (__psInput) {
+                const __psNum = Number(__psInput.value);
+                const __psDefault = (__deviceDef && __deviceDef.default_pointerSize) || 10;
+                item.data_pointerSize = (!isNaN(__psNum) && __psNum > 0) ? __psNum : __psDefault;
+            }
+            /* itemLength is the user-facing field for the line's
+             * MEASUREMENT (in current unit). The generic updateItem
+             * code at the top of this function read it into `height`
+             * and wrote it to item.height — but for a dimensionLine the
+             * measurement is stored as item.width (the Group's width).
+             * Re-route it here: copy the form value into item.width,
+             * and drop any item.height the generic code may have
+             * written (height is auto-recomputed by
+             * updateDimensionLineWidget from font/pointer/line sizes,
+             * so we don't want a stale value lingering). */
+            if (height && height > 0) {
+                item.width = height;
+            }
+            delete item.height;
         }
 
         if (testOffset) {
@@ -18414,6 +18876,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         /* wdText font size — defensive mirror. wdText routes through
          * insertTable(), but the four-place rule wants both writers in sync. */
         node.data_fontSize = (attrs.data_fontSize == null) ? null : Number(attrs.data_fontSize);
+
+        /* Dimension Line line width + pointer size — defensive mirror.
+         * dimensionLine routes through insertTable(), but the four-place
+         * rule wants both writers in sync so any future Image-rendered
+         * device that adopts these attrs picks them up automatically. */
+        node.data_lineWidth   = (attrs.data_lineWidth   == null) ? null : Number(attrs.data_lineWidth);
+        node.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -21211,6 +21680,16 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheight').disabled = true;
     }
 
+    /* Dimension Line: the line's measurement IS its length, so we surface
+     * it via itemLength (editable). itemWidth is hidden — the line has no
+     * second axis, and showing it as a disabled twin would just be noise.
+     * itemVheight is meaningless for a 2D measurement line. */
+    if (isDimensionLine(shape.data_deviceid)) {
+        document.getElementById('itemWidth').disabled = true;
+        document.getElementById('itemLength').disabled = false;
+        document.getElementById('itemVheight').disabled = true;
+    }
+
 
     /* if both itemWidth and itemLength are disabled, don't show the row */
     if (shape.data_deviceid === 'pathShape') {
@@ -21218,10 +21697,24 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('labelPathId').style.display = '';
         document.getElementById('itemWidthDiv').style.display = 'none';
         document.getElementById('itemLengthDiv').style.display = 'none';
+        document.getElementById('labelFieldDiv').style.display = '';
+    } else if (isDimensionLine(shape.data_deviceid)) {
+        /* Dimension Line: only show Length (the line's measurement). The
+         * Width input would just be a redundant disabled twin since a
+         * line has no second axis. The Item Label field is also hidden —
+         * the rendered label is the live measurement readout produced by
+         * updateDimensionLineWidget(), not a user-editable string, and
+         * dimensionLine intentionally skips data_labelField (see the
+         * isDimensionLine guard in insertTable's addLabel skip). */
+        document.getElementById('itemWidthDiv').style.display = 'none';
+        document.getElementById('itemLengthDiv').style.display = '';
+        document.getElementById('labelPathId').style.display = 'none';
+        document.getElementById('labelFieldDiv').style.display = 'none';
     } else {
         document.getElementById('itemWidthDiv').style.display = '';
         document.getElementById('itemLengthDiv').style.display = '';
         document.getElementById('labelPathId').style.display = 'none';
+        document.getElementById('labelFieldDiv').style.display = '';
     }
 
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true && !(shape.data_deviceid === 'polyRoom')) {
@@ -21398,6 +21891,15 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemLength').value = 0;
     }
 
+    /* Dimension Line: itemLength surfaces the line's MEASUREMENT, which
+     * is stored as shape.width() (the Group's width). shape.height() is
+     * the auto-computed tag height (driven by font/pointer/line sizes)
+     * and isn't meaningful to the user. Override after the generic
+     * populate above so itemLength shows the line length instead. */
+    if (isDimensionLine(shape.data_deviceid)) {
+        document.getElementById('itemLength').value = round(shape.width() / scale);
+    }
+
     if ('rotation' in shape.attrs) {
         item.rotation = round(shape.rotation(), -1);
         document.getElementById('itemRotation').value = item.rotation;
@@ -21514,6 +22016,14 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
      * data.vrc.vrcTexts, so Tilt/Lean stay visible for it too. */
     const fontSizeDiv = document.getElementById('itemFontSizeDiv');
     if (fontSizeDiv) {
+        /* itemZpositionDiv + itemLineWidthPointerSizeRow are reset in each
+         * branch below — Z hidden only for dimensionLine; the LineWidth /
+         * PointerSize row visible only for dimensionLine. Defaults
+         * (visible-Z, hidden-row) are re-asserted in the else branch so
+         * switching back from a dimensionLine to any other item restores
+         * the normal layout. */
+        const zDiv = document.getElementById('itemZpositionDiv');
+        const lwpsRow = document.getElementById('itemLineWidthPointerSizeRow');
         if (isTextItem(shape.data_deviceid)) {
             fontSizeDiv.style.display = '';
             const fsInput = document.getElementById('itemFontSize');
@@ -21535,8 +22045,65 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('itemTiltSlantDiv').style.display = '';
             document.getElementById('itemTiltDiv').style.display = '';
             document.getElementById('itemSlantDiv').style.display = '';
+            if (zDiv) zDiv.style.display = '';
+            if (lwpsRow) lwpsRow.style.display = 'none';
+        } else if (isDimensionLine(shape.data_deviceid)) {
+            /* Dimension Line: show Font Size + Line Width + Pointer Size,
+             * hide every WD-export-specific field (no diagonal / vheight /
+             * corner radius / tilt / slant / WD color picker — the
+             * Dimension Line is a VRC-only annotation and the arrow is
+             * always rendered black). The Width/Length row IS shown so
+             * the user can read/edit the line's measurement via the
+             * itemLength input (itemWidth is hidden within the row by
+             * the earlier dimensionLine branch in the if/else chain that
+             * sets itemWidthDiv display to 'none'). */
+            fontSizeDiv.style.display = '';
+            const ddef = allDeviceTypes['dimensionLine'] || {};
+            const fsInput = document.getElementById('itemFontSize');
+            if (fsInput) {
+                const defaultFs = ddef.default_fontSize || 10;
+                fsInput.value = (shape.data_fontSize != null) ? shape.data_fontSize : defaultFs;
+            }
+            const lwInput = document.getElementById('itemLineWidth');
+            if (lwInput) {
+                const defaultLw = ddef.default_lineWidth || 2;
+                lwInput.value = (shape.data_lineWidth != null) ? shape.data_lineWidth : defaultLw;
+            }
+            const psInput = document.getElementById('itemPointerSize');
+            if (psInput) {
+                const defaultPs = ddef.default_pointerSize || 10;
+                psInput.value = (shape.data_pointerSize != null) ? shape.data_pointerSize : defaultPs;
+            }
+            const lwDiv = document.getElementById('itemLineWidthDiv');
+            if (lwDiv) lwDiv.style.display = '';
+            const psDiv = document.getElementById('itemPointerSizeDiv');
+            if (psDiv) psDiv.style.display = '';
+            if (lwpsRow) lwpsRow.style.display = '';
+
+            /* Width/Length row stays visible — the earlier branch in this
+             * function hid itemWidthDiv but kept itemLengthDiv visible,
+             * and the both-disabled collapse rule doesn't fire because
+             * itemLength is enabled for dimensionLine. */
+            document.getElementById('itemWidthLengthDiv').style.display = '';
+            document.getElementById('itemDiagonalTvDiv').style.display = 'none';
+            document.getElementById('itemVheightDiv').style.display = 'none';
+            document.getElementById('tblRectRadiusRow').style.display = 'none';
+            document.getElementById('trapNarrowWidthDiv').style.display = 'none';
+            itemTopElevationDiv.style.display = 'none';
+            document.getElementById('itemTiltSlantDiv').style.display = 'none';
+            document.getElementById('itemTiltDiv').style.display = 'none';
+            document.getElementById('itemSlantDiv').style.display = 'none';
+            /* Dimension Lines are a flat 2D annotation — Z elevation has no
+             * meaning. Hide the Z field; the X/Y row collapses to just X+Y. */
+            if (zDiv) zDiv.style.display = 'none';
         } else {
             fontSizeDiv.style.display = 'none';
+            const lwDiv = document.getElementById('itemLineWidthDiv');
+            if (lwDiv) lwDiv.style.display = 'none';
+            const psDiv = document.getElementById('itemPointerSizeDiv');
+            if (psDiv) psDiv.style.display = 'none';
+            if (lwpsRow) lwpsRow.style.display = 'none';
+            if (zDiv) zDiv.style.display = '';
         }
     }
 
@@ -22500,7 +23067,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -23606,6 +24173,18 @@ function resizeTableOrWall() {
             changeWallAnchors('wallChairs');
             tr.resizeEnabled(true);
         }
+        else if (nodes[0].data_deviceid === 'dimensionLine') {
+            /* Two yellow end-anchors flush with the rect's left + right
+             * edges. Width-only resize (no height, no rotation lock —
+             * the user CAN still rotate via the Transformer's rotation
+             * handle so the dimension line can span objects at any
+             * angle). Anchor styling reuses the wallChairs/couch
+             * yellow-bar style via the 'dimensionLine' key in
+             * changeWallAnchors(). */
+            tr.enabledAnchors(['middle-left', 'middle-right']);
+            changeWallAnchors('dimensionLine');
+            tr.resizeEnabled(true);
+        }
         else if (nodes[0].data_deviceid.startsWith('sphere') || nodes[0].data_deviceid.startsWith('cylinder') || nodes[0].data_deviceid.startsWith('columnRect')) {
 
             tr.enabledAnchors(['bottom-right']);
@@ -23637,6 +24216,41 @@ function resizeTableOrWall() {
 
 function changeWallAnchors(isWall = false) {
     tr.anchorStyleFunc((anchor) => {
+
+        /* Dimension Line uses middle-left + middle-right anchors —
+         * orientation is rotated 90° from top/bottom-center (tall yellow
+         * bars on the sides instead of wide ones on top/bottom). Sits
+         * BEFORE the top-center/bottom-center branch so the per-frame
+         * styling stays cleanly partitioned by anchor name. */
+        if (isWall === 'dimensionLine' && (anchor.attrs.name.startsWith('middle-left') || anchor.attrs.name.startsWith('middle-right'))) {
+            let defaultScale = 12;
+            let minimumSize = 0.6;
+            let ratioFactor = (scale / defaultScale * zoomValue / 100 / 6);
+            if (roomObj.unit === 'meters') ratioFactor = ratioFactor / 3.28084;
+            ratioFactor = ratioFactor + minimumSize;
+
+            const barWidth  = 5  * ratioFactor;
+            const barHeight = 20 * ratioFactor;
+            anchor.height(barHeight); /* tall — vertical yellow bar */
+            anchor.width(barWidth);
+            anchor.offsetY(barHeight / 2); /* vertically center on the anchor point */
+
+            /* Konva's Transformer places each anchor's local origin (0,0)
+             * at the bounding-box edge. For middle-RIGHT, offsetX(0)
+             * leaves the bar's left edge at the box's right edge, so the
+             * bar extends OUTWARD (to the right of the box). For
+             * middle-LEFT, offsetX(0) would put the bar's left edge at
+             * the box's left edge — extending INWARD (into the box,
+             * overlapping the arrow). Push it left by the full bar
+             * width so its RIGHT edge aligns with the box's left edge
+             * and the bar mirrors the right one cleanly outside the box. */
+            anchor.offsetX(anchor.attrs.name.startsWith('middle-left') ? barWidth : 0);
+            anchor.fill('#FDDA0D');
+            anchor.stroke('#44444488');
+
+            updateRotaterAnchor(anchor);
+            return;
+        }
 
         if (anchor.attrs.name.startsWith('top-center') || anchor.attrs.name.startsWith('bottom-center')) {
 
@@ -27782,6 +28396,28 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
+    /* Restore VRC-only dimensionLine items from data.vrc.dimensionLines —
+     * mirror of the vrcTexts restore block above. The exporter writes
+     * each item's full record verbatim in meters (VRC top-left frame,
+     * no roomX/roomY shift); we clone it back into roomObj2.items and
+     * resolve layerName to a layerid (creating the layer if needed).
+     * MUST run BEFORE the groups / customItems restore blocks below for
+     * the same reason vrcTexts does: those blocks rebuild member
+     * arrays by scanning roomObj2.items for data_groupId /
+     * data_customItemId references. */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.dimensionLines)) {
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        workspaceObj.data.vrc.dimensionLines.forEach(dl => {
+            if (!dl || dl.data_deviceid !== 'dimensionLine') return;
+            const item = structuredClone(dl);
+            item.data_layerId = dl.layerName
+                ? resolveImportLayerName(dl.layerName, roomObj2)
+                : '0';
+            delete item.layerName;
+            roomObj2.items.push(item);
+        });
+    }
+
     /* Restore VRC Groups from data.vrc.groups (paired with the per-item
      * "group" attribute already extracted by wdItemToRoomObjItem). The
      * import roomObj2 is always meters (line ~23300 sets roomObj2.unit =
@@ -28470,8 +29106,16 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
+    /* For wdText, the WD `comment` field intentionally falls through to
+     * the unused-keys merger below so it lands INSIDE the JSON blob in
+     * data_labelField (not as the free-text prefix the way every other
+     * boxes-bucket item handles it). The free-text prefix slot is
+     * reserved for the rendered glyph (wdItem.text, captured up front
+     * earlier in this function). See CLAUDE.md "VRC-only text item
+     * (vrcText)" → wdText section and notes/WORKSPACE_DESIGNER.md
+     * "Comment & unknown-attribute preservation". */
     let comment = '';
-    if (wdItem.comment) {
+    if (wdItem.comment && data_deviceid !== 'wdText') {
         comment = wdItem.comment.trim();
         delete wdItem.comment;
     };
@@ -28508,9 +29152,21 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
 
-    /* merge comments and unused JSON attributes */
+    /* merge comments and unused JSON attributes.
+     *
+     * wdText divergence: data_labelField is "<rendered text> {<json>}" —
+     * the free-text prefix is the glyph (already captured into
+     * item.data_labelField from wdItem.text earlier in this function),
+     * and the JSON blob carries `comment` + any unknown attrs for
+     * forward-compat round-trip. PREPEND the captured text rather than
+     * overwriting, which is what the legacy branch did. */
     if (Object.keys(wdItem).length > 0) {
-        if (comment.length > 0) {
+        if (data_deviceid === 'wdText') {
+            const textPrefix = (item.data_labelField || '').trim();
+            item.data_labelField = textPrefix
+                ? textPrefix + ' ' + JSON.stringify(wdItem)
+                : JSON.stringify(wdItem);
+        } else if (comment.length > 0) {
             item.data_labelField = comment + ' ' + JSON.stringify(wdItem);
         } else {
             item.data_labelField = JSON.stringify(wdItem);
@@ -29230,6 +29886,53 @@ function exportRoomObjToWorkspace() {
         }
     }
 
+    /* VRC-only dimension-line items (data_deviceid === 'dimensionLine')
+     * round-trip via workspaceObj.data.vrc.dimensionLines[]. Mirror of
+     * the vrcTexts block above — Workspace Designer has no native
+     * dimension-line objectType, so we deliberately exclude these from
+     * `customObjects` (see the wdBuckets.boxes dispatch above) and
+     * stash the full record in VRC's own JSON namespace. Same conventions
+     * apply: stored in meters always; coordinates stay in VRC top-left
+     * frame (no roomX/roomY shift); layer is emitted as `layerName`;
+     * data_groupId / data_customItemId ride through verbatim. */
+    if (Array.isArray(roomObj.items)) {
+        const dimLineRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedDimLines = [];
+        roomObj.items.forEach(it => {
+            if (!it || it.data_deviceid !== 'dimensionLine') return;
+            const exported = structuredClone(it);
+            if (typeof exported.x === 'number') {
+                exported.x = round(exported.x * dimLineRatio);
+            }
+            if (typeof exported.y === 'number') {
+                exported.y = round(exported.y * dimLineRatio);
+            }
+            if (typeof exported.width === 'number') {
+                exported.width = round(exported.width * dimLineRatio);
+            }
+            if (typeof exported.height === 'number') {
+                exported.height = round(exported.height * dimLineRatio);
+            }
+            if (typeof exported.data_zPosition === 'number') {
+                exported.data_zPosition = round(exported.data_zPosition * dimLineRatio);
+            }
+            /* data_lineWidth and data_pointerSize are CANVAS PIXEL units
+             * (not unit-scaled) — they describe stroke width and
+             * arrowhead size in screen-space, same convention as the
+             * Konva attrs. No ratio applied. */
+            const lineLayerId = exported.data_layerId;
+            if (lineLayerId && lineLayerId !== '0' && roomObj.layers) {
+                const lineLayer = roomObj.layers.find(l => l.layerid === lineLayerId);
+                if (lineLayer && lineLayer.name) exported.layerName = lineLayer.name;
+            }
+            delete exported.data_layerId;
+            exportedDimLines.push(exported);
+        });
+        if (exportedDimLines.length > 0) {
+            workspaceObj.data.vrc.dimensionLines = exportedDimLines;
+        }
+    }
+
 
     if (altDefaultWall && document.getElementById('removeDefaultWallsCheckBox').checked === false) {
         delete workspaceObj.roomShape;
@@ -29448,6 +30151,11 @@ function exportRoomObjToWorkspace() {
              * (see the data.vrc.vrcTexts block below in this function)
              * so it round-trips cleanly through "Save Workspace" /
              * "Open Workspace". */
+        } else if (item.data_deviceid === 'dimensionLine') {
+            /* dimensionLine is VRC-only too (Workspace Designer has no
+             * native dimension-line concept). Same skip + round-trip
+             * pattern as vrcText — see workspaceObj.data.vrc.dimensionLines[]
+             * emission below and the matching restore on import. */
         } else {
             workspaceObjWallPush(item);
         }
@@ -30092,6 +30800,24 @@ function exportRoomObjToWorkspace() {
 
         let text = (item.data_labelField || '').replace(/{.*?}/g, '').trim();
 
+        /* Round-trip preservation for wdText: pull `comment` + any
+         * unknown attrs out of the {...} blob in data_labelField (mirror
+         * of the unused-keys merger on the import side) and spread them
+         * onto workspaceItem FIRST so VRC's known fields (text /
+         * position / rotation / size / color / opacity / hidden / layer
+         * / group) remain authoritative on export. The JSON blob is
+         * how forward-compat WD attributes survive a VRC round-trip
+         * without VRC needing to understand them. */
+        let extras = {};
+        const jsonMatch = /{.*}/.exec(item.data_labelField || '');
+        if (jsonMatch) {
+            try {
+                extras = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                console.info('Error parsing wdText JSON blob', jsonMatch);
+            }
+        }
+
         /* Rotation: WD uses radians on three axes — mirror of
          * wallStd/cylinder. rotation[0]=tilt (X), rotation[1]=item.rotation
          * around vertical Y (sign-flipped to match WD's CCW convention),
@@ -30101,6 +30827,7 @@ function exportRoomObjToWorkspace() {
         let rotationZ = ((Number(item.data_slant) || 0) *  (Math.PI / 180));
 
         let workspaceItem = {
+            ...extras,
             objectType: 'text',
             id: item.id,
             text: text,

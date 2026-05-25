@@ -597,13 +597,23 @@
               </div>
 
 
-              <div class="inputField" id="itemRotationDiv">
-                <label class="tooltip">Item Rotation:
-                  <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Rotation in degrees from
-                    0 to 360. Positive or negative values.</span></label>
-                <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
-                <label class="classDegree">&deg;</label>
+              <div class="inputRow" id="itemRotationFontSizeRow">
+                <div class="inputField" id="itemRotationDiv">
+                  <label class="tooltip">Item Rotation:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Rotation in degrees from
+                      0 to 360. Positive or negative values.</span></label>
+                  <input type="text" id="itemRotation" maxlength="6" size="5" class="degreeInput">
+                  <label class="classDegree">&deg;</label>
+                </div>
+
+                <div class="inputField" id="itemFontSizeDiv" style="display: none;">
+                  <label class="tooltip">Font Size:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Font size for the Workspace Designer text item.
+                      20 &asymp; 0.20 m tall in the Workspace Designer.</span></label>
+                  <input type="text" id="itemFontSize" maxlength="4" size="4" class="numberInput" value="20">
+                </div>
               </div>
 
 
@@ -636,12 +646,23 @@
                 <label class="unitInches">in</label>
               </div>
 
-              <div class="inputField" id="itemFontSizeDiv" style="display: none;">
-                <label class="tooltip">Font Size:
-                  <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Font size for the Workspace Designer text item.
-                    20 &asymp; 0.20 m tall in the Workspace Designer.</span></label>
-                <input type="text" id="itemFontSize" maxlength="4" size="4" class="numberInput" value="20">
+              <div class="inputRow" id="itemLineWidthPointerSizeRow" style="display: none;">
+                <div class="inputField" id="itemLineWidthDiv" style="display: none;">
+                  <label class="tooltip">Line Width:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Stroke width of the Dimension Line arrow shaft (in
+                      canvas pixels). Default is 2.</span></label>
+                  <input type="text" id="itemLineWidth" maxlength="4" size="4" class="numberInput" value="2">
+                </div>
+
+                <div class="inputField" id="itemPointerSizeDiv" style="display: none;">
+                  <label class="tooltip">Pointer Size:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Size of the arrowheads at each end of the Dimension
+                      Line — sets both Konva.Arrow pointerLength and pointerWidth (in canvas
+                      pixels). Default is 10.</span></label>
+                  <input type="text" id="itemPointerSize" maxlength="4" size="4" class="numberInput" value="10">
+                </div>
               </div>
               <!-- <div id="testB" style="display: none;"> -->
               <div id="testB">

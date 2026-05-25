@@ -816,6 +816,32 @@ Details-panel surface, the four-place rule for `data_fontSize`, the URL
 branch routes through it so adding a third text-like item is a
 one-line edit.
 
+### wdText labelField convention — `comment` lives INSIDE the JSON blob
+
+`wdText` reuses `data_labelField` as both the rendered glyph AND a
+forward-compat carrier for WD attributes VRC doesn't model. The free-
+text prefix is the rendered text; the trailing `{...}` JSON blob holds
+`comment` + any unknown WD attrs. So a wdText whose WD JSON had
+`text: "Love"`, `comment: "my comment"`, and `attributeX: "test"` ends
+up with `data_labelField === 'Love {"attributeX":"test", "comment":"my comment"}'`
+on the VRC side; the renderer paints `Love` only.
+
+**Rule:** `wdText` puts `comment` INSIDE the JSON blob; every other
+boxes-bucket item puts `comment` OUTSIDE the JSON blob as the free-text
+prefix (because for those items the rendered glyph slot is unused, so
+`comment` takes it). Round-trip is symmetric on import (`wdItem.text`
+becomes the prefix, the early `comment` extraction is skipped for
+wdText so `wdItem.comment` falls into the late "unused keys" merger
+which PREPENDS the captured text to `JSON.stringify(wdItem)`) and on
+export (`workspaceObjTextPush()` parses `/{.*}/` out of the labelField
+and spreads `...extras` onto `workspaceItem` BEFORE the known fields so
+VRC-authoritative `text/position/rotation/size/color/opacity` always
+win). Full table + cross-reference rows in
+`notes/WORKSPACE_DESIGNER.md` → "Comment & unknown-attribute
+preservation". `vrcText` is unaffected — it doesn't ride
+`customObjects` at all (full record stashed verbatim in
+`data.vrc.vrcTexts[]`).
+
 ### Workspace Designer round-trip — the only meaningful divergence
 
 Workspace Designer has no rendering for `vrcText`. To keep WD-side

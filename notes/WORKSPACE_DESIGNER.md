@@ -298,7 +298,7 @@ VRC-emitted prefix is stripped.
 |----------|-----------|-------|
 | `id` | `item.id` | UUID; unchanged on import |
 | `objectType` | always `"text"` | Matched on import via `workspaceKey.wdText.objectType` |
-| `text` | `item.data_labelField` | Inline JSON `{...}` blobs stripped on export (mirrors the rest of the boxes-bucket exporters); captured up front on import so the "unused keys → data_labelField" merger doesn't double-stringify it |
+| `text` | `item.data_labelField` (free-text prefix only) | Inline JSON `{...}` blob is stripped from the prefix on export (rendered glyph only). The blob itself is parsed and spread onto the `workspaceItem` BEFORE the known fields, so `comment` + any unknown attrs the user preserved survive the round-trip. On import the inverse: `wdItem.text` becomes the prefix; everything left in `wdItem` (incl. `comment`) gets `JSON.stringify`d back into the blob. See "Comment & unknown-attribute preservation" below |
 | `position` | `[item.x - roomWidth/2, item.data_zPosition, item.y - roomLength/2]` | `wdText` uses the **text-origin** convention (no center math) — the upper-left of the Konva.Label is treated as the WD position. On import, the same shift in reverse |
 | `size` | `item.data_fontSize` (default `20`) | Routed to `data_fontSize` on import via the wdText-specific branch in the `'size' in wdItem` block of `wdItemToRoomObjItem()` (other devices' `size` → `data_diagonalInches` is unaffected) |
 | `color` | `item.data_fill` (default `"black"`) | Driven by the `configurableColor` color picker. Default emit (`"black"`) is intentional so unconfigured wdText items show up in WD instead of rendering as an empty / invisible default |
@@ -323,6 +323,55 @@ clause that treats the WD position as the text origin (same as the
 `default` family path) rather than the centre of a (non-existent)
 rectangle.
 
+### Comment & unknown-attribute preservation
+
+`wdText` deliberately diverges from every other boxes-bucket item in
+how it uses `data_labelField`:
+
+| Device class | Free-text prefix | JSON `{...}` blob |
+|--------------|------------------|-------------------|
+| Every other boxes-bucket item (`box`, `carpet`, `wallStd`, `pathShape`, …) | becomes `workspaceItem.comment` (WD's comment field) | unknown attrs only |
+| `wdText` | becomes `workspaceItem.text` (the rendered glyph) | `comment` AND any unknown attrs |
+
+The asymmetry exists because the free-text prefix slot is consumed by
+the rendered glyph for `wdText`, so `comment` (a known-but-non-visible
+WD field) is pushed into the JSON blob alongside any forward-compat
+unknown attributes. Visible result on the canvas's Details panel for a
+wdText whose WD JSON had `text: "Love"`, `comment: "my comment"`, and
+an unknown `attributeX: "test"`:
+
+```
+Love {"attributeX":"test", "comment":"my comment"}
+```
+
+The renderer (`insertTable()` → `Konva.Text`) strips `{...}` and only
+paints `Love`. The JSON blob is purely a round-trip carrier.
+
+**Round-trip rules:**
+
+- *Import* — `wdItem.text` is captured into `data_labelField` early
+  (immediately after the `customItem` extraction block). The late
+  "unused keys → data_labelField" merger at the bottom of
+  `wdItemToRoomObjItem()` PREPENDS that captured text to the
+  `JSON.stringify(wdItem)` blob (rather than overwriting it the way
+  the legacy merger did). The early `comment` extraction is guarded
+  with `data_deviceid !== 'wdText'` so `wdItem.comment` flows into
+  the blob instead of becoming the free-text prefix.
+- *Export* — `workspaceObjTextPush()` parses the `/{.*}/` blob out
+  of `data_labelField`, spreads it onto `workspaceItem` BEFORE the
+  known fields, and then writes the known fields second. JSON-blob
+  `comment` survives; unknown attrs survive; VRC-authoritative
+  `text` / `position` / `rotation` / `size` / `color` / `opacity`
+  always win on export.
+
+**Why JSON-blob keys are spread first on export, not last:** mirroring
+`parseDataLabelFieldJson()`'s spread-last pattern would let a
+hand-edited blob hijack core geometry (e.g. `{"position":[99,99,99]}`
+in the prefix). For wdText the spread-first order ensures the
+labelField is a safe forward-compat carrier — the user can stuff any
+key they want into the blob and only future unknown keys are
+preserved; everything VRC understands continues to win.
+
 ### Implementation cross-reference
 
 | Concern | Location |
@@ -337,3 +386,5 @@ rectangle.
 | Import — size → font | `wdItemToRoomObjItem()`, inside the existing `'size' in wdItem` block (wdText branch) |
 | Import — position | `wdItemToRoomObjItem()`, position branch extended `if (family === 'default' || data_deviceid === 'wdText')` |
 | Import — color | Existing `configurableColor` branch (no wdText-specific code needed) |
+| Import — comment / unknown attrs → blob | `wdItemToRoomObjItem()`, two-part change: (1) the `let comment = '';` extraction is guarded with `data_deviceid !== 'wdText'` so `wdItem.comment` falls through; (2) the "merge comments and unused JSON attributes" block at the bottom has a `data_deviceid === 'wdText'` branch that PREPENDS the captured text prefix to `JSON.stringify(wdItem)` instead of overwriting `item.data_labelField` |
+| Export — comment / unknown attrs spread | `workspaceObjTextPush()` parses the `/{.*}/` blob from `data_labelField` via `JSON.parse` (try/catch — bad JSON logs to `console.info` and is dropped) and spreads `...extras` BEFORE the known fields in the `workspaceItem` literal |
