@@ -15512,7 +15512,20 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             setTimeout((theDeviceId) => {
 
-                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet' || theDeviceId === 'dimensionLine') {
+                /* dimensionLine is intentionally NOT in this list. The live
+                 * tblWallFlr.on('transform') handler above already absorbs
+                 * scaleX into group.width() and calls
+                 * updateDimensionLineWidget() every frame, so by transformend
+                 * the rect / arrow / label are already correct. The canonical
+                 * sync of node.width() / rotation back to roomObj.items
+                 * happens on stage.on('mouseup touchend') -> canvasToJson()
+                 * -> updateRoomObjFromTrNode() (parentGroup 'boxes'). Routing
+                 * dimensionLine through updateItem() here would destroy and
+                 * rebuild the Konva.Group, leaving the Transformer briefly
+                 * anchored at the new Group's local 0,0 (rotation handle
+                 * flashes to the upper-left of the item) until the deferred
+                 * tr.nodes([newNode]) re-bind 100 ms later. */
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
                     updateItem();
                 }
 
