@@ -2956,9 +2956,12 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
     }
 }
 
-/* Re-apply layer visible/locked to all canvas nodes + coverage. */
+/* Re-apply layer visible/locked to all canvas nodes + coverage.
+ * Selector includes Label so Konva.Label-based items (wdText/vrcText)
+ * — whose data_layerId lives on the Label parent, not on the inner
+ * Konva.Tag/Konva.Text children — also react to layer toggles. */
 function applyAllLayerStates() {
-    const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon');
+    const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon, Label');
     allNodes.forEach(node => {
         if (node.data_layerId) {
             applyLayerStateToNode(node, node.data_layerId);
@@ -14121,7 +14124,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         })
 
     }
-ƒ
+
 
     if (isTextItem(insertDevice.id)) {
         /* Konva.Label with a Konva.Tag background + a Konva.Text child
