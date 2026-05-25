@@ -6688,12 +6688,12 @@ let boxes = [
         name: 'Workspace Designer Text',
         id: 'wdText',
         key: 'WM',
-        frontImage: 'box-front.png', /* reuse the box tile image for now */
+        frontImage: 'wdText-menu.png',
         family: 'wdText',
         resizeable: [],
         configurableColor: true, /* user picks text fill via #itemFill (canvas + WD); default 'black' */
         wdOpacity: true,         /* user picks text opacity via #itemOpacity (canvas + WD); default 1 */
-        default_fontSize: 50,
+        default_fontSize: 20,
     },
     {
         /* VRC-only text item. Renders identically to wdText (Konva.Label with
@@ -6707,12 +6707,12 @@ let boxes = [
         name: 'VRC Text',
         id: 'vrcText',
         key: 'XA',
-        frontImage: 'box-front.png',
+        frontImage: 'vrcText-menu.png',
         family: 'wdText', /* reuse wdText family — all Konva.Label-specific code paths apply equally */
         resizeable: [],
         configurableColor: true,
         wdOpacity: true,
-        default_fontSize: 50,
+        default_fontSize: 20,
     }
 ]
 
@@ -14178,9 +14178,15 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             padding: 5,
             fill: textFill,
             stroke: 'black',
-            strokeWidth: 1,
+            /* wdText keeps the 1px black stroke around each glyph to stay
+             * readable when the user picks a light fill (white / yellow)
+             * against the opaque grey tag. vrcText is intentionally a
+             * lightweight annotation — drop the stroke so the glyphs
+             * actually render as a regular weight (a 1px stroke on a
+             * regular-weight font reads as semi-bold). */
+            strokeWidth: isVrcText ? 0 : 1,
             opacity: textOpacity,
-            fontStyle: 'bold',
+            fontStyle: isVrcText ? 'normal' : 'bold',
         }));
     }
 

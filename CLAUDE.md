@@ -790,12 +790,20 @@ the room-level `data.vrc.groups[]` block).
 
 `vrcText` is a sibling device of `wdText`. Both render as a `Konva.Label`
 containing a `Konva.Tag` background plus a `Konva.Text` child; the
-**only** rendering difference is the tag background:
+rendering differences are the tag background and the glyph weight
+(wdText is a bold, stroked label that mirrors WD's hard-printed text;
+vrcText is an intentionally lightweight annotation):
 
-| Device    | Tag fill   | Tag opacity | Inner text fill (default) | Inner text opacity (default) |
-|-----------|------------|-------------|---------------------------|------------------------------|
-| `wdText`  | `#e0e0e0`  | `1`         | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
-| `vrcText` | `'white'`  | `0.1`       | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
+| Device    | Tag fill   | Tag opacity | Glyph `fontStyle` | Glyph `strokeWidth` | Inner text fill (default) | Inner text opacity (default) |
+|-----------|------------|-------------|-------------------|---------------------|---------------------------|------------------------------|
+| `wdText`  | `#e0e0e0`  | `1`         | `'bold'`          | `1` (`stroke: 'black'`) | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
+| `vrcText` | `'white'`  | `0.1`       | `'normal'`        | `0` (stroke disabled)   | `'black'` (driven by `#itemFill` picker) | `1` (driven by `#itemOpacity` picker) |
+
+The glyph stroke and font weight are coupled on purpose: a 1px black
+stroke on a regular-weight Helvetica reads as semi-bold, so vrcText
+disables the stroke at the same time it drops `fontStyle` back to
+`'normal'`. wdText keeps the stroke so a light fill (white / yellow)
+stays readable against the opaque grey tag.
 
 Everything else — `data_fontSize`, `configurableColor`, `wdOpacity`,
 tilt/lean, rotation, the multi-line `\n` literal handling, the
