@@ -22851,7 +22851,9 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[17] = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'shareCableUsbcHdmi', 'shareCableUsbcMulti', 'shareCableHdmiMulti', 'shareCableUsbcHdmiMulti'];
 
-    deviceGroups[18] = ['webcam4k', 'webcam1080p']
+    deviceGroups[18] = ['webcam4k', 'webcam1080p'], 
+    
+    deviceGroups[19] = ['wallChairs', 'wallChairsSwivel', 'wallChairsStool']
 
 
     deviceGroups.forEach((devices, index) => {
@@ -25651,11 +25653,20 @@ function onQuickInputKey(event) {
  *   chairs in the new per-Image renderer that the legacy fillPattern
  *   tiling had hidden.)
  *
- *   Chairs sit at intervals of `data_chairSpacing` along the row's Y
- *   axis — so a spacing less than the natural footprint makes them
- *   visually overlap, and a spacing greater than it leaves gaps. The
- *   chair glyph itself is never stretched or compressed; only its
- *   position changes.
+ *   Chair `i`'s frame is placed flush with the start of its slot
+ *   (i.e. centred at `chairLengthPx / 2 + i * slotPx`) so the first
+ *   chair's leading edge always sits on the row's leading edge —
+ *   matching the WD export's `expandChairs()` contract regardless of
+ *   the chosen spacing. Adjacent chairs are then separated by
+ *   `slotPx` (chair-on-center spacing); a spacing less than the
+ *   natural footprint makes them visually overlap, and a spacing
+ *   greater than it leaves gaps BETWEEN chairs (plus a partial slot
+ *   of trailing whitespace at the row's tail). The chair glyph
+ *   itself is never stretched or compressed; only its position
+ *   changes. At default spacing `chairLengthPx == slotPx`, so the
+ *   placement reduces to `(i + 0.5) * slotPx` — the pre-fix "chair
+ *   centred in slot" formula — and rooms saved before this change
+ *   load with bit-identical default-spacing layouts.
  *
  *   The row's Width (depth, X axis) is locked at
  *   `DEFAULT_CHAIR_DEPTH_<unit>` (0.65 m / ≈ 2.13 ft). This is the
@@ -25741,38 +25752,43 @@ function clampChairSpacing(value, unit) {
  *              (`chair-top.png`-family glyphs) — rotating -90°
  *              counter-clockwise turns the chair top edge into the
  *              left edge, matching the row's expected orientation.
- *   scale    — uniform scale (0 < s ≤ 1) applied to each chair's
- *              rendered footprint inside its slot. The chair stays
- *              centred on its slot centre (cx, cy); a scale < 1
- *              shrinks the chair art symmetrically, leaving padding
- *              around it. Used to normalise the visible chair-art-
- *              to-slot ratio across variants whose source assets
- *              were authored with different chair-art coverage:
+ *   scale    — anisotropic render scale `{ across, along }` (each
+ *              0 < s ≤ 1) applied to each chair's rendered
+ *              footprint inside its slot. `across` scales the
+ *              across-row dimension (chair depth, Group X axis at
+ *              row rotation 0); `along` scales the along-row
+ *              dimension (chair length, Group Y axis). The chair
+ *              stays centred on its slot centre (cx, cy); scale
+ *              values < 1 leave symmetrical padding around the
+ *              chair art on the matching axis.
  *
- *                - `chairs-top.png` (custom 80×87 tile) draws a
- *                  back-on-LEFT chair occupying ~62% × ~69% of its
- *                  frame, so a scale of 1.0 already leaves a
- *                  visible gap between consecutive Row-of-Chairs
- *                  glyphs along the row direction.
- *                - `chairSwivel-top.png` / `chairHigh-top.png` are
- *                  standard 200×203 standalone-chair glyphs whose
- *                  chair art (including arms) covers ~95% of their
- *                  frame. At scale 1.0 the arms of one chair touch
- *                  the next, eliminating the visible gap. Scaling
- *                  these variants down to 0.9 brings their chair
- *                  art to ~85% of the slot — leaving a visible gap
- *                  comparable to the Row-of-Chairs variant while
- *                  keeping the chair body itself at a similar
- *                  perceived size (the Swivel / Stool art is
- *                  mostly thin arms + a smaller seat/back, so
- *                  scaling further down — e.g. 0.7 — collapses
- *                  the visible chair body to noticeably less mass
- *                  than the solid chairs-top.png tile, which the
- *                  same 0.9 leaves balanced).
+ *              The two fields exist because the source assets are
+ *              authored with DIFFERENT chair-art-to-frame ratios:
  *
- *              Defaults to 1.0 if omitted. The scale is independent
- *              of `data_chairSpacing` (chair-on-CENTER spacing,
- *              shared across all wallChairs-family variants).
+ *                - `chairs-top.png` (custom 80×87 tile) draws its
+ *                  chair at 76×77 px → 95.0% × 88.5% of the frame.
+ *                  When rendered into the canonical 2.13 × 2.35
+ *                  ft slot, the chair art lands at 2.024 ft (across)
+ *                  × 2.080 ft (along), naturally leaving a visible
+ *                  along-row gap. `scale: { across: 1, along: 1 }`.
+ *                - `chairSwivel-top.png` / `chairHigh-top.png`
+ *                  (200×203 standalone glyphs) draw their chair
+ *                  art (including arms) all the way to the frame
+ *                  edges — 100% × 100%. At `scale: { 1, 1 }`
+ *                  consecutive chairs touch (no along-row gap)
+ *                  AND the chair extends 5% wider across-row than
+ *                  the Row-of-Chairs variant. `scale: { across:
+ *                  0.95, along: 0.885 }` exactly mirrors the
+ *                  chairs-top.png chair-art ratios (76/80 ≈ 0.95,
+ *                  77/87 ≈ 0.885), so the rendered chair art
+ *                  measures the same 2.024 × 2.080 ft as Row of
+ *                  Chairs and leaves the same visible gap.
+ *
+ *              A scalar shorthand is also accepted (treated as
+ *              `{ across: s, along: s }`); omitted ⇒ `{ 1, 1 }`.
+ *              The scale is independent of `data_chairSpacing`
+ *              (chair-on-CENTER spacing, shared across all
+ *              wallChairs-family variants).
  *
  * When `rotation !== 0` the per-slot Konva.Image's `width` / `height`
  * are swapped (and `offsetX` / `offsetY` follow) so the post-rotation
@@ -25784,9 +25800,26 @@ function clampChairSpacing(value, unit) {
  * matching id in `isWallChairs()` and a row in
  * `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
 const WALL_CHAIRS_IMAGE_CONFIG = {
-    'wallChairs':       { src: './assets/images/chairs-top.png',     rotation: 0,   scale: 1.0 },
-    'wallChairsSwivel': { src: './assets/images/chairSwivel-top.png', rotation: -90, scale: 0.9 },
-    'wallChairsStool':  { src: './assets/images/chairHigh-top.png',   rotation: -90, scale: 0.9 },
+    /* Each Konva.Image is drawn with its FRAME centre anchored at the
+     * slot centre (cx, cy). chairs-top.png has slightly asymmetric
+     * source-pixel padding around its chair art (top 1 px / bottom 9
+     * px, left 1 px / right 3 px in the 80×87 frame), but rendering
+     * the FRAME centred is the original Row-of-Chairs behaviour and
+     * is what the rest of the room geometry (and the Workspace
+     * Designer export) expects: the row's bg Rect spans the slot
+     * extents, so the rightmost chair's source row 0 (transparent
+     * top edge) coincides with the rect's top edge — i.e. visually
+     * flush from the user's perspective at typical zoom levels. An
+     * earlier draft that recentred the chair art bbox on the slot
+     * centre via a per-variant `artOffset` was reverted because it
+     * introduced a visible (~1.6 in) inset between the rightmost
+     * chair art and the rect on the wall side, which then no longer
+     * matched the WD rendering. If a future asset needs proper
+     * art-centring, the wiring lived in `getWallChairsImageArtOffset`
+     * — see git history for the full implementation. */
+    'wallChairs':       { src: './assets/images/chairs-top.png',     rotation: 0,   scale: { across: 1.00, along: 1.000 } },
+    'wallChairsSwivel': { src: './assets/images/chairSwivel-top.png', rotation: -90, scale: { across: 0.95, along: 0.885 } },
+    'wallChairsStool':  { src: './assets/images/chairHigh-top.png',   rotation: -90, scale: { across: 0.95, along: 0.885 } },
 };
 
 /* Lazy-loaded HTMLImageElement cache for the chair glyph used by
@@ -25800,23 +25833,23 @@ const WALL_CHAIRS_IMAGE_CONFIG = {
  * Image sources (see `WALL_CHAIRS_IMAGE_CONFIG` above):
  *   - `chairs-top.png` (80×87, back-on-LEFT orientation) — the
  *     custom-authored tile asset for the original Row of Chairs.
- *     Chair art covers ~62% × ~69% of the frame, so consecutive
- *     chairs naturally show a visible along-row gap when rendered
- *     at the canonical 2.13 × 2.35 ft slot. Rendered with `scale:
- *     1.0`. (`chair-top.png` 200×203 was tried first but its tighter
- *     ~5% per-edge padding around the chair art produced a denser,
- *     near-touching look that didn't match the pre-refactor
- *     fillPattern-tiled appearance the chair art was authored for.)
+ *     Chair art bbox is 76×77 px → 95.0% × 88.5% of the frame, so
+ *     consecutive chairs naturally show a visible along-row gap
+ *     (~3.2 inches at default spacing) when rendered at the
+ *     canonical 2.13 × 2.35 ft slot.
  *   - `chairSwivel-top.png`, `chairHigh-top.png` (200×203 each,
  *     back-on-TOP orientation) — standard standalone-chair glyphs
  *     reused via the per-image -90° rotation in
- *     `WALL_CHAIRS_IMAGE_CONFIG`. Their chair-art-with-arms covers
- *     ~95% of the frame, which would render edge-to-edge in the
- *     row (no visible gap), so `WALL_CHAIRS_IMAGE_CONFIG.scale` is
- *     set to 0.9 for both variants — bringing the chair art to
- *     ~85% of the slot, leaving a visible gap comparable to the
- *     Row-of-Chairs variant while keeping the perceived chair
- *     body mass close to the chairs-top.png tile.
+ *     `WALL_CHAIRS_IMAGE_CONFIG`. Their chair art (including arms)
+ *     extends to all four frame edges (100% × 100% bbox), so a
+ *     uniform scale of 1.0 would (a) make consecutive chairs touch
+ *     along the row direction and (b) overshoot the Row-of-Chairs
+ *     across-row chair depth by 5%. The per-variant anisotropic
+ *     scale `{ across: 0.95, along: 0.885 }` exactly mirrors the
+ *     chairs-top.png chair-art-to-frame ratios so the rendered
+ *     chair art measures 2.024 × 2.080 ft in both the original
+ *     and the new variants — visually identical chair size and
+ *     identical along-row gap across all three "Row of …" rows.
  *     Future tile-specific assets (`chairsSwivel-top.png` /
  *     `chairsHigh-top.png`) authored at the chairs-top.png coverage
  *     ratio can replace the entries in `WALL_CHAIRS_IMAGE_CONFIG`
@@ -25835,13 +25868,26 @@ function getWallChairsImageRotation(deviceId) {
     return cfg.rotation || 0;
 }
 
-/* Per-variant render scale (see WALL_CHAIRS_IMAGE_CONFIG docstring).
- * Defaults to 1.0 when missing or non-finite so a hand-edited config
- * entry without a `scale` field still paints at full slot size. */
+/* Per-variant anisotropic render scale (see WALL_CHAIRS_IMAGE_CONFIG
+ * docstring). Returns `{ across, along }` with each component a
+ * finite positive number; defaults to `{ across: 1, along: 1 }` when
+ * missing or invalid. Accepts:
+ *   - cfg.scale === undefined / null   → `{ 1, 1 }`
+ *   - cfg.scale === <number>           → `{ s, s }` (uniform shorthand)
+ *   - cfg.scale === { across, along }  → as supplied (each falling
+ *                                        back to 1 if not finite > 0)
+ * The shorthand keeps a hand-edited config entry working when only
+ * one isotropic value is desired. */
 function getWallChairsImageScale(deviceId) {
     const cfg = WALL_CHAIRS_IMAGE_CONFIG[deviceId] || WALL_CHAIRS_IMAGE_CONFIG['wallChairs'];
-    const s = Number(cfg.scale);
-    return (isFinite(s) && s > 0) ? s : 1.0;
+    const s = cfg.scale;
+    const sane = (v) => (isFinite(Number(v)) && Number(v) > 0) ? Number(v) : 1;
+    if (s == null) return { across: 1, along: 1 };
+    if (typeof s === 'number') {
+        const v = sane(s);
+        return { across: v, along: v };
+    }
+    return { across: sane(s.across), along: sane(s.along) };
 }
 
 function getCachedWallChairsImage(deviceId) {
@@ -25977,19 +26023,34 @@ function layoutWallChairsChildren(group) {
      * behaviour — the row is one selectable unit).
      *
      * Each chair Image renders at chairDepthPx × chairLengthPx
-     * (post-rotation footprint) with its centre at the slot centre
-     * via offsetX / offsetY. The original Row of Chairs uses
-     * `chairs-top.png` which is already authored back-on-left /
-     * facing-right (rotation 0). The Swivel / Stool variants reuse
-     * the standalone-chair `chair*-top.png` glyphs, which are
-     * authored back-on-TOP, so per `WALL_CHAIRS_IMAGE_CONFIG` we
-     * apply a -90° rotation on each per-slot Image to land back-on-
-     * LEFT. When rotated, the Image's pre-rotation `width` and
-     * `height` are swapped so the post-rotation footprint still
-     * measures `chairDepthPx` across the row and `chairLengthPx`
-     * along it (the Konva rotation pivot lives at offsetX/offsetY,
-     * which we set to the post-rotation centre regardless of the
-     * pre-rotation extent).
+     * (post-rotation footprint). The chair frame is anchored flush
+     * with the START of its slot (top edge of the row at i=0), so
+     * the first chair's centre is at `chairLengthPx / 2` and
+     * subsequent chairs step by `slotPx`. This matches the WD
+     * export contract in `expandChairs()` (primary chair centred at
+     * `item.y + 0.32`, additional chairs at `+ singleChairWidth*i`)
+     * — WD shows the first chair flush with the row's leading edge
+     * regardless of spacing, and the canvas now mirrors that.
+     *
+     * At default spacing (chairLengthPx == slotPx) the formula
+     * reduces to `(i + 0.5) * slotPx` — identical to the pre-fix
+     * "chair centred in slot" placement, so default-spacing rows
+     * render with no regression. At larger spacings, the extra
+     * room appears as gaps BETWEEN chairs (and a trailing partial
+     * slot at the row's end), never as a leading gap before the
+     * first chair.
+     *
+     * The original Row of Chairs uses `chairs-top.png` which is
+     * already authored back-on-left / facing-right (rotation 0).
+     * The Swivel / Stool variants reuse the standalone-chair
+     * `chair*-top.png` glyphs, which are authored back-on-TOP, so
+     * per `WALL_CHAIRS_IMAGE_CONFIG` we apply a -90° rotation on
+     * each per-slot Image to land back-on-LEFT. When rotated, the
+     * Image's pre-rotation `width` and `height` are swapped so the
+     * post-rotation footprint still measures `chairDepthPx` across
+     * the row and `chairLengthPx` along it (the Konva rotation
+     * pivot lives at offsetX/offsetY, which we set to the post-
+     * rotation centre regardless of the pre-rotation extent).
      *
      * At default spacing chairLengthPx == slotPx, so consecutive
      * chairs touch edge-to-edge and reproduce the pre-refactor
@@ -26005,19 +26066,46 @@ function layoutWallChairsChildren(group) {
      * / offsetY values centre the rotation on the slot's centre,
      * also using the pre-rotation extent.
      *
-     * `imageRenderScale` (from `WALL_CHAIRS_IMAGE_CONFIG.scale`)
-     * shrinks the rendered chair art symmetrically inside its
-     * slot. Because the chair's centre is anchored by `offsetX /
-     * offsetY = preRotW/2 / preRotH/2`, scaling preRotW / preRotH
-     * uniformly leaves the chair centred at (cx, cy) and adds
-     * (1 - scale) × slot of padding around it — which is exactly
-     * the visible "spacing" the Row of Chairs glyph shows
-     * naturally. See `WALL_CHAIRS_IMAGE_CONFIG`. */
-    const preRotW = (isImageRotated ? chairLengthPx : chairDepthPx) * imageRenderScale;
-    const preRotH = (isImageRotated ? chairDepthPx : chairLengthPx) * imageRenderScale;
+     * `imageRenderScale` (from `WALL_CHAIRS_IMAGE_CONFIG.scale`,
+     * `{ across, along }`) shrinks the rendered chair art
+     * inside its slot independently along the across-row (chair
+     * depth) and along-row (chair length) axes. Because the
+     * chair's centre is anchored by `offsetX / offsetY =
+     * preRotW/2 / preRotH/2`, scaling preRotW / preRotH leaves
+     * the chair centred at (cx, cy) and adds (1 - scale) × slot
+     * of padding on the matching axis. Anisotropic scales let
+     * the Swivel / Stool variants compensate for their source
+     * assets' 100% × 100% chair-art-to-frame ratios so their
+     * rendered chair art matches the chairs-top.png variant
+     * exactly (2.024 × 2.080 ft). See `WALL_CHAIRS_IMAGE_CONFIG`.
+     *
+     * Axis mapping (post-rotation footprint always lines up with
+     * the slot, so the across/along scales target the user-
+     * visible direction regardless of `imageSrcRotation`):
+     *   - Group X = across-row (chair depth)  → uses scale.across
+     *   - Group Y = along-row  (chair length) → uses scale.along
+     * For `isImageRotated = false` (Row of Chairs), the source
+     * image's width axis IS the across-row direction, so preRotW
+     * uses scale.across and preRotH uses scale.along.
+     * For `isImageRotated = -90` (Swivel / Stool), -90° rotation
+     * swaps the two axes — the source image's width becomes the
+     * post-rotation height (along-row) and the source image's
+     * height becomes the post-rotation width (across-row), so
+     * preRotW uses scale.along and preRotH uses scale.across. */
+    const preRotW = isImageRotated
+        ? chairLengthPx * imageRenderScale.along
+        : chairDepthPx  * imageRenderScale.across;
+    const preRotH = isImageRotated
+        ? chairDepthPx  * imageRenderScale.across
+        : chairLengthPx * imageRenderScale.along;
+
     for (let i = 0; i < count; i++) {
         const cx = widthPx / 2;
-        const cy = (i + 0.5) * slotPx;
+        /* First chair flush with row start; subsequent chairs step by
+         * slotPx (chair-on-center spacing). See the long comment block
+         * above for the WD-export parity rationale and the
+         * default-spacing equivalence with the pre-fix formula. */
+        const cy = chairLengthPx / 2 + i * slotPx;
         const chair = new Konva.Image({
             x: cx,
             y: cy,
