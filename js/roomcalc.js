@@ -15679,7 +15679,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             const slotPx = singleChairWidth * scale;
             const count = Math.max(
                 1,
-                Math.floor((chairs.height() || 0) / slotPx + 0.0001)
+                Math.floor((chairs.height() || 0) / slotPx + WALL_CHAIRS_COUNT_EPSILON)
             );
             const height = count * slotPx;
 
@@ -22620,7 +22620,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     if (itemNumChairs && isWallChairs(item.data_deviceid)) {
         const spacing = getChairSpacing(shape, roomObj.unit);
         const liveHeightUnits = (shape.height() || 0) / scale;
-        const count = Math.max(1, Math.floor(liveHeightUnits / spacing + 0.0001));
+        const count = Math.max(1, Math.floor(liveHeightUnits / spacing + WALL_CHAIRS_COUNT_EPSILON));
         itemNumChairs.value = count;
     }
 
@@ -25702,6 +25702,31 @@ const MIN_CHAIR_SPACING_FEET = 1.31;
 const MAX_CHAIR_SPACING_METERS = 3;
 const MAX_CHAIR_SPACING_FEET = 9.84;
 
+/* Floor-epsilon for `Math.floor(item.height / spacing + ε)` count
+ * derivation. Sized to absorb the 2-decimal-place precision loss
+ * that `canvasToJson` / `updateItem` introduce when they store
+ * `item.height` via `round(x, -2)`:
+ *
+ *   max |item.height − count × spacing| ≤ 0.005 (unit)
+ *   max |item.height/spacing − count|    ≤ 0.005 / spacing
+ *
+ * At the smallest allowed spacing (`MIN_CHAIR_SPACING_METERS = 0.4`)
+ * the worst-case ratio deviation is `0.005 / 0.4 = 0.0125`. The
+ * historical `0.0001` epsilon was sized for IEEE float drift only
+ * and was MUCH too small — for an irrational meters spacing like
+ * `0.71628` it would silently drop one chair whenever the round-trip
+ * landed the stored value just below `count × spacing` (e.g. N=5 →
+ * 3.58 m → 4.99807 ratio → floor=4 vs the user-intended 5).
+ *
+ * The chosen value `0.02` is safely above 0.0125 and well below 0.5,
+ * so a half-empty slot mid-drag never produces a phantom chair —
+ * the next chair only appears once the user crosses ~98% of the
+ * slot, visually indistinguishable from the pre-fix snap-on at 100%.
+ * Used by `layoutWallChairsChildren` (canvas render), `expandChairs`
+ * (WD/DXF/xConfig export), `updateFormatDetails` (Details-panel
+ * "Number of Chairs" populate), and the `transformend` snap. */
+const WALL_CHAIRS_COUNT_EPSILON = 0.02;
+
 /* Return chair-on-center spacing for a wallChairs row in `unit`.
  *   - Reads item.data_chairSpacing when present (already in the item's
  *     stored unit per the convertItemUnitBasedOnRatio convention).
@@ -25964,21 +25989,30 @@ function layoutWallChairsChildren(group) {
     const cachedImage = getCachedWallChairsImage(deviceId);
 
     const slotPx = chairSpacing * scale;
-    /* Math.floor (+ a tiny epsilon to absorb float-precision drift on
-     * a freshly-snapped height like `count * slotPx`) so a partially-
-     * visible last chair is never drawn. The pre-fix code used
-     * Math.round, which caused a 1-chair pop-in / pop-out flicker at
-     * the (N + 0.5)*slot mark while the user was live-resizing the
-     * row from a Transformer anchor — every other frame the partial
-     * trailing chair would rounded up to a full chair, even though
-     * its glyph extended past the row's bottom edge.
+    /* Math.floor (+ WALL_CHAIRS_COUNT_EPSILON to absorb the 2dp
+     * precision loss that `canvasToJson` / `updateItem` introduce
+     * when they store `item.height` via `round(x, -2)`) so a
+     * partially-visible last chair is never drawn. The pre-fix epsilon
+     * (0.0001) was sized for IEEE float drift only and would silently
+     * drop one chair on every drawRoom rebuild whenever the stored
+     * item.height fell just below `count × spacing` (e.g. for meters
+     * spacing 0.71628 a 5-chair row stores as 3.58 m → 4.99807 ratio
+     * → floor=4, so a freshly-saved 5-chair row would re-render as 4
+     * chairs after any drawRoom call). See `WALL_CHAIRS_COUNT_EPSILON`
+     * for the precision math and why 0.02 is safe.
+     *
+     * The pre-fix code originally used Math.round, which caused a
+     * 1-chair pop-in / pop-out flicker at the (N + 0.5)*slot mark
+     * while the user was live-resizing — the new 0.02 epsilon stays
+     * well below 0.5 so no phantom chair appears from a partial
+     * slot during a drag.
      *
      * The matching snap-down to `count * slotPx` happens on the
      * Transformer's `transformend` (see the wallChairs branch of
      * `tblWallFlr.on('transformend', …)` in `insertTable()`), so the
      * row's bbox always finishes the drag flush against the last
      * fully-visible chair. */
-    let count = Math.max(1, Math.floor(groupHeight / slotPx + 0.0001));
+    let count = Math.max(1, Math.floor(groupHeight / slotPx + WALL_CHAIRS_COUNT_EPSILON));
 
     group.destroyChildren();
 
@@ -26150,7 +26184,16 @@ function expandChairs(item, unit = roomObj.unit) {
     let singleChairWidth = getChairSpacing(item, unit);
     let chairArray = [];
 
-    let numberOfChairs = Math.round(item.height / singleChairWidth)
+    /* Match `layoutWallChairsChildren()` / `updateFormatDetails()` /
+     * `transformend` so WD/DXF/xConfig emit the EXACT chair count the
+     * canvas renders. Math.floor + WALL_CHAIRS_COUNT_EPSILON absorbs
+     * the 2dp precision loss that `round()` in `canvasToJson` /
+     * `updateItem` introduces into `item.height` (e.g. N=5 chairs in
+     * meters stores as 3.58 m → 3.58 / 0.71628 = 4.99807, which the
+     * pre-fix `Math.round` would round UP to 5 even though the canvas
+     * was rendering 4). See `WALL_CHAIRS_COUNT_EPSILON` docstring for
+     * the precision math. */
+    let numberOfChairs = Math.max(1, Math.floor(item.height / singleChairWidth + WALL_CHAIRS_COUNT_EPSILON));
 
     let rotation = normalizeDegree(item.rotation - 90);
 
