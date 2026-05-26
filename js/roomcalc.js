@@ -6160,30 +6160,20 @@ let tables = [{
     resizeable: ['depth']
 },
 {
-    /* Variant of 'Row of Chairs' that emits Swivel Chair items on
-     * Workspace Designer / DXF / xConfig export and uses the Swivel
-     * Chair top-down glyph in the row preview. Shares all the
-     * wallChairs render / resize / URL / WD plumbing — see the
-     * `WALL_CHAIRS_IMAGE_CONFIG` table and the `isWallChairs()`
-     * predicate below. */
     name: 'Row of Swivel Chairs',
     id: 'wallChairsSwivel',
     key: 'WO',
     topImage: 'chairSwivel-top.png',
-    frontImage: 'chairSwivel-top.png',
+    frontImage: 'chairsSwivelRow-menu.png',
     family: 'resizeItem',
     resizeable: ['depth']
 },
 {
-    /* Variant of 'Row of Chairs' that emits Stool Chair items on
-     * Workspace Designer / DXF / xConfig export and uses the Stool
-     * Chair top-down glyph in the row preview. See `wallChairsSwivel`
-     * above for the shared plumbing. */
     name: 'Row of Stool Chairs',
     id: 'wallChairsStool',
     key: 'WP',
     topImage: 'chairHigh-top.png',
-    frontImage: 'chairHigh-top.png',
+    frontImage: 'chairsStoolRow-menu.png',
     family: 'resizeItem',
     resizeable: ['depth']
 },
@@ -23754,7 +23744,7 @@ function createEquipmentMenu() {
 
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
-    let chairsMenu = ['chair', 'wallChairs', 'wallChairsSwivel', 'wallChairsStool', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
+    let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
     let stageFloorMenu = ['stageFloor'];
 
@@ -25818,8 +25808,8 @@ const WALL_CHAIRS_IMAGE_CONFIG = {
      * art-centring, the wiring lived in `getWallChairsImageArtOffset`
      * — see git history for the full implementation. */
     'wallChairs':       { src: './assets/images/chairs-top.png',     rotation: 0,   scale: { across: 1.00, along: 1.000 } },
-    'wallChairsSwivel': { src: './assets/images/chairSwivel-top.png', rotation: -90, scale: { across: 0.95, along: 0.885 } },
-    'wallChairsStool':  { src: './assets/images/chairHigh-top.png',   rotation: -90, scale: { across: 0.95, along: 0.885 } },
+    'wallChairsSwivel': { src: './assets/images/chairsSwivelRow-top.png', rotation: 0,   scale: { across: 1.00, along: 1.000 }  },
+    'wallChairsStool':  { src: './assets/images/chairStoolRow-top.png', rotation: 0,   scale: { across: 1.00, along: 1.000 }  },
 };
 
 /* Lazy-loaded HTMLImageElement cache for the chair glyph used by
