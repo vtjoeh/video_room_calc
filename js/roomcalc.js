@@ -183,6 +183,28 @@ function isDimensionLine(deviceId) {
     return deviceId === 'dimensionLine';
 }
 
+/* "Row of …" wallChairs-family membership test. Today the family
+ * has three members:
+ *   - 'wallChairs'        Row of Chairs        (chair → chair-top.png)
+ *   - 'wallChairsSwivel'  Row of Swivel Chairs (chair → chairSwivel-top.png)
+ *   - 'wallChairsStool'   Row of Stool Chairs  (chair → chairHigh-top.png)
+ * They share render plumbing (`layoutWallChairsChildren()` keyed off
+ * `WALL_CHAIRS_IMAGE_CONFIG`), the same `data_chairSpacing` four-place-
+ * rule wiring, the same Transformer-anchor live-resize path, and the
+ * same `expandChairs()`-based WD / DXF / xConfig export. The only
+ * per-variant differences are (a) the chair glyph image used by
+ * `layoutWallChairsChildren()`, and (b) the `data_deviceid` stamped on
+ * each individual chair `expandChairs()` emits.
+ *
+ * Centralized here so adding a fourth wallChairs variant is a single-
+ * line edit on this predicate plus a row in `WALL_CHAIRS_IMAGE_CONFIG`
+ * and one row in `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+function isWallChairs(deviceId) {
+    return deviceId === 'wallChairs'
+        || deviceId === 'wallChairsSwivel'
+        || deviceId === 'wallChairsStool';
+}
+
 /* Returns the "containing rect" child to paint for the multi-select
  * highlight (Konva.Tag for wdText/vrcText, '.dim-rect' Konva.Rect for
  * dimensionLine, '.wallChairs-bg' Konva.Rect for wallChairs). Returns
@@ -195,7 +217,7 @@ function getCompositeHighlightRect(node) {
     if (!node || !node.data_deviceid) return null;
     if (isTextItem(node.data_deviceid))      return node.findOne('Tag');
     if (isDimensionLine(node.data_deviceid)) return node.findOne('.dim-rect');
-    if (node.data_deviceid === 'wallChairs') return node.findOne('.wallChairs-bg');
+    if (isWallChairs(node.data_deviceid))    return node.findOne('.wallChairs-bg');
     return null;
 }
 
@@ -746,7 +768,7 @@ function populateGroupDetails(rectNode) {
      * (The non-group branch of updateFormatDetails re-shows itemNameDiv.) */
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
@@ -2739,7 +2761,7 @@ function populateCustomItemDetails(rectNode) {
 
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
@@ -6138,6 +6160,34 @@ let tables = [{
     resizeable: ['depth']
 },
 {
+    /* Variant of 'Row of Chairs' that emits Swivel Chair items on
+     * Workspace Designer / DXF / xConfig export and uses the Swivel
+     * Chair top-down glyph in the row preview. Shares all the
+     * wallChairs render / resize / URL / WD plumbing — see the
+     * `WALL_CHAIRS_IMAGE_CONFIG` table and the `isWallChairs()`
+     * predicate below. */
+    name: 'Row of Swivel Chairs',
+    id: 'wallChairsSwivel',
+    key: 'WO',
+    topImage: 'chairSwivel-top.png',
+    frontImage: 'chairSwivel-top.png',
+    family: 'resizeItem',
+    resizeable: ['depth']
+},
+{
+    /* Variant of 'Row of Chairs' that emits Stool Chair items on
+     * Workspace Designer / DXF / xConfig export and uses the Stool
+     * Chair top-down glyph in the row preview. See `wallChairsSwivel`
+     * above for the shared plumbing. */
+    name: 'Row of Stool Chairs',
+    id: 'wallChairsStool',
+    key: 'WP',
+    topImage: 'chairHigh-top.png',
+    frontImage: 'chairHigh-top.png',
+    family: 'resizeItem',
+    resizeable: ['depth']
+},
+{
     name: 'Table Curved',
     id: 'tblCurved',
     key: 'WG',
@@ -8437,8 +8487,10 @@ function parseShortenedXYUrl(parameters) {
 
             /* x=wallChairs chair-on-center spacing (×100, unit-native;
              * mirror of the encoder above). Absent ⇒ device default
-             * applied at render / expand time. */
-            if ('x' in item && newItem.data_deviceid === 'wallChairs') {
+             * applied at render / expand time. Applies to every
+             * wallChairs-family variant (Row of Chairs / Swivel /
+             * Stool) — see `isWallChairs()`. */
+            if ('x' in item && isWallChairs(newItem.data_deviceid)) {
                 const csNum = Number(item.x) / 100;
                 if (isFinite(csNum) && csNum > 0) {
                     newItem.data_chairSpacing = csNum;
@@ -11467,13 +11519,14 @@ function createShareableLinkItem(item) {
     }
 
     /* x=wallChairs chair-on-center spacing (×100, unit-native). Only
-     * emitted for wallChairs with an explicit data_chairSpacing
-     * override AND when the value differs from the unit-mode default
-     * — the common case (2.35 ft / 0.716 m) stays compact. The decoder
-     * mirrors this gate. Default rounding (DEFAULT_CHAIR_SPACING_*
-     * × 100) is computed inline so future tweaks to the default
-     * constants flow through automatically. */
-    if (item.data_deviceid === 'wallChairs' && item.data_chairSpacing != null) {
+     * emitted for wallChairs-family rows (Row of Chairs / Swivel /
+     * Stool) with an explicit data_chairSpacing override AND when the
+     * value differs from the unit-mode default — the common case
+     * (2.35 ft / 0.716 m) stays compact. The decoder mirrors this
+     * gate. Default rounding (DEFAULT_CHAIR_SPACING_* × 100) is
+     * computed inline so future tweaks to the default constants flow
+     * through automatically. */
+    if (isWallChairs(item.data_deviceid) && item.data_chairSpacing != null) {
         const __csNum = Number(item.data_chairSpacing);
         if (isFinite(__csNum) && __csNum > 0) {
             const __csDefault100 = (roomObj.unit === 'feet')
@@ -15145,7 +15198,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
 
 
-    } else if (insertDevice.id === 'wallChairs') {
+    } else if (isWallChairs(insertDevice.id)) {
         /* Konva.Group rendering — one Konva.Image per chair slot at a
          * CONSTANT footprint (2.13 ft × 2.35 ft = 0.65 m × 0.716 m),
          * positioned along the Y axis at intervals of
@@ -15159,6 +15212,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * fillPatternImage(chairs-top.png) renderer, which baked a
          * single pattern scale onto the rect and therefore always
          * distorted the tile in one axis when spacing changed.
+         *
+         * The branch covers every wallChairs-family device (Row of
+         * Chairs / Swivel Chairs / Stool Chairs); per-variant glyph
+         * + rotation is resolved inside `layoutWallChairsChildren()`
+         * via `WALL_CHAIRS_IMAGE_CONFIG`.
          *
          * wallWidth is overridden every insert so a stored legacy
          * width (e.g. from the brief commit that made width track
@@ -15180,12 +15238,19 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 0.8,
         });
-        /* Stamp data_chairSpacing on the group BEFORE the layout call
-         * so getChairSpacing() inside layoutWallChairsChildren() sees
-         * the user's override (not the device default). The canonical
-         * four-place-rule writer further below re-assigns this from
-         * `attrs.data_chairSpacing` — safe to set twice, the value is
-         * identical. */
+        /* Stamp data_deviceid + data_chairSpacing on the group BEFORE
+         * the layout call so:
+         *   (a) `layoutWallChairsChildren()` resolves the right
+         *       per-variant glyph from `WALL_CHAIRS_IMAGE_CONFIG`
+         *       (default 'wallChairs' fallback would paint Chairs
+         *       glyphs on the very first frame for Swivel / Stool),
+         *   (b) `getChairSpacing()` inside `layoutWallChairsChildren()`
+         *       sees the user's override (not the device default).
+         * The canonical writers further below re-assign
+         * `data_deviceid` (line ~15370) and `data_chairSpacing`
+         * (four-place rule mirror, line ~15378) — safe to set twice,
+         * the values are identical. */
+        tblWallFlr.data_deviceid = insertDevice.id;
         tblWallFlr.data_chairSpacing = (attrs.data_chairSpacing == null)
             ? null
             : Number(attrs.data_chairSpacing);
@@ -15469,7 +15534,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * Mirrors the dimensionLine pattern above — target.fire fires
          * before tr.fire, so the global tr.on('transform') handler sees
          * scaleY === 1 by the time it runs and short-circuits. */
-        if (e && e.target && e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
+        if (e && e.target && isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
             const sy = tblWallFlr.scaleY();
             if (sy !== 1) {
                 const newHeight = Math.max(1, (tblWallFlr.height() || 0) * sy);
@@ -15565,7 +15630,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
         lastSelectedNodePosition = deepCopyNode(tblWallFlr);
-        if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
+        if (isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
             /* wallChairs is a Konva.Group post-refactor — shadowColor /
              * shadowBlur / shadowOpacity / shadowEnabled are Konva.Shape-only
              * and throw TypeError on a Group, which kills the rest of this
@@ -15597,7 +15662,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * rule mirror) so a user-customised `data_chairSpacing` is
          * honoured instead of the hardcoded 2.35 ft / 0.716 m
          * default the original code used. */
-        if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
+        if (isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
             let chairs = tr.nodes()[0];
             let singleChairWidth = getChairSpacing(chairs, roomObj.unit);
             /* Restore the opacity dim applied in transformstart. shadowEnabled
@@ -15629,6 +15694,20 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             const height = count * slotPx;
 
             document.getElementById('itemLength').value = height / scale;
+
+            /* Keep the Details panel's "Number of Chairs" input in sync
+             * with the snapped count. The deferred updateItem() 100 ms
+             * below reads #itemNumChairs and recomputes
+             * item.height = numChairs * spacing, so #itemNumChairs MUST
+             * agree with #itemLength here — otherwise updateItem() would
+             * round-trip the row back to the pre-snap (or even pre-drag)
+             * length. The live tblWallFlr.on('transform') handler also
+             * updates this input every frame via updateFormatDetails(),
+             * but we update it again here in case the final transform
+             * event was missed or the defensive scaleY bake above
+             * changed the height. */
+            const itemNumChairsInput = document.getElementById('itemNumChairs');
+            if (itemNumChairsInput) itemNumChairsInput.value = count;
 
             /* Use the Konva setter (not `attrs.height = …`) so the
              * Group's internal bbox cache is invalidated — important
@@ -15690,7 +15769,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                  * anchored at the new Group's local 0,0 (rotation handle
                  * flashes to the upper-left of the item) until the deferred
                  * tr.nodes([newNode]) re-bind 100 ms later. */
-                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || theDeviceId === 'wallChairs' || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
+                if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || isWallChairs(theDeviceId) || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
                     updateItem();
                 }
 
@@ -15744,7 +15823,7 @@ function deepCopyNode(node) {
 function updatWallChairsOnResize() {
     let redoTrNodes = false;
     getItemsByParentGroup('tables').forEach((item) => {
-        if (item.data_deviceid === 'wallChairs') {
+        if (isWallChairs(item.data_deviceid)) {
             let node = groupTables.findOne('#' + item.id);
             redoTrNodes = true;
             if (node) {
@@ -16412,7 +16491,7 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
              * layoutWallChairsChildren() to repaint the children at
              * the new size. (No-op cost: chair count is small and the
              * chair Image bitmap is module-level cached.) */
-            if (node.data_deviceid === 'wallChairs') {
+            if (isWallChairs(node.data_deviceid)) {
                 layoutWallChairsChildren(node);
             }
 
@@ -16460,7 +16539,7 @@ function removeShadingTrNodes() {
              * node here either — same throw as in updateTrNodesShading(),
              * which would mid-forEach and leave lastTrNodesWithShading
              * desynced from the canvas state. */
-            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || node.data_deviceid === 'wallChairs') {
+            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner && 'data_origFill' in inner) {
                     inner.fill(inner.data_origFill);
@@ -16627,7 +16706,7 @@ function updateTrNodesShading() {
          * rotate / marquee involving one of these items. The inner
          * child (Tag / Rect) IS a real Konva.Shape and is safe to
          * paint. Mirror this branch in removeShadingTrNodes(). */
-        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || node.data_deviceid === 'wallChairs') {
+        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
             if (copyTrNodes.length > 1) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner) {
@@ -17085,13 +17164,37 @@ function updateItem() {
             }
         }
 
-        if (item.data_deviceid === 'wallChairs') {
+        if (isWallChairs(item.data_deviceid)) {
             const csNum = Number(data_chairSpacing);
             if (data_chairSpacing !== '' && isFinite(csNum) && csNum > 0) {
-                item.data_chairSpacing = csNum;
+                /* Clamp out-of-range values to the hard min/max
+                 * bounds (see MIN/MAX_CHAIR_SPACING_* constants).
+                 * Reflect the clamped value back into the input so
+                 * the user sees what was actually applied. */
+                const clamped = clampChairSpacing(csNum, roomObj.unit);
+                item.data_chairSpacing = clamped;
+                if (clamped !== csNum) {
+                    const itemChairSpacingInput = document.getElementById('itemChairSpacing');
+                    if (itemChairSpacingInput) itemChairSpacingInput.value = clamped;
+                }
             } else if ('data_chairSpacing' in item) {
                 /* Empty / invalid input ⇒ fall back to default. */
                 delete item.data_chairSpacing;
+            }
+
+            /* Number of Chairs ⇒ row length. The Details panel hides
+             * the Width/Length/Height row for wallChairs and surfaces
+             * #itemNumChairs in its place; invert the populate-time
+             * Math.round(height / spacing) formula and write the new
+             * length back to item.height. Runs AFTER data_chairSpacing
+             * is finalised above so getChairSpacing() sees the user's
+             * newly-entered spacing if they edited both fields at once.
+             * Blank / invalid input is a no-op (matches data_chairSpacing). */
+            const numChairsInput = document.getElementById('itemNumChairs');
+            const numChairs = numChairsInput ? Math.floor(Number(numChairsInput.value)) : NaN;
+            if (isFinite(numChairs) && numChairs >= 1) {
+                const spacing = getChairSpacing(item, roomObj.unit);
+                item.height = round(numChairs * spacing);
             }
         }
 
@@ -22295,10 +22398,25 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('trapNarrowWidthDiv').style.display = 'none';
     }
 
-    /* Distance between Center of Chairs — wallChairs only. */
+    /* Distance between Center of Chairs — wallChairs-family only
+     * (Row of Chairs / Swivel Chairs / Stool Chairs). */
+    const __isWallChairsRow = isWallChairs(shape.data_deviceid);
     const chairSpacingDiv = document.getElementById('chairSpacingDiv');
     if (chairSpacingDiv) {
-        chairSpacingDiv.style.display = (shape.data_deviceid === 'wallChairs') ? '' : 'none';
+        chairSpacingDiv.style.display = __isWallChairsRow ? '' : 'none';
+    }
+
+    /* Number of Chairs (wallChairs-family only) — UX translation of
+     * the underlying `item.height`. The Width/Length/Height row is
+     * hidden for these rows and replaced visually by this count
+     * field; the row's length stays the source of truth in
+     * roomObj.items. */
+    const numChairsDiv = document.getElementById('numChairsDiv');
+    if (numChairsDiv) {
+        numChairsDiv.style.display = __isWallChairsRow ? '' : 'none';
+    }
+    if (__isWallChairsRow) {
+        document.getElementById('itemWidthLengthDiv').style.display = 'none';
     }
 
     if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
@@ -22496,6 +22614,26 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemChairSpacing.placeholder = defaultSpacing;
     }
 
+    /* Number of Chairs (wallChairs only) — derived from the Konva node's
+     * LIVE height (NOT roomObj item.height, which is stale during a drag).
+     * The live `tblWallFlr.on('transform')` handler calls
+     * updateFormatDetails() every frame while the user drags the
+     * bottom-center anchor; reading shape.height() keeps the count
+     * display in sync with the live drag. If we read item.height
+     * instead, the count never changes during the drag AND the deferred
+     * updateItem() call would later use the stale count to recompute
+     * item.height back to its pre-drag value — silently undoing the
+     * Transformer resize. Math.floor + epsilon mirrors
+     * layoutWallChairsChildren()'s slot-count formula so the displayed
+     * count always matches the visible chairs. */
+    const itemNumChairs = document.getElementById('itemNumChairs');
+    if (itemNumChairs && isWallChairs(item.data_deviceid)) {
+        const spacing = getChairSpacing(shape, roomObj.unit);
+        const liveHeightUnits = (shape.height() || 0) / scale;
+        const count = Math.max(1, Math.floor(liveHeightUnits / spacing + 0.0001));
+        itemNumChairs.value = count;
+    }
+
     if ('data_vHeight' in item && item.data_vHeight) {
         document.getElementById('itemVheight').value = item.data_vHeight;
     } else {
@@ -22561,6 +22699,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             const __csDivText = document.getElementById('chairSpacingDiv');
             if (__csDivText) __csDivText.style.display = 'none';
+            const __ncDivText = document.getElementById('numChairsDiv');
+            if (__ncDivText) __ncDivText.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
             /* Tilt + Lean stay visible (data_tilt / data_slant export
              * as rotation[0] / rotation[2] in workspaceObjTextPush for
@@ -22614,6 +22754,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('trapNarrowWidthDiv').style.display = 'none';
             const __csDivDim = document.getElementById('chairSpacingDiv');
             if (__csDivDim) __csDivDim.style.display = 'none';
+            const __ncDivDim = document.getElementById('numChairsDiv');
+            if (__ncDivDim) __ncDivDim.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
             document.getElementById('itemTiltSlantDiv').style.display = 'none';
             document.getElementById('itemTiltDiv').style.display = 'none';
@@ -23610,7 +23752,7 @@ function createEquipmentMenu() {
 
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
-    let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
+    let chairsMenu = ['chair', 'wallChairs', 'wallChairsSwivel', 'wallChairsStool', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
     let stageFloorMenu = ['stageFloor'];
 
@@ -25542,6 +25684,23 @@ const DEFAULT_CHAIR_DEPTH_FEET = DEFAULT_CHAIR_DEPTH_METERS * 3.28084;
 const CHAIR_TILE_IMAGE_HEIGHT_PX = 87;
 const CHAIR_TILE_IMAGE_WIDTH_PX = 80;
 
+/* Hard min/max bounds for the Details-panel `#itemChairSpacing` input.
+ * Values typed by the user that fall outside this range are clamped
+ * to the nearest bound by `clampChairSpacing()` (called from
+ * `updateItem()`); the clamped value is then written back to the
+ * input field so the user sees what was actually applied.
+ *
+ * The feet values are specified verbatim (1.31 ft / 9.84 ft) rather
+ * than derived from the meter values so the input rounding in feet
+ * mode matches the round-number bounds the user expects. The two
+ * unit pairs are not exact reciprocals (0.4 m = 1.3123 ft, 3 m =
+ * 9.8425 ft), but the ≈0.2% drift is below the 0.01-unit precision
+ * the input field accepts. */
+const MIN_CHAIR_SPACING_METERS = 0.4;
+const MIN_CHAIR_SPACING_FEET = 1.31;
+const MAX_CHAIR_SPACING_METERS = 3;
+const MAX_CHAIR_SPACING_FEET = 9.84;
+
 /* Return chair-on-center spacing for a wallChairs row in `unit`.
  *   - Reads item.data_chairSpacing when present (already in the item's
  *     stored unit per the convertItemUnitBasedOnRatio convention).
@@ -25557,39 +25716,160 @@ function getChairSpacing(item, unit) {
     return (unit === 'meters') ? DEFAULT_CHAIR_SPACING_METERS : DEFAULT_CHAIR_SPACING_FEET;
 }
 
-/* Lazy-loaded HTMLImageElement for the chairs-top.png glyph used by
- * wallChairs rows. One Image element is cached for the lifetime of
- * the page so subsequent layoutWallChairsChildren() calls (chair
- * count changes, spacing edits, resize, copy/paste, etc.) can attach
- * the same decoded bitmap to every new Konva.Image instance without
- * re-decoding. While the load is in flight any layout calls register
- * a callback that runs once the bitmap is ready and back-fills every
- * empty <Konva.Image>'s `image()` in batch.
- *
- * Image source: `chairs-top.png` (80×87, back-on-LEFT orientation).
- * The richer `chair-top.png` (200×203) was tried first but its ~5%
- * per-edge padding around the chair art showed up as visible gaps
- * between consecutive chairs in the new per-Image renderer that the
- * pre-refactor fillPattern tiling had hidden — see the comment block
- * above `DEFAULT_CHAIR_SPACING_FEET`. */
-let _wallChairsChairImageCached = null;
-const _wallChairsChairImagePending = [];
+/* Clamp a chair-on-center spacing value to the hard min/max bounds
+ * (see MIN/MAX_CHAIR_SPACING_* constants above). Returns the input
+ * unchanged when it is already within range. The caller is expected
+ * to have already validated `value` as a finite positive number. */
+function clampChairSpacing(value, unit) {
+    unit = unit || roomObj.unit;
+    const min = (unit === 'meters') ? MIN_CHAIR_SPACING_METERS : MIN_CHAIR_SPACING_FEET;
+    const max = (unit === 'meters') ? MAX_CHAIR_SPACING_METERS : MAX_CHAIR_SPACING_FEET;
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
 
-function loadWallChairsChairImage(then) {
-    if (_wallChairsChairImageCached) {
-        then(_wallChairsChairImageCached);
+/* Per-row-variant image config used by `layoutWallChairsChildren()`.
+ * Each entry maps a `data_deviceid` (member of `isWallChairs()`) to:
+ *
+ *   src      — chair glyph asset (relative to ./assets/images/).
+ *   rotation — degrees applied to each per-slot Konva.Image so the
+ *              chair faces +X / RIGHT (back on LEFT) at row rotation
+ *              0. Set to 0 for assets that are already authored
+ *              back-on-LEFT (only `chairs-top.png` today). Set to
+ *              -90 for the standard back-on-TOP chair images
+ *              (`chair-top.png`-family glyphs) — rotating -90°
+ *              counter-clockwise turns the chair top edge into the
+ *              left edge, matching the row's expected orientation.
+ *   scale    — uniform scale (0 < s ≤ 1) applied to each chair's
+ *              rendered footprint inside its slot. The chair stays
+ *              centred on its slot centre (cx, cy); a scale < 1
+ *              shrinks the chair art symmetrically, leaving padding
+ *              around it. Used to normalise the visible chair-art-
+ *              to-slot ratio across variants whose source assets
+ *              were authored with different chair-art coverage:
+ *
+ *                - `chairs-top.png` (custom 80×87 tile) draws a
+ *                  back-on-LEFT chair occupying ~62% × ~69% of its
+ *                  frame, so a scale of 1.0 already leaves a
+ *                  visible gap between consecutive Row-of-Chairs
+ *                  glyphs along the row direction.
+ *                - `chairSwivel-top.png` / `chairHigh-top.png` are
+ *                  standard 200×203 standalone-chair glyphs whose
+ *                  chair art (including arms) covers ~95% of their
+ *                  frame. At scale 1.0 the arms of one chair touch
+ *                  the next, eliminating the visible gap. Scaling
+ *                  these variants down to 0.9 brings their chair
+ *                  art to ~85% of the slot — leaving a visible gap
+ *                  comparable to the Row-of-Chairs variant while
+ *                  keeping the chair body itself at a similar
+ *                  perceived size (the Swivel / Stool art is
+ *                  mostly thin arms + a smaller seat/back, so
+ *                  scaling further down — e.g. 0.7 — collapses
+ *                  the visible chair body to noticeably less mass
+ *                  than the solid chairs-top.png tile, which the
+ *                  same 0.9 leaves balanced).
+ *
+ *              Defaults to 1.0 if omitted. The scale is independent
+ *              of `data_chairSpacing` (chair-on-CENTER spacing,
+ *              shared across all wallChairs-family variants).
+ *
+ * When `rotation !== 0` the per-slot Konva.Image's `width` / `height`
+ * are swapped (and `offsetX` / `offsetY` follow) so the post-rotation
+ * footprint still measures `chairDepthPx` across the row and
+ * `chairLengthPx` along the row. See the rotation block inside
+ * `layoutWallChairsChildren()`.
+ *
+ * Adding a fourth Row-of-X variant is a one-line edit here plus the
+ * matching id in `isWallChairs()` and a row in
+ * `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+const WALL_CHAIRS_IMAGE_CONFIG = {
+    'wallChairs':       { src: './assets/images/chairs-top.png',     rotation: 0,   scale: 1.0 },
+    'wallChairsSwivel': { src: './assets/images/chairSwivel-top.png', rotation: -90, scale: 0.9 },
+    'wallChairsStool':  { src: './assets/images/chairHigh-top.png',   rotation: -90, scale: 0.9 },
+};
+
+/* Lazy-loaded HTMLImageElement cache for the chair glyph used by
+ * wallChairs rows. One cache slot per `data_deviceid` so each variant
+ * (Row of Chairs / Swivel / Stool) decodes its bitmap once for the
+ * lifetime of the page; subsequent `layoutWallChairsChildren()` calls
+ * (chair count changes, spacing edits, resize, copy/paste, undo/redo,
+ * etc.) attach the same cached bitmap to every new `Konva.Image`
+ * instance.
+ *
+ * Image sources (see `WALL_CHAIRS_IMAGE_CONFIG` above):
+ *   - `chairs-top.png` (80×87, back-on-LEFT orientation) — the
+ *     custom-authored tile asset for the original Row of Chairs.
+ *     Chair art covers ~62% × ~69% of the frame, so consecutive
+ *     chairs naturally show a visible along-row gap when rendered
+ *     at the canonical 2.13 × 2.35 ft slot. Rendered with `scale:
+ *     1.0`. (`chair-top.png` 200×203 was tried first but its tighter
+ *     ~5% per-edge padding around the chair art produced a denser,
+ *     near-touching look that didn't match the pre-refactor
+ *     fillPattern-tiled appearance the chair art was authored for.)
+ *   - `chairSwivel-top.png`, `chairHigh-top.png` (200×203 each,
+ *     back-on-TOP orientation) — standard standalone-chair glyphs
+ *     reused via the per-image -90° rotation in
+ *     `WALL_CHAIRS_IMAGE_CONFIG`. Their chair-art-with-arms covers
+ *     ~95% of the frame, which would render edge-to-edge in the
+ *     row (no visible gap), so `WALL_CHAIRS_IMAGE_CONFIG.scale` is
+ *     set to 0.9 for both variants — bringing the chair art to
+ *     ~85% of the slot, leaving a visible gap comparable to the
+ *     Row-of-Chairs variant while keeping the perceived chair
+ *     body mass close to the chairs-top.png tile.
+ *     Future tile-specific assets (`chairsSwivel-top.png` /
+ *     `chairsHigh-top.png`) authored at the chairs-top.png coverage
+ *     ratio can replace the entries in `WALL_CHAIRS_IMAGE_CONFIG`
+ *     and drop the per-variant `scale` back to 1.0 without other
+ *     code changes. */
+const _wallChairsImageCache = new Map(); /* deviceId -> HTMLImageElement */
+const _wallChairsImagePending = new Map(); /* deviceId -> Array<callback> */
+
+function getWallChairsImageSrc(deviceId) {
+    const cfg = WALL_CHAIRS_IMAGE_CONFIG[deviceId] || WALL_CHAIRS_IMAGE_CONFIG['wallChairs'];
+    return cfg.src;
+}
+
+function getWallChairsImageRotation(deviceId) {
+    const cfg = WALL_CHAIRS_IMAGE_CONFIG[deviceId] || WALL_CHAIRS_IMAGE_CONFIG['wallChairs'];
+    return cfg.rotation || 0;
+}
+
+/* Per-variant render scale (see WALL_CHAIRS_IMAGE_CONFIG docstring).
+ * Defaults to 1.0 when missing or non-finite so a hand-edited config
+ * entry without a `scale` field still paints at full slot size. */
+function getWallChairsImageScale(deviceId) {
+    const cfg = WALL_CHAIRS_IMAGE_CONFIG[deviceId] || WALL_CHAIRS_IMAGE_CONFIG['wallChairs'];
+    const s = Number(cfg.scale);
+    return (isFinite(s) && s > 0) ? s : 1.0;
+}
+
+function getCachedWallChairsImage(deviceId) {
+    return _wallChairsImageCache.get(deviceId) || null;
+}
+
+function loadWallChairsChairImage(deviceId, then) {
+    const cached = _wallChairsImageCache.get(deviceId);
+    if (cached) {
+        then(cached);
         return;
     }
-    _wallChairsChairImagePending.push(then);
+    let pending = _wallChairsImagePending.get(deviceId);
+    if (!pending) {
+        pending = [];
+        _wallChairsImagePending.set(deviceId, pending);
+    }
+    pending.push(then);
     /* First caller kicks off the load; subsequent callers just queue. */
-    if (_wallChairsChairImagePending.length > 1) return;
+    if (pending.length > 1) return;
     const img = new Image();
     img.onload = function wallChairsChairImageOnLoad() {
-        _wallChairsChairImageCached = img;
-        const pending = _wallChairsChairImagePending.splice(0);
-        pending.forEach(cb => { try { cb(img); } catch (_) { /* swallow */ } });
+        _wallChairsImageCache.set(deviceId, img);
+        const cbs = _wallChairsImagePending.get(deviceId) || [];
+        _wallChairsImagePending.delete(deviceId);
+        cbs.forEach(cb => { try { cb(img); } catch (_) { /* swallow */ } });
     };
-    img.src = './assets/images/chairs-top.png';
+    img.src = getWallChairsImageSrc(deviceId);
 }
 
 /* Build (or rebuild) the children of a wallChairs Konva.Group:
@@ -25635,6 +25915,17 @@ function layoutWallChairsChildren(group) {
      * it to chairDepthPx, but a future caller might not), fall back to
      * the canonical depth so we don't paint a zero-width row. */
     const widthPx = groupWidth || chairDepthPx;
+
+    /* Per-row-variant glyph (image src, optional rotation) — see
+     * `WALL_CHAIRS_IMAGE_CONFIG` above. The deviceId may legitimately
+     * be missing on a freshly-constructed Konva.Group during the very
+     * first render frame (insertTable sets `data_deviceid` AFTER
+     * calling this helper); falling back to 'wallChairs' keeps the
+     * first-frame paint safe. */
+    const deviceId = group.data_deviceid || 'wallChairs';
+    const imageSrcRotation = getWallChairsImageRotation(deviceId);
+    const imageRenderScale = getWallChairsImageScale(deviceId);
+    const cachedImage = getCachedWallChairsImage(deviceId);
 
     const slotPx = chairSpacing * scale;
     /* Math.floor (+ a tiny epsilon to absorb float-precision drift on
@@ -25685,24 +25976,57 @@ function layoutWallChairsChildren(group) {
      * to the bg Rect (mirrors the prior single-shape fillPattern
      * behaviour — the row is one selectable unit).
      *
-     * Each chair Image renders at chairDepthPx × chairLengthPx with
-     * its centre at the slot centre via offsetX / offsetY. No rotation
-     * — `chairs-top.png` is already authored back-on-left / facing-
-     * right, which is exactly what a vertical wallChairs row needs at
-     * row rotation 0. At default spacing chairLengthPx == slotPx, so
-     * consecutive chairs touch edge-to-edge and reproduce the
-     * pre-refactor seamless tiled look. */
+     * Each chair Image renders at chairDepthPx × chairLengthPx
+     * (post-rotation footprint) with its centre at the slot centre
+     * via offsetX / offsetY. The original Row of Chairs uses
+     * `chairs-top.png` which is already authored back-on-left /
+     * facing-right (rotation 0). The Swivel / Stool variants reuse
+     * the standalone-chair `chair*-top.png` glyphs, which are
+     * authored back-on-TOP, so per `WALL_CHAIRS_IMAGE_CONFIG` we
+     * apply a -90° rotation on each per-slot Image to land back-on-
+     * LEFT. When rotated, the Image's pre-rotation `width` and
+     * `height` are swapped so the post-rotation footprint still
+     * measures `chairDepthPx` across the row and `chairLengthPx`
+     * along it (the Konva rotation pivot lives at offsetX/offsetY,
+     * which we set to the post-rotation centre regardless of the
+     * pre-rotation extent).
+     *
+     * At default spacing chairLengthPx == slotPx, so consecutive
+     * chairs touch edge-to-edge and reproduce the pre-refactor
+     * seamless tiled look (modulo the ~5% per-edge padding around
+     * the standalone-chair glyphs — see WALL_CHAIRS_IMAGE_CONFIG
+     * docstring). */
+    const isImageRotated = imageSrcRotation !== 0;
+    /* Pre-rotation Image dimensions. For 0° (chairs-top.png) the
+     * Image's natural orientation already matches the row, so the
+     * pre-rotation extent equals the post-rotation footprint. For
+     * ±90° (chair-top family glyphs) we swap so that the post-
+     * rotation footprint lines up with the slot. The Konva offsetX
+     * / offsetY values centre the rotation on the slot's centre,
+     * also using the pre-rotation extent.
+     *
+     * `imageRenderScale` (from `WALL_CHAIRS_IMAGE_CONFIG.scale`)
+     * shrinks the rendered chair art symmetrically inside its
+     * slot. Because the chair's centre is anchored by `offsetX /
+     * offsetY = preRotW/2 / preRotH/2`, scaling preRotW / preRotH
+     * uniformly leaves the chair centred at (cx, cy) and adds
+     * (1 - scale) × slot of padding around it — which is exactly
+     * the visible "spacing" the Row of Chairs glyph shows
+     * naturally. See `WALL_CHAIRS_IMAGE_CONFIG`. */
+    const preRotW = (isImageRotated ? chairLengthPx : chairDepthPx) * imageRenderScale;
+    const preRotH = (isImageRotated ? chairDepthPx : chairLengthPx) * imageRenderScale;
     for (let i = 0; i < count; i++) {
         const cx = widthPx / 2;
         const cy = (i + 0.5) * slotPx;
         const chair = new Konva.Image({
             x: cx,
             y: cy,
-            width: chairDepthPx,
-            height: chairLengthPx,
-            offsetX: chairDepthPx / 2,
-            offsetY: chairLengthPx / 2,
-            image: _wallChairsChairImageCached || null,
+            width: preRotW,
+            height: preRotH,
+            offsetX: preRotW / 2,
+            offsetY: preRotH / 2,
+            rotation: imageSrcRotation,
+            image: cachedImage || null,
             listening: false,
             name: 'wallChairs-chair',
         });
@@ -25711,9 +26035,10 @@ function layoutWallChairsChildren(group) {
 
     /* First-row-of-the-session async load: register a callback that
      * back-fills every empty chair Image in this group and triggers a
-     * batchDraw once the bitmap is ready. */
-    if (!_wallChairsChairImageCached) {
-        loadWallChairsChairImage(function wallChairsChairImageReady(img) {
+     * batchDraw once the bitmap is ready. The cache is keyed per
+     * deviceId so each variant decodes its own glyph once. */
+    if (!cachedImage) {
+        loadWallChairsChairImage(deviceId, function wallChairsChairImageReady(img) {
             group.find('.wallChairs-chair').forEach(function (node) {
                 if (!node.image()) node.image(img);
             });
@@ -25723,7 +26048,26 @@ function layoutWallChairsChildren(group) {
     }
 }
 
-/* Take a wallChairs object and return an array of chairs */
+/* Map from a wallChairs-family row's `data_deviceid` to the
+ * standalone-chair `data_deviceid` each row member emits on
+ * Workspace Designer / DXF / xConfig export. The standalone-chair
+ * device defs supply the `workspaceKey` mapping (`workspaceKey.chair`
+ * / `workspaceKey.chairSwivel` / `workspaceKey.chairHigh`) and the
+ * DXF block library auto-generates a per-id block from the chair's
+ * `topImage`, so picking the right id here is the only knob a new
+ * Row-of-X variant needs to flip on for the export round-trip. */
+const EXPANDED_CHAIR_DEVICE_FOR_ROW = {
+    'wallChairs':       { id: 'chair',        name: 'Chair' },
+    'wallChairsSwivel': { id: 'chairSwivel',  name: 'Swivel Chair' },
+    'wallChairsStool':  { id: 'chairHigh',    name: 'Stool Chair' },
+};
+
+/* Take a wallChairs-family row item and return an array of individual
+ * chair items. The emitted chair `data_deviceid` is keyed off the
+ * row's `data_deviceid` via `EXPANDED_CHAIR_DEVICE_FOR_ROW` so a Row
+ * of Swivel Chairs emits Swivel Chair items, Row of Stool Chairs
+ * emits Stool Chair items, etc. Defaults to plain Chair if the row's
+ * id is unrecognised so legacy / hand-edited URLs stay safe. */
 function expandChairs(item, unit = roomObj.unit) {
     let singleChairWidth = getChairSpacing(item, unit);
     let chairArray = [];
@@ -25732,6 +26076,8 @@ function expandChairs(item, unit = roomObj.unit) {
 
     let rotation = normalizeDegree(item.rotation - 90);
 
+    const expandedDef = EXPANDED_CHAIR_DEVICE_FOR_ROW[item.data_deviceid]
+        || EXPANDED_CHAIR_DEVICE_FOR_ROW['wallChairs'];
 
     let tempChair =
     {
@@ -25740,8 +26086,8 @@ function expandChairs(item, unit = roomObj.unit) {
         "rotation": item.rotation,
         "height": 0.64,
         "width": 0.64,
-        "name": "Chair",
-        "data_deviceid": "chair",
+        "name": expandedDef.name,
+        "data_deviceid": expandedDef.id,
         "id": item.id
     }
 
@@ -28215,8 +28561,11 @@ async function exportDxfFile() {
          * (see expandChairs() / workspaceDesignerExport for the same
          * pattern). Each chair lands on the chairs layer with its own
          * block, while inheriting the row's VRC layer assignment so
-         * hide/lock toggles still cover the whole row. */
-        if (item.data_deviceid === 'wallChairs') {
+         * hide/lock toggles still cover the whole row. Covers every
+         * wallChairs-family device (Row of Chairs / Swivel / Stool);
+         * the per-variant chair `data_deviceid` is stamped by
+         * `expandChairs()` via `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+        if (isWallChairs(item.data_deviceid)) {
             emitWallChairsRow(item);
             return;
         }
