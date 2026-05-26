@@ -219,15 +219,17 @@ After an item type prefix, lowercase letters encode attributes:
 | `u` | fill color (RGB) | RGB triple | `data_fill` for `configurableColor` devices. Always 9 zero-padded digits: `u{RRR}{GGG}{BBB}`. `#FFFFFF` → `u255255255`; `#0F0F0F` → `u015015015`. Default (absent) ⇒ device default fill (`#FFFFFF99`). Encoder uses cached `hexToUrlRgb()`; decoder uses `urlRgbToHex()` |
 | `v` | opacity (×100) | Number | `data_opacity` for `wdOpacity` devices. `v{NN}` where NN = opacity × 100 in range [0, 99]. `v50` = 0.50; `v0` = 0. Default (1.0) is omitted entirely |
 | `w` | wdText font size | Integer | `data_fontSize` for `wdText` items only. `w{N}` (integer pt-like units). Default (20) is omitted entirely; encoder also gates on `item.data_deviceid === 'wdText'` so other items can never emit `w` |
+| `x` | wallChairs chair-on-center spacing (×100) | Number | `data_chairSpacing` for `wallChairs` items only. `x{N}` where N = spacing × 100 in current unit (`x235` = 2.35 ft, `x72` = 0.72 m). Default (`DEFAULT_CHAIR_SPACING_FEET` 2.35 ft / `DEFAULT_CHAIR_SPACING_METERS` 0.7163 m, ×100) is omitted entirely; encoder also gates on `item.data_deviceid === 'wallChairs'` so other items can never emit `x` |
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
-**AVAILABLE for future ITEM use:** `x`, `y`, `z`. (`u` is fill color,
-`v` is opacity — both added in the 2026 configurableColor work. `w`
-was claimed in 2026 for wdText `data_fontSize`. `w`/`x`/`y`/`z`/`h`
-are also used inside `H{n}` / `J{n}` blocks for group/customItem
-geometry; the parser keys by `sid` so they could still be reused on
-items, but prefer the remaining unused letters first.)
+**AVAILABLE for future ITEM use:** `y`, `z`. (`u` is fill color, `v`
+is opacity — both added in the 2026 configurableColor work. `w` was
+claimed in 2026 for wdText `data_fontSize`. `x` was claimed in 2026
+for wallChairs `data_chairSpacing`. `w`/`x`/`y`/`z`/`h` are also used
+inside `H{n}` / `J{n}` blocks for group/customItem geometry; the
+parser keys by `sid` so they could still be reused on items, but
+prefer the remaining unused letters first.)
 
 **Reserved room-level prefixes:** `A` (metadata+unit), `B` (visibility),
 `C` (authorVersion), `D`/`E`/`F`/`G` (walls), `L` (layers), `H`
@@ -271,6 +273,45 @@ prefixes.
 | Encoder | `createShareableLinkItem()` — block immediately after `t{n}` emission |
 | Decoder | `parseShortenedXYUrl()` — block immediately after `r` (points) parsing |
 | Tokenizer | `parseShortenedXYUrl()` uses `/[a-z]/` so `u` and `v` are accepted natively without any regex update |
+
+## wallChairs Spacing URL Encoding (`x`)
+
+`wallChairs` items can override the default 2.35 ft / 0.7163 m
+chair-on-center spacing via the per-item `x` prefix. Both the default
+value and the encoded value are **unit-native** — the value travels in
+the URL in the same unit the room itself is in (`A1` = feet, `A0` =
+meters), so a feet-mode URL never carries a meters-converted number
+and vice versa.
+
+### Format
+
+| Letter | Field | Format | Examples |
+|--------|-------|--------|----------|
+| `x` | `data_chairSpacing` | `x{N}` where N = spacing × 100 in current unit | `x235` = 2.35 ft, `x300` = 3.00 ft, `x72` = 0.72 m |
+
+- `x` is **omitted entirely** when `data_chairSpacing` is absent OR
+  when it equals the current-unit default (2.35 ft / 0.7163 m × 100).
+  The common case (every wallChairs row left at default) costs zero
+  URL bytes.
+- The encoder also gates on `item.data_deviceid === 'wallChairs'` so
+  any other item that somehow carries a stray `data_chairSpacing`
+  cannot emit `x` (which is reserved for chair spacing on items but
+  also used inside `H{n}` / `J{n}` geometry blocks — the parser keys
+  by `sid` so the meanings don't collide, but the encoder gate keeps
+  the URL clean).
+- The decoder mirrors the encoder gate (`newItem.data_deviceid ===
+  'wallChairs'`); any `x{N}` token on a non-wallChairs item is
+  silently ignored.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Default constants | `DEFAULT_CHAIR_SPACING_FEET` / `DEFAULT_CHAIR_SPACING_METERS` near the top of `js/roomcalc.js` |
+| Helper | `getChairSpacing(item, unit)` — central source for "what spacing does this row use right now" |
+| Encoder | `createShareableLinkItem()` — block immediately after the dimensionLine `y`/`z` emission and before the `~label~` block |
+| Decoder | `parseShortenedXYUrl()` — block immediately after the `y`/`z` dimensionLine decode |
+| Tokenizer | `parseShortenedXYUrl()` uses `/[a-z]/` so `x` is accepted natively without any regex update |
 
 ## Layer URL Encoding
 

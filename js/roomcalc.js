@@ -185,15 +185,17 @@ function isDimensionLine(deviceId) {
 
 /* Returns the "containing rect" child to paint for the multi-select
  * highlight (Konva.Tag for wdText/vrcText, '.dim-rect' Konva.Rect for
- * dimensionLine). Returns null otherwise. The top-level node for these
- * items is a Konva.Label (text) or Konva.Group (dimensionLine), neither
- * of which exposes Shape stroke methods — so the multi-select highlight
- * in updateTrNodesShading() / removeShadingTrNodes() targets this inner
+ * dimensionLine, '.wallChairs-bg' Konva.Rect for wallChairs). Returns
+ * null otherwise. The top-level node for these items is a Konva.Label
+ * (text) or Konva.Group (dimensionLine, wallChairs), none of which
+ * exposes Shape stroke methods — so the multi-select highlight in
+ * updateTrNodesShading() / removeShadingTrNodes() targets this inner
  * child instead. */
 function getCompositeHighlightRect(node) {
     if (!node || !node.data_deviceid) return null;
     if (isTextItem(node.data_deviceid))      return node.findOne('Tag');
     if (isDimensionLine(node.data_deviceid)) return node.findOne('.dim-rect');
+    if (node.data_deviceid === 'wallChairs') return node.findOne('.wallChairs-bg');
     return null;
 }
 
@@ -744,7 +746,8 @@ function populateGroupDetails(rectNode) {
      * (The non-group branch of updateFormatDetails re-shows itemNameDiv.) */
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv',
+        'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
@@ -2736,7 +2739,8 @@ function populateCustomItemDetails(rectNode) {
 
     const hideIds = [
         'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
-        'itemVheightDiv', 'trapNarrowWidthDiv', 'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
+        'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv',
+        'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
@@ -7508,6 +7512,10 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
     }
 
+    if ('data_chairSpacing' in item && !isNaN(item.data_chairSpacing)) {
+        item.data_chairSpacing = round(item.data_chairSpacing * ratio);
+    }
+
     if ('tblRectRadiusRight' in item) {
         item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
     }
@@ -8424,6 +8432,16 @@ function parseShortenedXYUrl(parameters) {
                 const psNum = parseInt(item.z, 10);
                 if (!isNaN(psNum) && psNum > 0) {
                     newItem.data_pointerSize = psNum;
+                }
+            }
+
+            /* x=wallChairs chair-on-center spacing (×100, unit-native;
+             * mirror of the encoder above). Absent ⇒ device default
+             * applied at render / expand time. */
+            if ('x' in item && newItem.data_deviceid === 'wallChairs') {
+                const csNum = Number(item.x) / 100;
+                if (isFinite(csNum) && csNum > 0) {
+                    newItem.data_chairSpacing = csNum;
                 }
             }
 
@@ -11448,6 +11466,26 @@ function createShareableLinkItem(item) {
         }
     }
 
+    /* x=wallChairs chair-on-center spacing (×100, unit-native). Only
+     * emitted for wallChairs with an explicit data_chairSpacing
+     * override AND when the value differs from the unit-mode default
+     * — the common case (2.35 ft / 0.716 m) stays compact. The decoder
+     * mirrors this gate. Default rounding (DEFAULT_CHAIR_SPACING_*
+     * × 100) is computed inline so future tweaks to the default
+     * constants flow through automatically. */
+    if (item.data_deviceid === 'wallChairs' && item.data_chairSpacing != null) {
+        const __csNum = Number(item.data_chairSpacing);
+        if (isFinite(__csNum) && __csNum > 0) {
+            const __csDefault100 = (roomObj.unit === 'feet')
+                ? Math.round(DEFAULT_CHAIR_SPACING_FEET * 100)
+                : Math.round(DEFAULT_CHAIR_SPACING_METERS * 100);
+            const __cs100 = Math.round(round(__csNum) * 100);
+            if (__cs100 !== __csDefault100) {
+                strItem += 'x' + __cs100;
+            }
+        }
+    }
+
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
@@ -12687,6 +12725,12 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_pointerSize = Number(node.data_pointerSize);
         }
 
+        /* wallChairs chair-on-center spacing — preserve through
+         * copy/paste so a duplicated row keeps its spacing override. */
+        if (node.data_chairSpacing != null) {
+            newAttr.data_chairSpacing = Number(node.data_chairSpacing);
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -13852,6 +13896,10 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_pointerSize = Number(node.data_pointerSize);
         }
 
+        if (node.data_chairSpacing != null) {
+            itemAttr.data_chairSpacing = Number(node.data_chairSpacing);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -13920,6 +13968,12 @@ function updateRoomObjFromTrNode() {
                 item.data_pointerSize = itemAttr.data_pointerSize;
             } else {
                 delete item.data_pointerSize;
+            }
+
+            if (itemAttr.data_chairSpacing != null) {
+                item.data_chairSpacing = itemAttr.data_chairSpacing;
+            } else {
+                delete item.data_chairSpacing;
             }
 
         } else {
@@ -15092,44 +15146,50 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     } else if (insertDevice.id === 'wallChairs') {
-        let chairScale = scale / 24 * 0.65;
-        if (roomObj.unit === 'meters') {
-            chairScale = chairScale / 3.28084;
-        }
-        tblWallFlr = new Konva.Shape({
+        /* Konva.Group rendering — one Konva.Image per chair slot at a
+         * CONSTANT footprint (2.13 ft × 2.35 ft = 0.65 m × 0.716 m),
+         * positioned along the Y axis at intervals of
+         * `data_chairSpacing`. Spacing < natural footprint ⇒ chairs
+         * visually overlap; spacing > natural footprint ⇒ chairs
+         * leave gaps. The row's Width (depth) stays locked at
+         * `DEFAULT_CHAIR_DEPTH_<unit>` (2.13 ft / 0.65 m — the same
+         * canonical value the pre-refactor `wallWidth = 0.65 * scale`
+         * branch wrote), and individual chair glyphs never stretch or
+         * compress. Replaced the prior Konva.Shape +
+         * fillPatternImage(chairs-top.png) renderer, which baked a
+         * single pattern scale onto the rect and therefore always
+         * distorted the tile in one axis when spacing changed.
+         *
+         * wallWidth is overridden every insert so a stored legacy
+         * width (e.g. from the brief commit that made width track
+         * spacing, or the ~2.16 ft transient width from the first
+         * Konva.Group prototype) is normalised back to the canonical
+         * value on the next load + save. See
+         * `layoutWallChairsChildren()` for the child layout details. */
+        const defaultChairDepth = (unit === 'meters')
+            ? DEFAULT_CHAIR_DEPTH_METERS
+            : DEFAULT_CHAIR_DEPTH_FEET;
+        wallWidth = defaultChairDepth * scale;
+        tblWallFlr = new Konva.Group({
             x: pixelX,
             y: pixelY,
             rotation: rotation,
             width: wallWidth,
             height: height,
-            stroke: '#aaaaaa',
-            strokeWidth: 1,
             id: uuid,
             draggable: true,
             opacity: 0.8,
-            sceneFunc: (ctx, shape) => {
-                ctx.beginPath();
-                let height = shape.height();
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(wallWidth, 0);
-
-                ctx.lineTo(wallWidth, height);
-                ctx.lineTo(0, height);
-                ctx.closePath(0, 0);
-                ctx.fillStrokeShape(shape);
-            }
         });
-
-        const windowBackgroundObj = new Image();
-
-        windowBackgroundObj.onload = function windowBackgroundObjOnload() {
-            tblWallFlr.fillPatternImage(windowBackgroundObj);
-            tblWallFlr.fillPatternRepeat('repeat');
-            tblWallFlr.fillPatternOffset({ x: 0, y: 0 });
-            tblWallFlr.fillPatternScale({ x: chairScale, y: chairScale });
-        };
-        windowBackgroundObj.src = './assets/images/chairs-top.png';
+        /* Stamp data_chairSpacing on the group BEFORE the layout call
+         * so getChairSpacing() inside layoutWallChairsChildren() sees
+         * the user's override (not the device default). The canonical
+         * four-place-rule writer further below re-assigns this from
+         * `attrs.data_chairSpacing` — safe to set twice, the value is
+         * identical. */
+        tblWallFlr.data_chairSpacing = (attrs.data_chairSpacing == null)
+            ? null
+            : Number(attrs.data_chairSpacing);
+        layoutWallChairsChildren(tblWallFlr);
 
     }
     else if (insertDevice.id === 'couch') {
@@ -15258,6 +15318,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_labelField = attrs.data_labelField;
 
     tblWallFlr.data_trapNarrowWidth = attrs.data_trapNarrowWidth;
+
+    /* wallChairs chair-on-center spacing (four-place rule mirror — see
+     * updateRoomObjFromTrNode, copyToCanvasClipBoard, and getChairSpacing
+     * for the reader). Stored as a Number in the room's current unit;
+     * absent ⇒ device default applied at render / expand time. */
+    tblWallFlr.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
     /* perfectDrawEnabled() is a Konva.Shape method; wdText renders as a
      * Konva.Label (extends Konva.Group) which doesn't expose it. The
@@ -15394,6 +15460,30 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             updateFormatDetails(e);
         }
 
+        /* wallChairs live-resize: only `bottom-center` is enabled on
+         * the Transformer (set by resizeTableOrWall() →
+         * changeWallAnchors('wallChairs')), so only scaleY changes.
+         * Bake scaleY into the Group's height and re-lay out the chair
+         * children every frame so the user sees the chair count change
+         * smoothly during the drag instead of waiting for transformend.
+         * Mirrors the dimensionLine pattern above — target.fire fires
+         * before tr.fire, so the global tr.on('transform') handler sees
+         * scaleY === 1 by the time it runs and short-circuits. */
+        if (e && e.target && e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
+            const sy = tblWallFlr.scaleY();
+            if (sy !== 1) {
+                const newHeight = Math.max(1, (tblWallFlr.height() || 0) * sy);
+                /* Defensive: bottom-center anchor only changes scaleY,
+                 * but reset scaleX too in case future code enables a
+                 * second anchor. */
+                tblWallFlr.scaleX(1);
+                tblWallFlr.scaleY(1);
+                tblWallFlr.height(newHeight);
+            }
+            layoutWallChairsChildren(tblWallFlr);
+            updateFormatDetails(e);
+        }
+
         //  snapToGuideLines(e);
         if (tblWallFlr.data_labelField) {
             updateShading(tblWallFlr);
@@ -15476,30 +15566,105 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
         lastSelectedNodePosition = deepCopyNode(tblWallFlr);
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
-            tr.nodes()[0].shadowColor('grey').shadowBlur(10).shadowOpacity(0.5).shadowEnabled(true).opacity(0.4);
+            /* wallChairs is a Konva.Group post-refactor — shadowColor /
+             * shadowBlur / shadowOpacity / shadowEnabled are Konva.Shape-only
+             * and throw TypeError on a Group, which kills the rest of this
+             * handler AND the matching transformend snap path. opacity()
+             * exists on Konva.Node (Group's base), so the dim feedback the
+             * original Konva.Shape version provided still works. */
+            tr.nodes()[0].opacity(0.4);
         }
     });
 
     tblWallFlr.on('transformend', function tableOnTransformed(e) {
         let theDeviceId = e.target.data_deviceid;
-        /* round out the wallChairs width to a singleChairWidth */
+        /* Snap the wallChairs row length DOWN to the largest integer
+         * multiple of the chair-on-center spacing that still fits
+         * within the user's dragged height — i.e. exactly the number
+         * of fully-visible chairs the live-drag was showing. Matches
+         * the Math.floor + epsilon contract documented in
+         * `layoutWallChairsChildren()` so the rect ends the drag
+         * flush against the last chair (no trailing whitespace, no
+         * partial-chair clipping).
+         *
+         * Pre-fix this branch used Math.round, which would snap UP to
+         * (count + 1)*spacing whenever the dragged height crossed the
+         * halfway mark — that's the rounding behaviour the user
+         * called out as "different than the rounding that happened
+         * before".
+         *
+         * Reads spacing from the Konva node (carries the four-place-
+         * rule mirror) so a user-customised `data_chairSpacing` is
+         * honoured instead of the hardcoded 2.35 ft / 0.716 m
+         * default the original code used. */
         if (e.target.data_deviceid === 'wallChairs' && tr.nodes().length === 1) {
             let chairs = tr.nodes()[0];
-            let singleChairWidth = 2.35;
-            if (roomObj.unit === 'meters') {
-                singleChairWidth = 2.35 / 3.28084;
-            }
-            chairs.shadowEnabled(false).opacity(1);
-            let height = Math.round((chairs.height()) / singleChairWidth / scale) * singleChairWidth * scale;
+            let singleChairWidth = getChairSpacing(chairs, roomObj.unit);
+            /* Restore the opacity dim applied in transformstart. shadowEnabled
+             * is Konva.Shape-only and throws on Group — the pre-fix call
+             * `chairs.shadowEnabled(false).opacity(1)` was the actual reason
+             * the snap (and the deferred setTimeout(updateItem)) never ran. */
+            chairs.opacity(1);
 
-            if (height < singleChairWidth * scale) {
-                height = singleChairWidth * scale;
+            /* Defensive bake: the live `tblWallFlr.on('transform')` handler
+             * above bakes scaleY into height every frame, so by here scaleY
+             * should already be 1. But if Konva fires transformend without
+             * a final transform (e.g. micro-drag, anchor-tap), scaleY can
+             * still be non-1 — fold it in before we measure. Without this,
+             * `chairs.height()` would read the pre-bake value and the snap
+             * would compute the WRONG count, leaving the rect oversized. */
+            const liveSy = chairs.scaleY();
+            if (liveSy !== 1) {
+                const bakedH = Math.max(1, (chairs.height() || 0) * liveSy);
+                chairs.scaleX(1);
+                chairs.scaleY(1);
+                chairs.height(bakedH);
             }
+
+            const slotPx = singleChairWidth * scale;
+            const count = Math.max(
+                1,
+                Math.floor((chairs.height() || 0) / slotPx + 0.0001)
+            );
+            const height = count * slotPx;
 
             document.getElementById('itemLength').value = height / scale;
 
-            chairs.attrs.height = height;
+            /* Use the Konva setter (not `attrs.height = …`) so the
+             * Group's internal bbox cache is invalidated — important
+             * for the tr.forceUpdate() below and for any downstream
+             * `getClientRect()` reader. */
+            chairs.height(height);
+            /* Rebuild the inner bg Rect AND the chair Images (their
+             * heights / positions were baked at the drag's last frame,
+             * before the snap above shortened the group). Without this,
+             * the bg Rect would briefly extend past the chairs until the
+             * setTimeout updateItem() at the bottom of this handler fully
+             * re-builds the row via insertTable. Cheap — chair count is
+             * small and the chair Image bitmap is module-level cached. */
+            layoutWallChairsChildren(chairs);
+            /* Konva's Transformer caches the wrapped node's bbox at
+             * attach time AND at the end of each drag/transform
+             * gesture. Mutating `chairs.height(...)` after
+             * transformend does NOT auto-refresh that cache, so the
+             * blue selection outline would keep showing the
+             * pre-snap (over-sized) bbox until the 100 ms
+             * setTimeout(updateItem) below re-creates the node and
+             * re-binds tr.nodes([newNode]). `tr.forceUpdate()` is the
+             * documented Konva API to re-read the bbox in place. */
+            tr.forceUpdate();
 
+            /* `tr.forceUpdate()` only updates the Transformer's INTERNAL
+             * bbox cache + anchor / border-rect attrs in memory — it does
+             * NOT repaint. During a live transform, Konva auto-batchDraws
+             * each frame; that loop stops when the gesture ends. Without
+             * an explicit redraw here, the user sees the pre-snap (over-
+             * sized) blue outline + bg Rect + chairs until the 100 ms
+             * setTimeout(updateItem) further down finally rebuilds the
+             * node and triggers a draw via insertTable. The 100 ms latency
+             * is exactly the "Rect is not snapping to the last chair when
+             * finished" symptom the user reported. */
+            layerTransform.batchDraw();
         }
 
         allGuideLines.forEach(guideLine => {
@@ -16105,13 +16270,15 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
             let attrs = node.attrs;
 
-            if (node.data_deviceid === 'wallChairs') {
-                let fillScaleX = scale / oldScale * node.fillPatternScaleX();
-                node.fillPatternScaleX(fillScaleX);
-                let fillScaleY = scale / oldScale * node.fillPatternScaleY();
-                node.fillPatternScaleY(fillScaleY);
-
-            }
+            /* wallChairs is now a Konva.Group with one Konva.Image per
+             * chair (see layoutWallChairsChildren()). The standard
+             * width/height branches further below rescale the Group's
+             * own attrs to the new scale; we then call the dedicated
+             * `isWallChairs` branch (mirror of the dimensionLine
+             * pattern below) to rebuild the chair children at the new
+             * pixel size. The legacy `fillPatternScaleX/Y` calls that
+             * used to live here would now throw — those are Konva.Shape
+             * methods, not available on Konva.Group. */
 
             if (node.data_deviceid === 'pathShape') {
                 let newScaleX = scale / oldScale * node.scaleX();
@@ -16237,6 +16404,18 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 updateDimensionLineWidget(node);
             }
 
+            /* Same reasoning as dimensionLine above — wallChairs is a
+             * Konva.Group whose chair Konva.Image children live in the
+             * Group's local coords and aren't iterated by this loop.
+             * The width/height branches above have already updated the
+             * Group's own attrs to the new pixel scale; call
+             * layoutWallChairsChildren() to repaint the children at
+             * the new size. (No-op cost: chair count is small and the
+             * chair Image bitmap is module-level cached.) */
+            if (node.data_deviceid === 'wallChairs') {
+                layoutWallChairsChildren(node);
+            }
+
 
         }
     }
@@ -16281,7 +16460,7 @@ function removeShadingTrNodes() {
              * node here either — same throw as in updateTrNodesShading(),
              * which would mid-forEach and leave lastTrNodesWithShading
              * desynced from the canvas state. */
-            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
+            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || node.data_deviceid === 'wallChairs') {
                 const inner = getCompositeHighlightRect(node);
                 if (inner && 'data_origFill' in inner) {
                     inner.fill(inner.data_origFill);
@@ -16448,7 +16627,7 @@ function updateTrNodesShading() {
          * rotate / marquee involving one of these items. The inner
          * child (Tag / Rect) IS a real Konva.Shape and is safe to
          * paint. Mirror this branch in removeShadingTrNodes(). */
-        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid)) {
+        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || node.data_deviceid === 'wallChairs') {
             if (copyTrNodes.length > 1) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner) {
@@ -16766,6 +16945,13 @@ function updateItem() {
 
     let data_trapNarrowWidth = document.getElementById('trapNarrowWidth').value;
 
+    /* wallChairs Distance between Center of Chairs. Empty input ⇒
+     * delete the override and fall back to the 2.35 ft / 0.716 m
+     * default at render / expand time (mirrors data_vHeight pattern). */
+    let data_chairSpacing = document.getElementById('itemChairSpacing')
+        ? document.getElementById('itemChairSpacing').value
+        : '';
+
     /* Make the button disabled for a short time.  Pushing the button too fast too many times creates an issue where Canvas data is lost */
     document.getElementById("btnUpdateItemId").disabled = true;
 
@@ -16896,6 +17082,16 @@ function updateItem() {
             } else {
                 data_trapNarrowWidth = 0.01;
                 item.data_trapNarrowWidth = data_trapNarrowWidth;
+            }
+        }
+
+        if (item.data_deviceid === 'wallChairs') {
+            const csNum = Number(data_chairSpacing);
+            if (data_chairSpacing !== '' && isFinite(csNum) && csNum > 0) {
+                item.data_chairSpacing = csNum;
+            } else if ('data_chairSpacing' in item) {
+                /* Empty / invalid input ⇒ fall back to default. */
+                delete item.data_chairSpacing;
             }
         }
 
@@ -19181,6 +19377,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
          * device that adopts these attrs picks them up automatically. */
         node.data_lineWidth   = (attrs.data_lineWidth   == null) ? null : Number(attrs.data_lineWidth);
         node.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
+
+        /* wallChairs chair-on-center spacing — defensive mirror.
+         * wallChairs routes through insertTable(), but the four-place
+         * rule wants both writers consistent. */
+        node.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -22094,6 +22295,12 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('trapNarrowWidthDiv').style.display = 'none';
     }
 
+    /* Distance between Center of Chairs — wallChairs only. */
+    const chairSpacingDiv = document.getElementById('chairSpacingDiv');
+    if (chairSpacingDiv) {
+        chairSpacingDiv.style.display = (shape.data_deviceid === 'wallChairs') ? '' : 'none';
+    }
+
     if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
         document.getElementById('itemVheightDiv').style.display = '';
     } else {
@@ -22273,6 +22480,22 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('trapNarrowWidth').value = (roomObj.unit === 'feet') ? 2.5 : 0.75;
     }
 
+    /* Distance between Center of Chairs (wallChairs). Empty input
+     * shows the default as a placeholder so the user sees "what's it
+     * actually using" without committing the value to the data. */
+    const itemChairSpacing = document.getElementById('itemChairSpacing');
+    if (itemChairSpacing) {
+        const defaultSpacing = (roomObj.unit === 'feet')
+            ? DEFAULT_CHAIR_SPACING_FEET
+            : round(DEFAULT_CHAIR_SPACING_METERS);
+        if ('data_chairSpacing' in item && item.data_chairSpacing != null) {
+            itemChairSpacing.value = item.data_chairSpacing;
+        } else {
+            itemChairSpacing.value = '';
+        }
+        itemChairSpacing.placeholder = defaultSpacing;
+    }
+
     if ('data_vHeight' in item && item.data_vHeight) {
         document.getElementById('itemVheight').value = item.data_vHeight;
     } else {
@@ -22336,6 +22559,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('itemVheightDiv').style.display = 'none';
             document.getElementById('tblRectRadiusRow').style.display = 'none';
             document.getElementById('trapNarrowWidthDiv').style.display = 'none';
+            const __csDivText = document.getElementById('chairSpacingDiv');
+            if (__csDivText) __csDivText.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
             /* Tilt + Lean stay visible (data_tilt / data_slant export
              * as rotation[0] / rotation[2] in workspaceObjTextPush for
@@ -22387,6 +22612,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('itemVheightDiv').style.display = 'none';
             document.getElementById('tblRectRadiusRow').style.display = 'none';
             document.getElementById('trapNarrowWidthDiv').style.display = 'none';
+            const __csDivDim = document.getElementById('chairSpacingDiv');
+            if (__csDivDim) __csDivDim.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
             document.getElementById('itemTiltSlantDiv').style.display = 'none';
             document.getElementById('itemTiltDiv').style.display = 'none';
@@ -25266,13 +25493,240 @@ function onQuickInputKey(event) {
     }
 }
 
+/* Default chair-on-center spacing for the wallChairs ("Row of Chairs")
+ * item. Stored as 2.35 ft (≈ 0.7163 m).
+ *
+ * Rendering model (current — see `layoutWallChairsChildren()`):
+ *   The row is a `Konva.Group` containing one transparent bg Rect plus
+ *   N `Konva.Image` children, each rendered at a CONSTANT footprint of
+ *   `DEFAULT_CHAIR_DEPTH × DEFAULT_CHAIR_SPACING` (≈ 2.13 × 2.35 ft)
+ *   sourced from `assets/images/chairs-top.png` — the same 80×87 PNG
+ *   the pre-refactor fillPatternImage renderer used, picked because
+ *   its chair art fills the canvas edge-to-edge (no per-tile padding)
+ *   so consecutive chairs in a row visually touch at default spacing.
+ *   (`chair-top.png` was tried briefly but had ~5% padding around the
+ *   chair art on every side, which showed up as visible gaps between
+ *   chairs in the new per-Image renderer that the legacy fillPattern
+ *   tiling had hidden.)
+ *
+ *   Chairs sit at intervals of `data_chairSpacing` along the row's Y
+ *   axis — so a spacing less than the natural footprint makes them
+ *   visually overlap, and a spacing greater than it leaves gaps. The
+ *   chair glyph itself is never stretched or compressed; only its
+ *   position changes.
+ *
+ *   The row's Width (depth, X axis) is locked at
+ *   `DEFAULT_CHAIR_DEPTH_<unit>` (0.65 m / ≈ 2.13 ft). This is the
+ *   same canonical value the pre-refactor code wrote via
+ *   `wallWidth = 0.65 * scale` (later multiplied by 3.28084 in feet
+ *   mode), so existing rooms re-load with the original visual width.
+ *
+ *   `CHAIR_TILE_IMAGE_WIDTH_PX` (80) and `CHAIR_TILE_IMAGE_HEIGHT_PX`
+ *   (87) are the intrinsic pixel dimensions of `chairs-top.png`.
+ *   They are NOT currently used to derive the row width (that's
+ *   driven by `DEFAULT_CHAIR_DEPTH_*` above) — they're kept as
+ *   documentation of the asset's natural aspect ratio (≈ 0.92), which
+ *   is slightly wider than the rendered slot's 0.906 ratio
+ *   (2.13 / 2.35). The 1.4% horizontal squeeze that results matches
+ *   the pre-refactor render exactly, since that code also rendered
+ *   the same tile into the same 2.13 × 2.35 ft cell.
+ *
+ *   Slot count uses `Math.round(height / spacing)` — the same formula
+ *   `expandChairs()` uses when exporting to Workspace Designer / DXF /
+ *   xConfig, so the canvas preview chair count always matches the
+ *   exported chair count. */
+const DEFAULT_CHAIR_SPACING_FEET = 2.35;
+const DEFAULT_CHAIR_SPACING_METERS = DEFAULT_CHAIR_SPACING_FEET / 3.28084;
+const DEFAULT_CHAIR_DEPTH_METERS = 0.65;
+const DEFAULT_CHAIR_DEPTH_FEET = DEFAULT_CHAIR_DEPTH_METERS * 3.28084;
+const CHAIR_TILE_IMAGE_HEIGHT_PX = 87;
+const CHAIR_TILE_IMAGE_WIDTH_PX = 80;
+
+/* Return chair-on-center spacing for a wallChairs row in `unit`.
+ *   - Reads item.data_chairSpacing when present (already in the item's
+ *     stored unit per the convertItemUnitBasedOnRatio convention).
+ *   - Otherwise returns 2.35 ft (feet) or 0.716 m (meters).
+ * Defensive: a non-finite or <= 0 override falls back to the default
+ * so a hand-edited URL / JSON can't divide-by-zero downstream. */
+function getChairSpacing(item, unit) {
+    unit = unit || roomObj.unit;
+    if (item && item.data_chairSpacing != null) {
+        const v = Number(item.data_chairSpacing);
+        if (isFinite(v) && v > 0) return v;
+    }
+    return (unit === 'meters') ? DEFAULT_CHAIR_SPACING_METERS : DEFAULT_CHAIR_SPACING_FEET;
+}
+
+/* Lazy-loaded HTMLImageElement for the chairs-top.png glyph used by
+ * wallChairs rows. One Image element is cached for the lifetime of
+ * the page so subsequent layoutWallChairsChildren() calls (chair
+ * count changes, spacing edits, resize, copy/paste, etc.) can attach
+ * the same decoded bitmap to every new Konva.Image instance without
+ * re-decoding. While the load is in flight any layout calls register
+ * a callback that runs once the bitmap is ready and back-fills every
+ * empty <Konva.Image>'s `image()` in batch.
+ *
+ * Image source: `chairs-top.png` (80×87, back-on-LEFT orientation).
+ * The richer `chair-top.png` (200×203) was tried first but its ~5%
+ * per-edge padding around the chair art showed up as visible gaps
+ * between consecutive chairs in the new per-Image renderer that the
+ * pre-refactor fillPattern tiling had hidden — see the comment block
+ * above `DEFAULT_CHAIR_SPACING_FEET`. */
+let _wallChairsChairImageCached = null;
+const _wallChairsChairImagePending = [];
+
+function loadWallChairsChairImage(then) {
+    if (_wallChairsChairImageCached) {
+        then(_wallChairsChairImageCached);
+        return;
+    }
+    _wallChairsChairImagePending.push(then);
+    /* First caller kicks off the load; subsequent callers just queue. */
+    if (_wallChairsChairImagePending.length > 1) return;
+    const img = new Image();
+    img.onload = function wallChairsChairImageOnLoad() {
+        _wallChairsChairImageCached = img;
+        const pending = _wallChairsChairImagePending.splice(0);
+        pending.forEach(cb => { try { cb(img); } catch (_) { /* swallow */ } });
+    };
+    img.src = './assets/images/chairs-top.png';
+}
+
+/* Build (or rebuild) the children of a wallChairs Konva.Group:
+ *   - One transparent-fill Konva.Rect spanning the group's full bounds
+ *     (so the Transformer has a stable bbox AND clicks in the gaps
+ *     between chair glyphs still select the row).
+ *   - N Konva.Image children, one per chair slot, each rendered at a
+ *     CONSTANT footprint (DEFAULT_CHAIR_DEPTH × DEFAULT_CHAIR_SPACING
+ *     = 2.13 × 2.35 ft = 0.65 × 0.716 m). Spacing < natural footprint
+ *     ⇒ chairs visually overlap; spacing > natural footprint ⇒
+ *     chairs leave gaps. The row width never changes, the chair
+ *     glyph never distorts.
+ *
+ *     Image source is `chairs-top.png`, which is naturally oriented
+ *     with the chair back on the LEFT side (chair faces +X / RIGHT)
+ *     — exactly the orientation a vertical wallChairs row needs at
+ *     rotation 0. No per-Image rotation is required.
+ *
+ * Slot count uses Math.round(height / spacing) — identical to the
+ * formula in expandChairs() so the canvas preview matches the chair
+ * count emitted to Workspace Designer / DXF / xConfig exports.
+ *
+ * Destroys-and-rebuilds children every call; cheap because chair count
+ * is small (a 30 ft row at 2.35 ft spacing is 13 chairs) and the
+ * underlying chair Image bitmap is cached module-level. */
+function layoutWallChairsChildren(group) {
+    if (!group) return;
+    const groupHeight = group.height() || 0;
+    const groupWidth = group.width() || 0;
+    const chairSpacing = getChairSpacing(group, unit);
+    const defaultSpacing = (unit === 'meters')
+        ? DEFAULT_CHAIR_SPACING_METERS
+        : DEFAULT_CHAIR_SPACING_FEET;
+    /* Canonical chair footprint — same 2.13 × 2.35 ft / 0.65 × 0.716
+     * m cell the pre-refactor fillPattern renderer projected each
+     * chairs-top.png tile into. */
+    const chairDepthUnit = (unit === 'meters')
+        ? DEFAULT_CHAIR_DEPTH_METERS
+        : DEFAULT_CHAIR_DEPTH_FEET;
+    const chairDepthPx = chairDepthUnit * scale; /* across the row (X) */
+    const chairLengthPx = defaultSpacing * scale; /* along the row (Y) */
+    /* Defensive: if width hasn't been set yet (insertTable always sets
+     * it to chairDepthPx, but a future caller might not), fall back to
+     * the canonical depth so we don't paint a zero-width row. */
+    const widthPx = groupWidth || chairDepthPx;
+
+    const slotPx = chairSpacing * scale;
+    /* Math.floor (+ a tiny epsilon to absorb float-precision drift on
+     * a freshly-snapped height like `count * slotPx`) so a partially-
+     * visible last chair is never drawn. The pre-fix code used
+     * Math.round, which caused a 1-chair pop-in / pop-out flicker at
+     * the (N + 0.5)*slot mark while the user was live-resizing the
+     * row from a Transformer anchor — every other frame the partial
+     * trailing chair would rounded up to a full chair, even though
+     * its glyph extended past the row's bottom edge.
+     *
+     * The matching snap-down to `count * slotPx` happens on the
+     * Transformer's `transformend` (see the wallChairs branch of
+     * `tblWallFlr.on('transformend', …)` in `insertTable()`), so the
+     * row's bbox always finishes the drag flush against the last
+     * fully-visible chair. */
+    let count = Math.max(1, Math.floor(groupHeight / slotPx + 0.0001));
+
+    group.destroyChildren();
+
+    /* The bg Rect tracks the live-dragged `groupHeight` (NOT
+     * `count * slotPx`) so the gray outline grows / shrinks smoothly
+     * with the cursor during a Transformer-anchor resize. Painting
+     * it at `count * slotPx` instead made the outline snap in
+     * discrete chair-width jumps every frame, which read as visible
+     * flickering at every slot-boundary cursor crossing.
+     *
+     * The leftover slack between the last chair (at `count * slotPx`)
+     * and the bg Rect's bottom (at `groupHeight`) lasts at most one
+     * full slot AND at most ~100 ms — the transformend snap (see
+     * `tblWallFlr.on('transformend', …)` in `insertTable()`) sets
+     * `chairs.height(count * slotPx)` and re-runs this helper to
+     * paint the bg Rect at the snapped height, and the deferred
+     * `updateItem()` rebuilds the row from scratch shortly after. */
+    group.add(new Konva.Rect({
+        x: 0,
+        y: 0,
+        width: widthPx,
+        height: groupHeight,
+        fill: 'rgba(0,0,0,0)',
+        stroke: '#aaaaaa',
+        strokeWidth: 1,
+        listening: true,
+        name: 'wallChairs-bg',
+    }));
+
+    /* listening:false on each chair Image so all hit-testing routes
+     * to the bg Rect (mirrors the prior single-shape fillPattern
+     * behaviour — the row is one selectable unit).
+     *
+     * Each chair Image renders at chairDepthPx × chairLengthPx with
+     * its centre at the slot centre via offsetX / offsetY. No rotation
+     * — `chairs-top.png` is already authored back-on-left / facing-
+     * right, which is exactly what a vertical wallChairs row needs at
+     * row rotation 0. At default spacing chairLengthPx == slotPx, so
+     * consecutive chairs touch edge-to-edge and reproduce the
+     * pre-refactor seamless tiled look. */
+    for (let i = 0; i < count; i++) {
+        const cx = widthPx / 2;
+        const cy = (i + 0.5) * slotPx;
+        const chair = new Konva.Image({
+            x: cx,
+            y: cy,
+            width: chairDepthPx,
+            height: chairLengthPx,
+            offsetX: chairDepthPx / 2,
+            offsetY: chairLengthPx / 2,
+            image: _wallChairsChairImageCached || null,
+            listening: false,
+            name: 'wallChairs-chair',
+        });
+        group.add(chair);
+    }
+
+    /* First-row-of-the-session async load: register a callback that
+     * back-fills every empty chair Image in this group and triggers a
+     * batchDraw once the bitmap is ready. */
+    if (!_wallChairsChairImageCached) {
+        loadWallChairsChairImage(function wallChairsChairImageReady(img) {
+            group.find('.wallChairs-chair').forEach(function (node) {
+                if (!node.image()) node.image(img);
+            });
+            const layer = group.getLayer();
+            if (layer) layer.batchDraw();
+        });
+    }
+}
+
 /* Take a wallChairs object and return an array of chairs */
 function expandChairs(item, unit = roomObj.unit) {
-    let singleChairWidth = 2.35;
+    let singleChairWidth = getChairSpacing(item, unit);
     let chairArray = [];
-    if (unit === 'meters') {
-        singleChairWidth = singleChairWidth / 3.28084;
-    }
 
     let numberOfChairs = Math.round(item.height / singleChairWidth)
 
@@ -27800,8 +28254,9 @@ async function exportDxfFile() {
      *  is not duplicated N times in the CAD drawing. */
     function emitWallChairsRow(item) {
         /* Build a meters-unit shadow of the row so expandChairs() can
-         * use its hard-coded 2.35 ft / 0.716 m chair-on-center spacing
-         * with consistent units. We only need the geometry fields. */
+         * use the default 2.35 ft / 0.716 m chair-on-center spacing
+         * (or the per-row data_chairSpacing override) with consistent
+         * units. We only need the geometry fields. */
         const itemM = {
             x: toM(item.x),
             y: toM(item.y),
@@ -27814,6 +28269,16 @@ async function exportDxfFile() {
         if ('data_zPosition' in item) itemM.data_zPosition = item.data_zPosition;
         if ('data_tilt' in item) itemM.data_tilt = item.data_tilt;
         if ('data_slant' in item) itemM.data_slant = item.data_slant;
+        /* Per-row chair-on-center spacing — convert feet → meters when
+         * the room is in feet so expandChairs(itemM, 'meters') sees a
+         * meters-native value. Absent ⇒ falls back to the meters
+         * default inside getChairSpacing(). */
+        if ('data_chairSpacing' in item && item.data_chairSpacing != null) {
+            const csNum = Number(item.data_chairSpacing);
+            if (isFinite(csNum) && csNum > 0) {
+                itemM.data_chairSpacing = toM(csNum);
+            }
+        }
 
         const chairList = expandChairs(itemM, 'meters');
         if (!Array.isArray(chairList) || chairList.length === 0) return;

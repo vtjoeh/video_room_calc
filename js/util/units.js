@@ -192,6 +192,10 @@ window.VRC.util = window.VRC.util || {};
                 item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
             }
 
+            if ('data_chairSpacing' in item && !isNaN(item.data_chairSpacing)) {
+                item.data_chairSpacing = round(item.data_chairSpacing * ratio);
+            }
+
             if ('tblRectRadiusRight' in item) {
                 item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
             }
