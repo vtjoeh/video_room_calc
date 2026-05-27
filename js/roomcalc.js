@@ -6283,7 +6283,7 @@ let tables = [{
     configurableColor: true,
 },
 {
-    name: 'Cone*',
+    name: 'Cone',
     id: 'cone',
     key: 'WQ',
     frontImage: 'cone-menu.png',
@@ -22904,12 +22904,16 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             const __ncDivText = document.getElementById('numChairsDiv');
             if (__ncDivText) __ncDivText.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
-            /* Tilt + Lean stay visible (data_tilt / data_slant export
-             * as rotation[0] / rotation[2] in workspaceObjTextPush for
-             * wdText; vrcText preserves them through data.vrc.vrcTexts). */
-            document.getElementById('itemTiltSlantDiv').style.display = '';
-            document.getElementById('itemTiltDiv').style.display = '';
-            document.getElementById('itemSlantDiv').style.display = '';
+            /* Tilt + Lean visibility follows the global showTiltSlantCheckBox
+             * set by the earlier block in this function (~line 22739) — same
+             * convention as every other non-videoDevice item. data_tilt /
+             * data_slant DO export for wdText (rotation[0] / rotation[2] in
+             * workspaceObjTextPush) and round-trip for vrcText (verbatim via
+             * data.vrc.vrcTexts), so when the user toggles the WD Tilt/Lean
+             * checkbox on, the inputs surface and edits flow through. The
+             * earlier block also force-shows the divs when an item already
+             * carries non-default data_tilt / data_slant, so saved values
+             * remain editable even with the checkbox off. */
             if (zDiv) zDiv.style.display = '';
             if (lwpsRow) lwpsRow.style.display = 'none';
         } else if (isDimensionLine(shape.data_deviceid)) {
@@ -23965,7 +23969,7 @@ function createEquipmentMenu() {
      * fresh cone). The device-def remains in `allDeviceTypes` so cones
      * loaded from existing .vrc.json files, shareable URLs, and WD
      * imports continue to render and round-trip cleanly. */
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
