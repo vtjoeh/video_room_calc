@@ -315,6 +315,7 @@ Current participants:
 | `wallStd`     | ✓ | ✓ | `gray`      | 0.8 |
 | `columnRect`  | ✓ | ✓ | `gray`      | 0.8 |
 | `cylinder`    | ✓ | ✓ | `grey`      | 0.4 (device-def `opacity`) |
+| `cone`        | ✓ | ✓ | `grey`      | 0.4 (device-def `opacity`) |
 | `sphere`      | ✓ | — | radial gradient (`white → grey → grey`) | 0.8 |
 | `pathShape`   | ✓ | ✓ | `#D3D3D3` (with `data_labelField` JSON `"color"` / `"opacity"` as a secondary fallback — see "pathShape precedence" below) | device-def `opacity` (currently `1 / scale`-driven local default ≈ `0.8` after the `wdOpacity` adjustment chain) |
 | `wdText`      | ✓ | — | (canvas: blue tag `#588ce5ff` with white text — not affected by the picker; WD-export `color` defaults to `"black"` and IS driven by the picker) | n/a |
@@ -360,6 +361,29 @@ the `new Konva.Shape({...})` constructor but BEFORE the first redraw,
 so the `sceneFunc`'s read sees the correct value on every draw,
 including the very first one.
 
+### Cone (cylinder variant with `data_radius2`)
+
+`cone` is a sibling of `cylinder`. WD has no native cone object so
+the export rides the existing `cylinder` `objectType` and adds a
+`radius2` attribute; on import a `cylinder` carrying `radius2` is
+re-routed to `cone` after the scoring loop in `wdItemToRoomObjItem()`.
+
+| Surface | Convention |
+|---------|------------|
+| `data_deviceid` | `'cone'` |
+| URL key (item prefix) | `WQ` (next free `W_` slot — `WO`/`WP` are wallChairs* variants and `WL`/`WM` are pathShape/wdText) |
+| URL per-item attribute | `y{N}` where N = `data_radius2 × 100` in current unit (mm in meters mode, hundredths of a foot in feet mode). Decoder gates on `data_deviceid === 'cone'`; `y` continues to mean `data_lineWidth` for `dimensionLine` items. |
+| `roomObj.items` shape | `item.width = 2 × radius1` (cylinder convention; `item.height` is forced equal to `item.width` in `updateItem()`); `item.data_radius2 = <radius2>` (raw radius value, not a diameter). |
+| Konva render | Single `Konva.Shape` with `sceneFunc` that draws two concentric ellipses — outer radius = `width / 2` (in pixels, since `shape.getAttr('width')` is already pixel-converted), inner radius = `data_radius2 × scale` (where `scale` is pixels-per-current-unit, the same global other items use to convert `attrs.width` → pixels via `attrs.width * scale`). Each `fillStrokeShape` call paints both fill and stroke; the overlap doubles the effective opacity inside the inner circle, producing the "filled inner disc + outer ring" look from the menu image. **DO NOT use `unitScale`** — that variable is `scale * 3.28084` in feet mode (pixels-per-meter, used for meters-anchored minimums elsewhere). Using `unitScale` would render `data_radius2` as if it were a meter value, blowing the inner circle up by ~3.28× in feet mode (the bug fixed in v0.1.65x). |
+| `getSelfRect` override | The cone branch overrides `tblWallFlr.getSelfRect` to return `{x: -offset, y: -offset, width: d, height: d}` where `d = max(width, 2 × data_radius2 × scale)`. Without this, when `radius2 > radius1` the visible outer circle would extend beyond the Konva-default `{0, 0, width, height}` bounding box and the Transformer / hit detection would clip to the smaller width-derived box. Same `scale`-vs-`unitScale` rule as the `sceneFunc`. |
+| Resize handles | None. `enableCopyDelBtn()` routes cone selections to `tr.resizeEnabled(false)` (its own branch — sibling to the sphere/cylinder/columnRect branch that does enable a `bottom-right` anchor). Cones are resized exclusively by typing into the Radius / Radius2 inputs in the Details panel, since both radii are independent of each other (and either can be larger). |
+| Details panel | "Width" relabels to "Radius" (the input shows `width / 2`); "Length" hidden (a circle has no second axis); a new "Radius2" input is shown for cone, populated from `data_radius2`. `updateFormatDetails()` is split into TWO cone blocks: the early block (just below the panel-show switch) toggles label text + length-div / radius2-div visibility; the late block (immediately after the canonical `itemWidth.value = round(shape.width()/scale)` line and the dimensionLine override) writes the half-of-width value into the Radius input AND fills the Radius2 input. Splitting was required because the early block's value-write was being clobbered by the canonical assignment (the bug fixed in v0.1.65x). `updateItem()` reads the radius input and writes `item.width = 2 × radius1`, then forces `item.height = item.width` via the existing `sphere/cylinder/cone` branch. |
+| WD export | `workspaceObjWallPush()` cone branch: `objectType: 'cylinder'`, `radius`, `radius2`, `length` (from `data_vHeight` or room height), and the standard tilt/rotation/slant rotation triple. `width`/`height` are deleted before push. WD JSON is meters-only, so `convertToMeters()` (in [js/util/units.js](js/util/units.js)) MUST scale `data_radius2` by `ratio = 1/3.28084` in feet mode — same as it does for `width`/`height`/`data_vHeight`. The companion `convertItemUnitBasedOnRatio()` (used by the in-app feet↔meters toggle) already includes `data_radius2`; the two paths must stay in sync. |
+| WD import | Post-scoring override at the end of the WD import loop converts `wdItem.objectType === 'cylinder' && 'radius2' in wdItem` to `candidateKeyName = 'cone'`. The width/height/data_vHeight/position branches all extend the existing cylinder cases to cover cone, and a final block deletes both `wdItem.radius` and `wdItem.radius2` so they don't survive into `roomObj.items`. |
+| Defaults | Radius = 0.1 m (0.33 ft), Radius2 = 0.3 m (0.98 ft), Height (data_vHeight) = 0.8 m (2.63 ft). Defaults are applied in three places: (1) `insertTable()` width default (`width = 0.2 × scale` → diameter 0.2 m → radius1 0.1 m); (2) the cone `else if` branch in `insertTable()` (sets `tblWallFlr.data_radius2` when `attrs.data_radius2 == null`); (3) the cone device-def has `default_vHeight: 800` (mm), which `insertItemFromMenu()` reads and writes to `attrs.data_vHeight` BEFORE the `roomObj.items.push(attrs)` so the value survives the first canvasToJson cycle. **Why no insertTable() default for `data_vHeight`?** Because `updateRoomObjFromTrNode()`'s patch branch (the map-hit code that runs when an item is already in `roomObjItemsMap`) does NOT mirror `data_vHeight` from the Konva node back into the roomObj item — only the push branch carries `data_vHeight` forward via the initial `attrs`. A Konva-node-only `data_vHeight` default in `insertTable()` would be lost on the very next canvasToJson, leaving the Details panel showing a blank Height field with the room-height placeholder. The Equipment menu does NOT expose a cone tile (see "Menu absence" below); these defaults fire on Quick Add insertion and on `.vrc.json` / URL / WD import paths. |
+| Menu absence | Cone is **not** in the `wallsMenu` array in `createItemsOnMenu` — the user cannot add a fresh cone from the Equipment menu. The device definition remains in `allDeviceTypes` so cones loaded from existing `.vrc.json` files, shareable URLs (`WQ` prefix), and WD imports (the `cylinder + radius2` post-scoring override in `wdItemToRoomObjItem()`) continue to render and round-trip cleanly. To re-enable the menu tile, add `'cone'` back to `wallsMenu` (around line 23942 of `js/roomcalc.js`). |
+| 0.999 opacity sentinel | Inherited from pathShape — see "cone-only WD opacity sentinel (`0.999`)" above. Same export clamp, same import-side snap-back. |
+
 ### pathShape precedence
 
 `pathShape` is a first-class participant in the `configurableColor` /
@@ -401,6 +425,18 @@ as the implicit "no override" for pathShape specifically, snapping it
 back to no `data_opacity` so a `VRC → WD JSON → VRC` round-trip
 preserves the "default" state. Real user overrides (`0.5`, `0.7`, …)
 are untouched.
+
+#### cone-only WD opacity sentinel (`0.999`)
+
+The `cone` device has the same pair of WD quirks as `pathShape`
+(opacity-1 + color drops the tint), so the same `0.999` sentinel
+applies. `workspaceObjWallPush()` defaults `opacity` to `"1"` whenever
+`workspaceItem.color` is set, then clamps a final `opacity == 1` down to
+`"0.999"` for cone specifically. The WD-import `deviceType.wdOpacity`
+branch treats `opacity >= 0.999` on a `cone` (same condition that
+applies to `pathShape`) as the implicit "no override" so a `VRC → WD
+JSON → VRC` round-trip of a default-opacity cone returns to the
+default state instead of pinning `data_opacity = 0.999`.
 
 ### Data shape
 
@@ -907,7 +943,7 @@ Implementation cross-reference:
 | Site | Where | Behaviour |
 |------|-------|-----------|
 | Device def | `boxes` array in `js/roomcalc.js` (`id: 'vrcText'`, `key: 'XA'`, `family: 'wdText'`) | URL prefix `XA`; family aligned with wdText so any family-gated code path (currently the WD-import position-math skip) treats them identically |
-| Menu | `wallsMenu` array in `createItemsOnMenu` setup | Sits next to `wdText` in the Walls menu |
+| Menu | `wallsMenu` array in `createItemsOnMenu` setup | **NOT included** — cone has no menu surface (see "Menu absence" row in the cone section above). The device-def stays in `allDeviceTypes` for round-trip support; only the menu tile is suppressed |
 | Render | `insertTable()` text branch | Single branch (`isTextItem(insertDevice.id)`) with `isVrcText` boolean choosing tag fill/opacity |
 | WD export — skip | `(wdBuckets.boxes || []).forEach` dispatch | Explicit `else if (item.data_deviceid === 'vrcText') { /* skip */ }` branch sits between wdText and the default wallPush |
 | WD export — emit | After the `data.vrc.customItems` emission block | Iterates `roomObj.items`, picks `vrcText`, converts units, swaps layer UUID for layerName |

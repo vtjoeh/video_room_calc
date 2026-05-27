@@ -184,6 +184,10 @@ window.VRC.util = window.VRC.util || {};
                 item.data_vHeight = round(item.data_vHeight * ratio);
             }
 
+            if ('data_radius2' in item && !isNaN(item.data_radius2)) {
+                item.data_radius2 = item.data_radius2 * ratio;
+            }
+
             if ('tblRectRadius' in item) {
                 item.tblRectRadius = round(item.tblRectRadius * ratio);
             }

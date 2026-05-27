@@ -171,6 +171,7 @@ Each device/furniture type has a 2-character uppercase key:
 | `WK` | Sphere |
 | `WL` | Path Shape |
 | `WM` | Workspace Designer Text (`wdText`) |
+| `WQ` | Cone (cylinder variant with `data_radius2`) |
 
 **Chairs (S_):**
 
@@ -220,6 +221,8 @@ After an item type prefix, lowercase letters encode attributes:
 | `v` | opacity (×100) | Number | `data_opacity` for `wdOpacity` devices. `v{NN}` where NN = opacity × 100 in range [0, 99]. `v50` = 0.50; `v0` = 0. Default (1.0) is omitted entirely |
 | `w` | wdText font size | Integer | `data_fontSize` for `wdText` items only. `w{N}` (integer pt-like units). Default (20) is omitted entirely; encoder also gates on `item.data_deviceid === 'wdText'` so other items can never emit `w` |
 | `x` | wallChairs chair-on-center spacing (×100) | Number | `data_chairSpacing` for `wallChairs` items only. `x{N}` where N = spacing × 100 in current unit (`x235` = 2.35 ft, `x72` = 0.72 m). Default (`DEFAULT_CHAIR_SPACING_FEET` 2.35 ft / `DEFAULT_CHAIR_SPACING_METERS` 0.7163 m, ×100) is omitted entirely; encoder also gates on `item.data_deviceid === 'wallChairs'` so other items can never emit `x` |
+| `y` | dimensionLine line width OR cone radius2 (×100) | Number | Multiplexed by `data_deviceid`. `dimensionLine` → `data_lineWidth` (integer canvas pixels). `cone` → `data_radius2 × 100` in current unit (mm in meters mode, hundredths of a foot in feet mode). Both encoder and decoder gate by deviceid so the meanings never collide |
+| `z` | dimensionLine pointer size | Number | `data_pointerSize` for `dimensionLine` items only |
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 

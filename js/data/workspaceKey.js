@@ -223,6 +223,7 @@ workspaceKey.credenza = { objectType: 'credenza' }
 
 workspaceKey.sphere = { objectType: 'sphere' };
 workspaceKey.cylinder = { objectType: 'cylinder' };
+workspaceKey.cone = { objectType: 'cylinder' };
 
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 

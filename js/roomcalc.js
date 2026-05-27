@@ -6283,6 +6283,29 @@ let tables = [{
     configurableColor: true,
 },
 {
+    name: 'Cone*',
+    id: 'cone',
+    key: 'WQ',
+    frontImage: 'cone-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
+    opacity: 0.4,
+    resizeable: [],
+    configurableColor: true,
+    wdOpacity: true,
+    /* 0.8 m default vertical extent (cone height). insertItemFromMenu()
+     * picks this up and writes attrs.data_vHeight before the
+     * roomObj.items.push(), so the value survives the very first
+     * canvasToJson cycle. The patch branch in
+     * updateRoomObjFromTrNode() does NOT mirror data_vHeight (only the
+     * push branch carries it forward via the initial attrs), so a
+     * Konva-node-only default applied inside insertTable() would be
+     * lost on the next sync — the device-def default_vHeight is the
+     * supported pathway. */
+    default_vHeight: 800,
+},
+{
     name: 'Custom Path Shape',
     id: 'pathShape',
     key: 'WL',
@@ -7610,6 +7633,10 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_chairSpacing = round(item.data_chairSpacing * ratio);
     }
 
+    if ('data_radius2' in item && !isNaN(item.data_radius2)) {
+        item.data_radius2 = round(item.data_radius2 * ratio);
+    }
+
     if ('tblRectRadiusRight' in item) {
         item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
     }
@@ -8526,6 +8553,13 @@ function parseShortenedXYUrl(parameters) {
                 const psNum = parseInt(item.z, 10);
                 if (!isNaN(psNum) && psNum > 0) {
                     newItem.data_pointerSize = psNum;
+                }
+            }
+
+            if ('y' in item && newItem.data_deviceid === 'cone') {
+                const r2Num = Number(item.y) / 100;
+                if (isFinite(r2Num) && r2Num >= 0) {
+                    newItem.data_radius2 = r2Num;
                 }
             }
 
@@ -11583,6 +11617,13 @@ function createShareableLinkItem(item) {
         }
     }
 
+    if (item.data_deviceid === 'cone' && item.data_radius2 != null) {
+        const __r2Num = Number(item.data_radius2);
+        if (isFinite(__r2Num) && __r2Num >= 0) {
+            strItem += 'y' + Math.round(round(__r2Num) * 100);
+        }
+    }
+
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
@@ -12828,6 +12869,10 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_chairSpacing = Number(node.data_chairSpacing);
         }
 
+        if (node.data_radius2 != null) {
+            newAttr.data_radius2 = Number(node.data_radius2);
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -13997,6 +14042,10 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_chairSpacing = Number(node.data_chairSpacing);
         }
 
+        if (node.data_radius2 != null) {
+            itemAttr.data_radius2 = Number(node.data_radius2);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -14071,6 +14120,12 @@ function updateRoomObjFromTrNode() {
                 item.data_chairSpacing = itemAttr.data_chairSpacing;
             } else {
                 delete item.data_chairSpacing;
+            }
+
+            if (itemAttr.data_radius2 != null) {
+                item.data_radius2 = itemAttr.data_radius2;
+            } else {
+                delete item.data_radius2;
             }
 
         } else {
@@ -14360,6 +14415,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 0.45 * scale;
         height = 0.45 * scale;
     }
+    else if (insertDevice.id === 'cone') {
+        /* Default radius1 = 0.1 m → diameter (item.width) = 0.2 m. */
+        width = 0.2 * scale;
+        height = 0.2 * scale;
+    }
     else if (insertDevice.id.startsWith('sphere')) {
         width = 1 * scale;
         height = 1 * scale;
@@ -14394,6 +14454,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             data_vHeight = 1;
         }
     }
+
+    /* NOTE: cone's 0.8 m default vertical extent is supplied via the
+     * device-def `default_vHeight: 800` (mm), which insertItemFromMenu()
+     * applies to attrs.data_vHeight BEFORE the roomObj.items.push().
+     * Defaulting here on the Konva node would be lost on the very first
+     * canvasToJson cycle because the patch branch in
+     * updateRoomObjFromTrNode() does not mirror data_vHeight. */
 
 
     if (unit === 'feet') {
@@ -14969,6 +15036,46 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.fillStrokeShape(shape);
             }
         });
+    } else if (insertDevice.id === 'cone') {
+        /* Default radius2 = 0.3 m (≈ 0.98 ft). */
+        const coneR2Default = (unit === 'feet') ? 0.98 : 0.3;
+        const coneR2Unit = (attrs.data_radius2 == null) ? coneR2Default : Number(attrs.data_radius2);
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: attrs.data_fill || 'grey',
+            stroke: strokeColor,
+            strokeWidth: allDeviceTypes['cone'].strokeWidth,
+            id: uuid,
+            draggable: true,
+            opacity: (attrs.data_opacity == null
+                ? (allDeviceTypes[insertDevice.id].opacity ?? opacity)
+                : Number(attrs.data_opacity)),
+            sceneFunc: (context, shape) => {
+                const w = shape.getAttr('width');
+                const h = shape.getAttr('height');
+                const cx = w / 2, cy = h / 2;
+                const rOuter = w / 2;
+                const rInner = (Number(shape.data_radius2) || 0) * scale;
+                context.beginPath();
+                context.ellipse(cx, cy, rOuter, rOuter, 0, 0, 2 * Math.PI);
+                context.fillStrokeShape(shape);
+                context.beginPath();
+                context.ellipse(cx, cy, rInner, rInner, 0, 0, 2 * Math.PI);
+                context.fillStrokeShape(shape);
+            }
+        });
+        tblWallFlr.data_radius2 = coneR2Unit;
+        tblWallFlr.getSelfRect = function () {
+            const w = this.getAttr('width');
+            const r2Px = (Number(this.data_radius2) || 0) * scale;
+            const d = Math.max(w, 2 * r2Px);
+            const offset = (d - w) / 2;
+            return { x: -offset, y: -offset, width: d, height: d };
+        };
     } else if (insertDevice.id === 'tblPodium') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
@@ -17037,6 +17144,19 @@ function updateItem() {
     }
     let width = Number(document.getElementById('itemWidth').value);
     let height = Number(document.getElementById('itemLength').value);
+
+    /* For cone, the Width/Length inputs were relabelled to Radius/Radius2.
+     * The Radius input represents radius1 (item.width = 2 * radius1 per the
+     * cylinder convention), and the new Radius2 input is stored raw on
+     * data_radius2. Length is hidden for cones, so height is forced to
+     * width below alongside the cylinder/sphere block. */
+    let data_radius2 = '';
+    if (document.getElementById('itemName').value === 'cone') {
+        width = width * 2;
+        height = width;
+        const __r2In = document.getElementById('itemRadius2');
+        if (__r2In) data_radius2 = Number(__r2In.value);
+    }
     let data_diagonalInches = document.getElementById('itemDiagonalTv').value;
     let x = Number(document.getElementById('itemX').value);
     let y = Number(document.getElementById('itemY').value);
@@ -17111,8 +17231,14 @@ function updateItem() {
             item.height = height;
         }
 
-        if (data_deviceid === 'sphere' || data_deviceid === 'cylinder') {
+        if (data_deviceid === 'sphere' || data_deviceid === 'cylinder' || data_deviceid === 'cone') {
             item.height = width;
+        }
+
+        if (data_deviceid === 'cone') {
+            if (typeof data_radius2 === 'number' && isFinite(data_radius2) && data_radius2 > 0) {
+                item.data_radius2 = data_radius2;
+            }
         }
 
         if (data_deviceid === 'sphere') {
@@ -19529,6 +19655,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
          * wallChairs routes through insertTable(), but the four-place
          * rule wants both writers consistent. */
         node.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
+
+        node.data_radius2 = (attrs.data_radius2 == null) ? null : Number(attrs.data_radius2);
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -22363,6 +22491,22 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('labelFieldDiv').style.display = '';
     }
 
+    /* Cone: relabel "Width" -> "Radius" and toggle visibility of the
+     * Length / Radius2 inputs. The actual VALUE write for itemWidth
+     * (radius = item.width / 2) happens AFTER the canonical
+     * `itemWidth.value = round(shape.width()/scale)` line below;
+     * otherwise that line clobbers the divide. */
+    const __widthLabelSpan = document.getElementById('itemWidthLabelText');
+    const __radius2Div = document.getElementById('itemRadius2Div');
+    if (shape.data_deviceid === 'cone') {
+        if (__widthLabelSpan) __widthLabelSpan.textContent = 'Radius';
+        document.getElementById('itemLengthDiv').style.display = 'none';
+        if (__radius2Div) __radius2Div.style.display = '';
+    } else {
+        if (__widthLabelSpan) __widthLabelSpan.textContent = 'Width';
+        if (__radius2Div) __radius2Div.style.display = 'none';
+    }
+
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true && !(shape.data_deviceid === 'polyRoom')) {
         document.getElementById('itemWidthLengthDiv').style.display = 'none';
     } else {
@@ -22469,7 +22613,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheightDiv').style.display = 'none';
     }
 
-    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder') && !shape.data_deviceid.startsWith('wallChairs')) {
+    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder' || shape.data_deviceid === 'cone') && !shape.data_deviceid.startsWith('wallChairs')) {
         let itemVheight = document.getElementById('itemVheight');
         let defaultHeight = defaultWallHeight;
 
@@ -22565,6 +22709,20 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
      * populate above so itemLength shows the line length instead. */
     if (isDimensionLine(shape.data_deviceid)) {
         document.getElementById('itemLength').value = round(shape.width() / scale);
+    }
+
+    /* Cone value-write: must run AFTER the canonical itemWidth assignment
+     * above (otherwise it clobbers the halved value). item.width stores
+     * the diameter (cylinder convention); the Radius input shows
+     * width / 2. updateItem() doubles on the way back in. */
+    if (shape.data_deviceid === 'cone') {
+        const __wInput = document.getElementById('itemWidth');
+        if (__wInput) __wInput.value = round(Number(__wInput.value || 0) / 2);
+        const __radius2Input = document.getElementById('itemRadius2');
+        if (__radius2Input) {
+            const __r2 = (shape.data_radius2 != null) ? Number(shape.data_radius2) : 0;
+            __radius2Input.value = round(__r2);
+        }
     }
 
     if ('rotation' in shape.attrs) {
@@ -22898,6 +23056,8 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[18] = ['webcam4k', 'webcam1080p'], 
     
     deviceGroups[19] = ['wallChairs', 'wallChairsSwivel', 'wallChairsStool']
+
+    deviceGroups[20] = ['wdText', 'vrcText'];
 
 
     deviceGroups.forEach((devices, index) => {
@@ -23477,6 +23637,10 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_vHeight = default_vHeight;
     }
 
+    if (data_deviceid === 'cone' && attrs.data_radius2 == null) {
+        attrs.data_radius2 = (roomObj.unit === 'feet') ? 0.98 : 0.3;
+    }
+
     /* wdText/vrcText: prompt the user for the text in a modal before
      * inserting (similar to the rolesDialog flow for cameras like
      * ptzVision2). The dialog handler (confirmTextInsertFromDialog)
@@ -23796,6 +23960,11 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza'];
 
+    /* 'cone' is intentionally NOT in this menu — it cannot be added by
+     * the user via the Equipment menu (no UI surface for inserting a
+     * fresh cone). The device-def remains in `allDeviceTypes` so cones
+     * loaded from existing .vrc.json files, shareable URLs, and WD
+     * imports continue to render and round-trip cleanly. */
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
@@ -24919,6 +25088,9 @@ function resizeTableOrWall() {
             tr.enabledAnchors(['bottom-right']);
             changeWallAnchors('wallChairs');
             tr.resizeEnabled(true);
+        }
+        else if (nodes[0].data_deviceid === 'cone') {
+            tr.resizeEnabled(false);
         }
         else if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
             tr.enabledAnchors(['top-center', 'bottom-center']);
@@ -29625,6 +29797,17 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 }
             }
 
+            /* A WD cylinder carrying `radius2` is a VRC cone. Runs after
+             * the scoring loop so even when scoring picked 'cylinder' on
+             * objectType match, presence of radius2 reroutes to 'cone'. */
+            if (candidateKeyName === 'cylinder'
+                && wdItem.objectType === 'cylinder'
+                && 'radius2' in wdItem) {
+                candidateKeyName = 'cone';
+                candidateKey = { id: wdItem.id };
+                candidateWdItem = structuredClone(wdItem);
+            }
+
             if (Object.keys(candidateKey).length === 0) {
                 console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
 
@@ -30113,6 +30296,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.width = wdItem.radius * 2;
 
         }
+        else if (item.data_deviceid === 'cone') {
+            item.height = wdItem.radius * 2;
+            item.width = wdItem.radius * 2;
+            item.data_radius2 = Number(wdItem.radius2) || 0;
+        }
         else if (family === 'wallBox') {
 
             item.height = wdItem.width || 0.10;
@@ -30133,7 +30321,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         if (item.data_deviceid === 'sphere') {
             item.data_vHeight = round(wdItem.radius * 2);
         }
-        else if (item.data_deviceid === 'cylinder') {
+        else if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cone') {
             item.data_vHeight = wdItem.length;
         }
         else if (family === 'wallBox') {
@@ -30154,7 +30342,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         delete wdItem.height;
 
-        if (!(data_deviceid === 'unknownObj' || data_deviceid === 'cylinder')) {
+        if (!(data_deviceid === 'unknownObj' || data_deviceid === 'cylinder' || data_deviceid === 'cone')) {
             delete wdItem.length;
         }
 
@@ -30191,7 +30379,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         if (data_deviceid === 'sphere') {
             z = position[1] - wdItem.radius;
         }
-        else if (data_deviceid === 'cylinder') {
+        else if (data_deviceid === 'cylinder' || data_deviceid === 'cone') {
             z = position[1] - wdItem.length / 2;
             delete wdItem.length;
         }
@@ -30354,15 +30542,17 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
     if (deviceType && deviceType.wdOpacity && 'opacity' in wdItem && wdItem.opacity != null) {
         const opNum = parseFloat(wdItem.opacity);
-        /* pathShape-only: 0.999 is our export's "no override" sentinel
-         * (workspaceObjFurniturePush() clamps default opacity 1 -> 0.999
-         * to dodge a WD render bug that drops `color` when opacity == 1).
-         * Snap >= 0.999 back to default on import so a VRC -> WD JSON
-         * -> VRC round-trip preserves the implicit "1" default. */
-        const isPathShapeDefaultSentinel = (
-            item.data_deviceid === 'pathShape' && !isNaN(opNum) && opNum >= 0.999
+        /* pathShape and cone share the 0.999 "no override" sentinel
+         * (workspaceObjFurniturePush() / workspaceObjWallPush() clamp
+         * default opacity 1 -> 0.999 to dodge a WD render bug that drops
+         * `color` when opacity == 1). Snap >= 0.999 back to default on
+         * import so a VRC -> WD JSON -> VRC round-trip preserves the
+         * implicit "1" default. */
+        const isDefaultSentinel = (
+            (item.data_deviceid === 'pathShape' || item.data_deviceid === 'cone')
+            && !isNaN(opNum) && opNum >= 0.999
         );
-        if (!isNaN(opNum) && opNum >= 0 && opNum < 1 && !isPathShapeDefaultSentinel) {
+        if (!isNaN(opNum) && opNum >= 0 && opNum < 1 && !isDefaultSentinel) {
             item.data_opacity = opNum;
         }
         delete wdItem.opacity;
@@ -30452,6 +30642,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
     if (data_deviceid === 'cylinder' || data_deviceid === 'sphere') {
         delete wdItem.radius;
+    }
+
+    if (data_deviceid === 'cone') {
+        delete wdItem.radius;
+        delete wdItem.radius2;
     }
 
 
@@ -31416,7 +31611,7 @@ function exportRoomObjToWorkspace() {
                     workspaceObjItemPush(chair);
                 });
             }
-            else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
+            else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder' || item.data_deviceid === 'cone') {
 
                 workspaceObjWallPush(item);
             }
@@ -31670,7 +31865,7 @@ function exportRoomObjToWorkspace() {
             z = z + attr.vertOffset;
         }
 
-        if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'sphere') {
+        if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'sphere' || item.data_deviceid === 'cone') {
             x = x + item.width / 2;
             y = y + item.width / 2;
         }
@@ -31697,7 +31892,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.radius = item.width / 2;
         }
 
-        if (item.data_deviceid === 'cylinder') {
+        if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cone') {
             let zPosition = item.data_zPosition || 0;
             z = zPosition - (item.width / 2);
         }
@@ -32261,6 +32456,24 @@ function exportRoomObjToWorkspace() {
             delete workspaceItem.height;
         }
 
+        if (item.data_deviceid === 'cone') {
+            workspaceItem.radius = item.width / 2;
+            workspaceItem.radius2 = Number(item.data_radius2) || 0;
+
+            if ('data_vHeight' in item && item.data_vHeight) {
+                workspaceItem.length = item.data_vHeight;
+            } else {
+                workspaceItem.length = roomObj2.room.roomHeight || defaultWallHeight;
+            }
+
+            workspaceItem.rotation[0] = ((item.data_tilt) * (Math.PI / 180)) || 0;
+            workspaceItem.rotation[1] = ((item.rotation) * -(Math.PI / 180)) || 0;
+            workspaceItem.rotation[2] = ((item.data_slant) * (Math.PI / 180)) || 0;
+
+            delete workspaceItem.width;
+            delete workspaceItem.height;
+        }
+
 
 
         if (item.id === 'primaryCeiling') {
@@ -32301,6 +32514,22 @@ function exportRoomObjToWorkspace() {
         }
         if (__deviceDefWdRT && __deviceDefWdRT.wdOpacity && item.data_opacity != null) {
             workspaceItem.opacity = String(item.data_opacity);
+        }
+
+        if (item.data_deviceid === 'cone'
+            && __deviceDefWdRT && __deviceDefWdRT.configurableColor
+            && workspaceItem.color && !('opacity' in workspaceItem)) {
+            workspaceItem.opacity = "1";
+        }
+
+        /* WD quirk mirrors pathShape: cylinder-cone with opacity exactly 1
+         * silently drops the color tint. Clamp to "0.999" so a colored
+         * cone keeps its tint; the import side snaps >= 0.999 back to
+         * the implicit default for round-trip fidelity. */
+        if (item.data_deviceid === 'cone'
+            && 'opacity' in workspaceItem
+            && Number(workspaceItem.opacity) === 1) {
+            workspaceItem.opacity = "0.999";
         }
 
         if (item.data_hiddenInDesigner) {
