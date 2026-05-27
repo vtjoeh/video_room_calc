@@ -3015,9 +3015,15 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
 /* Re-apply layer visible/locked to all canvas nodes + coverage.
  * Selector includes Label so Konva.Label-based items (wdText/vrcText)
  * — whose data_layerId lives on the Label parent, not on the inner
- * Konva.Tag/Konva.Text children — also react to layer toggles. */
+ * Konva.Tag/Konva.Text children — also react to layer toggles.
+ * Selector also includes Group so Konva.Group-based items (wallChairs
+ * family — Row of Chairs/Swivel/Stool — and dimensionLine), whose
+ * data_layerId lives on the parent Group (the actual selectable item)
+ * not on the inner children, also react to layer toggles. Container
+ * groups like groupTables/groupChairs/groupGroupRects don't carry
+ * data_layerId so the `if (node.data_layerId)` guard skips them. */
 function applyAllLayerStates() {
-    const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon, Label');
+    const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon, Label, Group');
     allNodes.forEach(node => {
         if (node.data_layerId) {
             applyLayerStateToNode(node, node.data_layerId);
