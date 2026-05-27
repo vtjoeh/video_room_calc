@@ -1295,6 +1295,54 @@ function createCustomItemMenuImage(record) {
                 offsetY: isUl ? 0 : h / 2,
             };
 
+            /* sphere / cylinder — Konva.Shape with sceneFunc drawing an
+             * ellipse in the local [0,w]×[0,h] frame, mirroring the
+             * canvas rendering at insertTable(). Without this branch,
+             * spheres and cylinders fall through to the fallback rect
+             * and render as colored rectangles in the library tile.
+             * Sphere uses a radial gradient (white → data_fill) and
+             * cylinder uses a flat fill — matches CLAUDE.md
+             * "Configurable Fill & Opacity" precedence (Details picker
+             * > device default). */
+            if (part.data_deviceid === 'sphere' || part.data_deviceid === 'cylinder') {
+                const isSphere = part.data_deviceid === 'sphere';
+                const bodyColor = part.data_fill || 'grey';
+                /* Sphere device-def has no opacity (defaults to 0.8 in the
+                 * canvas insertTable path); cylinder device-def is 0.4. */
+                const deviceDefaultOpacity = isSphere ? 0.8 : (dt && typeof dt.opacity === 'number' ? dt.opacity : 0.4);
+                const shapeOpacity = (part.data_opacity != null)
+                    ? Number(part.data_opacity)
+                    : deviceDefaultOpacity;
+                const shapeAttrs = {
+                    x: cx, y: cy,
+                    width: w, height: h,
+                    rotation: rotation,
+                    stroke: (dt && dt.stroke) || 'black',
+                    strokeWidth: (dt && typeof dt.strokeWidth === 'number') ? dt.strokeWidth : 1,
+                    strokeScaleEnabled: false, /* see pathShape */
+                    opacity: shapeOpacity,
+                    sceneFunc: function (context, shape) {
+                        const sw = shape.width();
+                        const sh = shape.height();
+                        context.beginPath();
+                        context.ellipse(sw / 2, sh / 2, sw / 2, sh / 2, 0, 0, 2 * Math.PI);
+                        if (isSphere) {
+                            shape.fillRadialGradientStartPoint({ x: sw * 0.3, y: sh * 0.3 });
+                            shape.fillRadialGradientStartRadius(0);
+                            shape.fillRadialGradientEndPoint({ x: sw * 0.3, y: sh * 0.3 });
+                            shape.fillRadialGradientEndRadius(sw);
+                            shape.fillRadialGradientColorStops([0, 'white', 0.5, bodyColor, 1, bodyColor]);
+                        } else {
+                            shape.fill(bodyColor);
+                        }
+                        context.fillStrokeShape(shape);
+                    },
+                };
+                layer.add(new Konva.Shape(shapeAttrs));
+                resolveOne();
+                return;
+            }
+
             if (part.data_deviceid === 'box' ||
                 part.data_deviceid === 'carpet' ||
                 part.data_deviceid === 'stageFloor') {
