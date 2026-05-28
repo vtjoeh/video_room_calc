@@ -56,7 +56,7 @@ window.VRC.constants = Object.freeze({
      * so browser fetch() works. Wired into Webex.init() under
      * config.services.discovery.hydra by pocLoginCloud.js. */
     WEBEX_HYDRA_URL: 'https://hydra-a.wbx2.com/v1',
-    WEBEX_SPACE_TITLE: 'Video Room Calc Rooms',
+    WEBEX_SPACE_TITLE: 'Video Room Calculator rooms [Created by VRC login]',
     WEBEX_ROOMMAP_FILENAME: 'RoomMap.json',
     WEBEX_OAUTH_STORAGE_PREFIX: 'vrc_poc_webex',
 });

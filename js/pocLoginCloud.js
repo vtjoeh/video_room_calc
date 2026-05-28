@@ -20,7 +20,7 @@
  *      event, then replaces the "Login" button with the user's Webex
  *      avatar. Clicking the avatar opens the dialog defined in
  *      RoomCalculator.html (id="dialogPocLoginCloud").
- *   5. Finds or creates a group space called "Video Room Calc Rooms"
+ *   5. Finds or creates a group space called "Video Room Calculator rooms [Created by VRC login]"
  *      and uses it as the storage backend.
  *   6. Saves the current roomObj as a `.vrc.json` file-attached
  *      message and keeps a `RoomMap.json` index attached to the most
@@ -100,7 +100,7 @@
          * js/constants.js. */
         hydraUrl: C.WEBEX_HYDRA_URL || 'https://hydra-a.wbx2.com/v1',
 
-        spaceTitle: C.WEBEX_SPACE_TITLE || 'Video Room Calc Rooms',
+        spaceTitle: C.WEBEX_SPACE_TITLE || 'Video Room Calculator rooms [Created by VRC login]',
         roomMapFileName: C.WEBEX_ROOMMAP_FILENAME || 'RoomMap.json',
 
         storagePrefix: C.WEBEX_OAUTH_STORAGE_PREFIX || 'vrc_poc_webex',
