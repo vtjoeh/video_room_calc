@@ -170,8 +170,12 @@ Each device/furniture type has a 2-character uppercase key:
 | `WJ` | Column Cylinder |
 | `WK` | Sphere |
 | `WL` | Path Shape |
-| `WM` | Workspace Designer Text (`wdText`) |
+| `WM` | Credenza / Cabinet |
+| `WN` | Huddle (Bullet) Table |
+| `WO` | Row of Swivel Chairs (wallChairsSwivel) |
+| `WP` | Row of Stool Chairs (wallChairsStool) |
 | `WQ` | Cone (cylinder variant with `data_radius2`) |
+| `WR` | Workspace Designer Text (`wdText`) |
 
 **Chairs (S_):**
 
@@ -199,9 +203,9 @@ After an item type prefix, lowercase letters encode attributes:
 | *(none)* | x position | Number | First number after prefix (×100, in mm) |
 | `a` | y position | Number | ×100, in mm |
 | `b` | z position (elevation) | Number | ×100, in mm (data_zPosition) |
-| `c` | width | Number | ×100, in mm |
-| `d` | length | Number | ×100, in mm |
-| `e` | height | Number | ×100, in mm |
+| `c` | width | Number | ×100, in mm. Skipped for `pathShape` / `polyRoom` (sized via `r{points}`) and for `wdText` / `vrcText` (Konva.Label auto-sizes from inner Text + `data_fontSize` on render — stored width is derived state, not source of truth) |
+| `d` | length | Number | ×100, in mm. Same skips as `c` |
+| `e` | height | Number | ×100, in mm. Skipped for `tblSchoolDesk` (fixed at 0.59m) and for `wdText` / `vrcText` (same auto-size reason as `c`) |
 | `f` | rotation | Number | ×10, in degrees |
 | `g` | diagonal inches | Number | Display size |
 | `h` | corner radius | Number | ×100, table corner radius |

@@ -376,7 +376,7 @@ preserved; everything VRC understands continues to win.
 
 | Concern | Location |
 |---------|----------|
-| Device registration | `js/roomcalc.js` `boxes[]` (wdText entry with `key: 'WM'`, `family: 'wdText'`, `configurableColor: true`, `default_fontSize: 20`) |
+| Device registration | `js/roomcalc.js` `boxes[]` (wdText entry with `key: 'WR'`, `family: 'wdText'`, `configurableColor: true`, `default_fontSize: 20`) |
 | `workspaceKey` mapping | `workspaceKey.wdText = { objectType: 'text' }` in `js/data/workspaceKey.js` |
 | Export push function | `workspaceObjTextPush()` in `js/roomcalc.js` (sits next to `workspaceObjWallPush()`) |
 | Export routing | `(wdBuckets.boxes \|\| []).forEach()` branches on `item.data_deviceid === 'wdText'` to call `workspaceObjTextPush()` instead of `workspaceObjWallPush()` |

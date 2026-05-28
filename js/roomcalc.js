@@ -68,7 +68,6 @@ let toolTipTextTimeout; /* timer used for toolTipText on coverage buttons */
 let toolTipTextTimeout2; /* timer used for toolTipText2 on coverage buttons */
 
 let lastSelectedNodePosition; /* keep track of the last node selected, make a structured clone of it to keep track of position */
-let lastSelectionGuideLines = {};
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
 let rightClickMenuDialogLastPosition = {}; /* last position of the rightClickMenuDialog when last opened. Used when updating the position. */
 
@@ -4149,7 +4148,20 @@ let tr = new Konva.Transformer({
     rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315, 360],
     name: 'theTransformer',
     rotateAnchorOffset: 25,
+    /* ignoreStroke: true — without this, Konva's _getNodeRect() returns a
+     * stroke-INCLUSIVE bbox (r.x = node.x - strokeWidth/2), but the node's
+     * actual position is stroke-EXCLUSIVE. _fitNodesInto then applies
+     * c = h * o.invert() (a scale around r.x) to a node sitting at node.x,
+     * which decomposes back with a translation drift of (scale - 1) * (node.x - r.x)
+     * per frame. Over a multi-frame resize the un-dragged corner visibly slides
+     * along the drag direction. See notes/TECH_NOTES_KONVA.md (footgun #27). */
+    ignoreStroke: true,
 });
+
+/* PowerPoint-style snap-to-objects during resize. The function reference
+ * is hoisted (function declaration), so registering it here is safe even
+ * though the helper itself is defined further down in the snap module. */
+tr.boundBoxFunc(snapResizeBoundBox);
 
 tr.on('dragstart', function trDragStart() {
 
@@ -6943,7 +6955,7 @@ let boxes = [
     {
         name: 'Workspace Designer Text',
         id: 'wdText',
-        key: 'WM',
+        key: 'WR',
         frontImage: 'wdText-menu.png',
         family: 'wdText',
         resizeable: [],
@@ -8589,6 +8601,12 @@ function parseShortenedXYUrl(parameters) {
                 newItem.data_labelField = DOMPurify.sanitize(
                     decodeURIComponent(String(item.text).replaceAll('+', ' '))
                 );
+            }
+
+            /* Backward-compat: pre-fix WM was shared by credenza + wdText (duplicate-key bug); convert label-only zero-size credenzas back to wdText. */
+            if (newItem.data_deviceid === 'credenza' && !newItem.width && !newItem.length && newItem.data_labelField) {
+                newItem.data_deviceid = 'wdText';
+                newItem.name = (allDeviceTypes.wdText && allDeviceTypes.wdText.name) || 'Workspace Designer Text';
             }
 
             newItem.id = createUuid();
@@ -11430,15 +11448,20 @@ function createShareableLinkItem(item) {
         }
     }
 
-    if ('width' in item && item.width && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom') {
+    /* wdText/vrcText render as Konva.Label and auto-size from the inner
+     * Konva.Text + data_fontSize at draw time — stored width/height are
+     * ignored on render and unused by the WD export. Omit from URL to
+     * keep links short and avoid stale-size drift; the values are
+     * backfilled in roomObj.items by canvasToJson on the next save. */
+    if ('width' in item && item.width && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom' && !isTextItem(item.data_deviceid)) {
         strItem += 'c' + Math.round(round(item.width) * 100);
     }
 
-    if ('length' in item && item.length && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom') {
+    if ('length' in item && item.length && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom' && !isTextItem(item.data_deviceid)) {
         strItem += 'd' + Math.round(round(item.length) * 100);
     }
 
-    if ('height' in item && item.data_deviceid != 'tblSchoolDesk' && item.height) { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
+    if ('height' in item && item.data_deviceid != 'tblSchoolDesk' && item.height && !isTextItem(item.data_deviceid)) { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
         strItem += 'e' + Math.round(round(item.height) * 100);
     }
 
@@ -20883,12 +20906,159 @@ function getObjectsWithLowestDiff(resultV) {
     return resultV.filter(item => Math.round(item.diff) === minRoundedDiff);
 }
 
-function snapToGuideLinesResize(moved) {
-    let original = lastSelectedNodePosition;
-    if (snapGuidesDrawn && moved.rotation() === 0) {
+/* Resize-snap helpers — PowerPoint-style snap-to-objects while the
+ * user drags a Transformer resize handle on a single, axis-aligned
+ * item. Wired via `tr.boundBoxFunc(snapResizeBoundBox)` after the `tr`
+ * constructor. Reuses `getLineGuideStops(node, true)` for snap
+ * targets and `drawSnapGuides()` for the magenta guide lines.
+ *
+ * Eligibility (any miss → return newBox unchanged):
+ *   - snap-to-objects checkbox on
+ *   - single node in tr.nodes()
+ *   - data_deviceid not in {group, customItem, pathShape, cone}
+ *   - active anchor present and not 'rotater'
+ *   - rotation ∈ {0°, 90°, 180°, 270°} (axis-aligned)
+ *
+ * The anchor name decodes to LOCAL edges (the node's pre-rotation
+ * frame); `mapLocalEdgesToWorld` rotates those into the visible
+ * world-AABB edges so corner anchors snap both axes simultaneously.
+ *
+ * `boundBoxFunc` does NOT fire during drag, so the existing drag-snap
+ * path (`snapToGuideLines(e)` from per-item dragmove handlers) is
+ * untouched. Guides are cleared in `tr.on('transformend')`.
+ */
+function getLocalEdgesFromAnchor(name) {
+    return {
+        left: name.endsWith('-left'),
+        right: name.endsWith('-right'),
+        top: name.startsWith('top-'),
+        bottom: name.startsWith('bottom-'),
+    };
+}
 
-        updateFormatDetails(e.target.id());
+function mapLocalEdgesToWorld(local, rot) {
+    /* Konva positive rotation = visual CW. At rot 90, the local
+     * "right" edge becomes the visual bottom; at rot 180 it becomes
+     * the visual left; at rot 270 it becomes the visual top. */
+    if (rot === 0) return { ...local };
+    if (rot === 90) return {
+        top: local.left,
+        right: local.top,
+        bottom: local.right,
+        left: local.bottom,
+    };
+    if (rot === 180) return {
+        top: local.bottom,
+        right: local.left,
+        bottom: local.top,
+        left: local.right,
+    };
+    /* rot === 270 */
+    return {
+        top: local.right,
+        right: local.bottom,
+        bottom: local.left,
+        left: local.top,
+    };
+}
+
+function worldAabbFromBox(box, rot) {
+    /* `box.x` / `box.y` is the node origin's world position; `box.width`
+     * / `box.height` are the LOCAL (pre-rotation) dimensions. Convert
+     * to the visible world AABB based on the four axis-aligned
+     * rotations. (Rotation around the node origin.) */
+    const { x, y, width: w, height: h } = box;
+    if (rot === 0) return { minX: x, minY: y, maxX: x + w, maxY: y + h };
+    if (rot === 90) return { minX: x - h, minY: y, maxX: x, maxY: y + w };
+    if (rot === 180) return { minX: x - w, minY: y - h, maxX: x, maxY: y };
+    /* rot === 270 */
+    return { minX: x, minY: y - w, maxX: x + h, maxY: y };
+}
+
+function boxFromWorldAabb(aabb, rot) {
+    /* Inverse of `worldAabbFromBox`: recover the node-origin world
+     * position + LOCAL width/height from the snapped world AABB. For
+     * rot 90/270, the visual width/height swap relative to the local
+     * width/height. */
+    const visW = aabb.maxX - aabb.minX;
+    const visH = aabb.maxY - aabb.minY;
+    if (rot === 0) {
+        return { x: aabb.minX, y: aabb.minY, width: visW, height: visH, rotation: rot };
     }
+    if (rot === 90) {
+        return { x: aabb.maxX, y: aabb.minY, width: visH, height: visW, rotation: rot };
+    }
+    if (rot === 180) {
+        return { x: aabb.maxX, y: aabb.maxY, width: visW, height: visH, rotation: rot };
+    }
+    /* rot === 270 */
+    return { x: aabb.minX, y: aabb.maxY, width: visH, height: visW, rotation: rot };
+}
+
+function trySnapEdge(aabb, edgeKey, stops, matched, orientation) {
+    /* Find the nearest stop within GUIDELINE_OFFSET; if found, snap
+     * the AABB edge to it and record the matched guide. */
+    const current = aabb[edgeKey];
+    let best = null;
+    let bestDiff = GUIDELINE_OFFSET;
+    for (let i = 0; i < stops.length; i++) {
+        const diff = Math.abs(stops[i] - current);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            best = stops[i];
+        }
+    }
+    if (best === null) return;
+    aabb[edgeKey] = best;
+    matched.push({ lineGuide: best, orientation });
+}
+
+function snapResizeBoundBox(oldBox, newBox) {
+    if (!document.getElementById('snapGuidelinesCheckBox').checked) return newBox;
+    if (tr.nodes().length !== 1) return newBox;
+    const node = tr.nodes()[0];
+    const did = node.data_deviceid;
+    if (did === 'group' || did === 'customItem' || did === 'pathShape' || did === 'cone') return newBox;
+
+    const anchorName = typeof tr.getActiveAnchor === 'function' ? tr.getActiveAnchor() : null;
+    if (!anchorName || anchorName === 'rotater') return newBox;
+
+    /* Konva passes newBox.rotation in RADIANS (via Konva.Util.getAngle()
+     * with Konva.angleDeg=true → degrees → radians). Convert here to a
+     * discrete degree enum {0, 90, 180, 270} with a small tolerance for
+     * floating-point drift across the angleDeg↔rad round-trip. */
+    const rotDeg = (((newBox.rotation || 0) * 180 / Math.PI) % 360 + 360) % 360;
+    let rot;
+    const TOL = 0.5;
+    if (rotDeg < TOL || Math.abs(rotDeg - 360) < TOL) rot = 0;
+    else if (Math.abs(rotDeg - 90) < TOL) rot = 90;
+    else if (Math.abs(rotDeg - 180) < TOL) rot = 180;
+    else if (Math.abs(rotDeg - 270) < TOL) rot = 270;
+    else return newBox;
+
+    const localEdges = getLocalEdgesFromAnchor(anchorName);
+    const worldEdges = mapLocalEdgesToWorld(localEdges, rot);
+    const aabb = worldAabbFromBox(newBox, rot);
+
+    const stops = getLineGuideStops(node, true);
+    const matchedGuides = [];
+    if (worldEdges.left) trySnapEdge(aabb, 'minX', stops.vertical, matchedGuides, 'V');
+    if (worldEdges.right) trySnapEdge(aabb, 'maxX', stops.vertical, matchedGuides, 'V');
+    if (worldEdges.top) trySnapEdge(aabb, 'minY', stops.horizontal, matchedGuides, 'H');
+    if (worldEdges.bottom) trySnapEdge(aabb, 'maxY', stops.horizontal, matchedGuides, 'H');
+
+    if (matchedGuides.length === 0) return newBox;
+
+    allGuideLines.forEach(g => g.destroy());
+    allGuideLines = [];
+    drawSnapGuides(matchedGuides);
+
+    /* boxFromWorldAabb returns rotation in the enum degree value; Konva
+     * expects radians on the way out, so overwrite with newBox.rotation
+     * (unchanged radians) — the snapped box keeps the original rotation. */
+    const snapped = boxFromWorldAabb(aabb, rot);
+    snapped.rotation = newBox.rotation;
+    return snapped;
 }
 
 /* Snap a Group / CustomItem bundle to other objects.
@@ -21115,17 +21285,10 @@ function snapToGuideLines(e, resize = false) {
 
             /* only show vertical guides */
             if (Math.round(original.width() * 1000) === Math.round(moved.width() * 1000) && ((moved.rotation() % 180) === 0)) {
-                let snapGuidesDrawn = drawSnapGuides(guides, 'H');
-                lastSelectionGuideLines.type = 'H';
-                lastSelectionGuideLines.guides = guides;
-
-                console.log('H');
-
-
+                drawSnapGuides(guides, 'H');
             }
             else {
                 drawSnapGuides(guides, 'V');
-
             }
         }
 
@@ -23438,7 +23601,27 @@ function addListeners(stage) {
         let scaleX = e.target.scaleX();
         let scaleY = e.target.scaleY();
 
-        if (trNodesLength === 1 && !(scaleX === 1 || scaleY === 1) && e.target.data_deviceid != 'pathShape') {
+        /* Scale-absorb: bake any non-1 scale into width/height so
+         * canvasToJson() (which reads raw node.width / node.height
+         * attrs) and the WD export pipeline see the resized values.
+         * Konva's _fitNodesInto leaves the scale on the node after a
+         * resize; we flatten it here.
+         *
+         * Condition footgun: the original guard was
+         * `!(scaleX === 1 || scaleY === 1)` which skips whenever
+         * EITHER axis is exactly 1 — which is what happens for every
+         * EDGE anchor drag (top-center / bottom-center / middle-left /
+         * middle-right). The non-unit scale on the active axis would
+         * silently persist on the node; the canvas rendered correctly
+         * (Konva multiplies on draw) but the saved roomObj.items
+         * width/height were the pre-resize values. Result: WD export,
+         * page refresh, and .vrc.json round-trips all dropped the
+         * resize, producing visible gaps between adjacent items even
+         * though the canvas looked correct mid-session. Mirrors the
+         * dimensionLine handler at ~15692 (`if (sx !== 1 || sy !== 1)`)
+         * and the wallChairs handler at ~15713 (`if (sy !== 1)`) which
+         * use the correct logic. */
+        if (trNodesLength === 1 && !(scaleX === 1 && scaleY === 1) && e.target.data_deviceid != 'pathShape') {
 
             let width = e.target.width();
             let height = e.target.height();
@@ -23463,6 +23646,9 @@ function addListeners(stage) {
          * Transformer-driven rotation. */
         refreshGroupDetailsFromCanvas();
         refreshCustomItemDetailsFromCanvas();
+        /* Clear resize-snap guide lines drawn by snapResizeBoundBox. */
+        allGuideLines.forEach(g => g.destroy());
+        allGuideLines = [];
         endDriftCheck('tr.transformend');
         /* canvasToJson() intentionally NOT called here — see the
          * "Deferred canvasToJson sync model" note above

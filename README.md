@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.651 Release Notes**
+- Snap to Objects improved to also work on resizing on of items like walls. 
+
 **v0.1.650 Release Notes**  
 - New Items: 🆕 Workspace Designer Text, VRC Text (visible only in the VRC), Dimension Lines, Cones, Row of Swivel Chairs, Row of Stool Chairs  
 - The Row of Chairs now includes a **Distance Between Center of Chairs** setting and a **Number of Chairs** option. 🪑✨

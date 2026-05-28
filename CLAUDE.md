@@ -371,7 +371,7 @@ re-routed to `cone` after the scoring loop in `wdItemToRoomObjItem()`.
 | Surface | Convention |
 |---------|------------|
 | `data_deviceid` | `'cone'` |
-| URL key (item prefix) | `WQ` (next free `W_` slot — `WO`/`WP` are wallChairs* variants and `WL`/`WM` are pathShape/wdText) |
+| URL key (item prefix) | `WQ` (next free `W_` slot at the time — `WL` is pathShape, `WM` is credenza, `WN` is tblBullet, `WO`/`WP` are wallChairs* variants; `wdText` later moved to `WR` after the duplicate-`WM` collision with credenza was discovered) |
 | URL per-item attribute | `y{N}` where N = `data_radius2 × 100` in current unit (mm in meters mode, hundredths of a foot in feet mode). Decoder gates on `data_deviceid === 'cone'`; `y` continues to mean `data_lineWidth` for `dimensionLine` items. |
 | `roomObj.items` shape | `item.width = 2 × radius1` (cylinder convention; `item.height` is forced equal to `item.width` in `updateItem()`); `item.data_radius2 = <radius2>` (raw radius value, not a diameter). |
 | Konva render | Single `Konva.Shape` with `sceneFunc` that draws two concentric ellipses — outer radius = `width / 2` (in pixels, since `shape.getAttr('width')` is already pixel-converted), inner radius = `data_radius2 × scale` (where `scale` is pixels-per-current-unit, the same global other items use to convert `attrs.width` → pixels via `attrs.width * scale`). Each `fillStrokeShape` call paints both fill and stroke; the overlap doubles the effective opacity inside the inner circle, producing the "filled inner disc + outer ring" look from the menu image. **DO NOT use `unitScale`** — that variable is `scale * 3.28084` in feet mode (pixels-per-meter, used for meters-anchored minimums elsewhere). Using `unitScale` would render `data_radius2` as if it were a meter value, blowing the inner circle up by ~3.28× in feet mode (the bug fixed in v0.1.65x). |
@@ -1061,6 +1061,24 @@ The "Snap to Objects" feature (`snapToGuideLines()`) and the grid snapper (`snap
 
 - **Transformer drag** (`tr.isDragging() === true`): the rect has already moved with everyone. Snap delta is computed against the rect's current bounds and applied to the rect + every member (Konva won't propagate to siblings during a Transformer drag, so we shift them all manually). Idempotent across re-fires within a frame — after the first apply the rect sits exactly on the snap line, so the next dragmove's call computes delta = 0.
 - **Member-direct drag** (`tr.isDragging() === false`): only `e.target` has moved. `_groupDragSnapshot` is read to project the rect's would-be position (`rect.startPos + member.dragDelta`); snap is computed against that projection; the snap delta is applied to `e.target` only. The existing `followGroupDragFromMember()` at the tail of the dragmove handler then propagates the new delta (drag delta + snap delta) to the rest of the bundle.
+
+#### Snap to Objects on Item Resize
+
+PowerPoint-style snap engages when the user drags a Transformer resize handle on a single, axis-aligned item. Implemented via `tr.boundBoxFunc(snapResizeBoundBox)` registered once at module init (right after the `tr = new Konva.Transformer(...)` block). `boundBoxFunc` is invoked by Konva inside the transform calculation, BEFORE the new scale/position is applied to the node, so the snapped box becomes the actual applied transform — no one-frame visual lag.
+
+Eligibility (any miss → return `newBox` unchanged):
+
+- `snapGuidelinesCheckBox` checked
+- `tr.nodes().length === 1`
+- node's `data_deviceid` is not `'group'` / `'customItem'` / `'pathShape'` / `'cone'`
+- `tr.getActiveAnchor()` is set and not `'rotater'`
+- rotation ∈ {0°, 90°, 180°, 270°}
+
+Anchor names decode to LOCAL (pre-rotation) edges. `mapLocalEdgesToWorld(local, rot)` rotates those into the visible world-AABB edges, so corner anchors (e.g. `bottom-right`) snap both axes simultaneously. `worldAabbFromBox(box, rot)` and `boxFromWorldAabb(aabb, rot)` are inverses of each other and handle the local↔world width/height swap that occurs at rot 90° / 270°. Snap targets come from `getLineGuideStops(node, true)` — same source list the drag-snap path uses; `resize=true` excludes center edges, matching PowerPoint's edge-only resize-snap behaviour. Each moving edge picks the nearest stop within `GUIDELINE_OFFSET` (5 px). Magenta guides render via the existing `drawSnapGuides()` and are cleared in `tr.on('transformend')`.
+
+**Konva `boundBoxFunc` rotation units footgun:** the `oldBox` / `newBox` objects Konva passes to `boundBoxFunc` carry `rotation` in **RADIANS**, not degrees — Konva's `_fitNodesInto` builds the box via `i.getAngle(this.rotation())`, which is the degrees→radians converter when `Konva.angleDeg=true` (the default). `snapResizeBoundBox` converts via `rotation * 180 / Math.PI` and matches against {0, 90, 180, 270} with a 0.5° tolerance for floating-point drift. On return, the snapped box's `rotation` field is overwritten with the original `newBox.rotation` (radians passthrough) so Konva's downstream matrix math (`h.rotate(t.rotation)`) gets the units it expects. This is unrelated to `node.rotation()` on the actual Konva node, which uses degrees per the `Konva.angleDeg` setting. See [notes/TECH_NOTES_KONVA.md](notes/TECH_NOTES_KONVA.md) — degrees-vs-radians is a recurring Konva footgun.
+
+`boundBoxFunc` does NOT fire during drag, so the existing drag-snap path (`snapToGuideLines(e)` from per-item `dragmove` handlers) is untouched. Bundles already have `tr.resizeEnabled(false)`, so the bundle guard on `data_deviceid === 'group' | 'customItem'` is defensive.
 
 #### Selection promotion in `dragmove`
 
@@ -2066,6 +2084,17 @@ when focus lands on the canvas.
 ---
 
 ## Development Notes
+
+### Code Style
+
+**Keep comments in code to an absolute minimum.** Do not add comments
+that narrate what the code does, explain obvious behaviour, mark the
+edit being made, or restate what is already in `CLAUDE.md` /
+`notes/*.md`. Only write a comment when the code itself cannot convey
+non-obvious intent, a trade-off, a workaround for a documented bug, or
+a footgun (e.g. the Konva quirks in `notes/TECH_NOTES_KONVA.md`). When
+in doubt, leave it out — this codebase prefers readable code and
+out-of-band reference docs over inline commentary.
 
 ### To Make Changes:
 
