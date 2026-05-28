@@ -34,6 +34,7 @@ window.VRC.constants = Object.freeze({
      * accidentally check `urlParams.has('Debug')` somewhere. */
     QS_DEBUG: 'debug',
     QS_TEST_LOGIN: 'testLogin',
+    QS_SPLIT: 'split',
 
     /* Webex cloud-storage proof of concept (js/pocLoginCloud.js).
      * Only used when the page is loaded with `?testLogin=1`. */

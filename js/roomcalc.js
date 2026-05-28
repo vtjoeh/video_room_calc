@@ -7923,6 +7923,35 @@ function getQueryString() {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
     }
 
+    /* ?split=<0-100>: open the Workspace Designer split-view at the given
+     * width %. 0 / missing / non-numeric → no-op. 1-100 → opens at exactly
+     * the requested width (forceExact bypasses the drag-snap zones so a
+     * shared `?split=80` reproduces 80% instead of snapping to 75%).
+     * Deferred via setTimeout so the room finishes its initial drawRoom()
+     * before the iframe starts loading and receiving postMessage updates.
+     * A blurred "Opening Workspace Designer View" pleaseWait dialog masks
+     * the ~1-2 s iframe-load + canvas-reflow window, then every dialog
+     * (including the no-URL boot's New Room dialog) is dismissed. */
+    const QS_SPLIT = (window.VRC && VRC.constants && VRC.constants.QS_SPLIT) || 'split';
+    if (urlParams.has(QS_SPLIT)) {
+        const splitPctRaw = parseFloat(urlParams.get(QS_SPLIT));
+        if (Number.isFinite(splitPctRaw) && splitPctRaw >= 1) {
+            const splitPct = Math.min(100, splitPctRaw);
+            setTimeout(() => {
+                try {
+                    let openingDialog = document.getElementById('dialogOpeningWorkspace');
+                    if (openingDialog && typeof openingDialog.showModal === 'function'
+                        && !openingDialog.open) {
+                        openingDialog.showModal();
+                    }
+                    splitViewOpen(splitPct, true);
+                    setTimeout(() => { closeAllDialogModals(); }, 2000);
+                } catch (splitInitErr) {
+                    console.warn('?split= init failed:', splitInitErr && splitInitErr.message);
+                }
+            }, 800);
+        }
+    }
 
     setTimeout(() => {
         canvasToJson();
@@ -8853,6 +8882,29 @@ function binaryToBase26(binary) {
 };
 
 
+
+/* ?split=<1-100>: surface the "Opening Workspace Designer View" pleaseWait
+ * dialog the moment roomcalc.js starts executing — BEFORE IDB hydration,
+ * onLoad(), and the initial drawRoom(). The dialog stays up through room
+ * build and the 800 ms split-init delay; the matching block in
+ * getQueryString() calls closeAllDialogModals() 2 s after splitViewOpen()
+ * to dismiss it. roomcalc.js loads from the tail of <body>, so the
+ * <dialog id="dialogOpeningWorkspace"> element is already in the DOM by
+ * the time this IIFE runs. */
+(function showEarlySplitDialog() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const splitRaw = parseFloat(params.get('split'));
+        if (Number.isFinite(splitRaw) && splitRaw >= 1) {
+            const dlg = document.getElementById('dialogOpeningWorkspace');
+            if (dlg && typeof dlg.showModal === 'function' && !dlg.open) {
+                dlg.showModal();
+            }
+        }
+    } catch (err) {
+        console.warn('Early ?split= dialog show failed:', err && err.message);
+    }
+})();
 
 /* Boot: hydrate undo/redo from IDB, then onLoad(). Empty stack if IDB unavailable. */
 (function bootHydrateThenOnLoad() {
@@ -33851,7 +33903,7 @@ let SPLIT_VIEW_MAX_PCT = 75;
 let  SPLIT_VIEW_FULL_PCT = 88;
 let SPLIT_VIEW_DEFAULT_PCT = 33;
 
-function splitViewOpen() {
+function splitViewOpen(desiredPct, forceExact) {
 
     if (splitViewState.isActive && splitViewState.rightWidthPct > 0) {
         splitViewClose();
@@ -33876,7 +33928,9 @@ function splitViewOpen() {
     if (reopenTab) { reopenTab.style.display = 'none'; }
 
 
-    if(window.innerWidth < 800){
+    if (Number.isFinite(desiredPct)) {
+        splitViewSetWidth(desiredPct, forceExact === true);
+    } else if(window.innerWidth < 800){
         splitViewSetWidth(100);
     } else {
         splitViewSetWidth(SPLIT_VIEW_DEFAULT_PCT);
@@ -33927,17 +33981,26 @@ function splitViewClose(fromDrag) {
 
 }
 
-/* splitViewSetWidth(pct): sets right-panel width with snap rules.
+/* splitViewSetWidth(pct, forceExact): sets right-panel width with snap rules.
    pct < 25  → close
    pct 25-75 → keep value
    pct > 75  → fullscreen (100%)
-   Loads the iframe on the first non-zero call. */
-function splitViewSetWidth(pct) {
-    /* Apply snap zones on explicit set (e.g. restore button at 50%) */
-    if (pct < SPLIT_VIEW_CLOSE_PCT) { splitViewClose(true); return; }
-    if (pct < SPLIT_VIEW_MIN_PCT) { pct = SPLIT_VIEW_MIN_PCT; }
-    if (pct > SPLIT_VIEW_FULL_PCT) { pct = 100; }
-    else if (pct > SPLIT_VIEW_MAX_PCT) { pct = SPLIT_VIEW_MAX_PCT; }
+   Loads the iframe on the first non-zero call.
+   forceExact=true bypasses snap zones (URL-init `?split=N` path). The value is
+   clamped to [1, 100]; very narrow widths render but are intentionally allowed
+   so a shared `?split=20` link reproduces exactly what the sender requested. */
+function splitViewSetWidth(pct, forceExact) {
+    if (forceExact === true) {
+        if (!Number.isFinite(pct)) { return; }
+        if (pct < 1) { splitViewClose(true); return; }
+        if (pct > 100) { pct = 100; }
+    } else {
+        /* Apply snap zones on explicit set (e.g. restore button at 50%) */
+        if (pct < SPLIT_VIEW_CLOSE_PCT) { splitViewClose(true); return; }
+        if (pct < SPLIT_VIEW_MIN_PCT) { pct = SPLIT_VIEW_MIN_PCT; }
+        if (pct > SPLIT_VIEW_FULL_PCT) { pct = 100; }
+        else if (pct > SPLIT_VIEW_MAX_PCT) { pct = SPLIT_VIEW_MAX_PCT; }
+    }
 
 
     splitViewState.rightWidthPct = pct;
