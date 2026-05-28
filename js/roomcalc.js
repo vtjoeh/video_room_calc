@@ -15298,14 +15298,21 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
             sceneFunc: (ctx, shape) => {
-                ctx.beginPath();
-                let height = shape.height();
+                /* Read width/height from the SHAPE (not closure-captured
+                 * locals) so rescales applied by
+                 * updateShapesBasedOnNewScale() — which mutates
+                 * node.width()/node.height() but does NOT recreate the
+                 * sceneFunc — propagate to the drawn thickness. Closure-
+                 * captured wallWidth froze at creation scale and broke
+                 * the seam between adjacent 180°-rotated walls on
+                 * window resize. */
+                const w = shape.width();
+                const h = shape.height();
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(wallWidth, 0);
-
-                ctx.lineTo(wallWidth, height);
-                ctx.lineTo(0, height);
+                ctx.lineTo(w, 0);
+                ctx.lineTo(w, h);
+                ctx.lineTo(0, h);
                 ctx.closePath(0, 0);
                 ctx.fillStrokeShape(shape);
             }
@@ -15324,14 +15331,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 0.8,
             sceneFunc: (ctx, shape) => {
-                ctx.beginPath();
-                let height = shape.height();
+                const w = shape.width();
+                const h = shape.height();
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(wallWidth, 0);
-
-                ctx.lineTo(wallWidth, height);
-                ctx.lineTo(0, height);
+                ctx.lineTo(w, 0);
+                ctx.lineTo(w, h);
+                ctx.lineTo(0, h);
                 ctx.closePath(0, 0);
                 ctx.fillStrokeShape(shape);
             }
@@ -15349,14 +15355,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 0.8,
             sceneFunc: (ctx, shape) => {
-                ctx.beginPath();
-                let height = shape.height();
+                const w = shape.width();
+                const h = shape.height();
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(wallWidth, 0);
-
-                ctx.lineTo(wallWidth, height);
-                ctx.lineTo(0, height);
+                ctx.lineTo(w, 0);
+                ctx.lineTo(w, h);
+                ctx.lineTo(0, h);
                 ctx.closePath(0, 0);
                 ctx.fillStrokeShape(shape);
             }
