@@ -3622,3 +3622,173 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
   color: #0352a6;
 }
 
+/* ------------------------------------------------------------------
+ * Webex Cloud Storage Proof of Concept (js/pocLoginCloud.js)
+ * Only visible when the page loads with ?testLogin=1.
+ * ---------------------------------------------------------------- */
+
+.pocCloudLoginBtn {
+  font-size: 13px;
+}
+
+.pocCloudAvatarBtn {
+  padding: 2px !important;
+  border-radius: 50% !important;
+  overflow: hidden;
+  width: 34px;
+  height: 34px;
+  background-color: transparent;
+}
+
+.pocCloudAvatarBtn img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+  background-color: #ccc;
+}
+
+.pocCloudUserRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 12px;
+}
+
+.pocCloudUserRow img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #ccc;
+  flex: 0 0 auto;
+}
+
+.pocCloudUserInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pocCloudUserName {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pocCloudUserEmail {
+  color: #666;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pocCloudSpaceStatus {
+  padding: 8px 10px;
+  background-color: #f5f8fb;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.pocCloudSaveRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.pocCloudSaveStatus {
+  font-size: 12px;
+  color: #555;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pocCloudListHeader {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.pocCloudRoomsList {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background-color: #fafafa;
+}
+
+.pocCloudRoomsEmpty {
+  padding: 20px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.pocCloudRoomRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.pocCloudRoomRow:last-child {
+  border-bottom: none;
+}
+
+.pocCloudRoomInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pocCloudRoomName {
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pocCloudRoomMeta {
+  color: #666;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pocCloudLoadBtn {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 4px 10px !important;
+}
+
+/* Destructive action: subtle red tint so the user reads "this
+ * removes something" before clicking, but still consistent with the
+ * `button dropDownBtnWhite` shape used for the Load button alongside
+ * it. The confirm() prompt in deleteRoomFromMap() is the real
+ * safety net; this is just a visual cue. */
+.pocCloudDeleteBtn {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 4px 10px !important;
+  margin-left: 6px;
+  color: #b00 !important;
+  border-color: #d99 !important;
+}
+.pocCloudDeleteBtn:hover {
+  background: #fbeaea !important;
+  border-color: #b00 !important;
+}
+

@@ -269,6 +269,45 @@ function bucketItemsByParentGroup(obj) {
     return buckets;
 }
 
+/* Defensive de-duplication of `obj.items` by `id`. Keeps the FIRST
+ * occurrence of every id and drops the rest. Mutates `obj.items` in
+ * place and returns the number of duplicates removed.
+ *
+ * Background: a session-c5ee79 / 12f04c debug run uncovered that
+ * legacy `.vrc.json` files, shareable URLs, and undo snapshots can
+ * carry duplicate item ids (same `id` appearing N times in
+ * `roomObj.items`). When `roomObjToCanvas()` then iterates the array
+ * and calls `insertItem()` per entry, Konva ends up with N nodes that
+ * share the same id; subsequent partial deletions remove some of the
+ * Konva nodes but leave the matching duplicate roomObj.items entries
+ * behind as "phantoms" — visually gone but still in memory, still
+ * exported to Workspace Designer, and re-materialised on the next
+ * save/reload of the .vrc.json. The original write-side bug that
+ * introduced the dups in older sessions has not been pinpointed yet;
+ * this helper neutralises the symptom by guaranteeing every load /
+ * import / parse / undo-restore path lands a duplicate-free
+ * `roomObj.items`. Cheap (single pass + Set), idempotent (subsequent
+ * calls find nothing to remove), and safe (items.id is a uuid). */
+function dedupeRoomItems(obj) {
+    const room = obj || roomObj;
+    if (!room || !Array.isArray(room.items)) return 0;
+    const seen = new Set();
+    const out = [];
+    let dropped = 0;
+    for (let i = 0; i < room.items.length; i++) {
+        const it = room.items[i];
+        if (!it || !it.id) { out.push(it); continue; }
+        if (seen.has(it.id)) { dropped++; continue; }
+        seen.add(it.id);
+        out.push(it);
+    }
+    if (dropped) {
+        room.items = out;
+        try { console.info('[VRC] dedupeRoomItems removed ' + dropped + ' duplicate item(s) from roomObj.items'); } catch (e) { }
+    }
+    return dropped;
+}
+
 /* Snapshot of sibling + rect start positions for member-direct drag follow. */
 let _groupDragSnapshot = null;
 
@@ -7681,6 +7720,7 @@ function getQueryString() {
 
         keepDefaultUnit();
 
+        dedupeRoomItems(roomObj);
         drawRoom(true, true, false);
 
         roomLoadedFromXQuery = true;
@@ -8372,7 +8412,6 @@ function parseShortenedXYUrl(parameters) {
             newItem.width = keyIdObj[item.sid].width / 1000;
             newItem.height = keyIdObj[item.sid].height / 1000;
 
-
             roomObj.items.push(newItem);
 
             if (roomObj.unit === 'feet') {
@@ -8850,8 +8889,18 @@ function binaryToBase26(binary) {
             redoArray.forEach(ensureOverlaysVisibleDefaulted);
         };
 
+        /* Defensive: undo/redo snapshots authored in older poisoned
+         * sessions can carry duplicate item ids inside their cloned
+         * roomObj.items. Strip them once at hydrate time so any future
+         * restoreSnapshotToCanvas() lands a clean state. */
+        const dedupeAllSnapshots = () => {
+            undoArray.forEach(dedupeRoomItems);
+            redoArray.forEach(dedupeRoomItems);
+        };
+
         const finishBoot = () => {
             normalizeAllOverlays();
+            dedupeAllSnapshots();
             refinePriorHadData();
             onLoad();
             if (typeof rehydrateBackgroundImageFromIdb === 'function') {
@@ -12552,6 +12601,13 @@ function restoreSnapshotToCanvas(prev, next) {
     roomObj = next;
     /* Backfill missing overlaysVisible before any reader touches it. */
     ensureOverlaysVisibleDefaulted(roomObj);
+    /* Defensive: an undo/redo snapshot captured during a poisoned
+     * session can carry duplicate item ids. Strip them BEFORE either
+     * the full-redraw fallback or applyRoomObjDelta() materialises
+     * Konva nodes from them — otherwise the duplicates survive into
+     * canvasNodesMap / roomObjItemsMap as phantoms (see the helper
+     * docblock for the full diagnosis). */
+    dedupeRoomItems(roomObj);
     unit = roomObj.unit;
 
     if (fallback) {
@@ -13537,6 +13593,7 @@ function deleteTrNodes(save = true) {
     }
 
     copyTrNodes.forEach(node => {
+
 
         /* Group rect: when the user deletes a Group bundle, dissolve the
          * group entirely (keepItems=false also wipes the members). */
@@ -25204,6 +25261,7 @@ function keepDefaultUnit() {
 
 function loadTemplate(x) {
     if (isLoadingTemplate) return;
+
     zoomInOut('reset');
     isLoadingTemplate = true;
 
@@ -25227,6 +25285,7 @@ function loadTemplate(x) {
 
     roomObj.roomId = createRoomId();
 
+    dedupeRoomItems(roomObj);
     drawRoom(true, true);
     document.getElementById("defaultOpenTab").click();
     setTimeout(() => {
@@ -27795,6 +27854,7 @@ function importJson(jsonFile) {
                 document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
+                dedupeRoomItems(roomObj);
                 drawRoom(true, false, false);
             };
 
@@ -28528,6 +28588,7 @@ function importXConfigFile(text, fileName) {
         document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
         document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
 
+        dedupeRoomItems(roomObj);
         drawRoom(true, false, false);
 
         setTimeout(() => {
@@ -30233,6 +30294,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
             isBackgroundImageFloorFileLoad = false;
         }
 
+        dedupeRoomItems(roomObj);
         drawRoom(true, false, false);
 
         setTimeout(() => {
@@ -32907,14 +32969,16 @@ function downloadJsonWorkpaceFile(workspaceObj) {
 }
 
 /* download native VRC file format */
-function downloadRoomObj() {
+/* Build the serialized .vrc.json payload + the suggested file name for
+ * the current roomObj. Shared by the local Save (downloadRoomObj) and
+ * the Webex cloud-storage PoC (js/pocLoginCloud.js) so both paths emit
+ * byte-identical files. Exposed via window.VRC.roomFile. */
+function buildRoomObjJsonPayload() {
     /* create a time stamp */
-    let tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
+    let tzoffset = (new Date()).getTimezoneOffset() * 60000;
     let localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
     localISOTime = localISOTime.replaceAll(/:/g, '');
     let downloadRoomName = 'VideoRoomCalc_' + localISOTime;
-
-    const link = document.createElement("a");
 
     /* use the roomObj clone, but remove unneeded objects and arrange the order so the name is at the top of the file */
     let roomObj2 = structuredClone(roomObj);
@@ -32937,17 +33001,27 @@ function downloadRoomObj() {
         delete roomObj2.backgroundImage;
     }
 
-
     let newRoomObj = { ...roomItems, ...roomObj2 };
-
     const content = JSON.stringify(newRoomObj, null, 5);
-    const file = new Blob([content], { type: 'text/plain' });
-    link.href = URL.createObjectURL(file);
-    if (roomObj2.name.length > 1) {
+
+    if (roomObj2.name && roomObj2.name.length > 1) {
         downloadRoomName = roomObj2.name.replace(/[/\\?%*:|"<>]/g, '-');
     }
-    downloadRoomName = downloadRoomName.trim() + '.vrc.json';
-    link.download = downloadRoomName;
+    const fileName = downloadRoomName.trim() + '.vrc.json';
+
+    return { content, fileName, roomName: roomObj.name || '', roomId: roomObj.roomId || '' };
+}
+
+window.VRC = window.VRC || {};
+window.VRC.roomFile = window.VRC.roomFile || {};
+window.VRC.roomFile.buildRoomObjJsonPayload = buildRoomObjJsonPayload;
+
+function downloadRoomObj() {
+    const { content, fileName } = buildRoomObjJsonPayload();
+    const link = document.createElement("a");
+    const file = new Blob([content], { type: 'text/plain' });
+    link.href = URL.createObjectURL(file);
+    link.download = fileName;
     link.click();
     URL.revokeObjectURL(link.href);
 }

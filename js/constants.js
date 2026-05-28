@@ -33,4 +33,29 @@ window.VRC.constants = Object.freeze({
     /* Query-string flag names. Centralizing these makes it harder to
      * accidentally check `urlParams.has('Debug')` somewhere. */
     QS_DEBUG: 'debug',
+    QS_TEST_LOGIN: 'testLogin',
+
+    /* Webex cloud-storage proof of concept (js/pocLoginCloud.js).
+     * Only used when the page is loaded with `?testLogin=1`. */
+    WEBEX_API_BASE: 'https://webexapis.com/v1',
+    WEBEX_OAUTH_AUTHORIZE_URL: 'https://webexapis.com/v1/authorize',
+    /* UMD bundle for the Webex JavaScript SDK. webexapis.com refuses
+     * direct browser fetch() (no CORS on /v1/people/me, /v1/contents/*,
+     * etc.), so the PoC routes every Webex call through this SDK's
+     * own transport. Loaded lazily by pocLoginCloud.js on the first
+     * sign-in attempt, NOT eagerly from RoomCalculator.html. */
+    WEBEX_SDK_URL: 'https://unpkg.com/webex@3/umd/webex.min.js',
+    /* Override for the SDK's hydra (REST API gateway) service URL.
+     * The SDK's built-in default `https://api.ciscospark.com/v1` and
+     * its public alias `https://webexapis.com/v1` BOTH refuse CORS
+     * preflights from arbitrary origins (preflight returns 401 with
+     * no Access-Control-Allow-Origin header). hydra-a.wbx2.com is
+     * the same API behind a CORS-friendly internal host — its
+     * preflight echoes the page origin in Access-Control-Allow-Origin,
+     * so browser fetch() works. Wired into Webex.init() under
+     * config.services.discovery.hydra by pocLoginCloud.js. */
+    WEBEX_HYDRA_URL: 'https://hydra-a.wbx2.com/v1',
+    WEBEX_SPACE_TITLE: 'Video Room Calc Rooms',
+    WEBEX_ROOMMAP_FILENAME: 'RoomMap.json',
+    WEBEX_OAUTH_STORAGE_PREFIX: 'vrc_poc_webex',
 });

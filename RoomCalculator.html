@@ -54,6 +54,18 @@
 
     <span class="spacer"></span>
 
+    <!-- Webex cloud-storage proof of concept (js/pocLoginCloud.js).
+         These two buttons are hidden by default and ONLY revealed by
+         pocLoginCloud.js when the page is loaded with ?testLogin=1. -->
+    <button id="btnPocCloudLogin" class="pocCloudLoginBtn" style="display:none;"
+      title="Sign in to Webex (PoC cloud storage)">
+      <span>Login</span>
+    </button>
+    <button id="btnPocCloudAvatar" class="pocCloudAvatarBtn" style="display:none;"
+      title="Webex Cloud (PoC)">
+      <img id="pocCloudAvatarImg" alt="Webex avatar">
+    </button>
+
     <button id="btnModalWorkspace" class="primary" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>
       <span>3D<span style="color:white">_</span>View</span>
@@ -2706,6 +2718,101 @@
     </div>
   </dialog>
 
+  <!--
+    Webex cloud-storage PoC — Personal Access Token entry dialog.
+    Opened when the user clicks the header "Login" button (PoC mode
+    skips OAuth and just uses a 12-hour Personal Access Token grabbed
+    from developer.webex.com). Only reachable when the page is loaded
+    with ?testLogin=1.
+  -->
+  <dialog id="dialogPocCloudPat" class='dialogWhiteBox' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">
+      Sign in with Personal Access Token
+      <div style="font-size: 11px; color: #b00; font-weight: normal;">
+        Proof of concept &mdash; not for production
+      </div>
+    </header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main style="min-width: 360px;">
+      <div style="font-size: 12px; color: #555; margin-bottom: 10px; line-height: 1.4;">
+        Paste your Webex Personal Access Token below.<br>
+        Get one (12&nbsp;hour lifetime) from
+        <a href="https://developer.webex.com/docs/api/getting-started"
+          target="_blank" rel="noopener noreferrer"
+          style="color: #0352a6;">developer.webex.com</a>
+        &mdash; click your avatar in the upper-right after signing in.
+      </div>
+      <div class="inputField" style="margin-bottom: 10px;">
+        <label for="pocCloudPatInput" style="font-size: 12px; font-weight: 600;">Personal Access Token:</label>
+        <input type="password" id="pocCloudPatInput" class="textInput" autocomplete="off"
+          spellcheck="false" style="width: 100%; font-family: monospace; font-size: 12px;">
+      </div>
+      <div id="pocCloudPatError" style="color: #b00; font-size: 12px; min-height: 16px;"></div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" type="button"
+        onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" type="button" id="btnPocCloudPatSubmit"
+        onclick="window.VRC.pocLoginCloud.submitPatFromDialog()">Sign In</button>
+    </div>
+  </dialog>
+
+  <!--
+    Webex cloud-storage proof of concept (js/pocLoginCloud.js).
+    Opened by clicking the avatar button in the header after a
+    successful Webex sign-in. Only reachable when the page
+    is loaded with ?testLogin=1.
+  -->
+  <dialog id="dialogPocLoginCloud" class='dialogWhiteBox' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">
+      Webex Cloud (PoC)
+      <div style="font-size: 11px; color: #b00; font-weight: normal;">
+        Proof of concept &mdash; not for production
+      </div>
+    </header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main style="min-width: 380px;">
+
+      <!-- User identity row -->
+      <div id="pocCloudUserRow" class="pocCloudUserRow">
+        <img id="pocCloudUserAvatar" alt="">
+        <div class="pocCloudUserInfo">
+          <div id="pocCloudUserName" class="pocCloudUserName">&hellip;</div>
+          <div id="pocCloudUserEmail" class="pocCloudUserEmail">&hellip;</div>
+        </div>
+        <button class="button dropDownBtnWhite" type="button" id="btnPocCloudSignOut"
+          onclick="window.VRC.pocLoginCloud.signOut()">Sign Out</button>
+      </div>
+
+      <!-- Space status -->
+      <div id="pocCloudSpaceStatus" class="pocCloudSpaceStatus">
+        <div id="pocCloudSpaceTitle" style="font-weight: 600;">&hellip;</div>
+        <div id="pocCloudSpaceMeta" style="color: #666; font-size: 12px;">&hellip;</div>
+      </div>
+
+      <!-- Save row -->
+      <div class="pocCloudSaveRow">
+        <button class="button" type="button" id="btnPocCloudSaveNow"
+          onclick="window.VRC.pocLoginCloud.saveCurrentRoomToWebex()">
+          <i class="icon icon-save-regular iconLeftOfText"></i>
+          Save Current Room to Webex
+        </button>
+        <div id="pocCloudSaveStatus" class="pocCloudSaveStatus"></div>
+      </div>
+
+      <!-- Rooms list -->
+      <div class="pocCloudListHeader">Rooms in this space</div>
+      <div id="pocCloudRoomsList" class="pocCloudRoomsList">
+        <div id="pocCloudRoomsEmpty" class="pocCloudRoomsEmpty">Loading&hellip;</div>
+      </div>
+
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" type="button"
+        onclick="closeAllDialogModals()">Close</button>
+    </div>
+  </dialog>
+
   <dialog id="dialogRecentFloorPlans" class='dialogWhiteBox' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Recent Floor Plans</header>
     <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
@@ -2875,6 +2982,10 @@
   <script src="./js/idbStorage.js"></script>
   <script src="./js/templates.js"></script>
   <script src="./js/roomcalc.js"></script>
+  <!-- Webex cloud-storage proof of concept (only active when the page
+       is loaded with ?testLogin=1). Loads after roomcalc.js so it can
+       reach roomObj / routeUploadedFileText() etc. -->
+  <script src="./js/pocLoginCloud.js"></script>
   <!-- <script src="./js/drpDownOverride.js"></script> -->
 
   <!--
