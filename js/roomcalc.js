@@ -3071,30 +3071,42 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
     const id = node.id();
     if (!id) return;
 
-    const audioNode = stage.findOne('#audio~' + id);
-    if (audioNode) {
+    /* O(1) Map lookup — see updateShading() for the rationale. The
+     * .parent guard drops stale entries left by any unsynced destroy path. */
+    const audioNode = canvasNodesMap.get('audio~' + id);
+    if (audioNode && audioNode.parent) {
         audioNode.visible(layerVisible && node.data_audioHidden !== true);
+    } else if (audioNode) {
+        canvasNodesMap.delete('audio~' + id);
     }
 
-    const speakerNode = stage.findOne('#speaker~' + id);
-    if (speakerNode) {
+    const speakerNode = canvasNodesMap.get('speaker~' + id);
+    if (speakerNode && speakerNode.parent) {
         speakerNode.visible(layerVisible && node.data_speakerHidden !== true);
+    } else if (speakerNode) {
+        canvasNodesMap.delete('speaker~' + id);
     }
 
-    const fovNode = stage.findOne('#fov~' + id);
-    if (fovNode) {
+    const fovNode = canvasNodesMap.get('fov~' + id);
+    if (fovNode && fovNode.parent) {
         fovNode.visible(layerVisible && node.data_fovHidden !== true);
+    } else if (fovNode) {
+        canvasNodesMap.delete('fov~' + id);
     }
 
-    const dispDistNode = stage.findOne('#dispDist~' + id);
-    if (dispDistNode) {
+    const dispDistNode = canvasNodesMap.get('dispDist~' + id);
+    if (dispDistNode && dispDistNode.parent) {
         dispDistNode.visible(layerVisible && node.data_dispDistHidden !== true);
+    } else if (dispDistNode) {
+        canvasNodesMap.delete('dispDist~' + id);
     }
 
-    const labelNode = stage.findOne('#label~' + id);
-    if (labelNode) {
+    const labelNode = canvasNodesMap.get('label~' + id);
+    if (labelNode && labelNode.parent) {
         /* Labels have no per-item hidden flag; just respect layer visibility */
         labelNode.visible(layerVisible);
+    } else if (labelNode) {
+        canvasNodesMap.delete('label~' + id);
     }
 }
 
@@ -19994,8 +20006,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         canvasNodesMap.set(imageItem.id(), imageItem);
-
-
     };
 
 
@@ -20016,6 +20026,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: 0,
             name: 'shading_group',
         })
+
+        /* Index coverage node for O(1) lookup in updateShading() and
+         * applyLayerStateToCoverageNodes(). See updateShading() comment. */
+        canvasNodesMap.set('fov~' + uuid, groupFov);
 
         if (attrs.data_fovHidden) {
             groupFov.visible(false);
@@ -20201,6 +20215,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
         })
 
+        canvasNodesMap.set('audio~' + uuid, groupAudioShading);
+
         if (attrs.data_audioHidden) {
             groupAudioShading.visible(false);
         } else {
@@ -20279,6 +20295,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: 0,
             name: 'shading_group',
         })
+
+        canvasNodesMap.set('speaker~' + uuid, groupSpeakerCoverage);
 
         if (attrs.data_speakerHidden) {
             groupSpeakerCoverage.visible(false);
@@ -20371,6 +20389,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             rotation: 0,
             name: 'shading_group',
         })
+
+        canvasNodesMap.set('dispDist~' + uuid, groupItemDisplayDistance);
 
 
 
@@ -20538,6 +20558,8 @@ function addLabel(node, attrs, alwaysLabel = false) {
         name: 'labelText',
         listening: false,
     });
+
+    canvasNodesMap.set('label~' + node.id(), labelTip);
 
     labelTip.add(
         new Konva.Tag({
@@ -22024,31 +22046,42 @@ function updateShading(node) {
     if (isAllCoverageGroupHidden) return;
 
     let uuid = node.id();
-    let fovShading = stage.find(`#fov~${uuid}`);
-    let audioShading = stage.find(`#audio~${uuid}`);
-    let dispDistShading = stage.find(`#dispDist~${uuid}`);
-    let speakerShading = stage.find(`#speaker~${uuid}`);
+    /* O(1) Map lookup instead of stage.find() — which is O(N) tree walk
+     * in Konva v9 (_generalFind → _descendants). With 4500+ items the
+     * tree walk dominated bulk-import time. Coverage/label nodes are
+     * registered in canvasNodesMap at creation time under their composite
+     * IDs ('fov~UUID', 'audio~UUID', 'speaker~UUID', 'dispDist~UUID',
+     * 'label~UUID') and unregistered at destroy sites. The `.parent`
+     * guard drops stale entries left by any unsynced destroy path. */
+    let fovShading = canvasNodesMap.get('fov~' + uuid);
+    if (fovShading && !fovShading.parent) { canvasNodesMap.delete('fov~' + uuid); fovShading = undefined; }
+    let audioShading = canvasNodesMap.get('audio~' + uuid);
+    if (audioShading && !audioShading.parent) { canvasNodesMap.delete('audio~' + uuid); audioShading = undefined; }
+    let dispDistShading = canvasNodesMap.get('dispDist~' + uuid);
+    if (dispDistShading && !dispDistShading.parent) { canvasNodesMap.delete('dispDist~' + uuid); dispDistShading = undefined; }
+    let speakerShading = canvasNodesMap.get('speaker~' + uuid);
+    if (speakerShading && !speakerShading.parent) { canvasNodesMap.delete('speaker~' + uuid); speakerShading = undefined; }
+    let textLabel = canvasNodesMap.get('label~' + uuid);
+    if (textLabel && !textLabel.parent) { canvasNodesMap.delete('label~' + uuid); textLabel = undefined; }
 
-    let textLabel = stage.find(`#label~${uuid}`);
-
-    if (fovShading.length === 1) {
-        moveShading(node, fovShading[0]);
+    if (fovShading) {
+        moveShading(node, fovShading);
     }
 
-    if (audioShading.length === 1) {
-        moveShading(node, audioShading[0]);
+    if (audioShading) {
+        moveShading(node, audioShading);
     }
 
-    if (dispDistShading.length === 1) {
-        moveShading(node, dispDistShading[0]);
+    if (dispDistShading) {
+        moveShading(node, dispDistShading);
     }
 
-    if (speakerShading.length === 1) {
-        moveShading(node, speakerShading[0]);
+    if (speakerShading) {
+        moveShading(node, speakerShading);
     }
 
-    if (textLabel.length > 0) {
-        moveLabel(node, textLabel[0])
+    if (textLabel) {
+        moveLabel(node, textLabel)
     }
 
 
@@ -29686,6 +29719,7 @@ function showToast(msg, durationMs) {
 }
 
 function importWorkspaceDesignerFile(workspaceObj) {
+
     resetRoomObj();
 
     let unknownObjects = [];
