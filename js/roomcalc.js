@@ -13699,11 +13699,16 @@ function deleteTrNodes(save = true) {
         let parentGroup = allDeviceTypes[node.data_deviceid].parentGroup;
         let id = node.id();
 
-        let audioShading = stage.find('#audio~' + node.id())[0];
-        let speakerShading = stage.find('#speaker~' + node.id())[0];
-        let videoShading = stage.find('#fov~' + node.id())[0];
-        let displayShading = stage.find('#dispDist~' + node.id())[0];
-        let labelText = stage.find('#label~' + node.id())[0];
+        /* Scope coverage/label lookups to their owning Konva.Group instead of the
+         * whole stage. Each `stage.find('#name')` is O(stage descendants) — with
+         * thousands of items this dominated bulk-delete time (~17 s for 4721
+         * items). Coverage nodes live in known small groups, so a subtree-scoped
+         * findOne reduces the per-call cost to O(coverage group children). */
+        let audioShading   = microphoneCoverage.findOne('#audio~' + id);
+        let speakerShading = speakerCoverage.findOne('#speaker~' + id);
+        let videoShading   = cameraCoverage.findOne('#fov~' + id);
+        let displayShading = displayDistanceCoverage.findOne('#dispDist~' + id);
+        let labelText      = overlayLabels.findOne('#label~' + id);
 
         node.destroy();
         if (audioShading) {
