@@ -822,6 +822,279 @@ the room-level `data.vrc.groups[]` block).
 
 ---
 
+## Parent Items (composite WD export)
+
+A "Parent Item" is a single VRC item (e.g.
+`genericSecurityCamera`) that has no native Workspace Designer object
+type and is therefore exported as **multiple WD primitives**
+(cylinder + sphere + box + ...) plus a metadata block in the WD JSON
+that round-trips the original parent record. The parent itself lives
+as a normal entry in `roomObj.items[]` — the composite-export
+behaviour is purely a WD-layer concern. URL encoding,
+`.vrc.json` import/export, undo/redo, copy/paste, layers, groups, and
+custom items are all unaffected and require no special handling.
+
+The mechanism is opt-in per device via two new fields in
+`workspaceKey[deviceid]`:
+
+```javascript
+workspaceKey.genericSecurityCamera = {
+    parentItem: true,
+    childItemParts: [
+        {
+            data_deviceid: 'cylinder',
+            x: 0.0025, y: 0.0025,
+            width: 0.12, height: 0.12,
+            rotation: 0,
+            data_tilt: 0, data_slant: 0,
+            data_zPosition: 0.05,
+            data_vHeight: 0.05,
+        },
+        {
+            data_deviceid: 'sphere',
+            x: 0.0125, y: 0.0125,
+            width: 0.1, height: 0.1,
+            rotation: 0,
+            data_zPosition: 0,
+            data_vHeight: 0.1,
+            data_fill: '#595959',
+        },
+    ],
+};
+```
+
+Each entry in `childItemParts` is a flat VRC item template in
+**meters**, with `x` / `y` as the offset from the parent's upper-left
+corner in the parent's local (un-rotated) frame, and `width` / `height`
+as the X / Y extents — exactly the convention `roomObj.items` already
+uses. `rotation`, `data_zPosition`, `data_vHeight`, `data_tilt`,
+`data_slant` are added to the parent's values at export time;
+`data_fill`, `data_opacity`, `data_radius2`, `data_labelField` pass
+through verbatim when present.
+
+### Round-trip flow
+
+```mermaid
+flowchart LR
+    parentItem["roomObj.items entry<br/>data_deviceid: 'genericSecurityCamera'"]
+    wsKey["workspaceKey.genericSecurityCamera<br/>parentItem: true<br/>childItemParts: [cylinder, sphere]"]
+    parentBlock["data.vrc.parentItems[]<br/>full parent record (meters)"]
+    children["customObjects[]<br/>cylinder + sphere<br/>each carries vrcParent: '&lt;parentUuid&gt;'"]
+    wd["WD JSON file"]
+    importDrop["Import: drop every wdItem with .vrcParent"]
+    importRestore["Import: restore parents from data.vrc.parentItems[]"]
+    rebuilt["roomObj.items entry<br/>(rebuilt with same id)"]
+
+    parentItem --> wsKey
+    wsKey -->|export| parentBlock
+    wsKey -->|export| children
+    parentBlock --> wd
+    children --> wd
+    wd --> importDrop
+    wd --> importRestore
+    importRestore --> rebuilt
+```
+
+### Wire shape — vrc-prefixed back-refs on each child
+
+Each child WD object emitted via `pushParentItemChildren()` carries
+two VRC-namespaced back-references:
+
+| Per-child WD attribute | Source | Purpose |
+|------------------------|--------|---------|
+| `vrcParent` | `parent.id` (instance UUID) | Drop discriminator on import — every WD object with this attr is removed from `wdItems` BEFORE the workspaceKey scoring loop runs |
+| `vrcParentDeviceId` | `parent.data_deviceid` | Optional second ref for human-readability and resilience to a missing `data.vrc.parentItems[]` block |
+
+Both are vrc-prefixed because they are VRC-specific additions to a
+WD top-level `customObjects[]` entry. The WD-team contract today
+formally agrees only on `group` (the existing per-item Group ref);
+anything else VRC writes onto a top-level customObjects entry that
+ISN'T part of the agreed schema starts with `vrc` to protect against
+collisions with future native WD attributes. (Pre-existing exceptions
+`group`, `customItem`, `comment`, `layer` are locked in by prior
+round-trips.)
+
+The room-level metadata block lives at
+`workspaceObj.data.vrc.parentItems[]` — already inside the
+`data.vrc.*` namespace, so no additional prefix is required (mirror
+of `data.vrc.groups[]` / `data.vrc.customItems[]` /
+`data.vrc.vrcTexts[]`).
+
+### Inheritance from parent → child
+
+Each emitted child WD object inherits these attributes from the
+parent so a layer hide / Group / CustomItem / hidden-in-Designer flag
+applied to the parent flows to every WD primitive:
+
+- `data_layerId` → emitted as `layerName` via `setLayerOnWorkspaceItem()`
+- `data_groupId` → emitted as `group: "<groupid>"`
+- `data_customItemId` → emitted as `customItem: "<customitemid>"`
+- `data_hiddenInDesigner` → emitted as `hidden: true`
+
+### Parent anchor heuristic — UL vs. visual-center
+
+`childItemParts` coordinates are documented as offsets from the
+parent's **upper-left** corner in the parent's local (un-rotated)
+frame. That convention works directly for **UL-anchored device
+classes** — `parentGroup` of `tables` / `stageFloors` / `boxes` /
+`rooms` — whose stored `(item.x, item.y)` is the upper-left corner.
+**Center-anchored device classes** — `videoDevices` / `microphones` /
+`chairs` / `displays` (including `genericSecurityCamera` and `room55`)
+— are different: the canvas renders them with `offsetX = w/2` /
+`offsetY = h/2` so the user's `(item.x, item.y)` is the **visual
+centre** of the icon, not its upper-left.
+
+> **The UL-vs-center decision keys off the device CLASS
+> (`parentGroup`), NOT off whether the instance carries `width` /
+> `height`.** This is the exact convention `partAnchorIsUL()` uses in
+> `createCustomItemMenuImage()`. An earlier cut keyed it off
+> `parent.width != null`, which broke on reload: a center-anchored
+> parent (e.g. `room55`, a `videoDevice`) has **no** `width` / `height`
+> when freshly inserted but **gains** them after any canvas round-trip
+> (page reload, undo/redo — `drawRoom()` → `canvasToJson()` reads the
+> Konva node's width/height back into `roomObj.items`). The instance
+> check therefore flipped the anchor from center to UL on the next
+> export, shifting every child by ~half the extent (the "refresh
+> breaks alignment" bug). The class-based check is reload-stable.
+
+`pushParentItemChildren()` resolves both cases with a **pivot +
+anchor-offset** model evaluated at the top of the function:
+
+| Device class (`parentGroup`) | Effective extent | Pivot (rotation centre) | Anchor offset (local frame) |
+|------------------------------|------------------|-------------------------|------------------------------|
+| UL-anchored (`tables` / `stageFloors` / `boxes` / `rooms`) | the explicit `parent.width` / `parent.height` | `(parent.x, parent.y)` — the stored UL, which is also the rotation pivot | `(0, 0)` |
+| Center-anchored (everything else: `videoDevices` / `microphones` / `chairs` / `displays`) | `parent.width` / `parent.height` if present, else `(allDeviceTypes[deviceid].width / 1000, allDeviceTypes[deviceid].depth / 1000)` (mm → m; `roomObj2` is already meters by this point because `convertToMeters()` ran on the clone before the bucket dispatch) | `(parent.x, parent.y)` — the stored centre, which is the rotation pivot for centre-anchored items | `(−effW/2, −effH/2)` |
+
+Per child the world position is then:
+
+```
+localX = part.x + anchorOffX
+localY = part.y + anchorOffY
+worldX = pivotX + localX·cos(rot) − localY·sin(rot)
+worldY = pivotY + localX·sin(rot) + localY·cos(rot)
+```
+
+**The anchor offset is part of the local vector and MUST be rotated
+with it.** The first cut of this code subtracted `effW/2` / `effH/2`
+in *world* axes (`parentULx = parent.x − effW/2`) and then rotated
+only the part offset around that pre-shifted point. That happens to
+be correct at rotation 0 but drifts every child by up to a half-extent
+(~1–1.5 m on `room55`) at 90° / 180° / −90°, which is the
+"only rotation 0 lines up" bug. Folding the anchor offset into the
+local vector before the single rotation about the true pivot fixes
+all four quadrants (verified against a `room55` parentItem stacked on
+the equivalent CustomItem at rot 0 / 90 / 180 / −90: max error drops
+from ~1.0–1.5 m to ~0.02–0.10 m, the residual being the by-eye
+placement offset between the two stacked instances).
+
+It also subsumes the earlier `genericSecurityCamera` ~62.5 mm offset
+fix (centre-vs-UL). The model is parent-item-only — it does not
+affect `workspaceObjWallPush()` for non-parent items, and the
+CustomItem export path is untouched (CustomItem members are real
+`roomObj.items` with their own absolute world coords, exported
+directly).
+
+### Authoring helper (test-mode-only)
+
+Composing a new `childItemParts` block by hand is tedious — the
+quickest path is to draft the layout as a CustomItem on the canvas,
+save it to the Library, then convert. The Edit Custom Item dialog
+(`#dialogCustomItemEdit`, opened via the ellipsis on a Quick Add
+tile) carries a hidden orange button **"Copy as parentItem
+template"** that copies a paste-ready snippet to the clipboard:
+
+```javascript
+workspaceKey.<idDerivedFromName> = {
+    parentItem: true,
+    childItemParts: [
+        { data_deviceid: 'cylinder', x: ..., y: ..., width: ..., height: ..., rotation: ..., data_zPosition: ..., data_vHeight: ... },
+        ...
+    ],
+};
+```
+
+Visibility is gated on `localStorage.getItem('test') === 'true'` —
+the same test-mode flag set by appending `?test` to the URL (see the
+`urlParams.has('test')` branch in the boot IIFE). The button is
+rewired on every dialog open so the captured `baseId` always tracks
+the clicked tile.
+
+The conversion itself is essentially a field whitelist + JSON
+pretty-print: the IDB library record's `customItemParts` array
+already stores parts in **meters**, in the **CustomItem-local frame**
+with **UL=0,0 origin** and **rotation normalized to (-180°, 180°]**
+— exactly the convention `pushParentItemChildren()` expects. The
+helper drops runtime-only fields the customItem exporter carries
+(`data_diagonalInches`, `data_fovHidden`, `data_audioHidden`, etc.)
+that parentItem children never use, slugifies the customItem name
+into a JS-identifier device id, and writes the snippet via
+`navigator.clipboard.writeText`. On clipboard failure (rare; permission
+policy / non-secure context) the snippet is `console.info`-logged
+and an `alertDialog` points the user there.
+
+Two numeric normalizations run before serialization:
+
+1. **`data_zPosition` is rebased so the lowest part sits at 0.** The
+   helper finds the minimum `data_zPosition` across all parts and
+   subtracts it from every part. Because `pushParentItemChildren()`
+   ADDS the parent's `data_zPosition` back to every child on export,
+   this hands the resting height to the user via the parent item:
+   the parent's `data_zPosition` = 0 puts the assembly on the ground,
+   and the device's `defaultVert` raises it on insert. Without this a
+   tall layout authored near the ceiling (e.g. a ceiling fan) would
+   export floating at its authored height no matter where it was
+   dropped.
+
+   **A part with no `data_zPosition` counts as 0 (the floor) in the
+   minimum.** This is essential: a mixed assembly with base/stand
+   parts at implicit 0 plus elevated parts (a panel at 0.85, a
+   cylinder at 1.54) already rests on the floor, so `minZ` resolves to
+   0 and NOTHING shifts — the vertical structure is preserved. The
+   shift only fires when EVERY part carries an explicit elevation and
+   none is at the floor (the ceiling-fan case). An earlier cut scanned
+   only parts that carried an explicit numeric `data_zPosition`, which
+   mis-computed the floor as the lowest *elevated* part and collapsed
+   the panel/cylinder down onto the base boxes on export (the
+   "everything renders flat" bug).
+2. **`x`, `y`, `data_zPosition` are rounded to 4 decimal places** so
+   the pasted template stays human-readable (other fields are left at
+   full precision — width / height / rotation come straight from the
+   record).
+
+| Concern | Location |
+|---------|----------|
+| Button HTML | `#customItemEditCopyAsParentBtn` in `RoomCalculator.html` (next to `#customItemEditExportBtn` / `#customItemEditRemoveBtn`; `display: none` by default; orange `#ff8c00` background with black text and `#d97400` border) |
+| Visibility wire-up | `openEditCustomItemDialog()` in `js/roomcalc.js` — toggles `display` based on `localStorage.getItem('test') === 'true'` on every open, then rewires `onclick` to the captured `baseId` |
+| Conversion handler | `copyCustomItemAsParentTemplate(baseId)` in `js/roomcalc.js`, just below `openEditCustomItemDialog`. Reads from the Quick Add cache (`_customItemQuickAddRecordsCache`) when populated; falls back to a fresh `idbStore.customItemGet(baseId)`. Field whitelist mirrors the set read by `pushParentItemChildren()` |
+
+### What is intentionally NOT in scope
+
+- **URL / `.vrc.json` round-trip**: unchanged — the parent rides
+  existing surfaces; children only exist in WD JSON exports.
+- **Per-instance child overrides**: v1 children are pure templates.
+  If the user wants a cone instead of a cylinder for the housing,
+  they edit the workspaceKey definition (or add a sibling device id
+  with a different template).
+- **`data_color` propagation from parent to child**: out of scope; if
+  a child needs a tunable color, parent-side overrides can be added
+  later via an `inheritColor: true` flag on the part template.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| `workspaceKey` definition (new schema fields) | `parentItem: true` + `childItemParts: [...]` in `js/data/workspaceKey.js` |
+| Export — pre-pass | `exportRoomObjToWorkspace()` in `js/roomcalc.js`, immediately after `const wdBuckets = bucketItemsByParentGroup(roomObj2)`. Walks every bucket; pulls flagged items out via `bucket.splice(i, 1)` BEFORE the per-bucket push runs |
+| Export — children dispatcher | `pushParentItemChildren(parent, wsKey)` (function declaration nested in `exportRoomObjToWorkspace()` so it hoists above the call site). Builds a synthetic VRC item per template part, then dispatches by class: **display-class children** (`allDeviceTypes[childId].parentGroup === 'displays'`) → `workspaceObjDisplayPush()` (panel sized from `data_diagonalInches`, defaulted to the device-def `diagonalInches`, width/height ignored; carries `data_role` / `data_color` / `data_mount`); **wall-class children** (cylinder / sphere / cone / box / wall / columnRect / floor / carpet / stageFloor) → `workspaceObjWallPush()`. Tags the just-pushed `customObjects[]` entry with `vrcParent` / `vrcParentDeviceId` after the push (outside the push helper so it stays parentItem-agnostic). Resolves the parent's effective UL anchor at the top — see "Parent anchor heuristic" above |
+| Export — parent metadata builder | `buildParentItemExportRecord(item)` (also nested in `exportRoomObjToWorkspace()`). Mirrors the `data.vrc.customItems[]` builder pattern; emits meters, VRC top-left, `layerName` for non-Default layer, optional pass-through fields (`data_tilt`, `data_slant`, `data_vHeight`, `data_fill`, `data_opacity`, `data_color`, `data_role`, `data_mount`, `data_hiddenInDesigner`, `data_labelField`) when present |
+| Import — drop children | `importWorkspaceDesignerFile()` scoring loop, immediately inside `if (wdItem) { ... }` at the top: `if (wdItem.vrcParent) { delete wdItems[i]; continue; }`. Runs BEFORE every other scoring guard so children never produce a `cylinder` / `sphere` VRC item |
+| Import — restore parents | `importWorkspaceDesignerFile()`, block immediately after the `data.vrc.dimensionLines` restore and BEFORE the `data.vrc.groups` / `data.vrc.customItems` restore (so the bundle-membership rebuild passes pick up the restored parent items). Resolves `layerName` via `resolveImportLayerName()`, maps `group` → `data_groupId`, `customItem` → `data_customItemId` |
+
+See `notes/WORKSPACE_DESIGNER.md` → "VRC Parent Item Round-Trip" for
+the wire-shape table and additional context on the coordinate model.
+
+---
+
 ## VRC-only text item (vrcText)
 
 `vrcText` is a sibling device of `wdText`. Both render as a `Konva.Label`

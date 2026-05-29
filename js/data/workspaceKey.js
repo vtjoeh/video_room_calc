@@ -101,7 +101,7 @@ workspaceKey.webexDeskProG2 = { objectType: 'videoDevice', model: 'Desk Pro G2',
 workspaceKey.webexDeskPro = { objectType: 'videoDevice', model: 'Desk Pro', role: 'singleScreen' };
 workspaceKey.webexDeskMini = { objectType: 'videoDevice', model: 'Desk Mini', role: 'singleScreen' };
 
-workspaceKey.room55 = { objectType: 'videoDevice', model: 'Legacy', scale: [1.5, 12, 0.5] };
+// workspaceKey.room55 = { objectType: 'videoDevice', model: 'Legacy', scale: [1.5, 12, 0.5] };
 workspaceKey.rmKitMini = { objectType: 'videoDevice', model: 'Legacy', scale: [0.55, 0.9, 0.9] };
 workspaceKey.roomKit = { objectType: 'videoDevice', model: 'Legacy', scale: [0.75, 0.95, 0.95] };
 
@@ -225,6 +225,8 @@ workspaceKey.sphere = { objectType: 'sphere' };
 workspaceKey.cylinder = { objectType: 'cylinder' };
 workspaceKey.cone = { objectType: 'cylinder' };
 
+
+
 workspaceKey.customVRC = { objectType: 'Customer Video Room Calc', kind: '' };
 
 
@@ -273,4 +275,206 @@ workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit 
 
 
 /* end of defining workSpaceKey */
+
+
+/* Parent Items: composite WD export from a single VRC item. The
+ * `parentItem: true` flag routes the item out of the normal per-bucket
+ * push and into `pushParentItemChildren()` in roomcalc.js, which emits
+ * one WD primitive per entry in `childItemParts` (each tagged with
+ * `vrcParent` / `vrcParentDeviceId`) plus a metadata record in
+ * `workspaceObj.data.vrc.parentItems[]` for round-trip restore.
+ *
+ * Each child template's x / y / width / height / rotation /
+ * data_zPosition / data_vHeight / data_tilt / data_slant follow VRC's
+ * native item convention: x/y is the offset (meters) from the parent's
+ * upper-left corner in the parent's local (un-rotated) frame, with
+ * width as the X-extent and height as the Y-extent. data_fill /
+ * data_opacity / data_radius2 / data_labelField pass through verbatim
+ * when present. See CLAUDE.md "Parent Items" for the full round-trip
+ * contract. */
+
+// workspaceKey.genericSecurityCamera = {
+//     parentItem: true,
+//     childItemParts: [
+//         {
+//             data_deviceid: 'cylinder',
+//             x: 0.0025, y: 0.0025,
+//             width: 0.12, height: 0.12,
+//             rotation: 0,
+//             data_tilt: 0, data_slant: 0,
+//             data_zPosition: 0.05,
+//             data_vHeight: 0.05,
+//         },
+//         {
+//             data_deviceid: 'sphere',
+//             x: 0.0125, y: 0.0125,
+//             width: 0.1, height: 0.1,
+//             rotation: 0,
+//             data_zPosition: 0,
+//             data_vHeight: 0.1,
+//             data_fill: '#595959',
+//         },
+//     ],
+// };
+
+
+workspaceKey.ceilingFan = {
+    parentItem: true,
+    childItemParts: [
+        {
+            "data_deviceid": "box",
+            "x": 0.9834,
+            "y": 0.0976,
+            "width": 1.2527279599127055,
+            "height": 0.13106399580595213,
+            "rotation": 135,
+            "data_zPosition": 0.0213,
+            "data_vHeight": 0.006095999804928007,
+            "data_tilt": 0,
+            "data_slant": 0
+        },
+        {
+            "data_deviceid": "box",
+            "x": 0.9498,
+            "y": 0.9906,
+            "width": 1.2618719596200971,
+            "height": 0.13106399580595213,
+            "rotation": -135,
+            "data_zPosition": 0.0213,
+            "data_vHeight": 0.006095999804928007,
+            "data_tilt": 0,
+            "data_slant": 0
+        },
+        {
+            "data_deviceid": "cylinder",
+            "x": 0.3768,
+            "y": 0.3201,
+            "width": 0.2804159910266883,
+            "height": 0.2804159910266883,
+            "rotation": 0,
+            "data_zPosition": 0,
+            "data_vHeight": 0.06095999804928007,
+            "data_tilt": 0,
+            "data_slant": 0
+        },
+        {
+            "data_deviceid": "cylinder",
+            "x": 0.5018,
+            "y": 0.4572,
+            "width": 0.030479999024640034,
+            "height": 0.030479999024640034,
+            "rotation": 0,
+            "data_zPosition": 0,
+            "data_vHeight": 0.4571999853696005,
+            "data_tilt": 0,
+            "data_slant": 0
+        }
+    ],
+};
+
+
+
+/* Generated from Custom Item "Security Camera (generic)" — paste into js/data/workspaceKey.js. */
+workspaceKey.genericSecurityCamera = {
+    parentItem: true,
+    childItemParts: [
+        {
+            "data_deviceid": "cylinder",
+            "x": 0,
+            "y": 0,
+            "width": 0.12,
+            "height": 0.12,
+            "rotation": 0,
+            "data_zPosition": 0.05,
+            "data_vHeight": 0.05,
+            "data_tilt": 0,
+            "data_slant": 0
+        },
+        {
+            "data_deviceid": "sphere",
+            "x": 0.01,
+            "y": 0.01,
+            "width": 0.1,
+            "height": 0.1,
+            "rotation": 0,
+            "data_zPosition": 0,
+            "data_vHeight": 0.1,
+            "data_tilt": 0,
+            "data_slant": 0,
+            "data_fill": "#595959"
+        }
+    ],
+};
+
+
+workspaceKey.room55 = {
+    parentItem: true,
+    childItemParts: [
+        {
+            "data_deviceid": "displaySngl_2",
+            "x": 0.6295,
+            "y": 0.4702,
+            "width": 1.2039599614732812,
+            "height": 0.09143999707392009,
+            "rotation": 0,
+            "data_zPosition": 0.8534
+        },
+        {
+            "data_deviceid": "box",
+            "x": 0.279,
+            "y": 0.0161,
+            "width": 0.999743968008193,
+            "height": 0.04876799843942405,
+            "rotation": 45,
+            "data_vHeight": 0.030479999024640034
+        },
+        {
+            "data_deviceid": "box",
+            "x": 0.9983,
+            "y": 0.0404,
+            "width": 0.999743968008193,
+            "height": 0.04876799843942405,
+            "rotation": 135,
+            "data_vHeight": 0.015239999512320017
+        },
+        {
+            "data_deviceid": "box",
+            "x": 0.5168,
+            "y": 0.333,
+            "width": 0.2164079930749442,
+            "height": 0.10972799648870411,
+            "rotation": 0,
+            "data_vHeight": 1.5941039489886737
+        },
+        {
+            "data_deviceid": "box",
+            "x": 0.0047,
+            "y": 0.391,
+            "width": 1.2557759598151692,
+            "height": 0.07619999756160008,
+            "rotation": 0,
+            "data_zPosition": 0.8534,
+            "data_vHeight": 0.7619999756160007,
+            "data_tilt": 0,
+            "data_slant": 0,
+            "data_fill": "#F5F5F5"
+        },
+        {
+            "data_deviceid": "cylinder",
+            "x": 0.5838,
+            "y": 0.4245,
+            "width": 0.06095999804928007,
+            "height": 0.06095999804928007,
+            "rotation": 0,
+            "data_zPosition": 1.5392,
+            "data_vHeight": 0.06095999804928007,
+            "data_tilt": 90,
+            "data_slant": 0,
+            "data_fill": "#000000"
+        }
+    ],
+};
+
+
+
 })();

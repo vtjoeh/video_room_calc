@@ -1685,6 +1685,7 @@ function openEditCustomItemDialog(baseId) {
         const exportBtn = document.getElementById('customItemEditExportBtn');
         const removeBtn = document.getElementById('customItemEditRemoveBtn');
         const deleteBtn = document.getElementById('customItemEditDeleteBtn');
+        const copyAsParentBtn = document.getElementById('customItemEditCopyAsParentBtn');
         const displayNameRaw = getCustomItemRecordName(rec).trim();
         const displayName = displayNameRaw || '(unnamed)';
 
@@ -1701,6 +1702,21 @@ function openEditCustomItemDialog(baseId) {
         if (removeBtn) removeBtn.onclick = destructive;
         if (deleteBtn) deleteBtn.onclick = destructive;
 
+        /* Helper-only "Copy as parentItem template" button — gated on test mode
+         * (?test query param sets localStorage.test='true'; see boot IIFE).
+         * Exposes a one-click way to convert a CustomItem template into a
+         * workspaceKey.<id> = { parentItem: true, childItemParts: [...] }
+         * snippet for paste into js/data/workspaceKey.js. See CLAUDE.md
+         * "Parent Items" → "Authoring helper". */
+        if (copyAsParentBtn) {
+            const testMode = (typeof localStorage !== 'undefined' &&
+                localStorage.getItem('test') === 'true');
+            copyAsParentBtn.style.display = testMode ? '' : 'none';
+            copyAsParentBtn.onclick = function () {
+                copyCustomItemAsParentTemplate(baseId);
+            };
+        }
+
         dialog.showModal();
         setTimeout(() => { nameInput.focus(); nameInput.select(); }, 0);
     };
@@ -1713,6 +1729,121 @@ function openEditCustomItemDialog(baseId) {
         window.idbStore.customItemGet(baseId).then(fillFromRecord);
     } else {
         fillFromRecord(null);
+    }
+}
+
+/* Test-mode helper: convert the named CustomItem (library record) into a
+ * workspaceKey.<id> = { parentItem: true, childItemParts: [...] } snippet
+ * and copy it to the clipboard for paste into js/data/workspaceKey.js.
+ *
+ * The IDB library record's `customItemParts` already holds parts in the
+ * canonical Parent-Item child frame (METERS, parent-local UL=0,0 origin,
+ * normalized rotation), which is exactly what childItemParts needs — so
+ * the conversion is essentially a field whitelist + JSON pretty-print.
+ *
+ * Surfaced via the orange "Copy as parentItem template" button on the
+ * Edit Custom Item dialog (#customItemEditCopyAsParentBtn), gated on
+ * localStorage.test === 'true' (?test query param sets this; see boot
+ * IIFE). See CLAUDE.md "Parent Items" → "Authoring helper". */
+function copyCustomItemAsParentTemplate(baseId) {
+    if (!baseId) return;
+
+    const cached = (_customItemQuickAddRecordsCache || [])
+        .find(r => r && r.customItemBaseId === baseId);
+
+    /* Whitelist of fields childItemParts understands — drop runtime-only
+     * attrs (data_fovHidden, data_audioHidden, data_diagonalInches, etc.)
+     * that the customItem export carries but parentItem children never
+     * use. Mirrors the field set read by pushParentItemChildren(). */
+    const ALLOWED_FIELDS = ['data_deviceid', 'x', 'y', 'width', 'height', 'rotation',
+        'data_zPosition', 'data_vHeight', 'data_tilt', 'data_slant',
+        'data_fill', 'data_opacity', 'data_radius2', 'data_labelField',
+        'data_diagonalInches', 'data_role', 'data_color', 'data_mount'];
+
+    const buildSnippet = (rec) => {
+        if (!rec || !Array.isArray(rec.customItemParts) || !rec.customItemParts.length) {
+            try { alertDialog('Copy as parentItem template', 'No parts found in this Custom Item.'); }
+            catch (e) { console.warn('No parts found in this Custom Item.'); }
+            return;
+        }
+        const parts = rec.customItemParts.map(p => {
+            const out = {};
+            ALLOWED_FIELDS.forEach(f => { if (p[f] !== undefined) out[f] = p[f]; });
+            return out;
+        });
+
+        /* Normalize data_zPosition so the LOWEST part rests at 0, with the
+         * rest shifted by the same delta. The parent's own data_zPosition
+         * is then added back to every child on export
+         * (pushParentItemChildren), so the user controls resting height
+         * via the parent (0 = sitting on the ground; a device default
+         * vHeight raises it on insert). Without this a tall assembly (e.g.
+         * a ceiling fan authored near the ceiling) would export floating
+         * at its authored height regardless of where the user drops it.
+         *
+         * CRITICAL: a part WITHOUT data_zPosition rests on the assembly
+         * floor, so it MUST count as 0 in the minimum. Earlier this only
+         * scanned parts that carried an explicit numeric data_zPosition,
+         * which mis-computed the floor whenever some parts were at implicit
+         * 0 (e.g. base/stand boxes): the min landed on the lowest ELEVATED
+         * part and every elevated part collapsed toward the base on export.
+         * The net effect is that the shift only happens when EVERY part is
+         * elevated (the ceiling-fan case); a mixed assembly keeps its
+         * vertical structure intact (min already 0 → no shift). */
+        const round4 = (v) => Math.round((Number(v) || 0) * 10000) / 10000;
+        let minZ = Infinity;
+        parts.forEach(p => {
+            const z = (typeof p.data_zPosition === 'number') ? p.data_zPosition : 0;
+            if (z < minZ) minZ = z;
+        });
+        if (!isFinite(minZ)) minZ = 0;
+        parts.forEach(p => {
+            if (typeof p.x === 'number') p.x = round4(p.x);
+            if (typeof p.y === 'number') p.y = round4(p.y);
+            if (typeof p.data_zPosition === 'number') p.data_zPosition = round4(p.data_zPosition - minZ);
+        });
+
+        /* Slugify the customItem name into a JS-identifier device id;
+         * camelCase first letter for convention parity with existing
+         * workspaceKey entries (genericSecurityCamera, roomBarPro, …). */
+        const safeName = (getCustomItemRecordName(rec) || 'newDevice')
+            .replace(/[^A-Za-z0-9]+/g, '');
+        const deviceId = (safeName.charAt(0).toLowerCase() + safeName.slice(1)) || 'newDevice';
+
+        const partsJson = JSON.stringify(parts, null, 4)
+            .replace(/\n/g, '\n    '); /* indent the array body one level deeper */
+        const snippet =
+            '/* Generated from Custom Item "' + (getCustomItemRecordName(rec) || '') + '" — paste into js/data/workspaceKey.js. */\n' +
+            'workspaceKey.' + deviceId + ' = {\n' +
+            '    parentItem: true,\n' +
+            '    childItemParts: ' + partsJson + ',\n' +
+            '};\n';
+
+        if (typeof navigator !== 'undefined' && navigator.clipboard
+            && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(snippet).then(
+                () => { try { showToast('Copied parentItem template (' + parts.length + ' parts) to clipboard'); } catch (e) {} },
+                (err) => {
+                    console.warn('[VRC] clipboard write failed', err);
+                    try { alertDialog('Copy as parentItem template', 'Could not access clipboard. See console for the snippet.'); } catch (e) {}
+                    console.info(snippet);
+                }
+            );
+        } else {
+            console.warn('[VRC] navigator.clipboard unavailable; snippet logged below');
+            console.info(snippet);
+            try { alertDialog('Copy as parentItem template', 'Clipboard API unavailable. The snippet was logged to the console.'); } catch (e) {}
+        }
+    };
+
+    if (cached) {
+        buildSnippet(cached);
+        return;
+    }
+    if (window.idbStore && typeof window.idbStore.customItemGet === 'function') {
+        window.idbStore.customItemGet(baseId).then(buildSnippet);
+    } else {
+        buildSnippet(null);
     }
 }
 
@@ -6174,6 +6305,31 @@ let microphones = [
         innerSpeakerRadius: 0,
         speakerDeg: 360,
     },
+    {
+        name: "Security Camera (generic)*",
+        id: "genericSecurityCamera",
+        key: "NA",
+        topImage: 'genericSecurityCamera-top.png',
+        frontImage: 'genericSecurityCamera-menu.png',
+        width: 120,
+        depth: 120,
+        height: 6,
+        defaultVert: 2400,
+        defaultLayerId: "1"
+    }, 
+    {
+        name: "Ceiling Fan*",
+        id: "ceilingFan",
+        key: "NB",
+        topImage: 'ceilingFan-top.png',
+        frontImage: 'ceilingFan-menu.png',
+        width: 1320,
+        depth: 1320,
+        height: 400,
+        defaultVert: 2280,
+        defaultLayerId: "1"
+    }, 
+
 ]
 
 /* Tables & Walls & resizableItems. Table keys starts with T, Wall keys start with W */
@@ -29929,6 +30085,19 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         if (wdItem) {
 
+            /* Children of a VRC parentItem (cylinder + sphere + ... emitted
+             * as composite parts of e.g. genericSecurityCamera). The parent
+             * is reconstructed below from data.vrc.parentItems[]; the child
+             * WD objects are pure derived geometry and do NOT become
+             * roomObj items. The `vrcParent` attribute (with vrc namespace
+             * prefix per the WD-team contract — only `group` is formally
+             * agreed) is the discriminator. See CLAUDE.md "Parent Items"
+             * for the full round-trip contract. */
+            if (wdItem.vrcParent) {
+                delete wdItems[i];
+                continue;
+            }
+
             /* A person presenter imported as a custom URL gets replaced with the proper API */
             if (wdItem.id === 'presenter' && wdItem.objectType === 'custom' && wdItem.role === 'presenter' && wdItem.customUrl) {
                 wdItem.id = 'presenterCustomModified';
@@ -30247,6 +30416,43 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 ? resolveImportLayerName(dl.layerName, roomObj2)
                 : '0';
             delete item.layerName;
+            roomObj2.items.push(item);
+        });
+    }
+
+    /* Restore VRC Parent Items from data.vrc.parentItems. The exporter
+     * wrote each parent's full record in meters (VRC top-left frame, no
+     * roomX/roomY shift) — same convention as data.vrc.vrcTexts /
+     * dimensionLines / groups / customItems — so we just clone the
+     * record back into roomObj2.items. The matching child WD primitives
+     * (cylinder + sphere + ...) were already dropped at the top of the
+     * scoring loop above via the `vrcParent` early-continue.
+     *
+     * MUST run BEFORE the data.vrc.groups / data.vrc.customItems restore
+     * blocks below: those blocks rebuild groupMembers / customItemMembers
+     * by scanning roomObj2.items for data_groupId / data_customItemId
+     * references, so any parent item carrying bundle membership needs to
+     * be in items[] by then. See CLAUDE.md "Parent Items" for the full
+     * round-trip contract. */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.parentItems)) {
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        workspaceObj.data.vrc.parentItems.forEach(p => {
+            if (!p || !p.itemId || !p.data_deviceid) return;
+            if (!allDeviceTypes[p.data_deviceid]) {
+                console.info('Import WD: parentItem device not registered:', p.data_deviceid);
+                return;
+            }
+            const item = structuredClone(p);
+            item.id = p.itemId;
+            delete item.itemId;
+            item.data_layerId = p.layerName
+                ? resolveImportLayerName(p.layerName, roomObj2)
+                : '0';
+            delete item.layerName;
+            if (p.group) item.data_groupId = p.group;
+            if (p.customItem) item.data_customItemId = p.customItem;
+            delete item.group;
+            delete item.customItem;
             roomObj2.items.push(item);
         });
     }
@@ -31873,6 +32079,43 @@ function exportRoomObjToWorkspace() {
      * passes (N=7). See plan flatten-roomobj-items-array. */
     const wdBuckets = bucketItemsByParentGroup(roomObj2);
 
+    /* Parent Items: composite WD export from a single VRC item.
+     *
+     * Workspace Designer has no native concept of a composite item, so VRC
+     * items whose `workspaceKey[id].parentItem === true` are emitted as
+     * multiple WD primitives (one per entry in `childItemParts`) plus a
+     * metadata block in `data.vrc.parentItems[]` that round-trips the
+     * original parent record. Each emitted child carries
+     * `vrcParent: '<parent-instance-uuid>'` and `vrcParentDeviceId: '<deviceid>'`
+     * so the importer can drop the children before the workspaceKey
+     * scoring loop runs. The `vrc` prefix namespaces these against the
+     * formal WD-team contract (the WD team has only agreed on `group`).
+     *
+     * The pre-pass below pulls flagged items out of every bucket BEFORE
+     * the per-bucket push runs, so the normal microphone / videoDevice /
+     * etc. dispatch never sees them. The helpers
+     * `pushParentItemChildren()` and `buildParentItemExportRecord()` are
+     * function declarations so they hoist above this call site.
+     *
+     * See CLAUDE.md "Parent Items" for the full round-trip contract. */
+    const exportedParentItems = [];
+    for (const bucketName in wdBuckets) {
+        const bucket = wdBuckets[bucketName];
+        if (!Array.isArray(bucket)) continue;
+        for (let i = bucket.length - 1; i >= 0; i--) {
+            const item = bucket[i];
+            const wsKey = workspaceKey[item.data_deviceid];
+            if (wsKey && wsKey.parentItem === true && Array.isArray(wsKey.childItemParts)) {
+                pushParentItemChildren(item, wsKey);
+                exportedParentItems.push(buildParentItemExportRecord(item));
+                bucket.splice(i, 1);
+            }
+        }
+    }
+    if (exportedParentItems.length) {
+        workspaceObj.data.vrc.parentItems = exportedParentItems;
+    }
+
     (wdBuckets.chairs || []).forEach((item) => {
 
         if (item.data_deviceid === 'wheelchairTurnCycle') {
@@ -32892,6 +33135,170 @@ function exportRoomObjToWorkspace() {
         setLayerOnWorkspaceItem(workspaceItem, item);
         setGroupOnWorkspaceItem(workspaceItem, item);
         workspaceObj.customObjects.push(workspaceItem);
+    }
+
+    /* Parent Items helpers (see CLAUDE.md "Parent Items"). function
+     * declarations so they hoist above the pre-pass call site near the
+     * top of exportRoomObjToWorkspace(). */
+    function buildParentItemExportRecord(item) {
+        const rec = {
+            itemId: item.id,
+            data_deviceid: item.data_deviceid,
+            name: item.name || (allDeviceTypes[item.data_deviceid] && allDeviceTypes[item.data_deviceid].name) || '',
+            version: '1',
+            x: round(item.x || 0),
+            y: round(item.y || 0),
+            width: round(item.width || 0),
+            height: round(item.height || 0),
+            rotation: item.rotation || 0,
+            data_zPosition: round(item.data_zPosition || 0),
+        };
+        ['data_tilt', 'data_slant', 'data_vHeight', 'data_fill', 'data_opacity',
+            'data_color', 'data_role', 'data_mount', 'data_hiddenInDesigner',
+            'data_labelField'].forEach(k => {
+                if (item[k] !== undefined && item[k] !== null && item[k] !== '') rec[k] = item[k];
+            });
+        const layerId = item.data_layerId;
+        if (layerId && layerId !== '0' && roomObj.layers) {
+            const layer = roomObj.layers.find(l => l.layerid === layerId);
+            if (layer && layer.name) rec.layerName = layer.name;
+        }
+        if (item.data_groupId) rec.group = item.data_groupId;
+        if (item.data_customItemId) rec.customItem = item.data_customItemId;
+        return rec;
+    }
+
+    function pushParentItemChildren(parent, wsKey) {
+        /* Resolve the parent's effective upper-left anchor in WORLD METERS.
+         * childItemParts coordinates are documented as offsets from the
+         * parent's UL corner in its local (un-rotated) frame, so the world
+         * position math below needs the parent's UL — but VRC stores some
+         * device classes with (parent.x, parent.y) at the visual CENTER.
+         *
+         * CRITICAL: the UL-vs-center decision MUST key off the device
+         * CLASS (parentGroup), NOT off whether the instance currently
+         * carries width/height. A center-anchored parent (videoDevice /
+         * microphone / chair / display — e.g. room55) has NO width/height
+         * when freshly inserted, but GAINS them after a canvas round-trip
+         * (page reload, undo/redo, any drawRoom → canvasToJson cycle reads
+         * the Konva node's width/height back into roomObj.items). The old
+         * `hasW ? UL : center` heuristic therefore silently flipped the
+         * anchor on reload, shifting every child by half the extent on the
+         * next export (the "refresh breaks alignment" bug). Mirror the
+         * canonical convention used by partAnchorIsUL() in
+         * createCustomItemMenuImage(): UL classes are tables / stageFloors
+         * / boxes / rooms; everything else is center-anchored. */
+        const dev = (typeof allDeviceTypes !== 'undefined'
+            ? allDeviceTypes[parent.data_deviceid] : null) || {};
+        const pg = dev.parentGroup;
+        const parentIsUL = (pg === 'tables' || pg === 'stageFloors'
+            || pg === 'boxes' || pg === 'rooms');
+        const hasW = (parent.width != null && parent.width !== '');
+        const hasH = (parent.height != null && parent.height !== '');
+        const parentEffW = hasW ? Number(parent.width) : ((dev.width || 0) / 1000);
+        const parentEffH = hasH ? Number(parent.height) : ((dev.depth || 0) / 1000);
+        /* Pivot + anchor-offset model:
+         *   - pivotX/pivotY is the point the parent rotates about.
+         *   - anchorOffX/anchorOffY shifts the childItemParts local origin
+         *     (UL=0,0) to that pivot, expressed in the parent's LOCAL
+         *     (un-rotated) frame.
+         * For UL-anchored parents (walls / shapes / boxes / rooms) the
+         * pivot IS the stored (x, y) UL and the anchor offset is zero. For
+         * center-anchored parents (videoDevice / microphone / chair /
+         * display) the pivot is the stored (x, y) center and the local
+         * origin sits at (-w/2, -h/2) from it. The anchor offset MUST be
+         * rotated together with the part offset (it is part of the local
+         * vector), otherwise non-zero parent rotations misplace every
+         * child — the bug where rot 90/180/-90 parents drifted ~half-extent
+         * off. */
+        const pivotX = Number(parent.x) || 0;
+        const pivotY = Number(parent.y) || 0;
+        const anchorOffX = parentIsUL ? 0 : -parentEffW / 2;
+        const anchorOffY = parentIsUL ? 0 : -parentEffH / 2;
+
+        wsKey.childItemParts.forEach((part, idx) => {
+            /* Rotate the FULL local vector (anchor offset + part offset)
+             * around the parent pivot, then translate to the pivot. With
+             * rotation=0 this collapses to (pivot + anchorOff + part). */
+            const rad = (parent.rotation || 0) * Math.PI / 180;
+            const cos = Math.cos(rad), sin = Math.sin(rad);
+            const localX = (part.x || 0) + anchorOffX;
+            const localY = (part.y || 0) + anchorOffY;
+            const worldX = pivotX + localX * cos - localY * sin;
+            const worldY = pivotY + localX * sin + localY * cos;
+
+            const synth = {
+                /* Deterministic child id: <parentDeviceId>~<parentInstanceUuid>~<childIndex>.
+                 * Stable across re-exports of the same room (no random
+                 * UUID), so WD diffs / re-imports of an unchanged parent
+                 * keep identical child ids. The parent instance uuid keeps
+                 * children of two instances of the same device distinct;
+                 * the array index keeps siblings within one parent unique. */
+                id: `${parent.data_deviceid}~${parent.id}~${idx}`,
+                data_deviceid: part.data_deviceid,
+                x: worldX,
+                y: worldY,
+                width: part.width || 0,
+                height: part.height || 0,
+                rotation: (parent.rotation || 0) + (part.rotation || 0),
+                data_zPosition: (parent.data_zPosition || 0) + (part.data_zPosition || 0),
+                data_vHeight: part.data_vHeight,
+                data_tilt: part.data_tilt,
+                data_slant: part.data_slant,
+            };
+            ['data_fill', 'data_opacity', 'data_radius2', 'data_labelField',
+                'data_diagonalInches', 'data_role', 'data_color', 'data_mount'].forEach(k => {
+                if (part[k] !== undefined) synth[k] = part[k];
+            });
+            /* Inherit parent's layer / bundle membership / hidden flag so
+             * a hidden parent's children stay hidden, a grouped parent's
+             * children carry the group ref into WD JSON, etc. */
+            synth.data_layerId = parent.data_layerId;
+            synth.data_groupId = parent.data_groupId;
+            synth.data_customItemId = parent.data_customItemId;
+            synth.data_hiddenInDesigner = parent.data_hiddenInDesigner;
+
+            /* Dispatch through the EXISTING push helpers so cylinder /
+             * sphere / cone / box / wall coordinate math, color/opacity
+             * round-trip, and rotation conversions are reused untouched.
+             * Extend this list as new child primitive types are added. */
+            const lenBefore = workspaceObj.customObjects.length;
+            const childDev = (typeof allDeviceTypes !== 'undefined'
+                ? allDeviceTypes[synth.data_deviceid] : null) || {};
+            const supported = ['sphere', 'cylinder', 'cone', 'box', 'wallStd', 'wallGlass',
+                'wallWindow', 'columnRect', 'floor', 'carpet', 'stageFloor'];
+            if (childDev.parentGroup === 'displays') {
+                /* Display-class children (screen/projector) size themselves
+                 * from data_diagonalInches in workspaceObjDisplayPush, which
+                 * ignores width/height. Default the diagonal to the device
+                 * definition when the template omitted it, and give a sane
+                 * single-screen role so WD renders one panel. */
+                if (synth.data_diagonalInches == null) {
+                    synth.data_diagonalInches = childDev.diagonalInches;
+                }
+                if (synth.role == null && synth.data_role == null) {
+                    synth.role = 'firstScreen';
+                }
+                workspaceObjDisplayPush(synth);
+            } else if (supported.indexOf(synth.data_deviceid) >= 0) {
+                workspaceObjWallPush(synth);
+            } else {
+                console.warn('[VRC] parentItem child type not yet routed:', synth.data_deviceid);
+                return;
+            }
+            /* Tag the just-pushed customObject with the parent ref. Done
+             * OUTSIDE the push functions so they stay agnostic to
+             * parentItem. Both attributes are vrc-prefixed because they
+             * are VRC-specific additions to a WD top-level customObjects[]
+             * entry — namespacing protects against collisions with future
+             * native WD attributes. The WD-team contract today only
+             * formally agrees on `group`. */
+            const pushed = workspaceObj.customObjects[lenBefore];
+            if (pushed) {
+                pushed.vrcParent = parent.id;
+                pushed.vrcParentDeviceId = parent.data_deviceid;
+            }
+        });
     }
 
     return workspaceObj;
