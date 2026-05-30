@@ -503,6 +503,13 @@
                 </select>
               </div>
 
+              <div class="inputField" id="certifiedDisplayDiv" style="display: none;">
+                <label class="tooltipBottom">Certified Displays:</label>
+                <select id="certifiedDisplaySelect" class="drpDown" onchange="updateItem()">
+
+                </select>
+              </div>
+
               <div class="inputField" id="labelFieldDiv">
                 <label class="tooltipBottom"><span id="itemLabeldiv">Item Label:</span><i
                     class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels the item. Should be
@@ -2459,7 +2466,6 @@
 
   </dialog>
 
-
   <dialog id="dialogAlertModal" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">
       <div id="dialogAlertHeader"></div>
@@ -2980,6 +2986,7 @@
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
   <script src="./js/constants.js"></script>
   <script src="./js/data/workspaceKey.js"></script>
+  <script src="./js/data/certifiedDisplays.js"></script>
   <script src="./js/util/uuid.js"></script>
   <script src="./js/util/units.js"></script>
   <script src="./js/undoApply.js"></script>

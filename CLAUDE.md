@@ -37,7 +37,8 @@ video_room_calculator/
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
 │   ├── data/
-│   │   └── workspaceKey.js  # Workspace Designer object map (Phase 2 extract; window.VRC.workspaceKey)
+│   │   ├── workspaceKey.js  # Workspace Designer object map (Phase 2 extract; window.VRC.workspaceKey)
+│   │   └── certifiedDisplays.js # Certified-display catalogue (window.VRC.certifiedDisplays; APPEND-ONLY — see "Certified Display item" below)
 │   ├── util/
 │   │   ├── uuid.js          # createUuid() (Phase 2 extract; window.VRC.util)
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
@@ -66,8 +67,9 @@ video_room_calculator/
 There is no build step. Open `RoomCalculator.html` directly in a browser.
 
 The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
-`data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
-`undoApply.js` → `idbStorage.js` → `templates.js` → `roomcalc.js`. Every
+`data/workspaceKey.js` → `data/certifiedDisplays.js` → `util/uuid.js` →
+`util/units.js` → `undoApply.js` → `idbStorage.js` → `templates.js` →
+`roomcalc.js`. Every
 module before `roomcalc.js` attaches to the shared `window.VRC` namespace
 (per the convention in `notes/TECH_NOTES.md`); `roomcalc.js` then aliases
 the public names back into local `const` bindings near the top of the
@@ -1095,6 +1097,123 @@ the wire-shape table and additional context on the coordinate model.
 
 ---
 
+## Certified Display item (`certifiedDisplay`)
+
+`certifiedDisplay` is a `displays`-class device whose physical size is
+**locked** to a Cisco-certified display model the user picks on insert.
+The catalogue lives in `js/data/certifiedDisplays.js`
+(`window.VRC.certifiedDisplays`, aliased as the `certifiedDisplays`
+const in `roomcalc.js`).
+
+### Catalogue data shape (`certifiedDisplays.js`)
+
+```javascript
+{ index: 0, size: 43, model: 'samsung-qmc-43', aspect: '16:9', name: 'Samsung QMC 43' }
+```
+
+- `index` = array position. **APPEND-ONLY**: never reorder or remove
+  entries — `data_certifiedDisplayIndex` (and the URL `cd<index>` code)
+  reference entries by position, so a reorder/removal resolves
+  previously-saved URLs / `.vrc.json` files to the wrong (or a missing)
+  display. Only append new entries at the end.
+- `size` = diagonal inches; locks `data_diagonalInches` and the canvas size.
+- `model` / `aspect` = Workspace Designer attributes (round-tripped via WD JSON).
+- `name` = picker label; the read rule is `name || model` (helper
+  `certifiedDisplayLabel(entry)`).
+
+### Source of truth: `data_certifiedDisplayIndex`
+
+The per-item attribute `data_certifiedDisplayIndex` (a number) is the
+source of truth. `model` / `size` / `aspect` are **derived** from
+`certifiedDisplays[index]` at render / URL-encode / WD-export time —
+they are NOT stored on `roomObj.items`. `data_diagonalInches` IS stored
+(backfilled from the entry's `size`) because the existing display
+render path reads it; it is treated as locked and the Details-panel
+diagonal field is hidden.
+
+### Insert flow (picker modal)
+
+- `certifiedDisplay` is in the `displaysMenu` and the Item-Type
+  dropdown. Its device `key` is `DK` (was a `DA` collision with
+  `displaySngl`).
+- `insertItemFromMenu()` has an early branch: when
+  `data_deviceid === 'certifiedDisplay'` and no index is set yet, it
+  calls `openCertifiedDisplayDialog(attrs)` and returns (mirror of the
+  cameras' `rolesDialog` flow). `openCertifiedDisplayDialog()` **reuses
+  the shared `roleSelectionDialog`** (the same button-list dialog the
+  cameras' "How do you want to use the camera?" prompt uses) — NOT a
+  dropdown. It sets `#headerRoleSelection` to "Select a Certified
+  Display", clears `#roleSelection`, and renders one `.roleSelectButton`
+  per catalogue entry (label via `certifiedDisplayLabel`). Clicking a
+  button stamps the picked index + locked size
+  (`applyCertifiedDisplayIndexToAttrs`), closes the dialog, defaults
+  `data_role` to Single Screen (index 0), then completes the insert
+  (`finishCertifiedDisplayInsert`). Closing the dialog without a pick
+  aborts the insert.
+- Paste / `.vrc.json` / URL / WD import bypass the modal (they don't go
+  through `insertItemFromMenu()`); the `data_certifiedDisplayIndex` guard
+  also lets a programmatic caller pre-set the index to skip the dialog.
+
+### Details panel
+
+`certifiedDisplayDiv` / `certifiedDisplaySelect` sits just below the
+Item-Type dropdown. `updateFormatDetails()` shows + populates it for
+`certifiedDisplay` (and hides it otherwise; it is also in the two
+group-details `hideIds` reset lists). `itemDiagonalTvDiv` is hidden for
+`certifiedDisplay` (the same regex exclusion as `brdPro|boardPro|webexDesk`).
+`updateItem()` resolves the index from the dropdown when it's the active
+control, else the item's existing index, else the first catalogue entry,
+then calls `applyCertifiedDisplayIndexToAttrs()` to override
+`data_diagonalInches` with the locked size. `data_role` is left as-is, so
+switching an existing display to `certifiedDisplay` via the Item-Type
+dropdown **preserves the previously-picked screen role** (fresh inserts
+default to Single Screen).
+
+### Four-place rule for `data_certifiedDisplayIndex`
+
+| Location | Function | Done? |
+|----------|----------|-------|
+| `insertShapeItem()` → `updateNodeAttributes()` | `node.data_certifiedDisplayIndex = attrs.data_certifiedDisplayIndex ?? null` | ✓ |
+| `updateRoomObjFromTrNode()` | push branch + map-hit branch (explicit-delete-on-absent) | ✓ |
+| `copyToCanvasClipBoard()` | carried on `newAttr` for copy/paste/duplicate | ✓ |
+
+### URL encoding — the 2-char `cd` code
+
+All single lowercase letters are taken, and `g` (`data_diagonalInches`)
+is redundant for `certifiedDisplay` (derivable from the index). The
+index uses a dedicated **2-char code `cd`**, handled like the existing
+`ll` layer code — the `parseShortenedXYUrl` state machine accumulates
+consecutive lowercase letters into one key, so `cd<index>` parses
+cleanly as long as the token carries its own number (it always does).
+
+- Encoder (`createShareableLinkItem`): for `certifiedDisplay`, emit
+  `cd<index>` and SKIP the `g` emission.
+- Decoder (`parseShortenedXYUrl`): on `item.cd`, set
+  `data_certifiedDisplayIndex` and backfill `data_diagonalInches` from
+  `certifiedDisplays[index].size`.
+
+### Workspace Designer round-trip
+
+- `workspaceKey.certifiedDisplay = { objectType: 'screen', yOffset: -0.01 }`.
+- **Export** (`workspaceObjDisplayPush()`): looks up
+  `certifiedDisplays[data_certifiedDisplayIndex]` and sets
+  `workspaceItem.model` / `aspect` / `size`. Because the size is locked
+  to the model, the `validateDisplaySizeAndModel()` guard passes and the
+  `model` survives.
+- **Import**: a post-scoring override in the scoring loop (next to the
+  cone `cylinder+radius2` override) reroutes `objectType === 'screen'`
+  with a known `model` to `candidateKeyName = 'certifiedDisplay'`;
+  `wdItemToRoomObjItem()` then resolves the index from the model, locks
+  the diagonal to the entry's size, and clears `model` / `aspect` so they
+  don't survive into `roomObj.items`.
+
+### `.vrc.json`
+
+No special handling — `data_certifiedDisplayIndex` is a plain field on
+`roomObj.items`.
+
+---
+
 ## VRC-only text item (vrcText)
 
 `vrcText` is a sibling device of `wdText`. Both render as a `Konva.Label`
@@ -1252,7 +1371,8 @@ Shareable links are a compressed `?…` query string. Uppercase 2-char
 prefixes mark item types (`AB`=Room Bar, `MA`=Ceiling Mic Pro,
 `TA`=Rectangle Table, `WA`=Wall, etc.); lowercase letters encode item
 attributes (x is implicit, `a`=y, `b`=z, `c`=width, `d`=length,
-`f`=rotation, `m`=color, `s`=group ref, `ll`=layer ref, `~text~`=label).
+`f`=rotation, `m`=color, `s`=group ref, `ll`=layer ref,
+`cd`=certified-display index, `~text~`=label).
 Room-level prefixes: `A` (unit/version), `B` (visibility flags),
 `C~ver~` (author version), `D`/`E`/`F`/`G` (walls), `L{n}` (layers),
 `H{n}` (groups). Encode/decode lives in `createShareableLink()` and

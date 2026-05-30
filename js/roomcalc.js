@@ -805,7 +805,7 @@ function populateGroupDetails(rectNode) {
     /* Hide everything that doesn't apply to a Group.
      * (The non-group branch of updateFormatDetails re-shows itemNameDiv.) */
     const hideIds = [
-        'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -2977,7 +2977,7 @@ function populateCustomItemDetails(rectNode) {
     if (!customItem) return;
 
     const hideIds = [
-        'itemNameDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -3599,6 +3599,112 @@ function confirmTextInsertFromDialog() {
     canvasToJson();
 }
 
+/* certifiedDisplay insertion picker — see openCertifiedDisplayDialog().
+ * Holds the pending attrs while the modal is open; cleared on
+ * confirm/cancel so a stale insert can't leak into the next one. */
+/* Read-rule for a certifiedDisplays[] entry's user-facing label: the
+ * `name` (already carries a trailing " in the catalogue) if present,
+ * otherwise the WD `model` id, with the aspect ratio appended in
+ * parentheses, e.g. `Samsung QMC 43" (16:9)`. */
+function certifiedDisplayLabel(entry) {
+    if (!entry) return '';
+    const base = entry.name || entry.model || ('Display ' + entry.index);
+    return entry.aspect ? (base + ' (' + entry.aspect + ')') : base;
+}
+
+/* Fill a <select> with one <option> per certifiedDisplays[] entry
+ * (value = index, text = name||model). Optionally pre-selects an index.
+ * Used by the Details-panel certifiedDisplaySelect dropdown (the insert
+ * picker is a button list — see openCertifiedDisplayDialog). */
+function populateCertifiedDisplaySelect(selectEl, selectedIndex) {
+    if (!selectEl) return;
+    selectEl.options.length = 0;
+    certifiedDisplays.forEach((entry) => {
+        const opt = document.createElement('option');
+        opt.value = entry.index;
+        opt.text = certifiedDisplayLabel(entry);
+        selectEl.add(opt);
+    });
+    if (selectedIndex != null && selectedIndex !== '') {
+        selectEl.value = selectedIndex;
+    }
+}
+
+/* Insertion-time picker for certifiedDisplay. Reuses the shared
+ * roleSelectionDialog button-list (same look as the cameras' "How do you
+ * want to use the camera?" dialog) instead of a dropdown — one button per
+ * catalogue entry. Called from insertItemFromMenu() instead of inserting
+ * immediately, so the user picks the display model BEFORE the item lands
+ * on canvas. Clicking a button stamps the index + locked size and
+ * completes the insert; closing the dialog without a pick aborts. */
+function openCertifiedDisplayDialog(attrs) {
+    const dialogHeader = document.getElementById('headerRoleSelection');
+    const roleSelectionDialog = document.getElementById('roleSelectionDialog');
+    const innerDiv = document.getElementById('roleSelection');
+
+    /* Defensive: missing dialog markup OR an empty catalogue — fall back
+     * to inserting the first entry (or a bare certifiedDisplay) so the
+     * item still lands on canvas. */
+    if (!dialogHeader || !roleSelectionDialog || !innerDiv || certifiedDisplays.length === 0) {
+        applyCertifiedDisplayIndexToAttrs(attrs, certifiedDisplays.length ? certifiedDisplays[0].index : 0);
+        finishCertifiedDisplayInsert(attrs);
+        return;
+    }
+
+    dialogHeader.innerText = 'Select a Certified Display';
+    innerDiv.innerHTML = '';
+
+    certifiedDisplays.forEach((entry) => {
+        const buttonDiv = document.createElement('div');
+        const button = document.createElement('button');
+        const buttonLabel = document.createElement('span');
+
+        buttonLabel.innerText = certifiedDisplayLabel(entry);
+        buttonLabel.classList.add('roleSelectButtonLabel');
+        buttonLabel.style.margin = 'auto';
+
+        button.classList.add('roleSelectButton');
+        button.appendChild(buttonLabel);
+
+        innerDiv.appendChild(buttonDiv);
+        buttonDiv.appendChild(button);
+
+        button.onclick = () => {
+            applyCertifiedDisplayIndexToAttrs(attrs, entry.index);
+            roleSelectionDialog.close();
+            finishCertifiedDisplayInsert(attrs);
+        };
+    });
+
+    roleSelectionDialog.showModal();
+}
+
+/* Stamp the picked certifiedDisplays index + locked diagonal size onto an
+ * attrs/item object. Shared by the insert dialog, the Details-panel
+ * dropdown, and the WD import override. */
+function applyCertifiedDisplayIndexToAttrs(attrs, index) {
+    const entry = certifiedDisplays.find(d => d.index === Number(index)) || certifiedDisplays[0];
+    if (!entry) return;
+    attrs.data_certifiedDisplayIndex = entry.index;
+    attrs.data_diagonalInches = entry.size; /* size is locked to the model */
+}
+
+/* Complete a fresh certifiedDisplay insert (mirror of the non-roles
+ * branch of insertItemFromMenu()). Defaults data_role to Single Screen. */
+function finishCertifiedDisplayInsert(attrs) {
+    if (!attrs.data_role) {
+        attrs.data_role = { value: 'singleScreen', index: 0 };
+    }
+    attrs.data_deviceid = 'certifiedDisplay';
+    const uuid = createUuid();
+    attrs.id = uuid;
+    insertShapeItem('certifiedDisplay', allDeviceTypes['certifiedDisplay'].parentGroup, attrs, uuid, true);
+    roomObj.items.push(attrs);
+    roomObjItemsMap.set(attrs.id, attrs);
+    setTimeout(() => { canvasToJson() }, 100);
+    canvasToJson();
+}
+
 /* Delete Layer confirmation modal. */
 function openDeleteLayerDialog(layerId) {
     if (layerId === '0' || layerId === '1') return; /* reserved layers cannot be deleted */
@@ -4165,6 +4271,9 @@ canvasPixel.y = 0;
 
 /* Workspace Designer keys — Phase 2 data lives in js/data/workspaceKey.js. */
 const workspaceKey = window.VRC.workspaceKey;
+
+/* Certified-display catalogue — data lives in js/data/certifiedDisplays.js. */
+const certifiedDisplays = (window.VRC && window.VRC.certifiedDisplays) || [];
 
 let layerSelectionBox = new Konva.Layer({
     name: 'layerSelectionBox'
@@ -6323,8 +6432,8 @@ let microphones = [
         key: "NB",
         topImage: 'ceilingFan-top.png',
         frontImage: 'ceilingFan-menu.png',
-        width: 1320,
-        depth: 1320,
+        width: 1000,
+        depth: 1000,
         height: 400,
         defaultVert: 2280,
         defaultLayerId: "1"
@@ -7095,8 +7204,20 @@ let displays = [
         roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
     },
 
-
-
+    {
+        name: 'Certified Display',
+        id: 'certifiedDisplay',
+        key: 'DK',
+        frontImage: 'displaySngl-front.png',
+        topImage: 'displaySngl-top.png',
+        width: displayWidth * 1,
+        depth: displayDepth,
+        height: displayHeight,
+        diagonalInches: diagonalInches,
+        defaultVert: 1010,
+        aspect: '16:9',
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
+    },
 
 
 ]
@@ -8649,6 +8770,18 @@ function parseShortenedXYUrl(parameters) {
 
             if ('g' in item) {
                 newItem.data_diagonalInches = item.g;
+            }
+
+            /* cd = certifiedDisplay catalogue index. Backfill the locked
+             * diagonal size from certifiedDisplays[index] (the `g` code is
+             * skipped for certifiedDisplay on encode). */
+            if ('cd' in item) {
+                const cdIndex = parseInt(item.cd, 10);
+                newItem.data_certifiedDisplayIndex = cdIndex;
+                const cdEntry = certifiedDisplays.find(d => d.index === cdIndex);
+                if (cdEntry) {
+                    newItem.data_diagonalInches = cdEntry.size;
+                }
             }
 
             if ('h' in item) {
@@ -11741,8 +11874,18 @@ function createShareableLinkItem(item) {
         }
     }
 
-    if ('data_diagonalInches' in item) {
+    /* certifiedDisplay locks its size to the picked model, so the
+     * diagonal is derivable from the index — skip the redundant `g` and
+     * store the catalogue index under the 2-char `cd` code instead.
+     * `cd` parses cleanly because the URL state machine accumulates
+     * consecutive lowercase letters into one key (same mechanism as the
+     * `ll` layer code), and the token always carries its own number. */
+    if ('data_diagonalInches' in item && item.data_deviceid !== 'certifiedDisplay') {
         strItem += 'g' + item.data_diagonalInches;
+    }
+
+    if (item.data_deviceid === 'certifiedDisplay' && item.data_certifiedDisplayIndex != null) {
+        strItem += 'cd' + item.data_certifiedDisplayIndex;
     }
 
     if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
@@ -13072,6 +13215,10 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_diagonalInches = node.data_diagonalInches;
         }
 
+        if (node.data_certifiedDisplayIndex != null) {
+            newAttr.data_certifiedDisplayIndex = node.data_certifiedDisplayIndex;
+        }
+
         if ('data_zPosition' in node) {
             newAttr.data_zPosition = node.data_zPosition;
         }
@@ -14237,6 +14384,10 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_diagonalInches = node.data_diagonalInches;
         }
 
+        if (node.data_certifiedDisplayIndex != null) {
+            itemAttr.data_certifiedDisplayIndex = node.data_certifiedDisplayIndex;
+        }
+
         if ('data_zPosition' in node) {
             itemAttr.data_zPosition = node.data_zPosition;
         }
@@ -14431,6 +14582,12 @@ function updateRoomObjFromTrNode() {
                 item.data_radius2 = itemAttr.data_radius2;
             } else {
                 delete item.data_radius2;
+            }
+
+            if (itemAttr.data_certifiedDisplayIndex != null) {
+                item.data_certifiedDisplayIndex = itemAttr.data_certifiedDisplayIndex;
+            } else {
+                delete item.data_certifiedDisplayIndex;
             }
 
         } else {
@@ -17580,6 +17737,27 @@ function updateItem() {
             }
         }
 
+        /* certifiedDisplay: the size is locked to the picked model, so the
+         * diagonal-inches field is hidden. Resolve the index from the
+         * Details dropdown when it's the active control, else fall back to
+         * the item's existing index (e.g. when the Item Type dropdown was
+         * just switched TO certifiedDisplay), else the first catalogue
+         * entry. applyCertifiedDisplayIndexToAttrs overrides
+         * data_diagonalInches with the locked size. data_role is left as-is
+         * so switching an existing display to certifiedDisplay keeps the
+         * previously-picked screen role. */
+        if (data_deviceid === 'certifiedDisplay') {
+            const __cdSel = document.getElementById('certifiedDisplaySelect');
+            const __cdDiv = document.getElementById('certifiedDisplayDiv');
+            let __cdIndex = (__cdSel && __cdSel.value !== '' && __cdDiv && __cdDiv.style.display !== 'none')
+                ? Number(__cdSel.value)
+                : (item.data_certifiedDisplayIndex != null ? Number(item.data_certifiedDisplayIndex) : null);
+            if (__cdIndex == null || !certifiedDisplays.some(d => d.index === __cdIndex)) {
+                __cdIndex = certifiedDisplays.length ? certifiedDisplays[0].index : 0;
+            }
+            applyCertifiedDisplayIndexToAttrs(item, __cdIndex);
+        }
+
         if (document.getElementById('drpRole').options.length > 0) {
 
             item.data_role = {};
@@ -19890,6 +20068,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         if ('data_diagonalInches' in attrs) {
             node.data_diagonalInches = data_diagonalInches;
         }
+
+        node.data_certifiedDisplayIndex = (attrs.data_certifiedDisplayIndex != null) ? attrs.data_certifiedDisplayIndex : null;
 
         if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
             node.data_zPosition = data_zPosition;
@@ -23009,7 +23189,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemOffsetDiv').style.display = '';
     }
 
-    if ('data_diagonalInches' in item && !item.data_deviceid?.match(/brdPro|boardPro|webexDesk/)) {
+    if ('data_diagonalInches' in item && !item.data_deviceid?.match(/brdPro|boardPro|webexDesk|certifiedDisplay/)) {
         document.getElementById('itemDiagonalTvDiv').style.display = '';
         document.getElementById('itemDiagonalTv').value = shape.data_diagonalInches;
         itemTopElevationDiv.style.display = '';
@@ -23020,6 +23200,23 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     } else {
         document.getElementById('itemDiagonalTvDiv').style.display = 'none';
 
+    }
+
+    /* certifiedDisplay: show the model picker dropdown (size is locked to
+     * the model, so itemDiagonalTvDiv stays hidden via the regex above).
+     * The top-elevation field is still useful, so re-show it here. */
+    const certifiedDisplayDiv = document.getElementById('certifiedDisplayDiv');
+    if (certifiedDisplayDiv) {
+        if (shape.data_deviceid === 'certifiedDisplay') {
+            certifiedDisplayDiv.style.display = '';
+            populateCertifiedDisplaySelect(document.getElementById('certifiedDisplaySelect'), shape.data_certifiedDisplayIndex);
+            itemTopElevationDiv.style.display = '';
+            if (parentGroup === 'displays') {
+                fillInTopElevationDisplay(shape);
+            }
+        } else {
+            certifiedDisplayDiv.style.display = 'none';
+        }
     }
 
 
@@ -23504,7 +23701,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
-    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'displayScreen_2'];
+    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9','certifiedDisplay', 'displayScreen_2' ];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -24153,6 +24350,17 @@ function insertItemFromMenu(data_deviceid, attrs) {
         return;
     }
 
+    /* certifiedDisplay: prompt the user to pick a display model in a
+     * modal before inserting (mirror of the rolesDialog / dialogTextInsert
+     * flow). The picked certifiedDisplays index locks the display size.
+     * Paste/import paths bypass this because they don't go through
+     * insertItemFromMenu(); the data_certifiedDisplayIndex guard also lets
+     * a programmatic caller that pre-sets the index skip the dialog. */
+    if (data_deviceid === 'certifiedDisplay' && attrs.data_certifiedDisplayIndex == null) {
+        openCertifiedDisplayDialog(attrs);
+        return;
+    }
+
 
     if (allDeviceTypes[data_deviceid].rolesDialog) {
 
@@ -24442,7 +24650,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'projector', 'displayScreen_2'];
+    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'projector', 'displayScreen_2'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
@@ -30324,6 +30532,19 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 candidateWdItem = structuredClone(wdItem);
             }
 
+            /* A WD screen carrying a `model` that matches the certified-
+             * display catalogue is a VRC certifiedDisplay. Runs after the
+             * scoring loop so a generic 'screen' match is rerouted when the
+             * model is recognised. The index + locked size are stamped in
+             * wdItemToRoomObjItem(); model/aspect are cleared there too. */
+            if (wdItem.objectType === 'screen'
+                && wdItem.model
+                && certifiedDisplays.some(d => d.model === wdItem.model)) {
+                candidateKeyName = 'certifiedDisplay';
+                candidateKey = workspaceKey.certifiedDisplay;
+                candidateWdItem = structuredClone(wdItem);
+            }
+
             if (Object.keys(candidateKey).length === 0) {
                 console.info('Import Workspace Designer: Match not found for:', JSON.stringify(wdItem));
 
@@ -31010,6 +31231,20 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.data_diagonalInches = wdItem.size;
         }
         delete wdItem.size;
+    }
+
+    /* certifiedDisplay: resolve the catalogue index from the WD model and
+     * lock the diagonal to its size. model/aspect are cleared so they
+     * don't survive into roomObj.items (data_certifiedDisplayIndex is the
+     * source of truth). */
+    if (data_deviceid === 'certifiedDisplay') {
+        const cdEntry = wdItem.model ? certifiedDisplays.find(d => d.model === wdItem.model) : null;
+        if (cdEntry) {
+            item.data_certifiedDisplayIndex = cdEntry.index;
+            item.data_diagonalInches = cdEntry.size;
+        }
+        delete wdItem.model;
+        delete wdItem.aspect;
     }
 
     /* if scale: [1,1,1], remove from label */
@@ -32698,6 +32933,20 @@ function exportRoomObjToWorkspace() {
 
         if ('data_labelField' in item) {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
+        }
+
+        /* certifiedDisplay: emit the WD model/aspect/size from the picked
+         * catalogue entry. size is locked to the model, so the
+         * validateDisplaySizeAndModel guard below passes and the model
+         * survives the export (round-trips back to certifiedDisplay on
+         * import via the screen+model override). */
+        if (item.data_deviceid === 'certifiedDisplay' && item.data_certifiedDisplayIndex != null) {
+            const cdEntry = certifiedDisplays.find(d => d.index === Number(item.data_certifiedDisplayIndex));
+            if (cdEntry) {
+                workspaceItem.model = cdEntry.model;
+                workspaceItem.aspect = cdEntry.aspect;
+                workspaceItem.size = cdEntry.size;
+            }
         }
 
         if ('model' in workspaceItem && 'size' in workspaceItem) {

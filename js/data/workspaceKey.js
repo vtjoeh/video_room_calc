@@ -168,6 +168,10 @@ workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: -0.0
 
 workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 }; /* display21_9 is now the primary option */
 
+/* certifiedDisplay: model/aspect/size are derived from the picked
+ * certifiedDisplays[] entry at export time (see workspaceObjDisplayPush). */
+workspaceKey.certifiedDisplay = { objectType: 'screen', yOffset: -0.01 };
+
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
 
