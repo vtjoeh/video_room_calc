@@ -1,4 +1,4 @@
-const version = "v0.1.650";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.651";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const createUuid        = window.VRC.util.createUuid;
@@ -6415,7 +6415,7 @@ let microphones = [
         speakerDeg: 360,
     },
     {
-        name: "Security Camera (generic)*",
+        name: "Security Camera (generic)",
         id: "genericSecurityCamera",
         key: "NA",
         topImage: 'genericSecurityCamera-top.png',
@@ -6427,7 +6427,7 @@ let microphones = [
         defaultLayerId: "1"
     }, 
     {
-        name: "Ceiling Fan*",
+        name: "Ceiling Fan",
         id: "ceilingFan",
         key: "NB",
         topImage: 'ceilingFan-top.png',
@@ -17286,7 +17286,7 @@ function updateTrNodesShading() {
 
     removeShadingTrNodes();
 
-    if (tr.nodes().length > 1500) {
+    if (tr.nodes().length > 400) {
         return;
     }
 
