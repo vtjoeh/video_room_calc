@@ -188,6 +188,14 @@ window.VRC.util = window.VRC.util || {};
                 item.data_radius2 = item.data_radius2 * ratio;
             }
 
+            if ('data_gridWidth' in item && !isNaN(item.data_gridWidth)) {
+                item.data_gridWidth = item.data_gridWidth * ratio;
+            }
+
+            if ('data_gridLength' in item && !isNaN(item.data_gridLength)) {
+                item.data_gridLength = item.data_gridLength * ratio;
+            }
+
             if ('tblRectRadius' in item) {
                 item.tblRectRadius = round(item.tblRectRadius * ratio);
             }

@@ -811,6 +811,7 @@ function populateGroupDetails(rectNode) {
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
+        'itemGridWidthDiv', 'itemGridLengthDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2983,6 +2984,7 @@ function populateCustomItemDetails(rectNode) {
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
+        'itemGridWidthDiv', 'itemGridLengthDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -6665,6 +6667,24 @@ let tables = [{
     resizeable: ['width', 'depth', 'vheight'],
     // TODO: Come back to this one the JSON API is set.
     //  roles: [{ roundSide: 'One Side Rounded' }, { rectSide: 'Rectangular Corners' }]
+},
+{
+    name: 'Ceiling Grid',
+    id: 'ceilingGrid',
+    key: 'WS',
+    frontImage: 'ceilingGrid-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
+    resizeable: ['width', 'depth', 'vheight'],
+    configurableColor: true,
+    wdOpacity: true,
+    /* 2.5 m resting height of the grid plane. insertItemFromMenu()
+     * reads default_vHeight and writes attrs.data_vHeight before the
+     * roomObj.items.push() so it survives the first canvasToJson cycle
+     * (same rationale as cone — the patch branch in
+     * updateRoomObjFromTrNode() does not mirror data_vHeight). */
+    default_vHeight: 2500,
 }
 
 ]
@@ -7977,6 +7997,14 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_radius2 = round(item.data_radius2 * ratio);
     }
 
+    if ('data_gridWidth' in item && !isNaN(item.data_gridWidth)) {
+        item.data_gridWidth = round(item.data_gridWidth * ratio);
+    }
+
+    if ('data_gridLength' in item && !isNaN(item.data_gridLength)) {
+        item.data_gridLength = round(item.data_gridLength * ratio);
+    }
+
     if ('tblRectRadiusRight' in item) {
         item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
     }
@@ -8941,6 +8969,22 @@ function parseShortenedXYUrl(parameters) {
                 const r2Num = Number(item.y) / 100;
                 if (isFinite(r2Num) && r2Num >= 0) {
                     newItem.data_radius2 = r2Num;
+                }
+            }
+
+            /* gw / gl = ceilingGrid tile dimensions (÷100 back to current
+             * unit). 2-char keys accumulated by the tokenizer, gated on
+             * deviceid (mirror of the cone 'y' decode). */
+            if ('gw' in item && newItem.data_deviceid === 'ceilingGrid') {
+                const gwNum = Number(item.gw) / 100;
+                if (isFinite(gwNum) && gwNum >= 0) {
+                    newItem.data_gridWidth = gwNum;
+                }
+            }
+            if ('gl' in item && newItem.data_deviceid === 'ceilingGrid') {
+                const glNum = Number(item.gl) / 100;
+                if (isFinite(glNum) && glNum >= 0) {
+                    newItem.data_gridLength = glNum;
                 }
             }
 
@@ -12059,6 +12103,24 @@ function createShareableLinkItem(item) {
         }
     }
 
+    /* ceilingGrid tile dimensions — 2-char codes gw / gl (×100, current
+     * unit), gated on deviceid (mirror of the cone 'y' multiplexing and
+     * the certifiedDisplay 'cd' 2-char code). */
+    if (item.data_deviceid === 'ceilingGrid') {
+        if (item.data_gridWidth != null) {
+            const __gwNum = Number(item.data_gridWidth);
+            if (isFinite(__gwNum) && __gwNum >= 0) {
+                strItem += 'gw' + Math.round(round(__gwNum) * 100);
+            }
+        }
+        if (item.data_gridLength != null) {
+            const __glNum = Number(item.data_gridLength);
+            if (isFinite(__glNum) && __glNum >= 0) {
+                strItem += 'gl' + Math.round(round(__glNum) * 100);
+            }
+        }
+    }
+
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
             strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
@@ -13319,6 +13381,13 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_radius2 = Number(node.data_radius2);
         }
 
+        if (node.data_gridWidth != null) {
+            newAttr.data_gridWidth = Number(node.data_gridWidth);
+        }
+        if (node.data_gridLength != null) {
+            newAttr.data_gridLength = Number(node.data_gridLength);
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
 
     });
@@ -14512,6 +14581,13 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_radius2 = Number(node.data_radius2);
         }
 
+        if (node.data_gridWidth != null) {
+            itemAttr.data_gridWidth = Number(node.data_gridWidth);
+        }
+        if (node.data_gridLength != null) {
+            itemAttr.data_gridLength = Number(node.data_gridLength);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -14592,6 +14668,17 @@ function updateRoomObjFromTrNode() {
                 item.data_radius2 = itemAttr.data_radius2;
             } else {
                 delete item.data_radius2;
+            }
+
+            if (itemAttr.data_gridWidth != null) {
+                item.data_gridWidth = itemAttr.data_gridWidth;
+            } else {
+                delete item.data_gridWidth;
+            }
+            if (itemAttr.data_gridLength != null) {
+                item.data_gridLength = itemAttr.data_gridLength;
+            } else {
+                delete item.data_gridLength;
             }
 
             if (itemAttr.data_certifiedDisplayIndex != null) {
@@ -14891,6 +14978,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         /* Default radius1 = 0.1 m → diameter (item.width) = 0.2 m. */
         width = 0.2 * scale;
         height = 0.2 * scale;
+    }
+    else if (insertDevice.id === 'ceilingGrid') {
+        /* Default 6 ft (horizontal) x 8 ft (vertical). Authored in
+         * meters here; the feet-mode block below multiplies by 3.28084
+         * so the user sees 6 x 8 in feet mode and 1.83 x 2.44 in
+         * meters mode (same physical size). */
+        width = 1.8288 * scale;
+        height = 2.4384 * scale;
     }
     else if (insertDevice.id.startsWith('sphere')) {
         width = 1 * scale;
@@ -15548,6 +15643,61 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             const offset = (d - w) / 2;
             return { x: -offset, y: -offset, width: d, height: d };
         };
+    } else if (insertDevice.id === 'ceilingGrid') {
+        /* Tile spacing defaults match insertItemFromMenu (current unit).
+         * Grid lines are a fixed 24 mm wide → strokeWidth uses unitScale
+         * (pixels-per-meter), unlike the tile spacing which uses scale
+         * (pixels-per-current-unit). */
+        const cgGwDefault = (unit === 'feet') ? 2 : 0.6;
+        const cgGlDefault = (unit === 'feet') ? 4 : 1.2;
+        const cgGwUnit = (attrs.data_gridWidth == null) ? cgGwDefault : Number(attrs.data_gridWidth);
+        const cgGlUnit = (attrs.data_gridLength == null) ? cgGlDefault : Number(attrs.data_gridLength);
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            stroke: attrs.data_fill || 'black',
+            strokeWidth: 0.024 * unitScale,
+            id: uuid,
+            draggable: true,
+            opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
+            sceneFunc: (context, shape) => {
+                const w = shape.getAttr('width');
+                const h = shape.getAttr('height');
+                const sx = (Number(shape.data_gridWidth) || 0) * scale;
+                const sy = (Number(shape.data_gridLength) || 0) * scale;
+                context.beginPath();
+                if (sx > 0) {
+                    for (let x = 0; x < w; x += sx) {
+                        context.moveTo(x, 0);
+                        context.lineTo(x, h);
+                    }
+                }
+                context.moveTo(w, 0);
+                context.lineTo(w, h);
+                if (sy > 0) {
+                    for (let y = 0; y < h; y += sy) {
+                        context.moveTo(0, y);
+                        context.lineTo(w, y);
+                    }
+                }
+                context.moveTo(0, h);
+                context.lineTo(w, h);
+                context.strokeShape(shape);
+            },
+            /* Whole-area hit region so the user can click/drag anywhere
+             * inside the grid, not just on the thin lines. */
+            hitFunc: (context, shape) => {
+                context.beginPath();
+                context.rect(0, 0, shape.getAttr('width'), shape.getAttr('height'));
+                context.closePath();
+                context.fillStrokeShape(shape);
+            }
+        });
+        tblWallFlr.data_gridWidth = cgGwUnit;
+        tblWallFlr.data_gridLength = cgGlUnit;
     } else if (insertDevice.id === 'tblPodium') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
@@ -17634,6 +17784,17 @@ function updateItem() {
         const __r2In = document.getElementById('itemRadius2');
         if (__r2In) data_radius2 = Number(__r2In.value);
     }
+
+    /* ceilingGrid tile dimensions (current unit). Read here, written to
+     * item.data_gridWidth / item.data_gridLength in the item block below. */
+    let data_gridWidth = '';
+    let data_gridLength = '';
+    if (document.getElementById('itemName').value === 'ceilingGrid') {
+        const __gwIn = document.getElementById('itemGridWidth');
+        const __glIn = document.getElementById('itemGridLength');
+        if (__gwIn) data_gridWidth = Number(__gwIn.value);
+        if (__glIn) data_gridLength = Number(__glIn.value);
+    }
     let data_diagonalInches = document.getElementById('itemDiagonalTv').value;
     let x = Number(document.getElementById('itemX').value);
     let y = Number(document.getElementById('itemY').value);
@@ -17715,6 +17876,15 @@ function updateItem() {
         if (data_deviceid === 'cone') {
             if (typeof data_radius2 === 'number' && isFinite(data_radius2) && data_radius2 > 0) {
                 item.data_radius2 = data_radius2;
+            }
+        }
+
+        if (data_deviceid === 'ceilingGrid') {
+            if (typeof data_gridWidth === 'number' && isFinite(data_gridWidth) && data_gridWidth > 0) {
+                item.data_gridWidth = data_gridWidth;
+            }
+            if (typeof data_gridLength === 'number' && isFinite(data_gridLength) && data_gridLength > 0) {
+                item.data_gridLength = data_gridLength;
             }
         }
 
@@ -20157,6 +20327,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
         node.data_radius2 = (attrs.data_radius2 == null) ? null : Number(attrs.data_radius2);
+
+        node.data_gridWidth = (attrs.data_gridWidth == null) ? null : Number(attrs.data_gridWidth);
+        node.data_gridLength = (attrs.data_gridLength == null) ? null : Number(attrs.data_gridLength);
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -23175,6 +23348,24 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         if (__radius2Div) __radius2Div.style.display = 'none';
     }
 
+    /* ceilingGrid: show the Grid Width / Grid Length tile-size inputs
+     * (Width/Length stay visible — the grid is a plain rectangle). */
+    const __gridWidthDiv = document.getElementById('itemGridWidthDiv');
+    const __gridLengthDiv = document.getElementById('itemGridLengthDiv');
+    if (shape.data_deviceid === 'ceilingGrid') {
+        if (__gridWidthDiv) {
+            __gridWidthDiv.style.display = '';
+            document.getElementById('itemGridWidth').value = round((Number(shape.data_gridWidth) || 0));
+        }
+        if (__gridLengthDiv) {
+            __gridLengthDiv.style.display = '';
+            document.getElementById('itemGridLength').value = round((Number(shape.data_gridLength) || 0));
+        }
+    } else {
+        if (__gridWidthDiv) __gridWidthDiv.style.display = 'none';
+        if (__gridLengthDiv) __gridLengthDiv.style.display = 'none';
+    }
+
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true && !(shape.data_deviceid === 'polyRoom')) {
         document.getElementById('itemWidthLengthDiv').style.display = 'none';
     } else {
@@ -24353,6 +24544,21 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_radius2 = (roomObj.unit === 'feet') ? 0.98 : 0.3;
     }
 
+    /* ceilingGrid tile dimensions. Stored in the current unit (like
+     * cone's data_radius2); convertMetersFeet() toggles them. Defaulted
+     * here in insertItemFromMenu so the values are present on attrs
+     * before the roomObj.items.push() (the patch branch in
+     * updateRoomObjFromTrNode() mirrors them, but seeding here keeps a
+     * fresh insert correct on the very first canvasToJson cycle). */
+    if (data_deviceid === 'ceilingGrid') {
+        if (attrs.data_gridWidth == null) {
+            attrs.data_gridWidth = (roomObj.unit === 'feet') ? 2 : 0.6;
+        }
+        if (attrs.data_gridLength == null) {
+            attrs.data_gridLength = (roomObj.unit === 'feet') ? 4 : 1.2;
+        }
+    }
+
     /* wdText/vrcText: prompt the user for the text in a modal before
      * inserting (similar to the rolesDialog flow for cameras like
      * ptzVision2). The dialog handler (confirmTextInsertFromDialog)
@@ -24688,7 +24894,7 @@ function createEquipmentMenu() {
      * fresh cone). The device-def remains in `allDeviceTypes` so cones
      * loaded from existing .vrc.json files, shareable URLs, and WD
      * imports continue to render and round-trip cleanly. */
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'ceilingGrid', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -25818,6 +26024,10 @@ function resizeTableOrWall() {
         }
         else if (nodes[0].data_deviceid === 'cone') {
             tr.resizeEnabled(false);
+        }
+        else if (nodes[0].data_deviceid === 'ceilingGrid') {
+            tr.enabledAnchors(['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
+            tr.resizeEnabled(true);
         }
         else if (nodes[0].data_deviceid.startsWith('wall') || nodes[0].data_deviceid.startsWith('backgroundImageFloor')) {
             tr.enabledAnchors(['top-center', 'bottom-center']);
@@ -30325,6 +30535,17 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 continue;
             }
 
+            /* ceilingGrid grid-line boxes (id gridLines~v/h~row~<id>) are
+             * the WD-visible representation of a ceilingGrid; the parent
+             * item is restored from data.vrc.ceilingGrids[] below, so the
+             * boxes are pure derived geometry and must never become VRC
+             * box items. Dropped before any scoring guard, mirroring the
+             * vrcParent early-continue above. */
+            if (typeof wdItem.id === 'string' && wdItem.id.startsWith('gridLines~')) {
+                delete wdItems[i];
+                continue;
+            }
+
             /* A person presenter imported as a custom URL gets replaced with the proper API */
             if (wdItem.id === 'presenter' && wdItem.objectType === 'custom' && wdItem.role === 'presenter' && wdItem.customUrl) {
                 wdItem.id = 'presenterCustomModified';
@@ -30654,6 +30875,26 @@ function importWorkspaceDesignerFile(workspaceObj) {
             const item = structuredClone(dl);
             item.data_layerId = dl.layerName
                 ? resolveImportLayerName(dl.layerName, roomObj2)
+                : '0';
+            delete item.layerName;
+            roomObj2.items.push(item);
+        });
+    }
+
+    /* Restore ceilingGrid items from data.vrc.ceilingGrids — mirror of
+     * the vrcTexts / dimensionLines restore blocks above. The verbatim
+     * meters record (VRC top-left frame) is cloned back into
+     * roomObj2.items; the matching gridLines~* boxes were already dropped
+     * at the top of the scoring loop. MUST run BEFORE the groups /
+     * customItems restore blocks so their member-rebuild passes pick up
+     * any data_groupId / data_customItemId on the restored item. */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.ceilingGrids)) {
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        workspaceObj.data.vrc.ceilingGrids.forEach(cg => {
+            if (!cg || cg.data_deviceid !== 'ceilingGrid') return;
+            const item = structuredClone(cg);
+            item.data_layerId = cg.layerName
+                ? resolveImportLayerName(cg.layerName, roomObj2)
                 : '0';
             delete item.layerName;
             roomObj2.items.push(item);
@@ -32242,6 +32483,39 @@ function exportRoomObjToWorkspace() {
         }
     }
 
+    /* ceilingGrid parent records round-trip verbatim via
+     * workspaceObj.data.vrc.ceilingGrids[]. The on-canvas grid is also
+     * emitted as one thin box per line under customObjects (see
+     * pushCeilingGridChildren + the wdBuckets.boxes dispatch above);
+     * those gridLines~* boxes are dropped on import so only this
+     * verbatim record rebuilds the ceilingGrid item. Same conventions as
+     * the vrcTexts / dimensionLines blocks: meters always, VRC top-left
+     * coords (no roomX/roomY shift), layer emitted as layerName,
+     * data_groupId / data_customItemId ride through verbatim. */
+    if (Array.isArray(roomObj.items)) {
+        const cgRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedCeilingGrids = [];
+        roomObj.items.forEach(it => {
+            if (!it || it.data_deviceid !== 'ceilingGrid') return;
+            const exported = structuredClone(it);
+            ['x', 'y', 'width', 'height', 'data_zPosition', 'data_gridWidth', 'data_gridLength', 'data_vHeight'].forEach(f => {
+                if (typeof exported[f] === 'number') {
+                    exported[f] = round(exported[f] * cgRatio);
+                }
+            });
+            const cgLayerId = exported.data_layerId;
+            if (cgLayerId && cgLayerId !== '0' && roomObj.layers) {
+                const cgLayer = roomObj.layers.find(l => l.layerid === cgLayerId);
+                if (cgLayer && cgLayer.name) exported.layerName = cgLayer.name;
+            }
+            delete exported.data_layerId;
+            exportedCeilingGrids.push(exported);
+        });
+        if (exportedCeilingGrids.length > 0) {
+            workspaceObj.data.vrc.ceilingGrids = exportedCeilingGrids;
+        }
+    }
+
 
     if (altDefaultWall && document.getElementById('removeDefaultWallsCheckBox').checked === false) {
         delete workspaceObj.roomShape;
@@ -32502,6 +32776,14 @@ function exportRoomObjToWorkspace() {
              * native dimension-line concept). Same skip + round-trip
              * pattern as vrcText — see workspaceObj.data.vrc.dimensionLines[]
              * emission below and the matching restore on import. */
+        } else if (item.data_deviceid === 'ceilingGrid') {
+            /* ceilingGrid is a hybrid: skip the single-box push and emit
+             * one thin box per grid line (id gridLines~v/h~row~<id>) so
+             * the grid is visible in Workspace Designer, while the parent
+             * record round-trips verbatim via data.vrc.ceilingGrids[]
+             * (see emission below + the import-side drop of gridLines~*
+             * boxes). */
+            pushCeilingGridChildren(item);
         } else {
             workspaceObjWallPush(item);
         }
@@ -33567,6 +33849,92 @@ function exportRoomObjToWorkspace() {
                 pushed.vrcParentDeviceId = parent.data_deviceid;
             }
         });
+    }
+
+    /* ceilingGrid → one thin box per grid line. The parent record
+     * round-trips verbatim via data.vrc.ceilingGrids[]; these boxes are
+     * the WD-visible representation and are DROPPED on import (every
+     * customObjects[] entry whose id starts with `gridLines~`). Reuses
+     * workspaceObjWallPush so the box coordinate / rotation / color /
+     * opacity math is shared. parent is a meters-space item from
+     * wdBuckets.boxes (UL-anchored, so its (x, y) is the upper-left and
+     * also the rotation pivot — same as the parentItem UL-class case). */
+    function pushCeilingGridChildren(parent) {
+        const W = Number(parent.width) || 0;
+        const H = Number(parent.height) || 0;
+        const gw = Number(parent.data_gridWidth) || 0;
+        const gl = Number(parent.data_gridLength) || 0;
+        const t = 0.024;              /* grid-line width (m) */
+        const lineZThickness = 0.05;  /* WD Y height (vertical thickness) of each grid-line box (m) */
+        if (W <= 0 || H <= 0) return;
+
+        /* The parent's data_vHeight is the RESTING HEIGHT of the grid
+         * plane (2.5 m default — see CLAUDE.md "Ceiling Grid item"), not a
+         * per-box thickness. Each grid-line box therefore sits at
+         * data_zPosition = parent.data_zPosition + parent.data_vHeight and
+         * carries its own thin 0.05 m vertical extent. */
+        const restingZ = (Number(parent.data_zPosition) || 0) + (Number(parent.data_vHeight) || 0);
+
+        const pivotX = Number(parent.x) || 0;
+        const pivotY = Number(parent.y) || 0;
+        const rad = (parent.rotation || 0) * Math.PI / 180;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+
+        /* Color rule: emit a per-line fill only when the parent carries an
+         * explicit NON-black data_fill. A black (or unset) fill exports as
+         * "no color" so WD renders its default grey (trade-off: an
+         * explicit black pick reads as "no color" on export). data_opacity
+         * rides along whenever set so transparency still round-trips. */
+        const fill = parent.data_fill;
+        const isBlackFill = (c) => {
+            if (!c) return true;
+            const s = String(c).trim().toLowerCase();
+            return s === 'black' || s === '#000' || s === '#000000' || s === '#000000ff';
+        };
+        const fillIsBlack = isBlackFill(fill);
+
+        const pushLine = (localULx, localULy, fw, fh, id) => {
+            const synth = {
+                id: id,
+                data_deviceid: 'box',
+                x: pivotX + localULx * cos - localULy * sin,
+                y: pivotY + localULx * sin + localULy * cos,
+                width: fw,
+                height: fh,
+                rotation: (parent.rotation || 0),
+                data_zPosition: restingZ,
+                data_vHeight: lineZThickness,
+                data_layerId: parent.data_layerId,
+                data_groupId: parent.data_groupId,
+                data_customItemId: parent.data_customItemId,
+                data_hiddenInDesigner: parent.data_hiddenInDesigner,
+            };
+            if (!fillIsBlack) synth.data_fill = fill;
+            if (parent.data_opacity != null) synth.data_opacity = parent.data_opacity;
+            workspaceObjWallPush(synth);
+        };
+
+        /* Vertical lines (run along Y): footprint t (X) × H (Y), centered
+         * on each grid x. Interior lines step by gw; the right edge is
+         * always drawn so the grid closes (mirrors the canvas sceneFunc). */
+        let vRow = 0;
+        if (gw > 0) {
+            for (let x = 0; x < W - 1e-6; x += gw) {
+                pushLine(x - t / 2, 0, t, H, `gridLines~v~${vRow}~${parent.id}`);
+                vRow += 1;
+            }
+        }
+        pushLine(W - t / 2, 0, t, H, `gridLines~v~${vRow}~${parent.id}`);
+
+        /* Horizontal lines (run along X): footprint W (X) × t (Y). */
+        let hRow = 0;
+        if (gl > 0) {
+            for (let y = 0; y < H - 1e-6; y += gl) {
+                pushLine(0, y - t / 2, W, t, `gridLines~h~${hRow}~${parent.id}`);
+                hRow += 1;
+            }
+        }
+        pushLine(0, H - t / 2, W, t, `gridLines~h~${hRow}~${parent.id}`);
     }
 
     return workspaceObj;

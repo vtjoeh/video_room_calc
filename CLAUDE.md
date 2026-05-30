@@ -322,6 +322,7 @@ Current participants:
 | `pathShape`   | ✓ | ✓ | `#D3D3D3` (with `data_labelField` JSON `"color"` / `"opacity"` as a secondary fallback — see "pathShape precedence" below) | device-def `opacity` (currently `1 / scale`-driven local default ≈ `0.8` after the `wdOpacity` adjustment chain) |
 | `wdText`      | ✓ | — | (canvas: blue tag `#588ce5ff` with white text — not affected by the picker; WD-export `color` defaults to `"black"` and IS driven by the picker) | n/a |
 | `vrcText`     | ✓ | ✓ | (canvas: white tag with `opacity: 0.1` — not affected by the picker; the picker drives the inner text fill / opacity, same as wdText) | n/a |
+| `ceilingGrid` | ✓ | ✓ | grid line stroke `black` (`data_fill` overrides the stroke colour; an explicit black pick is treated as "no colour" on WD export → WD renders the default grey) | 1 |
 
 Each Konva-rendering branch reads `attrs.data_fill || <device-default>`
 for fill and `(attrs.data_opacity == null ? <device-default> :
@@ -1094,6 +1095,97 @@ Two numeric normalizations run before serialization:
 
 See `notes/WORKSPACE_DESIGNER.md` → "VRC Parent Item Round-Trip" for
 the wire-shape table and additional context on the coordinate model.
+
+---
+
+## Ceiling Grid item (`ceilingGrid`)
+
+`ceilingGrid` is a resizable `boxes`-class device rendered as a **single
+`Konva.Shape`** whose `sceneFunc` strokes a grid of lines. It follows the
+`cone` precedent for canvas/attribute wiring, participates in the
+`configurableColor` / `wdOpacity` system (default black lines), and uses a
+**hybrid** Workspace Designer round-trip (verbatim parent record in
+`data.vrc.ceilingGrids[]` + one thin box per grid line in
+`customObjects[]`).
+
+### Geometry model
+- Item `width` = horizontal extent, `height` = vertical (Y) extent.
+  Default insert **6' × 8'** (`1.8288 m × 2.4384 m`, authored in meters
+  in `insertTable()` and converted to feet by the existing feet-mode
+  block — same physical size in both units).
+- `data_gridWidth` (tile X spacing, default **2'** / `0.6 m`) → vertical
+  lines spaced every `gridWidth` along X.
+- `data_gridLength` (tile Y spacing, default **4'** / `1.2 m`) →
+  horizontal lines spaced every `gridLength` along Y.
+- Both grid fields are stored in the **current unit** (like cone's
+  `data_radius2`); `convertMetersFeet()` / `convertItemUnitBasedOnRatio()`
+  / `convertToMeters()` toggle them. Defaults are unit-aware (feet → 2/4,
+  meters → 0.6/1.2), seeded in `insertItemFromMenu()` so they survive the
+  first `canvasToJson` cycle.
+- Grid lines are a fixed **24 mm** wide: canvas `strokeWidth = 0.024 *
+  unitScale` (pixels-per-meter); tile spacing uses `* scale`
+  (pixels-per-current-unit). The `sceneFunc` reads `shape.data_gridWidth`
+  / `shape.data_gridLength` (closure-stable, like the cone reads
+  `shape.data_radius2`) and draws interior lines plus the closing right /
+  bottom edges. A `hitFunc` fills the whole bounding rect so the user can
+  click/drag anywhere inside the grid, not just on the thin lines.
+- `default_vHeight: 2500` (mm → **2.5 m** resting height of the grid
+  plane). Each exported grid-line box has WD Y height = **0.05 m**.
+
+### Insert / render / resize
+- Device def lives in the `boxes` array (`id:'ceilingGrid'`, `key:'WS'`,
+  `family:'resizeItem'`, `configurableColor:true`, `wdOpacity:true`,
+  `default_vHeight:2500`) and IS in `wallsMenu` (unlike cone).
+- `insertItemFromMenu()` seeds the unit-aware grid defaults; `insertTable()`
+  has the `Konva.Shape` `sceneFunc` branch; `enableCopyDelBtn()` enables
+  all 8 resize anchors.
+
+### Details panel
+- `#itemGridWidthDiv` / `#itemGridLengthDiv` inputs sit just below
+  `#itemRadius2Div`. `updateFormatDetails()` shows + populates them for
+  `ceilingGrid` (and they are in the two group-details `hideIds` reset
+  lists); Width / Length stay visible (the grid is a plain rectangle).
+  `updateItem()` reads the two inputs into `item.data_gridWidth` /
+  `item.data_gridLength`.
+
+### Four-place rule (`data_gridWidth`, `data_gridLength`)
+Same four-place rule as `data_radius2` / `data_fill`: `insertTable()`
+writer + `insertShapeItem()` → `updateNodeAttributes()` mirror;
+`updateRoomObjFromTrNode()` push branch AND map-hit branch
+(explicit-delete-on-absent); `copyToCanvasClipBoard()`.
+
+### URL encoding
+New item prefix `WS`. Two 2-char per-item codes gated on
+`data_deviceid === 'ceilingGrid'` (accumulated by the parser state
+machine like `cd` / `ll`): `gw` = `data_gridWidth × 100`, `gl` =
+`data_gridLength × 100` (current unit). `data_fill` / `data_opacity` ride
+the existing `u` / `v` letters; `width` / `height` ride `c` / `e`.
+
+### Workspace Designer round-trip (hybrid)
+- **Export** — the `wdBuckets.boxes` dispatch routes `ceilingGrid` to
+  `pushCeilingGridChildren(item)` instead of the single-box
+  `workspaceObjWallPush`. That helper emits one thin box per grid line
+  (`id: gridLines~v~<row>~<itemId>` for verticals, `gridLines~h~<row>~…`
+  for horizontals; footprint 24 mm × extent; WD Y height 0.05 m; parent
+  rotation/zPosition/layer/group/customItem/hidden inherited) via the
+  shared `workspaceObjWallPush`. The parent record is written verbatim
+  (meters, VRC top-left, `layerName`) to
+  `workspaceObj.data.vrc.ceilingGrids[]`.
+  - **Color rule:** each grid-line box emits `color` only when
+    `item.data_fill` is set **and not** black (`#000000` / `black`);
+    otherwise the colour is omitted so WD renders its default grey
+    (trade-off: an explicit black pick reads as "no colour" on export).
+    `data_opacity` rides along whenever set.
+- **Import** — every `wdItem` whose `id` starts with `gridLines~` is
+  dropped at the top of the scoring loop (next to the `vrcParent` drop),
+  and each `data.vrc.ceilingGrids[]` entry is restored into
+  `roomObj2.items` (resolving `layerName`) BEFORE the groups / customItems
+  restore blocks.
+
+### Out of scope
+- `.vrc.json` round-trip needs no special handling (plain fields on
+  `roomObj.items`). Undo/redo, Groups, CustomItems work automatically
+  (single node, no full-redraw trigger).
 
 ---
 

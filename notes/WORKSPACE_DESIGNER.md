@@ -408,6 +408,50 @@ shading — orthogonal to the round-trip.
 
 ---
 
+## Ceiling Grid Round-Trip (`ceilingGrid`)
+
+`ceilingGrid` is a **hybrid**: the single VRC item round-trips verbatim
+via `workspaceObj.data.vrc.ceilingGrids[]` (mirror of `data.vrc.vrcTexts`
+/ `dimensionLines`), while the on-canvas grid is *also* emitted as one
+thin box per grid line under `customObjects[]` so Workspace Designer can
+render it. The grid-line boxes are derived geometry only — they are
+dropped on import so the verbatim record is the single source of truth.
+
+### Wire shape
+
+`workspaceObj.data.vrc.ceilingGrids[]` — the full `roomObj.items[]`
+record, in **meters** (×`1/3.28084` if the source room is in feet), VRC
+top-left coords (no roomX/roomY shift), with `data_layerId` swapped for
+the human-readable `layerName` (Default `'0'` omitted) and
+`data_groupId` / `data_customItemId` passed through verbatim. Carries
+`width` / `height` / `rotation` / `data_zPosition` / `data_gridWidth` /
+`data_gridLength` / `data_vHeight` / `data_fill` / `data_opacity`.
+
+Each grid-line box in `customObjects[]`:
+
+| Field | Value |
+|-------|-------|
+| `id` | `gridLines~v~<row>~<itemId>` (vertical, runs along Y) or `gridLines~h~<row>~<itemId>` (horizontal, runs along X) |
+| `objectType` | `wall` (emitted via `workspaceObjWallPush` with a synthetic `box` item) |
+| footprint | vertical: 24 mm (X) × grid Y-extent; horizontal: grid X-extent × 24 mm |
+| WD Y height | `0.05 m` (`data_vHeight`) |
+| position / rotation | derived from the parent's UL pivot + rotation (parent is UL-anchored, so `(x, y)` is the upper-left and the rotation pivot) |
+| inherited | `data_layerId` / `data_groupId` / `data_customItemId` / `data_hiddenInDesigner` from the parent |
+| `color` / `opacity` | emitted only when the parent `data_fill` is set and NOT black (`#000000` / `black`); otherwise omitted so WD renders the default grey. `opacity` rides along whenever set |
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Device def | `boxes` array in `js/roomcalc.js` (`id:'ceilingGrid'`, `key:'WS'`, `configurableColor:true`, `wdOpacity:true`, `default_vHeight:2500`) |
+| Export — dispatch | `wdBuckets.boxes` loop in `exportRoomObjToWorkspace()` — `ceilingGrid` branch calls `pushCeilingGridChildren(item)` instead of `workspaceObjWallPush` |
+| Export — children | `pushCeilingGridChildren(parent)` (nested in `exportRoomObjToWorkspace()`, beside `pushParentItemChildren`) — synthesizes one `box` per line and dispatches through `workspaceObjWallPush` |
+| Export — verbatim record | `data.vrc.ceilingGrids[]` emit block, right after the `data.vrc.dimensionLines` emit |
+| Import — drop boxes | `importWorkspaceDesignerFile()` scoring loop — `if (wdItem.id.startsWith('gridLines~')) { delete; continue; }` next to the `vrcParent` drop |
+| Import — restore | block after the `data.vrc.dimensionLines` restore and BEFORE the groups / customItems restore |
+
+---
+
 ## ConfigurableColor & Opacity Round-Trip
 
 Items whose device definition has `configurableColor: true` and / or

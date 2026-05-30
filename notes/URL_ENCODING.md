@@ -176,6 +176,7 @@ Each device/furniture type has a 2-character uppercase key:
 | `WP` | Row of Stool Chairs (wallChairsStool) |
 | `WQ` | Cone (cylinder variant with `data_radius2`) |
 | `WR` | Workspace Designer Text (`wdText`) |
+| `WS` | Ceiling Grid (`ceilingGrid`; 2-char `gw` / `gl` tile dimensions) |
 
 **Chairs (S_):**
 
@@ -228,6 +229,8 @@ After an item type prefix, lowercase letters encode attributes:
 | `y` | dimensionLine line width OR cone radius2 (×100) | Number | Multiplexed by `data_deviceid`. `dimensionLine` → `data_lineWidth` (integer canvas pixels). `cone` → `data_radius2 × 100` in current unit (mm in meters mode, hundredths of a foot in feet mode). Both encoder and decoder gate by deviceid so the meanings never collide |
 | `z` | dimensionLine pointer size | Number | `data_pointerSize` for `dimensionLine` items only |
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
+| `gw` | ceilingGrid tile width (×100) | Number | `data_gridWidth` for `ceilingGrid` items only. 2-char code (accumulated by the tokenizer like `cd` / `ll`). `gw{N}` where N = width × 100 in current unit. Both encoder and decoder gate on `data_deviceid === 'ceilingGrid'` |
+| `gl` | ceilingGrid tile length (×100) | Number | `data_gridLength` for `ceilingGrid` items only. 2-char code. `gl{N}` where N = length × 100 in current unit. Same deviceid gate as `gw` |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
 **AVAILABLE for future ITEM use:** `y`, `z`. (`u` is fill color, `v`
