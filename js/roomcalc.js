@@ -14226,6 +14226,16 @@ function applyRoomObjDelta(prev, next) {
         }
     });
 
+    /* The incremental path above only re-set roomObjItemsMap for
+     * changed/added items. After `roomObj = next` (a structuredClone),
+     * every UNCHANGED item's map entry still pointed at the previous
+     * snapshot's object — an orphan no longer in roomObj.items. A later
+     * drag then patched the orphan via roomObjItemsMap.get(id) while
+     * roomObj.items (the WD-export / share-URL source) stayed stale.
+     * Rebuild the map from the now-authoritative roomObj.items. */
+    roomObjItemsMap.clear();
+    roomObj.items.forEach(it => { if (it && it.id) roomObjItemsMap.set(it.id, it); });
+
     trNodesFromUuids(safeArr(next && next.trNodes), false);
 
     document.title = (next && next.name)
@@ -20170,6 +20180,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             id: uuid,
             draggable: true,
             rotation: rotation,
+            /* Match the global perf flag every other primitive sets. A
+             * Konva.Image defaults perfectDrawEnabled=true; once the
+             * selection highlight adds a stroke, that combination routes
+             * each image through an offscreen buffer canvas sized to the
+             * ZOOMED dimensions, so a multi-select redraw cost scales with
+             * zoom^2 (multi-second freeze at high zoom / large selections). */
+            perfectDrawEnabled: perfectDrawEnabled,
         });
 
         imageItem.hitStrokeWidth(hitStrokeWidth); /* don't need to be close to the image to be selected */
@@ -24996,10 +25013,12 @@ function zoomInOut(zoomChange) {
 
     stage.scaleX(zoomScaleX);
     stage.scaleY(zoomScaleY);
-    stage.width(stageOriginalWidth * zoomScaleX);
-    stage.height(stageOriginalLength * zoomScaleY);
-
-    stage.draw();
+    /* stage.width()/height() each invoke Konva's _resizeDOM(), which
+     * redraws EVERY layer. The old code set them separately and then called
+     * stage.draw() — three full layerTransform redraws per zoom. Batch into
+     * one size() call (a single _resizeDOM redraw, painted at the new scale
+     * already set above) and drop the redundant explicit draw. */
+    stage.size({ width: stageOriginalWidth * zoomScaleX, height: stageOriginalLength * zoomScaleY });
 
     document.getElementById('zoomValue').textContent = String(zoomValue) + '%';
     layerGrid.draw();
@@ -31829,7 +31848,7 @@ function addDefaultsToWorkspaceObj() {
 
 
 function exportRoomObjToWorkspace() {
-  
+
     /* drawRoom() calls postMessageToWorkspace() at the end of the same turn, while createShareableLink() -> listItemsOffStage() is debounced (see canvasToJson). Without this, itemsOffStageId can lag behind a resize redraw; pathShapes use live getClientRect() in findFourCorners and are the first to misclassify. */
     listItemsOffStage();
 
