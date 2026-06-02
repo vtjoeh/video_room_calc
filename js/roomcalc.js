@@ -4277,6 +4277,9 @@ const workspaceKey = window.VRC.workspaceKey;
 /* Certified-display catalogue — data lives in js/data/certifiedDisplays.js. */
 const certifiedDisplays = (window.VRC && window.VRC.certifiedDisplays) || [];
 
+/* Certified-display catalogue — data lives in js/data/insertMessages.js. */
+const insertMessages = (window.VRC && window.VRC.insertMessages) || [];
+
 let layerSelectionBox = new Konva.Layer({
     name: 'layerSelectionBox'
 });
@@ -6427,7 +6430,7 @@ let microphones = [
         height: 6,
         defaultVert: 2400,
         defaultLayerId: "1"
-    }, 
+    },
     {
         name: "Ceiling Fan",
         id: "ceilingFan",
@@ -6439,7 +6442,7 @@ let microphones = [
         height: 400,
         defaultVert: 2280,
         defaultLayerId: "1"
-    }, 
+    },
 
 ]
 
@@ -6499,10 +6502,10 @@ let tables = [{
     key: 'WA',
     frontImage: 'wallStd-front.png',
     family: 'wallBox',
-    resizeable: ['depth', 'vheight'], 
-    configurableColor: true, 
-    wdOpacity: true, 
-    
+    resizeable: ['depth', 'vheight'],
+    configurableColor: true,
+    wdOpacity: true,
+
 },
 {
     name: 'Glass Wall',
@@ -6510,7 +6513,7 @@ let tables = [{
     key: 'WB',
     frontImage: 'wallGlass-front.png',
     family: 'wallBox',
-    resizeable: ['depth', 'vheight'], 
+    resizeable: ['depth', 'vheight'],
 },
 
 {
@@ -6519,10 +6522,10 @@ let tables = [{
     key: 'WC',
     frontImage: 'columnRect-front.png',
     family: 'wallBox',
-    resizeable: ['width', 'depth', 'vheight'],     
-    configurableColor: true, 
+    resizeable: ['width', 'depth', 'vheight'],
+    configurableColor: true,
     wdOpacity: true,
-             
+
 },
 
 {
@@ -6596,7 +6599,7 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 0.5,
-    resizeable: [], 
+    resizeable: [],
     configurableColor: true,
 
 },
@@ -6669,7 +6672,7 @@ let tables = [{
     //  roles: [{ roundSide: 'One Side Rounded' }, { rectSide: 'Rectangular Corners' }]
 },
 {
-    name: 'Ceiling Grid',
+    name: 'Ceiling Grid**',
     id: 'ceilingGrid',
     key: 'WS',
     frontImage: 'ceilingGrid-menu.png',
@@ -6679,11 +6682,6 @@ let tables = [{
     resizeable: ['width', 'depth', 'vheight'],
     configurableColor: true,
     wdOpacity: true,
-    /* 2.5 m resting height of the grid plane. insertItemFromMenu()
-     * reads default_vHeight and writes attrs.data_vHeight before the
-     * roomObj.items.push() so it survives the first canvasToJson cycle
-     * (same rationale as cone — the patch branch in
-     * updateRoomObjFromTrNode() does not mirror data_vHeight). */
     default_vHeight: 2500,
 }
 
@@ -7009,7 +7007,7 @@ let chairs = [
         opacity: 0.7,
     },
     {
-        name: "Codec-Room Kit Pro**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec-Room Kit Pro",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecPro",
         key: "UE",
         topImage: 'codec-top.png',
@@ -7017,9 +7015,12 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
+        defaultVert: 1400,
+        defaultTilt: 90,
+        defaultLean: 180
     },
     {
-        name: "Codec-Room Kit EQ**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec-Room Kit EQ",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecEQ",
         key: "UF",
         topImage: 'codec-top.png',
@@ -7027,9 +7028,12 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
+        defaultVert: 1400,
+        defaultTilt: 90,
+        defaultLean: 180
     },
     {
-        name: "Codec-Room Kit EQX**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec-Room Kit EQX",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecEQX",
         key: "UG",
         topImage: 'codec-top.png',
@@ -7037,9 +7041,12 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
+        defaultVert: 1400,
+        defaultTilt: 90,
+        defaultLean: 180
     },
     {
-        name: "Switch Catalyst 9200CX series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Switch Catalyst 9200CX series",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "switchC9200CX",
         key: "UH",
         topImage: 'switch-top.png',
@@ -7047,10 +7054,11 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
-        roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
+        roles: [{ ceiling: 'ceiling' }, { table: 'table' }],
+        defaultVert: 2910,
     },
     {
-        name: "Switch Catalyst 1200 series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Switch Catalyst 1200 series",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "switchC1200",
         key: "UI",
         topImage: 'switch-top.png',
@@ -7058,7 +7066,8 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
-        roles: [{ ceiling: 'ceiling' }, { table: 'table' }]
+        roles: [{ ceiling: 'ceiling' }, { table: 'table' }],
+        defaultVert: 2910
     },
     {
         name: "Christmas Tree**",
@@ -7071,7 +7080,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "codec: Kit Pro G2 (Quad Cam)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "codec: Kit Pro G2 (Quad Cam)",
         id: "codecProG2QuadCam",
         key: "UK",
         topImage: 'codec-top.png',
@@ -7079,9 +7088,12 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
+        defaultVert: 1400,
+        defaultTilt: -90,
+        defaultLean: 180
     },
     {
-        name: "codec: Kit Pro G2 (Room Vision Cam)**",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "codec: Kit Pro G2 (Room Vision Cam)",
         id: "codecProG2RoomVision",
         key: "UL",
         topImage: 'codec-top.png',
@@ -7089,6 +7101,9 @@ let chairs = [
         width: 720,
         depth: 300,
         opacity: 0.8,
+        defaultVert: 1400,
+        defaultTilt: -90,
+        defaultLean: 180
     },
 ]
 
@@ -8582,7 +8597,7 @@ function parseShortenedXYUrl(parameters) {
 
                 const grpName = DOMPurify.sanitize(
                     'text' in item
-                        ? decodeURIComponent(item.text.replaceAll('+', ' ')) 
+                        ? decodeURIComponent(item.text.replaceAll('+', ' '))
                         : ''
                 );
 
@@ -9128,7 +9143,7 @@ function resetRoomObj() {
         "drpTvNum": 1,
     };
 
-    roomObj.groups = []; 
+    roomObj.groups = [];
     roomObj.customItems = [];
 
     roomObj.roomSurfaces =
@@ -9869,6 +9884,17 @@ function quickSetupInsert() {
         }
         videoAttr.data_zPosition = defaultVert;
     }
+
+    if ('defaultLean' in allDeviceTypes[videoDeviceId]) {
+
+        videoAttr.data_slant = allDeviceTypes[videoDeviceId].defaultLean;
+    }
+
+    if ('defaultTilt' in allDeviceTypes[videoDeviceId]) {
+
+        videoAttr.data_tilt = allDeviceTypes[videoDeviceId].defaultTilt;
+    }
+
 
     videoDevices.forEach((item) => {
         if (videoDeviceId === item.id) {
@@ -13593,7 +13619,7 @@ function pasteItems(duplicate = true) {
         const newGroup = {
             groupid: newGroupId,
       //       name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
-            name: item.groupAttrs.name || (''), 
+            name: item.groupAttrs.name || (''),
             data_layerId: layerId,
             x: (item.groupAttrs.x || 0) + xOffset,
             y: (item.groupAttrs.y || 0) + yOffset,
@@ -13770,7 +13796,7 @@ function displayDistanceCoverageVisible(state = 'buttonPress') {
 
 function overlayLabelsVisible(state = 'buttonPress') {
 
-    testSearchShapeToNode();
+
 
     let saveToUndo = false;
     let button = document.getElementById('btnLabelsToggle');
@@ -19499,58 +19525,6 @@ function insertItem(item, uuid, selectTrNode) {
 }
 
 
-function testSearchShapeToNode() {
-    return;
-    console.log('*****************************')
-    console.time('findNodes');
-    let nodeCount = 0;
-    let itemCount = 0;
-    roomObj.items.forEach(item => {
-        itemCount++;
-        let node = stage.findOne('#' + item.id);
-        if (node) {
-            nodeCount++;
-        }
-    });
-
-    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
-    console.timeEnd('findNodes');
-
-    console.time('findAllItems2');
-
-    nodeCount = 0;
-    itemCount = 0;
-
-
-    selectAllNodes().forEach(node => {
-        nodeCount++;
-        if (roomObjItemsMap.get(node.attrs.id)) {
-            itemCount++;
-        }
-    });
-
-    console.timeEnd('findAllItems2');
-    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
-
-
-
-
-    nodeCount = 0;
-    itemCount = 0;
-    roomObj.items.forEach(item => {
-        itemCount++;
-        let node = canvasNodesMap.get(item.id);
-        if (node) {
-            nodeCount++;
-            console.log(node.id(), node.data_deviceid);
-        }
-    });
-
-    console.timeEnd('findAllNodes2');
-    console.log('total items', itemCount, 'total foundNodes:', nodeCount);
-
-}
-
 /* ---- Group creation / destruction ---- */
 
 /* Dissolve a group. keepItems=true → leave member nodes on canvas (Ungroup).
@@ -23933,8 +23907,8 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[17] = ['shareCableUsbc', 'shareCableHdmi', 'shareCableMulti', 'shareCableUsbcHdmi', 'shareCableUsbcMulti', 'shareCableHdmiMulti', 'shareCableUsbcHdmiMulti'];
 
-    deviceGroups[18] = ['webcam4k', 'webcam1080p'], 
-    
+    deviceGroups[18] = ['webcam4k', 'webcam1080p'],
+
     deviceGroups[19] = ['wallChairs', 'wallChairsSwivel', 'wallChairsStool']
 
     deviceGroups[20] = ['wdText', 'vrcText'];
@@ -24532,6 +24506,17 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_zPosition = defaultVert;
     }
 
+    if ('defaultLean' in allDeviceTypes[data_deviceid]) {
+
+        attrs.data_slant = allDeviceTypes[data_deviceid].defaultLean;
+    }
+
+    if ('defaultTilt' in allDeviceTypes[data_deviceid]) {
+
+        attrs.data_tilt = allDeviceTypes[data_deviceid].defaultTilt;
+    }
+
+
     if('default_vHeight' in allDeviceTypes[data_deviceid]) {
         let default_vHeight = allDeviceTypes[data_deviceid].default_vHeight / 1000;
         if (roomObj.unit === 'feet') {
@@ -24619,8 +24604,33 @@ function insertItemFromMenu(data_deviceid, attrs) {
             setTimeout(() => { simplePathEditor(uuid); }, 300);
         }
 
+        showDeviceInsertMessage(data_deviceid)
+
     }
 
+}
+
+/* show a message for certain devices */
+function showDeviceInsertMessage(data_deviceid){
+
+    for (const deviceMessage of insertMessages){
+
+        if('idRegex' in deviceMessage && deviceMessage.idRegex.test(data_deviceid)){
+
+            let headerText = '';
+            let bodyText = '';
+            if('header' in deviceMessage){
+                headerText = deviceMessage.header.replaceAll('%device_name%', allDeviceTypes[data_deviceid].name);
+            }
+
+            if('body' in deviceMessage){
+                bodyText = deviceMessage.body.replaceAll('%device_name%', allDeviceTypes[data_deviceid].name);
+            }
+
+            alertDialog(headerText, bodyText);
+            break;
+        }
+    }
 }
 
 /* post things at the bottom of the screen, an alternative to console.log */
@@ -24894,7 +24904,7 @@ function createEquipmentMenu() {
      * fresh cone). The device-def remains in `allDeviceTypes` so cones
      * loaded from existing .vrc.json files, shareable URLs, and WD
      * imports continue to render and round-trip cleanly. */
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'ceilingGrid', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -32497,6 +32507,7 @@ function exportRoomObjToWorkspace() {
         const exportedCeilingGrids = [];
         roomObj.items.forEach(it => {
             if (!it || it.data_deviceid !== 'ceilingGrid') return;
+            console.log('32495 ...')
             const exported = structuredClone(it);
             ['x', 'y', 'width', 'height', 'data_zPosition', 'data_gridWidth', 'data_gridLength', 'data_vHeight'].forEach(f => {
                 if (typeof exported[f] === 'number') {
@@ -32512,6 +32523,7 @@ function exportRoomObjToWorkspace() {
             exportedCeilingGrids.push(exported);
         });
         if (exportedCeilingGrids.length > 0) {
+
             workspaceObj.data.vrc.ceilingGrids = exportedCeilingGrids;
         }
     }
@@ -33860,6 +33872,7 @@ function exportRoomObjToWorkspace() {
      * wdBuckets.boxes (UL-anchored, so its (x, y) is the upper-left and
      * also the rotation pivot — same as the parentItem UL-class case). */
     function pushCeilingGridChildren(parent) {
+        console.log('parent', parent);
         const W = Number(parent.width) || 0;
         const H = Number(parent.height) || 0;
         const gw = Number(parent.data_gridWidth) || 0;
