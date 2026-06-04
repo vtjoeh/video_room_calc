@@ -446,8 +446,9 @@ select {
 }
 
 input:disabled,
-textarea:disabled {
-  color: #999999;
+textarea:disabled,
+select:disabled {
+  color: #555555;
   border-color: #e5e5e5;
   opacity: 1;
 }
