@@ -44,4 +44,6 @@ window.VRC.dummyMenuKey = {
 
     dummyMenuBoardPro75G2: ['brdPro75G2', 'brdPro75G2Wheel', 'brdPro75G2WS' ],
 
+    dummyMenuRoomKitEQX: ['roomKitEqx', 'roomKitEqxFS', 'roomKitEqxWS'],
+
 }

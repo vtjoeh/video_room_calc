@@ -5966,6 +5966,7 @@ let videoDevices = [
 
     { name: 'Board Pro 55 G2', id: 'dummyMenuBoardPro55G2',  frontImage: 'brdPro55G2FS-front.png'},
 
+    { name: 'Room Kit EQX', id: 'dummyMenuRoomKitEQX', frontImage: 'roomKitEqx-front.png'},
     /* dummy menu items above */
 
 
@@ -5975,7 +5976,7 @@ let videoDevices = [
 
     { name: 'Room Kit EQX: Wall Mount', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 7000, speakerDeg: 140, },
 
-    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitEqQuadCam-menu.png' },
+    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitEqxFS-front.png' },
 
     { name: "_Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
 
@@ -24941,7 +24942,7 @@ function createEquipmentMenu() {
 
     let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProG2QuadCam'];
 
-    let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
+    let roomKitEqxMenu = ['dummyMenuRoomKitEQX'];
 
     let boardProMenu = ['dummyMenuBoardPro55G3', 'dummyMenuBoardPro75G3', 'dummyMenuBoardPro55G2', 'dummyMenuBoardPro75G2'];
 
