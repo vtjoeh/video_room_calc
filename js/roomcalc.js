@@ -5,6 +5,8 @@ const createUuid        = window.VRC.util.createUuid;
 const convertToUnit     = window.VRC.util.convertToUnit;
 const convertToMeters   = window.VRC.util.convertToMeters;
 const convertMetersFeet = window.VRC.util.convertMetersFeet;
+const dummyMenuKey = window.VRC.dummyMenuKey;
+
 window.convertMetersFeet = convertMetersFeet;
 
 const isCacheImages = true; /* Images for Canvas are preloaded in case of network disruption while being mobile. Turn to false to save server downloads */
@@ -3503,7 +3505,7 @@ function confirmCreateCustomItemFromDialog() {
  * doesn't leak into the next item insert. Single global is safe because
  * only one modal can be open at a time. */
 let _pendingTextInsertDeviceid = null;
-let _pendingTextInsertAttrs = null;
+let _pendingInsertAttrs = null;
 
 /* Insertion-time text-input modal for wdText / vrcText. Called from
  * insertItemFromMenu() instead of inserting immediately, so the user
@@ -3531,7 +3533,7 @@ function openTextInsertDialog(data_deviceid, attrs) {
     }
 
     _pendingTextInsertDeviceid = data_deviceid;
-    _pendingTextInsertAttrs = attrs;
+    _pendingInsertAttrs = attrs;
 
     const header = document.getElementById('dialogTextInsertHeader');
     const vrcNote = document.getElementById('textInsertVrcNote');
@@ -3564,7 +3566,7 @@ function openTextInsertDialog(data_deviceid, attrs) {
 function confirmTextInsertFromDialog() {
     const input = document.getElementById('textInsertInput');
     if (!input) return;
-    if (!_pendingTextInsertDeviceid || !_pendingTextInsertAttrs) {
+    if (!_pendingTextInsertDeviceid || !_pendingInsertAttrs) {
         /* No pending insert (e.g. dialog opened by some other code
          * path or state got cleared). Close defensively. */
         closeAllDialogModals();
@@ -3582,9 +3584,9 @@ function confirmTextInsertFromDialog() {
     const cleaned = sanitized.replace(/\\n/g, '\n');
 
     const data_deviceid = _pendingTextInsertDeviceid;
-    const attrs = _pendingTextInsertAttrs;
+    const attrs = _pendingInsertAttrs;
     _pendingTextInsertDeviceid = null;
-    _pendingTextInsertAttrs = null;
+    _pendingInsertAttrs = null;
 
     attrs.data_labelField = cleaned || 'Text';
     attrs.data_deviceid = data_deviceid;
@@ -5955,6 +5957,18 @@ document.getElementById('lblVersion').innerText = version;
 /* videoDevices keys: A/B; need zoom or distance fields (or codecParent/cameraParent). */
 let videoDevices = [
 
+    /* dummy menu items below */
+    { name: 'Board Pro 75 G3', id: 'dummyMenuBoardPro75G3', frontImage: 'brdPro75G2FS-front.png', newItem: true},
+
+    { name: 'Board Pro 55 G3', id: 'dummyMenuBoardPro55G3', frontImage: 'brdPro55G2FS-front.png', newItem: true},
+
+    { name: 'Board Pro 75 G2', id: 'dummyMenuBoardPro75G2',  frontImage: 'brdPro75G2FS-front.png'},
+
+    { name: 'Board Pro 55 G2', id: 'dummyMenuBoardPro55G2',  frontImage: 'brdPro55G2FS-front.png'},
+
+    /* dummy menu items above */
+
+
     { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5100, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
@@ -5975,9 +5989,9 @@ let videoDevices = [
 
     { name: "Board Pro 75*", id: 'boardPro75', key: 'AK', wideHorizontalFOV: 120, teleHorizontalFOV: 85, onePersonZoom: 2.39, twoPersonZoom: 3.82, topImage: 'boardPro75-top.png', frontImage: 'boardPro75-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, defaultVert: 760 },
 
-    { name: "Board Pro 55 G2: Wall Mount", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 970 },
+    { name: "Board Pro 55 G2: Wall Mount**", id: 'brdPro55G2', key: 'AL', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 970 },
 
-    { name: "Board Pro 75 G2: Wall Mount", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
+    { name: "Board Pro 75 G2: Wall Mount**", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
     { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
@@ -5995,19 +6009,19 @@ let videoDevices = [
 
     { name: 'Room Kit EQX: Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
 
-    { name: "Board Pro 55 G2: Floor Stand", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 55 G2: Floor Stand**", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: "Board Pro 75 G2: Floor Stand", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 75 G2: Floor Stand**", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
 
-    { name: "Board Pro 75 G2: Wheel Stand", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 75 G2: Wheel Stand**", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: "Board Pro 55 G2: Wheel Stand", id: 'brdPro55G2Wheel', key: 'AZ', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 55 G2: Wheel Stand**", id: 'brdPro55G2Wheel', key: 'AZ', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: "Board Pro 55 G2: Wall Stand", id: 'brdPro55G2WS', key: 'BA', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+    { name: "Board Pro 55 G2: Wall Stand**", id: 'brdPro55G2WS', key: 'BA', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
-    { name: "Board Pro 75 G2: Wall Stand", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+    { name: "Board Pro 75 G2: Wall Stand**", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
     { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -6016,6 +6030,25 @@ let videoDevices = [
     { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
 
     { name: "Room Kit Pro G2: Quad Camera", key: 'BF', id: 'roomKitProG2QuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitProG2QuadCam-menu.png', newItem: true },
+
+    { name: "Board Pro 55 G3: Wall Mount**", id: 'brdPro55G3', key: 'BG', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 970 },
+
+    { name: "Board Pro 75 G3: Wall Mount**", id: 'brdPro75G3', key: 'BH', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
+
+     { name: "Board Pro 75 G3: Wheel Stand**", id: 'brdPro75G3Wheel', key: 'BI', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 55 G3: Wheel Stand**", id: 'brdPro55G3Wheel', key: 'BJ', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 55 G3: Wall Stand**", id: 'brdPro55G3WS', key: 'BK', codecParent: 'roomBarPro', topImage: 'brdPro55G2-top.png', frontImage: 'brdPro55G2-front.png', width: 1278, depth: 92, height: 823, diagonalInches: 55, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+
+    { name: "Board Pro 75 G3: Wall Stand**", id: 'brdPro75G3WS', key: 'BL', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
+
+     { name: "Board Pro 55 G3: Floor Stand**", id: 'brdPro55G3FS', key: 'BM', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+    { name: "Board Pro 75 G3: Floor Stand**", id: 'brdPro75G3FS', key: 'BN', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+
+
+
 ]
 
 
@@ -6627,15 +6660,6 @@ let tables = [{
     resizeable: [],
     configurableColor: true,
     wdOpacity: true,
-    /* 0.8 m default vertical extent (cone height). insertItemFromMenu()
-     * picks this up and writes attrs.data_vHeight before the
-     * roomObj.items.push(), so the value survives the very first
-     * canvasToJson cycle. The patch branch in
-     * updateRoomObjFromTrNode() does NOT mirror data_vHeight (only the
-     * push branch carries it forward via the initial attrs), so a
-     * Konva-node-only default applied inside insertTable() would be
-     * lost on the next sync — the device-def default_vHeight is the
-     * supported pathway. */
     default_vHeight: 800,
 },
 {
@@ -6680,8 +6704,6 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 1,
     resizeable: ['width', 'depth', 'vheight'],
-    configurableColor: true,
-    wdOpacity: true,
     default_vHeight: 2500,
 }
 
@@ -23889,9 +23911,9 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[8] = ['tableMicPro', 'tableMic'];
 
-    deviceGroups[9] = ['brdPro75G2', 'brdPro55G2'];
+    deviceGroups[9] = ['brdPro75G3', 'brdPro55G3', 'brdPro75G2', 'brdPro55G2'];
 
-    deviceGroups[10] = ['brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel'];
+    deviceGroups[10] = ['brdPro75G3FS', 'brdPro75G3WS', 'brdPro75G3Wheel', 'brdPro55G3FS', 'brdPro55G3WS', 'brdPro55G3Wheel', 'brdPro75G2FS', 'brdPro75G2WS', 'brdPro75G2Wheel', 'brdPro55G2FS', 'brdPro55G2WS', 'brdPro55G2Wheel'];
 
     deviceGroups[11] = ['roomKitEqxFS', 'roomKitEqxWS'];
 
@@ -23923,6 +23945,8 @@ function updateDevicesDropDown(selectElement, item) {
                 selectElement.disabled = false;
 
                 deviceGroups[index].forEach(deviceid => {
+                    console.log('deviceid', deviceid);
+                    console.log('allDeviceTypes[deviceid]', allDeviceTypes[deviceid])
                     const newOption = new Option(allDeviceTypes[deviceid].name, deviceid);
                     selectElement.add(newOption);
                     selectElement.value = item.data_deviceid;
@@ -24481,6 +24505,14 @@ function insertItemFromMenu(data_deviceid, attrs) {
     wallBuilderOn2(false);
     if (isMeasuringToolOn) hideMeasuringTool();
 
+
+    if(data_deviceid.startsWith('dummyMenu')){
+
+        showDummyMenuItems(data_deviceid, attrs);
+
+        return;
+    };
+
     if (data_deviceid === 'polyRoom') {
         polyBuilderOn(true, 'polyRoom')
         return;
@@ -24529,12 +24561,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_radius2 = (roomObj.unit === 'feet') ? 0.98 : 0.3;
     }
 
-    /* ceilingGrid tile dimensions. Stored in the current unit (like
-     * cone's data_radius2); convertMetersFeet() toggles them. Defaulted
-     * here in insertItemFromMenu so the values are present on attrs
-     * before the roomObj.items.push() (the patch branch in
-     * updateRoomObjFromTrNode() mirrors them, but seeding here keeps a
-     * fresh insert correct on the very first canvasToJson cycle). */
+    /* ceilingGrid tile default dimensions.  */
     if (data_deviceid === 'ceilingGrid') {
         if (attrs.data_gridWidth == null) {
             attrs.data_gridWidth = (roomObj.unit === 'feet') ? 2 : 0.6;
@@ -24738,6 +24765,56 @@ function showRoleOptions(itemDataDeviceid, attrs) {
 }
 
 
+function showDummyMenuItems(dummy_data_deviceId, attrs) {
+
+
+    let dialogHeader = document.getElementById('headerRoleSelection');
+    let roleSelectionDialog = document.getElementById('roleSelectionDialog');
+
+
+
+    dialogHeader.innerText = 'Select from the following ' + allDeviceTypes[dummy_data_deviceId].name;
+
+
+
+    let itemOptions = dummyMenuKey[dummy_data_deviceId];
+
+    const innerDiv = document.getElementById("roleSelection");
+    innerDiv.innerHTML = '';
+
+    itemOptions.forEach((data_deviceid, index) => {
+
+        let itemName = allDeviceTypes[data_deviceid].name;
+        const buttonDiv = document.createElement('div');
+        const button = document.createElement('button');
+        const buttonLabel = document.createElement('span');
+
+        buttonLabel.innerText = itemName.replace(/\*\*$/, "");
+        buttonLabel.classList.add('roleSelectButtonLabel')
+        buttonLabel.style.margin = 'auto';
+
+
+        button.classList.add('roleSelectButton');
+
+        button.appendChild(buttonLabel);
+
+        innerDiv.appendChild(buttonDiv);
+        buttonDiv.appendChild(button);
+
+        button.onclick = () => {
+
+            insertItemFromMenu(data_deviceid, attrs);
+
+            roleSelectionDialog.close();
+
+        }
+    });
+
+    roleSelectionDialog.showModal();
+
+}
+
+
 /* Checks to see if the items about to pasted contain a video device.   */
 function checkForMultipleCodecsOnPaste(pasteItems) {
 
@@ -24793,7 +24870,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
     let divMenuContainer = document.getElementById(divMenuContainerId);
 
     menuItems.forEach((menuItem) => {
-
+        console.log('menuItem', menuItem);
         let item = allDeviceTypes[menuItem];
 
         let frontImage = item.frontImage || 'wd.svg';
@@ -24801,7 +24878,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         let name = item.name || 'No Name';
 
         let parentGroup = item.parentGroup;
-
+        console.log('parentItem', parentGroup)
         let flexItemDiv = document.createElement("div");
         flexItemDiv.classList.add('flexItems');
         flexItemDiv.classList.add('equipmentItemOnMenu');
@@ -24866,7 +24943,7 @@ function createEquipmentMenu() {
 
     let roomKitEqxMenu = ['roomKitEqx', 'roomKitEqxFS'];
 
-    let boardProG2Menu = ['brdPro75G2', 'brdPro75G2FS', 'brdPro55G2', 'brdPro55G2FS'];
+    let boardProMenu = ['dummyMenuBoardPro55G3', 'dummyMenuBoardPro75G3', 'dummyMenuBoardPro55G2', 'dummyMenuBoardPro75G2'];
 
     let personalVideoDevicesMenu = ['webexDeskProG2', 'webexDesk', 'webexDeskMini', 'roomBarByod'];
 
@@ -24917,7 +24994,7 @@ function createEquipmentMenu() {
 
     createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
 
-    createItemsOnMenu('boardProG2MenuContainer', boardProG2Menu);
+    createItemsOnMenu('boardProMenuContainer', boardProMenu);
 
     createItemsOnMenu('personalDevicesMenuContainer', personalVideoDevicesMenu);
 
@@ -32507,7 +32584,7 @@ function exportRoomObjToWorkspace() {
         const exportedCeilingGrids = [];
         roomObj.items.forEach(it => {
             if (!it || it.data_deviceid !== 'ceilingGrid') return;
-            console.log('32495 ...')
+
             const exported = structuredClone(it);
             ['x', 'y', 'width', 'height', 'data_zPosition', 'data_gridWidth', 'data_gridLength', 'data_vHeight'].forEach(f => {
                 if (typeof exported[f] === 'number') {
@@ -32656,6 +32733,7 @@ function exportRoomObjToWorkspace() {
         workspaceObj.data.vrc.parentItems = exportedParentItems;
     }
 
+
     (wdBuckets.chairs || []).forEach((item) => {
 
         if (item.data_deviceid === 'wheelchairTurnCycle') {
@@ -32751,7 +32829,10 @@ function exportRoomObjToWorkspace() {
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
                 workspaceObjWallPush(item);
-            }
+            } else if (item.data_deviceid === 'ceilingGrid') {
+
+            pushCeilingGridChildren(item);
+        }
         }
     });
 
@@ -32773,7 +32854,12 @@ function exportRoomObjToWorkspace() {
         }
     });
 
+
+
     (wdBuckets.boxes || []).forEach((item) => {
+
+        console.log('item', item);
+
         if (item.data_deviceid === 'wdText') {
             workspaceObjTextPush(item);
         } else if (item.data_deviceid === 'vrcText') {
@@ -32788,14 +32874,6 @@ function exportRoomObjToWorkspace() {
              * native dimension-line concept). Same skip + round-trip
              * pattern as vrcText — see workspaceObj.data.vrc.dimensionLines[]
              * emission below and the matching restore on import. */
-        } else if (item.data_deviceid === 'ceilingGrid') {
-            /* ceilingGrid is a hybrid: skip the single-box push and emit
-             * one thin box per grid line (id gridLines~v/h~row~<id>) so
-             * the grid is visible in Workspace Designer, while the parent
-             * record round-trips verbatim via data.vrc.ceilingGrids[]
-             * (see emission below + the import-side drop of gridLines~*
-             * boxes). */
-            pushCeilingGridChildren(item);
         } else {
             workspaceObjWallPush(item);
         }
@@ -33872,6 +33950,7 @@ function exportRoomObjToWorkspace() {
      * wdBuckets.boxes (UL-anchored, so its (x, y) is the upper-left and
      * also the rotation pivot — same as the parentItem UL-class case). */
     function pushCeilingGridChildren(parent) {
+          console.log('line 33926');
         console.log('parent', parent);
         const W = Number(parent.width) || 0;
         const H = Number(parent.height) || 0;
@@ -33924,6 +34003,7 @@ function exportRoomObjToWorkspace() {
             };
             if (!fillIsBlack) synth.data_fill = fill;
             if (parent.data_opacity != null) synth.data_opacity = parent.data_opacity;
+
             workspaceObjWallPush(synth);
         };
 

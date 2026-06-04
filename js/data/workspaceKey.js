@@ -82,10 +82,11 @@ workspaceKey.roomKitProQuadCam = { objectType: 'videoDevice', model: 'Room Kit P
 
 
 
-
+/* Board Pro (G1) */
 workspaceKey.boardPro55 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046, scale: [1.4, 7, 0.5] };
 workspaceKey.boardPro75 = { objectType: 'videoDevice', model: 'Legacy', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475, scale: [1.8, 9.1, 0.5] };
 
+/* Board Pro (G2) */
 workspaceKey.brdPro55G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro55G2FS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
 workspaceKey.brdPro75G2 = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
@@ -95,6 +96,20 @@ workspaceKey.brdPro55G2Wheel = { objectType: 'videoDevice', model: 'Board Pro', 
 
 workspaceKey.brdPro55G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 55, role: 'firstScreen', yOffset: 0.046 };
 workspaceKey.brdPro75G2WS = { objectType: 'videoDevice', model: 'Board Pro', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+
+/* Board Pro (G3) */
+
+workspaceKey.brdPro55G3 = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wall', size: 55, role: 'firstScreen', yOffset: 0.046 };
+workspaceKey.brdPro55G3FS = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'floor', size: 55, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro75G3 = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wall', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+workspaceKey.brdPro75G3FS = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'floor', size: 75, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro75G3Wheel = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wheelstand', size: 75, role: 'firstScreen', yOffset: 0.475 };
+workspaceKey.brdPro55G3Wheel = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wheelstand', size: 55, role: 'firstScreen', yOffset: 0.475 };
+
+workspaceKey.brdPro55G3WS = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wallstand', size: 55, role: 'firstScreen', yOffset: 0.046 };
+workspaceKey.brdPro75G3WS = { objectType: 'videoDevice', model: 'Board Pro G3', mount: 'wallstand', size: 75, role: 'firstScreen', yOffset: 0.0475 };
+
+
 
 workspaceKey.webexDesk = { objectType: 'videoDevice', model: 'Desk', role: 'singleScreen', yOffset: -0.08 };
 workspaceKey.webexDeskProG2 = { objectType: 'videoDevice', model: 'Desk Pro G2', role: 'singleScreen' };
