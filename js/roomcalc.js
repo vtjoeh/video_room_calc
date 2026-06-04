@@ -6705,7 +6705,7 @@ let tables = [{
     stroke: 'black',
     strokeWidth: 1,
     resizeable: ['width', 'depth', 'vheight'],
-    default_vHeight: 2500,
+    defaultVert: 2500,
 }
 
 ]
@@ -30623,12 +30623,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 continue;
             }
 
-            /* ceilingGrid grid-line boxes (id gridLines~v/h~row~<id>) are
-             * the WD-visible representation of a ceilingGrid; the parent
-             * item is restored from data.vrc.ceilingGrids[] below, so the
-             * boxes are pure derived geometry and must never become VRC
-             * box items. Dropped before any scoring guard, mirroring the
-             * vrcParent early-continue above. */
+
             if (typeof wdItem.id === 'string' && wdItem.id.startsWith('gridLines~')) {
                 delete wdItems[i];
                 continue;
