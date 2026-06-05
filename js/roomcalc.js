@@ -28431,6 +28431,14 @@ function dataUrlToBlob(dataUrl) {
     }
 }
 
+/* Return true if a backgroundImageFile value is a valid, loadable
+ * data URL. Rejects blob: URLs (session-scoped, break on reload),
+ * empty/missing strings, and any other non-data-URL values that
+ * would put the <img> into a 'broken' state and crash Konva. */
+function isValidBackgroundImageDataUrl(val) {
+    return typeof val === 'string' && val.startsWith('data:');
+}
+
 /* Persist a freshly-loaded background image into the IDB bgImages
  * library if not already present. Called from the importJson() VRC
  * branch so opening a saved file populates "Recent Floor Plans". */
@@ -28492,17 +28500,31 @@ function rehydrateBackgroundImageFromIdb() {
         return new Promise(function (resolve) {
             const onload = function () {
                 backgroundImageFloor.removeEventListener('load', onload);
-                /* Stamp data URL onto roomObj so JSON exports include the binary. */
-                try {
-                    const fr = new FileReader();
-                    fr.onload = function (ev) { roomObj.backgroundImageFile = ev.target.result; };
-                    fr.readAsDataURL(rec.blob);
-                } catch (e) { /* best-effort */ }
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
-                /* Konva.Image holds the <img>; revoke URL on next idle. */
-                setTimeout(function () { try { URL.revokeObjectURL(objUrl); } catch (e) { /* best-effort */ } }, 5000);
-                resolve(true);
+                /* Stamp data URL onto roomObj so JSON exports include the binary.
+                 * resolve() is deferred until the FileReader finishes so that
+                 * callers chaining .then() are guaranteed a data: URL — never
+                 * the temporary blob: URL that was used to load the <img>. */
+                try {
+                    const fr = new FileReader();
+                    fr.onload = function (ev) {
+                        roomObj.backgroundImageFile = ev.target.result;
+                        /* Konva.Image holds the <img>; revoke URL on next idle. */
+                        setTimeout(function () { try { URL.revokeObjectURL(objUrl); } catch (e) { /* best-effort */ } }, 5000);
+                        resolve(true);
+                    };
+                    fr.onerror = function () {
+                        /* Conversion failed — resolve anyway so the app isn't stuck. */
+                        setTimeout(function () { try { URL.revokeObjectURL(objUrl); } catch (e) { /* best-effort */ } }, 5000);
+                        resolve(true);
+                    };
+                    fr.readAsDataURL(rec.blob);
+                } catch (e) {
+                    /* best-effort — still resolve so callers aren't stuck */
+                    setTimeout(function () { try { URL.revokeObjectURL(objUrl); } catch (e2) { /* best-effort */ } }, 5000);
+                    resolve(true);
+                }
             };
             backgroundImageFloor.addEventListener('load', onload);
             backgroundImageFloor.src = objUrl;
@@ -28615,7 +28637,7 @@ function importJson(jsonFile) {
              * the URL grammar — which silently corrupts roomWidth on re-parse. */
             if (!roomObj.version) roomObj.version = version;
 
-            if ('backgroundImageFile' in jsonFile) {
+            if ('backgroundImageFile' in jsonFile && isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
@@ -28631,6 +28653,20 @@ function importJson(jsonFile) {
                     isBackgroundImageFloorFileLoad = false;
 
                 }, 1000);
+            } else if ('backgroundImageFile' in jsonFile && !isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
+                /* File contains an invalid image value (e.g. a blob: URL
+                 * from an older buggy export). Strip it so it doesn't
+                 * propagate, then attempt IDB rehydration as a fallback. */
+                console.warn('[VRC] Imported file has invalid backgroundImageFile — stripping:', String(jsonFile.backgroundImageFile).slice(0, 80));
+                delete roomObj.backgroundImageFile;
+                if (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId
+                    && typeof rehydrateBackgroundImageFromIdb === 'function') {
+                    rehydrateBackgroundImageFromIdb().finally(function () {
+                        isBackgroundImageFloorFileLoad = false;
+                    });
+                } else {
+                    isBackgroundImageFloorFileLoad = false;
+                }
             } else if (jsonFile.backgroundImage && jsonFile.backgroundImage.bgImageId
                 && typeof rehydrateBackgroundImageFromIdb === 'function') {
                 /* No embedded data URL but the file references an image in
@@ -30964,9 +31000,16 @@ function importWorkspaceDesignerFile(workspaceObj) {
         console.info('roomObj.workspace.theme: ', roomObj2.workspace.theme);
     }
 
-    if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc && 'backgroundImageFile' in workspaceObj.data.vrc) {
-        roomObj2.backgroundImageFile = workspaceObj.data.vrc.backgroundImageFile;
-        roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
+    if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc) {
+        if (isValidBackgroundImageDataUrl(workspaceObj.data.vrc.backgroundImageFile)) {
+            roomObj2.backgroundImageFile = workspaceObj.data.vrc.backgroundImageFile;
+            roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
+        } else {
+            console.warn('[VRC] WD import has invalid backgroundImageFile — skipping:', String(workspaceObj.data.vrc.backgroundImageFile).slice(0, 80));
+            if (workspaceObj.data.vrc.backgroundImage) {
+                roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
+            }
+        }
     }
 
     /* Restore VRC-only vrcText items from data.vrc.vrcTexts. The exporter
@@ -31192,7 +31235,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         isBackgroundImageFloorFileLoad = true;
 
-        if ('backgroundImageFile' in roomObj) {
+        if ('backgroundImageFile' in roomObj && isValidBackgroundImageDataUrl(roomObj.backgroundImageFile)) {
             console.info('importing workspaceObj.data.vrc.backgroundImage');
             backgroundImageFloor.src = roomObj.backgroundImageFile;
             insertKonvaBackgroundImageFloor();
@@ -34273,7 +34316,18 @@ function buildRoomObjJsonPayload() {
     /* because undo might mess up roomObj.backgroundImageFile, just add the current background image to roomObj2 or get rid of all references to the backgroundImage */
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
     if (konvaBackgroundImageFloor && 'backgroundImage' in roomObj2) {
-        roomObj2.backgroundImageFile = backgroundImageFloor.src;
+        /* Prefer the <img>.src when it is a data: URL. If it is a
+         * temporary blob: URL (from IDB rehydration), fall back to the
+         * already-converted data URL on roomObj. Never persist blob: URLs
+         * — they are session-scoped and break on reload/import. */
+        const imgSrc = backgroundImageFloor.src || '';
+        if (imgSrc.startsWith('data:')) {
+            roomObj2.backgroundImageFile = imgSrc;
+        } else if (roomObj.backgroundImageFile && String(roomObj.backgroundImageFile).startsWith('data:')) {
+            roomObj2.backgroundImageFile = roomObj.backgroundImageFile;
+        } else {
+            delete roomObj2.backgroundImageFile;
+        }
     } else {
         delete roomObj2.backgroundImageFile;
         delete roomObj2.backgroundImage;
