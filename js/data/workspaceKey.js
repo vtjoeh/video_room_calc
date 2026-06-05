@@ -141,6 +141,7 @@ workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
 workspaceKey.tblSchoolDesk = { objectType: 'table', model: 'schooldesk' };
 workspaceKey.tblPodium = { objectType: 'table', model: 'podium' };
+workspaceKey.tblBar = { objectType: 'bar'};
 
 workspaceKey.tblBullet = { objectType: 'table', model: 'bullet' }
 
@@ -155,6 +156,8 @@ workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOff
 workspaceKey.loudspeaker = { objectType: 'loudspeaker' };
 
 workspaceKey.projector = { objectType: 'projector' };
+
+
 
 workspaceKey.shareCableUsbc = { objectType: 'sharelid', shareSettings: { hdmi: 0, usbc: 1, multihead: 0 } };
 workspaceKey.shareCableHdmi = { objectType: 'sharelid', shareSettings: { hdmi: 1, usbc: 0, multihead: 0 } };

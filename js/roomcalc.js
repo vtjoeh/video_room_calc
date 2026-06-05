@@ -5974,9 +5974,9 @@ let videoDevices = [
 
     { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5100, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: 'Room Kit EQX: Wall Mount', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 7000, speakerDeg: 140, },
+    { name: 'Room Kit EQX: Wall Mount**', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 7000, speakerDeg: 140, },
 
-    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitEqxFS-front.png' },
+    { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
 
     { name: "_Kit EQ: Quad Cam Extended (720p)", key: 'AF', id: 'roomKitEqQuadCamExt', cameraParent: 'quadCamExt' },
 
@@ -6008,13 +6008,13 @@ let videoDevices = [
 
     { name: "Virtual Lens Bar Pro", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5, defaultVert: 1200 },
 
-    { name: 'Room Kit EQX: Floor Stand', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
+    { name: 'Room Kit EQX: Floor Stand**', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
 
     { name: "Board Pro 55 G2: Floor Stand**", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: "Board Pro 75 G2: Floor Stand**", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: 'Room Kit EQX: Wall Stand', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
+    { name: 'Room Kit EQX: Wall Stand**', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
 
     { name: "Board Pro 75 G2: Wheel Stand**", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -6697,7 +6697,7 @@ let tables = [{
     //  roles: [{ roundSide: 'One Side Rounded' }, { rectSide: 'Rectangular Corners' }]
 },
 {
-    name: 'Ceiling Grid**',
+    name: 'Ceiling Grid',
     id: 'ceilingGrid',
     key: 'WS',
     frontImage: 'ceilingGrid-menu.png',
@@ -6706,6 +6706,19 @@ let tables = [{
     strokeWidth: 1,
     resizeable: ['width', 'depth', 'vheight'],
     defaultVert: 2500,
+},
+{
+    name: 'Bar (Table)',
+    id: 'tblBar',
+    key: 'WT',
+    frontImage: 'tblRect-front.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
+    resizeable: ['width', 'depth', 'vheight'],
+    configurableColor: true,
+    data_opacity: 0.8,
+
 }
 
 ]
@@ -14987,6 +15000,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2.5 * scale;
         height = 3.4 * scale;
     }
+    else if (insertDevice.id === 'tblBar'){
+        width = 2.5 * scale;
+        height = 0.5 * scale;
+    }
     else if (insertDevice.id.startsWith('boxRoomPart')) {
         width = 3 * scale;
         height = 3 * scale;
@@ -16178,6 +16195,23 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             id: uuid,
             draggable: true,
             opacity: 1,
+        });
+
+     } else if (insertDevice.id === 'tblBar') {
+
+        tblWallFlr = new Konva.Rect({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: width,
+            height: height,
+            fill: '#ADD8E655',
+            stroke: allDeviceTypes['tblBar'].stroke || 'black',
+            strokeWidth: allDeviceTypes['tblBar'].strokeWidth || 1,
+            fill: attrs.data_fill || '#f0f0f0',
+            id: uuid,
+            draggable: true,
+            opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
         });
     } else if (insertDevice.id === 'polyRoom') {
         tblWallFlr = new Konva.Line({
@@ -23548,7 +23582,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemNameSelect.options.length = 0;
 
         if (allDeviceTypes[item.data_deviceid].name) {
-            item.name = allDeviceTypes[item.data_deviceid].name;
+            item.name = allDeviceTypes[item.data_deviceid].name.replace(/\*\*$/,"").replace(/^_/,"");
         }
 
         const newOption = new Option(item.name, item.data_deviceid);
@@ -23936,6 +23970,8 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[20] = ['wdText', 'vrcText'];
 
+    deviceGroups[21] = ['codec', 'codec'];
+
 
     deviceGroups.forEach((devices, index) => {
 
@@ -23948,7 +23984,7 @@ function updateDevicesDropDown(selectElement, item) {
                 deviceGroups[index].forEach(deviceid => {
                     console.log('deviceid', deviceid);
                     console.log('allDeviceTypes[deviceid]', allDeviceTypes[deviceid])
-                    const newOption = new Option(allDeviceTypes[deviceid].name, deviceid);
+                    const newOption = new Option(allDeviceTypes[deviceid].name.replace(/\*\*$/,"").replace(/^_/,""), deviceid);
                     selectElement.add(newOption);
                     selectElement.value = item.data_deviceid;
                 })
@@ -31317,6 +31353,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         wdItem.length = 0.59;
     }
 
+    if(data_deviceid === 'tblBar'){
+        if(!wdItem.length) wdItem.length = 0.5;
+        if(!wdItem.width) wdItem.width = 2.5;
+        if(!wdItem.height) wdItem.height = 1;
+    }
 
     /* items will need a position, add one if not found */
     if (!('position' in wdItem)) {
