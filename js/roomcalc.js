@@ -1,9 +1,9 @@
-const version = "v0.1.651";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.652";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
-const createUuid        = window.VRC.util.createUuid;
-const convertToUnit     = window.VRC.util.convertToUnit;
-const convertToMeters   = window.VRC.util.convertToMeters;
+const createUuid = window.VRC.util.createUuid;
+const convertToUnit = window.VRC.util.convertToUnit;
+const convertToMeters = window.VRC.util.convertToMeters;
 const convertMetersFeet = window.VRC.util.convertMetersFeet;
 const dummyMenuKey = window.VRC.dummyMenuKey;
 
@@ -58,7 +58,7 @@ let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 const betaWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* Cisco's beta Workspace Designer site, surfaced as the "designer.cisco.com (beta)" choice in the Workspace Designer Site dropdown */
 let newWorkspaceTab = defaultWorkspaceTab;
-let defaultWorkspaceTestSite  = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
+let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Window representing the iframe */
 let firstLoad = true; /* set to false after onLoad is run the first time */
@@ -172,14 +172,6 @@ function isTextItem(deviceId) {
     return deviceId === 'wdText' || deviceId === 'vrcText';
 }
 
-/* VRC Dimension Line membership test. Mirrors isTextItem() — gates every
- * dimensionLine-specific branch (insertTable rendering, addLabel skip,
- * URL encode/decode, WD round-trip skip, Details panel, four-place rule
- * for data_lineWidth / data_pointerSize, transform-time live width
- * widget update). data_fontSize also flows through dimensionLine but
- * uses the existing wdText/vrcText four-place wiring — the
- * isTextItem-OR-isDimensionLine predicate is used by the encoder /
- * decoder to widen acceptance. */
 function isDimensionLine(deviceId) {
     return deviceId === 'dimensionLine';
 }
@@ -216,9 +208,9 @@ function isWallChairs(deviceId) {
  * child instead. */
 function getCompositeHighlightRect(node) {
     if (!node || !node.data_deviceid) return null;
-    if (isTextItem(node.data_deviceid))      return node.findOne('Tag');
+    if (isTextItem(node.data_deviceid)) return node.findOne('Tag');
     if (isDimensionLine(node.data_deviceid)) return node.findOne('.dim-rect');
-    if (isWallChairs(node.data_deviceid))    return node.findOne('.wallChairs-bg');
+    if (isWallChairs(node.data_deviceid)) return node.findOne('.wallChairs-bg');
     return null;
 }
 
@@ -337,10 +329,10 @@ function beginGroupDragFollow(target) {
     if (!target || !target.data_groupId) return;
     if (tr.isDragging()) { _groupDragSnapshot = null; return; }
     _groupDragSnapshot = {
-        groupId:  target.data_groupId,
-        target:   target,
+        groupId: target.data_groupId,
+        target: target,
         startPos: { x: target.x(), y: target.y() },
-        others:   new Map(),
+        others: new Map(),
     };
     getGroupMemberNodes(target.data_groupId).forEach(member => {
         if (member === target) return;
@@ -398,9 +390,9 @@ function beginCustomItemDragFollow(target) {
     if (tr.isDragging()) { _customItemDragSnapshot = null; return; }
     _customItemDragSnapshot = {
         customItemId: target.data_customItemId,
-        target:       target,
-        startPos:     { x: target.x(), y: target.y() },
-        others:       new Map(),
+        target: target,
+        startPos: { x: target.x(), y: target.y() },
+        others: new Map(),
     };
     getCustomItemMemberNodes(target.data_customItemId).forEach(member => {
         if (member === target) return;
@@ -702,7 +694,7 @@ function updateGroupBounds(groupId) {
         const r = getMemberBoundingRect(node);
         if (r.x < minX) minX = r.x;
         if (r.y < minY) minY = r.y;
-        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.x + r.width > maxX) maxX = r.x + r.width;
         if (r.y + r.height > maxY) maxY = r.y + r.height;
     });
 
@@ -726,7 +718,7 @@ function updateGroupBounds(groupId) {
     if (g) {
         g.x = ((newX - pxOffset) / scale) + activeRoomX;
         g.y = ((newY - pyOffset) / scale) + activeRoomY;
-        g.width  = newW / scale;
+        g.width = newW / scale;
         g.height = newH / scale;
         const zPositions = members
             .map(n => parseFloat(n.data_zPosition) || 0)
@@ -785,16 +777,16 @@ function refreshGroupDetailsFromCanvas() {
     const sel = getActiveGroupSelection();
     if (!sel) return;
     const r = sel.rectNode;
-    const itemX   = document.getElementById('itemX');
-    const itemY   = document.getElementById('itemY');
+    const itemX = document.getElementById('itemX');
+    const itemY = document.getElementById('itemY');
     const itemRot = document.getElementById('itemRotation');
-    const itemW   = document.getElementById('itemWidth');
-    const itemL   = document.getElementById('itemLength');
-    if (itemX)   itemX.value   = round(((r.x() - pxOffset) / scale) + activeRoomX);
-    if (itemY)   itemY.value   = round(((r.y() - pyOffset) / scale) + activeRoomY);
+    const itemW = document.getElementById('itemWidth');
+    const itemL = document.getElementById('itemLength');
+    if (itemX) itemX.value = round(((r.x() - pxOffset) / scale) + activeRoomX);
+    if (itemY) itemY.value = round(((r.y() - pyOffset) / scale) + activeRoomY);
     if (itemRot) itemRot.value = round(r.rotation(), -1);
-    if (itemW)   itemW.value   = round(r.width()  / scale);
-    if (itemL)   itemL.value   = round(r.height() / scale);
+    if (itemW) itemW.value = round(r.width() / scale);
+    if (itemL) itemL.value = round(r.height() / scale);
 }
 
 /* Populate Details panel with Group fields. Width/Length are read-only
@@ -840,15 +832,15 @@ function populateGroupDetails(rectNode) {
     document.getElementById('itemZposition').value = (group.data_zPosition != null) ? group.data_zPosition : 0;
 
     /* Width/Length are display-only — set by updateGroupBounds() / Transformer. */
-    document.getElementById('itemWidth').value  = round(rectNode.width()  / scale);
+    document.getElementById('itemWidth').value = round(rectNode.width() / scale);
     document.getElementById('itemLength').value = round(rectNode.height() / scale);
-    document.getElementById('itemWidth').disabled  = true;
+    document.getElementById('itemWidth').disabled = true;
     document.getElementById('itemLength').disabled = true;
 
     document.getElementById('itemRotation').value = round(rectNode.rotation(), -1);
 
-    document.getElementById('itemId').innerText    = group.groupid;
-    document.getElementById('itemType').innerText  = 'Group';
+    document.getElementById('itemId').innerText = group.groupid;
+    document.getElementById('itemType').innerText = 'Group';
     document.getElementById('itemGroup').innerText = '';
 
     populateLayerDropdown('drpItemLayer', group.data_layerId || '0');
@@ -877,13 +869,13 @@ function updateGroupItem(group) {
     /* group.data_zPosition is the group's current baseline (the lowest
      * member z at create time, kept in sync by every updateGroupItem
      * call). Missing / NaN -> 0. */
-    const currentZ      = Number(group.data_zPosition) || 0;
-    const currentRot    = rectNode.rotation();
+    const currentZ = Number(group.data_zPosition) || 0;
+    const currentRot = rectNode.rotation();
 
     const deltaX_px = (newX - currentX_user) * scale;
     const deltaY_px = (newY - currentY_user) * scale;
-    const deltaZ    = newZ - currentZ;
-    const deltaR    = newRot - currentRot;
+    const deltaZ = newZ - currentZ;
+    const deltaR = newRot - currentRot;
 
     const members = getGroupMemberNodes(group.groupid);
     /* CustomItem rects whose every member belongs to this Group ride along
@@ -1265,8 +1257,10 @@ function createCustomItemMenuImage(record) {
      * (not JSON.parse) is used because the labelField historically also
      * carries free-text comments alongside the JSON object. */
     function parsePathShapeLabel(labelField) {
-        const out = { path: 'M-0.5-0.5 h1.2 l0.1 1 l-0.5 -0.4 L-0.5 0.5z',
-                      scaleX: 1, scaleY: 1, fill: '#D3D3D3', opacity: 0.4 };
+        const out = {
+            path: 'M-0.5-0.5 h1.2 l0.1 1 l-0.5 -0.4 L-0.5 0.5z',
+            scaleX: 1, scaleY: 1, fill: '#D3D3D3', opacity: 0.4
+        };
         if (typeof labelField !== 'string') return out;
         const pm = labelField.match(/"path"\s*:\s*"\s*([Mm][^"]*)"/);
         if (pm && pm[1]) out.path = pm[1];
@@ -1296,7 +1290,7 @@ function createCustomItemMenuImage(record) {
             const cx = Number(part.x) || 0;
             const cy = Number(part.y) || 0;
             const rotation = Number(part.rotation) || 0;
-            const w = Number(part.width)  || 0;
+            const w = Number(part.width) || 0;
             const h = Number(part.height) || 0;
 
             /* pathShape — Konva.Path. (x, y) is where path-(0,0) lands;
@@ -1472,12 +1466,14 @@ function createCustomItemMenuImage(record) {
     let bbox = layer.getClientRect({ skipTransform: false, skipStroke: true });
     if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) ||
         bbox.width <= 0 || bbox.height <= 0) {
-        bbox = { x: 0, y: 0,
-                 width: Number(record.width)  || 1,
-                 height: Number(record.height) || 1 };
+        bbox = {
+            x: 0, y: 0,
+            width: Number(record.width) || 1,
+            height: Number(record.height) || 1
+        };
     }
     const scaleFactor = INNER / Math.max(bbox.width, bbox.height);
-    const drawW = bbox.width  * scaleFactor;
+    const drawW = bbox.width * scaleFactor;
     const drawH = bbox.height * scaleFactor;
     const offsetX = (FULL - drawW) / 2;
     const offsetY = (FULL - drawH) / 2;
@@ -1825,17 +1821,17 @@ function copyCustomItemAsParentTemplate(baseId) {
         if (typeof navigator !== 'undefined' && navigator.clipboard
             && typeof navigator.clipboard.writeText === 'function') {
             navigator.clipboard.writeText(snippet).then(
-                () => { try { showToast('Copied parentItem template (' + parts.length + ' parts) to clipboard'); } catch (e) {} },
+                () => { try { showToast('Copied parentItem template (' + parts.length + ' parts) to clipboard'); } catch (e) { } },
                 (err) => {
                     console.warn('[VRC] clipboard write failed', err);
-                    try { alertDialog('Copy as parentItem template', 'Could not access clipboard. See console for the snippet.'); } catch (e) {}
+                    try { alertDialog('Copy as parentItem template', 'Could not access clipboard. See console for the snippet.'); } catch (e) { }
                     console.info(snippet);
                 }
             );
         } else {
             console.warn('[VRC] navigator.clipboard unavailable; snippet logged below');
             console.info(snippet);
-            try { alertDialog('Copy as parentItem template', 'Clipboard API unavailable. The snippet was logged to the console.'); } catch (e) {}
+            try { alertDialog('Copy as parentItem template', 'Clipboard API unavailable. The snippet was logged to the console.'); } catch (e) { }
         }
     };
 
@@ -1937,11 +1933,11 @@ function confirmEditCustomItemFromDialog() {
                 if (idx >= 0) {
                     const merged = Object.assign(
                         {}, _customItemQuickAddRecordsCache[idx], {
-                            customItemName: newName,
-                            author: newAuthor,
-                            description: newDesc,
-                            version: rec.version || '1',
-                        });
+                        customItemName: newName,
+                        author: newAuthor,
+                        description: newDesc,
+                        version: rec.version || '1',
+                    });
                     /* Drop the legacy key from the cache entry so
                      * helper-based reads always land on the new key
                      * and the migrated shape is what the palette sees
@@ -2531,7 +2527,7 @@ function updateExportCustomItemsButtonState() {
     btn.title = count === 0
         ? 'No Custom Items in the local library yet.'
         : 'Download all ' + count + ' Custom Item' + (count === 1 ? '' : 's') +
-          ' as a single .vrcCustomItems.json file.';
+        ' as a single .vrcCustomItems.json file.';
 }
 
 /* Validate .vrcCustomItems record schema; returns { valid, error? }. */
@@ -2586,7 +2582,7 @@ function validateCustomItemRecord(rec) {
 /* Drop a validated customItem record at the center of the active room. */
 function insertCustomItemAtRoomCenter(record) {
     /* activeRoomWidth/Length when inside a polyRoom part; activeRoomX/Y are 0 otherwise. */
-    const roomW = Number(activeRoomWidth)  || (roomObj.room && Number(roomObj.room.roomWidth))  || 5;
+    const roomW = Number(activeRoomWidth) || (roomObj.room && Number(roomObj.room.roomWidth)) || 5;
     const roomL = Number(activeRoomLength) || (roomObj.room && Number(roomObj.room.roomLength)) || 5;
     const roomCenterX = (Number(activeRoomX) || 0) + roomW / 2;
     const roomCenterY = (Number(activeRoomY) || 0) + roomL / 2;
@@ -2600,7 +2596,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
     /* Export records store meters; roomObj is in roomObj.unit. */
     const unitFromMeters = (roomObj && roomObj.unit === 'feet') ? 3.28084 : 1;
 
-    const ciW = Number(record.width)  * unitFromMeters;
+    const ciW = Number(record.width) * unitFromMeters;
     const ciH = Number(record.height) * unitFromMeters;
     /* Center → upper-left (parts are normalized to UL-origin in record). */
     const ciX = Number(worldX) - ciW / 2;
@@ -2630,7 +2626,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
             /* CustomItem rotation = 0 on insert → simple translate. */
             x: ciX + Number(part.x) * unitFromMeters,
             y: ciY + Number(part.y) * unitFromMeters,
-            width:  Number(part.width)  * unitFromMeters,
+            width: Number(part.width) * unitFromMeters,
             height: Number(part.height) * unitFromMeters,
             rotation: Number(part.rotation) || 0,
             data_layerId: targetLayerId,
@@ -2740,7 +2736,7 @@ function showCustomItemsImportSummaryDialog(saved, alreadyHad, skippedNoName, fa
         header = 'Custom Item Import Failed';
     } else if (totalAccepted > 0 && failureCount > 0) {
         header = 'Imported ' + totalAccepted + ' Custom Item' + (totalAccepted === 1 ? '' : 's') +
-                 ' (' + failureCount + ' failed)';
+            ' (' + failureCount + ' failed)';
     } else {
         header = 'No Custom Items in File';
     }
@@ -2907,7 +2903,7 @@ function updateCustomItemBounds(customItemId) {
         const r = getMemberBoundingRect(node);
         if (r.x < minX) minX = r.x;
         if (r.y < minY) minY = r.y;
-        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.x + r.width > maxX) maxX = r.x + r.width;
         if (r.y + r.height > maxY) maxY = r.y + r.height;
     });
 
@@ -2928,7 +2924,7 @@ function updateCustomItemBounds(customItemId) {
     if (c) {
         c.x = ((newX - pxOffset) / scale) + activeRoomX;
         c.y = ((newY - pyOffset) / scale) + activeRoomY;
-        c.width  = newW / scale;
+        c.width = newW / scale;
         c.height = newH / scale;
         const zPositions = members
             .map(n => parseFloat(n.data_zPosition) || 0)
@@ -2962,16 +2958,16 @@ function refreshCustomItemDetailsFromCanvas() {
     const sel = getActiveCustomItemSelection();
     if (!sel) return;
     const r = sel.rectNode;
-    const itemX   = document.getElementById('itemX');
-    const itemY   = document.getElementById('itemY');
+    const itemX = document.getElementById('itemX');
+    const itemY = document.getElementById('itemY');
     const itemRot = document.getElementById('itemRotation');
-    const itemW   = document.getElementById('itemWidth');
-    const itemL   = document.getElementById('itemLength');
-    if (itemX)   itemX.value   = round(((r.x() - pxOffset) / scale) + activeRoomX);
-    if (itemY)   itemY.value   = round(((r.y() - pyOffset) / scale) + activeRoomY);
+    const itemW = document.getElementById('itemWidth');
+    const itemL = document.getElementById('itemLength');
+    if (itemX) itemX.value = round(((r.x() - pxOffset) / scale) + activeRoomX);
+    if (itemY) itemY.value = round(((r.y() - pyOffset) / scale) + activeRoomY);
     if (itemRot) itemRot.value = round(r.rotation(), -1);
-    if (itemW)   itemW.value   = round(r.width()  / scale);
-    if (itemL)   itemL.value   = round(r.height() / scale);
+    if (itemW) itemW.value = round(r.width() / scale);
+    if (itemL) itemL.value = round(r.height() / scale);
 }
 
 /* Populate Details panel for a selected CustomItem. */
@@ -3010,15 +3006,15 @@ function populateCustomItemDetails(rectNode) {
     document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
     document.getElementById('itemZposition').value = (customItem.data_zPosition != null) ? customItem.data_zPosition : 0;
 
-    document.getElementById('itemWidth').value  = round(rectNode.width()  / scale);
+    document.getElementById('itemWidth').value = round(rectNode.width() / scale);
     document.getElementById('itemLength').value = round(rectNode.height() / scale);
-    document.getElementById('itemWidth').disabled  = true;
+    document.getElementById('itemWidth').disabled = true;
     document.getElementById('itemLength').disabled = true;
 
     document.getElementById('itemRotation').value = round(rectNode.rotation(), -1);
 
-    document.getElementById('itemId').innerText    = customItem.customitemid;
-    document.getElementById('itemType').innerText  = 'Custom Item';
+    document.getElementById('itemId').innerText = customItem.customitemid;
+    document.getElementById('itemType').innerText = 'Custom Item';
     document.getElementById('itemGroup').innerText = '';
 
     populateLayerDropdown('drpItemLayer', customItem.data_layerId || '0');
@@ -3039,13 +3035,13 @@ function updateCustomItemItem(customItem) {
 
     const currentX_user = ((rectNode.x() - pxOffset) / scale) + activeRoomX;
     const currentY_user = ((rectNode.y() - pyOffset) / scale) + activeRoomY;
-    const currentZ      = Number(customItem.data_zPosition) || 0;
-    const currentRot    = rectNode.rotation();
+    const currentZ = Number(customItem.data_zPosition) || 0;
+    const currentRot = rectNode.rotation();
 
     const deltaX_px = (newX - currentX_user) * scale;
     const deltaY_px = (newY - currentY_user) * scale;
-    const deltaZ    = newZ - currentZ;
-    const deltaR    = newRot - currentRot;
+    const deltaZ = newZ - currentZ;
+    const deltaR = newRot - currentRot;
 
     const members = getCustomItemMemberNodes(customItem.customitemid);
 
@@ -5958,15 +5954,15 @@ document.getElementById('lblVersion').innerText = version;
 let videoDevices = [
 
     /* dummy menu items below */
-    { name: 'Board Pro 75 G3', id: 'dummyMenuBoardPro75G3', frontImage: 'brdPro75G2FS-front.png', newItem: true},
+    { name: 'Board Pro 75 G3', id: 'dummyMenuBoardPro75G3', frontImage: 'brdPro75G2FS-front.png', newItem: true },
 
-    { name: 'Board Pro 55 G3', id: 'dummyMenuBoardPro55G3', frontImage: 'brdPro55G2FS-front.png', newItem: true},
+    { name: 'Board Pro 55 G3', id: 'dummyMenuBoardPro55G3', frontImage: 'brdPro55G2FS-front.png', newItem: true },
 
-    { name: 'Board Pro 75 G2', id: 'dummyMenuBoardPro75G2',  frontImage: 'brdPro75G2FS-front.png'},
+    { name: 'Board Pro 75 G2', id: 'dummyMenuBoardPro75G2', frontImage: 'brdPro75G2FS-front.png' },
 
-    { name: 'Board Pro 55 G2', id: 'dummyMenuBoardPro55G2',  frontImage: 'brdPro55G2FS-front.png'},
+    { name: 'Board Pro 55 G2', id: 'dummyMenuBoardPro55G2', frontImage: 'brdPro55G2FS-front.png' },
 
-    { name: 'Room Kit EQX', id: 'dummyMenuRoomKitEQX', frontImage: 'roomKitEqx-front.png'},
+    { name: 'Room Kit EQX', id: 'dummyMenuRoomKitEQX', frontImage: 'roomKitEqxFS-front.png' },
     /* dummy menu items above */
 
 
@@ -6036,7 +6032,7 @@ let videoDevices = [
 
     { name: "Board Pro 75 G3: Wall Mount**", id: 'brdPro75G3', key: 'BH', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
-     { name: "Board Pro 75 G3: Wheel Stand**", id: 'brdPro75G3Wheel', key: 'BI', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 75 G3: Wheel Stand**", id: 'brdPro75G3Wheel', key: 'BI', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: "Board Pro 55 G3: Wheel Stand**", id: 'brdPro55G3Wheel', key: 'BJ', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -6044,7 +6040,7 @@ let videoDevices = [
 
     { name: "Board Pro 75 G3: Wall Stand**", id: 'brdPro75G3WS', key: 'BL', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
-     { name: "Board Pro 55 G3: Floor Stand**", id: 'brdPro55G3FS', key: 'BM', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
+    { name: "Board Pro 55 G3: Floor Stand**", id: 'brdPro55G3FS', key: 'BM', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: "Board Pro 75 G3: Floor Stand**", id: 'brdPro75G3FS', key: 'BN', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -6138,6 +6134,9 @@ videoDevices[29].multiLensReach = [
 
 /* Microphone & Navigators - key starts with M */
 let microphones = [
+
+
+
     {
         name: "Table Microphone",
         id: "tableMic",
@@ -6711,7 +6710,7 @@ let tables = [{
     name: 'Bar (Table)',
     id: 'tblBar',
     key: 'WT',
-    frontImage: 'tblRect-front.png',
+    frontImage: 'tblBar-menu.png',
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 1,
@@ -6725,6 +6724,26 @@ let tables = [{
 
 /* Chair, doors and people. Key ID start with S or U */
 let chairs = [
+
+    /* dummyMenu items */
+    {
+        name: "Cisco Switch",
+        id: "dummyMenuSwitch",
+        topImage: 'switch-top.png',
+        frontImage: 'dummyMenuSwitch-menu.png',
+
+    },
+
+    {
+        name: "Codec (for cable map)",
+        id: "dummyMenuCodec",
+        topImage: 'codec-top.png',
+        frontImage: 'dummyMenuCodec-menu.png',
+
+    },
+    /* dummyMenu items above */
+
+
     {
         name: "Chair",
         id: "chair",
@@ -7043,7 +7062,7 @@ let chairs = [
         opacity: 0.7,
     },
     {
-        name: "Codec-Room Kit Pro",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec: Room Kit Pro**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecPro",
         key: "UE",
         topImage: 'codec-top.png',
@@ -7056,7 +7075,7 @@ let chairs = [
         defaultLean: 180
     },
     {
-        name: "Codec-Room Kit EQ",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec: Room Kit EQ**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecEQ",
         key: "UF",
         topImage: 'codec-top.png',
@@ -7069,7 +7088,7 @@ let chairs = [
         defaultLean: 180
     },
     {
-        name: "Codec-Room Kit EQX",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Codec: Room Kit EQX**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "codecEQX",
         key: "UG",
         topImage: 'codec-top.png',
@@ -7082,7 +7101,7 @@ let chairs = [
         defaultLean: 180
     },
     {
-        name: "Switch Catalyst 9200CX series",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Switch Catalyst 9200CX series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "switchC9200CX",
         key: "UH",
         topImage: 'switch-top.png',
@@ -7094,7 +7113,7 @@ let chairs = [
         defaultVert: 2910,
     },
     {
-        name: "Switch Catalyst 1200 series",  /* only created on export from VRC to Workspace Designer, then on re-import */
+        name: "Switch Catalyst 1200 series**",  /* only created on export from VRC to Workspace Designer, then on re-import */
         id: "switchC1200",
         key: "UI",
         topImage: 'switch-top.png',
@@ -7116,7 +7135,7 @@ let chairs = [
         opacity: 1,
     },
     {
-        name: "codec: Kit Pro G2 (Quad Cam)",
+        name: "Codec: Kit Pro G2 (Quad Cam)**",
         id: "codecProG2QuadCam",
         key: "UK",
         topImage: 'codec-top.png',
@@ -7129,7 +7148,7 @@ let chairs = [
         defaultLean: 180
     },
     {
-        name: "codec: Kit Pro G2 (Room Vision Cam)",
+        name: "Codec: Kit Pro G2 (Room Vision Cam)**",
         id: "codecProG2RoomVision",
         key: "UL",
         topImage: 'codec-top.png',
@@ -8654,11 +8673,11 @@ function parseShortenedXYUrl(parameters) {
                 }
 
                 const grpRotation = ('f' in item) ? (parseInt(item.f, 10) / 10) : 0;
-                const grpX        = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
-                const grpY        = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
-                const grpZ        = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
-                const grpW        = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
-                const grpH        = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
+                const grpX = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
+                const grpY = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
+                const grpZ = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
+                const grpW = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
+                const grpH = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
 
                 let existingGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
                 if (existingGroup) {
@@ -8715,11 +8734,11 @@ function parseShortenedXYUrl(parameters) {
                 }
 
                 const cRotation = ('f' in item) ? (parseInt(item.f, 10) / 10) : 0;
-                const cX        = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
-                const cY        = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
-                const cZ        = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
-                const cW        = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
-                const cH        = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
+                const cX = ('x' in item) ? (parseInt(item.x, 10) / 100) : 0;
+                const cY = ('y' in item) ? (parseInt(item.y, 10) / 100) : 0;
+                const cZ = ('z' in item) ? (parseInt(item.z, 10) / 100) : 0;
+                const cW = ('w' in item) ? (parseInt(item.w, 10) / 100) : 0;
+                const cH = ('h' in item) ? (parseInt(item.h, 10) / 100) : 0;
 
                 let existingCustomItem = roomObj.customItems.find(c => c._urlNum === cUrlNum);
                 if (existingCustomItem) {
@@ -10666,6 +10685,7 @@ function zoomRoomPart(roomPart) {
 /* redrawShapes "true" redraw all shapes, "false" resize shapes using updateShapesBasedOnNewScale() */
 function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUndo = false, isZoomingRoomPart = false) {
 
+
     stage.off();
 
     layerGrid.destroyChildren();
@@ -11079,7 +11099,7 @@ function measuringToolOn(event = true) {
         return;
     }
 
-    if(movingBackgroundImage){
+    if (movingBackgroundImage) {
         alert('Measuring Tool not allowed at this step. Toggle off Move Room Floor Plan.');
         document.getElementById('measureTool').checked = false;
         return;
@@ -11492,7 +11512,7 @@ function updateBackgroundImageScale() {
 
         let pointsActualDistance = pixelDistance / scale;
 
-        if (pointsActualDistance < 0.05){
+        if (pointsActualDistance < 0.05) {
             alert('Please select two points by dragging the mouse');
             return;
         }
@@ -11885,8 +11905,8 @@ function urlRgbToHex(rgb9) {
     const g = Math.min(255, Math.max(0, parseInt(rgb9.substring(3, 6), 10)));
     const b = Math.min(255, Math.max(0, parseInt(rgb9.substring(6, 9), 10)));
     return '#' + r.toString(16).padStart(2, '0').toUpperCase()
-               + g.toString(16).padStart(2, '0').toUpperCase()
-               + b.toString(16).padStart(2, '0').toUpperCase();
+        + g.toString(16).padStart(2, '0').toUpperCase()
+        + b.toString(16).padStart(2, '0').toUpperCase();
 }
 
 /* WD color → #RRGGBB (hex or CSS name via getComputedStyle); cached. */
@@ -11922,8 +11942,8 @@ function normalizeColorToHex(input) {
                 const g = Math.min(255, parseInt(m[2], 10));
                 const b = Math.min(255, parseInt(m[3], 10));
                 result = '#' + r.toString(16).padStart(2, '0').toUpperCase()
-                             + g.toString(16).padStart(2, '0').toUpperCase()
-                             + b.toString(16).padStart(2, '0').toUpperCase();
+                    + g.toString(16).padStart(2, '0').toUpperCase()
+                    + b.toString(16).padStart(2, '0').toUpperCase();
             }
         }
     } catch (e) {
@@ -13654,7 +13674,7 @@ function pasteItems(duplicate = true) {
 
         const newGroup = {
             groupid: newGroupId,
-      //       name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
+            //       name: item.groupAttrs.name || ('Group ' + (roomObj.groups.length + 1)),
             name: item.groupAttrs.name || (''),
             data_layerId: layerId,
             x: (item.groupAttrs.x || 0) + xOffset,
@@ -14138,11 +14158,11 @@ function deleteTrNodes(save = true) {
          * thousands of items this dominated bulk-delete time (~17 s for 4721
          * items). Coverage nodes live in known small groups, so a subtree-scoped
          * findOne reduces the per-call cost to O(coverage group children). */
-        let audioShading   = microphoneCoverage.findOne('#audio~' + id);
+        let audioShading = microphoneCoverage.findOne('#audio~' + id);
         let speakerShading = speakerCoverage.findOne('#speaker~' + id);
-        let videoShading   = cameraCoverage.findOne('#fov~' + id);
+        let videoShading = cameraCoverage.findOne('#fov~' + id);
         let displayShading = displayDistanceCoverage.findOne('#dispDist~' + id);
-        let labelText      = overlayLabels.findOne('#label~' + id);
+        let labelText = overlayLabels.findOne('#label~' + id);
 
         node.destroy();
         if (audioShading) {
@@ -14276,10 +14296,10 @@ function applyRoomObjDelta(prev, next) {
     function destroyItemNodeAndCoverage(id) {
         const node = stage.find('#' + id)[0];
         if (!node) return;
-        const audio       = stage.find('#audio~'    + id)[0]; if (audio)       audio.destroy();
-        const speaker     = stage.find('#speaker~'  + id)[0]; if (speaker)     speaker.destroy();
-        const fov         = stage.find('#fov~'      + id)[0]; if (fov)         fov.destroy();
-        const dispDist    = stage.find('#dispDist~' + id)[0]; if (dispDist)    dispDist.destroy();
+        const audio = stage.find('#audio~' + id)[0]; if (audio) audio.destroy();
+        const speaker = stage.find('#speaker~' + id)[0]; if (speaker) speaker.destroy();
+        const fov = stage.find('#fov~' + id)[0]; if (fov) fov.destroy();
+        const dispDist = stage.find('#dispDist~' + id)[0]; if (dispDist) dispDist.destroy();
         stage.find('#label~' + id).forEach(l => l.destroy());
         node.destroy();
         canvasNodesMap.delete(id);
@@ -14339,7 +14359,7 @@ function applyRoomObjDelta(prev, next) {
     /* Layers — any list change reruns applyAllLayerStates. */
     if (undoApply.diffLayers(prev, next)) {
         if (typeof applyAllLayerStates === 'function') applyAllLayerStates();
-        if (typeof renderLayersList    === 'function') renderLayersList();
+        if (typeof renderLayersList === 'function') renderLayersList();
     }
 
     /* Overlays — explicit boolean skips saveToUndoArray in toggles. */
@@ -14348,12 +14368,12 @@ function applyRoomObjDelta(prev, next) {
     overlayChanges.forEach(key => {
         const v = !!nextOv[key];
         switch (key) {
-            case 'cameraCoverage':          cameraCoverageVisible(v); break;
-            case 'microphoneCoverage':      microphoneCoverageVisible(v); break;
-            case 'speakerCoverage':         speakerCoverageVisible(v); break;
+            case 'cameraCoverage': cameraCoverageVisible(v); break;
+            case 'microphoneCoverage': microphoneCoverageVisible(v); break;
+            case 'speakerCoverage': speakerCoverageVisible(v); break;
             case 'displayDistanceCoverage': displayDistanceCoverageVisible(v); break;
-            case 'overlayLabels':           overlayLabelsVisible(v); break;
-            case 'gridLines':               gridLinesVisible(v); break;
+            case 'overlayLabels': overlayLabelsVisible(v); break;
+            case 'gridLines': gridLinesVisible(v); break;
         }
     });
 
@@ -14414,10 +14434,10 @@ function canvasToJson() {
             if (node.data_deviceid !== 'group') return;
             const g = getGroupById(node.data_groupId);
             if (!g) return;
-            g.x        = ((node.x()      - pxOffset) / scale) + activeRoomX;
-            g.y        = ((node.y()      - pyOffset) / scale) + activeRoomY;
-            g.width    = node.width()  / scale;
-            g.height   = node.height() / scale;
+            g.x = ((node.x() - pxOffset) / scale) + activeRoomX;
+            g.y = ((node.y() - pyOffset) / scale) + activeRoomY;
+            g.width = node.width() / scale;
+            g.height = node.height() / scale;
             g.rotation = node.rotation();
         });
     }
@@ -14428,10 +14448,10 @@ function canvasToJson() {
             if (node.data_deviceid !== 'customItem') return;
             const c = getCustomItemById(node.data_customItemId);
             if (!c) return;
-            c.x        = ((node.x()      - pxOffset) / scale) + activeRoomX;
-            c.y        = ((node.y()      - pyOffset) / scale) + activeRoomY;
-            c.width    = node.width()  / scale;
-            c.height   = node.height() / scale;
+            c.x = ((node.x() - pxOffset) / scale) + activeRoomX;
+            c.y = ((node.y() - pyOffset) / scale) + activeRoomY;
+            c.width = node.width() / scale;
+            c.height = node.height() / scale;
             c.rotation = node.rotation();
         });
     }
@@ -14546,10 +14566,10 @@ function updateRoomObjFromTrNode() {
              * export's getItemCenter() math happy and feed accurate
              * values into the boxes-bucket round-trip. */
             if (isTextItem(node.data_deviceid)) {
-                itemAttr.width  = round((node.width()  || 0) / scale);
+                itemAttr.width = round((node.width() || 0) / scale);
                 itemAttr.height = round((node.height() || 0) / scale);
             } else {
-                itemAttr.width  = round(attrs.width  / scale);
+                itemAttr.width = round(attrs.width / scale);
                 itemAttr.height = round(attrs.height / scale);
             }
         }
@@ -15000,7 +15020,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 2.5 * scale;
         height = 3.4 * scale;
     }
-    else if (insertDevice.id === 'tblBar'){
+    else if (insertDevice.id === 'tblBar') {
         width = 2.5 * scale;
         height = 0.5 * scale;
     }
@@ -15057,7 +15077,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 1 * scale;
         height = 1 * scale;
         data_zPosition = 1;
-    } else if (insertDevice.id === 'carpet'){
+    } else if (insertDevice.id === 'carpet') {
         width = 2 * scale;
         height = 2.5 * scale;
     }
@@ -15257,7 +15277,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * (black @ opacity 1). data_fill absent ⇒ 'black'; data_opacity
          * absent ⇒ 1 (== "no override" sentinel for the picker).
          * vrcText shares the same text defaults — only the tag bg differs. */
-        const textFill    = attrs.data_fill    || 'black';
+        const textFill = attrs.data_fill || 'black';
         const textOpacity = (attrs.data_opacity == null) ? 1 : Number(attrs.data_opacity);
 
         tblWallFlr = new Konva.Label({
@@ -15320,8 +15340,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * measurement updates live. updateDimensionLineWidget() is the
          * single source of truth for painting the three children. */
         const ddef = allDeviceTypes['dimensionLine'] || {};
-        const dataFontSize    = (attrs.data_fontSize    != null) ? Number(attrs.data_fontSize)    : (ddef.default_fontSize    || 10);
-        const dataLineWidth   = (attrs.data_lineWidth   != null) ? Number(attrs.data_lineWidth)   : (ddef.default_lineWidth   || 2);
+        const dataFontSize = (attrs.data_fontSize != null) ? Number(attrs.data_fontSize) : (ddef.default_fontSize || 10);
+        const dataLineWidth = (attrs.data_lineWidth != null) ? Number(attrs.data_lineWidth) : (ddef.default_lineWidth || 2);
         const dataPointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : (ddef.default_pointerSize || 10);
         /* dataLineWidth / dataPointerSize are stored in WD pt-like
          * units (1 unit ≈ 0.01 m physical extent); convert to canvas
@@ -15330,7 +15350,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * called at the tail of this branch, but we seed correct
          * values up-front to avoid a one-frame flash of wrong-sized
          * arrows on first paint. */
-        const lwPxInit = computeDimensionLineCanvasPx(dataLineWidth,   ddef.default_lineWidth   || 2);
+        const lwPxInit = computeDimensionLineCanvasPx(dataLineWidth, ddef.default_lineWidth || 2);
         const psPxInit = computeDimensionLineCanvasPx(dataPointerSize, ddef.default_pointerSize || 10);
 
         tblWallFlr = new Konva.Group({
@@ -15438,8 +15458,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
          * and the new data_lineWidth / data_pointerSize mirrors. Set them
          * up-front here too so updateDimensionLineWidget() (called right
          * after) reads the user-provided values rather than device defaults. */
-        tblWallFlr.data_fontSize    = (attrs.data_fontSize    != null) ? Number(attrs.data_fontSize)    : null;
-        tblWallFlr.data_lineWidth   = (attrs.data_lineWidth   != null) ? Number(attrs.data_lineWidth)   : null;
+        tblWallFlr.data_fontSize = (attrs.data_fontSize != null) ? Number(attrs.data_fontSize) : null;
+        tblWallFlr.data_lineWidth = (attrs.data_lineWidth != null) ? Number(attrs.data_lineWidth) : null;
         tblWallFlr.data_pointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : null;
 
         /* Repaint children with the correct dimensions / font / line / pointer.
@@ -15809,7 +15829,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 let width2 = attrs.data_trapNarrowWidth * scale;
 
                 if (width2 > width) {
-                        width2 = width;
+                    width2 = width;
                 }
 
 
@@ -16197,7 +16217,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             opacity: 1,
         });
 
-     } else if (insertDevice.id === 'tblBar') {
+    } else if (insertDevice.id === 'tblBar') {
 
         tblWallFlr = new Konva.Rect({
             x: pixelX,
@@ -16310,7 +16330,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
      * normalises types and covers the device-default-fallback case for
      * non-dimensionLine items (which is a no-op since their attrs are
      * absent). */
-    tblWallFlr.data_lineWidth   = (attrs.data_lineWidth   == null) ? null : Number(attrs.data_lineWidth);
+    tblWallFlr.data_lineWidth = (attrs.data_lineWidth == null) ? null : Number(attrs.data_lineWidth);
     tblWallFlr.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
 
     if ('name' in attrs) {
@@ -16662,7 +16682,7 @@ function updateTransformedWall(node) {
     let fourCornersOriginal = findFourCornersOfNode(lastSelectedNodePosition);
 
     fourCorners.forEach((corner, index) => {
-        console.log('corners:', corner, fourCornersOriginal[index]);
+
     });
 
 };
@@ -16778,9 +16798,9 @@ function formatDimensionMeasurement(widthInUnit, roomUnit) {
  * 8 m reference room is what kept the legacy fixed-pixel values
  * looking right; preserving those ratios means existing items at
  * typical room sizes barely shift. */
-const LABEL_PADDING_RATIO     = 6 / 16;   /* 0.375 */
-const LABEL_TAG_STROKE_RATIO  = 1 / 16;   /* 0.0625 */
-const LABEL_TAG_CORNER_RATIO  = 6 / 16;   /* 0.375 */
+const LABEL_PADDING_RATIO = 6 / 16;   /* 0.375 */
+const LABEL_TAG_STROKE_RATIO = 1 / 16;   /* 0.0625 */
+const LABEL_TAG_CORNER_RATIO = 6 / 16;   /* 0.375 */
 
 /* Repaint a Dimension Line group's children (Rect / Arrow / Label) from
  * the group's current width + data_fontSize / data_lineWidth /
@@ -17571,8 +17591,8 @@ function updateTrNodesShading() {
             if (copyTrNodes.length > 1) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner) {
-                    inner.data_origFill        = inner.fill();
-                    inner.data_origStroke      = inner.stroke();
+                    inner.data_origFill = inner.fill();
+                    inner.data_origStroke = inner.stroke();
                     inner.data_origStrokeWidth = inner.strokeWidth();
                     inner.fill('rgba(0, 161, 255, 0.2)');
                     inner.stroke('rgb(0, 161, 255)');
@@ -19689,7 +19709,7 @@ function createGroup(nodesToGroup) {
         const r = getMemberBoundingRect(node);
         if (r.x < minX) minX = r.x;
         if (r.y < minY) minY = r.y;
-        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.x + r.width > maxX) maxX = r.x + r.width;
         if (r.y + r.height > maxY) maxY = r.y + r.height;
     });
 
@@ -19702,12 +19722,12 @@ function createGroup(nodesToGroup) {
 
     const newGroup = {
         groupid: createUuid(),
-       // name: 'Group ' + (roomObj.groups.length + 1),
+        // name: 'Group ' + (roomObj.groups.length + 1),
         name: '',
         data_layerId: targetLayerId,
         x: ((pixelX - pxOffset) / scale) + activeRoomX,
         y: ((pixelY - pyOffset) / scale) + activeRoomY,
-        width:  pixelW / scale,
+        width: pixelW / scale,
         height: pixelH / scale,
         rotation: 0,
         data_zPosition: lowestZ,
@@ -19897,7 +19917,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
         const r = getMemberBoundingRect(node);
         if (r.x < minX) minX = r.x;
         if (r.y < minY) minY = r.y;
-        if (r.x + r.width  > maxX) maxX = r.x + r.width;
+        if (r.x + r.width > maxX) maxX = r.x + r.width;
         if (r.y + r.height > maxY) maxY = r.y + r.height;
     });
 
@@ -19934,7 +19954,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
         data_layerId: targetLayerId,
         x: ((pixelX - pxOffset) / scale) + activeRoomX,
         y: ((pixelY - pyOffset) / scale) + activeRoomY,
-        width:  pixelW / scale,
+        width: pixelW / scale,
         height: pixelH / scale,
         rotation: 0,
         data_zPosition: lowestZ,
@@ -20008,7 +20028,7 @@ function insertGroupRect(groupObj) {
 
     const pixelX = scale * groupObj.x + pxOffset - activeRoomX * scale;
     const pixelY = scale * groupObj.y + pyOffset - activeRoomY * scale;
-    const pixelW = scale * (groupObj.width  || 1);
+    const pixelW = scale * (groupObj.width || 1);
     const pixelH = scale * (groupObj.height || 1);
 
     /* listening: false — the rect is a passive visual anchor; the user
@@ -20046,10 +20066,10 @@ function insertGroupRect(groupObj) {
         listening: false,
     });
 
-    groupRect.data_deviceid   = 'group';
-    groupRect.data_groupId    = groupObj.groupid;
-    groupRect.data_zPosition  = groupObj.data_zPosition || 0;
-    groupRect.data_layerId    = groupObj.data_layerId || '0';
+    groupRect.data_deviceid = 'group';
+    groupRect.data_groupId = groupObj.groupid;
+    groupRect.data_zPosition = groupObj.data_zPosition || 0;
+    groupRect.data_layerId = groupObj.data_layerId || '0';
     groupRect.data_labelField = groupObj.name || 'Group Item';
 
     groupGroupRects.add(groupRect);
@@ -20069,7 +20089,7 @@ function insertCustomItemRect(customItemObj) {
 
     const pixelX = scale * customItemObj.x + pxOffset - activeRoomX * scale;
     const pixelY = scale * customItemObj.y + pyOffset - activeRoomY * scale;
-    const pixelW = scale * (customItemObj.width  || 1);
+    const pixelW = scale * (customItemObj.width || 1);
     const pixelH = scale * (customItemObj.height || 1);
 
     const customItemRect = new Konva.Rect({
@@ -20089,11 +20109,11 @@ function insertCustomItemRect(customItemObj) {
         listening: false,
     });
 
-    customItemRect.data_deviceid     = 'customItem';
+    customItemRect.data_deviceid = 'customItem';
     customItemRect.data_customItemId = customItemObj.customitemid;
-    customItemRect.data_zPosition    = customItemObj.data_zPosition || 0;
-    customItemRect.data_layerId      = customItemObj.data_layerId || '0';
-    customItemRect.data_labelField   = customItemObj.name || 'Custom Item';
+    customItemRect.data_zPosition = customItemObj.data_zPosition || 0;
+    customItemRect.data_layerId = customItemObj.data_layerId || '0';
+    customItemRect.data_labelField = customItemObj.name || 'Custom Item';
 
     groupCustomItemRects.add(customItemRect);
     /* No batchDraw() — Konva v8+ auto-redraws after .add() (Konva.autoDrawEnabled === true). */
@@ -20349,7 +20369,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
          * dimensionLine routes through insertTable(), but the four-place
          * rule wants both writers in sync so any future Image-rendered
          * device that adopts these attrs picks them up automatically. */
-        node.data_lineWidth   = (attrs.data_lineWidth   == null) ? null : Number(attrs.data_lineWidth);
+        node.data_lineWidth = (attrs.data_lineWidth == null) ? null : Number(attrs.data_lineWidth);
         node.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
 
         /* wallChairs chair-on-center spacing — defensive mirror.
@@ -21505,8 +21525,6 @@ function getObjectSnappingEdges(node, resize = false) {
 
 /* find all snapping possibilities */
 function getGuides(lineGuideStops, itemBounds) {
-    // console.log('lineGuideStops', JSON.stringify(lineGuideStops, null, 5));
-    // console.log('itemBounds', JSON.stringify(itemBounds, null, 5 ));
     let resultV = [];
     let resultH = [];
 
@@ -23582,7 +23600,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemNameSelect.options.length = 0;
 
         if (allDeviceTypes[item.data_deviceid].name) {
-            item.name = allDeviceTypes[item.data_deviceid].name.replace(/\*\*$/,"").replace(/^_/,"");
+            item.name = allDeviceTypes[item.data_deviceid].name.replace(/\*\*$/, "").replace(/^_/, "");
         }
 
         const newOption = new Option(item.name, item.data_deviceid);
@@ -23940,7 +23958,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
-    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9','certifiedDisplay', 'displayScreen_2' ];
+    deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'displayScreen_2'];
 
     deviceGroups[7] = ['doorDouble2', 'doorDouble'];
 
@@ -23966,11 +23984,13 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[18] = ['webcam4k', 'webcam1080p'],
 
-    deviceGroups[19] = ['wallChairs', 'wallChairsSwivel', 'wallChairsStool']
+        deviceGroups[19] = ['wallChairs', 'wallChairsSwivel', 'wallChairsStool']
 
     deviceGroups[20] = ['wdText', 'vrcText'];
 
-    deviceGroups[21] = ['codec', 'codec'];
+    deviceGroups[21] = dummyMenuKey.dummyMenuCodec;
+
+    deviceGroups[22] = dummyMenuKey.dummyMenuSwitch;
 
 
     deviceGroups.forEach((devices, index) => {
@@ -23982,9 +24002,7 @@ function updateDevicesDropDown(selectElement, item) {
                 selectElement.disabled = false;
 
                 deviceGroups[index].forEach(deviceid => {
-                    console.log('deviceid', deviceid);
-                    console.log('allDeviceTypes[deviceid]', allDeviceTypes[deviceid])
-                    const newOption = new Option(allDeviceTypes[deviceid].name.replace(/\*\*$/,"").replace(/^_/,""), deviceid);
+                    const newOption = new Option(allDeviceTypes[deviceid].name.replace(/\*\*$/, "").replace(/^_/, ""), deviceid);
                     selectElement.add(newOption);
                     selectElement.value = item.data_deviceid;
                 })
@@ -24543,7 +24561,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
     if (isMeasuringToolOn) hideMeasuringTool();
 
 
-    if(data_deviceid.startsWith('dummyMenu')){
+    if (data_deviceid.startsWith('dummyMenu')) {
 
         showDummyMenuItems(data_deviceid, attrs);
 
@@ -24586,7 +24604,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
     }
 
 
-    if('default_vHeight' in allDeviceTypes[data_deviceid]) {
+    if ('default_vHeight' in allDeviceTypes[data_deviceid]) {
         let default_vHeight = allDeviceTypes[data_deviceid].default_vHeight / 1000;
         if (roomObj.unit === 'feet') {
             default_vHeight = round(default_vHeight * 3.28084)
@@ -24675,19 +24693,19 @@ function insertItemFromMenu(data_deviceid, attrs) {
 }
 
 /* show a message for certain devices */
-function showDeviceInsertMessage(data_deviceid){
+function showDeviceInsertMessage(data_deviceid) {
 
-    for (const deviceMessage of insertMessages){
+    for (const deviceMessage of insertMessages) {
 
-        if('idRegex' in deviceMessage && deviceMessage.idRegex.test(data_deviceid)){
+        if ('idRegex' in deviceMessage && deviceMessage.idRegex.test(data_deviceid)) {
 
             let headerText = '';
             let bodyText = '';
-            if('header' in deviceMessage){
+            if ('header' in deviceMessage) {
                 headerText = deviceMessage.header.replaceAll('%device_name%', allDeviceTypes[data_deviceid].name);
             }
 
-            if('body' in deviceMessage){
+            if ('body' in deviceMessage) {
                 bodyText = deviceMessage.body.replaceAll('%device_name%', allDeviceTypes[data_deviceid].name);
             }
 
@@ -24697,7 +24715,7 @@ function showDeviceInsertMessage(data_deviceid){
     }
 }
 
-/* post things at the bottom of the screen, an alternative to console.log */
+/* post things at the bottom of the screen, an alternative to console,log for testing  */
 function showTestLog(...args) {
     let text = args.join(' ');
     let testLog = document.getElementById('testLog');
@@ -24907,7 +24925,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
     let divMenuContainer = document.getElementById(divMenuContainerId);
 
     menuItems.forEach((menuItem) => {
-        console.log('menuItem', menuItem);
+
         let item = allDeviceTypes[menuItem];
 
         let frontImage = item.frontImage || 'wd.svg';
@@ -24915,7 +24933,7 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
         let name = item.name || 'No Name';
 
         let parentGroup = item.parentGroup;
-        console.log('parentItem', parentGroup)
+
         let flexItemDiv = document.createElement("div");
         flexItemDiv.classList.add('flexItems');
         flexItemDiv.classList.add('equipmentItemOnMenu');
@@ -24976,9 +24994,7 @@ function createEquipmentMenu() {
     /* remove previous menu, then add a menu */
     removeElementsByClass('equipmentItemOnMenu');
 
-    let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProG2QuadCam'];
-
-    let roomKitEqxMenu = ['dummyMenuRoomKitEQX'];
+    let videoDevicesMenu = ['roomKitEqQuadCam', 'roomBarPro', 'roomBar', 'roomKitProG2QuadCam', 'dummyMenuRoomKitEQX'];
 
     let boardProMenu = ['dummyMenuBoardPro55G3', 'dummyMenuBoardPro75G3', 'dummyMenuBoardPro55G2', 'dummyMenuBoardPro75G2'];
 
@@ -25011,13 +25027,8 @@ function createEquipmentMenu() {
         desktopMenu = desktopMenu.concat('unknownObj', 'tblUnknownObj');
     }
 
-    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza'];
+    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    /* 'cone' is intentionally NOT in this menu — it cannot be added by
-     * the user via the Equipment menu (no UI surface for inserting a
-     * fresh cone). The device-def remains in `allDeviceTypes` so cones
-     * loaded from existing .vrc.json files, shareable URLs, and WD
-     * imports continue to render and round-trip cleanly. */
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
@@ -25026,10 +25037,9 @@ function createEquipmentMenu() {
 
     let accessibilityMenu = ['wheelchair', 'wheelchairTurnCycle', 'circulationSpace'];
 
+    let codecSwitchMenu = ['dummyMenuSwitch', 'dummyMenuCodec']
+
     createItemsOnMenu('cameraMenuContainer', videoDevicesMenu);
-
-
-    createItemsOnMenu('roomKitEqxMenuContainer', roomKitEqxMenu);
 
     createItemsOnMenu('boardProMenuContainer', boardProMenu);
 
@@ -25060,6 +25070,9 @@ function createEquipmentMenu() {
     createItemsOnMenu('ciscoDesktopMenuContainer', ciscoDesktopMenu);
 
     createItemsOnMenu('desktopMenuContainer', desktopMenu);
+
+    createItemsOnMenu('codecSwitchMenuContainer', codecSwitchMenu);
+
 }
 
 
@@ -26191,7 +26204,7 @@ function changeWallAnchors(isWall = false) {
             if (roomObj.unit === 'meters') ratioFactor = ratioFactor / 3.28084;
             ratioFactor = ratioFactor + minimumSize;
 
-            const barWidth  = 5  * ratioFactor;
+            const barWidth = 5 * ratioFactor;
             const barHeight = 20 * ratioFactor;
             anchor.height(barHeight); /* tall — vertical yellow bar */
             anchor.width(barWidth);
@@ -26585,7 +26598,7 @@ function onKeyDown(e) {
         } else if (key === 'x') {
             cutItems();
             isShortCutKeyUsed = true;
-        }         else if (key === 'r') {
+        } else if (key === 'r') {
             e.preventDefault();
             rotateTrNodeItems();
             isShortCutKeyUsed = true;
@@ -27119,9 +27132,9 @@ const WALL_CHAIRS_IMAGE_CONFIG = {
      * matched the WD rendering. If a future asset needs proper
      * art-centring, the wiring lived in `getWallChairsImageArtOffset`
      * — see git history for the full implementation. */
-    'wallChairs':       { src: './assets/images/chairs-top.png',     rotation: 0,   scale: { across: 1.00, along: 1.000 } },
-    'wallChairsSwivel': { src: './assets/images/chairsSwivelRow-top.png', rotation: 0,   scale: { across: 1.00, along: 1.000 }  },
-    'wallChairsStool':  { src: './assets/images/chairStoolRow-top.png', rotation: 0,   scale: { across: 1.00, along: 1.000 }  },
+    'wallChairs': { src: './assets/images/chairs-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
+    'wallChairsSwivel': { src: './assets/images/chairsSwivelRow-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
+    'wallChairsStool': { src: './assets/images/chairStoolRow-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
 };
 
 /* Lazy-loaded HTMLImageElement cache for the chair glyph used by
@@ -27405,9 +27418,9 @@ function layoutWallChairsChildren(group) {
      * preRotW uses scale.along and preRotH uses scale.across. */
     const preRotW = isImageRotated
         ? chairLengthPx * imageRenderScale.along
-        : chairDepthPx  * imageRenderScale.across;
+        : chairDepthPx * imageRenderScale.across;
     const preRotH = isImageRotated
-        ? chairDepthPx  * imageRenderScale.across
+        ? chairDepthPx * imageRenderScale.across
         : chairLengthPx * imageRenderScale.along;
 
     for (let i = 0; i < count; i++) {
@@ -27456,9 +27469,9 @@ function layoutWallChairsChildren(group) {
  * `topImage`, so picking the right id here is the only knob a new
  * Row-of-X variant needs to flip on for the export round-trip. */
 const EXPANDED_CHAIR_DEVICE_FOR_ROW = {
-    'wallChairs':       { id: 'chair',        name: 'Chair' },
-    'wallChairsSwivel': { id: 'chairSwivel',  name: 'Swivel Chair' },
-    'wallChairsStool':  { id: 'chairHigh',    name: 'Stool Chair' },
+    'wallChairs': { id: 'chair', name: 'Chair' },
+    'wallChairsSwivel': { id: 'chairSwivel', name: 'Swivel Chair' },
+    'wallChairsStool': { id: 'chairHigh', name: 'Stool Chair' },
 };
 
 /* Take a wallChairs-family row item and return an array of individual
@@ -31353,10 +31366,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         wdItem.length = 0.59;
     }
 
-    if(data_deviceid === 'tblBar'){
-        if(!wdItem.length) wdItem.length = 0.5;
-        if(!wdItem.width) wdItem.width = 2.5;
-        if(!wdItem.height) wdItem.height = 1;
+    if (data_deviceid === 'tblBar') {
+        if (!wdItem.length) wdItem.length = 0.5;
+        if (!wdItem.width) wdItem.width = 2.5;
+        if (!wdItem.height) wdItem.height = 1;
     }
 
     /* items will need a position, add one if not found */
@@ -32868,8 +32881,8 @@ function exportRoomObjToWorkspace() {
                 workspaceObjWallPush(item);
             } else if (item.data_deviceid === 'ceilingGrid') {
 
-            pushCeilingGridChildren(item);
-        }
+                pushCeilingGridChildren(item);
+            }
         }
     });
 
@@ -32894,8 +32907,6 @@ function exportRoomObjToWorkspace() {
 
 
     (wdBuckets.boxes || []).forEach((item) => {
-
-        console.log('item', item);
 
         if (item.data_deviceid === 'wdText') {
             workspaceObjTextPush(item);
@@ -33591,9 +33602,9 @@ function exportRoomObjToWorkspace() {
          * wallStd/cylinder. rotation[0]=tilt (X), rotation[1]=item.rotation
          * around vertical Y (sign-flipped to match WD's CCW convention),
          * rotation[2]=lean/slant (Z). */
-        let rotationX = ((Number(item.data_tilt)  || 0) *  (Math.PI / 180));
-        let rotationY = ((Number(item.rotation)   || 0) * -(Math.PI / 180));
-        let rotationZ = ((Number(item.data_slant) || 0) *  (Math.PI / 180));
+        let rotationX = ((Number(item.data_tilt) || 0) * (Math.PI / 180));
+        let rotationY = ((Number(item.rotation) || 0) * -(Math.PI / 180));
+        let rotationZ = ((Number(item.data_slant) || 0) * (Math.PI / 180));
 
         let workspaceItem = {
             ...extras,
@@ -33925,8 +33936,8 @@ function exportRoomObjToWorkspace() {
             };
             ['data_fill', 'data_opacity', 'data_radius2', 'data_labelField',
                 'data_diagonalInches', 'data_role', 'data_color', 'data_mount'].forEach(k => {
-                if (part[k] !== undefined) synth[k] = part[k];
-            });
+                    if (part[k] !== undefined) synth[k] = part[k];
+                });
             /* Inherit parent's layer / bundle membership / hidden flag so
              * a hidden parent's children stay hidden, a grouped parent's
              * children carry the group ref into WD JSON, etc. */
@@ -33987,8 +33998,7 @@ function exportRoomObjToWorkspace() {
      * wdBuckets.boxes (UL-anchored, so its (x, y) is the upper-left and
      * also the rotation pivot — same as the parentItem UL-class case). */
     function pushCeilingGridChildren(parent) {
-          console.log('line 33926');
-        console.log('parent', parent);
+
         const W = Number(parent.width) || 0;
         const H = Number(parent.height) || 0;
         const gw = Number(parent.data_gridWidth) || 0;
@@ -34412,7 +34422,7 @@ function closeItemActionsMenu() {
     const el = document.getElementById(ITEM_ACTIONS_MENU_ID);
     if (el) el.remove();
     document.removeEventListener('mousedown', _itemActionsMenuOutsideClick, true);
-    document.removeEventListener('keydown',   _itemActionsMenuKeydown,      true);
+    document.removeEventListener('keydown', _itemActionsMenuKeydown, true);
 }
 
 function _itemActionsMenuOutsideClick(e) {
@@ -34545,10 +34555,10 @@ function toggleItemActionsMenu(event, mode) {
         menu.appendChild(hr);
     };
 
-    addItem('Create Group',       !canGroup,        () => createGroup());
-    addItem('Ungroup',            !canUngroup,      () => ungroupSelectedItems());
+    addItem('Create Group', !canGroup, () => createGroup());
+    addItem('Ungroup', !canUngroup, () => ungroupSelectedItems());
     addDivider();
-    addItem('Create Custom Item', !canCustomItem,   () => openCreateCustomItemDialog());
+    addItem('Create Custom Item', !canCustomItem, () => openCreateCustomItemDialog());
     addItem('Unjoin Custom Item', !canUncustomItem, () => ungroupSelectedCustomItems());
 
     /* ---- Single-CustomItem-bundle actions ----
@@ -34607,12 +34617,12 @@ function toggleItemActionsMenu(event, mode) {
     }
 
     menu.style.left = left + 'px';
-    menu.style.top  = top  + 'px';
+    menu.style.top = top + 'px';
 
     /* Close on outside click or Escape — capture phase so we beat any
      * click handlers inside the panel itself. */
     document.addEventListener('mousedown', _itemActionsMenuOutsideClick, true);
-    document.addEventListener('keydown',   _itemActionsMenuKeydown,      true);
+    document.addEventListener('keydown', _itemActionsMenuKeydown, true);
 }
 
 
@@ -34748,7 +34758,7 @@ function createRightClickMenu(usePreviousPosition = false) {
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('rotateDiv', 'Rotate 90°', 'ctrl+r', trNodesRC.length < 1)
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        createMenuItem('groupMenuDiv',   'Group',   'ctrl+g',       !canGroup);
+        createMenuItem('groupMenuDiv', 'Group', 'ctrl+g', !canGroup);
         createMenuItem('ungroupMenuDiv', 'Ungroup', 'ctrl+shift+g', !canUngroup);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         createMenuItem('undoDiv', 'Undo', 'ctrl+z', !(undoArray.length > 1));
@@ -35112,7 +35122,7 @@ var splitViewState = {
 let SPLIT_VIEW_CLOSE_PCT = 12;
 let SPLIT_VIEW_MIN_PCT = 25;
 let SPLIT_VIEW_MAX_PCT = 75;
-let  SPLIT_VIEW_FULL_PCT = 88;
+let SPLIT_VIEW_FULL_PCT = 88;
 let SPLIT_VIEW_DEFAULT_PCT = 33;
 
 function splitViewOpen(desiredPct, forceExact) {
@@ -35130,7 +35140,7 @@ function splitViewOpen(desiredPct, forceExact) {
 
     let right = document.getElementById('splitViewRight');
 
-    if(mobileDevice === 'RoomOS'){
+    if (mobileDevice === 'RoomOS') {
         right.style.borderRightColor = 'black';
         right.style.borderRightStyle = 'solid';
         right.style.borderRightWidth = '25px';
@@ -35142,7 +35152,7 @@ function splitViewOpen(desiredPct, forceExact) {
 
     if (Number.isFinite(desiredPct)) {
         splitViewSetWidth(desiredPct, forceExact === true);
-    } else if(window.innerWidth < 800){
+    } else if (window.innerWidth < 800) {
         splitViewSetWidth(100);
     } else {
         splitViewSetWidth(SPLIT_VIEW_DEFAULT_PCT);

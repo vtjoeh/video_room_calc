@@ -17,18 +17,18 @@ window.VRC.insertMessages = [
     {
         idRegex: /^codecProG2RoomVision/,
         header: 'Inserted %device_name% ',
-        body: 'Use this codec if you only have dual Room Vision cameras. Dual Room Vision PTZ cameras are not fully supported in the Workspace Designer custom rooms API. Use Room Vision cameras with role <b>Cross-view</b> to emulate the experience in the Workspace Designer.'
+        body: 'Use this codec if you only have dual Room Vision cameras. Dual Room Vision PTZ cameras are not fully supported in the Workspace Designer custom rooms API. Use Room Vision cameras with role <b>Cross-view</b> to emulate the experience in the Workspace Designer. <b>Make sure the camera matches the codec type.</b>'
 
     },
     {
         idRegex: /^codec/,
         header: 'Inserted %device_name% ',
-        body: 'The inserted %device_name% will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the codec to be in a specific location, typically z=1.4 m behind the main camera. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings.'
+        body: 'The inserted %device_name% will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the codec to be in a specific location, typically z=1.4 m behind the main camera. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings. <b>Make sure the camera matches the codec type.</b>'
     },
     {
         idRegex: /^ceilingGrid/,
         header: 'Inserted %device_name%',
-        body: 'The ceiling grid is best used by placing it on its own layer and locking that layer.'
+        body: 'The ceiling grid is best used by placing it on its own layer and locking that layer. It is recommended to create a layer called <b>Ceiling Grid</b> and lock it.'
     }
 
 ];
@@ -45,5 +45,9 @@ window.VRC.dummyMenuKey = {
     dummyMenuBoardPro75G2: ['brdPro75G2','brdPro75G2FS', 'brdPro75G2Wheel', 'brdPro75G2WS' ],
 
     dummyMenuRoomKitEQX: ['roomKitEqx', 'roomKitEqxFS', 'roomKitEqxWS'],
+
+    dummyMenuSwitch: ['switchC9200CX', 'switchC1200'],
+
+    dummyMenuCodec: ['codecEQ','codecEQX', 'codecProG2QuadCam', 'codecProG2RoomVision', 'codecPro' ],
 
 }

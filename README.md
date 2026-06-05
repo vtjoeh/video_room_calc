@@ -8,23 +8,30 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
-**v0.1.651 Release Notes** 🎉  
-- Performance issues have been addressed, especially in large rooms with zoom 🚀  
-- Certified Displays are now supported! 🖥️  
-- New "build on export" items: Security Camera (generic), Ceiling Fan.  
-- Snap to Objects has been improved to work smoothly when resizing items like walls. 🛠️  
+**v0.1.652 Release Notes** 🎉
+- New product **Board Pro G3**
+- Added Bar (table)
+- Switches and Codecs now on menu. Both switches and codecs are primarily used for the cable map in the Workspace Designer.
+- Improved menu flow for inserting objects with options.
+- Added Ceiling Grid for ceiling surveys. It is best to put the Ceiling Grid on it's own layer "Ceiling Grid" and lock it or make invisible.
+
+**v0.1.651 Release Notes** 🎉
+- Performance issues have been addressed, especially in large rooms with zoom 🚀
+- Certified Displays are now supported! 🖥️
+- New "build on export" items: Security Camera (generic), Ceiling Fan.
+- Snap to Objects has been improved to work smoothly when resizing items like walls. 🛠️
 - Bug fixes 🐞
 
-**v0.1.650 Release Notes**  
-- New Items: 🆕 Workspace Designer Text, VRC Text (visible only in the VRC), Dimension Lines, Cones, Row of Swivel Chairs, Row of Stool Chairs  
+**v0.1.650 Release Notes**
+- New Items: 🆕 Workspace Designer Text, VRC Text (visible only in the VRC), Dimension Lines, Cones, Row of Swivel Chairs, Row of Stool Chairs
 - The Row of Chairs now includes a **Distance Between Center of Chairs** setting and a **Number of Chairs** option. 🪑✨
 
 **v0.1.649 Release Notes** 🚀
-- ⚡ Refactored undo/redo for speed, undo no longer forces 100% zoom. 
-- 💾 New **Storage and Local Data** viewer (Details → Settings) — see browser storage usage and clear undo/redo history or all local data. 
+- ⚡ Refactored undo/redo for speed, undo no longer forces 100% zoom.
+- 💾 New **Storage and Local Data** viewer (Details → Settings) — see browser storage usage and clear undo/redo history or all local data.
 - 🏃 Templates tab in the New Room dialog now populates instantly.
 - 🐞 Bug fixes, CSS fixes and internal refactoring.
-- Underlying JSON format for vrc.json items array and coverage toggles have changed. Old files are backwards compatible on upload. 
+- Underlying JSON format for vrc.json items array and coverage toggles have changed. Old files are backwards compatible on upload.
 
 **v0.1.648 Release Notes**
 - New badge to show when Layers are locked or hidden, and the current mode. 🏷️
@@ -46,20 +53,20 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - Bug fixes. 🐞
 
 **v0.1.646**
-Bug fixes. 
+Bug fixes.
 
 **v0.1.645 Release Notes**
-- Added **Reload Last Design** button on the start template. 🖼️ 
-- Previously updated background images are now selected under **Details → Room Floor Plan**. 🌄 
-- Moved undoArray from localStorage to IndexedDB for improved performance. 🔄 
+- Added **Reload Last Design** button on the start template. 🖼️
+- Previously updated background images are now selected under **Details → Room Floor Plan**. 🌄
+- Moved undoArray from localStorage to IndexedDB for improved performance. 🔄
 - Export DXF files. Exported as simple objects. Use **Save → Download File drop down**. 😀
-- Import video devices using xconfig.txt files with Cinematic Meeting features to display cameras and microphones for troubleshooting. 🛠️ 
+- Import video devices using xconfig.txt files with Cinematic Meeting features to display cameras and microphones for troubleshooting. 🛠️
 - Updated the Workspace Designer test site, enabling end users to easily switch to designer.cisco.com (beta). **Details → Settings → Workspace Designer Site.** 🖥️
 
 **v0.1.644 Release Notes**
-- Added feature Layers to show/hide or lock/umlock layers. Feature is considered experimental and might change. 
-- Fixed bug with multiple large pathShapes (SVG path) not exporting to Workspace Designer consistently. 
-- Now using Claude to help manage product. 
+- Added feature Layers to show/hide or lock/umlock layers. Feature is considered experimental and might change.
+- Fixed bug with multiple large pathShapes (SVG path) not exporting to Workspace Designer consistently.
+- Now using Claude to help manage product.
 
 **v0.1.643 Release Notes**
 - Added new object Ceiling Speaker (objecType: 'loudspeaker').
