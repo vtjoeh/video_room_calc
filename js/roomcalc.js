@@ -25033,7 +25033,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cone', 'box', 'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
