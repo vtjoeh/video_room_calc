@@ -5948,12 +5948,9 @@ layerSelectionBox.add(select2PointsRect);
 document.getElementById('lblVersion').innerText = version;
 
 
+let dummyMenuItems = [
 
-
-/* videoDevices keys: A/B; need zoom or distance fields (or codecParent/cameraParent). */
-let videoDevices = [
-
-    /* dummy menu items below */
+        /* dummy menu items below */
     { name: 'Board Pro 75 G3', id: 'dummyMenuBoardPro75G3', frontImage: 'brdPro75G2FS-front.png', newItem: true },
 
     { name: 'Board Pro 55 G3', id: 'dummyMenuBoardPro55G3', frontImage: 'brdPro55G2FS-front.png', newItem: true },
@@ -5963,7 +5960,30 @@ let videoDevices = [
     { name: 'Board Pro 55 G2', id: 'dummyMenuBoardPro55G2', frontImage: 'brdPro55G2FS-front.png' },
 
     { name: 'Room Kit EQX', id: 'dummyMenuRoomKitEQX', frontImage: 'roomKitEqxFS-front.png' },
-    /* dummy menu items above */
+
+    {
+        name: "Cisco Switch",
+        id: "dummyMenuSwitch",
+        topImage: 'switch-top.png',
+        frontImage: 'dummyMenuSwitch-menu.png',
+
+    },
+
+    {
+        name: "Codec (for cable map)",
+        id: "dummyMenuCodec",
+        topImage: 'codec-top.png',
+        frontImage: 'dummyMenuCodec-menu.png',
+
+    },
+    /* dummyMenu items above */
+
+]
+
+/* videoDevices keys: A/B; need zoom or distance fields (or codecParent/cameraParent). */
+let videoDevices = [
+
+
 
 
     { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
@@ -6724,24 +6744,6 @@ let tables = [{
 
 /* Chair, doors and people. Key ID start with S or U */
 let chairs = [
-
-    /* dummyMenu items */
-    {
-        name: "Cisco Switch",
-        id: "dummyMenuSwitch",
-        topImage: 'switch-top.png',
-        frontImage: 'dummyMenuSwitch-menu.png',
-
-    },
-
-    {
-        name: "Codec (for cable map)",
-        id: "dummyMenuCodec",
-        topImage: 'codec-top.png',
-        frontImage: 'dummyMenuCodec-menu.png',
-
-    },
-    /* dummyMenu items above */
 
 
     {
@@ -11578,6 +11580,7 @@ function resetBackgroundImageFloorSettings() {
 
 
 function creatArrayKeysTypes() {
+    microphones = [...microphones, ...dummyMenuItems];
     eachCategory(videoDevices, 'videoDevices');
     eachCategory(microphones, 'microphones');
     eachCategory(chairs, 'chairs');
@@ -11586,6 +11589,7 @@ function creatArrayKeysTypes() {
     eachCategory(stageFloors, 'stageFloors');
     eachCategory(boxes, 'boxes');
     eachCategory(rooms, 'rooms');
+
 
     function eachCategory(category, groupName) {
         category.forEach((item) => {
