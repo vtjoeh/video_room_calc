@@ -36,13 +36,13 @@ window.VRC.insertMessages = [
 
 window.VRC.dummyMenuKey = {
 
-    dummyMenuBoardPro55G3: ['brdPro55G3',  'brdPro55G3Wheel', 'brdPro55G3WS' ],
+    dummyMenuBoardPro55G3: ['brdPro55G3',  'brdPro55G3FS','brdPro55G3Wheel', 'brdPro55G3WS' ],
 
-    dummyMenuBoardPro75G3: ['brdPro75G3', 'brdPro75G3Wheel', 'brdPro75G3WS' ],
+    dummyMenuBoardPro75G3: ['brdPro75G3', 'brdPro75G3FS', 'brdPro75G3Wheel', 'brdPro75G3WS' ],
 
-    dummyMenuBoardPro55G2: ['brdPro55G2', 'brdPro55G2Wheel', 'brdPro55G2WS' ],
+    dummyMenuBoardPro55G2: ['brdPro55G2', 'brdPro55G2FS', 'brdPro55G2Wheel', 'brdPro55G2WS' ],
 
-    dummyMenuBoardPro75G2: ['brdPro75G2', 'brdPro75G2Wheel', 'brdPro75G2WS' ],
+    dummyMenuBoardPro75G2: ['brdPro75G2','brdPro75G2FS', 'brdPro75G2Wheel', 'brdPro75G2WS' ],
 
     dummyMenuRoomKitEQX: ['roomKitEqx', 'roomKitEqxFS', 'roomKitEqxWS'],
 
