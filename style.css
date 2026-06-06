@@ -921,8 +921,7 @@ input:placeholder-shown {
   display: flex;
   gap: 10px;
   margin: 1em 0;
-  /* max-width: 850px; */
-  max-width: 750px;
+  max-width: 800px;
   overflow-x: auto;
 }
 
@@ -1393,6 +1392,25 @@ input:placeholder-shown {
   left: -4px;
   background-color: transparent;
 
+}
+
+/* MultiRoom overview: coverage buttons (camera / mic / display) are not
+   applicable at the floor level. Block interaction outright (pointerdown/up
+   listeners ignore the `disabled` attribute) and grey out the button + its
+   little hold-to-multi-select triangle. */
+.coverageBtnDisabledMultiRoom,
+.coverageBtnDisabledMultiRoom.active {
+  pointer-events: none;
+  opacity: 0.5;
+  /* Override the .btn.active blue pill so a remembered selection doesn't stay
+     coloured while disabled in the MultiRoom overview. */
+  background-color: transparent !important;
+  color: #999 !important;
+}
+
+.coverageBtnDisabledMultiRoom .holdIndicator {
+  filter: grayscale(100%) brightness(1.8);
+  opacity: 0.7;
 }
 
 #controlButtons button {
