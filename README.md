@@ -12,7 +12,7 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 - New product **Board Pro G3** 🎉
 - Added new item Bar (table) 🍻
 - Switches and Codecs are now on the menu. Both switches and codecs are primarily used for the cable map in the Workspace Designer.
-- Improved menu flow for better navigation. ➡️
+- Improved menu flow and popup guidance for certain tricky items like switches and codecs. ➡️
 - New **Getting Started and Tips & Tricks** video on the Help menu. 🎥
 - Added Ceiling Grid for ceiling surveys. It is best to place the Ceiling Grid on its own layer "Ceiling Grid" and lock it or make it invisible. 🏗️
 - Squashed some more bugs! 🐞
