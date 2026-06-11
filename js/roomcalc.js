@@ -365,6 +365,9 @@ function applyMultiRoomModeUi() {
         _lastMultiRoomOverviewMenuState = overview;
         if (typeof createEquipmentMenu === 'function') createEquipmentMenu();
     }
+
+    const mrfpmDiv = document.getElementById('multiRoomFloorPlanModeDiv');
+    if (mrfpmDiv) mrfpmDiv.style.display = 'none';
 }
 
 function isDimensionLine(deviceId) {
@@ -25044,27 +25047,6 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         return;
     };
-
-    /* Multi-Room entry prompt: the first Room Part (boxRoomPart / polyRoom)
-     * inserted into a fresh design flips on the sticky multiRoomFloorPlanMode
-     * flag. We prompt once here (before any attrs mutation or the polyRoom
-     * early-return) and, on confirm, re-enter insertItemFromMenu with the
-     * flag now set so the normal insert path runs. Cancel aborts the insert.
-     * Subsequent roomPart inserts skip the prompt because the flag is on. */
-    if (isRoomPart(data_deviceid) && !isMultiRoomFloorPlanMode()) {
-        vrcConfirm(
-            'Enter Multi-Room Floor Plan Mode?',
-            'Room Parts let you lay out several rooms on one floor plan and zoom into each room to design it. '
-            + 'Adding this Room Part switches the design into Multi-Room Floor Plan Mode.',
-            'Enter',
-            function () {
-                roomObj.multiRoomFloorPlanMode = true;
-                applyMultiRoomModeUi();
-                insertItemFromMenu(data_deviceid, attrs);
-            }
-        );
-        return;
-    }
 
     if (data_deviceid === 'polyRoom') {
         polyBuilderOn(true, 'polyRoom')
