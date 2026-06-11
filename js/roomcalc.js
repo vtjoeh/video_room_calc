@@ -12215,11 +12215,11 @@ function createShareableLink() {
         });
     }
 
-    let i = 0;
+    let prevTokens = null; /* tokens of the last actually-emitted item (drives `_` repeat diff) */
     roomObj.items.forEach((item) => {
-        strUrlQuery2 += createShareableLinkItem(item);
-        i += 1;
-        previousItem = item;
+        const res = createShareableLinkItem(item, prevTokens);
+        strUrlQuery2 += res.str;
+        if (res.str !== '') prevTokens = res.tokens; /* skip off-stage items so the diff base stays the last emitted item */
     });
 
     fullShareLink = location.origin + location.pathname + '?x=' + strUrlQuery2;
@@ -12368,26 +12368,31 @@ function normalizeColorToHex(input) {
     return result;
 }
 
-function createShareableLinkItem(item) {
-    let strItem = '';
-
+function createShareableLinkItem(item, prevTokens) {
     if (itemsOffStageId.includes(item.id)) {
-        return '';
+        return { str: '', tokens: null };
     }
 
-    strItem += idKeyObj[item.data_deviceid];
+    /* Ordered attribute fragments. `value` (x) is the bare-number first
+     * fragment; every other fragment carries its own letter prefix. The
+     * full string is sid + frags; the `_` repeat diff re-emits only the
+     * fragments that differ from the previously emitted same-type item. */
+    let frags = [];
+    function add(key, str) { frags.push({ key: key, str: str }); }
+
+    const sid = idKeyObj[item.data_deviceid];
 
     if ('x' in item) {
-        strItem += Math.round(item.x * 100);
+        add('value', String(Math.round(item.x * 100)));
     }
 
     if ('y' in item) {
-        strItem += 'a' + Math.round(round(item.y) * 100);
+        add('a', 'a' + Math.round(round(item.y) * 100));
     }
 
     if ('data_zPosition' in item) {
         if (item.data_zPosition != "") {
-            strItem += 'b' + Math.round(round(item.data_zPosition) * 100);
+            add('b', 'b' + Math.round(round(item.data_zPosition) * 100));
         }
     }
 
@@ -12397,21 +12402,21 @@ function createShareableLinkItem(item) {
      * keep links short and avoid stale-size drift; the values are
      * backfilled in roomObj.items by canvasToJson on the next save. */
     if ('width' in item && item.width && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom' && !isTextItem(item.data_deviceid)) {
-        strItem += 'c' + Math.round(round(item.width) * 100);
+        add('c', 'c' + Math.round(round(item.width) * 100));
     }
 
     if ('length' in item && item.length && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom' && !isTextItem(item.data_deviceid)) {
-        strItem += 'd' + Math.round(round(item.length) * 100);
+        add('d', 'd' + Math.round(round(item.length) * 100));
     }
 
     if ('height' in item && item.data_deviceid != 'tblSchoolDesk' && item.height && !isTextItem(item.data_deviceid)) { /* tblSchoolDesk has a set length of 0.59m and does not need to be saved in the URL */
-        strItem += 'e' + Math.round(round(item.height) * 100);
+        add('e', 'e' + Math.round(round(item.height) * 100));
     }
 
     if ('rotation' in item) {
         let rotation = Math.round(item.rotation);
         if (rotation != 0) {
-            strItem += 'f' + Math.round(round(item.rotation) * 10);
+            add('f', 'f' + Math.round(round(item.rotation) * 10));
         }
     }
 
@@ -12422,30 +12427,30 @@ function createShareableLinkItem(item) {
      * consecutive lowercase letters into one key (same mechanism as the
      * `ll` layer code), and the token always carries its own number. */
     if ('data_diagonalInches' in item && item.data_deviceid !== 'certifiedDisplay') {
-        strItem += 'g' + item.data_diagonalInches;
+        add('g', 'g' + item.data_diagonalInches);
     }
 
     if (item.data_deviceid === 'certifiedDisplay' && item.data_certifiedDisplayIndex != null) {
-        strItem += 'cd' + item.data_certifiedDisplayIndex;
+        add('cd', 'cd' + item.data_certifiedDisplayIndex);
     }
 
     if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
-        strItem += 'h' + Math.round(round(item.tblRectRadius) * 100);
+        add('h', 'h' + Math.round(round(item.tblRectRadius) * 100));
     }
 
     if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk') {
-        strItem += 'i' + Math.round(round(item.tblRectRadiusRight) * 100);
+        add('i', 'i' + Math.round(round(item.tblRectRadiusRight) * 100));
     }
 
     if ('data_vHeight' in item) {
         if (item.data_vHeight) {
-            strItem += 'j' + Math.round(round(item.data_vHeight) * 100);
+            add('j', 'j' + Math.round(round(item.data_vHeight) * 100));
         }
     }
 
     if ('data_trapNarrowWidth' in item) {
         if (item.data_trapNarrowWidth && !isNaN(item.data_trapNarrowWidth)) {
-            strItem += 'k' + Math.round(round(item.data_trapNarrowWidth) * 100);
+            add('k', 'k' + Math.round(round(item.data_trapNarrowWidth) * 100));
         }
     }
 
@@ -12453,40 +12458,40 @@ function createShareableLinkItem(item) {
     if ('data_role' in item && item.data_role) {
         let place = item.data_role.index - 1;
         if (place > -1) {
-            strItem += 'l' + place;
+            add('l', 'l' + place);
         }
     }
 
     if ('data_color' in item && item.data_color) {
         let place = item.data_color.index - 1;
         if (place > -1) {
-            strItem += 'm' + place;
+            add('m', 'm' + place);
         }
     }
 
     let hiddenShading = createLinkSingleItemShadingDecimal(item);
     if (hiddenShading != 0) {
-        strItem += 'n' + hiddenShading;
+        add('n', 'n' + hiddenShading);
     }
 
     if ('data_tilt' in item) {
         let tilt = Math.round(item.data_tilt);
         if (tilt != 0) {
-            strItem += 'o' + Math.round(round(item.data_tilt) * 10);
+            add('o', 'o' + Math.round(round(item.data_tilt) * 10));
         }
     }
 
     if ('data_slant' in item) {
         let slant = Math.round(item.data_slant);
         if (slant != 0) {
-            strItem += 'p' + Math.round(round(item.data_slant) * 10);
+            add('p', 'p' + Math.round(round(item.data_slant) * 10));
         }
     }
 
     if ('data_mount' in item && item.data_mount) {
         let place = item.data_mount.index - 1;
         if (place > -1) {
-            strItem += 'q' + place;
+            add('q', 'q' + place);
         }
     }
 
@@ -12496,7 +12501,7 @@ function createShareableLinkItem(item) {
             return Math.round(round(point) * 100)
         });
 
-        strItem += 'r' + points.join(' ');
+        add('r', 'r' + points.join(' '));
     }
 
     /* Group/CustomItem members inherit bundle layer — skip per-item ll. */
@@ -12506,28 +12511,28 @@ function createShareableLinkItem(item) {
     /* encode layer reference: ll1 for Ceiling, ll20+ for custom layers; skip Default (ll0 not needed) */
     if (!itemHasGroupRef && !itemHasCustomItemRef && 'data_layerId' in item && item.data_layerId && item.data_layerId !== '0') {
         if (item.data_layerId === '1') {
-            strItem += 'll1';
+            add('ll', 'll1');
         } else if (_layerUrlEncodeMap[item.data_layerId] != null) {
-            strItem += 'll' + _layerUrlEncodeMap[item.data_layerId];
+            add('ll', 'll' + _layerUrlEncodeMap[item.data_layerId]);
         }
     }
 
     if (itemHasGroupRef) {
-        strItem += 's' + _groupUrlEncodeMap[item.data_groupId];
+        add('s', 's' + _groupUrlEncodeMap[item.data_groupId]);
     }
 
     if (itemHasCustomItemRef) {
-        strItem += 't' + _customItemUrlEncodeMap[item.data_customItemId];
+        add('t', 't' + _customItemUrlEncodeMap[item.data_customItemId]);
     }
 
     /* u=RGB triple (9 digits); v=opacity×100 (omit at 1.0). */
     if (item.data_fill) {
-        strItem += 'u' + hexToUrlRgb(item.data_fill);
+        add('u', 'u' + hexToUrlRgb(item.data_fill));
     }
     if (item.data_opacity != null && Number(item.data_opacity) !== 1) {
         const opacityNum = Number(item.data_opacity);
         if (!isNaN(opacityNum) && opacityNum >= 0 && opacityNum < 1) {
-            strItem += 'v' + Math.round(opacityNum * 100);
+            add('v', 'v' + Math.round(opacityNum * 100));
         }
     }
 
@@ -12539,7 +12544,7 @@ function createShareableLinkItem(item) {
         const __deviceDef = allDeviceTypes[item.data_deviceid];
         const __fsDefault = (__deviceDef && __deviceDef.default_fontSize) || (isDimensionLine(item.data_deviceid) ? 10 : 20);
         if (!isNaN(__fsNum) && __fsNum > 0 && __fsNum !== __fsDefault) {
-            strItem += 'w' + Math.round(__fsNum);
+            add('w', 'w' + Math.round(__fsNum));
         }
     }
 
@@ -12560,14 +12565,14 @@ function createShareableLinkItem(item) {
             const __lwNum = Number(item.data_lineWidth);
             const __lwDefault = __deviceDef.default_lineWidth || 2;
             if (!isNaN(__lwNum) && __lwNum > 0 && __lwNum !== __lwDefault) {
-                strItem += 'y' + Math.round(__lwNum);
+                add('y', 'y' + Math.round(__lwNum));
             }
         }
         if (item.data_pointerSize != null) {
             const __psNum = Number(item.data_pointerSize);
             const __psDefault = __deviceDef.default_pointerSize || 10;
             if (!isNaN(__psNum) && __psNum > 0 && __psNum !== __psDefault) {
-                strItem += 'z' + Math.round(__psNum);
+                add('z', 'z' + Math.round(__psNum));
             }
         }
     }
@@ -12588,7 +12593,7 @@ function createShareableLinkItem(item) {
                 : Math.round(DEFAULT_CHAIR_SPACING_METERS * 100);
             const __cs100 = Math.round(round(__csNum) * 100);
             if (__cs100 !== __csDefault100) {
-                strItem += 'x' + __cs100;
+                add('x', 'x' + __cs100);
             }
         }
     }
@@ -12596,7 +12601,7 @@ function createShareableLinkItem(item) {
     if (item.data_deviceid === 'cone' && item.data_radius2 != null) {
         const __r2Num = Number(item.data_radius2);
         if (isFinite(__r2Num) && __r2Num >= 0) {
-            strItem += 'y' + Math.round(round(__r2Num) * 100);
+            add('y', 'y' + Math.round(round(__r2Num) * 100));
         }
     }
 
@@ -12607,26 +12612,48 @@ function createShareableLinkItem(item) {
         if (item.data_gridWidth != null) {
             const __gwNum = Number(item.data_gridWidth);
             if (isFinite(__gwNum) && __gwNum >= 0) {
-                strItem += 'gw' + Math.round(round(__gwNum) * 100);
+                add('gw', 'gw' + Math.round(round(__gwNum) * 100));
             }
         }
         if (item.data_gridLength != null) {
             const __glNum = Number(item.data_gridLength);
             if (isFinite(__glNum) && __glNum >= 0) {
-                strItem += 'gl' + Math.round(round(__glNum) * 100);
+                add('gl', 'gl' + Math.round(round(__glNum) * 100));
             }
         }
     }
 
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
-            strItem += '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~';
+            add('text', '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~');
         }
     }
 
+    const map = {};
+    frags.forEach(f => { map[f.key] = f.str; });
+    const keys = frags.map(f => f.key);
+    const tokens = { sid: sid, map: map, keys: keys };
+    const fullStr = sid + frags.map(f => f.str).join('');
 
+    /* `_` repeat diff: only valid against a previously-emitted item of the
+     * same device type. `_` can override/add attributes on the clone but
+     * never remove one, so it's used only when the current item carries
+     * every attribute the previous one had. Sole exception: if rotation
+     * (`f`) is the only dropped attribute, emit an explicit `f0` reset
+     * (rotation default is 0). Any other dropped attribute ⇒ full repeat. */
+    if (prevTokens && prevTokens.sid === sid) {
+        const dropped = prevTokens.keys.filter(k => !(k in map));
+        if (dropped.length === 0 || (dropped.length === 1 && dropped[0] === 'f')) {
+            let diff = '_';
+            frags.forEach(f => {
+                if (prevTokens.map[f.key] !== f.str) diff += f.str;
+            });
+            if (dropped.length === 1) diff += 'f0';
+            return { str: diff, tokens: tokens };
+        }
+    }
 
-    return strItem;
+    return { str: fullStr, tokens: tokens };
 }
 
 /* Per-item shading flags as decimal (decoded to binary). */
