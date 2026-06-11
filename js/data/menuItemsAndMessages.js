@@ -11,7 +11,7 @@ window.VRC.insertMessages = [
     {
         idRegex: /^switchC\d+/,
         header: 'Inserted %device_name% ',
-        body: 'The inserted switch will be used to create the cable map in the Workspace Designer. The Workspaace Designer expects for the switch to be in a specific location and have a <b>role</b> of <i>ceiling</i> or <i>floor</i>. Check the Detail-&gt;Item <b>role</b> and <b>z</b> values. The Workspace Designer cable map is for general guidance of cable lengths and not for architectual drawings.'
+        body: 'The inserted switch will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the switch to be in a specific location and have a <b>role</b> of <i>ceiling</i> or <i>floor</i>. Check the Detail-&gt;Item <b>role</b> and <b>z</b> values. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings.'
 
     },
     {
