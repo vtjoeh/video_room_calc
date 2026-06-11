@@ -247,6 +247,50 @@ prefer the remaining unused letters first.)
 `R`, `U`, `V`, `X`, `Y`, `Z`. (`M`/`S`/`T`/`W` are item-type prefix
 families.)
 
+## Item Repeat Compression (`_`)
+
+Consecutive items of the **same type prefix** are compressed with the
+`_` marker instead of re-emitting the full `SID…` string. On decode,
+`_` clones the immediately-previous parsed item (`structuredClone`),
+then the tokens after the `_` override attributes on that clone. A
+bare number after `_` overrides `x` (the prefix-less `value`), a
+lowercase token overrides that attribute, and `~text~` overrides the
+label. Multiple `_` chain (each repeats the prior result), so N
+identical items collapse to the first full item + (N−1) bare `_`.
+
+### Examples
+
+| URL fragment | Decodes to |
+|--------------|-----------|
+| `SA895a868_400` | 2 chairs; 2nd identical except `x` = 4.00 |
+| `SA895a868_400_a400f900` | 3rd is the 2nd cloned with `y` = 4.00, rotation = 90 |
+| `SA895a868c210e210_~the+text~` | 2nd identical + label "the text" |
+| `…_800f0` | clone with `x` = 8.00 and rotation reset to 0 |
+
+### Encoder rules
+
+`_` can only **override or add** attributes on the clone — it can
+never remove one. So the encoder emits a `_` diff only when the
+current item carries **every** attribute the previous one had
+(current ⊇ previous), then writes only the fragments whose value
+differs (or is new); unchanged fragments are dropped.
+
+- **Sole exception** — if rotation (`f`) is the *only* dropped
+  attribute, the encoder emits an explicit `f0` reset (rotation
+  default is 0), e.g. `_800f0`.
+- **Any other dropped attribute** ⇒ full `SID…` repeat (lossless
+  fallback).
+- The diff is always shorter than the full item when used (`_` is one
+  char vs the 2-char prefix), so no length comparison is needed.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Encoder | `createShareableLinkItem(item, prevTokens)` — builds ordered `{key, str}` fragments, returns `{str, tokens}`, runs the diff at the end |
+| Encoder loop | `createShareableLink()` — tracks `prevTokens` of the **last actually-emitted** item (off-stage items, which return `''`, do not advance the diff base) |
+| Decoder | `parseShortenedXYUrl()` — `if (char === '_' …)` branch clones `output[objCount]` and continues overriding |
+
 ## ConfigurableColor URL Encoding (`u` / `v`)
 
 Items whose device definition has `configurableColor: true` and / or
