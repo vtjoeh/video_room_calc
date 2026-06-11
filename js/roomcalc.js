@@ -1,6 +1,6 @@
 const version = "v0.1.653";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
-/* Phase 2 module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
+/* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
 const convertToMeters = window.VRC.util.convertToMeters;
 const convertMetersFeet = window.VRC.util.convertMetersFeet;
@@ -163,12 +163,7 @@ roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
 roomObj.customItems = [];
 
-/* Konva.Label-based text items (wdText + vrcText) share the same render
- * structure and therefore share every code path that special-cases
- * "compound text" semantics (clicks resolving up to the Label, no Shape
- * stroke methods, auto-sized width/height, font-size on zoom, etc.).
- * Centralize the membership test here so adding a third text-like device
- * is a single-line edit. */
+/* Konva.Label text items (wdText + vrcText) share the same render structure and text special-case code paths. */
 function isTextItem(deviceId) {
     return deviceId === 'wdText' || deviceId === 'vrcText';
 }
@@ -193,12 +188,7 @@ function isRoomSubMode() {
     return isMultiRoomFloorPlanMode() && isActiveRoomPart;
 }
 
-/* In the MultiRoom overview the insert menus are limited to wall/shape
- * structural items plus doors (everything in wallsMenu, plus the three
- * door tiles) and the Room Parts themselves (so more rooms can be added
- * from search). Single source of truth shared by the Equipment tab,
- * sidebar search, and the Quick Add modal. Room Parts are conversely
- * BLOCKED in Room sub-mode (you can't nest a room inside a room). */
+/* Items allowed in MultiRoom overview: walls/shapes/doors + Room Parts. Shared by Equipment tab, search, and Quick Add. */
 const MULTI_ROOM_OVERVIEW_MENU_ITEMS = [
     'boxRoomPart', 'polyRoom',
     'wallBuilder', 'wallStd', 'wallGlass', 'wallWindow',
@@ -211,12 +201,9 @@ function isAllowedInMultiRoomOverview(deviceId) {
     return MULTI_ROOM_OVERVIEW_MENU_ITEMS.includes(deviceId);
 }
 
-/* Tracks the last overview state the insert menus were built for, so
- * applyMultiRoomModeUi() rebuilds tiles only when the state flips. */
-let _lastMultiRoomOverviewMenuState = null;
+let _lastMultiRoomOverviewMenuState = null; /* last overview state menus were built for; rebuild only when it flips */
 
-/* Default Walls editing target: Room mode on a rectangular boxRoomPart edits
- * that room's per-room attrs; otherwise the global roomObj surfaces/workspace. */
+/* Default Walls editing target: Room mode on a rectangular boxRoomPart edits per-room attrs; otherwise global roomObj. */
 function activeDefaultWallsSurfaces() {
     if (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart' && activeRoomPartItem.data_roomSurfaces) {
         return activeRoomPartItem.data_roomSurfaces;
@@ -231,19 +218,13 @@ function activeDefaultWallsWorkspace() {
     return roomObj.workspace;
 }
 
-/* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag. Both
- * directions are guarded by a confirm: turning ON mirrors the Room Part
- * entry prompt; turning OFF warns because the design already contains
- * rooms (and first leaves any active roomPart zoom — showEntireFloor needs
- * isActiveRoomPart). Cancel / dismiss reverts the checkbox to its prior
- * state in either direction. */
+/* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
 function toggleMultiRoomFloorPlanMode(event) {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
     if (!checkbox) return;
 
     if (checkbox.checked) {
-        /* Checkbox was just checked — confirm before turning the mode on
-         * (mirrors the Room Part entry prompt in insertItemFromMenu). */
+        /* Checkbox just checked — confirm before turning the mode on. */
         vrcConfirm(
             'Enter Multi-Room Floor Plan Mode?',
             'Room Parts let you lay out several rooms on one floor plan and zoom into each room to design it. '
@@ -283,38 +264,28 @@ function toggleMultiRoomFloorPlanMode(event) {
     );
 }
 
-/* Keep the Settings-tab toggle in sync with the per-design flag. Called
- * when the Settings subtab opens (the flag lives on roomObj, not in
- * localStorage, so it changes whenever a different design is loaded). */
+/* Keep the Settings-tab toggle in sync with the per-design flag; called when the Settings subtab opens. */
 function syncMultiRoomFloorPlanModeToggle() {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
     if (checkbox) checkbox.checked = isMultiRoomFloorPlanMode();
 }
 
-/* Single source of truth for mode-dependent UI gating. Called from
- * drawRoom() and every mode transition. Only the MultiRoom overview
- * sub-mode (flag on AND not zoomed into a room) changes the UI; normal
- * mode and Room sub-mode share the default layout. */
+/* Single source of truth for mode-dependent UI gating; called from drawRoom() and every mode transition. */
 function applyMultiRoomModeUi() {
     const overview = isMultiRoomOverviewMode();
     const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
     const dwMessageOnly = overview || polyRoomActive; /* Default Walls panel is read-only message here. */
 
-    /* Coverage-shading buttons + Software Experience are disabled in the
-     * MultiRoom overview (per-room concerns; re-enabled inside a room). */
+    /* Coverage-shading buttons + Software Experience are disabled in the MultiRoom overview (per-room concerns). */
     ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'drpSoftware'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = overview;
-        /* belt-and-braces: the coverage buttons wire pointerdown/up listeners
-         * that can still fire on a `disabled` <button>, so also kill
-         * pointer-events and grey the button + its hold triangle in MultiRoom. */
+        /* belt-and-braces: coverage buttons can still fire on a disabled <button>, so also kill pointer-events + grey it. */
         el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
     });
 
-    /* Room Floor Plan (background image) sub-tab: inside a room there is no
-     * per-room file to upload, so hide every setting except Opacity and point
-     * the user back to the overview for image changes. */
+    /* Room bg-image sub-tab: inside a room hide every setting except Opacity and point the user back to the overview. */
     const inRoomBgMode = isRoomSubMode();
     document.querySelectorAll('.bgFloorOnlySetting').forEach(function (el) {
         el.style.display = inRoomBgMode ? 'none' : '';
@@ -336,9 +307,7 @@ function applyMultiRoomModeUi() {
     const rotateLabel = document.getElementById('rotateRoomLabel');
     if (rotateLabel) rotateLabel.textContent = overview ? 'Rotate Floor:' : 'Rotate Room:';
 
-    /* Default Walls subtab is message-only in the overview and for irregular
-     * (polyRoom) rooms; editable for rectangular rooms and normal mode. The
-     * editable panel mirrors the active (per-room or global) removeDefaultWalls. */
+    /* Default Walls subtab is message-only in overview and for polyRoom; editable for rectangular rooms and normal mode. */
     const dwMsg = document.getElementById('defaultWallsMultiRoomMsg');
     if (dwMsg) {
         dwMsg.style.display = dwMessageOnly ? '' : 'none';
@@ -358,9 +327,7 @@ function applyMultiRoomModeUi() {
         }
     }
 
-    /* Rebuild the insert menus only when the overview state actually flips,
-     * so the tile set (walls/shapes + doors vs. everything) reflects the
-     * mode without rebuilding on every drawRoom. */
+    /* Rebuild the insert menus only when the overview state flips, so the tile set reflects the mode. */
     if (_lastMultiRoomOverviewMenuState !== overview) {
         _lastMultiRoomOverviewMenuState = overview;
         if (typeof createEquipmentMenu === 'function') createEquipmentMenu();
@@ -374,36 +341,14 @@ function isDimensionLine(deviceId) {
     return deviceId === 'dimensionLine';
 }
 
-/* "Row of …" wallChairs-family membership test. Today the family
- * has three members:
- *   - 'wallChairs'        Row of Chairs        (chair → chair-top.png)
- *   - 'wallChairsSwivel'  Row of Swivel Chairs (chair → chairSwivel-top.png)
- *   - 'wallChairsStool'   Row of Stool Chairs  (chair → chairHigh-top.png)
- * They share render plumbing (`layoutWallChairsChildren()` keyed off
- * `WALL_CHAIRS_IMAGE_CONFIG`), the same `data_chairSpacing` four-place-
- * rule wiring, the same Transformer-anchor live-resize path, and the
- * same `expandChairs()`-based WD / DXF / xConfig export. The only
- * per-variant differences are (a) the chair glyph image used by
- * `layoutWallChairsChildren()`, and (b) the `data_deviceid` stamped on
- * each individual chair `expandChairs()` emits.
- *
- * Centralized here so adding a fourth wallChairs variant is a single-
- * line edit on this predicate plus a row in `WALL_CHAIRS_IMAGE_CONFIG`
- * and one row in `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+/* "Row of …" wallChairs family: wallChairs, wallChairsSwivel, wallChairsStool. Share render plumbing; differ only by chair glyph and emitted data_deviceid. See notes/COMMENT_NOTES.md. */
 function isWallChairs(deviceId) {
     return deviceId === 'wallChairs'
         || deviceId === 'wallChairsSwivel'
         || deviceId === 'wallChairsStool';
 }
 
-/* Returns the "containing rect" child to paint for the multi-select
- * highlight (Konva.Tag for wdText/vrcText, '.dim-rect' Konva.Rect for
- * dimensionLine, '.wallChairs-bg' Konva.Rect for wallChairs). Returns
- * null otherwise. The top-level node for these items is a Konva.Label
- * (text) or Konva.Group (dimensionLine, wallChairs), none of which
- * exposes Shape stroke methods — so the multi-select highlight in
- * updateTrNodesShading() / removeShadingTrNodes() targets this inner
- * child instead. */
+/* Returns the inner highlight child for composite items (Tag for text, .dim-rect for dimensionLine, .wallChairs-bg for wallChairs); null otherwise. */
 function getCompositeHighlightRect(node) {
     if (!node || !node.data_deviceid) return null;
     if (isTextItem(node.data_deviceid)) return node.findOne('Tag');
@@ -412,10 +357,7 @@ function getCompositeHighlightRect(node) {
     return null;
 }
 
-/* roomObj.items parentGroup helpers (flat-array shape; legacy bucketed
- * shape auto-migrated by window.VRC.migrateLegacyItemsShape).
- * PERF RULE: any function reading 2+ categories MUST call
- * bucketItemsByParentGroup() once instead of N filter() calls. */
+/* roomObj.items parentGroup helpers. PERF RULE: any reader of 2+ categories MUST call bucketItemsByParentGroup() once instead of N filter() calls. */
 function getItemsByParentGroup(parentGroup, obj) {
     const room = obj || roomObj;
     if (!room || !Array.isArray(room.items)) return [];
@@ -461,25 +403,7 @@ function bucketItemsByParentGroup(obj) {
     return buckets;
 }
 
-/* Defensive de-duplication of `obj.items` by `id`. Keeps the FIRST
- * occurrence of every id and drops the rest. Mutates `obj.items` in
- * place and returns the number of duplicates removed.
- *
- * Background: a session-c5ee79 / 12f04c debug run uncovered that
- * legacy `.vrc.json` files, shareable URLs, and undo snapshots can
- * carry duplicate item ids (same `id` appearing N times in
- * `roomObj.items`). When `roomObjToCanvas()` then iterates the array
- * and calls `insertItem()` per entry, Konva ends up with N nodes that
- * share the same id; subsequent partial deletions remove some of the
- * Konva nodes but leave the matching duplicate roomObj.items entries
- * behind as "phantoms" — visually gone but still in memory, still
- * exported to Workspace Designer, and re-materialised on the next
- * save/reload of the .vrc.json. The original write-side bug that
- * introduced the dups in older sessions has not been pinpointed yet;
- * this helper neutralises the symptom by guaranteeing every load /
- * import / parse / undo-restore path lands a duplicate-free
- * `roomObj.items`. Cheap (single pass + Set), idempotent (subsequent
- * calls find nothing to remove), and safe (items.id is a uuid). */
+/* De-dupe obj.items by id (keep first occurrence). Guards against phantom items from legacy files/URLs/undo snapshots with duplicate ids. Idempotent. See notes/COMMENT_NOTES.md. */
 function dedupeRoomItems(obj) {
     const room = obj || roomObj;
     if (!room || !Array.isArray(room.items)) return 0;
@@ -503,8 +427,7 @@ function dedupeRoomItems(obj) {
 /* Snapshot of sibling + rect start positions for member-direct drag follow. */
 let _groupDragSnapshot = null;
 
-/* CustomItem rects whose members ALL belong to groupId — these ride
- * along on Group drags/rotates. Split-membership CustomItems stay put. */
+/* CustomItem rects whose members ALL belong to groupId ride along on Group drags/rotates; split-membership ones stay put. */
 function getCustomItemRectsAllInGroup(groupId) {
     if (!groupId || typeof groupCustomItemRects === 'undefined' || !groupCustomItemRects) return [];
     const result = [];
@@ -518,11 +441,9 @@ function getCustomItemRectsAllInGroup(groupId) {
     return result;
 }
 
-/* Per-handler dragend/transformend intentionally do NOT call canvasToJson().
- * Single source-of-truth call is in stage.on('mouseup touchend'). */
+/* Per-handler dragend/transformend intentionally skip canvasToJson(); the single call is in stage.on('mouseup touchend'). */
 
-/* Snapshot sibling + Group rect positions. MUST be called from dragstart
- * — by the first dragmove, target.x() has already advanced. */
+/* Snapshot sibling + Group rect positions. MUST be called from dragstart (by the first dragmove, target.x() has advanced). */
 function beginGroupDragFollow(target) {
     if (!target || !target.data_groupId) return;
     if (tr.isDragging()) { _groupDragSnapshot = null; return; }
@@ -550,8 +471,7 @@ function beginGroupDragFollow(target) {
     });
 }
 
-/* Apply group drag-follow during a member-direct drag.
- * No-op during Transformer drag (Konva moves nodes natively). */
+/* Apply group drag-follow during a member-direct drag; no-op during Transformer drag (Konva moves nodes natively). */
 function followGroupDragFromMember(target) {
     if (!target || !target.data_groupId) return;
     if (tr.isDragging()) { _groupDragSnapshot = null; return; }
@@ -567,8 +487,7 @@ function followGroupDragFromMember(target) {
     _groupDragSnapshot.others.forEach((startPos, node) => {
         node.x(startPos.x + dx);
         node.y(startPos.y + dy);
-        /* Sync coverage (#fov~/#audio~/#dispDist~/#speaker~/#label~).
-         * Skip group/customItem rects — no coverage, and not in allDeviceTypes. */
+        /* Sync coverage; skip group/customItem rects (no coverage, not in allDeviceTypes). */
         if (node.data_deviceid !== 'group' && node.data_deviceid !== 'customItem') {
             updateShading(node);
         }
@@ -604,8 +523,7 @@ function beginCustomItemDragFollow(target) {
     }
 }
 
-/* Apply customItem drag-follow during a member-direct drag. Skips items
- * already moved by the Group follower (would otherwise double-shift). */
+/* Apply customItem drag-follow during a member-direct drag; skips items already moved by the Group follower. */
 function followCustomItemDragFromMember(target) {
     if (!target || !target.data_customItemId) return;
     if (tr.isDragging()) { _customItemDragSnapshot = null; return; }
@@ -639,9 +557,7 @@ function endCustomItemDragFollow() {
     _customItemDragSnapshot = null;
 }
 
-/* Drift detection (opt-in diagnostic). Enable via window.VRC.debugDriftDetection = true.
- * Reports pushed to window.VRC._driftReports[]. Tolerances: 0.5px x/y, 0.01° rotation.
- * Rotation branch checks dRot only (per-member position deltas differ legitimately). */
+/* Drift detection (opt-in diagnostic via window.VRC.debugDriftDetection). Reports to window.VRC._driftReports[]. Tolerances: 0.5px x/y, 0.01° rotation. */
 let _driftCheckSnapshot = null;
 
 function _driftCheckEnabled() {
@@ -672,9 +588,7 @@ function _collectBundleMemberSet(target) {
         addByCustomItemId(target.data_customItemId);
         set.add(target);
     }
-    /* Only walk tr.nodes() if no target (Transformer-handle drag) OR target IS in tr.nodes()
-     * (multi-bundle marquee). Otherwise it's a click-then-drag of an unselected item and
-     * the OLD tr.nodes() is a stale leftover that produces false drift positives. */
+    /* Only walk tr.nodes() if no target or target IS in tr.nodes(); otherwise stale tr.nodes() produces false drift positives. */
     const targetInTrNodes = target && typeof tr !== 'undefined' && tr && tr.nodes
         ? tr.nodes().includes(target)
         : false;
@@ -691,9 +605,7 @@ function _collectBundleMemberSet(target) {
 
 function beginDriftCheck(source, target) {
     if (!_driftCheckEnabled()) { _driftCheckSnapshot = null; return; }
-    /* Snapshot once on the FIRST dragstart only — Konva's _proxyDrag fires
-     * dragstart per-node after shifting each, so overwriting later would
-     * capture post-shift positions and produce phantom drift. */
+    /* Snapshot once on the FIRST dragstart only — Konva fires dragstart per-node, so later overwrites would capture post-shift positions. */
     if (_driftCheckSnapshot) return;
     const members = _collectBundleMemberSet(target);
     if (members.size < 2) { _driftCheckSnapshot = null; return; }
@@ -730,8 +642,7 @@ function endDriftCheck(source) {
     const POS_TOL = 0.5;   /* px */
     const ROT_TOL = 0.01;  /* degrees */
 
-    /* Normalize angle delta to [-180, 180) — absorbs ±180 wrap when one
-     * member's rotation crosses the boundary mid-rotation but others don't. */
+    /* Normalize angle delta to [-180, 180) to absorb ±180 wrap mid-rotation. */
     const _norm180 = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
 
     const deltas = [];
@@ -837,8 +748,7 @@ function migrateLegacyOverlayKeys(obj) {
     delete obj.layersVisible;
 }
 
-/* Ensures obj.overlaysVisible exists with every required key. Migrates
- * legacy `layersVisible` and fills missing keys with defaults. */
+/* Ensure obj.overlaysVisible exists with every required key; migrates legacy layersVisible and fills defaults. */
 function ensureOverlaysVisibleDefaulted(obj) {
     if (!obj || typeof obj !== 'object') return;
     migrateLegacyOverlayKeys(obj);
@@ -880,8 +790,7 @@ function getGroupMemberNodes(groupId) {
     return members;
 }
 
-/* Recalculate the Group rect's x, y, width, height from current member positions
- * and update both the Konva node and the roomObj.groups entry. */
+/* Recalculate the Group rect x/y/width/height from member positions; update both the Konva node and the roomObj.groups entry. */
 function updateGroupBounds(groupId) {
     if (!groupGroupRects) return;
     const members = getGroupMemberNodes(groupId);
@@ -925,8 +834,7 @@ function updateGroupBounds(groupId) {
     }
 }
 
-/* Returns { rectNode, group, groupId } when tr.nodes() is exactly one
- * Group bundle (rect + only its members); null otherwise. */
+/* Returns { rectNode, group, groupId } when tr.nodes() is exactly one Group bundle (rect + only its members); null otherwise. */
 function getActiveGroupSelection(nodes) {
     nodes = nodes || tr.nodes();
     if (!nodes || !nodes.length) return null;
@@ -987,15 +895,12 @@ function refreshGroupDetailsFromCanvas() {
     if (itemL) itemL.value = round(r.height() / scale);
 }
 
-/* Populate Details panel with Group fields. Width/Length are read-only
- * (set by members + Transformer); X/Y/Z/Rotation/Label/Layer are
- * editable via updateItem() → updateGroupItem(). */
+/* Populate Details panel with Group fields. Width/Length are read-only; X/Y/Z/Rotation/Label/Layer editable via updateGroupItem(). */
 function populateGroupDetails(rectNode) {
     const group = getGroupById(rectNode.data_groupId);
     if (!group) return;
 
-    /* Hide everything that doesn't apply to a Group.
-     * (The non-group branch of updateFormatDetails re-shows itemNameDiv.) */
+    /* Hide everything that doesn't apply to a Group (non-group branch of updateFormatDetails re-shows itemNameDiv). */
     const hideIds = [
         'itemNameDiv', 'certifiedDisplayDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
@@ -1044,9 +949,7 @@ function populateGroupDetails(rectNode) {
     populateLayerDropdown('drpItemLayer', group.data_layerId || '0');
 }
 
-/* Apply a Group-level edit from the Details panel: X/Y/Z translate
- * every member + rect; rotation rotates them around the rect's centre;
- * label/layer cascade to all members; updateShading() re-aligns coverage. */
+/* Apply a Group-level Details edit: X/Y/Z translate members + rect; rotation around the rect centre; label/layer cascade to members. */
 function updateGroupItem(group) {
     if (!group || !groupGroupRects) return;
     const rectNode = groupGroupRects.find(n => n.data_groupId === group.groupid)[0];
@@ -1055,8 +958,7 @@ function updateGroupItem(group) {
     const newName = (DOMPurify.sanitize(document.getElementById('labelField').value) || '').trim() || group.name;
     const newX = Number(document.getElementById('itemX').value) || 0;
     const newY = Number(document.getElementById('itemY').value) || 0;
-    /* Z field: empty / null / non-numeric all collapse to 0, matching the
-     * "treat missing data_zPosition as 0" rule applied to members below. */
+    /* Z field: empty / null / non-numeric all collapse to 0 (matches the missing-data_zPosition rule applied to members below). */
     const newZ = Number(document.getElementById('itemZposition').value) || 0;
     const newRot = normalizeDegree(Number(document.getElementById('itemRotation').value) || 0);
     const newLayerId = (document.getElementById('drpItemLayer') && document.getElementById('drpItemLayer').value) || '0';
@@ -1064,9 +966,7 @@ function updateGroupItem(group) {
     /* Compute deltas in the same units the form uses */
     const currentX_user = ((rectNode.x() - pxOffset) / scale) + activeRoomX;
     const currentY_user = ((rectNode.y() - pyOffset) / scale) + activeRoomY;
-    /* group.data_zPosition is the group's current baseline (the lowest
-     * member z at create time, kept in sync by every updateGroupItem
-     * call). Missing / NaN -> 0. */
+    /* group.data_zPosition is the group's current baseline (lowest member z, kept in sync by every updateGroupItem call). Missing / NaN -> 0. */
     const currentZ = Number(group.data_zPosition) || 0;
     const currentRot = rectNode.rotation();
 
@@ -1076,15 +976,10 @@ function updateGroupItem(group) {
     const deltaR = newRot - currentRot;
 
     const members = getGroupMemberNodes(group.groupid);
-    /* CustomItem rects whose every member belongs to this Group ride along
-     * with the Group during translate / rotate (same rule the drag-follow
-     * uses — see beginGroupDragFollow for the rationale). Without this, a
-     * Details-panel X / Y / Rotation edit on a Group would leave any
-     * fully-contained CustomItem rect floating where it was. */
+    /* CustomItem rects fully contained in this Group ride along on translate / rotate (same rule as the drag-follow; see beginGroupDragFollow). */
     const customItemRects = getCustomItemRectsAllInGroup(group.groupid);
 
-    /* 1) Translate first so the rotation pivot we compute next is the
-     *    visual centre at the new location. */
+    /* 1) Translate first so the rotation pivot is the visual centre at the new location. */
     if (deltaX_px !== 0 || deltaY_px !== 0) {
         members.forEach(m => { m.x(m.x() + deltaX_px); m.y(m.y() + deltaY_px); });
         rectNode.x(rectNode.x() + deltaX_px);
@@ -1100,19 +995,12 @@ function updateGroupItem(group) {
         customItemRects.forEach(r => rotateNodeAroundPoint(r, centre.x, centre.y, deltaR));
     }
 
-    /* 3) Z elevation: deltaZ adds to every member's data_zPosition.
-     *    A member with no existing data_zPosition (or NaN/non-numeric) is
-     *    treated as 0, so the new value lands at exactly deltaZ. The group
-     *    object then holds the new baseline (which equals newZ since every
-     *    member was shifted by the same amount, preserving the relative
-     *    stack). The early-return on `deltaZ === 0` avoids polluting nodes
-     *    that previously had no data_zPosition with an explicit `0`. */
+    /* 3) Z elevation: deltaZ adds to every member's data_zPosition (missing/NaN treated as 0); group holds the new baseline. */
     if (deltaZ !== 0) {
         members.forEach(m => {
             const existingZ = Number(m.data_zPosition) || 0;
             m.data_zPosition = existingZ + deltaZ;
-            /* Mirror to roomObj.items directly — canvasToJson() only writes
-             * data_zPosition when `in` the node, missing fresh assignments. */
+            /* Mirror to roomObj.items directly — canvasToJson() only writes data_zPosition already in the node. */
             if (roomObj && Array.isArray(roomObj.items)) {
                 const entry = roomObj.items.find(it => it.id === m.id());
                 if (entry) entry.data_zPosition = m.data_zPosition;
@@ -1151,8 +1039,7 @@ function updateGroupItem(group) {
     }
 }
 
-/* ---- CustomItem helper functions ----
- * Parallel to Groups; weaker selection precedence (Group wins on overlap). */
+/* ---- CustomItem helper functions (parallel to Groups; Group wins selection on overlap) ---- */
 
 function getCustomItemById(customItemId) {
     if (!roomObj.customItems) return null;
@@ -1215,8 +1102,7 @@ function markCustomItemInLibrary(customItemBaseId) {
     }
 }
 
-/* Inverse of markCustomItemInLibrary. Also removes sidebar tile and
- * surfaces empty-state banner if the grid is now empty. */
+/* Inverse of markCustomItemInLibrary; also removes sidebar tile and surfaces empty-state banner if the grid is now empty. */
 function unmarkCustomItemInLibrary(customItemBaseId) {
     if (!customItemBaseId) return;
     const before = customItemLibraryIds.size;
@@ -1237,17 +1123,12 @@ function unmarkCustomItemInLibrary(customItemBaseId) {
     }
 }
 
-/* Compute a customItem member's geometry in the customItem's normalized
- * local frame (UL at 0,0, rotation removed). Returns null on invalid.
- * Math (θ = ci.rotation, dx = part.x - ci.x, dy = part.y - ci.y):
- *   localX =  cos(θ)*dx + sin(θ)*dy, localY = -sin(θ)*dx + cos(θ)*dy
- *   localRotation = part.rotation - θ */
+/* Compute a customItem member's geometry in the customItem's normalized local frame (UL at 0,0, rotation removed); null on invalid. See notes/COMMENT_NOTES.md for the math. */
 function getPartRenderRect(item, customItem) {
     if (!item || !customItem) return null;
     if (!item.data_deviceid) return null;
 
-    /* Resolve w/h. Fixed-size devices pull from device library (mm).
-     * Device .height is 3D vHeight; use .depth for floor-plan height. */
+    /* Resolve w/h. Fixed-size devices pull from device library (mm); device .height is 3D vHeight, use .depth for floor-plan height. */
     let w = Number(item.width);
     let h = Number(item.height);
     if (!w || !h) {
@@ -1296,15 +1177,13 @@ function getPartRenderRect(item, customItem) {
     };
 }
 
-/* Look up a roomObj item entry by uuid (O(n) flat-array scan).
- * For Konva nodes, use roomObjItemsMap (O(1)) instead. */
+/* Look up a roomObj item entry by uuid (O(n) scan); for Konva nodes use roomObjItemsMap (O(1)) instead. */
 function findRoomItemByUuid(uuid) {
     if (!uuid || !roomObj || !Array.isArray(roomObj.items)) return null;
     return roomObj.items.find(i => i && i.id === uuid) || null;
 }
 
-/* Per-part data_* fields that round-trip through .vrcCustomItems export.
- * Fields not listed are dropped intentionally. */
+/* Per-part data_* fields that round-trip through .vrcCustomItems export; fields not listed are dropped intentionally. */
 const CUSTOM_ITEM_PART_VERBATIM_FIELDS = [
     'data_color',
     'data_fill',
@@ -1334,8 +1213,7 @@ function getCustomItemRecordName(rec) {
     return String(rec.customItemName || rec.data_labelField || '');
 }
 
-/* Build serializable export record for a customItem (METERS, menuImage empty).
- * Returns null on missing baseId or empty members. */
+/* Build serializable export record for a customItem (METERS, menuImage empty); null on missing baseId or empty members. */
 function buildCustomItemExportRecord(customItem) {
     if (!customItem || !customItem.customItemBaseId) return null;
     if (!Array.isArray(customItem.customItemMembers) || !customItem.customItemMembers.length) return null;
@@ -1406,8 +1284,7 @@ function buildCustomItemExportRecord(customItem) {
     };
 }
 
-/* Render a 100×100 PNG thumbnail in normalized pose (rotation=0, UL origin).
- * Parts fit in a centered 90×90 box. Returns Promise<dataURL|''>. */
+/* Render a 100×100 PNG thumbnail in normalized pose (rotation=0, UL origin); parts fit a centered 90×90 box. Returns Promise<dataURL|''>. */
 function createCustomItemMenuImage(record) {
     const FULL = 100;          /* total thumbnail size, px */
     const INNER = 90;          /* drawable region inside the padding, px */
@@ -1416,10 +1293,7 @@ function createCustomItemMenuImage(record) {
         return Promise.resolve('');
     }
 
-    /* Per-part anchor: tables/stageFloors/boxes/rooms use UL; everything
-     * else uses CENTER (offsetX=w/2 idiom). pathShape is in 'tables' but
-     * (x,y) is the path's local origin. getPartRenderRect() preserves
-     * the source convention, so branch per-device when placing nodes. */
+    /* Per-part anchor: tables/stageFloors/boxes/rooms use UL; everything else uses CENTER (offsetX=w/2). */
     function partAnchorIsUL(part) {
         const dt = (typeof allDeviceTypes !== 'undefined' && allDeviceTypes)
             ? allDeviceTypes[part.data_deviceid] : null;
@@ -1448,12 +1322,7 @@ function createCustomItemMenuImage(record) {
         return Promise.resolve('');
     }
 
-    /* pathShape stores its presentation (path data, scale, fill, opacity)
-     * inside data_labelField as a JSON object. The canvas renderer at
-     * insertDevice.id === 'pathShape' applies the same parsing — we
-     * mirror it here so the thumbnail matches what the user sees. Regex
-     * (not JSON.parse) is used because the labelField historically also
-     * carries free-text comments alongside the JSON object. */
+    /* pathShape stores presentation (path/scale/fill/opacity) as JSON in data_labelField; regex-parsed (not JSON.parse) since labelField may also carry free text. */
     function parsePathShapeLabel(labelField) {
         const out = {
             path: 'M-0.5-0.5 h1.2 l0.1 1 l-0.5 -0.4 L-0.5 0.5z',
@@ -1471,16 +1340,7 @@ function createCustomItemMenuImage(record) {
         return out;
     }
 
-    /* Build the Konva node for one part at METER scale (i.e. no
-     * thumbnail-fit scaling yet). Position is in part-frame METERS, so
-     * we can read layer.getClientRect() afterwards to compute the union
-     * bbox in the same units. The fit-to-INNER scale + center
-     * translation is then applied to the whole LAYER below, which keeps
-     * per-part math simple and unaffected by stacking order or
-     * rotation interactions. Resolves once the node is fully rendered:
-     * for Konva.Image that means the underlying Image() has loaded (so
-     * toDataURL captures pixels, not an empty bitmap); for Rect/Path
-     * it's synchronous so resolves immediately. */
+    /* Build the Konva node for one part at METER scale (fit-and-center applied to the whole layer later). Resolves once rendered (Image waits for load; Rect/Path resolve immediately). */
     function addPartNodeAtMeterScale(part) {
         return new Promise(function (resolveOne) {
             const dt = (typeof allDeviceTypes !== 'undefined' && allDeviceTypes)
@@ -1491,10 +1351,7 @@ function createCustomItemMenuImage(record) {
             const w = Number(part.width) || 0;
             const h = Number(part.height) || 0;
 
-            /* pathShape — Konva.Path. (x, y) is where path-(0,0) lands;
-             * rotation pivots around that point (Konva default offset).
-             * Scale from labelField JSON "scale". strokeScaleEnabled:false
-             * keeps stroke at fixed pixel width despite layer.scale(). */
+            /* pathShape — Konva.Path. (x,y) is where path-(0,0) lands; scale from labelField JSON; strokeScaleEnabled:false keeps fixed pixel stroke. */
             if (part.data_deviceid === 'pathShape') {
                 const lf = parsePathShapeLabel(part.data_labelField);
                 /* Precedence: Details picker > label-JSON > device default. */
@@ -1518,8 +1375,7 @@ function createCustomItemMenuImage(record) {
             }
 
             const isUl = partAnchorIsUL(part);
-            /* Style mapping replicates the canvas insertItem() branch per device-id
-             * so the thumbnail matches what the user dragged onto the canvas. */
+            /* Style mapping replicates the canvas insertItem() branch per device-id so the thumbnail matches the canvas. */
             let nodeAttrs = {
                 x: cx, y: cy,
                 width: w, height: h,
@@ -1528,20 +1384,11 @@ function createCustomItemMenuImage(record) {
                 offsetY: isUl ? 0 : h / 2,
             };
 
-            /* sphere / cylinder — Konva.Shape with sceneFunc drawing an
-             * ellipse in the local [0,w]×[0,h] frame, mirroring the
-             * canvas rendering at insertTable(). Without this branch,
-             * spheres and cylinders fall through to the fallback rect
-             * and render as colored rectangles in the library tile.
-             * Sphere uses a radial gradient (white → data_fill) and
-             * cylinder uses a flat fill — matches CLAUDE.md
-             * "Configurable Fill & Opacity" precedence (Details picker
-             * > device default). */
+            /* sphere / cylinder — Konva.Shape sceneFunc drawing an ellipse, mirroring insertTable(). Sphere uses radial gradient, cylinder flat fill. */
             if (part.data_deviceid === 'sphere' || part.data_deviceid === 'cylinder') {
                 const isSphere = part.data_deviceid === 'sphere';
                 const bodyColor = part.data_fill || 'grey';
-                /* Sphere device-def has no opacity (defaults to 0.8 in the
-                 * canvas insertTable path); cylinder device-def is 0.4. */
+                /* Sphere has no device-def opacity (defaults to 0.8 in insertTable); cylinder device-def is 0.4. */
                 const deviceDefaultOpacity = isSphere ? 0.8 : (dt && typeof dt.opacity === 'number' ? dt.opacity : 0.4);
                 const shapeOpacity = (part.data_opacity != null)
                     ? Number(part.data_opacity)
@@ -1600,8 +1447,7 @@ function createCustomItemMenuImage(record) {
             }
 
             if (dt && dt.topImage) {
-                /* Create Image node FIRST so it participates in getClientRect();
-                 * bitmap attaches later inside onload. */
+                /* Create Image node FIRST so it participates in getClientRect(); bitmap attaches later in onload. */
                 const imageNode = new Konva.Image(Object.assign({ image: null }, nodeAttrs));
                 layer.add(imageNode);
                 const imgObj = new Image();
@@ -1636,11 +1482,7 @@ function createCustomItemMenuImage(record) {
         });
     }
 
-    /* Sort parts to match drawRoom()'s z-stacking (rooms → boxes →
-     * touchPanels → speakers → displays → stageFloors → tables → chairs
-     * → microphones → videoDevices). Reads from `allNodeShapeGroups` so
-     * any future canvas reorder stays in lockstep. Unknown parentGroups
-     * sort to the end so they paint on top and remain visible. */
+    /* Sort parts to match drawRoom()'s z-stacking (reads allNodeShapeGroups order); unknown parentGroups sort to the end. */
     const groupZOrder = (typeof allNodeShapeGroups !== 'undefined' && Array.isArray(allNodeShapeGroups))
         ? allNodeShapeGroups.map(g => g.name())
         : [];
@@ -1659,8 +1501,7 @@ function createCustomItemMenuImage(record) {
     /* Pass 1: synchronously create every node at meter scale (image loads continue in background). */
     const partPromises = orderedParts.map(addPartNodeAtMeterScale);
 
-    /* Pass 2: measure layer bbox in meters and apply layer-wide fit-and-center transform.
-     * skipStroke:true so placeholder strokeWidth doesn't poison the bbox. */
+    /* Pass 2: measure layer bbox in meters and apply layer-wide fit-and-center transform (skipStroke:true so placeholder stroke doesn't poison bbox). */
     let bbox = layer.getClientRect({ skipTransform: false, skipStroke: true });
     if (!bbox || !isFinite(bbox.width) || !isFinite(bbox.height) ||
         bbox.width <= 0 || bbox.height <= 0) {
@@ -1756,8 +1597,7 @@ function loadCustomItemLibraryRecordsForQuickAdd() {
     return _customItemQuickAddRecordsLoading;
 }
 
-/* Per-baseId debounce timers for maybeAutoSaveCustomItemEdit.
- * 750ms coalesces drag-frame storms into one IDB upsert. */
+/* Per-baseId debounce timers for maybeAutoSaveCustomItemEdit; 750ms coalesces drag-frame storms into one IDB upsert. */
 const _customItemAutoSaveTimers = new Map();
 const _CUSTOM_ITEM_AUTO_SAVE_DEBOUNCE_MS = 750;
 
@@ -1849,8 +1689,7 @@ function openDeleteCustomItemFromLibraryDialog(baseId, name) {
     dialog.showModal();
 }
 
-/* Edit Custom Item dialog (Quick Add ellipsis). Cascades Name/Author/Description
- * to every canvas instance with matching baseId on save. */
+/* Edit Custom Item dialog (Quick Add ellipsis); cascades Name/Author/Description to every canvas instance with matching baseId on save. */
 let _customItemEditDialogBaseId = null;
 
 function openEditCustomItemDialog(baseId) {
@@ -1899,12 +1738,7 @@ function openEditCustomItemDialog(baseId) {
         if (removeBtn) removeBtn.onclick = destructive;
         if (deleteBtn) deleteBtn.onclick = destructive;
 
-        /* Helper-only "Copy as parentItem template" button — gated on test mode
-         * (?test query param sets localStorage.test='true'; see boot IIFE).
-         * Exposes a one-click way to convert a CustomItem template into a
-         * workspaceKey.<id> = { parentItem: true, childItemParts: [...] }
-         * snippet for paste into js/data/workspaceKey.js. See CLAUDE.md
-         * "Parent Items" → "Authoring helper". */
+        /* Helper-only "Copy as parentItem template" button — gated on test mode (localStorage.test==='true'). */
         if (copyAsParentBtn) {
             const testMode = (typeof localStorage !== 'undefined' &&
                 localStorage.getItem('test') === 'true');
@@ -1929,29 +1763,14 @@ function openEditCustomItemDialog(baseId) {
     }
 }
 
-/* Test-mode helper: convert the named CustomItem (library record) into a
- * workspaceKey.<id> = { parentItem: true, childItemParts: [...] } snippet
- * and copy it to the clipboard for paste into js/data/workspaceKey.js.
- *
- * The IDB library record's `customItemParts` already holds parts in the
- * canonical Parent-Item child frame (METERS, parent-local UL=0,0 origin,
- * normalized rotation), which is exactly what childItemParts needs — so
- * the conversion is essentially a field whitelist + JSON pretty-print.
- *
- * Surfaced via the orange "Copy as parentItem template" button on the
- * Edit Custom Item dialog (#customItemEditCopyAsParentBtn), gated on
- * localStorage.test === 'true' (?test query param sets this; see boot
- * IIFE). See CLAUDE.md "Parent Items" → "Authoring helper". */
+/* Test-mode helper: convert a CustomItem library record into a workspaceKey.<id> parentItem snippet on the clipboard. See notes/COMMENT_NOTES.md. */
 function copyCustomItemAsParentTemplate(baseId) {
     if (!baseId) return;
 
     const cached = (_customItemQuickAddRecordsCache || [])
         .find(r => r && r.customItemBaseId === baseId);
 
-    /* Whitelist of fields childItemParts understands — drop runtime-only
-     * attrs (data_fovHidden, data_audioHidden, data_diagonalInches, etc.)
-     * that the customItem export carries but parentItem children never
-     * use. Mirrors the field set read by pushParentItemChildren(). */
+    /* Whitelist of fields childItemParts understands; drops runtime-only attrs. Mirrors the field set read by pushParentItemChildren(). */
     const ALLOWED_FIELDS = ['data_deviceid', 'x', 'y', 'width', 'height', 'rotation',
         'data_zPosition', 'data_vHeight', 'data_tilt', 'data_slant',
         'data_fill', 'data_opacity', 'data_radius2', 'data_labelField',
@@ -1969,24 +1788,7 @@ function copyCustomItemAsParentTemplate(baseId) {
             return out;
         });
 
-        /* Normalize data_zPosition so the LOWEST part rests at 0, with the
-         * rest shifted by the same delta. The parent's own data_zPosition
-         * is then added back to every child on export
-         * (pushParentItemChildren), so the user controls resting height
-         * via the parent (0 = sitting on the ground; a device default
-         * vHeight raises it on insert). Without this a tall assembly (e.g.
-         * a ceiling fan authored near the ceiling) would export floating
-         * at its authored height regardless of where the user drops it.
-         *
-         * CRITICAL: a part WITHOUT data_zPosition rests on the assembly
-         * floor, so it MUST count as 0 in the minimum. Earlier this only
-         * scanned parts that carried an explicit numeric data_zPosition,
-         * which mis-computed the floor whenever some parts were at implicit
-         * 0 (e.g. base/stand boxes): the min landed on the lowest ELEVATED
-         * part and every elevated part collapsed toward the base on export.
-         * The net effect is that the shift only happens when EVERY part is
-         * elevated (the ceiling-fan case); a mixed assembly keeps its
-         * vertical structure intact (min already 0 → no shift). */
+        /* Normalize data_zPosition so the lowest part rests at 0 (missing data_zPosition counts as 0). See notes/COMMENT_NOTES.md. */
         const round4 = (v) => Math.round((Number(v) || 0) * 10000) / 10000;
         let minZ = Infinity;
         parts.forEach(p => {
@@ -2000,9 +1802,7 @@ function copyCustomItemAsParentTemplate(baseId) {
             if (typeof p.data_zPosition === 'number') p.data_zPosition = round4(p.data_zPosition - minZ);
         });
 
-        /* Slugify the customItem name into a JS-identifier device id;
-         * camelCase first letter for convention parity with existing
-         * workspaceKey entries (genericSecurityCamera, roomBarPro, …). */
+        /* Slugify the customItem name into a camelCase JS-identifier device id. */
         const safeName = (getCustomItemRecordName(rec) || 'newDevice')
             .replace(/[^A-Za-z0-9]+/g, '');
         const deviceId = (safeName.charAt(0).toLowerCase() + safeName.slice(1)) || 'newDevice';
@@ -2082,12 +1882,7 @@ function confirmEditCustomItemFromDialog() {
             if (dlg) dlg.close();
             return null;
         }
-        /* Merge edits into the existing record. menuImage,
-         * customItemParts, width, height, customItemBaseId, and addedAt
-         * are all preserved verbatim by the customItemPut path (which
-         * reads them off `record` and passes them through). Writes the
-         * new canonical name key + drops the legacy `data_labelField`
-         * so the next customItemPut atomically migrates the row. */
+        /* Merge metadata edits; geometry/parts/menuImage preserved verbatim. Drops legacy data_labelField so customItemPut migrates the row. */
         rec.customItemName = newName;
         if ('data_labelField' in rec) delete rec.data_labelField;
         rec.author = newAuthor;
@@ -2098,11 +1893,7 @@ function confirmEditCustomItemFromDialog() {
                 showToast('Save failed');
                 return null;
             }
-            /* Cascade to any live canvas instance(s) of this template
-             * so the Details panel and the customItem rect label
-             * reflect the new name immediately. The strict-family
-             * model says all instances share metadata derived from
-             * the library — see CLAUDE.md "Strict-family model". */
+            /* Cascade to live canvas instances so Details panel + rect label reflect the new name (strict-family model). */
             if (Array.isArray(roomObj.customItems)) {
                 roomObj.customItems.forEach(ci => {
                     if (!ci || ci.customItemBaseId !== baseId) return;
@@ -2110,9 +1901,7 @@ function confirmEditCustomItemFromDialog() {
                     ci.author = newAuthor;
                     ci.description = newDesc;
                     if (!ci.version) ci.version = rec.version || '1';
-                    /* Mirror name onto the rect's data_labelField so
-                     * the canvas label and Details-panel "Custom Item
-                     * Name" both pick it up on next refresh. */
+                    /* Mirror name onto the rect's data_labelField for canvas label + Details panel. */
                     if (typeof groupCustomItemRects !== 'undefined' && groupCustomItemRects) {
                         const rectNode = groupCustomItemRects
                             .find(n => n.data_customItemId === ci.customitemid)[0];
@@ -2121,10 +1910,7 @@ function confirmEditCustomItemFromDialog() {
                 });
             }
 
-            /* Refresh the Quick Add cache so the tile label / search
-             * match the new name on the next keystroke without a
-             * round-trip. The cache is the source of truth for the
-             * palette renderer while the dialog is open. */
+            /* Refresh the Quick Add cache so tile label / search match the new name on next keystroke. */
             if (Array.isArray(_customItemQuickAddRecordsCache)) {
                 const idx = _customItemQuickAddRecordsCache.findIndex(
                     r => r && r.customItemBaseId === baseId);
@@ -2136,10 +1922,7 @@ function confirmEditCustomItemFromDialog() {
                         description: newDesc,
                         version: rec.version || '1',
                     });
-                    /* Drop the legacy key from the cache entry so
-                     * helper-based reads always land on the new key
-                     * and the migrated shape is what the palette sees
-                     * on the next keystroke (no Object.assign carry-over). */
+                    /* Drop legacy key from the cache entry so reads land on the new key. */
                     if ('data_labelField' in merged) delete merged.data_labelField;
                     _customItemQuickAddRecordsCache[idx] = merged;
                 }
@@ -2151,12 +1934,7 @@ function confirmEditCustomItemFromDialog() {
             const input = document.querySelector('.quick-dialog input');
             if (input) onQuickAddChange({ target: input });
 
-            /* Persist roomObj so the rename survives undo history /
-             * page refresh from a saved URL. canvasToJson() walks
-             * tr.nodes() and merges into roomObj — the customItems
-             * array we just mutated is untouched by that walker, so
-             * the rename is preserved as long as canvasToJson runs
-             * after our mutation. */
+            /* Persist roomObj so the rename survives undo / page refresh. */
             if (typeof canvasToJson === 'function') canvasToJson();
             return savedBaseId;
         });
@@ -2166,37 +1944,9 @@ function confirmEditCustomItemFromDialog() {
     });
 }
 
-/* ============================================================================
- * Storage and Local Data dialog
- *
- * Opened from Details -> Settings -> "Storage and Local Data..." button.
- * Shows per-bucket counts plus a navigator.storage.estimate() total when
- * available, and offers two destructive actions:
- *
- *   - Clear Undo/Redo History (recommended) - safe; addresses "many tabs
- *     sluggish" complaints. Clears IDB undo/redo stores and resets in-memory
- *     undoArray/redoArray. Also closes the Workspace Designer iframe so
- *     the heaviest in-memory consumer is released alongside undo history.
- *     No page reload — the user keeps their current canvas.
- *
- *   - Clear All - wipes every IDB store this app manages (undo, redo,
- *     Custom Item Library, Background Image Library) plus localStorage
- *     (snap settings, default unit, wd overrides, copyItemsObj, etc.)
- *     and navigates to the base URL so the user lands on a fresh
- *     default room with no shareable-link params (?x=…) carried over.
- *     The page reload restarts every in-memory cache
- *     (customItemLibraryIds, undoArray, etc.) from a clean slate.
- *
- * Both buttons are no-ops with a tooltip when idbStore.isAvailable() is
- * false (Safari private mode quirks etc.); see "fallbacks" below.
- *
- * Numbers are point-in-time (fetched on dialog open). The Clear Undo/Redo
- * path refreshes them after running so the user sees the bucket drop to 0.
- * ============================================================================ */
+/* ---- Storage and Local Data dialog (Details -> Settings). Per-bucket counts + Clear Undo/Redo and Clear All actions. See notes/COMMENT_NOTES.md. ---- */
 
-/* Format a byte count as a human-friendly string (MB to one decimal,
- * or GB once we cross ~1 GB). Used for the navigator.storage.estimate()
- * total + quota lines. */
+/* Format a byte count as a human-friendly string (KB/MB/GB). */
 function _formatStorageBytes(bytes) {
     if (bytes == null || !isFinite(bytes) || bytes < 0) return '—';
     const KB = 1024;
@@ -2208,8 +1958,7 @@ function _formatStorageBytes(bytes) {
     return String(bytes) + ' B';
 }
 
-/* Format "N / cap" for the per-bucket rows. If cap is null/undefined,
- * just shows the count. */
+/* Format "N / cap" for the per-bucket rows; shows just the count if cap is null/undefined. */
 function _formatStorageCount(count, cap) {
     if (typeof count !== 'number' || !isFinite(count)) return '—';
     if (typeof cap === 'number' && isFinite(cap) && cap > 0) {
@@ -2218,15 +1967,7 @@ function _formatStorageCount(count, cap) {
     return String(count);
 }
 
-/* Current open/closed status of the Workspace Designer iframe(s).
- * Returns true when ANY of the WD iframes is loaded in memory: the
- * split-view iframe (`#splitViewIframe`, tracked via
- * `splitViewState.iframeLoaded`) and / or the Cisco-internal floating
- * iframe (`#iFrameFloatingWorkspace`, gated by `testiFrame`). Once an
- * iframe has loaded its src it continues to consume DOM + JS memory
- * even after the split-view panel is visually closed, so the row in
- * the storage dialog reflects the memory state rather than the panel
- * visibility. */
+/* True when any WD iframe (split-view or Cisco-internal floating) is loaded in memory; reflects memory state, not panel visibility. */
 function _isWorkspaceDesignerIframeOpen() {
     if (typeof splitViewState !== 'undefined' && splitViewState && splitViewState.iframeLoaded) {
         return true;
@@ -2239,22 +1980,7 @@ function _isWorkspaceDesignerIframeOpen() {
     return false;
 }
 
-/* Close any open Workspace Designer iframe(s) and release the loaded
- * WD page so the browser can reclaim memory. Used by the Storage and
- * Local Data dialog's Clear Undo/Redo path (the iframe is heavyweight
- * and shares the "old session state the user no longer needs" bucket
- * with undo/redo). Clear All also reloads the page, which wipes the
- * iframe naturally, so this helper is invoked there only for symmetry.
- *
- * Steps, in order:
- *   1. If the split-view panel is visible, close it via splitViewClose()
- *      so the layout reflows back to full-width canvas.
- *   2. Clear `#splitViewIframe`.src and reset `splitViewState.iframeLoaded`
- *      so the next Open WD click reloads cleanly.
- *   3. Clear `#iFrameFloatingWorkspace`.src (Cisco-internal testiFrame
- *      path) and reset `testiFrameInitialized` for the same reason.
- *
- * No-op when nothing is loaded. */
+/* Close any open WD iframe(s) and release the loaded page so the browser reclaims memory. No-op when nothing is loaded. */
 function _closeWorkspaceDesignerIframe() {
     if (typeof splitViewState !== 'undefined' && splitViewState
         && splitViewState.isActive && typeof splitViewClose === 'function') {
@@ -2281,9 +2007,7 @@ function _closeWorkspaceDesignerIframe() {
     }
 }
 
-/* Refresh the per-bucket count cells and the total/IDB lines. Called on
- * dialog open AND after a Clear Undo/Redo so the table updates without
- * closing the dialog. */
+/* Refresh the per-bucket count cells and total/IDB lines; called on dialog open and after Clear Undo/Redo. */
 function _refreshStorageDialogCounts() {
     const totalLineEl = document.getElementById('storageDialogTotalLine');
     const idbLineEl = document.getElementById('storageDialogIdbLine');
@@ -2293,9 +2017,7 @@ function _refreshStorageDialogCounts() {
     const bgCellEl = document.getElementById('storageCountBgImages');
     const wdCellEl = document.getElementById('storageWorkspaceDesignerStatus');
 
-    /* The Workspace Designer row is independent of IDB — it reflects
-     * the in-memory iframe state, not on-disk storage. Populate it
-     * first so the row updates even when IDB is unavailable below. */
+    /* The WD row is independent of IDB (in-memory iframe state); populate it first so it updates even when IDB is unavailable. */
     if (wdCellEl) {
         wdCellEl.textContent = _isWorkspaceDesignerIframeOpen() ? 'Open' : 'Closed';
     }
@@ -2308,9 +2030,7 @@ function _refreshStorageDialogCounts() {
             : 'IndexedDB: unavailable (undo/redo and library features disabled)';
     }
 
-    /* Per-bucket caps — pulled from idbStore._constants when exposed,
-     * otherwise hardcoded fallbacks that match the values in
-     * js/idbStorage.js. */
+    /* Per-bucket caps from idbStore._constants when exposed, else fallbacks matching js/idbStorage.js. */
     let caps = { undo: 100, redo: 100, customItems: 200, bgImages: 10 };
     if (window.idbStore && window.idbStore._constants) {
         const c = window.idbStore._constants;
@@ -2320,8 +2040,7 @@ function _refreshStorageDialogCounts() {
         caps.bgImages = c.MAX_BG_IMAGES || caps.bgImages;
     }
 
-    /* When IDB is unavailable every count is "—". Skip the IDB calls
-     * entirely so we don't show "0 / 100" which would be misleading. */
+    /* When IDB is unavailable every count is "—"; skip the IDB calls so we don't show a misleading "0 / 100". */
     if (!idbAvailable) {
         if (undoCellEl) undoCellEl.textContent = '—';
         if (redoCellEl) redoCellEl.textContent = '—';
@@ -2331,8 +2050,7 @@ function _refreshStorageDialogCounts() {
         return;
     }
 
-    /* Pull all four counts in parallel. Each helper resolves to 0 on
-     * failure so the table never blocks on an error. */
+    /* Pull all four counts in parallel; each helper resolves to 0 on failure so the table never blocks. */
     const idb = window.idbStore;
     Promise.all([
         (typeof idb.undoCount === 'function') ? idb.undoCount() : Promise.resolve(null),
@@ -2348,11 +2066,7 @@ function _refreshStorageDialogCounts() {
         console.warn('[storageDialog] count refresh failed:', e && e.message);
     });
 
-    /* navigator.storage.estimate() is broadly supported (Chrome / Edge /
-     * Firefox / Safari 15.4+) but we feature-detect anyway and fall back
-     * to a generic message on older browsers. The total is per-origin so
-     * it includes ANY other apps hosted at the same origin (see the
-     * footnote in the modal text). */
+    /* navigator.storage.estimate() is feature-detected; the total is per-origin (includes other apps at the same origin). */
     if (totalLineEl) {
         if (navigator && navigator.storage && typeof navigator.storage.estimate === 'function') {
             totalLineEl.textContent = 'Calculating storage usage...';
@@ -2376,21 +2090,16 @@ function _refreshStorageDialogCounts() {
     }
 }
 
-/* Open the Storage and Local Data dialog. Refreshes the count table,
- * resets the inline-confirm row, and disables the action buttons when
- * IDB is unavailable. */
+/* Open the Storage and Local Data dialog; refreshes counts, resets the inline-confirm row, disables actions when IDB is unavailable. */
 function openStorageDialog() {
     const dialog = document.getElementById('dialogStorage');
     if (!dialog) return;
 
-    /* Always start with the inline confirm row hidden — a previous open
-     * may have left it visible if the user closed the dialog mid-confirm. */
+    /* Always start with the inline confirm row hidden (a previous open may have left it visible). */
     const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
     if (inlineConfirm) inlineConfirm.style.display = 'none';
 
-    /* Toggle disabled state of action buttons based on IDB availability.
-     * When IDB is down both clears are no-ops, so we grey them out and
-     * surface the reason via the title tooltip. */
+    /* Toggle action-button disabled state on IDB availability; grey out and tooltip the reason when IDB is down. */
     const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
     const btnUndoRedo = document.getElementById('btnClearUndoRedoStorage');
     const btnAll = document.getElementById('btnClearAllStorage');
@@ -2399,9 +2108,7 @@ function openStorageDialog() {
         btnUndoRedo.title = idbAvailable ? '' : 'IndexedDB unavailable in this browser';
     }
     if (btnAll) {
-        /* Clear All also wipes localStorage which is independent of IDB,
-         * so we keep it enabled even when IDB is down — clearing prefs
-         * may still help troubleshooting. */
+        /* Clear All also wipes localStorage (independent of IDB), so keep it enabled even when IDB is down. */
         btnAll.title = idbAvailable ? '' : 'IndexedDB unavailable — only preferences will be cleared';
     }
 
@@ -2409,10 +2116,7 @@ function openStorageDialog() {
     dialog.showModal();
 }
 
-/* "Clear Undo/Redo History (recommended)" button handler. Shows the
- * inline confirm row inside the same dialog (one fewer modal step than
- * a full nested dialog). The actual clear runs from
- * confirmClearUndoRedoInline(). */
+/* "Clear Undo/Redo History" button handler; shows the inline confirm row. The actual clear runs from confirmClearUndoRedoInline(). */
 function onClearUndoRedoClicked() {
     const idbAvailable = !!(window.idbStore && typeof window.idbStore.isAvailable === 'function' && window.idbStore.isAvailable());
     if (!idbAvailable) {
@@ -2428,11 +2132,7 @@ function cancelClearUndoRedoInline() {
     if (inlineConfirm) inlineConfirm.style.display = 'none';
 }
 
-/* Actually clear undo/redo. Wipes both IDB stores, resets the in-memory
- * arrays, and re-syncs the toolbar undo/redo button states. Also closes
- * the Workspace Designer iframe (if open) so the user's "free up
- * resources" intent covers the heaviest in-memory consumer too. No page
- * reload — the user keeps their current canvas. */
+/* Clear undo/redo: wipes both IDB stores, resets in-memory arrays, re-syncs toolbar buttons, and closes the WD iframe. No page reload. */
 function confirmClearUndoRedoInline() {
     const inlineConfirm = document.getElementById('storageInlineConfirmUndo');
     if (inlineConfirm) inlineConfirm.style.display = 'none';
@@ -2442,18 +2142,12 @@ function confirmClearUndoRedoInline() {
         return;
     }
 
-    /* Capture WD state BEFORE closing so the toast message accurately
-     * reflects what happened. Close fires regardless — no-op if nothing
-     * is loaded. */
+    /* Capture WD state BEFORE closing so the toast message is accurate; close fires regardless. */
     const wdWasOpen = _isWorkspaceDesignerIframeOpen();
     _closeWorkspaceDesignerIframe();
 
     window.idbStore.clearAllUndoRedo().then(function () {
-        /* Reset in-memory mirrors. saveToUndoArray() handles the
-         * "length === 0" case (treats last item as empty string), so
-         * the next real edit will push the current roomObj as the new
-         * baseline. enableBtnUndoRedo() greys out the toolbar buttons
-         * immediately because both arrays are now empty. */
+        /* Reset in-memory mirrors; next real edit re-baselines, enableBtnUndoRedo() greys the toolbar buttons. */
         undoArray = [];
         redoArray = [];
         if (typeof enableBtnUndoRedo === 'function') enableBtnUndoRedo();
@@ -2468,16 +2162,13 @@ function confirmClearUndoRedoInline() {
     });
 }
 
-/* "Clear All" button handler. Opens the separate confirmation dialog
- * because the action is irreversible and reloads the page; an inline
- * confirm row would be too easy to brush past. */
+/* "Clear All" button handler; opens a separate confirmation dialog since the action is irreversible and reloads the page. */
 function onClearAllClicked() {
     const dialogConfirm = document.getElementById('dialogStorageClearAllConfirm');
     const main = document.getElementById('dialogStorageClearAllMain');
     if (!dialogConfirm || !main) return;
 
-    /* Fetch fresh counts so the warning text shows the user exactly
-     * what they're about to lose. Resolves to 0 on any failure. */
+    /* Fetch fresh counts so the warning text shows exactly what will be lost; resolves to 0 on failure. */
     const idb = window.idbStore || {};
     const customCountP = (typeof idb.customItemCount === 'function') ? idb.customItemCount() : Promise.resolve(0);
     const bgCountP = (typeof idb.bgImagesCount === 'function') ? idb.bgImagesCount() : Promise.resolve(0);
@@ -2485,9 +2176,7 @@ function onClearAllClicked() {
     Promise.all([customCountP, bgCountP]).then(function (counts) {
         const customCount = counts[0] || 0;
         const bgCount = counts[1] || 0;
-        /* Build the warning as DOM nodes (not innerHTML) — counts are
-         * numbers and the strings are static, but keep the safe pattern
-         * anyway so future edits can't accidentally introduce an XSS. */
+        /* Build the warning as DOM nodes (not innerHTML) to keep the XSS-safe pattern. */
         main.textContent = '';
 
         const intro = document.createElement('div');
@@ -2530,17 +2219,9 @@ function onClearAllClicked() {
     });
 }
 
-/* Confirm button on the Clear All dialog. Wipes IDB + localStorage,
- * closes the Workspace Designer iframe, then navigates to the base
- * URL (no ?x=… shareable-link params) so the user lands on a fresh
- * default room. The reload is essential because in-memory caches
- * (customItemLibraryIds, undoArray, redoArray, _customItemQuickAddRecordsCache,
- * the rehydrated bgImage on canvas, etc.) all need to restart from a
- * clean slate, and the URL drop guarantees the in-memory roomObj also
- * resets to the default rather than re-decoding from `?x=`. */
+/* Confirm Clear All: wipe IDB + localStorage, close WD iframe, navigate to base URL (drops ?x=) for a fresh default room. Reload restarts all in-memory caches. */
 function confirmClearAllStorage() {
-    /* Disable the button so the user can't double-click while the
-     * async IDB clear is in flight. */
+    /* Disable the button so the user can't double-click during the async IDB clear. */
     const btn = document.getElementById('btnConfirmClearAllStorage');
     if (btn) btn.disabled = true;
 
@@ -2554,17 +2235,9 @@ function confirmClearAllStorage() {
         } catch (e) {
             console.warn('[storageDialog] localStorage.clear failed:', e && e.message);
         }
-        /* Also close any open WD iframe before reloading. Strictly
-         * unnecessary (the navigation below tears down the whole
-         * document) but keeps behaviour symmetric with Clear Undo/Redo. */
+        /* Close any open WD iframe before reloading (symmetric with Clear Undo/Redo; navigation tears it down anyway). */
         try { _closeWorkspaceDesignerIframe(); } catch (e) { /* ignore */ }
-        /* Reload to the base URL (drop ?x=… shareable-link params and
-         * any other query string / hash) so the user lands on a fresh
-         * default room. Without this, location.reload() would re-decode
-         * the current room from the URL — defeating the "wipe
-         * everything" intent of Clear All. location.assign() with the
-         * explicit origin + pathname avoids the trailing-`?` quirks
-         * some browsers exhibit when setting `location.search = ''`. */
+        /* Reload to the base URL (drop ?x= and other params) so the user lands on a fresh default room. */
         try {
             window.location.assign(window.location.origin + window.location.pathname);
         } catch (e) {
@@ -3400,8 +3073,7 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
     const id = node.id();
     if (!id) return;
 
-    /* O(1) Map lookup — see updateShading() for the rationale. The
-     * .parent guard drops stale entries left by any unsynced destroy path. */
+    /* O(1) Map lookup (see updateShading()); .parent guard drops stale entries from unsynced destroys. */
     const audioNode = canvasNodesMap.get('audio~' + id);
     if (audioNode && audioNode.parent) {
         audioNode.visible(layerVisible && node.data_audioHidden !== true);
@@ -3439,16 +3111,7 @@ function applyLayerStateToCoverageNodes(node, layerVisible) {
     }
 }
 
-/* Re-apply layer visible/locked to all canvas nodes + coverage.
- * Selector includes Label so Konva.Label-based items (wdText/vrcText)
- * — whose data_layerId lives on the Label parent, not on the inner
- * Konva.Tag/Konva.Text children — also react to layer toggles.
- * Selector also includes Group so Konva.Group-based items (wallChairs
- * family — Row of Chairs/Swivel/Stool — and dimensionLine), whose
- * data_layerId lives on the parent Group (the actual selectable item)
- * not on the inner children, also react to layer toggles. Container
- * groups like groupTables/groupChairs/groupGroupRects don't carry
- * data_layerId so the `if (node.data_layerId)` guard skips them. */
+/* Re-apply layer visible/locked to all canvas nodes + coverage. Selector includes Label/Group so text + wallChairs/dimensionLine (data_layerId on the parent) react to toggles. */
 function applyAllLayerStates() {
     const allNodes = layerTransform.find('Image, Rect, Circle, Shape, Line, Text, RegularPolygon, Label, Group');
     allNodes.forEach(node => {
@@ -3692,28 +3355,16 @@ function confirmCreateCustomItemFromDialog() {
     createCustomItem(undefined, cleaned, cleanedAuthor, cleanedDesc);
 }
 
-/* dialogTextInsert — pending insertion state for wdText/vrcText.
- * Captured by openTextInsertDialog() and consumed in
- * confirmTextInsertFromDialog(). Reset on confirm so a stale pending
- * insert (e.g. user opened then closed the dialog without confirming)
- * doesn't leak into the next item insert. Single global is safe because
- * only one modal can be open at a time. */
+/* dialogTextInsert pending-insert state for wdText/vrcText; set by openTextInsertDialog(), consumed/reset by confirmTextInsertFromDialog(). */
 let _pendingTextInsertDeviceid = null;
 let _pendingInsertAttrs = null;
 
-/* Insertion-time text-input modal for wdText / vrcText. Called from
- * insertItemFromMenu() instead of inserting immediately, so the user
- * can type the text BEFORE the item lands on canvas (mirror of the
- * rolesDialog flow for cameras like ptzVision2). Cancelling the dialog
- * aborts the insert entirely. For vrcText only, surfaces a note that
- * the item does not appear in the Workspace Designer. */
+/* Insertion-time text-input modal for wdText / vrcText so the user types text BEFORE the item lands; cancelling aborts the insert. */
 function openTextInsertDialog(data_deviceid, attrs) {
     const dlg = document.getElementById('dialogTextInsert');
     const input = document.getElementById('textInsertInput');
     if (!dlg || !input) {
-        /* Defensive: older RoomCalculator.html without the dialog
-         * markup. Fall back to the previous synchronous path with the
-         * 'Text' placeholder so the item still inserts. */
+        /* Defensive: older HTML without dialog markup — fall back to synchronous insert with the 'Text' placeholder. */
         attrs.data_labelField = attrs.data_labelField || 'Text';
         attrs.data_deviceid = data_deviceid;
         const fallbackUuid = crypto.randomUUID();
@@ -3746,23 +3397,12 @@ function openTextInsertDialog(data_deviceid, attrs) {
     setTimeout(() => { input.focus(); }, 0);
 }
 
-/* dialogTextInsert "Add" handler — sanitize the text, attach it as
- * data_labelField on the pending attrs, and complete the wdText /
- * vrcText insertion (the same insert that insertItemFromMenu()'s
- * else-branch performs for non-roles items). Empty input falls back
- * to the 'Text' placeholder so the Konva.Label is still visible on
- * canvas — matches the pre-dialog default behaviour of
- * insertItemFromMenu(). The single-line input mirrors the Details
- * panel convention: any literal "\n" two-char escape the user typed
- * is converted to a real newline before storing so Konva.Text
- * renders multi-line correctly (matches updateItem()'s wdText /
- * vrcText branch). */
+/* dialogTextInsert "Add" handler: sanitize text, store as data_labelField, complete the insert. Empty input falls back to 'Text'; literal "\n" becomes a real newline. */
 function confirmTextInsertFromDialog() {
     const input = document.getElementById('textInsertInput');
     if (!input) return;
     if (!_pendingTextInsertDeviceid || !_pendingInsertAttrs) {
-        /* No pending insert (e.g. dialog opened by some other code
-         * path or state got cleared). Close defensively. */
+        /* No pending insert (state cleared or opened elsewhere) — close defensively. */
         closeAllDialogModals();
         return;
     }
@@ -3770,11 +3410,7 @@ function confirmTextInsertFromDialog() {
     const sanitized = (typeof DOMPurify !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function')
         ? (DOMPurify.sanitize(raw) || '')
         : raw;
-    /* Same "\\n" → real-newline conversion the Details-panel
-     * updateItem() branch performs. The user types the literal
-     * two-char "\n" escape; we store a real newline so the
-     * Konva.Label renders multi-line. JSON / WD export re-escape
-     * back to "\n" automatically via JSON.stringify. */
+    /* Same "\\n" → real-newline conversion as updateItem(); JSON/WD export re-escape via JSON.stringify. */
     const cleaned = sanitized.replace(/\\n/g, '\n');
 
     const data_deviceid = _pendingTextInsertDeviceid;
@@ -3797,23 +3433,14 @@ function confirmTextInsertFromDialog() {
     canvasToJson();
 }
 
-/* certifiedDisplay insertion picker — see openCertifiedDisplayDialog().
- * Holds the pending attrs while the modal is open; cleared on
- * confirm/cancel so a stale insert can't leak into the next one. */
-/* Read-rule for a certifiedDisplays[] entry's user-facing label: the
- * `name` (already carries a trailing " in the catalogue) if present,
- * otherwise the WD `model` id, with the aspect ratio appended in
- * parentheses, e.g. `Samsung QMC 43" (16:9)`. */
+/* User-facing label for a certifiedDisplays[] entry: name||model with aspect ratio appended, e.g. `Samsung QMC 43" (16:9)`. */
 function certifiedDisplayLabel(entry) {
     if (!entry) return '';
     const base = entry.name || entry.model || ('Display ' + entry.index);
     return entry.aspect ? (base + ' (' + entry.aspect + ')') : base;
 }
 
-/* Fill a <select> with one <option> per certifiedDisplays[] entry
- * (value = index, text = name||model). Optionally pre-selects an index.
- * Used by the Details-panel certifiedDisplaySelect dropdown (the insert
- * picker is a button list — see openCertifiedDisplayDialog). */
+/* Fill a <select> with one <option> per certifiedDisplays[] entry; optionally pre-selects an index. Used by the Details-panel dropdown. */
 function populateCertifiedDisplaySelect(selectEl, selectedIndex) {
     if (!selectEl) return;
     selectEl.options.length = 0;
@@ -3828,21 +3455,13 @@ function populateCertifiedDisplaySelect(selectEl, selectedIndex) {
     }
 }
 
-/* Insertion-time picker for certifiedDisplay. Reuses the shared
- * roleSelectionDialog button-list (same look as the cameras' "How do you
- * want to use the camera?" dialog) instead of a dropdown — one button per
- * catalogue entry. Called from insertItemFromMenu() instead of inserting
- * immediately, so the user picks the display model BEFORE the item lands
- * on canvas. Clicking a button stamps the index + locked size and
- * completes the insert; closing the dialog without a pick aborts. */
+/* Insertion-time picker for certifiedDisplay (reuses roleSelectionDialog button-list) so the user picks the model BEFORE it lands; closing aborts. */
 function openCertifiedDisplayDialog(attrs) {
     const dialogHeader = document.getElementById('headerRoleSelection');
     const roleSelectionDialog = document.getElementById('roleSelectionDialog');
     const innerDiv = document.getElementById('roleSelection');
 
-    /* Defensive: missing dialog markup OR an empty catalogue — fall back
-     * to inserting the first entry (or a bare certifiedDisplay) so the
-     * item still lands on canvas. */
+    /* Defensive: missing dialog markup or empty catalogue — insert the first entry so the item still lands. */
     if (!dialogHeader || !roleSelectionDialog || !innerDiv || certifiedDisplays.length === 0) {
         applyCertifiedDisplayIndexToAttrs(attrs, certifiedDisplays.length ? certifiedDisplays[0].index : 0);
         finishCertifiedDisplayInsert(attrs);
@@ -4467,7 +4086,7 @@ canvasPixel.x = 0;
 canvasPixel.y = 0;
 
 
-/* Workspace Designer keys — Phase 2 data lives in js/data/workspaceKey.js. */
+/* Workspace Designer keys — data lives in js/data/workspaceKey.js. */
 const workspaceKey = window.VRC.workspaceKey;
 
 /* Certified-display catalogue — data lives in js/data/certifiedDisplays.js. */
@@ -4648,19 +4267,11 @@ let tr = new Konva.Transformer({
     rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315, 360],
     name: 'theTransformer',
     rotateAnchorOffset: 25,
-    /* ignoreStroke: true — without this, Konva's _getNodeRect() returns a
-     * stroke-INCLUSIVE bbox (r.x = node.x - strokeWidth/2), but the node's
-     * actual position is stroke-EXCLUSIVE. _fitNodesInto then applies
-     * c = h * o.invert() (a scale around r.x) to a node sitting at node.x,
-     * which decomposes back with a translation drift of (scale - 1) * (node.x - r.x)
-     * per frame. Over a multi-frame resize the un-dragged corner visibly slides
-     * along the drag direction. See notes/TECH_NOTES_KONVA.md (footgun #27). */
+    /* ignoreStroke: true — without it, stroke-inclusive bbox vs stroke-exclusive node pos drifts the un-dragged corner per resize frame. See notes/TECH_NOTES_KONVA.md (footgun #27). */
     ignoreStroke: true,
 });
 
-/* PowerPoint-style snap-to-objects during resize. The function reference
- * is hoisted (function declaration), so registering it here is safe even
- * though the helper itself is defined further down in the snap module. */
+/* PowerPoint-style snap-to-objects during resize; snapResizeBoundBox is a hoisted function declaration defined in the snap module below. */
 tr.boundBoxFunc(snapResizeBoundBox);
 
 tr.on('dragstart', function trDragStart() {
@@ -4671,8 +4282,7 @@ tr.on('dragstart', function trDragStart() {
         hideAllCoverageGroups(true);
     }
 
-    /* Opt-in drift diagnostic — see beginDriftCheck() docstring. No-op
-     * unless window.VRC.debugDriftDetection is true. */
+    /* Opt-in drift diagnostic (no-op unless window.VRC.debugDriftDetection); see beginDriftCheck(). */
     beginDriftCheck('tr.dragstart');
 });
 
@@ -7590,14 +7200,7 @@ let boxes = [
         default_fontSize: 20,
     },
     {
-        /* VRC-only text item. Renders identically to wdText (Konva.Label with
-         * Tag + Text children) but with a near-transparent white tag
-         * (fill: 'white', opacity: 0.1). Unlike wdText, vrcText is NOT
-         * emitted into workspaceObj.customObjects on WD export — instead
-         * it round-trips via workspaceObj.data.vrc.vrcTexts[] (mirror of
-         * data.vrc.groups / data.vrc.customItems). The Workspace Designer
-         * does not render vrcText; it is purely a VRC annotation that
-         * survives the WD save/open cycle. */
+        /* VRC-only text item: renders like wdText but with a near-transparent tag, and round-trips via data.vrc.vrcTexts[] instead of WD customObjects (WD doesn't render it). */
         name: 'VRC Text',
         id: 'vrcText',
         key: 'XA',
@@ -7609,19 +7212,7 @@ let boxes = [
         default_fontSize: 20,
     },
     {
-        /* VRC Dimension Line — a measurement annotation that renders as
-         * a transparent listening Konva.Rect parent (provides hit testing)
-         * holding a non-listening Konva.Arrow (pointers at both ends) and
-         * a non-listening Konva.Label whose text is auto-computed from
-         * the rect's current width in the current unit ("1.22 m" /
-         * "4.00 ft"). Two end-anchors (yellow bars styled like Row of
-         * Chairs / Couch) let the user resize the line by dragging.
-         *
-         * Like vrcText, the Workspace Designer has no native dimension-
-         * line concept — the export skips the customObjects push and
-         * round-trips the full record via workspaceObj.data.vrc.dimensionLines[]
-         * (mirror of data.vrc.vrcTexts) so the item survives a
-         * "Save Workspace" / "Open Workspace" cycle. */
+        /* VRC Dimension Line: listening Rect parent + non-listening Arrow + auto-computed Label, with draggable end-anchors. Like vrcText, round-trips via data.vrc.dimensionLines[] (WD has no native concept). */
         name: 'VRC Dimension Line',
         id: 'dimensionLine',
         key: 'XB',
@@ -8518,15 +8109,7 @@ function getQueryString() {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
     }
 
-    /* ?split=<0-100>: open the Workspace Designer split-view at the given
-     * width %. 0 / missing / non-numeric → no-op. 1-100 → opens at exactly
-     * the requested width (forceExact bypasses the drag-snap zones so a
-     * shared `?split=80` reproduces 80% instead of snapping to 75%).
-     * Deferred via setTimeout so the room finishes its initial drawRoom()
-     * before the iframe starts loading and receiving postMessage updates.
-     * A blurred "Opening Workspace Designer View" pleaseWait dialog masks
-     * the ~1-2 s iframe-load + canvas-reflow window, then every dialog
-     * (including the no-URL boot's New Room dialog) is dismissed. */
+    /* ?split=<0-100>: open the WD split-view at that width % (forceExact bypasses drag-snap zones). Deferred so drawRoom() finishes first; a pleaseWait dialog masks the iframe-load window. */
     const QS_SPLIT = (window.VRC && VRC.constants && VRC.constants.QS_SPLIT) || 'split';
     if (urlParams.has(QS_SPLIT)) {
         const splitPctRaw = parseFloat(urlParams.get(QS_SPLIT));
@@ -9078,9 +8661,7 @@ function parseShortenedXYUrl(parameters) {
                 newItem.data_diagonalInches = item.g;
             }
 
-            /* cd = certifiedDisplay catalogue index. Backfill the locked
-             * diagonal size from certifiedDisplays[index] (the `g` code is
-             * skipped for certifiedDisplay on encode). */
+            /* cd = certifiedDisplay catalogue index; backfill locked diagonal size from certifiedDisplays[index] (`g` is skipped on encode). */
             if ('cd' in item) {
                 const cdIndex = parseInt(item.cd, 10);
                 newItem.data_certifiedDisplayIndex = cdIndex;
@@ -9217,9 +8798,7 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* w=wdText/vrcText/dimensionLine font size (integer pt-like
-             * units, mirror of the encoder above). Absent ⇒ device-def
-             * default applied at render time. */
+            /* w = wdText/vrcText/dimensionLine font size (mirror of encoder); absent ⇒ device default at render. */
             if ('w' in item && (isTextItem(newItem.data_deviceid) || isDimensionLine(newItem.data_deviceid))) {
                 const fsNum = parseInt(item.w, 10);
                 if (!isNaN(fsNum) && fsNum > 0) {
@@ -9227,9 +8806,7 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* y=dimensionLine line width, z=dimensionLine pointer size.
-             * Integer canvas pixels. Absent ⇒ device-def default applied
-             * at render time. */
+            /* y = dimensionLine line width, z = pointer size (canvas px); absent ⇒ device default at render. */
             if ('y' in item && isDimensionLine(newItem.data_deviceid)) {
                 const lwNum = parseInt(item.y, 10);
                 if (!isNaN(lwNum) && lwNum > 0) {
@@ -9250,9 +8827,7 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* gw / gl = ceilingGrid tile dimensions (÷100 back to current
-             * unit). 2-char keys accumulated by the tokenizer, gated on
-             * deviceid (mirror of the cone 'y' decode). */
+            /* gw / gl = ceilingGrid tile dimensions (÷100 to current unit); 2-char keys gated on deviceid (mirror of cone 'y' decode). */
             if ('gw' in item && newItem.data_deviceid === 'ceilingGrid') {
                 const gwNum = Number(item.gw) / 100;
                 if (isFinite(gwNum) && gwNum >= 0) {
@@ -9266,11 +8841,7 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
-            /* x=wallChairs chair-on-center spacing (×100, unit-native;
-             * mirror of the encoder above). Absent ⇒ device default
-             * applied at render / expand time. Applies to every
-             * wallChairs-family variant (Row of Chairs / Swivel /
-             * Stool) — see `isWallChairs()`. */
+            /* x = wallChairs chair-on-center spacing (÷100 to unit); applies to every wallChairs variant — see isWallChairs(). */
             if ('x' in item && isWallChairs(newItem.data_deviceid)) {
                 const csNum = Number(item.x) / 100;
                 if (isFinite(csNum) && csNum > 0) {
@@ -9279,16 +8850,7 @@ function parseShortenedXYUrl(parameters) {
             }
 
             if ('text' in item) {
-                /* Mirror of the layer/group label decode path (search
-                 * for `decodeURIComponent(item.text.replaceAll('+', ' '))`
-                 * above). The encoder runs `encodeURIComponent(...)`
-                 * followed by `replaceAll('%20', '+')`, so spaces come
-                 * back as '+', and every other percent-encoded char
-                 * (e.g. '%0A' newline from wdText multi-line labels)
-                 * needs decoding. Without this, spaces showed as '+'
-                 * and newlines as the literal three-char '%0A' once a
-                 * URL was loaded — labels that previously worked at
-                 * canvas-create time would visually break on reload. */
+                /* Mirror of the layer/group label decode: encoder turns spaces into '+', so restore them and decodeURIComponent the rest (e.g. '%0A' newlines). */
                 newItem.data_labelField = DOMPurify.sanitize(
                     decodeURIComponent(String(item.text).replaceAll('+', ' '))
                 );
@@ -9508,14 +9070,7 @@ function binaryToBase26(binary) {
 
 
 
-/* ?split=<1-100>: surface the "Opening Workspace Designer View" pleaseWait
- * dialog the moment roomcalc.js starts executing — BEFORE IDB hydration,
- * onLoad(), and the initial drawRoom(). The dialog stays up through room
- * build and the 800 ms split-init delay; the matching block in
- * getQueryString() calls closeAllDialogModals() 2 s after splitViewOpen()
- * to dismiss it. roomcalc.js loads from the tail of <body>, so the
- * <dialog id="dialogOpeningWorkspace"> element is already in the DOM by
- * the time this IIFE runs. */
+/* ?split=<1-100>: show the "Opening Workspace Designer View" pleaseWait dialog immediately (before IDB hydration / onLoad / drawRoom); getQueryString() dismisses it 2s after splitViewOpen(). */
 (function showEarlySplitDialog() {
     try {
         const params = new URLSearchParams(window.location.search);
@@ -9566,10 +9121,7 @@ function binaryToBase26(binary) {
             redoArray.forEach(ensureOverlaysVisibleDefaulted);
         };
 
-        /* Defensive: undo/redo snapshots authored in older poisoned
-         * sessions can carry duplicate item ids inside their cloned
-         * roomObj.items. Strip them once at hydrate time so any future
-         * restoreSnapshotToCanvas() lands a clean state. */
+        /* Defensive: older poisoned snapshots can carry duplicate item ids; strip them once at hydrate time. */
         const dedupeAllSnapshots = () => {
             undoArray.forEach(dedupeRoomItems);
             redoArray.forEach(dedupeRoomItems);
@@ -9612,10 +9164,7 @@ function binaryToBase26(binary) {
 
 function onLoad() {
 
-    /* Populate template tiles synchronously up front so the New Room
-     * dialog has its tiles in place before getQueryString()'s no-URL-
-     * params branch calls openNewRoomDialog(). Eager-loaded templates.js
-     * makes this safe. */
+    /* Populate template tiles synchronously so the New Room dialog has them before getQueryString() may call openNewRoomDialog(). */
     ensureTemplatesPopulated();
 
     redirectToCollabExpereince();
@@ -9773,11 +9322,7 @@ function populateTemplates() {
     parent.classList.remove('templates-loading');
 }
 
-/* templates.js is eager-loaded (see RoomCalculator.html script block),
- * so populateTemplates() can run synchronously. Single-flight guard
- * keeps a second call a no-op. The Promise return type is preserved so
- * the existing `.then(syncReloadLastDesignButton)` callsite in
- * openNewRoomDialog() works unchanged. */
+/* templates.js is eager-loaded, so populateTemplates() runs synchronously. Single-flight guard; returns a Promise for the existing .then(syncReloadLastDesignButton) callsite. */
 let _templatesPopulationPromise = null;
 function ensureTemplatesPopulated() {
     if (_templatesPopulationPromise) return _templatesPopulationPromise;
@@ -10262,10 +9807,7 @@ function updateButtonRoomDimensions() {
     }, 750)
 }
 
-/* Room sub-mode: the Room tab is read-only (disableRoomSettings keeps every
- * field disabled), but we OVERRIDE the floor values it just loaded so the user
- * sees THIS room part's name and size — i.e. which room they're inside.
- * No-op outside Room sub-mode on a rectangular room part. */
+/* Room sub-mode: Room tab is read-only, but override the loaded floor values to show THIS room part's name/size. No-op outside Room sub-mode on a rectangular room part. */
 function populateRoomTabFromActiveRoomPart() {
     if (!(isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart')) {
         return;
@@ -10394,11 +9936,7 @@ function defaultWallTypeFill(type) {
     return '#cccccc';
 }
 
-/* Fill a wall rect with the window pattern, scaled so the panes fit the wall
- * thickness and tile along its length. Async-safe; triggers a redraw on load
- * (the missing redraw + native-size tiling on a thin wall is why window walls
- * used to show as a black bar). Used by both the overview preview and the
- * in-room legacy wall renderer. */
+/* Fill a wall rect with the window pattern, scaled to the wall thickness and tiled along its length. Async-safe; redraws on image load. */
 function applyWindowPatternToRect(rect, layer) {
     if (!windowPatternImage) {
         windowPatternImage = new Image();
@@ -10423,8 +9961,7 @@ function applyWindowPatternToRect(rect, layer) {
     }
 }
 
-/* Add a simple door opening + leaf indicator to a preview wall. wallGeom is in
- * the room's local (un-rotated) space; doorPosition is 'left' | 'center' | 'right'. */
+/* Add a door opening + leaf indicator to a preview wall. wallGeom is in room-local (un-rotated) space; doorPosition is 'left'|'center'|'right'. */
 function addRoomPartDoorPreview(group, wallGeom, doorPosition, wallThickness) {
     const span = wallGeom.horizontal ? wallGeom.width : wallGeom.height;
     const margin = 0.15 * scale;
@@ -10459,9 +9996,7 @@ function addRoomPartDoorPreview(group, wallGeom, doorPosition, wallThickness) {
     }));
 }
 
-/* MultiRoom overview: rebuild the per-room default-walls + door preview for
- * every rectangular boxRoomPart that has walls on. Visual only — the WD export
- * (step 8) builds the real geometry. Rebuilt each drawRoom and on roomPart drop. */
+/* MultiRoom overview: rebuild the per-room default-walls + door preview for every walled boxRoomPart. Visual only (WD export builds real geometry); rebuilt each drawRoom / roomPart drop. */
 function drawRoomPartDefaultWallsPreviews() {
     if (typeof groupRoomPartWallsPreview === 'undefined') return;
     groupRoomPartWallsPreview.destroyChildren();
@@ -10471,8 +10006,7 @@ function drawRoomPartDefaultWallsPreviews() {
         return;
     }
 
-    /* Wall thickness is 0.115 m; convert to feet so feet-unit rooms aren't
-     * drawn too thin (matches drawOutsideWall's outsideWallThickness). */
+    /* Wall thickness 0.115 m; convert to feet so feet rooms aren't too thin (matches drawOutsideWall). */
     let wallThicknessUnits = 0.115;
     if (roomObj.unit === 'feet') wallThicknessUnits *= 3.28084;
     const wallThickness = wallThicknessUnits * scale;
@@ -10480,8 +10014,7 @@ function drawRoomPartDefaultWallsPreviews() {
     groupRooms.getChildren().forEach(node => {
         if (node.data_deviceid !== 'boxRoomPart') return;
 
-        /* Prefer the roomObj item (carries Room-mode edits); fall back to the
-         * node attrs so a freshly-inserted room (not yet in the map) still draws. */
+        /* Prefer the roomObj item (carries Room-mode edits); fall back to node attrs for a freshly-inserted room. */
         const item = roomObjItemsMap.get(node.id());
         const surfaces = (item && item.data_roomSurfaces) || node.data_roomSurfaces;
         const ws = (item && item.data_workspace) || node.data_workspace;
@@ -10534,9 +10067,7 @@ function drawRoomPartDefaultWallsPreviews() {
 
 function drawOutsideWall(grOuterWall) {
 
-    /* Room sub-mode: walls hug the active room's bounding box. In normal /
-     * overview mode activeRoomWidth/Length equal roomWidth/Length, so these
-     * local shadows are a no-op there. */
+    /* Room sub-mode: walls hug the active room's bbox. In normal/overview mode activeRoomWidth/Length equal roomWidth/Length (no-op). */
     let roomWidth = activeRoomWidth;
     let roomLength = activeRoomLength;
 
@@ -11065,8 +10596,7 @@ function zoomRoomPart(roomPart) {
         backgroundImageFloor.height(backgroundImageFloor.height() * oldScale / scale);
     }
 
-    /* Surface the Room (formerly Floor) details tab on entry so the room's
-     * name, size, height and software are immediately visible/editable. */
+    /* Surface the Room details tab on entry so name/size/height/software are immediately editable. */
     const roomDetailsTab = document.getElementById('defaultOpenTab');
     if (roomDetailsTab) roomDetailsTab.click();
 
@@ -11162,9 +10692,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         activeRoomWidth = roomWidth;
     }
 
-    /* Room sub-mode (read-only): override the displayed Room-tab values to show
-     * THIS room part's name/size so the user knows which room they're in. MUST
-     * run AFTER the read-back above so roomObj.room keeps the FLOOR's values. */
+    /* Room sub-mode: override the displayed Room-tab values to show THIS room part. Must run AFTER the read-back above so roomObj.room keeps the floor's values. */
     populateRoomTabFromActiveRoomPart();
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
@@ -11325,11 +10853,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     layerGrid.add(groupOuterWall);
     stage.add(layerGrid);
 
-    /* The outer-wall OUTLINE draws in normal single-room mode, the MultiRoom
-     * overview (floor outline kept for alignment/snapping) and inside a
-     * rectangular room. The FILLED default walls are suppressed in the
-     * overview (see the !isMultiRoomOverviewMode() gate in drawOutsideWall) —
-     * only the outline is wanted on the floor. */
+    /* Draw the outer-wall outline in single-room mode, the MultiRoom overview, and inside a rectangular room. Filled default walls are suppressed in the overview (gate in drawOutsideWall). */
     const drawFloorPlanWalls =
         !isActiveRoomPart ||
         (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart');
@@ -11716,12 +11240,7 @@ function hideSimplePathEditorId(hide = true) {
     }
 }
 
-/* idOverride: optional uuid. When supplied, the editor uses it directly
- * and writes it back into the Details panel so the close-path handler's
- * updateItem() (which reads #itemId.innerText) targets the right node.
- * Used by insertItemFromMenu() to launch the editor immediately after a
- * fresh pathShape insertion, before the user has clicked anything. The
- * default no-arg form (HTML `Draw Simple Path` button) is unchanged. */
+/* idOverride: optional uuid; when supplied, use it and write it back to #itemId so the close-path updateItem() targets the right node. Used by insertItemFromMenu() right after a fresh pathShape insert. */
 function simplePathEditor(idOverride) {
     let id = (typeof idOverride === 'string' && idOverride)
         ? idOverride
@@ -12373,10 +11892,7 @@ function createShareableLinkItem(item, prevTokens) {
         return { str: '', tokens: null };
     }
 
-    /* Ordered attribute fragments. `value` (x) is the bare-number first
-     * fragment; every other fragment carries its own letter prefix. The
-     * full string is sid + frags; the `_` repeat diff re-emits only the
-     * fragments that differ from the previously emitted same-type item. */
+    /* Ordered attribute fragments: `value` (x) is the bare-number first fragment, others carry a letter prefix. The `_` repeat diff re-emits only fragments that differ from the previous same-type item. */
     let frags = [];
     function add(key, str) { frags.push({ key: key, str: str }); }
 
@@ -12396,11 +11912,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* wdText/vrcText render as Konva.Label and auto-size from the inner
-     * Konva.Text + data_fontSize at draw time — stored width/height are
-     * ignored on render and unused by the WD export. Omit from URL to
-     * keep links short and avoid stale-size drift; the values are
-     * backfilled in roomObj.items by canvasToJson on the next save. */
+    /* wdText/vrcText auto-size from their inner Konva.Text + data_fontSize, so omit stored width/height from the URL (backfilled by canvasToJson on save). */
     if ('width' in item && item.width && item.data_deviceid != 'pathShape' && item.data_deviceid != 'polyRoom' && !isTextItem(item.data_deviceid)) {
         add('c', 'c' + Math.round(round(item.width) * 100));
     }
@@ -12420,12 +11932,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* certifiedDisplay locks its size to the picked model, so the
-     * diagonal is derivable from the index — skip the redundant `g` and
-     * store the catalogue index under the 2-char `cd` code instead.
-     * `cd` parses cleanly because the URL state machine accumulates
-     * consecutive lowercase letters into one key (same mechanism as the
-     * `ll` layer code), and the token always carries its own number. */
+    /* certifiedDisplay size is derivable from its catalogue index, so skip the redundant `g` and store the index under the 2-char `cd` code (parsed like the `ll` layer code). */
     if ('data_diagonalInches' in item && item.data_deviceid !== 'certifiedDisplay') {
         add('g', 'g' + item.data_diagonalInches);
     }
@@ -12536,9 +12043,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* w=wdText/vrcText/dimensionLine font size (integer). Omitted when
-     * equal to the device-def default so the common case stays compact.
-     * dimensionLine reuses the wdText four-place rule for data_fontSize. */
+    /* w = wdText/vrcText/dimensionLine font size; omitted when equal to the device-def default. */
     if ((isTextItem(item.data_deviceid) || isDimensionLine(item.data_deviceid)) && item.data_fontSize != null) {
         const __fsNum = Number(item.data_fontSize);
         const __deviceDef = allDeviceTypes[item.data_deviceid];
@@ -12548,17 +12053,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* y=dimensionLine line width (integer; WD pt-like unit, 1 ≈ 0.01 m).
-     * z=dimensionLine pointer size (integer; same unit). Both omitted
-     * when equal to the device-def default (2 / 10). Single-letter codes
-     * chosen because y/z are unused at the per-item URL level (they ARE
-     * used inside the H{n} group / J{n} customItem blocks for grpY/grpZ
-     * but those are sid='H'/'J' records, separate from per-item records).
-     * Storage convention is unit-agnostic — the renderer applies the
-     * `* 0.01 m * scale` conversion in updateDimensionLineWidget() via
-     * computeDimensionLineCanvasPx(), so a round-trip through the URL,
-     * the .vrc.json, or the WD JSON preserves the visual result without
-     * any feet/meters bookkeeping. */
+    /* y = dimensionLine line width, z = pointer size (unit-agnostic WD pt-like units, 1 ≈ 0.01 m); both omitted when equal to the device-def default (2 / 10). */
     if (isDimensionLine(item.data_deviceid)) {
         const __deviceDef = allDeviceTypes['dimensionLine'] || {};
         if (item.data_lineWidth != null) {
@@ -12577,14 +12072,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* x=wallChairs chair-on-center spacing (×100, unit-native). Only
-     * emitted for wallChairs-family rows (Row of Chairs / Swivel /
-     * Stool) with an explicit data_chairSpacing override AND when the
-     * value differs from the unit-mode default — the common case
-     * (2.35 ft / 0.716 m) stays compact. The decoder mirrors this
-     * gate. Default rounding (DEFAULT_CHAIR_SPACING_* × 100) is
-     * computed inline so future tweaks to the default constants flow
-     * through automatically. */
+    /* x = wallChairs chair-on-center spacing (×100); emitted only when it differs from the unit-mode default (computed inline from DEFAULT_CHAIR_SPACING_*). */
     if (isWallChairs(item.data_deviceid) && item.data_chairSpacing != null) {
         const __csNum = Number(item.data_chairSpacing);
         if (isFinite(__csNum) && __csNum > 0) {
@@ -12605,9 +12093,7 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* ceilingGrid tile dimensions — 2-char codes gw / gl (×100, current
-     * unit), gated on deviceid (mirror of the cone 'y' multiplexing and
-     * the certifiedDisplay 'cd' 2-char code). */
+    /* ceilingGrid tile dimensions — 2-char codes gw / gl (×100), gated on deviceid. */
     if (item.data_deviceid === 'ceilingGrid') {
         if (item.data_gridWidth != null) {
             const __gwNum = Number(item.data_gridWidth);
@@ -12635,12 +12121,7 @@ function createShareableLinkItem(item, prevTokens) {
     const tokens = { sid: sid, map: map, keys: keys };
     const fullStr = sid + frags.map(f => f.str).join('');
 
-    /* `_` repeat diff: only valid against a previously-emitted item of the
-     * same device type. `_` can override/add attributes on the clone but
-     * never remove one, so it's used only when the current item carries
-     * every attribute the previous one had. Sole exception: if rotation
-     * (`f`) is the only dropped attribute, emit an explicit `f0` reset
-     * (rotation default is 0). Any other dropped attribute ⇒ full repeat. */
+    /* `_` repeat diff vs the previous same-type item: `_` can add/override but not remove attributes, so it's used only when no attribute is dropped — except a lone dropped `f` (rotation), which emits `f0`. */
     if (prevTokens && prevTokens.sid === sid) {
         const dropped = prevTokens.keys.filter(k => !(k in map));
         if (dropped.length === 0 || (dropped.length === 1 && dropped[0] === 'f')) {
@@ -12996,9 +12477,7 @@ function initEquipmentCategoryPills() {
         });
     });
 
-    /* Chevron visibility: shown only when there is content to scroll
-     * to in that direction. 4px slop avoids visual flicker right at
-     * the extremes due to sub-pixel scroll values. */
+    /* Chevron visibility: shown only when scrollable in that direction; 4px slop avoids sub-pixel flicker at the extremes. */
     function updateChevrons() {
         if (!chevLeft || !chevRight) return;
         const canLeft = pillRow.scrollLeft > 4;
@@ -13014,19 +12493,10 @@ function initEquipmentCategoryPills() {
     if (chevRight) chevRight.addEventListener('click', () =>
         pillRow.scrollBy({ left: 120, behavior: 'smooth' }));
 
-    /* First paint: defer one frame so the row has its final layout
-     * width before we measure scrollWidth / clientWidth. */
+    /* First paint: defer one frame so the row has its final layout width before measuring. */
     requestAnimationFrame(updateChevrons);
 
-    /* ResizeObserver catches the case where the Equipment tab starts
-     * out hidden (display:none) — the pill row has clientWidth=0 at
-     * boot, so the initial rAF probe wrongly concludes "nothing to
-     * scroll" and leaves the right chevron hidden. When the user
-     * later clicks Equipment, `openTab` flips display:none → flex
-     * and the row's width jumps to its real value; this observer
-     * fires and re-evaluates the chevrons. Without it the right
-     * chevron stayed hidden until the user manually wiggled the
-     * pill-row scroll (the only other trigger). */
+    /* ResizeObserver re-evaluates chevrons when the Equipment tab goes display:none → flex (clientWidth=0 at boot would otherwise leave the right chevron hidden). */
     if (typeof ResizeObserver !== 'undefined') {
         new ResizeObserver(updateChevrons).observe(pillRow);
     }
@@ -13035,24 +12505,12 @@ function initEquipmentCategoryPills() {
 initEquipmentCategoryPills();
 initEquipmentScrollSpy();
 
-/* Eagerly populate the Custom Items panel at boot so it has content
- * when the user scrolls down to it in the long-scroll view — without
- * this, the panel would render empty until the user explicitly
- * clicked the Custom Items pill. Fire-and-forget; the IDB query is
- * async and the `.then()` callback inside populateCustomItemsMenuContainer
- * re-fires onEquipmentSearchChange when it lands, so any keystrokes
- * the user typed during the race window get applied to the late-
- * arriving Custom Item tiles too. */
+/* Eagerly populate Custom Items at boot so the panel has content on scroll. Fire-and-forget; the async .then() re-fires onEquipmentSearchChange so race-window keystrokes apply to late tiles. */
 if (typeof populateCustomItemsMenuContainer === 'function') {
     populateCustomItemsMenuContainer();
 }
 
-/* Defense-in-depth against the boot race: re-fire the Custom Items
- * load when the user focuses the search box. If the boot-time call
- * somehow failed (browser threw, idbStore wasn't ready, etc.) or the
- * library has been mutated in another tab, this guarantees Custom
- * Items are available before the very first keystroke is filtered.
- * Idempotent — re-running just re-renders the same tile DOM. */
+/* Defense-in-depth: re-fire the Custom Items load on search-box focus in case the boot call failed or the library changed in another tab. Idempotent. */
 (function () {
     const searchInput = document.getElementById('equipmentSearch');
     if (searchInput) {
@@ -13294,8 +12752,7 @@ function buildCustomItemTile(record, opts) {
             toggleQuickAdd(false);
         };
     } else {
-        /* Sidebar mode — draggable; click is a no-op (matches device-
-         * tile behaviour, which is drag-only in the sidebar). */
+        /* Sidebar mode — draggable; click is a no-op (matches drag-only device tiles). */
         btnItem.draggable = true;
         btnItem.addEventListener('dragstart', dragStart);
         btnItem.addEventListener('drag', drag);
@@ -13357,8 +12814,7 @@ function dragEndCustomItemTile(event, record, displayName) {
     const unitX = (canvasPixelX - pxOffset) / scale + activeRoomX;
     const unitY = (canvasPixelY - pxOffset) / scale + activeRoomY;
 
-    /* Same buffer as dragEnd: abort if the drop is outside the canvas
-     * area (negative or extremely small canvas coords). */
+    /* Same buffer as dragEnd: abort if the drop is outside the canvas area. */
     if (canvasPixelX < 10 || canvasPixelY < 10) return;
 
     const newCustomitemid = insertCustomItemAtPosition(record, unitX, unitY);
@@ -13554,12 +13010,7 @@ function restoreSnapshotToCanvas(prev, next) {
     roomObj = next;
     /* Backfill missing overlaysVisible before any reader touches it. */
     ensureOverlaysVisibleDefaulted(roomObj);
-    /* Defensive: an undo/redo snapshot captured during a poisoned
-     * session can carry duplicate item ids. Strip them BEFORE either
-     * the full-redraw fallback or applyRoomObjDelta() materialises
-     * Konva nodes from them — otherwise the duplicates survive into
-     * canvasNodesMap / roomObjItemsMap as phantoms (see the helper
-     * docblock for the full diagnosis). */
+    /* Defensive: strip duplicate item ids from a poisoned snapshot BEFORE materialising Konva nodes, else they survive as phantoms in canvasNodesMap / roomObjItemsMap. */
     dedupeRoomItems(roomObj);
     unit = roomObj.unit;
 
@@ -13890,8 +13341,7 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_fontSize = Number(node.data_fontSize);
         }
 
-        /* Dimension Line line width + pointer size — preserve through
-         * copy/paste so a duplicated line keeps its styling. */
+        /* Dimension Line line width + pointer size — preserve through copy/paste. */
         if (node.data_lineWidth != null) {
             newAttr.data_lineWidth = Number(node.data_lineWidth);
         }
@@ -13899,8 +13349,7 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_pointerSize = Number(node.data_pointerSize);
         }
 
-        /* wallChairs chair-on-center spacing — preserve through
-         * copy/paste so a duplicated row keeps its spacing override. */
+        /* wallChairs chair-on-center spacing — preserve through copy/paste. */
         if (node.data_chairSpacing != null) {
             newAttr.data_chairSpacing = Number(node.data_chairSpacing);
         }
@@ -14568,8 +14017,7 @@ function deleteTrNodes(save = true) {
     copyTrNodes.forEach(node => {
 
 
-        /* Group rect: when the user deletes a Group bundle, dissolve the
-         * group entirely (keepItems=false also wipes the members). */
+        /* Group rect: deleting a Group bundle dissolves the group entirely (keepItems=false also wipes members). */
         if (node.data_deviceid === 'group' && node.data_groupId) {
             ungroupItems(node.data_groupId, false);
             return;
@@ -14608,11 +14056,7 @@ function deleteTrNodes(save = true) {
         let parentGroup = allDeviceTypes[node.data_deviceid].parentGroup;
         let id = node.id();
 
-        /* Scope coverage/label lookups to their owning Konva.Group instead of the
-         * whole stage. Each `stage.find('#name')` is O(stage descendants) — with
-         * thousands of items this dominated bulk-delete time (~17 s for 4721
-         * items). Coverage nodes live in known small groups, so a subtree-scoped
-         * findOne reduces the per-call cost to O(coverage group children). */
+        /* Scope coverage/label lookups to their owning Konva.Group, not the whole stage: stage.find() is O(stage descendants) and dominated bulk-delete time (~17 s for 4721 items). */
         let audioShading = microphoneCoverage.findOne('#audio~' + id);
         let speakerShading = speakerCoverage.findOne('#speaker~' + id);
         let videoShading = cameraCoverage.findOne('#fov~' + id);
@@ -14839,13 +14283,7 @@ function applyRoomObjDelta(prev, next) {
         }
     });
 
-    /* The incremental path above only re-set roomObjItemsMap for
-     * changed/added items. After `roomObj = next` (a structuredClone),
-     * every UNCHANGED item's map entry still pointed at the previous
-     * snapshot's object — an orphan no longer in roomObj.items. A later
-     * drag then patched the orphan via roomObjItemsMap.get(id) while
-     * roomObj.items (the WD-export / share-URL source) stayed stale.
-     * Rebuild the map from the now-authoritative roomObj.items. */
+    /* Rebuild roomObjItemsMap from the now-authoritative roomObj.items: after `roomObj = next`, unchanged items' map entries still point at the previous snapshot's orphan objects. */
     roomObjItemsMap.clear();
     roomObj.items.forEach(it => { if (it && it.id) roomObjItemsMap.set(it.id, it); });
 
@@ -15020,13 +14458,7 @@ function updateRoomObjFromTrNode() {
         }
 
         if (parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
-            /* Match URL encoder width/height rounding. wdText/vrcText
-             * are Konva.Labels whose width/height are auto-computed from
-             * the inner Konva.Text — `attrs.width` is undefined for
-             * Labels, so read via node.width() / node.height() to get the
-             * actual rendered bounds. The serialized values keep the WD
-             * export's getItemCenter() math happy and feed accurate
-             * values into the boxes-bucket round-trip. */
+            /* Match URL encoder rounding. wdText/vrcText are Konva.Labels with auto-computed size (attrs.width undefined), so read node.width()/height() for the rendered bounds. */
             if (isTextItem(node.data_deviceid)) {
                 itemAttr.width = round((node.width() || 0) / scale);
                 itemAttr.height = round((node.height() || 0) / scale);
@@ -15546,10 +14978,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         height = 0.2 * scale;
     }
     else if (insertDevice.id === 'ceilingGrid') {
-        /* Default 6 ft (horizontal) x 8 ft (vertical). Authored in
-         * meters here; the feet-mode block below multiplies by 3.28084
-         * so the user sees 6 x 8 in feet mode and 1.83 x 2.44 in
-         * meters mode (same physical size). */
+        /* Default 6 ft x 8 ft, authored in meters; the feet-mode block below converts so the user sees 6 x 8 (feet) / 1.83 x 2.44 (meters). */
         width = 1.8288 * scale;
         height = 2.4384 * scale;
     }
@@ -15562,15 +14991,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         height = 2.5 * scale;
     }
     else if (insertDevice.id === 'dimensionLine') {
-        /* Default span 1.22 m (≈ 4 ft). Expressed in meters here because
-         * the unit-conversion block below (`if (unit === 'feet') { width
-         * = width * 3.28084; ... }`) unconditionally converts the
-         * device default from meters to feet. A previous version of
-         * this branch returned 4 in feet mode and was double-converted
-         * to ~13 ft. Rect height is recomputed by
-         * updateDimensionLineWidget() from fontSize/pointerSize, so the
-         * 30px placeholder here is just for the Konva.Group constructor
-         * before the first widget paint. */
+        /* Default span 1.22 m (≈ 4 ft), in meters because the feet-mode block below always converts from meters. Rect height is recomputed by updateDimensionLineWidget(); the 30px is just a constructor placeholder. */
         width = 1.22 * scale;
         height = 30; /* placeholder — recomputed by updateDimensionLineWidget */
     }
@@ -15588,12 +15009,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     }
 
-    /* NOTE: cone's 0.8 m default vertical extent is supplied via the
-     * device-def `default_vHeight: 800` (mm), which insertItemFromMenu()
-     * applies to attrs.data_vHeight BEFORE the roomObj.items.push().
-     * Defaulting here on the Konva node would be lost on the very first
-     * canvasToJson cycle because the patch branch in
-     * updateRoomObjFromTrNode() does not mirror data_vHeight. */
+    /* NOTE: cone's 0.8 m default vHeight comes from the device-def `default_vHeight: 800` applied by insertItemFromMenu() before the items.push(); defaulting on the Konva node here would be lost on the first canvasToJson (updateRoomObjFromTrNode doesn't mirror data_vHeight). */
 
 
     if (unit === 'feet') {
@@ -15733,30 +15149,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     if (isTextItem(insertDevice.id)) {
-        /* Konva.Label with a Konva.Tag background + a Konva.Text child
-         * whose fill and opacity track the user's picker values
-         * (configurableColor + wdOpacity on the device def). The black
-         * stroke keeps light fills (white / yellow) readable against
-         * the tag. Font size scales with both data_fontSize and
-         * canvas `scale` so the on-canvas text approximates the WD
-         * result (20pt ≈ 0.20 m tall, refined by the 1.31×
-         * WDTEXT_CANVAS_FONT_SCALE calibration).
-         *
-         * wdText vs vrcText: only the Konva.Tag fill/opacity diverges.
-         * wdText uses an opaque light-grey tag (mirrors what WD renders
-         * for objectType:'text'); vrcText uses a near-transparent white
-         * tag so it reads as a soft annotation on the canvas. */
+        /* Konva.Label = Konva.Tag bg + Konva.Text whose fill/opacity track the picker; font size scales with data_fontSize and canvas scale to approximate WD (20pt ≈ 0.20 m, via WDTEXT_CANVAS_FONT_SCALE). wdText vs vrcText differ only in the tag fill/opacity (opaque grey vs near-transparent white). */
         const isVrcText = insertDevice.id === 'vrcText';
         const dataFontSize = Number(attrs.data_fontSize) || allDeviceTypes[insertDevice.id].default_fontSize || 20;
         const rawText = (attrs.data_labelField || '').replace(/{.*?}/g, '').trim();
         const textContent = rawText || 'Text';
         const konvaFontSize = computeWdTextKonvaFontSize(dataFontSize);
 
-        /* fill / opacity defaults mirror workspaceObjTextPush so a
-         * never-edited wdText paints with WD's effective defaults
-         * (black @ opacity 1). data_fill absent ⇒ 'black'; data_opacity
-         * absent ⇒ 1 (== "no override" sentinel for the picker).
-         * vrcText shares the same text defaults — only the tag bg differs. */
+        /* fill/opacity defaults mirror workspaceObjTextPush (black @ opacity 1); data_fill absent ⇒ 'black', data_opacity absent ⇒ 1. */
         const textFill = attrs.data_fill || 'black';
         const textOpacity = (attrs.data_opacity == null) ? 1 : Number(attrs.data_opacity);
 
@@ -15784,12 +15184,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             padding: 5,
             fill: textFill,
             stroke: 'black',
-            /* wdText keeps the 1px black stroke around each glyph to stay
-             * readable when the user picks a light fill (white / yellow)
-             * against the opaque grey tag. vrcText is intentionally a
-             * lightweight annotation — drop the stroke so the glyphs
-             * actually render as a regular weight (a 1px stroke on a
-             * regular-weight font reads as semi-bold). */
+            /* wdText keeps a 1px black glyph stroke for readability on light fills; vrcText drops it so glyphs render at regular weight. */
             strokeWidth: isVrcText ? 0 : 1,
             opacity: textOpacity,
             fontStyle: isVrcText ? 'normal' : 'bold',
@@ -15797,39 +15192,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     }
 
     if (isDimensionLine(insertDevice.id)) {
-        /* VRC Dimension Line — top-level Konva.Group containing:
-         *   1. Konva.Rect (listening: true) — transparent hit area + the
-         *      authoritative bbox the Transformer reads via getClientRect.
-         *      Sized to be wider than the arrow's pointer wings + the
-         *      label so anchor positions stay flush with the rect edges.
-         *   2. Konva.Arrow (listening: false) — black, pointerAtBeginning
-         *      and pointerAtEnding, stroke/pointer attrs driven by
-         *      data_lineWidth / data_pointerSize. Stored as WD pt-like
-         *      units (1 unit ≈ 0.01 m physical extent — same convention
-         *      as data_fontSize); converted to canvas pixels via
-         *      computeDimensionLineCanvasPx() so the stroke + arrowhead
-         *      scale with the room the same way the label glyphs do.
-         *   3. Konva.Label (listening: false) — centered, auto-text is
-         *      the current width converted to the current unit
-         *      ("1.22 m" / "4.00 ft").
-         *
-         * The Group carries data_deviceid, draggable, and id. Clicks on
-         * any child resolve up to the Group via resolveItemAncestor()
-         * (existing wdText / vrcText mechanism). The `transform` handler
-         * absorbs scaleX into actual width + child sizes so the
-         * measurement updates live. updateDimensionLineWidget() is the
-         * single source of truth for painting the three children. */
+        /* VRC Dimension Line — Konva.Group of: (1) transparent listening Rect = hit area + authoritative bbox; (2) non-listening Arrow with stroke/pointer from data_lineWidth/data_pointerSize (WD pt-like units → px via computeDimensionLineCanvasPx); (3) non-listening centered Label showing width in the current unit. Clicks resolve up via resolveItemAncestor; updateDimensionLineWidget() is the single source of truth for painting. */
         const ddef = allDeviceTypes['dimensionLine'] || {};
         const dataFontSize = (attrs.data_fontSize != null) ? Number(attrs.data_fontSize) : (ddef.default_fontSize || 10);
         const dataLineWidth = (attrs.data_lineWidth != null) ? Number(attrs.data_lineWidth) : (ddef.default_lineWidth || 2);
         const dataPointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : (ddef.default_pointerSize || 10);
-        /* dataLineWidth / dataPointerSize are stored in WD pt-like
-         * units (1 unit ≈ 0.01 m physical extent); convert to canvas
-         * pixels for the Konva.Arrow constructor below. The same
-         * conversion runs again inside updateDimensionLineWidget()
-         * called at the tail of this branch, but we seed correct
-         * values up-front to avoid a one-frame flash of wrong-sized
-         * arrows on first paint. */
+        /* Convert WD pt-like line/pointer units to canvas px for the Arrow constructor, seeding correct values to avoid a first-paint flash. */
         const lwPxInit = computeDimensionLineCanvasPx(dataLineWidth, ddef.default_lineWidth || 2);
         const psPxInit = computeDimensionLineCanvasPx(dataPointerSize, ddef.default_pointerSize || 10);
 
@@ -15843,10 +15211,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
         });
 
-        /* Listening rect provides the hit area and the dominant bbox.
-         * fill: 'rgba(0,0,0,0)' (transparent) so it's invisible but
-         * still hit-testable. The `name` attribute is used by
-         * updateDimensionLineWidget() to find this child via findOne. */
+        /* Listening rect = hit area + dominant bbox; transparent fill keeps it invisible but hit-testable, `name` lets updateDimensionLineWidget findOne it. */
         tblWallFlr.add(new Konva.Rect({
             name: 'dim-rect',
             x: 0,
@@ -15870,36 +15235,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             pointerAtEnding: true,
             listening: false,
         });
-        /* Force an empty bbox so this arrow does NOT participate in the
-         * Group's getClientRect union (the Transformer reads that union to
-         * size its blue selection box). Konva's Container.getClientRect
-         * explicitly skips children whose returned bbox has width===0 &&
-         * height===0, so this is the documented "ignore me" contract.
-         *
-         * Why this matters: Konva.Arrow's sharp pointer triangles, with the
-         * default lineJoin='miter' and miterLimit=10, inflate the natural
-         * bbox by up to (miterLimit * strokeWidth / 2) ≈ 10px BEYOND each
-         * tip. That outset is what was leaving a visible gap between the
-         * arrow tips and the Transformer selection box. By making the arrow
-         * contribute nothing, the Group's bbox collapses to the dim-rect
-         * child's bounds [0, 0, w, h] — and the arrow tips at x=0 and x=w
-         * sit exactly on the box edges, matching the visual spec.
-         *
-         * A previous attempt overrode getClientRect to pass {skipStroke:true}
-         * through to the prototype method, but that didn't fully eliminate
-         * the miter outset path. The empty-bbox return is bulletproof. */
+        /* Empty-bbox so the arrow is skipped from the Group's getClientRect union (Konva skips zero-size children). The arrow's miter outset (~10px beyond each tip) otherwise left a gap to the Transformer box; collapsing to the dim-rect bounds puts tips flush on the box edges. */
         dimArrow.getClientRect = function () {
             return { x: 0, y: 0, width: 0, height: 0 };
         };
         tblWallFlr.add(dimArrow);
 
-        /* Non-listening label — black tag with white text, mimics the
-         * visual reference image. Tag corner radius gives the "pill"
-         * shape. updateDimensionLineWidget() is the single source of
-         * truth for the text content, font size, padding, tag stroke,
-         * corner radius, and centering — we seed the constructor with
-         * computed values here only to avoid a one-frame flash of
-         * legacy fixed-pixel chrome before the update call runs. */
+        /* Non-listening pill label; updateDimensionLineWidget() owns text/font/padding/stroke/centering — constructor values just avoid a first-paint flash. */
         const dimLabel = new Konva.Label({
             name: 'dim-label',
             x: width / 2,
@@ -15921,23 +15263,13 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             padding: labelFontPxInit * LABEL_PADDING_RATIO,
             fill: 'black',
         }));
-        /* Same empty-bbox trick as the arrow. For very narrow dimension
-         * lines, the label can be wider than the Rect (e.g. a 0.05m line
-         * showing "0.05 m" still needs a readable tag), which would push
-         * the Group's bbox out beyond [0, w] and re-introduce a gap on the
-         * X axis. The label's height can also exceed the Rect height for
-         * large font sizes. Zeroing the label's bbox makes the dim-rect
-         * the sole authoritative source of the Group's bbox. */
+        /* Same empty-bbox trick as the arrow: a label wider/taller than the Rect (narrow lines, large fonts) would otherwise reintroduce a bbox gap. */
         dimLabel.getClientRect = function () {
             return { x: 0, y: 0, width: 0, height: 0 };
         };
         tblWallFlr.add(dimLabel);
 
-        /* data_* attrs are written to the group below via the existing
-         * four-place rule mirrors at the tail of insertTable() (data_fontSize)
-         * and the new data_lineWidth / data_pointerSize mirrors. Set them
-         * up-front here too so updateDimensionLineWidget() (called right
-         * after) reads the user-provided values rather than device defaults. */
+        /* Seed data_* on the group up-front so updateDimensionLineWidget() (called next) reads user values, not device defaults. */
         tblWallFlr.data_fontSize = (attrs.data_fontSize != null) ? Number(attrs.data_fontSize) : null;
         tblWallFlr.data_lineWidth = (attrs.data_lineWidth != null) ? Number(attrs.data_lineWidth) : null;
         tblWallFlr.data_pointerSize = (attrs.data_pointerSize != null) ? Number(attrs.data_pointerSize) : null;
@@ -16210,10 +15542,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             return { x: -offset, y: -offset, width: d, height: d };
         };
     } else if (insertDevice.id === 'ceilingGrid') {
-        /* Tile spacing defaults match insertItemFromMenu (current unit).
-         * Grid lines are a fixed 24 mm wide → strokeWidth uses unitScale
-         * (pixels-per-meter), unlike the tile spacing which uses scale
-         * (pixels-per-current-unit). */
+        /* Tile spacing defaults match insertItemFromMenu (current unit). Grid lines are a fixed 24 mm wide → strokeWidth uses unitScale (px/meter), unlike spacing which uses scale (px/current-unit). */
         const cgGwDefault = (unit === 'feet') ? 2 : 0.6;
         const cgGlDefault = (unit === 'feet') ? 4 : 1.2;
         const cgGwUnit = (attrs.data_gridWidth == null) ? cgGwDefault : Number(attrs.data_gridWidth);
@@ -16253,8 +15582,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.lineTo(w, h);
                 context.strokeShape(shape);
             },
-            /* Whole-area hit region so the user can click/drag anywhere
-             * inside the grid, not just on the thin lines. */
+            /* Whole-area hit region so dragging works anywhere inside the grid, not just on the lines. */
             hitFunc: (context, shape) => {
                 context.beginPath();
                 context.rect(0, 0, shape.getAttr('width'), shape.getAttr('height'));
@@ -16465,14 +15793,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
             sceneFunc: (ctx, shape) => {
-                /* Read width/height from the SHAPE (not closure-captured
-                 * locals) so rescales applied by
-                 * updateShapesBasedOnNewScale() — which mutates
-                 * node.width()/node.height() but does NOT recreate the
-                 * sceneFunc — propagate to the drawn thickness. Closure-
-                 * captured wallWidth froze at creation scale and broke
-                 * the seam between adjacent 180°-rotated walls on
-                 * window resize. */
+                /* Read width/height from the SHAPE, not closure locals, so updateShapesBasedOnNewScale() rescales (which mutate node size but don't recreate sceneFunc) propagate to the drawn thickness. */
                 const w = shape.width();
                 const h = shape.height();
                 ctx.beginPath();
@@ -16545,31 +15866,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
 
     } else if (isWallChairs(insertDevice.id)) {
-        /* Konva.Group rendering — one Konva.Image per chair slot at a
-         * CONSTANT footprint (2.13 ft × 2.35 ft = 0.65 m × 0.716 m),
-         * positioned along the Y axis at intervals of
-         * `data_chairSpacing`. Spacing < natural footprint ⇒ chairs
-         * visually overlap; spacing > natural footprint ⇒ chairs
-         * leave gaps. The row's Width (depth) stays locked at
-         * `DEFAULT_CHAIR_DEPTH_<unit>` (2.13 ft / 0.65 m — the same
-         * canonical value the pre-refactor `wallWidth = 0.65 * scale`
-         * branch wrote), and individual chair glyphs never stretch or
-         * compress. Replaced the prior Konva.Shape +
-         * fillPatternImage(chairs-top.png) renderer, which baked a
-         * single pattern scale onto the rect and therefore always
-         * distorted the tile in one axis when spacing changed.
-         *
-         * The branch covers every wallChairs-family device (Row of
-         * Chairs / Swivel Chairs / Stool Chairs); per-variant glyph
-         * + rotation is resolved inside `layoutWallChairsChildren()`
-         * via `WALL_CHAIRS_IMAGE_CONFIG`.
-         *
-         * wallWidth is overridden every insert so a stored legacy
-         * width (e.g. from the brief commit that made width track
-         * spacing, or the ~2.16 ft transient width from the first
-         * Konva.Group prototype) is normalised back to the canonical
-         * value on the next load + save. See
-         * `layoutWallChairsChildren()` for the child layout details. */
+        /* Konva.Group with one Konva.Image per chair at a CONSTANT footprint (0.65 m × 0.716 m), spaced along Y by data_chairSpacing (tighter ⇒ overlap, wider ⇒ gaps). Row depth stays locked at DEFAULT_CHAIR_DEPTH_<unit> and glyphs never stretch. Covers all wallChairs variants; per-variant glyph + rotation resolved in layoutWallChairsChildren() via WALL_CHAIRS_IMAGE_CONFIG. wallWidth is overridden each insert to normalise legacy stored widths. */
         const defaultChairDepth = (unit === 'meters')
             ? DEFAULT_CHAIR_DEPTH_METERS
             : DEFAULT_CHAIR_DEPTH_FEET;
@@ -16584,18 +15881,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: 0.8,
         });
-        /* Stamp data_deviceid + data_chairSpacing on the group BEFORE
-         * the layout call so:
-         *   (a) `layoutWallChairsChildren()` resolves the right
-         *       per-variant glyph from `WALL_CHAIRS_IMAGE_CONFIG`
-         *       (default 'wallChairs' fallback would paint Chairs
-         *       glyphs on the very first frame for Swivel / Stool),
-         *   (b) `getChairSpacing()` inside `layoutWallChairsChildren()`
-         *       sees the user's override (not the device default).
-         * The canonical writers further below re-assign
-         * `data_deviceid` (line ~15370) and `data_chairSpacing`
-         * (four-place rule mirror, line ~15378) — safe to set twice,
-         * the values are identical. */
+        /* Stamp data_deviceid + data_chairSpacing BEFORE layoutWallChairsChildren() so it resolves the right per-variant glyph and sees the user's spacing override. The canonical writers below re-assign both (identical values, safe). */
         tblWallFlr.data_deviceid = insertDevice.id;
         tblWallFlr.data_chairSpacing = (attrs.data_chairSpacing == null)
             ? null
@@ -16748,15 +16034,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.data_trapNarrowWidth = attrs.data_trapNarrowWidth;
 
-    /* wallChairs chair-on-center spacing (four-place rule mirror — see
-     * updateRoomObjFromTrNode, copyToCanvasClipBoard, and getChairSpacing
-     * for the reader). Stored as a Number in the room's current unit;
-     * absent ⇒ device default applied at render / expand time. */
+    /* wallChairs chair-on-center spacing (Number in current unit; absent ⇒ device default at render). */
     tblWallFlr.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
-    /* perfectDrawEnabled() is a Konva.Shape method; wdText renders as a
-     * Konva.Label (extends Konva.Group) which doesn't expose it. The
-     * typeof check keeps every other code path identical. */
+    /* perfectDrawEnabled() is a Konva.Shape method; wdText is a Konva.Label (Group) without it, hence the typeof guard. */
     if (typeof tblWallFlr.perfectDrawEnabled === 'function') {
         tblWallFlr.perfectDrawEnabled(perfectDrawEnabled);
     }
@@ -16799,20 +16080,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_fill = attrs.data_fill || null;
     tblWallFlr.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
 
-    /* wdText font size (four-place rule mirror — see updateRoomObjFromTrNode,
-     * copyToCanvasClipBoard, and the defensive write in insertShapeItem
-     * → updateNodeAttributes). Stored as a Number; absent ⇒ null. */
+    /* wdText font size (Number; absent ⇒ null). */
     tblWallFlr.data_fontSize = (attrs.data_fontSize == null) ? null : Number(attrs.data_fontSize);
 
-    /* Dimension Line line width + pointer size (four-place rule mirror — see
-     * updateRoomObjFromTrNode, copyToCanvasClipBoard, and the defensive
-     * write in insertShapeItem → updateNodeAttributes). Stored as Numbers;
-     * absent ⇒ null. The Dimension Line branch above (isDimensionLine) also
-     * sets these explicitly before calling updateDimensionLineWidget so the
-     * first paint reflects the user-provided values; this final write
-     * normalises types and covers the device-default-fallback case for
-     * non-dimensionLine items (which is a no-op since their attrs are
-     * absent). */
+    /* Dimension Line line width + pointer size (Numbers; absent ⇒ null). The isDimensionLine branch above seeds these for first paint; this write just normalises types. */
     tblWallFlr.data_lineWidth = (attrs.data_lineWidth == null) ? null : Number(attrs.data_lineWidth);
     tblWallFlr.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
 
@@ -16996,67 +16267,33 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         /* canvasToJson() deferred — see stage mouseup/touchend. */
     });
 
-    /* MultiRoom overview: the default-walls preview stays frozen during the
-     * move/resize gesture and is rebuilt in the correct place only on drop. */
+    /* MultiRoom overview: default-walls preview stays frozen during the gesture, rebuilt on drop. */
     if (insertDevice.id === 'boxRoomPart') {
         tblWallFlr.on('dragend transformend', function roomPartPreviewRebuild() {
             drawRoomPartDefaultWallsPreviews();
         });
-        /* Draw this room's walls immediately when first placed on the canvas
-         * (insert happens outside drawRoom; no-op unless in overview). */
+        /* Draw this room's walls immediately when first placed (no-op unless in overview). */
         drawRoomPartDefaultWallsPreviews();
     }
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
         lastSelectedNodePosition = deepCopyNode(tblWallFlr);
         if (isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
-            /* wallChairs is a Konva.Group post-refactor — shadowColor /
-             * shadowBlur / shadowOpacity / shadowEnabled are Konva.Shape-only
-             * and throw TypeError on a Group, which kills the rest of this
-             * handler AND the matching transformend snap path. opacity()
-             * exists on Konva.Node (Group's base), so the dim feedback the
-             * original Konva.Shape version provided still works. */
+            /* wallChairs is a Konva.Group; shadow* are Shape-only and throw on a Group, so use opacity() (Node-level) for the dim feedback. */
             tr.nodes()[0].opacity(0.4);
         }
     });
 
     tblWallFlr.on('transformend', function tableOnTransformed(e) {
         let theDeviceId = e.target.data_deviceid;
-        /* Snap the wallChairs row length DOWN to the largest integer
-         * multiple of the chair-on-center spacing that still fits
-         * within the user's dragged height — i.e. exactly the number
-         * of fully-visible chairs the live-drag was showing. Matches
-         * the Math.floor + epsilon contract documented in
-         * `layoutWallChairsChildren()` so the rect ends the drag
-         * flush against the last chair (no trailing whitespace, no
-         * partial-chair clipping).
-         *
-         * Pre-fix this branch used Math.round, which would snap UP to
-         * (count + 1)*spacing whenever the dragged height crossed the
-         * halfway mark — that's the rounding behaviour the user
-         * called out as "different than the rounding that happened
-         * before".
-         *
-         * Reads spacing from the Konva node (carries the four-place-
-         * rule mirror) so a user-customised `data_chairSpacing` is
-         * honoured instead of the hardcoded 2.35 ft / 0.716 m
-         * default the original code used. */
+        /* Snap the wallChairs row length DOWN (Math.floor + epsilon) to the largest spacing-multiple that fits the dragged height, so the rect ends flush against the last chair. Reads spacing from the node so a user-customised data_chairSpacing is honoured. */
         if (isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
             let chairs = tr.nodes()[0];
             let singleChairWidth = getChairSpacing(chairs, roomObj.unit);
-            /* Restore the opacity dim applied in transformstart. shadowEnabled
-             * is Konva.Shape-only and throws on Group — the pre-fix call
-             * `chairs.shadowEnabled(false).opacity(1)` was the actual reason
-             * the snap (and the deferred setTimeout(updateItem)) never ran. */
+            /* Restore the transformstart opacity dim (opacity() only — shadowEnabled throws on a Group). */
             chairs.opacity(1);
 
-            /* Defensive bake: the live `tblWallFlr.on('transform')` handler
-             * above bakes scaleY into height every frame, so by here scaleY
-             * should already be 1. But if Konva fires transformend without
-             * a final transform (e.g. micro-drag, anchor-tap), scaleY can
-             * still be non-1 — fold it in before we measure. Without this,
-             * `chairs.height()` would read the pre-bake value and the snap
-             * would compute the WRONG count, leaving the rect oversized. */
+            /* Defensive bake: fold any leftover scaleY into height (transformend can fire without a final transform on micro-drags) before measuring, else the snap counts wrong. */
             const liveSy = chairs.scaleY();
             if (liveSy !== 1) {
                 const bakedH = Math.max(1, (chairs.height() || 0) * liveSy);
@@ -17074,54 +16311,18 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             document.getElementById('itemLength').value = height / scale;
 
-            /* Keep the Details panel's "Number of Chairs" input in sync
-             * with the snapped count. The deferred updateItem() 100 ms
-             * below reads #itemNumChairs and recomputes
-             * item.height = numChairs * spacing, so #itemNumChairs MUST
-             * agree with #itemLength here — otherwise updateItem() would
-             * round-trip the row back to the pre-snap (or even pre-drag)
-             * length. The live tblWallFlr.on('transform') handler also
-             * updates this input every frame via updateFormatDetails(),
-             * but we update it again here in case the final transform
-             * event was missed or the defensive scaleY bake above
-             * changed the height. */
+            /* Sync #itemNumChairs with the snapped count; the deferred updateItem() reads it to recompute height, so it MUST agree with #itemLength here or the row round-trips back to its pre-snap length. */
             const itemNumChairsInput = document.getElementById('itemNumChairs');
             if (itemNumChairsInput) itemNumChairsInput.value = count;
 
-            /* Use the Konva setter (not `attrs.height = …`) so the
-             * Group's internal bbox cache is invalidated — important
-             * for the tr.forceUpdate() below and for any downstream
-             * `getClientRect()` reader. */
+            /* Konva setter (not attrs.height=) so the Group's bbox cache is invalidated for tr.forceUpdate() / getClientRect(). */
             chairs.height(height);
-            /* Rebuild the inner bg Rect AND the chair Images (their
-             * heights / positions were baked at the drag's last frame,
-             * before the snap above shortened the group). Without this,
-             * the bg Rect would briefly extend past the chairs until the
-             * setTimeout updateItem() at the bottom of this handler fully
-             * re-builds the row via insertTable. Cheap — chair count is
-             * small and the chair Image bitmap is module-level cached. */
+            /* Rebuild bg Rect + chair Images (baked at the drag's last frame, before this snap shortened the group). */
             layoutWallChairsChildren(chairs);
-            /* Konva's Transformer caches the wrapped node's bbox at
-             * attach time AND at the end of each drag/transform
-             * gesture. Mutating `chairs.height(...)` after
-             * transformend does NOT auto-refresh that cache, so the
-             * blue selection outline would keep showing the
-             * pre-snap (over-sized) bbox until the 100 ms
-             * setTimeout(updateItem) below re-creates the node and
-             * re-binds tr.nodes([newNode]). `tr.forceUpdate()` is the
-             * documented Konva API to re-read the bbox in place. */
+            /* tr.forceUpdate() re-reads the bbox in place so the selection outline isn't stuck on the pre-snap size. */
             tr.forceUpdate();
 
-            /* `tr.forceUpdate()` only updates the Transformer's INTERNAL
-             * bbox cache + anchor / border-rect attrs in memory — it does
-             * NOT repaint. During a live transform, Konva auto-batchDraws
-             * each frame; that loop stops when the gesture ends. Without
-             * an explicit redraw here, the user sees the pre-snap (over-
-             * sized) blue outline + bg Rect + chairs until the 100 ms
-             * setTimeout(updateItem) further down finally rebuilds the
-             * node and triggers a draw via insertTable. The 100 ms latency
-             * is exactly the "Rect is not snapping to the last chair when
-             * finished" symptom the user reported. */
+            /* forceUpdate() only updates the Transformer cache in memory, not the screen — the auto-batchDraw loop stopped at gesture end, so repaint explicitly. */
             layerTransform.batchDraw();
         }
 
@@ -17135,19 +16336,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
             setTimeout((theDeviceId) => {
 
-                /* dimensionLine is intentionally NOT in this list. The live
-                 * tblWallFlr.on('transform') handler above already absorbs
-                 * scaleX into group.width() and calls
-                 * updateDimensionLineWidget() every frame, so by transformend
-                 * the rect / arrow / label are already correct. The canonical
-                 * sync of node.width() / rotation back to roomObj.items
-                 * happens on stage.on('mouseup touchend') -> canvasToJson()
-                 * -> updateRoomObjFromTrNode() (parentGroup 'boxes'). Routing
-                 * dimensionLine through updateItem() here would destroy and
-                 * rebuild the Konva.Group, leaving the Transformer briefly
-                 * anchored at the new Group's local 0,0 (rotation handle
-                 * flashes to the upper-left of the item) until the deferred
-                 * tr.nodes([newNode]) re-bind 100 ms later. */
+                /* dimensionLine is intentionally excluded: the live transform handler already keeps its children correct, and routing it through updateItem() would rebuild the Group and flash the Transformer to local 0,0. */
                 if (theDeviceId === 'tblShapeU' || theDeviceId === 'tblTrap' || isWallChairs(theDeviceId) || theDeviceId === 'couch' || theDeviceId === 'sphere' || theDeviceId === 'tblBullet') {
                     updateItem();
                 }
@@ -17158,11 +16347,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         /* Use updateItem so table is redrawn to proper shape on transformend. UpdateItem should be replaced with something not dependent on HTML fields */
     });
 
-    /* wdText/vrcText already render their text directly in the canvas
-     * (the inner Konva.Text child of the Konva.Label), so the floating
-     * overlay label tooltip would be a redundant duplicate. Dimension
-     * Line also auto-renders its measurement text via its own inner
-     * Konva.Label child, so it joins the same skip list. */
+    /* wdText/vrcText/dimensionLine render their text via an inner Konva.Label, so skip the redundant floating overlay label. */
     if (attrs.data_labelField && !isTextItem(insertDevice.id) && !isDimensionLine(insertDevice.id)) {
         addLabel(tblWallFlr, attrs);
     }
@@ -17216,13 +16401,7 @@ function updatWallChairsOnResize() {
     if (redoTrNodes) trNodesFromUuids(roomObj.trNodes, false);
 }
 
-/* Click-event target normalizer. Konva fires events from the leaf shape, so
- * for compound items like wdText (a Konva.Label containing inner Konva.Tag
- * + Konva.Text children) e.target lands on the inner child which carries
- * no data_deviceid / id / draggable flag. Walks the parent chain to find
- * the labeled item node so click/tap handlers and updateFormatDetails()
- * see the same shape they would for a flat image/rect item. No-op when
- * e.target already has data_deviceid (every other item type today). */
+/* Click-event target normalizer. Konva fires from the leaf shape, so for compound items (e.g. wdText's inner Text) e.target lacks data_deviceid; walk up the parent chain to the item node. No-op when e.target already has data_deviceid. */
 function resolveItemAncestor(node) {
     let n = node;
     while (n && !n.data_deviceid && n !== stage && n !== layerTransform) {
@@ -17231,13 +16410,7 @@ function resolveItemAncestor(node) {
     return (n && n.data_deviceid) ? n : node;
 }
 
-/* Convert a wdText `data_fontSize` (Workspace Designer pt-like units) into a
- * Konva.Text fontSize in canvas pixels. User-confirmed mapping: 20pt ≈ 0.20 m
- * tall in the Workspace Designer; pixel size scales with the current canvas
- * `scale` (px per current unit) so the on-canvas preview matches roughly what
- * WD will render and follows zoom automatically. The 1.31 multiplier is an
- * empirical glyph-vs-fontSize calibration so the on-canvas preview matches
- * WD's actual rendered text height. */
+/* Convert wdText data_fontSize (WD pt-like units, 20pt ≈ 0.20 m) into a Konva.Text fontSize in canvas px, scaled by the current `scale` so it tracks zoom. WDTEXT_CANVAS_FONT_SCALE is an empirical glyph-height calibration. */
 const WDTEXT_CANVAS_FONT_SCALE = 1.6;
 function computeWdTextKonvaFontSize(dataFontSize) {
     let fs = Number(dataFontSize);
@@ -17249,21 +16422,7 @@ function computeWdTextKonvaFontSize(dataFontSize) {
     return px;
 }
 
-/* Convert a Dimension Line `data_lineWidth` / `data_pointerSize` value
- * (in WD pt-like units — same convention as `data_fontSize`: 1 unit
- * ≈ 0.01 m of physical extent) into a canvas-pixel size, multiplied
- * by the current `scale` so the rendered stroke / arrowhead tracks
- * zoom AND room size the same way the dimension line's label glyphs
- * do. Without this, the line/pointer would stay a fixed canvas-pixel
- * size while the label (which IS scale-aware) shrank or grew with
- * the room — small rooms ended up with a huge label and tiny arrows,
- * large rooms with a tiny label and oversized arrows.
- *
- * `fallbackValue` is the per-attr device-def default (the
- * `default_lineWidth` / `default_pointerSize` integer) and is used
- * both for missing/non-numeric/non-positive inputs AND for the early-
- * boot path where `scale` has not yet been computed and the multiply
- * would otherwise land at 0. */
+/* Convert a Dimension Line data_lineWidth / data_pointerSize (WD pt-like units, 1 unit ≈ 0.01 m) into canvas px × scale, so stroke/arrowhead track zoom + room size like the label glyphs. fallbackValue (the device-def default) covers bad inputs and the pre-scale boot path. */
 function computeDimensionLineCanvasPx(dataValue, fallbackValue) {
     let n = Number(dataValue);
     if (!isFinite(n) || n <= 0) n = fallbackValue;
@@ -17274,12 +16433,7 @@ function computeDimensionLineCanvasPx(dataValue, fallbackValue) {
     return px;
 }
 
-/* Format the auto-computed measurement string shown inside a Dimension
- * Line's label tag. `widthInUnit` is the current rect width in roomObj.unit
- * (meters or feet). Two-decimal output with the current unit suffix —
- * "1.22 m" or "4.00 ft". Negative values are rounded toward zero to keep
- * a clean reading during fast drags through the origin (Konva's
- * transform handler can briefly emit slightly negative scaleX values). */
+/* Format a Dimension Line label string: widthInUnit (roomObj.unit) → two decimals + unit suffix ("1.22 m" / "4.00 ft"). Clamps negatives to 0 for clean reads during drags through the origin. */
 function formatDimensionMeasurement(widthInUnit, roomUnit) {
     let v = Number(widthInUnit);
     if (!isFinite(v)) v = 0;
@@ -17288,41 +16442,16 @@ function formatDimensionMeasurement(widthInUnit, roomUnit) {
     return v.toFixed(2) + ' ' + suffix;
 }
 
-/* Dimension Line label chrome ratios — each is the legacy hard-coded
- * canvas-pixel value divided by the typical label font px (≈ 16 at
- * an 8 m room with default fontSize 10). Applied to
- * `labelKonvaFontSize` in updateDimensionLineWidget() so the padding
- * / stroke / corner radius scale with the rest of the widget. The
- * 8 m reference room is what kept the legacy fixed-pixel values
- * looking right; preserving those ratios means existing items at
- * typical room sizes barely shift. */
+/* Dimension Line label chrome ratios = legacy fixed px / typical label font px (≈16 at an 8 m room). Applied to labelKonvaFontSize so padding/stroke/corner scale with the widget. */
 const LABEL_PADDING_RATIO = 6 / 16;   /* 0.375 */
 const LABEL_TAG_STROKE_RATIO = 1 / 16;   /* 0.0625 */
 const LABEL_TAG_CORNER_RATIO = 6 / 16;   /* 0.375 */
 
-/* Repaint a Dimension Line group's children (Rect / Arrow / Label) from
- * the group's current width + data_fontSize / data_lineWidth /
- * data_pointerSize attrs. Single source of truth used by:
- *   1. insertTable() at first paint
- *   2. the live `transform` handler (after absorbing scaleX into width)
- *   3. zoom changes (so the font/pointer/line-width canvas sizes track
- *      the current `scale`)
- *
- * Children are found by `name` ('dim-rect' / 'dim-arrow' / 'dim-label')
- * — these are private to the Dimension Line group and never collide
- * with other devices since each is scoped under its own Konva.Group.
- *
- * The rect is sized larger than the arrow's pointer wings + the label
- * so the group's getClientRect (which the Transformer reads to size
- * the bounding box / anchor positions) is rect-dominated. Without this,
- * the Transformer's middle-left / middle-right anchors would drift up
- * with very large pointer sizes. */
+/* Repaint a Dimension Line group's children (Rect/Arrow/Label) from its width + data_fontSize/lineWidth/pointerSize. Single source of truth for first paint, the live transform handler, and zoom changes. Children found by name; rect sized to dominate getClientRect so Transformer anchors stay put. */
 function updateDimensionLineWidget(group) {
     if (!group || typeof group.findOne !== 'function') return;
 
-    /* Pull current attr values from the node, falling back to device
-     * defaults if data_* is absent (e.g. just-inserted item before any
-     * Details-panel edit). */
+    /* Pull attr values from the node, falling back to device defaults when data_* is absent. */
     const deviceDef = allDeviceTypes['dimensionLine'] || {};
     const fs = (group.data_fontSize != null) ? Number(group.data_fontSize) : (deviceDef.default_fontSize || 10);
     const lw = (group.data_lineWidth != null) ? Number(group.data_lineWidth) : (deviceDef.default_lineWidth || 2);
@@ -17330,29 +16459,14 @@ function updateDimensionLineWidget(group) {
 
     const w = Math.max(1, group.width() || 0);
 
-    /* Convert the WD pt-like Line Width / Pointer Size attrs into
-     * canvas-pixel sizes via computeDimensionLineCanvasPx (mirror of
-     * the fontSize -> px conversion done by computeWdTextKonvaFontSize).
-     * This is what makes the whole widget — label glyphs, stroke
-     * width, and arrowhead size — scale together with the room: every
-     * value goes through the same `* 0.01 m * scale` pipeline so a
-     * single set of {fontSize, lineWidth, pointerSize} attrs renders
-     * proportionally identical across a 2 m, 8 m, or 16 m room.
-     * Without this both pixel-units mismatched the meter-units font,
-     * producing tiny arrows + huge label in small rooms and the
-     * opposite in large rooms. */
+    /* Convert line/pointer WD units to px via the same `* 0.01 m * scale` pipeline as the font, so glyphs/stroke/arrowhead scale together across room sizes. */
     const labelKonvaFontSize = computeWdTextKonvaFontSize(fs);
     const lwDefault = deviceDef.default_lineWidth || 2;
     const psDefault = deviceDef.default_pointerSize || 10;
     const lwPx = computeDimensionLineCanvasPx(lw, lwDefault);
     const psPx = computeDimensionLineCanvasPx(ps, psDefault);
 
-    /* Rect height = max(arrow vertical extent, label vertical extent, 30px).
-     * pointerWidth controls how tall the arrowhead wings are at the tip,
-     * so the arrow's effective vertical bbox is roughly `pointerWidth + lw`.
-     * Label glyphs are roughly `fontSize` tall in canvas pixels (via
-     * computeWdTextKonvaFontSize); the Tag adds padding both sides.
-     * Floor of 30px keeps the hit area generous for narrow lines. */
+    /* Rect height = max(arrow extent ≈ pointerWidth+lw, label glyph extent, 30px floor for a generous hit area). */
     const h = Math.max(psPx + lwPx, labelKonvaFontSize * 1.6, 30);
     group.height(h);
 
@@ -17380,30 +16494,15 @@ function updateDimensionLineWidget(group) {
         if (innerText) {
             innerText.text(formatDimensionMeasurement(widthInUnit, roomObj.unit));
             innerText.fontSize(labelKonvaFontSize);
-            /* Text padding scales with the rendered font px so the
-             * white space inside the label tag stays a consistent
-             * fraction of the glyph height across room sizes. Without
-             * this, a fixed `padding: 6` made small-font rooms (16 m)
-             * look loose / puffy and large-font rooms (2 m) look
-             * pinched. 0.375 = 6 / 16, where 16 px is the typical
-             * label font px at an ~8 m room — so existing items at
-             * the typical room size keep their current look. */
+            /* Padding scales with font px so the tag's inner whitespace stays a consistent fraction of glyph height across room sizes. */
             innerText.padding(labelKonvaFontSize * LABEL_PADDING_RATIO);
         }
         if (innerTag) {
-            /* Tag stroke + corner radius scale with the font px for
-             * the same reason as padding. 1/16 = legacy strokeWidth
-             * (1) at typical font px (16); 6/16 = legacy cornerRadius
-             * (6) at typical font px (16). Konva.Tag auto-sizes to
-             * fit its parent Konva.Label's inner Text, so we don't
-             * need to touch width/height here — Konva picks up the
-             * new text padding on next draw. */
+            /* Tag stroke + corner radius scale with font px like padding; the Tag auto-sizes to its inner Text, so no width/height needed. */
             innerTag.strokeWidth(labelKonvaFontSize * LABEL_TAG_STROKE_RATIO);
             innerTag.cornerRadius(labelKonvaFontSize * LABEL_TAG_CORNER_RATIO);
         }
-        /* Center the Label by offsetting half its (now-recomputed) size.
-         * Konva.Label auto-sizes from its inner Text after the text/font
-         * change above, so width() / height() reflect the new content. */
+        /* Center the Label by offsetting half its now-recomputed size. */
         label.x(w / 2);
         label.y(h / 2);
         label.offsetX(label.width() / 2);
@@ -17843,33 +16942,12 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
             //     layerTransform.batchDraw();
             // }
 
-            /* dimensionLine is a Konva.Group; the standard width/height
-             * branches above rescaled the GROUP's own attrs, but the
-             * inner Rect / Arrow / Label children live in the Group's
-             * local coordinate space and aren't iterated by this loop
-             * (updateNodeScaleLayer descends one level — into the per-
-             * category Konva.Groups like groupBoxes / groupTables — and
-             * stops there). Without this branch the inner widgets would
-             * keep their pre-zoom pixel dimensions while the hit-rect
-             * silently grew/shrank around them: the arrow shaft would
-             * end short of the new anchor positions and the measurement
-             * label would float off-center. updateDimensionLineWidget()
-             * reads the (now-rescaled) `node.width()` and repaints all
-             * three children + recomputes the Konva.Text fontSize via
-             * computeWdTextKonvaFontSize() (which is scale-aware), so
-             * the rendered widget matches the new zoom level. */
+            /* dimensionLine is a Konva.Group: the width/height branches above rescaled the Group attrs, but its inner children aren't iterated by this loop, so repaint them from the new node.width(). */
             if (isDimensionLine(node.data_deviceid)) {
                 updateDimensionLineWidget(node);
             }
 
-            /* Same reasoning as dimensionLine above — wallChairs is a
-             * Konva.Group whose chair Konva.Image children live in the
-             * Group's local coords and aren't iterated by this loop.
-             * The width/height branches above have already updated the
-             * Group's own attrs to the new pixel scale; call
-             * layoutWallChairsChildren() to repaint the children at
-             * the new size. (No-op cost: chair count is small and the
-             * chair Image bitmap is module-level cached.) */
+            /* Same reasoning as dimensionLine: repaint wallChairs' inner chair Images at the rescaled Group size. */
             if (isWallChairs(node.data_deviceid)) {
                 layoutWallChairsChildren(node);
             }
@@ -17900,24 +16978,7 @@ function removeShadingTrNodes() {
                 return;
             }
 
-            /* wdText/vrcText are Konva.Label (Group) instances and
-             * dimensionLine is a Konva.Group — none of them expose Shape
-             * stroke methods, so we restore the multi-select highlight
-             * on the inner containing rect (Konva.Tag for text,
-             * '.dim-rect' Konva.Rect for dimensionLine). Originals were
-             * stashed by updateTrNodesShading() onto the inner child as
-             * data_origFill / data_origStroke / data_origStrokeWidth.
-             * The `'data_origFill' in inner` guard makes this a no-op
-             * for any node that didn't actually get painted (e.g. if
-             * single-select skipped the paint branch but the node still
-             * ended up in lastTrNodesWithShading from an unrelated
-             * code path). Without restoring here the blue tint /
-             * stroke would persist after deselect.
-             *
-             * CRITICAL: never call strokeEnabled() on the top-level
-             * node here either — same throw as in updateTrNodesShading(),
-             * which would mid-forEach and leave lastTrNodesWithShading
-             * desynced from the canvas state. */
+            /* wdText/vrcText/dimensionLine are Groups without Shape stroke methods, so restore the multi-select highlight on the inner rect (Tag / .dim-rect) using the originals stashed by updateTrNodesShading(). The 'data_origFill' guard makes it a no-op if never painted. CRITICAL: never call strokeEnabled() on the top-level node (throws and aborts the restore). */
             if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner && 'data_origFill' in inner) {
@@ -17927,10 +16988,7 @@ function removeShadingTrNodes() {
                     delete inner.data_origFill;
                     delete inner.data_origStroke;
                     delete inner.data_origStrokeWidth;
-                    /* Restore the temporary opacity bump applied to
-                     * low-opacity inner rects (currently vrcText's Tag).
-                     * The presence of data_origOpacity is the signal —
-                     * absent for rects whose opacity was already >= 0.7. */
+                    /* Restore the temporary opacity bump (presence of data_origOpacity is the signal). */
                     if ('data_origOpacity' in inner) {
                         inner.opacity(inner.data_origOpacity);
                         delete inner.data_origOpacity;
@@ -18063,28 +17121,7 @@ function updateTrNodesShading() {
             return;
         }
 
-        /* wdText/vrcText render as a Konva.Label (Group) and
-         * dimensionLine renders as a Konva.Group containing Rect +
-         * Arrow + Label — none of these top-level nodes expose Shape
-         * stroke methods, so we never touch them directly here. In
-         * single-select the Transformer's bounding-box anchors are
-         * enough visual feedback; in MULTI-select the Transformer
-         * collapses into one big bbox around everything, so per-item
-         * items get no highlight without this branch. We paint the
-         * containing rect (Konva.Tag for text, '.dim-rect' Konva.Rect
-         * for dimensionLine) with a blue tint + stroke, stashing the
-         * original fill/stroke/strokeWidth on the inner child so the
-         * cleanup pass in removeShadingTrNodes() can restore them
-         * verbatim.
-         *
-         * CRITICAL: never call strokeEnabled() / stroke() / strokeWidth()
-         * on the top-level node — Konva throws
-         * `node.strokeEnabled is not a function` and the function's
-         * tail `tr.nodes(copyTrNodes)` restore never runs, wiping the
-         * user's entire selection on every click / drag / resize /
-         * rotate / marquee involving one of these items. The inner
-         * child (Tag / Rect) IS a real Konva.Shape and is safe to
-         * paint. Mirror this branch in removeShadingTrNodes(). */
+        /* wdText/vrcText/dimensionLine are Groups without Shape stroke methods. Single-select relies on the Transformer anchors, but multi-select collapses to one bbox, so paint the inner rect (Tag / .dim-rect) blue and stash its original fill/stroke/strokeWidth for removeShadingTrNodes(). CRITICAL: never call stroke methods on the top-level node — it throws and the tail tr.nodes(copyTrNodes) restore never runs, wiping the selection. */
         if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
             if (copyTrNodes.length > 1) {
                 const inner = getCompositeHighlightRect(node);
@@ -18095,16 +17132,7 @@ function updateTrNodesShading() {
                     inner.fill('rgba(0, 161, 255, 0.2)');
                     inner.stroke('rgb(0, 161, 255)');
                     inner.strokeWidth(2);
-                    /* vrcText's Konva.Tag has opacity 0.1 by default
-                     * (so it reads as a soft, near-invisible annotation
-                     * on canvas). At that opacity the blue tint + stroke
-                     * we just applied would be barely visible during a
-                     * multi-select. Temporarily bump any inner rect
-                     * whose current opacity is below 0.7 up to 0.7 so
-                     * the highlight is actually visible. wdText's Tag
-                     * (opacity 1) and dimensionLine's dim-rect (opacity
-                     * 1) are untouched by the threshold check.
-                     * Restored verbatim by removeShadingTrNodes(). */
+                    /* Bump any inner rect below 0.7 opacity (e.g. vrcText's 0.1 Tag) up to 0.7 so the blue highlight is visible; restored by removeShadingTrNodes(). */
                     if (inner.opacity() < 0.7) {
                         inner.data_origOpacity = inner.opacity();
                         inner.opacity(0.7);
@@ -18373,11 +17401,7 @@ function updateItem() {
     let width = Number(document.getElementById('itemWidth').value);
     let height = Number(document.getElementById('itemLength').value);
 
-    /* For cone, the Width/Length inputs were relabelled to Radius/Radius2.
-     * The Radius input represents radius1 (item.width = 2 * radius1 per the
-     * cylinder convention), and the new Radius2 input is stored raw on
-     * data_radius2. Length is hidden for cones, so height is forced to
-     * width below alongside the cylinder/sphere block. */
+    /* cone: Width/Length inputs are relabelled Radius/Radius2. Radius = radius1 (item.width = 2*radius1); Radius2 stored raw on data_radius2; height forced to width below. */
     let data_radius2 = '';
     if (document.getElementById('itemName').value === 'cone') {
         width = width * 2;
@@ -18386,8 +17410,7 @@ function updateItem() {
         if (__r2In) data_radius2 = Number(__r2In.value);
     }
 
-    /* ceilingGrid tile dimensions (current unit). Read here, written to
-     * item.data_gridWidth / item.data_gridLength in the item block below. */
+    /* ceilingGrid tile dimensions (current unit); written to item.data_gridWidth/Length below. */
     let data_gridWidth = '';
     let data_gridLength = '';
     if (document.getElementById('itemName').value === 'ceilingGrid') {
@@ -18427,9 +17450,7 @@ function updateItem() {
 
     let data_trapNarrowWidth = document.getElementById('trapNarrowWidth').value;
 
-    /* wallChairs Distance between Center of Chairs. Empty input ⇒
-     * delete the override and fall back to the 2.35 ft / 0.716 m
-     * default at render / expand time (mirrors data_vHeight pattern). */
+    /* wallChairs chair-center spacing; empty input ⇒ delete override, fall back to default at render. */
     let data_chairSpacing = document.getElementById('itemChairSpacing')
         ? document.getElementById('itemChairSpacing').value
         : '';
@@ -18606,10 +17627,7 @@ function updateItem() {
         if (isWallChairs(item.data_deviceid)) {
             const csNum = Number(data_chairSpacing);
             if (data_chairSpacing !== '' && isFinite(csNum) && csNum > 0) {
-                /* Clamp out-of-range values to the hard min/max
-                 * bounds (see MIN/MAX_CHAIR_SPACING_* constants).
-                 * Reflect the clamped value back into the input so
-                 * the user sees what was actually applied. */
+                /* Clamp to the MIN/MAX_CHAIR_SPACING bounds and reflect the clamped value back into the input. */
                 const clamped = clampChairSpacing(csNum, roomObj.unit);
                 item.data_chairSpacing = clamped;
                 if (clamped !== csNum) {
@@ -18621,14 +17639,7 @@ function updateItem() {
                 delete item.data_chairSpacing;
             }
 
-            /* Number of Chairs ⇒ row length. The Details panel hides
-             * the Width/Length/Height row for wallChairs and surfaces
-             * #itemNumChairs in its place; invert the populate-time
-             * Math.round(height / spacing) formula and write the new
-             * length back to item.height. Runs AFTER data_chairSpacing
-             * is finalised above so getChairSpacing() sees the user's
-             * newly-entered spacing if they edited both fields at once.
-             * Blank / invalid input is a no-op (matches data_chairSpacing). */
+            /* Number of Chairs ⇒ row length: invert height = numChairs * spacing and write to item.height. Runs after spacing is finalised above; blank/invalid is a no-op. */
             const numChairsInput = document.getElementById('itemNumChairs');
             const numChairs = numChairsInput ? Math.floor(Number(numChairsInput.value)) : NaN;
             if (isFinite(numChairs) && numChairs >= 1) {
@@ -18678,25 +17689,7 @@ function updateItem() {
             }
         }
 
-        /* Configurable fill / opacity — read from the Details panel
-         * inputs whenever the device-def opts in. Empty / default
-         * opacity (1) is omitted so the JSON / URL round-trip stays
-         * compact for the common case.
-         *
-         * `#FFFFFF` is treated as the "no override" sentinel — same
-         * convention `updateFormatDetails()` uses to populate the
-         * picker when `data_fill` is absent (`shape.data_fill ||
-         * '#FFFFFF'`). This makes the reset button a single call:
-         * `resetFillToDefault()` sets the picker back to `#FFFFFF`,
-         * sets opacity to '', then `updateItem()` reads them and
-         * deletes both overrides — same path every other field uses.
-         *
-         * Trade-off: users who want an EXPLICIT pure-white override
-         * (rather than the device's translucent-white default
-         * `#FFFFFF99`) need to pick `#FEFEFE` or similar. Visually
-         * indistinguishable, semantically explicit. The convention is
-         * acceptable because the device default already paints white,
-         * so "I want white" is satisfied by clearing the override. */
+        /* Configurable fill / opacity from the Details panel when the device-def opts in. Default opacity (1) is omitted to keep the JSON compact. `#FFFFFF` is the "no override" sentinel (matches updateFormatDetails + resetFillToDefault), so an explicit pure-white override needs e.g. `#FEFEFE`. */
         const __deviceDef = allDeviceTypes[item.data_deviceid];
         if (__deviceDef && __deviceDef.configurableColor) {
             const fillVal = document.getElementById('itemFill').value;
@@ -18720,9 +17713,7 @@ function updateItem() {
             }
         }
 
-        /* wdText/vrcText: read Font Size from the Details panel input.
-         * Bad/empty inputs fall back to the device default
-         * (currently 20 for both). */
+        /* wdText/vrcText: read Font Size from Details; bad/empty falls back to the device default. */
         if (isTextItem(item.data_deviceid)) {
             const __fsInput = document.getElementById('itemFontSize');
             if (__fsInput) {
@@ -18731,24 +17722,13 @@ function updateItem() {
                 item.data_fontSize = (!isNaN(__fsNum) && __fsNum > 0) ? __fsNum : __fsDefault;
             }
 
-            /* Translate the user-typed two-char "\n" sequence in the
-             * label into a real newline. Konva.Text honours real newlines
-             * for multi-line rendering, and JSON.stringify re-escapes
-             * them back to "\n" in the WD export so the WD literal is
-             * preserved byte-for-byte. updateFormatDetails() reverses
-             * this for display so the user can keep editing in the
-             * literal form. */
+            /* Translate the typed two-char "\n" into a real newline for Konva.Text; JSON.stringify re-escapes it in the WD export, and updateFormatDetails() reverses it for editing. */
             if (item.data_labelField && typeof item.data_labelField === 'string') {
                 item.data_labelField = item.data_labelField.replace(/\\n/g, '\n');
             }
         }
 
-        /* Dimension Line: read Font Size + Line Width + Pointer Size
-         * from the Details panel inputs. Bad/empty values fall back to
-         * device defaults. The destroy-and-rebuild loop below picks up
-         * the new attrs and feeds them into insertTable() →
-         * updateDimensionLineWidget() so the rect / arrow / label
-         * repaint in the new style. */
+        /* Dimension Line: read Font Size + Line Width + Pointer Size from Details (bad/empty ⇒ device defaults); the destroy-and-rebuild below repaints via insertTable → updateDimensionLineWidget. */
         if (isDimensionLine(item.data_deviceid)) {
             const __fsInput = document.getElementById('itemFontSize');
             if (__fsInput) {
@@ -18768,16 +17748,7 @@ function updateItem() {
                 const __psDefault = (__deviceDef && __deviceDef.default_pointerSize) || 10;
                 item.data_pointerSize = (!isNaN(__psNum) && __psNum > 0) ? __psNum : __psDefault;
             }
-            /* itemLength is the user-facing field for the line's
-             * MEASUREMENT (in current unit). The generic updateItem
-             * code at the top of this function read it into `height`
-             * and wrote it to item.height — but for a dimensionLine the
-             * measurement is stored as item.width (the Group's width).
-             * Re-route it here: copy the form value into item.width,
-             * and drop any item.height the generic code may have
-             * written (height is auto-recomputed by
-             * updateDimensionLineWidget from font/pointer/line sizes,
-             * so we don't want a stale value lingering). */
+            /* itemLength is the line's MEASUREMENT, stored as item.width (the Group width), not item.height. Re-route the form value to item.width and drop item.height (auto-recomputed by updateDimensionLineWidget). */
             if (height && height > 0) {
                 item.width = height;
             }
@@ -19410,10 +18381,7 @@ function toggleMicShadingSingleItem() {
         return;
     }
 
-    /* PERF RULE: roomObjItemsMap.get(id) is O(1); the previous
-     * roomObj.items[parentGroup].forEach scan + DOM read of #itemGroup
-     * was O(b) plus a sync DOM hit. See plan flatten-roomobj-items-array
-     * rule #3. */
+    /* PERF RULE: roomObjItemsMap.get(id) is O(1) vs the old O(b) array scan + DOM read. */
     const item = roomObjItemsMap.get(id);
     if (item) {
         let node = stage.find('#' + id)[0];
@@ -19782,18 +18750,7 @@ function deleteNegativeShapes() {
             corners[2] = { x: width, y: height }; // bottom right
             corners[3] = { x: 0, y: height }; // bottom left
 
-            /* Rotate the corners using the node's transform relative to
-             * the stage (NOT absolute). Passing `stage` as the `top`
-             * argument excludes the stage's own transform — which
-             * matters at zoom > 100% because `repositionStage()` sets
-             * stage.x(-dx) / stage.y(-dy) to follow the DOM scroll, and
-             * stage.scaleX/Y = zoomValue/100. Including those would
-             * make every node's absolute corners massively negative
-             * whenever the user has scrolled while zoomed in, causing
-             * `deleteNegativeShapes` to destroy legitimate items.
-             * Stage-local coords keep the (xBound=1, yBound=1) check
-             * meaningful: it really does mean "all corners are
-             * upper-left of the room's pixel origin". */
+            /* Rotate corners with the transform relative to the stage (pass `stage` as `top` to exclude the stage's own zoom/scroll transform). Absolute coords would go massively negative when scrolled-while-zoomed and wrongly delete items; stage-local keeps the (1,1) bound check meaningful. */
             for (let i = 0; i < 4; i++) {
                 corners[i] = node.getAbsoluteTransform(stage).point(corners[i]);
             }
@@ -20151,23 +19108,7 @@ function createGroup(nodesToGroup) {
     ensureGroups();
 
     const candidates = nodesToGroup || tr.nodes();
-    /* Only group actual items — skip existing Group rects (data_deviceid='group')
-     * AND existing CustomItem rects (data_deviceid='customItem'). CustomItem
-     * rects are NOT items; they are a parallel bundle primitive. The
-     * CustomItem's member items are already in `candidates` (pulled in by
-     * expandSelectionForGroups() when the user clicks the CustomItem rect),
-     * so they get added to the new Group individually with a shared
-     * data_groupId. The CustomItem rect itself stays a CustomItem (its
-     * own bundle), and `getCustomItemRectsAllInGroup()` makes it ride
-     * along when the new Group is later dragged or rotated.
-     *
-     * Without the customItem exclusion, the CustomItem rect was getting
-     * added to `group.groupMembers` and tagged with `data_groupId`. On
-     * copy, `copyToCanvasClipBoard()`'s completeness check routed the
-     * CustomItem rect into `selectedRectCustomItemIds` (because of its
-     * data_deviceid) and never counted it as a Group member, so the
-     * Group always failed the completeness gate and was silently dropped
-     * from the clipboard. Mirror createCustomItem()'s filter to fix it. */
+    /* Only group actual items — skip Group rects ('group') and CustomItem rects ('customItem'); a CustomItem's members are added individually and the rect stays its own bundle. Excluding the CustomItem rect prevents it being mis-tagged as a Group member and dropped on copy. */
     const itemNodes = candidates.filter(n =>
         n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
     );
@@ -20198,10 +19139,7 @@ function createGroup(nodesToGroup) {
         finalNodes.forEach(n => updateItemLayer(n.id(), targetLayerId));
     }
 
-    /* Calculate bounding box in layerTransform-local pixel space using the
-     * same getClientRect call the Transformer uses internally, so the
-     * Group rect hugs the items exactly the way the blue Transformer box
-     * does (no visible gap). No padding. */
+    /* Bounding box in layerTransform-local px via the same getClientRect the Transformer uses, so the Group rect hugs the items with no gap. */
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     finalNodes.forEach(node => {
         const r = getMemberBoundingRect(node);
@@ -20251,13 +19189,7 @@ function createGroup(nodesToGroup) {
     } else {
         tr.nodes(finalNodes);
     }
-    /* Re-pull any CustomItem rects (and their members) whose member items
-     * just landed in the new Group. Without this, Ctrl+G immediately
-     * followed by Ctrl+C would copy the items + Group rect but leave the
-     * CustomItem rect out of `tr.nodes()` (it was filtered out of
-     * `finalNodes` above), and the CustomItem would be dropped from the
-     * clipboard. expandSelectionForGroups() also re-clamps the
-     * Transformer's anchors/resize state for the bundle. */
+    /* Re-pull any CustomItem rects whose members just joined the new Group, so a following Ctrl+C copies them too. Also re-clamps the Transformer anchors. */
     expandSelectionForGroups();
     tr.enabledAnchors([]);
     tr.resizeEnabled(false);
@@ -20279,8 +19211,7 @@ function ungroupSelectedItems() {
     canvasToJson();
 }
 
-/* CustomItem creation/destruction. Mirrors createGroup/ungroupItems
- * with data_customItemId / roomObj.customItems / groupCustomItemRects. */
+/* CustomItem creation/destruction. Mirrors createGroup/ungroupItems with data_customItemId / roomObj.customItems / groupCustomItemRects. */
 
 function ungroupCustomItem(customItemId, keepItems) {
     if (!customItemId) return;
@@ -20318,13 +19249,7 @@ function ungroupCustomItem(customItemId, keepItems) {
     /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
 }
 
-/* Create a CustomItem from tr.nodes() (or supplied nodes). Pre-cleanup:
- * dissolves any existing CustomItem memberships, then dissolves every
- * Group touched by the selection (CustomItem CANNOT contain Groups).
- * Group co-tenants outside the selection also lose Group membership —
- * see CLAUDE.md "Group / CustomItem nesting model".
- * `name` is optional at the signature level for programmatic callers;
- * the dialog forces a non-empty name. */
+/* Create a CustomItem from tr.nodes() (or supplied nodes). Dissolves any existing CustomItem memberships and every Group touched by the selection (CustomItem can't contain Groups; co-tenants lose membership too — see CLAUDE.md). `name` optional for programmatic callers. */
 function createCustomItem(nodesToGroup, name, author, description) {
     ensureCustomItems();
 
@@ -20333,24 +19258,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
         n.data_deviceid && n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem' && n.isVisible()
     );
 
-    /* Selection floor: 2+ real items, with a single-item exception for
-     * a lone `pathShape`. Custom Path Shapes are user-authored geometry
-     * that the user often wants to save to the Custom Item Library as a
-     * standalone reusable template, so the usual "redundant 1-item
-     * bundle" objection (which justifies the 2+ rule for normal
-     * devices) doesn't apply. All downstream code paths (membership
-     * wiring, rect insertion, URL/WD/clipboard round-trip, library
-     * export, menu-image generation) already work for any member count
-     * >= 1.
-     *
-     * Note on the deletion path: `deleteTrNodes` still dissolves any
-     * CustomItem that drops below 2 members on deletion. A 1-pathShape
-     * CustomItem whose single member is deleted dissolves cleanly
-     * (length 0). A 2-member CustomItem reduced to 1 by deletion also
-     * still dissolves — even if the remaining member is a pathShape —
-     * because that path is conservative and shared with the Group
-     * dissolve logic. The user can re-create a 1-pathShape CustomItem
-     * from the loose remainder if desired. */
+    /* Selection floor: 2+ real items, with a single-item exception for a lone pathShape (user-authored geometry worth saving as a standalone template). deleteTrNodes still dissolves any CustomItem that drops below 2 members. */
     const isSinglePathShape =
         itemNodes.length === 1 && itemNodes[0].data_deviceid === 'pathShape';
     if (itemNodes.length < 2 && !isSinglePathShape) {
@@ -20359,37 +19267,13 @@ function createCustomItem(nodesToGroup, name, author, description) {
         return;
     }
 
-    /* Dissolve any existing customItem memberships first so each item ends
-     * up with exactly one data_customItemId (the new one). */
+    /* Dissolve existing customItem memberships so each item ends with exactly the new data_customItemId. */
     const existingCustomItemIds = new Set(
         itemNodes.filter(n => n.data_customItemId).map(n => n.data_customItemId)
     );
     existingCustomItemIds.forEach(id => ungroupCustomItem(id, true));
 
-    /* Strip ALL Group memberships touched by the selection. For every
-     * distinct data_groupId carried by any selected item, dissolve the
-     * whole Group via `ungroupItems(id, true)` — clears `data_groupId`
-     * on every member node + roomObj.items entry, destroys the Group
-     * rect, and removes the entry from `roomObj.groups`. After this
-     * loop every selected item is guaranteed to have no `data_groupId`,
-     * matching the rule "when a customItem is created, all group
-     * information should be removed from each item and the group
-     * removed".
-     *
-     * Side effect — Group "co-tenants" lose membership too: if a Group
-     * G has members [A, B, C, D] and the user selects A, B for a new
-     * CustomItem, dissolving G also clears `data_groupId` on C and D
-     * (they are not in the new CustomItem; they simply become loose
-     * items). This is the documented trade-off of keeping the dissolve
-     * a single atomic operation with the existing helper. The
-     * alternative (surgically removing only A, B from G's
-     * `groupMembers` and recomputing the rect bounds) would leave a
-     * Group of size <2 in many real workflows, which the rest of the
-     * code does not gracefully tolerate.
-     *
-     * Items not in any Group are skipped by the `n.data_groupId` filter
-     * — Set already de-duplicates so each Group is dissolved once even
-     * if multiple selected items share it. */
+    /* Strip all Group memberships touched by the selection: dissolve each distinct data_groupId via ungroupItems(id, true). Side effect: Group co-tenants outside the selection also become loose items — the documented trade-off of an atomic dissolve. */
     const groupIdsToDissolve = new Set(
         itemNodes.filter(n => n.data_groupId).map(n => n.data_groupId)
     );
@@ -20397,9 +19281,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
 
     const finalNodes = itemNodes;
 
-    /* Layer resolution: same convention as createGroup(). All members
-     * adopt a single shared layer. If the selection spans multiple
-     * layers, fall back to the "Add Items to:" dropdown. */
+    /* Layer resolution (as createGroup): all members share one layer, falling back to the "Add Items to:" dropdown if the selection spans layers. */
     const layerIds = [...new Set(finalNodes.map(n => n.data_layerId || '0'))];
     let targetLayerId;
     if (layerIds.length === 1) {
@@ -20428,24 +19310,11 @@ function createCustomItem(nodesToGroup, name, author, description) {
 
     const newCustomItem = {
         customitemid: crypto.randomUUID(),
-        /* Template / "family" id — stable across copies, pastes, exports,
-         * and IDB library entries. Used as the primary key when saving
-         * the customItem template to the VRC Custom Item Library
-         * (IndexedDB) and when deciding whether an imported
-         * vrcCustomItems file overwrites an existing library entry.
-         * customitemid is the per-instance id (changes on paste);
-         * customItemBaseId is the per-template id (persists). */
+        /* Template/"family" id, stable across copies/pastes/exports and the primary key for the IDB library. (customitemid is per-instance and changes on paste; customItemBaseId persists.) */
         customItemBaseId: crypto.randomUUID(),
-        /* Name supplied by the dialog (openCreateCustomItemDialog). Falls
-         * back to '' if the function is called programmatically without
-         * a name — matches the schema for import paths that may carry
-         * an unnamed template through. */
+        /* Name from the dialog; '' for unnamed programmatic/import callers. */
         name: (name == null) ? '' : String(name),
-        /* Optional descriptive metadata from the create dialog.
-         * Author + description are free-form strings; version defaults
-         * to '1' (UI doesn't surface this field — every template
-         * created in v1 is implicitly version 1, with the wire format
-         * reserving the string shape for future bumps). */
+        /* Optional free-form metadata from the create dialog; version defaults to '1'. */
         author: (author == null) ? '' : String(author),
         description: (description == null) ? '' : String(description),
         version: '1',
@@ -20469,10 +19338,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
 
     const customItemRectNode = insertCustomItemRect(newCustomItem);
 
-    /* Select customItem rect + members so the Konva Transformer carries
-     * the bundle as one unit. expandSelectionForGroups() will also pull in
-     * any Group rect that contains some of these members (since
-     * data_groupId is preserved). */
+    /* Select customItem rect + members so the Transformer carries the bundle as one unit (expandSelectionForGroups also pulls in any containing Group rect). */
     if (customItemRectNode) {
         tr.nodes([customItemRectNode, ...finalNodes]);
     } else {
@@ -20485,13 +19351,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
     canvasToJson();
     console.info('CustomItem created:', newCustomItem.customitemid, 'with', finalNodes.length, 'members');
 
-    /* Fire-and-forget save to the VRC Custom Item Library (IDB). The
-     * customItem already exists on the canvas; this background work
-     * only affects future flows (Quick Add palette tile, "Add to /
-     * Remove from Library" menu state). Toast is shown only on
-     * successful save so a silent IDB failure isn't misrepresented to
-     * the user — they'll still see the customItem on the canvas and
-     * can re-trigger a save via "Add to Custom Library". */
+    /* Fire-and-forget save to the IDB Custom Item Library (only affects future Quick Add / menu state). Toast only on success so a silent IDB failure isn't misrepresented. */
     persistCustomItemToLibrary(newCustomItem).then(function (savedBaseId) {
         if (savedBaseId) {
             showToast('Custom Item saved to library');
@@ -20512,11 +19372,7 @@ function ungroupSelectedCustomItems() {
     canvasToJson();
 }
 
-/* ---- Group rect visual ----
- * Creates (or recreates) the purple bounding-box rectangle for a VRC Group.
- * The rect is placed in groupGroupRects (behind all items).
- * groupObj: an entry from roomObj.groups.
- */
+/* ---- Group rect visual ---- Creates/recreates the bounding-box rect for a VRC Group in groupGroupRects (behind all items). groupObj: an entry from roomObj.groups. */
 function insertGroupRect(groupObj) {
     if (!groupObj || !groupObj.groupid) return;
 
@@ -20529,24 +19385,7 @@ function insertGroupRect(groupObj) {
     const pixelW = scale * (groupObj.width || 1);
     const pixelH = scale * (groupObj.height || 1);
 
-    /* listening: false — the rect is a passive visual anchor; the user
-     *            initiates a selection by clicking any member item.
-     *            `expandSelectionForGroups()` then adds this rect to
-     *            tr.nodes() so it travels with the group.
-     * draggable: true — needed so Konva's Transformer can carry the rect
-     *            as part of tr.nodes() (the rect always moves with its
-     *            members when the group is selected).
-     * No manual drag/transform handlers on the rect; member-direct drags
-     * are followed by `followGroupDragFromMember()` from each member's
-     * own dragmove handler.
-     */
-    /* Default appearance: invisible (opacity 0) so the rect is just a
-     * passive bounding-box anchor that doesn't add visual noise to the
-     * canvas. When the group is selected (single-Group bundle OR part of a
-     * multi-select), `updateTrNodesShading()` raises opacity to 0.2 so the
-     * user can see the group bounds; `removeShadingTrNodes()` drops it
-     * back to 0 on deselect. The fill/stroke colours are baked in here
-     * (light blue + solid blue) so the highlight just toggles opacity. */
+    /* listening:false — passive anchor; selection starts by clicking a member, then expandSelectionForGroups() adds this rect to tr.nodes(). draggable:true so the Transformer can carry it. opacity:0 by default; updateTrNodesShading() raises it to 0.2 when selected (colours baked in so the highlight just toggles opacity). */
     const groupRect = new Konva.Rect({
         x: pixelX,
         y: pixelY,
@@ -20575,10 +19414,7 @@ function insertGroupRect(groupObj) {
     return groupRect;
 }
 
-/* ---- CustomItem rect visual ----
- * Mirrors insertGroupRect() — see that function for the design notes. The
- * only differences are the visual style (light green / green stroke) and
- * the parent Konva group (groupCustomItemRects). */
+/* ---- CustomItem rect visual ---- Mirrors insertGroupRect(); differs only in style (green) and parent group (groupCustomItemRects). */
 function insertCustomItemRect(customItemObj) {
     if (!customItemObj || !customItemObj.customitemid) return;
 
@@ -20852,27 +19688,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_groupId = attrs.data_groupId || null;
         node.data_customItemId = attrs.data_customItemId || null;
 
-        /* Configurable fill / opacity — defensive mirror. box / carpet /
-         * stageFloor route through insertTable(), but the four-place rule
-         * wants both writers in sync so any future Image-rendered device
-         * with configurableColor: true picks up the values too. */
+        /* Defensive mirrors: these devices render via insertTable(), but the four-place rule keeps both writers in sync for any future Image-rendered device adopting these attrs. */
         node.data_fill = attrs.data_fill || null;
         node.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
-
-        /* wdText font size — defensive mirror. wdText routes through
-         * insertTable(), but the four-place rule wants both writers in sync. */
         node.data_fontSize = (attrs.data_fontSize == null) ? null : Number(attrs.data_fontSize);
-
-        /* Dimension Line line width + pointer size — defensive mirror.
-         * dimensionLine routes through insertTable(), but the four-place
-         * rule wants both writers in sync so any future Image-rendered
-         * device that adopts these attrs picks them up automatically. */
         node.data_lineWidth = (attrs.data_lineWidth == null) ? null : Number(attrs.data_lineWidth);
         node.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
-
-        /* wallChairs chair-on-center spacing — defensive mirror.
-         * wallChairs routes through insertTable(), but the four-place
-         * rule wants both writers consistent. */
         node.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
         node.data_radius2 = (attrs.data_radius2 == null) ? null : Number(attrs.data_radius2);
@@ -20906,12 +19727,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             id: uuid,
             draggable: true,
             rotation: rotation,
-            /* Match the global perf flag every other primitive sets. A
-             * Konva.Image defaults perfectDrawEnabled=true; once the
-             * selection highlight adds a stroke, that combination routes
-             * each image through an offscreen buffer canvas sized to the
-             * ZOOMED dimensions, so a multi-select redraw cost scales with
-             * zoom^2 (multi-second freeze at high zoom / large selections). */
+            /* Match the global perf flag: Image defaults perfectDrawEnabled=true, but stroked images then buffer at zoomed size (multi-select redraw cost scales with zoom^2). */
             perfectDrawEnabled: perfectDrawEnabled,
         });
 
@@ -20924,12 +19740,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         imageItem.on('dragend', function imageItemOnDragEnd() {
             endGroupDragFollow();
             endCustomItemDragFollow();
-            /* Drift diagnostic must run BEFORE the bundle early-return
-             * below so bundle drags are still measured — the early-return
-             * only skips the single-item guide-line cleanup +
-             * canvasToJson, which the bundle path defers to
-             * stage.on('mouseup') anyway (see "Deferred canvasToJson
-             * sync model" note above beginGroupDragFollow). */
+            /* Drift diagnostic runs BEFORE the bundle early-return so bundle drags are still measured (the early-return only skips single-item cleanup + canvasToJson, which bundles defer to stage mouseup). */
             endDriftCheck('imageItem.dragend');
             if (trNodesLength > 1) return;
             allGuideLines.forEach(guideLine => {
@@ -20944,10 +19755,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
         imageItem.on('dragstart', function imageItemOnDragStart(e) {
-            /* Capture the pre-drag snapshot for group / customItem drag-
-             * follow BEFORE Konva's drag system advances the target's
-             * position. See the matching tblWallFlr.on('dragstart') for
-             * the full reasoning. */
+            /* Capture the pre-drag snapshot for group/customItem follow BEFORE Konva advances the target (see tblWallFlr.on('dragstart')). */
             if (e.target.data_groupId) {
                 beginGroupDragFollow(e.target);
             }
@@ -20974,9 +19782,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
             if (!tr.nodes().includes(e.target)) {
                 if (e.target.data_groupId || e.target.data_customItemId) {
-                    /* Bundle member dragged solo — select the whole bundle
-                     * (rect + every member) instead of just this one
-                     * item. */
+                    /* Bundle member dragged solo — select the whole bundle, not just this item. */
                     tr.nodes([e.target]);
                     expandSelectionForGroups();
                 } else {
@@ -20997,11 +19803,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 }
             }
 
-            /* If this item belongs to a Group / CustomItem, drag the rest
-             * of the bundle along with it. The Group follower runs first;
-             * the CustomItem follower handles items only in a customItem
-             * (its internal guard avoids double-shifting siblings already
-             * moved by the Group follower). */
+            /* Drag the rest of any Group/CustomItem bundle along. Group follower runs first; the CustomItem follower's guard avoids double-shifting siblings already moved. */
             followGroupDragFromMember(imageItem);
             followCustomItemDragFromMember(imageItem);
         });
@@ -21111,8 +19913,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
         })
 
-        /* Index coverage node for O(1) lookup in updateShading() and
-         * applyLayerStateToCoverageNodes(). See updateShading() comment. */
+        /* Index coverage node for O(1) lookup in updateShading() / applyLayerStateToCoverageNodes(). */
         canvasNodesMap.set('fov~' + uuid, groupFov);
 
         if (attrs.data_fovHidden) {
@@ -21682,24 +20483,7 @@ function addLabel(node, attrs, alwaysLabel = false) {
 }
 
 
-/* snap the center of the node to the increment.
- *
- * Bundle (Group / CustomItem) drags use the bundle's RECT center as the
- * source — same "rect_only" rule as Snap to Objects. The grid lattice
- * is fixed (it doesn't depend on other objects) so we don't need to
- * exclude bundle members from any candidate list; we only need to pick
- * the right source point and propagate the delta correctly:
- *
- *   - Transformer drag (`tr.isDragging()` true): rect already moved with
- *     everyone. Compute delta from rect's current center → grid; apply
- *     delta to the rect + every member.
- *   - Member-direct drag: only `node` (e.target) has moved. Project the
- *     rect's would-be center using the dragstart snapshot, snap to
- *     grid, then apply the delta to `node` only — the existing
- *     followGroupDragFromMember / followCustomItemDragFromMember at the
- *     tail of the dragmove handler will propagate the delta to siblings
- *     and the rect.
- */
+/* Snap the node center to the grid increment. Bundle drags use the bundle RECT center as source (rect_only rule): Transformer drag shifts rect + every member; member-direct drag projects the rect center from the dragstart snapshot, snaps, and shifts only `node` (followers propagate to siblings). */
 function snapCenterToIncrement(node) {
     let snapIncrement = Number(document.getElementById('snapToIncrement').value);
     let snapIncrementCheckBox = document.getElementById('snapIncrementCheckBox');
@@ -21746,8 +20530,7 @@ function snapCenterToIncrement(node) {
     const rectNode = bundleSel.rectNode;
     if (!rectNode) return;
 
-    /* Compute the rect's would-be center (member-direct) or current
-     * center (Transformer drag). */
+    /* rect's would-be center (member-direct) or current center (Transformer drag). */
     let projectionDx = 0;
     let projectionDy = 0;
     if (!tr.isDragging() && node && node !== rectNode) {
@@ -21772,15 +20555,7 @@ function snapCenterToIncrement(node) {
         const memberNodes = bundleSel.groupId
             ? getGroupMemberNodes(bundleSel.groupId)
             : getCustomItemMemberNodes(bundleSel.customItemId);
-        /* First-frame proxyDrag double-application guard — see the
-         * extended comment in snapBundleToGuideLines for the full
-         * rationale. Same drift mechanism applies here: if we shift
-         * rect + every member on the first member-direct dragmove,
-         * Konva.Transformer._proxyDrag (chained after this listener)
-         * uses the dragged member's POST-snap absPos to compute the
-         * delta it applies to siblings + rect, double-applying the
-         * snap. Skip snap entirely on the first frame where any
-         * non-target member is not yet dragging. */
+        /* First-frame proxyDrag double-application guard (see snapBundleToGuideLines): skip snap on the first frame where any non-target member isn't yet dragging, else _proxyDrag re-applies the snap delta. */
         if (node && memberNodes.some(m => m !== node && !m.isDragging())) {
             return;
         }
@@ -21799,14 +20574,7 @@ function snapCenterToIncrement(node) {
 
 /* snap to object start */
 
-/* were can we snap our objects? If resize = true, ignore center.
- *
- * `excludeBundle` (optional): { groupId, customItemId } — when set, the
- * caller is snapping a Group / CustomItem bundle as a single unit. Drop
- * every node carrying that groupId / customItemId so the bundle never
- * snaps to itself. (Per the user's "exclude_all_bundles" choice we also
- * drop ALL other bundle MEMBERS — only bundle rects + non-bundled items
- * remain as snap targets, regardless of excludeBundle.) */
+/* Where can objects snap? If resize=true, ignore center. `excludeBundle` ({groupId, customItemId}) drops the bundle's own rect so it never snaps to itself. All other bundle MEMBERS are also dropped — only bundle rects + non-bundled items remain as snap targets. */
 function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
     /* we can snap to stage borders and the center of the stage */
 
@@ -21843,19 +20611,11 @@ function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
         /* ignore the shading and the temporary groups */
         if (!(groupName === 'theTransformer' || groupName === 'microphoneCoverage' || groupName === 'cameraCoverage' || groupName === 'displayDistanceCoverage' || groupName === 'speakerCoverage')) {
 
-            /* Drop bundle MEMBER items globally — only bundle rects
-             * (data_deviceid 'group' / 'customItem') represent a bundle
-             * as a snap target. Member items inside any Group or
-             * CustomItem are not surfaced individually so the user
-             * doesn't see noisy "snap to one chair inside a bundle"
-             * guides; the bundle's rect serves the snap intent. */
+            /* Drop bundle MEMBER items globally — only bundle rects represent a bundle as a snap target (avoids noisy per-member guides). */
             if (node.data_groupId && node.data_deviceid !== 'group') return false;
             if (node.data_customItemId && node.data_deviceid !== 'customItem') return false;
 
-            /* Drop the dragged bundle's own rect (skipShape only matches
-             * one specific node; member-direct drag passes a member as
-             * skipShape, not the bundle's rect, so this is needed to
-             * keep the bundle from snapping to itself). */
+            /* Drop the dragged bundle's own rect (skipShape is a member on member-direct drag, not the rect). */
             if (excludeBundle) {
                 if (excludeBundle.groupId
                     && node.data_deviceid === 'group'
@@ -22124,27 +20884,7 @@ function getObjectsWithLowestDiff(resultV) {
     return resultV.filter(item => Math.round(item.diff) === minRoundedDiff);
 }
 
-/* Resize-snap helpers — PowerPoint-style snap-to-objects while the
- * user drags a Transformer resize handle on a single, axis-aligned
- * item. Wired via `tr.boundBoxFunc(snapResizeBoundBox)` after the `tr`
- * constructor. Reuses `getLineGuideStops(node, true)` for snap
- * targets and `drawSnapGuides()` for the magenta guide lines.
- *
- * Eligibility (any miss → return newBox unchanged):
- *   - snap-to-objects checkbox on
- *   - single node in tr.nodes()
- *   - data_deviceid not in {group, customItem, pathShape, cone}
- *   - active anchor present and not 'rotater'
- *   - rotation ∈ {0°, 90°, 180°, 270°} (axis-aligned)
- *
- * The anchor name decodes to LOCAL edges (the node's pre-rotation
- * frame); `mapLocalEdgesToWorld` rotates those into the visible
- * world-AABB edges so corner anchors snap both axes simultaneously.
- *
- * `boundBoxFunc` does NOT fire during drag, so the existing drag-snap
- * path (`snapToGuideLines(e)` from per-item dragmove handlers) is
- * untouched. Guides are cleared in `tr.on('transformend')`.
- */
+/* Resize-snap helpers — PowerPoint-style snap-to-objects while dragging a Transformer resize handle on a single axis-aligned item (rotation ∈ {0,90,180,270}, deviceid not group/customItem/pathShape/cone). Wired via tr.boundBoxFunc(snapResizeBoundBox). Anchor names decode to LOCAL edges; mapLocalEdgesToWorld rotates them to world-AABB edges. Guides cleared in tr.on('transformend'). */
 function getLocalEdgesFromAnchor(name) {
     return {
         left: name.endsWith('-left'),
@@ -22155,9 +20895,7 @@ function getLocalEdgesFromAnchor(name) {
 }
 
 function mapLocalEdgesToWorld(local, rot) {
-    /* Konva positive rotation = visual CW. At rot 90, the local
-     * "right" edge becomes the visual bottom; at rot 180 it becomes
-     * the visual left; at rot 270 it becomes the visual top. */
+    /* Konva positive rotation = visual CW, so local edges rotate into world edges. */
     if (rot === 0) return { ...local };
     if (rot === 90) return {
         top: local.left,
@@ -22181,10 +20919,7 @@ function mapLocalEdgesToWorld(local, rot) {
 }
 
 function worldAabbFromBox(box, rot) {
-    /* `box.x` / `box.y` is the node origin's world position; `box.width`
-     * / `box.height` are the LOCAL (pre-rotation) dimensions. Convert
-     * to the visible world AABB based on the four axis-aligned
-     * rotations. (Rotation around the node origin.) */
+    /* box.x/y is the node origin world pos; box.width/height are LOCAL dims. Convert to the visible world AABB for each axis-aligned rotation (about the origin). */
     const { x, y, width: w, height: h } = box;
     if (rot === 0) return { minX: x, minY: y, maxX: x + w, maxY: y + h };
     if (rot === 90) return { minX: x - h, minY: y, maxX: x, maxY: y + w };
@@ -22194,10 +20929,7 @@ function worldAabbFromBox(box, rot) {
 }
 
 function boxFromWorldAabb(aabb, rot) {
-    /* Inverse of `worldAabbFromBox`: recover the node-origin world
-     * position + LOCAL width/height from the snapped world AABB. For
-     * rot 90/270, the visual width/height swap relative to the local
-     * width/height. */
+    /* Inverse of worldAabbFromBox: recover node-origin world pos + LOCAL w/h (swapped at rot 90/270). */
     const visW = aabb.maxX - aabb.minX;
     const visH = aabb.maxY - aabb.minY;
     if (rot === 0) {
@@ -22214,8 +20946,7 @@ function boxFromWorldAabb(aabb, rot) {
 }
 
 function trySnapEdge(aabb, edgeKey, stops, matched, orientation) {
-    /* Find the nearest stop within GUIDELINE_OFFSET; if found, snap
-     * the AABB edge to it and record the matched guide. */
+    /* Snap the AABB edge to the nearest stop within GUIDELINE_OFFSET and record the guide. */
     const current = aabb[edgeKey];
     let best = null;
     let bestDiff = GUIDELINE_OFFSET;
@@ -22241,10 +20972,7 @@ function snapResizeBoundBox(oldBox, newBox) {
     const anchorName = typeof tr.getActiveAnchor === 'function' ? tr.getActiveAnchor() : null;
     if (!anchorName || anchorName === 'rotater') return newBox;
 
-    /* Konva passes newBox.rotation in RADIANS (via Konva.Util.getAngle()
-     * with Konva.angleDeg=true → degrees → radians). Convert here to a
-     * discrete degree enum {0, 90, 180, 270} with a small tolerance for
-     * floating-point drift across the angleDeg↔rad round-trip. */
+    /* newBox.rotation is in RADIANS; convert to a discrete {0,90,180,270} enum with a small float-drift tolerance. */
     const rotDeg = (((newBox.rotation || 0) * 180 / Math.PI) % 360 + 360) % 360;
     let rot;
     const TOL = 0.5;
@@ -22271,45 +20999,14 @@ function snapResizeBoundBox(oldBox, newBox) {
     allGuideLines = [];
     drawSnapGuides(matchedGuides);
 
-    /* boxFromWorldAabb returns rotation in the enum degree value; Konva
-     * expects radians on the way out, so overwrite with newBox.rotation
-     * (unchanged radians) — the snapped box keeps the original rotation. */
+    /* boxFromWorldAabb returns degrees; Konva expects radians, so restore newBox.rotation (unchanged). */
     const snapped = boxFromWorldAabb(aabb, rot);
     snapped.rotation = newBox.rotation;
     return snapped;
 }
 
-/* Snap a Group / CustomItem bundle to other objects.
- *
- * Source: the bundle's RECT bounds (per the user's "rect_only" choice).
- * Members never contribute snap edges.
- *
- * Two drag styles to handle:
- *
- *   1. Transformer drag (`tr.isDragging() === true`): Konva already moved
- *      every node in tr.nodes() (rect + members) by the drag delta. The
- *      rect's getClientRect() reflects the current dragged position. We
- *      compute a snap delta against the rect and apply it to the rect +
- *      every member. We do NOT call `e.target.absolutePosition(...)`
- *      because the existing follower (followGroupDragFromMember /
- *      followCustomItemDragFromMember) no-ops while tr.isDragging — so
- *      shifting only e.target would split the bundle.
- *
- *   2. Member-direct drag (`tr.isDragging() === false`): only e.target
- *      has moved. The rect is still at its dragstart position. We project
- *      the rect's would-be position (rect.snapshotStartPos + member drag
- *      delta) and compute the snap against that projected position. We
- *      apply the snap delta to e.target only — the existing follower
- *      runs at the tail of the dragmove handler and propagates the new
- *      delta (which now includes the snap offset) to the rect + siblings.
- *
- * Idempotent across re-fires within a frame: after the first apply, the
- * rect (or its projection) sits exactly on the snap line, so the next
- * call computes delta = 0.
- */
+/* Snap a Group/CustomItem bundle to other objects using the bundle RECT bounds (rect_only; members never contribute edges). Transformer drag: rect+members already moved, so shift them all by the snap delta (not e.target, since the follower no-ops while tr.isDragging). Member-direct drag: only e.target moved, so project the rect's would-be pos, snap, and shift e.target only (follower propagates). Idempotent within a frame. */
 function snapBundleToGuideLines(e, bundleSel) {
-    /* Resize is meaningless on a bundle — Transformer has no anchors. */
-    /* (Caller already filters resize, but be defensive.) */
     const rectNode = bundleSel.rectNode;
     if (!rectNode) return;
 
@@ -22317,23 +21014,14 @@ function snapBundleToGuideLines(e, bundleSel) {
     allGuideLines.forEach(guideLine => { guideLine.destroy(); });
     allGuideLines = [];
 
-    /* Identify the bundle so getLineGuideStops can drop both the rect AND
-     * its sibling members from the candidate list (member-direct drag
-     * passes a member as e.target, not the rect, so skipShape alone
-     * isn't enough to exclude the dragged bundle). */
+    /* Identify the bundle so getLineGuideStops drops the rect AND its members (member-direct drag passes a member as e.target, so skipShape alone isn't enough). */
     const excludeBundle = bundleSel.groupId
         ? { groupId: bundleSel.groupId, customItemId: null }
         : { groupId: null, customItemId: bundleSel.customItemId };
 
-    /* Pull snap targets — pass the rect as skipShape so the dragged
-     * bundle's own rect is excluded; the new excludeBundle filter then
-     * also drops every member of this bundle. */
     const lineGuideStops = getLineGuideStops(rectNode, false, excludeBundle);
 
-    /* Compute snap source — for member-direct drag we project the rect to
-     * its would-be position so the snap source matches what the user will
-     * see after the follower propagates. For Transformer drag the rect has
-     * already moved, so its current bounds are the source directly. */
+    /* For member-direct drag, project the rect to its would-be position; for Transformer drag the rect already moved. */
     let projectedRect = null;     /* {dx, dy} projection delta, member-direct only */
 
     if (!tr.isDragging() && e && e.target && e.target !== rectNode) {
@@ -22348,11 +21036,10 @@ function snapBundleToGuideLines(e, bundleSel) {
         };
     }
 
-    /* Build itemBounds against the rect's projected (or actual) bounds. */
+    /* itemBounds against the rect's projected (or actual) bounds. */
     const itemBounds = getObjectSnappingEdges(rectNode, false);
     if (projectedRect) {
-        /* Shift every guide/offset by the projection delta so getGuides
-         * compares against the would-be rect position. */
+        /* Shift guides by the projection delta so getGuides compares against the would-be rect position. */
         itemBounds.vertical.forEach(b => { b.guide += projectedRect.dx; });
         itemBounds.horizontal.forEach(b => { b.guide += projectedRect.dy; });
     }
@@ -22362,10 +21049,7 @@ function snapBundleToGuideLines(e, bundleSel) {
 
     drawSnapGuides(guides);
 
-    /* Compute snap deltas (sdx, sdy) — how much to shift the bundle to
-     * land on the matched line guides. Each guide entry's offset is
-     * (rectAbsPos - rectBoxEdge), so the new rect absPos = lineGuide +
-     * offset. The delta is therefore (newAbsPos - currentRectAbsPos). */
+    /* Snap deltas (sdx, sdy): new rect absPos = lineGuide + offset, delta = newAbsPos - currentRectAbsPos. */
     const rectAbsPos = rectNode.absolutePosition();
     let sdx = 0;
     let sdy = 0;
@@ -22386,35 +21070,11 @@ function snapBundleToGuideLines(e, bundleSel) {
         const memberNodes = bundleSel.groupId
             ? getGroupMemberNodes(bundleSel.groupId)
             : getCustomItemMemberNodes(bundleSel.customItemId);
-        /* CRITICAL: on the FIRST member-direct dragmove of a bundle,
-         * Konva.Transformer._proxyDrag (chained AFTER VRC's listener
-         * because tr.nodes() registers its proxyDrag listeners after the
-         * per-item listeners are bound at item creation time) has NOT
-         * yet shifted the siblings + rect into the "dragging" state.
-         * proxyDrag's first-frame forEach reads
-         *   dx = draggedMember.absPos - lastPos
-         * where lastPos was captured at dragstart (BEFORE any snap),
-         * and applies that dx to every other node in tr.nodes(). If we
-         * ALSO shift siblings + rect here, proxyDrag will then add the
-         * snap delta a second time on top, leaving siblings + rect at
-         *   start + delta1 + 2*sdx
-         * while the dragged member sits at
-         *   start + delta1 + sdx
-         * — a per-bundle drift of exactly sdx that persists for the
-         * rest of the drag (proxyDrag bakes the extra shift into each
-         * sibling's offset_member at _createDragElement time, so
-         * subsequent _setDragPosition calls can't recover lockstep).
-         * Detection: any non-target bundle member with isDragging()===
-         * false signals "first frame, proxyDrag.forEach hasn't run".
-         * Skipping snap entirely on that frame is correct — snap fires
-         * again on every subsequent frame where all members ARE
-         * dragging, and shifts everyone uniformly (lockstep). The
-         * single-frame snap delay is imperceptible. */
+        /* CRITICAL first-frame guard: on the first member-direct dragmove, Konva's _proxyDrag (chained after this listener) hasn't shifted siblings yet and will re-apply our snap delta, causing a permanent sdx drift. Detect via any non-target member with isDragging()===false and skip snap that frame (it fires again next frame in lockstep). */
         if (e && e.target && memberNodes.some(m => m !== e.target && !m.isDragging())) {
             return;
         }
-        /* Transformer drag OR subsequent member-direct frame — shift
-         * rect + every member by (sdx, sdy). */
+        /* Transformer drag OR subsequent member-direct frame — shift rect + every member by (sdx, sdy). */
         rectNode.x(rectNode.x() + sdx);
         rectNode.y(rectNode.y() + sdy);
         memberNodes.forEach(m => {
@@ -22422,10 +21082,7 @@ function snapBundleToGuideLines(e, bundleSel) {
             m.y(m.y() + sdy);
         });
     } else if (e && e.target) {
-        /* Member-direct drag — shift only e.target. The follower at the
-         * tail of the dragmove handler will recompute target.x() -
-         * snapshot.startPos.x (now drag delta + snap delta) and propagate
-         * to siblings + rect. */
+        /* Member-direct drag — shift only e.target; the dragmove follower propagates the new delta to siblings + rect. */
         e.target.x(e.target.x() + sdx);
         e.target.y(e.target.y() + sdy);
     }
@@ -22435,10 +21092,7 @@ function snapToGuideLines(e, resize = false) {
 
     if (!document.getElementById('snapGuidelinesCheckBox').checked) return; /* bail out if snap to guidelines not turned on */
 
-    /* Bundle (Group / CustomItem) selection has 2+ nodes in tr.nodes()
-     * (rect + members). Route to the bundle-aware snapper which uses the
-     * rect as the snap source. Resize-mode snap is meaningless on a
-     * bundle (Transformer has no resize anchors) so we skip it. */
+    /* Bundle selection (rect + members) routes to the bundle-aware snapper using the rect as source; resize snap is meaningless on a bundle so skip it. */
     const bundleSel = (typeof getActiveGroupSelection === 'function' ? getActiveGroupSelection() : null)
         || (typeof getActiveCustomItemSelection === 'function' ? getActiveCustomItemSelection() : null);
     if (bundleSel) {
@@ -23132,13 +21786,7 @@ function updateShading(node) {
     if (isAllCoverageGroupHidden) return;
 
     let uuid = node.id();
-    /* O(1) Map lookup instead of stage.find() — which is O(N) tree walk
-     * in Konva v9 (_generalFind → _descendants). With 4500+ items the
-     * tree walk dominated bulk-import time. Coverage/label nodes are
-     * registered in canvasNodesMap at creation time under their composite
-     * IDs ('fov~UUID', 'audio~UUID', 'speaker~UUID', 'dispDist~UUID',
-     * 'label~UUID') and unregistered at destroy sites. The `.parent`
-     * guard drops stale entries left by any unsynced destroy path. */
+    /* O(1) Map lookup vs stage.find()'s O(N) tree walk (dominated bulk-import at 4500+ items). Coverage/label nodes are registered in canvasNodesMap under composite IDs; the `.parent` guard drops stale entries from any unsynced destroy. */
     let fovShading = canvasNodesMap.get('fov~' + uuid);
     if (fovShading && !fovShading.parent) { canvasNodesMap.delete('fov~' + uuid); fovShading = undefined; }
     let audioShading = canvasNodesMap.get('audio~' + uuid);
@@ -23244,9 +21892,7 @@ function getItemCenter(item) {
 }
 
 
-/* enableCopyButton is enacted anywhere tr.nodes([]) is used and changes from length=0 to lenth >0.
- * Pass { suppressTabSwitch: true } when the call is a side-effect of a non-Items-tab action
- * (e.g. Layers-tab Hide/Lock toggles) so the user is not yanked over to the Items tab. */
+/* Refreshes Duplicate/Delete + Details panel for the current tr.nodes(). Pass { suppressTabSwitch: true } for non-Items-tab actions (e.g. Layers Hide/Lock) so the user isn't yanked to the Items tab. */
 function enableCopyDelBtn(opts) {
 
     const suppressTabSwitch = !!(opts && opts.suppressTabSwitch);
@@ -23271,12 +21917,7 @@ function enableCopyDelBtn(opts) {
 
     }
 
-    /* When the entire selection is a single Group (rect + only members of
-     * that one group), treat it as one conceptual item and show the
-     * single-item Details panel populated with Group fields. Without this
-     * branch the length>1 multi-item panel would always show because
-     * `expandSelectionForGroups()` always pulls every member + the rect
-     * into tr.nodes() whenever any group node is selected. */
+    /* A single-Group selection (rect + only its members) is shown as one conceptual item in the single-item panel; otherwise expandSelectionForGroups() would force the multi-item panel. */
     const __activeGroupSel = getActiveGroupSelection();
     if (__activeGroupSel) {
         divItemDetailsVisible.style.display = '';
@@ -23290,8 +21931,7 @@ function enableCopyDelBtn(opts) {
         return;
     }
 
-    /* CustomItem precedence: same logic as Group, but only triggers when
-     * no Group rect is in the selection (Group always wins). */
+    /* CustomItem: same as Group, but only when no Group rect is selected (Group wins). */
     const __activeCustomItemSel = getActiveCustomItemSelection();
     if (__activeCustomItemSel) {
         divItemDetailsVisible.style.display = '';
@@ -23355,9 +21995,7 @@ function enableCopyDelBtn(opts) {
     updateTrNodesShadingTimer();
 };
 
-/* Refreshes the Duplicate/Delete button state and right-panel content to match the current
- * tr.nodes() selection, WITHOUT switching to the Items tab. Use this from Layers-tab handlers
- * (e.g. Hide/Lock toggles) so the user stays on the Layers tab. */
+/* Refresh Duplicate/Delete + panel for the current selection without switching to the Items tab (use from Layers-tab handlers). */
 function refreshCopyDelBtnState() {
     enableCopyDelBtn({ suppressTabSwitch: true });
 }
@@ -23731,15 +22369,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     if (shape.data_deviceid === 'backgroundImageFloor') return; /* background image is not editable in the format details pane */
 
-    /* Group rerouting (precedence: Group > CustomItem > single):
-     *   - Clicking a group member: the user thinks of the group as one item,
-     *     so swap `shape` over to the Group rect and show Group fields
-     *     instead of the member's own details.
-     *   - Clicking a CustomItem member that isn't ALSO in a Group: swap to
-     *     the CustomItem rect and show CustomItem fields.
-     *   - The rect itself only ever lands in `shape` via the
-     *     enableCopyDelBtn() bundle-detection path (its listening:false flag
-     *     blocks direct clicks). */
+    /* Group rerouting (Group > CustomItem > single): clicking a group member swaps `shape` to the Group rect (CustomItem member not also in a Group swaps to the CustomItem rect) so bundle fields show instead of the member's. */
     if (shape.data_groupId && shape.data_deviceid !== 'group' && typeof groupGroupRects !== 'undefined' && groupGroupRects) {
         const rectNode = groupGroupRects.find(n => n.data_groupId === shape.data_groupId)[0];
         if (rectNode) shape = rectNode;
@@ -23840,20 +22470,14 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheight').disabled = false;
     }
 
-    /* wdText/vrcText: width/length are auto-sized by Konva.Label from
-     * the inner Konva.Text — disable both inputs (hidden below by the
-     * `both-disabled` collapse rule, which the text-item branch lower
-     * in this function also drives). */
+    /* wdText/vrcText: width/length/vheight auto-sized by Konva.Label, so disable all (hidden below by the both-disabled collapse rule). */
     if (isTextItem(shape.data_deviceid)) {
         document.getElementById('itemWidth').disabled = true;
         document.getElementById('itemLength').disabled = true;
         document.getElementById('itemVheight').disabled = true;
     }
 
-    /* Dimension Line: the line's measurement IS its length, so we surface
-     * it via itemLength (editable). itemWidth is hidden — the line has no
-     * second axis, and showing it as a disabled twin would just be noise.
-     * itemVheight is meaningless for a 2D measurement line. */
+    /* Dimension Line: measurement IS its length (editable itemLength); itemWidth/itemVheight have no meaning. */
     if (isDimensionLine(shape.data_deviceid)) {
         document.getElementById('itemWidth').disabled = true;
         document.getElementById('itemLength').disabled = false;
@@ -23869,13 +22493,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemLengthDiv').style.display = 'none';
         document.getElementById('labelFieldDiv').style.display = '';
     } else if (isDimensionLine(shape.data_deviceid)) {
-        /* Dimension Line: only show Length (the line's measurement). The
-         * Width input would just be a redundant disabled twin since a
-         * line has no second axis. The Item Label field is also hidden —
-         * the rendered label is the live measurement readout produced by
-         * updateDimensionLineWidget(), not a user-editable string, and
-         * dimensionLine intentionally skips data_labelField (see the
-         * isDimensionLine guard in insertTable's addLabel skip). */
+        /* Dimension Line: show only Length; the rendered label is the live measurement readout (not user-editable), so hide the label field. */
         document.getElementById('itemWidthDiv').style.display = 'none';
         document.getElementById('itemLengthDiv').style.display = '';
         document.getElementById('labelPathId').style.display = 'none';
@@ -23887,11 +22505,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('labelFieldDiv').style.display = '';
     }
 
-    /* Cone: relabel "Width" -> "Radius" and toggle visibility of the
-     * Length / Radius2 inputs. The actual VALUE write for itemWidth
-     * (radius = item.width / 2) happens AFTER the canonical
-     * `itemWidth.value = round(shape.width()/scale)` line below;
-     * otherwise that line clobbers the divide. */
+    /* Cone: relabel "Width" -> "Radius" and toggle Length/Radius2. The radius value-write happens AFTER the canonical itemWidth assignment below (else it's clobbered). */
     const __widthLabelSpan = document.getElementById('itemWidthLabelText');
     const __radius2Div = document.getElementById('itemRadius2Div');
     if (shape.data_deviceid === 'cone') {
@@ -23903,8 +22517,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         if (__radius2Div) __radius2Div.style.display = 'none';
     }
 
-    /* ceilingGrid: show the Grid Width / Grid Length tile-size inputs
-     * (Width/Length stay visible — the grid is a plain rectangle). */
+    /* ceilingGrid: show Grid Width/Length tile-size inputs (Width/Length stay visible). */
     const __gridWidthDiv = document.getElementById('itemGridWidthDiv');
     const __gridLengthDiv = document.getElementById('itemGridLengthDiv');
     if (shape.data_deviceid === 'ceilingGrid') {
@@ -23965,9 +22578,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
 
     }
 
-    /* certifiedDisplay: show the model picker dropdown (size is locked to
-     * the model, so itemDiagonalTvDiv stays hidden via the regex above).
-     * The top-elevation field is still useful, so re-show it here. */
+    /* certifiedDisplay: show the model picker (size locked to model so itemDiagonalTvDiv stays hidden); re-show top-elevation. */
     const certifiedDisplayDiv = document.getElementById('certifiedDisplayDiv');
     if (certifiedDisplayDiv) {
         if (shape.data_deviceid === 'certifiedDisplay') {
@@ -24017,19 +22628,14 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('trapNarrowWidthDiv').style.display = 'none';
     }
 
-    /* Distance between Center of Chairs — wallChairs-family only
-     * (Row of Chairs / Swivel Chairs / Stool Chairs). */
+    /* Distance between Center of Chairs — wallChairs-family only. */
     const __isWallChairsRow = isWallChairs(shape.data_deviceid);
     const chairSpacingDiv = document.getElementById('chairSpacingDiv');
     if (chairSpacingDiv) {
         chairSpacingDiv.style.display = __isWallChairsRow ? '' : 'none';
     }
 
-    /* Number of Chairs (wallChairs-family only) — UX translation of
-     * the underlying `item.height`. The Width/Length/Height row is
-     * hidden for these rows and replaced visually by this count
-     * field; the row's length stays the source of truth in
-     * roomObj.items. */
+    /* Number of Chairs (wallChairs-family only) — UX translation of item.height (the row's length stays source of truth). */
     const numChairsDiv = document.getElementById('numChairsDiv');
     if (numChairsDiv) {
         numChairsDiv.style.display = __isWallChairsRow ? '' : 'none';
@@ -24133,19 +22739,12 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemLength').value = 0;
     }
 
-    /* Dimension Line: itemLength surfaces the line's MEASUREMENT, which
-     * is stored as shape.width() (the Group's width). shape.height() is
-     * the auto-computed tag height (driven by font/pointer/line sizes)
-     * and isn't meaningful to the user. Override after the generic
-     * populate above so itemLength shows the line length instead. */
+    /* Dimension Line: itemLength surfaces the measurement, stored as shape.width(); shape.height() is the auto tag height. Override the generic populate above. */
     if (isDimensionLine(shape.data_deviceid)) {
         document.getElementById('itemLength').value = round(shape.width() / scale);
     }
 
-    /* Cone value-write: must run AFTER the canonical itemWidth assignment
-     * above (otherwise it clobbers the halved value). item.width stores
-     * the diameter (cylinder convention); the Radius input shows
-     * width / 2. updateItem() doubles on the way back in. */
+    /* Cone value-write: runs after the canonical itemWidth assignment. item.width is the diameter; Radius input shows width/2, updateItem() doubles back. */
     if (shape.data_deviceid === 'cone') {
         const __wInput = document.getElementById('itemWidth');
         if (__wInput) __wInput.value = round(Number(__wInput.value || 0) / 2);
@@ -24167,8 +22766,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemZposition').value = "";
     }
 
-    /* Room Parts (boxRoomPart / polyRoom) never support tilt/lean — hide the
-     * controls the same way videoDevices do. */
+    /* Room Parts (boxRoomPart/polyRoom) never support tilt/lean — hide controls like videoDevices. */
     const isRoomPartShape = ['polyRoom', 'boxRoomPart'].includes(shape.data_deviceid);
 
     if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices' && !isRoomPartShape) {
@@ -24212,12 +22810,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('labelPath').value = pathLabel.path.trim();
 
         } else if (isTextItem(shape.data_deviceid)) {
-            /* Mirror of updateItem's "\\n" → real-newline conversion.
-             * The stored label has real newlines (so Konva.Text renders
-             * multi-line and the JSON export emits a literal "\n"); the
-             * single-line text input would otherwise collapse them to
-             * spaces or hide them. Show literal "\n" instead so the user
-             * can keep editing in the same form they typed. */
+            /* Mirror of updateItem's "\n" ↔ real-newline conversion: show literal "\n" in the single-line input. */
             document.getElementById('labelField').value =
                 String(item.data_labelField).replace(/\n/g, '\\n');
         } else {
@@ -24235,9 +22828,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('trapNarrowWidth').value = (roomObj.unit === 'feet') ? 2.5 : 0.75;
     }
 
-    /* Distance between Center of Chairs (wallChairs). Empty input
-     * shows the default as a placeholder so the user sees "what's it
-     * actually using" without committing the value to the data. */
+    /* Distance between Center of Chairs (wallChairs). Empty input shows the default as a placeholder without committing it. */
     const itemChairSpacing = document.getElementById('itemChairSpacing');
     if (itemChairSpacing) {
         const defaultSpacing = (roomObj.unit === 'feet')
@@ -24251,18 +22842,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemChairSpacing.placeholder = defaultSpacing;
     }
 
-    /* Number of Chairs (wallChairs only) — derived from the Konva node's
-     * LIVE height (NOT roomObj item.height, which is stale during a drag).
-     * The live `tblWallFlr.on('transform')` handler calls
-     * updateFormatDetails() every frame while the user drags the
-     * bottom-center anchor; reading shape.height() keeps the count
-     * display in sync with the live drag. If we read item.height
-     * instead, the count never changes during the drag AND the deferred
-     * updateItem() call would later use the stale count to recompute
-     * item.height back to its pre-drag value — silently undoing the
-     * Transformer resize. Math.floor + epsilon mirrors
-     * layoutWallChairsChildren()'s slot-count formula so the displayed
-     * count always matches the visible chairs. */
+    /* Number of Chairs (wallChairs only) — derived from the node's LIVE height (not stale item.height) so the count tracks the live drag. Math.floor + epsilon mirrors layoutWallChairsChildren()'s slot-count formula. */
     const itemNumChairs = document.getElementById('itemNumChairs');
     if (itemNumChairs && isWallChairs(item.data_deviceid)) {
         const spacing = getChairSpacing(shape, roomObj.unit);
@@ -24302,22 +22882,10 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     /* populate layer dropdown for single item */
     populateLayerDropdown('drpItemLayer', item.data_layerId || '0');
 
-    /* wdText/vrcText: surface Font Size + Tilt/Lean and hide every field
-     * that doesn't apply (the inner Konva.Text auto-sizes the bounding
-     * box from the text + fontSize, so width/length/diagonal/vheight/
-     * cornerRadius are meaningless for these devices). Tilt + Lean ARE
-     * applicable for wdText — they ride out as rotation[0] / rotation[2]
-     * on the WD export (mirror of wallStd / cylinder), so the standard
-     * input divs surface unchanged. vrcText round-trips verbatim via
-     * data.vrc.vrcTexts, so Tilt/Lean stay visible for it too. */
+    /* wdText/vrcText: surface Font Size + Tilt/Lean, hide inapplicable fields (Konva.Text auto-sizes from text+fontSize). Tilt/Lean export as rotation[0]/rotation[2] for wdText and round-trip verbatim for vrcText. */
     const fontSizeDiv = document.getElementById('itemFontSizeDiv');
     if (fontSizeDiv) {
-        /* itemZpositionDiv + itemLineWidthPointerSizeRow are reset in each
-         * branch below — Z hidden only for dimensionLine; the LineWidth /
-         * PointerSize row visible only for dimensionLine. Defaults
-         * (visible-Z, hidden-row) are re-asserted in the else branch so
-         * switching back from a dimensionLine to any other item restores
-         * the normal layout. */
+        /* Z hidden only for dimensionLine; LineWidth/PointerSize row visible only for dimensionLine. The else branch re-asserts defaults (visible-Z, hidden-row). */
         const zDiv = document.getElementById('itemZpositionDiv');
         const lwpsRow = document.getElementById('itemLineWidthPointerSizeRow');
         if (isTextItem(shape.data_deviceid)) {
@@ -24339,28 +22907,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             const __ncDivText = document.getElementById('numChairsDiv');
             if (__ncDivText) __ncDivText.style.display = 'none';
             itemTopElevationDiv.style.display = 'none';
-            /* Tilt + Lean visibility follows the global showTiltSlantCheckBox
-             * set by the earlier block in this function (~line 22739) — same
-             * convention as every other non-videoDevice item. data_tilt /
-             * data_slant DO export for wdText (rotation[0] / rotation[2] in
-             * workspaceObjTextPush) and round-trip for vrcText (verbatim via
-             * data.vrc.vrcTexts), so when the user toggles the WD Tilt/Lean
-             * checkbox on, the inputs surface and edits flow through. The
-             * earlier block also force-shows the divs when an item already
-             * carries non-default data_tilt / data_slant, so saved values
-             * remain editable even with the checkbox off. */
+            /* Tilt/Lean visibility follows the earlier showTiltSlantCheckBox block; data_tilt/data_slant export for wdText and round-trip for vrcText, and force-show when already non-default. */
             if (zDiv) zDiv.style.display = '';
             if (lwpsRow) lwpsRow.style.display = 'none';
         } else if (isDimensionLine(shape.data_deviceid)) {
-            /* Dimension Line: show Font Size + Line Width + Pointer Size,
-             * hide every WD-export-specific field (no diagonal / vheight /
-             * corner radius / tilt / slant / WD color picker — the
-             * Dimension Line is a VRC-only annotation and the arrow is
-             * always rendered black). The Width/Length row IS shown so
-             * the user can read/edit the line's measurement via the
-             * itemLength input (itemWidth is hidden within the row by
-             * the earlier dimensionLine branch in the if/else chain that
-             * sets itemWidthDiv display to 'none'). */
+            /* Dimension Line: show Font/Line Width/Pointer Size, hide WD-export fields (VRC-only annotation, arrow always black). Width/Length row stays for editing the measurement via itemLength. */
             fontSizeDiv.style.display = '';
             const ddef = allDeviceTypes['dimensionLine'] || {};
             const fsInput = document.getElementById('itemFontSize');
@@ -24384,10 +22935,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             if (psDiv) psDiv.style.display = '';
             if (lwpsRow) lwpsRow.style.display = '';
 
-            /* Width/Length row stays visible — the earlier branch in this
-             * function hid itemWidthDiv but kept itemLengthDiv visible,
-             * and the both-disabled collapse rule doesn't fire because
-             * itemLength is enabled for dimensionLine. */
+            /* Width/Length row stays visible (itemLength enabled, so the collapse rule doesn't fire). */
             document.getElementById('itemWidthLengthDiv').style.display = '';
             document.getElementById('itemDiagonalTvDiv').style.display = 'none';
             document.getElementById('itemVheightDiv').style.display = 'none';
@@ -24401,8 +22949,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             document.getElementById('itemTiltSlantDiv').style.display = 'none';
             document.getElementById('itemTiltDiv').style.display = 'none';
             document.getElementById('itemSlantDiv').style.display = 'none';
-            /* Dimension Lines are a flat 2D annotation — Z elevation has no
-             * meaning. Hide the Z field; the X/Y row collapses to just X+Y. */
+            /* Dimension Lines are flat 2D — Z has no meaning; hide it (X/Y row collapses to X+Y). */
             if (zDiv) zDiv.style.display = 'none';
         } else {
             fontSizeDiv.style.display = 'none';
@@ -24415,16 +22962,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         }
     }
 
-    /* Configurable fill / opacity (box, carpet, stageFloor — anything
-     * the device-def marks with configurableColor or wdOpacity).
-     *   - Show / hide #fillDiv based on the flags.
-     *   - Populate #itemFill from node.data_fill (fallback "#FFFFFF" so
-     *     the <input type="color"> always has a valid value — empty
-     *     strings throw it back to the browser default which would
-     *     mislead the user about what "no override" looks like).
-     *   - Populate #itemOpacity from node.data_opacity. Blank input
-     *     ⇒ "no override" (the placeholder shows "1"), matching the
-     *     resetFillToDefault() reset semantics. */
+    /* Configurable fill/opacity (devices flagged configurableColor or wdOpacity): toggle #fillDiv, populate #itemFill (fallback #FFFFFF for a valid color input) and #itemOpacity (blank = no override). */
     const fillDiv = document.getElementById('fillDiv');
     if (fillDiv) {
         const deviceDef = allDeviceTypes[shape.data_deviceid];
@@ -24556,11 +23094,7 @@ function addListeners(stage) {
 
     let x1, y1, x2, y2;
 
-    /* Make the stage container keyboard-focusable. Without a tabIndex
-     * the call to stage.container().focus() below is a no-op, and the
-     * canvas can never own keyboard focus. Setting it once here means
-     * every click handler can rely on focus() working — we don't need
-     * to redundantly re-set tabIndex in each path. */
+    /* Make the stage container keyboard-focusable (tabIndex) so stage.container().focus() works for every click handler. */
     stage.container().tabIndex = 1;
 
     stage.on('click tap', function stageOnDblclickDbltap(e) {
@@ -24576,11 +23110,7 @@ function addListeners(stage) {
 
 
         if (e.target.findAncestor('.layerTransform')) {
-            /* For Konva.Label-based items (wdText), e.target lands on the
-             * inner Konva.Text/Tag child which has no data_deviceid. Walk
-             * up to the labeled item so updateFormatDetails sees the
-             * proper item node. Other items hit a direct shape with
-             * data_deviceid already set, so this is a no-op for them. */
+            /* For Konva.Label items (wdText) e.target is the inner Text/Tag (no data_deviceid); walk up to the labeled item (no-op for normal shapes). */
             e.target = resolveItemAncestor(e.target);
             document.getElementById("tabItem").click();
             document.getElementById("subTabItemDetails").click();
@@ -24592,16 +23122,7 @@ function addListeners(stage) {
 
     stage.on('mousedown touchstart', function stageOnMousedownTouchstart(e) {
 
-        /* Move keyboard focus to the canvas on EVERY interaction (any
-         * click on an item, empty canvas, or the start of a drag-select
-         * rectangle). Without this, focus stays on whatever the user
-         * clicked last — typically a button like "Update Item" — and
-         * pressing space then fires that button's click action (browser
-         * default) instead of the canvas Quick Add shortcut. The mouseup
-         * path at the end of a drag-select also calls focus(), but that
-         * only covers the multi-select case; this catches single clicks
-         * on items and empty-area clicks too. preventScroll keeps the
-         * scrollable canvas container from jumping when focus lands. */
+        /* Move keyboard focus to the canvas on EVERY interaction so Space fires Quick Add (not a previously-clicked button). preventScroll keeps the container from jumping. */
         stage.container().focus({ preventScroll: true });
 
         if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall || isWallBuilderOn || isWallWriterOn2 || isPolyBuilderOn) {
@@ -24730,13 +23251,7 @@ function addListeners(stage) {
             resizeTableOrWall();
         }
 
-        /* Final focus reassertion at the end of a multi-select drag.
-         * The mousedown handler at the start of the drag already moved
-         * focus to the canvas, but a Konva-internal blur during the
-         * drag, or focus stolen by a button click that immediately
-         * preceded the drag, can leave focus elsewhere by the time the
-         * user lifts the mouse. tabIndex is set once in addListeners(),
-         * so we don't need to set it again here. */
+        /* Final focus reassertion at the end of a multi-select drag (a Konva blur or button focus-steal mid-drag can move it away). */
         stage.container().focus({ preventScroll: true });
         enableCopyDelBtn();
     });
@@ -24748,11 +23263,7 @@ function addListeners(stage) {
 
         if (e.target.getParent() === tr) return;
 
-        /* For Konva.Label-based items (wdText) the click lands on the
-         * inner Konva.Text/Tag which has no id, no data_deviceid, and
-         * no draggable() flag. Walk up to the labeled item so the rest
-         * of this handler (selection, resize anchors, deselect path)
-         * sees the same shape it would for a normal image/rect item. */
+        /* For Konva.Label items (wdText) the click lands on the inner Text/Tag (no id/data_deviceid/draggable); walk up to the labeled item. */
         e.target = resolveItemAncestor(e.target);
 
 
@@ -24834,39 +23345,18 @@ function addListeners(stage) {
 
         }
 
-        /* Snapshot whether any bundle rect is in the selection. The
-         * per-frame Details-panel refresh helpers only do real work for
-         * a single-bundle selection — gating on this boolean instead of
-         * running their O(N) selection scans every event saves ~5-8 sec
-         * of CPU per gesture on a 1000+ item marquee rotation. */
+        /* Snapshot whether any bundle rect is selected; gating the per-frame Details refresh on this avoids O(N) scans every event (~5-8s CPU on 1000+ item rotations). */
         _bundleInRotateSelection = tr.nodes().some(n =>
             n.data_deviceid === 'group' || n.data_deviceid === 'customItem'
         );
 
-        /* Opt-in drift diagnostic — see beginDriftCheck() docstring.
-         * Rotation branch only checks dRot uniformity (member positions
-         * legitimately differ post-rotation). */
+        /* Opt-in drift diagnostic (see beginDriftCheck); rotation only checks dRot uniformity. */
         beginDriftCheck('tr.transformstart');
     });
 
     tr.on('transform', function onTransform(e) {
 
-        /* Bundle rotation: the rotate anchor is the only enabled handle
-         * for a Group / CustomItem (resizeEnabled=false). Konva spins
-         * every node in tr.nodes() around the bbox centre, which moves
-         * the rect's x/y AND its rotation — refresh the Details panel so
-         * the user sees the live values. Done before the early return
-         * because trNodesLength is >1 for a bundle.
-         *
-         * Gated on _bundleInRotateSelection (cached at transformstart)
-         * because Konva fires this event hundreds of thousands of times
-         * during a large marquee rotation, and the getActiveGroup /
-         * CustomItem helpers inside these refresh calls each walk
-         * tr.nodes() with .filter()/.some() — an O(N) scan that adds up
-         * to multi-second CPU costs on 1000+ item rotations. The
-         * final flush in tr.on('transformend') still runs
-         * unconditionally so any edge case still gets the Details panel
-         * synced once after the gesture ends. */
+        /* Bundle rotation: rotate is the only enabled handle, and it moves the rect's x/y + rotation, so refresh the Details panel live (before the trNodesLength early return). Gated on _bundleInRotateSelection to skip O(N) helper scans on huge rotations; transformend flushes unconditionally. */
         if (_bundleInRotateSelection) {
             refreshGroupDetailsFromCanvas();
             refreshCustomItemDetailsFromCanvas();
@@ -24877,26 +23367,7 @@ function addListeners(stage) {
         let scaleX = e.target.scaleX();
         let scaleY = e.target.scaleY();
 
-        /* Scale-absorb: bake any non-1 scale into width/height so
-         * canvasToJson() (which reads raw node.width / node.height
-         * attrs) and the WD export pipeline see the resized values.
-         * Konva's _fitNodesInto leaves the scale on the node after a
-         * resize; we flatten it here.
-         *
-         * Condition footgun: the original guard was
-         * `!(scaleX === 1 || scaleY === 1)` which skips whenever
-         * EITHER axis is exactly 1 — which is what happens for every
-         * EDGE anchor drag (top-center / bottom-center / middle-left /
-         * middle-right). The non-unit scale on the active axis would
-         * silently persist on the node; the canvas rendered correctly
-         * (Konva multiplies on draw) but the saved roomObj.items
-         * width/height were the pre-resize values. Result: WD export,
-         * page refresh, and .vrc.json round-trips all dropped the
-         * resize, producing visible gaps between adjacent items even
-         * though the canvas looked correct mid-session. Mirrors the
-         * dimensionLine handler at ~15692 (`if (sx !== 1 || sy !== 1)`)
-         * and the wallChairs handler at ~15713 (`if (sy !== 1)`) which
-         * use the correct logic. */
+        /* Scale-absorb: flatten any non-1 scale into width/height so canvasToJson()/WD export see resized values. Guard uses `!(scaleX===1 && scaleY===1)`, NOT `||` — the latter skipped edge-anchor drags (one axis stays 1), silently dropping the resize on export/refresh/round-trip. */
         if (trNodesLength === 1 && !(scaleX === 1 && scaleY === 1) && e.target.data_deviceid != 'pathShape') {
 
             let width = e.target.width();
@@ -24918,17 +23389,14 @@ function addListeners(stage) {
 
     tr.on('transformend', () => {
         hideAllCoverageGroups(false);
-        /* Final flush of bundle X/Y/Rotation in the Details panel after a
-         * Transformer-driven rotation. */
+        /* Final flush of bundle X/Y/Rotation in the Details panel after a Transformer rotation. */
         refreshGroupDetailsFromCanvas();
         refreshCustomItemDetailsFromCanvas();
         /* Clear resize-snap guide lines drawn by snapResizeBoundBox. */
         allGuideLines.forEach(g => g.destroy());
         allGuideLines = [];
         endDriftCheck('tr.transformend');
-        /* canvasToJson() intentionally NOT called here — see the
-         * "Deferred canvasToJson sync model" note above
-         * beginGroupDragFollow for the rationale. */
+        /* canvasToJson() intentionally NOT called here — see the Deferred canvasToJson sync model note above beginGroupDragFollow. */
     });
 
 }
@@ -25088,9 +23556,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
         return;
     }
 
-    /* Assign new item to the layer selected in the Layers-tab "Add Items to:"
-     * dropdown (defaults to Default '0'). Only set when caller hasn't already
-     * provided a layer, so role-dialog re-entries / programmatic flows win. */
+    /* Assign the new item to the Layers-tab "Add Items to:" layer (default '0'), unless the caller already set one. */
     if (!('data_layerId' in attrs)) {
         attrs.data_layerId = getDefaultLayerForNewItems();
     }
@@ -25146,26 +23612,13 @@ function insertItemFromMenu(data_deviceid, attrs) {
         }
     }
 
-    /* wdText/vrcText: prompt the user for the text in a modal before
-     * inserting (similar to the rolesDialog flow for cameras like
-     * ptzVision2). The dialog handler (confirmTextInsertFromDialog)
-     * completes the insertion after the user clicks Add; Cancel aborts
-     * the insert. Paste/import paths bypass this because they don't go
-     * through insertItemFromMenu() — they go through insertItem() /
-     * pasteItems() with data_labelField already set. The
-     * !attrs.data_labelField guard also lets any future programmatic
-     * caller that pre-populates the label skip the dialog. */
+    /* wdText/vrcText: prompt for text in a modal before inserting (dialog completes the insert on Add). Paste/import bypass this (label preset); the !data_labelField guard lets pre-populated callers skip it. */
     if (isTextItem(data_deviceid) && !attrs.data_labelField) {
         openTextInsertDialog(data_deviceid, attrs);
         return;
     }
 
-    /* certifiedDisplay: prompt the user to pick a display model in a
-     * modal before inserting (mirror of the rolesDialog / dialogTextInsert
-     * flow). The picked certifiedDisplays index locks the display size.
-     * Paste/import paths bypass this because they don't go through
-     * insertItemFromMenu(); the data_certifiedDisplayIndex guard also lets
-     * a programmatic caller that pre-sets the index skip the dialog. */
+    /* certifiedDisplay: prompt to pick a model in a modal (index locks the size). Paste/import bypass this; the index guard lets pre-set callers skip it. */
     if (data_deviceid === 'certifiedDisplay' && attrs.data_certifiedDisplayIndex == null) {
         openCertifiedDisplayDialog(attrs);
         return;
@@ -25606,9 +24059,7 @@ function createEquipmentMenu() {
 
 
 
-/* Build the floating drag-preview node from a tile element (the
- * cloned <img> that follows the finger). Factored out so the eager
- * desktop path AND the long-press timer callback can share one site. */
+/* Build the floating drag-preview node (cloned <img> following the finger). Shared by the eager desktop path and the long-press timer callback. */
 function _createTouchDragPreview(tileEl) {
     if (!tileEl || !tileEl.children || tileEl.children.length === 0) return null;
     newInsertItem = tileEl.children[0].cloneNode(true);
@@ -25618,9 +24069,7 @@ function _createTouchDragPreview(tileEl) {
     return newInsertItem;
 }
 
-/* Clear any pending long-press timer + state. Called whenever the
- * gesture transitions out of the "pending arm" phase: arming finished,
- * user scrolled, gesture ended, etc. */
+/* Clear any pending long-press timer + state (arming finished, scrolled, gesture ended). */
 function _clearTouchDragArmTimer() {
     if (_touchDragTimer !== null) {
         clearTimeout(_touchDragTimer);
@@ -25638,10 +24087,7 @@ function touchStart(e) {
         return;
     }
 
-    /* Desktop / non-touch (mouse-with-touchscreen-fallback) keeps the
-     * eager behaviour so HTML5 drag-and-drop on Chromebooks / hybrid
-     * devices still feels instant. The long-press gate is purely a
-     * mobile-touch ergonomics fix for the Equipment scroller. */
+    /* Desktop/non-touch keeps the eager behaviour so HTML5 drag stays instant; the long-press gate is a mobile-touch fix for the Equipment scroller. */
     if (typeof mobileDevice === 'undefined' || mobileDevice === 'false') {
         e.preventDefault();
         _createTouchDragPreview(e.target);
@@ -25649,9 +24095,7 @@ function touchStart(e) {
         return;
     }
 
-    /* Touch device: arm the long-press timer but do NOT preventDefault
-     * yet. If the user swipes within TOUCH_DRAG_HOLD_MS the browser
-     * still owns the gesture and scrolls #equipmentScrollArea. */
+    /* Touch device: arm the long-press timer but don't preventDefault yet — a swipe within TOUCH_DRAG_HOLD_MS lets the browser scroll #equipmentScrollArea. */
     _clearTouchDragArmTimer();
     _touchDragArmed = false;
     const startTouch = e.touches[0];
@@ -25665,20 +24109,17 @@ function touchStart(e) {
     _touchDragTimer = setTimeout(function _armTouchDrag() {
         _touchDragTimer = null;
         _touchDragArmed = true;
-        /* Seed dragClientX/Y from the touchstart point so a release
-         * with zero further movement still has valid drop coords. */
+        /* Seed dragClientX/Y from touchstart so a zero-movement release still has valid drop coords. */
         if (_touchDragStart) {
             dragClientX = _touchDragStart.x;
             dragClientY = _touchDragStart.y;
         }
         _createTouchDragPreview(tileEl);
-        /* Position the preview at the finger so it doesn't pop in at
-         * the top-left corner of the page before the next touchmove. */
+        /* Position the preview at the finger so it doesn't pop in at page top-left before the next touchmove. */
         if (newInsertItem && _touchDragStart) {
             const w = newInsertItem.width || newInsertItem.offsetWidth || 0;
             const h = newInsertItem.height || newInsertItem.offsetHeight || 0;
-            /* clientX/Y -> pageX/Y; scrollX/Y added so the preview lands
-             * under the finger when the page is scrolled. */
+            /* clientX/Y -> pageX/Y (add scrollX/Y) so the preview lands under the finger when scrolled. */
             newInsertItem.style.left = (_touchDragStart.x + window.scrollX - w / 2) + 'px';
             newInsertItem.style.top = (_touchDragStart.y + window.scrollY - h / 2) + 'px';
         }
@@ -25693,10 +24134,7 @@ function touchMove(e) {
         return;
     }
 
-    /* Pending long-press: cancel arming if the finger moves far enough
-     * to look like a scroll; otherwise stay quiet and let the browser
-     * decide. Crucially do NOT preventDefault here so the parent
-     * #equipmentScrollArea can pan. */
+    /* Pending long-press: cancel arming if the finger moves like a scroll; don't preventDefault here so #equipmentScrollArea can pan. */
     if (!_touchDragArmed) {
         if (_touchDragTimer !== null && _touchDragStart) {
             const t = e.touches[0] || e.targetTouches[0];
@@ -25744,8 +24182,7 @@ function touchMove(e) {
 
 function touchEnd(e) {
 
-    /* Quick tap (timer never fired): clear pending state and bail —
-     * no insert, no orphan preview node. */
+    /* Quick tap (timer never fired): clear state and bail — no insert, no orphan preview. */
     if (!_touchDragArmed) {
         _clearTouchDragArmTimer();
         _touchDragStart = null;
@@ -25764,10 +24201,7 @@ function touchEnd(e) {
     _touchDragStart = null;
 }
 
-/* Handle touchcancel the same way as touchend — clear pending arming
- * state and remove any in-flight preview/cue. Touchcancel fires when
- * the OS interrupts the gesture (e.g. system gesture, alert popup);
- * without this we'd leak the timer / armed flag / floating <img>. */
+/* touchcancel (OS interrupts the gesture): clear arming state + remove any in-flight preview, else we leak the timer/flag/<img>. */
 function touchCancel(e) {
     _clearTouchDragArmTimer();
     if (_touchDragArmed && newInsertItem && newInsertItem.parentNode) {
@@ -25782,12 +24216,7 @@ function touchCancel(e) {
 
 
 
-/* Note: an old addItemListeners(itemArray) helper used to live here as
- * a duplicate of the createItemsOnMenu() wiring. It was never called
- * anywhere in the codebase and was removed alongside the touch-drag
- * gating work (May 2026) so future maintainers aren't tempted to
- * extend stale, unused event registrations. createItemsOnMenu() is
- * the single source of truth for tile event listeners. */
+/* Note: a dead addItemListeners() duplicate of createItemsOnMenu()'s wiring was removed (May 2026). createItemsOnMenu() is the single source of truth for tile event listeners. */
 
 
 /*
@@ -25885,11 +24314,7 @@ function zoomInOut(zoomChange) {
 
     stage.scaleX(zoomScaleX);
     stage.scaleY(zoomScaleY);
-    /* stage.width()/height() each invoke Konva's _resizeDOM(), which
-     * redraws EVERY layer. The old code set them separately and then called
-     * stage.draw() — three full layerTransform redraws per zoom. Batch into
-     * one size() call (a single _resizeDOM redraw, painted at the new scale
-     * already set above) and drop the redundant explicit draw. */
+    /* Batch width+height into one size() call (single _resizeDOM redraw) instead of separate sets + stage.draw() (three full redraws per zoom). */
     stage.size({ width: stageOriginalWidth * zoomScaleX, height: stageOriginalLength * zoomScaleY });
 
     document.getElementById('zoomValue').textContent = String(zoomValue) + '%';
@@ -25936,29 +24361,9 @@ scrollContainer.addEventListener('scroll', repositionStage);
 
 repositionStage();
 
-/* ----------------------------------------------------------------- */
-/* Scroll-hint button.                                                */
-/*                                                                    */
-/* For each .subtabcontent / .subtabcontent2 panel inside the sidebar */
-/* we append one sticky "scroll down" chevron button.  The button is  */
-/* shown via a `hasScrollHint` class on the panel only when the panel */
-/* is currently overflowing AND the user is not already scrolled to   */
-/* the bottom.  Click smoothly scrolls the panel by ~80% of its       */
-/* visible height.  Resize / scroll / tab switches re-evaluate the    */
-/* class via updateAllScrollHints().                                  */
-/*                                                                    */
-/* This replaces the old addScrollButton() / checkIfScrollable()      */
-/* implementation that used hard-coded panel ids, an absolutely-      */
-/* positioned overlay inside #Insert, and four kludgy spacer divs in  */
-/* the HTML.                                                          */
-/* ----------------------------------------------------------------- */
+/* Scroll-hint button: append a sticky "scroll down" chevron to each sidebar panel, shown (via `hasScrollHint`) only when overflowing and not at the bottom. Click scrolls ~80% of visible height; updateAllScrollHints() re-evaluates on resize/scroll/tab-switch. Replaces the old addScrollButton()/checkIfScrollable() with hard-coded ids + spacer divs. */
 
-/* `#equipmentScrollArea` is the long-scroll wrapper that owns the
- * Equipment tab's overflow (the .subtabcontent children inside it are
- * `overflow: visible` and never scroll themselves — see the comment
- * block above `#equipmentScrollArea` in style.css). It therefore needs
- * its own sticky scroll-hint button instead of relying on the
- * per-.subtabcontent path used everywhere else. */
+/* #equipmentScrollArea owns the Equipment tab's overflow (its .subtabcontent children are overflow:visible) so it needs its own sticky hint button rather than the per-.subtabcontent path. */
 const SCROLL_HINT_PANEL_SELECTOR = '.subtabcontent, .subtabcontent2, .recentFloorPlansScroll, #equipmentScrollArea';
 const SCROLL_HINT_OVERFLOW_SLOP_PX = 1;
 const SCROLL_HINT_PAGE_FRACTION = 0.8;
@@ -26299,11 +24704,7 @@ function createHighlightImage(deviceId, imageObj2, minimumSize = 500) {
 }
 
 
-/*
-    Cache Images so if internet is lost, insert images to canvas still works.
-    Keep track of number of images cached. Once all cached, create highlight images.
-*/
-
+/* Cache top images so canvas inserts still work if the internet drops. */
 function preLoadTopImages() {
     let preLoadTypes = [videoDevices, microphones, displays, chairs];
     let totalDevices = 0;
@@ -26356,15 +24757,9 @@ if (isCacheImages) {
 
 
 
-/*
-    Load QR code javascript.  QR code is only needed for RoomOS devices, therefore is only downloaded on request
-*/
+/* On-demand script loading (e.g. QR code, only needed for RoomOS). */
 
-
-
-/* Map of `src → Promise` so each script is loaded at most once.
- * Calling loadScriptOnce() twice with the same src returns the original
- * promise instead of injecting a second <script> tag. */
+/* Map of src → Promise so each script loads at most once (repeat calls return the original promise, no second <script> tag). */
 const _loadedScripts = new Map();
 
 function loadScriptOnce(src) {
@@ -26392,9 +24787,7 @@ function loadScriptOnce(src) {
     return promise;
 }
 
-/* Backward-compatible alias. The old name is still used in some places
- * (and may be referenced from external test snippets). Remove after the
- * Phase 3 module split if no external references remain. */
+/* Backward-compatible alias (old name still used in places / external test snippets). Remove after the Phase 3 module split. */
 const setExternalScripts = loadScriptOnce;
 
 async function loadQRCodeScript() {
@@ -26416,9 +24809,7 @@ async function loadDrpDownOverrideScript() {
 }
 
 
-/* Debug performance overlay (top-right). Activated by ?debug=1 or
- * localStorage.debug === 'true'. Reports fps, items count, Konva node
- * count. See notes/TECH_NOTES.md for the Phase 4/5 refactor context. */
+/* Debug performance overlay (top-right, ?debug=1 or localStorage.debug==='true'): reports fps, item count, Konva node count. See notes/TECH_NOTES.md. */
 const _debug = {
     enabled: false,
     overlayEl: null,
@@ -26498,11 +24889,7 @@ function debugOverlayRefresh() {
         /* roomObj may not be ready during very early boot */
     }
 
-    /* Count every Konva descendant of the stage. Konva's selector API
-     * supports `#id`, `.name`, and Type names (e.g. 'Rect') but NOT a
-     * `'*'` wildcard, so we walk the children tree manually. Counts
-     * groups, shapes, labels, transformer handles — i.e. the real
-     * render cost, not just the items the user added. */
+    /* Count every Konva descendant by walking the children tree (no '*' wildcard in Konva's selector API) — the real render cost, not just user items. */
     let konvaNodes = 0;
     try {
         if (typeof stage !== 'undefined' && stage && typeof stage.getChildren === 'function') {
@@ -26671,13 +25058,7 @@ function resizeTableOrWall() {
             tr.resizeEnabled(true);
         }
         else if (nodes[0].data_deviceid === 'dimensionLine') {
-            /* Two yellow end-anchors flush with the rect's left + right
-             * edges. Width-only resize (no height, no rotation lock —
-             * the user CAN still rotate via the Transformer's rotation
-             * handle so the dimension line can span objects at any
-             * angle). Anchor styling reuses the wallChairs/couch
-             * yellow-bar style via the 'dimensionLine' key in
-             * changeWallAnchors(). */
+            /* Two yellow end-anchors at the rect's left/right edges: width-only resize (rotation still allowed via the Transformer handle). Anchor styling reuses the wallChairs yellow-bar style. */
             tr.enabledAnchors(['middle-left', 'middle-right']);
             changeWallAnchors('dimensionLine');
             tr.resizeEnabled(true);
@@ -26721,11 +25102,7 @@ function resizeTableOrWall() {
 function changeWallAnchors(isWall = false) {
     tr.anchorStyleFunc((anchor) => {
 
-        /* Dimension Line uses middle-left + middle-right anchors —
-         * orientation is rotated 90° from top/bottom-center (tall yellow
-         * bars on the sides instead of wide ones on top/bottom). Sits
-         * BEFORE the top-center/bottom-center branch so the per-frame
-         * styling stays cleanly partitioned by anchor name. */
+        /* Dimension Line uses middle-left/right anchors (tall yellow side bars, rotated 90° from top/bottom-center); sits before that branch to keep styling partitioned by anchor name. */
         if (isWall === 'dimensionLine' && (anchor.attrs.name.startsWith('middle-left') || anchor.attrs.name.startsWith('middle-right'))) {
             let defaultScale = 12;
             let minimumSize = 0.6;
@@ -26739,15 +25116,7 @@ function changeWallAnchors(isWall = false) {
             anchor.width(barWidth);
             anchor.offsetY(barHeight / 2); /* vertically center on the anchor point */
 
-            /* Konva's Transformer places each anchor's local origin (0,0)
-             * at the bounding-box edge. For middle-RIGHT, offsetX(0)
-             * leaves the bar's left edge at the box's right edge, so the
-             * bar extends OUTWARD (to the right of the box). For
-             * middle-LEFT, offsetX(0) would put the bar's left edge at
-             * the box's left edge — extending INWARD (into the box,
-             * overlapping the arrow). Push it left by the full bar
-             * width so its RIGHT edge aligns with the box's left edge
-             * and the bar mirrors the right one cleanly outside the box. */
+            /* Anchor origin sits at the box edge: middle-RIGHT extends outward at offsetX(0); middle-LEFT needs -barWidth so its right edge aligns with the box edge and mirrors outward (not into the arrow). */
             anchor.offsetX(anchor.attrs.name.startsWith('middle-left') ? barWidth : 0);
             anchor.fill('#FDDA0D');
             anchor.stroke('#44444488');
@@ -26869,10 +25238,7 @@ function setupDragAndDropImport() {
             const reader = new FileReader();
             reader.readAsText(file, 'UTF-8');
             reader.onload = function (evt) {
-                /* Delegate to the shared file-text router so drag-drop and the
-                 * file picker behave identically — routeUploadedFileText()
-                 * decides between VRC JSON, Workspace Designer JSON, and
-                 * Cisco xConfiguration .txt dumps based on file content. */
+                /* Delegate to routeUploadedFileText() so drag-drop and the file picker behave identically (it detects VRC JSON / WD JSON / Cisco xConfig .txt by content). */
                 try {
                     routeUploadedFileText(evt.target.result, fileName);
                 } catch (error) {
@@ -26937,9 +25303,7 @@ function onKeyDown(e) {
         e.preventDefault();
     }
 
-    /* export to a Cisco xConfiguration .txt file (must be checked before the
-     * Ctrl/Cmd+E branch below, otherwise Ctrl/Cmd+Shift+E would also trigger
-     * the Workspace Designer download). */
+    /* Export Cisco xConfig .txt (checked before the Ctrl/Cmd+E branch, else Shift+E would also trigger the WD download). */
     if (key === 'e' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         exportXConfigFile();
@@ -26952,9 +25316,7 @@ function onKeyDown(e) {
         downloadFileWorkspace();
     }
 
-    /* export to a CAD .dxf file. Must be checked before the plain Ctrl/Cmd+D
-     * branch below (which calls duplicateItems()) — Ctrl/Cmd+Shift+D would
-     * otherwise duplicate the selection. */
+    /* Export CAD .dxf (checked before the plain Ctrl/Cmd+D duplicate branch, else Shift+D would duplicate the selection). */
     if (key === 'd' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         exportDxfFile();
@@ -26988,10 +25350,7 @@ function onKeyDown(e) {
     }
 
 
-    /* ctrl-3 and ctrl-w now open/toggle Split View for all users.                  */
-    /* Note: ctrl-w is the browser close-tab shortcut; preventDefault() works in    */
-    /* Chromium/WebKit but may not suppress it in all browsers.                     */
-
+    /* ctrl-3 / ctrl-w toggle Split View. (ctrl-w is browser close-tab; preventDefault() works in Chromium/WebKit but may not in all browsers.) */
     if ((key === 'w' || key === '3') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         splitViewToggle();
@@ -27242,20 +25601,12 @@ function toggleQuickAdd(show) {
     const input = dialog.querySelector('input');
 
     if (show) {
-        /* Fetch the VRC Custom Item Library into the in-memory cache so
-         * library tiles appear in search results. Fire-and-forget: the
-         * fetch resolves async, then re-fires the change handler with
-         * the current input value so library matches surface without
-         * the user having to type again. If the user types before the
-         * fetch completes, they'll see device-only results until the
-         * library load resolves a few ms later — acceptable for a
-         * one-shot startup cost. */
+        /* Fetch the VRC Custom Item Library into the in-memory cache (fire-and-forget), then re-fire the change handler so library matches surface without re-typing. */
         loadCustomItemLibraryRecordsForQuickAdd().then(function (records) {
             if (!records || !records.length) return;
             if (dialog.style.display !== 'flex') return; /* dialog closed during fetch */
             if (input && input.value && input.value.length >= 2) {
-                /* Synthesize an oninput event so onQuickAddChange re-runs
-                 * with the freshly loaded library records included. */
+                /* Synthesize an oninput event so onQuickAddChange re-runs with the loaded library records. */
                 onQuickAddChange({ target: input });
             }
         });
@@ -27268,31 +25619,18 @@ function toggleQuickAdd(show) {
         }
     }
     else {
-        /* Drop the in-memory cache when the dialog closes. The records
-         * carry base64 menuImages (~10-30KB each, up to 200 records)
-         * which together can be several MB. Cheap to refetch on next
-         * open; expensive to keep resident across a long session. */
+        /* Drop the in-memory cache on close (base64 menuImages can total several MB); cheap to refetch on next open. */
         _customItemQuickAddRecordsCache = [];
         if (input) input.blur();
     }
 }
 
 
-/* Compute the include/exclude regex and the user-typed search string
- * stripped of any `**` prefix sigil, given the raw search input.
- *
- * Three-way rule mirrors the historical Quick Add behaviour:
- *   • Default          → exclude `_name` AND any `name*` (covers `*` and `**`).
- *   • WD-partial on    → exclude `_name` AND `name**` only — `name*` is allowed
- *                        in normal browsing because the WD-partial toggle is
- *                        the user's explicit opt-in to non-WD-supported items.
- *   • Query starts `**`→ exclude `_name` ONLY — both `name*` AND `name**`
- *                        come through. The `**` is stripped from the query
- *                        before name matching so `**phone` matches "Phone 9871".
- *
- * Shared by `searchQuickItem` (Quick Add modal) and `onEquipmentSearchChange`
- * (sidebar search). Optional chaining on getElementById guards against the
- * checkbox not being in the DOM yet during very early boot. */
+/* Compute the include/exclude regex + the query stripped of any `**` prefix. Three-way rule:
+ *   Default        → exclude `_name` AND `name*` (covers `*` and `**`).
+ *   WD-partial on  → exclude `_name` AND `name**` only (`name*` allowed; the toggle is an explicit opt-in to non-WD items).
+ *   Query starts ** → exclude `_name` ONLY (both `name*` and `name**` pass; `**` stripped so `**phone` matches "Phone 9871").
+ * Shared by searchQuickItem and onEquipmentSearchChange; optional chaining guards early-boot DOM. */
 function getEquipmentSearchRegex(rawQuery) {
     let regex = /(^_.*)|(.*\*$)/;
     let stripped = rawQuery;
@@ -27324,29 +25662,7 @@ function searchQuickItem(items, word = '') {
 function onQuickAddChange(e) {
     const deviceItems = [].concat(tables, videoDevices, microphones, chairs, displays, boxes, stageFloors, rooms);
 
-    /* Transform library customItem records into the same search-entry
-     * shape `searchQuickItem` and the tile renderer below expect:
-     *   { id, name, _isCustomItem, _record }
-     *
-     * - id:           customItemBaseId — used for the button's DOM id.
-     *                 Doesn't collide with device ids because
-     *                 allDeviceTypes lookup returns undefined for it,
-     *                 which the renderer branch handles.
-     * - name:         customItemName (legacy: data_labelField) — what
-     *                 the user types against (matches searchQuickItem's
-     *                 match-on-name logic). Read via the helper so old
-     *                 IDB rows surface until they're auto-migrated.
-     * - _isCustomItem:render-time discriminator. The marker fields use
-     *                 a `_` prefix to avoid colliding with any
-     *                 device-record fields and to signal "internal".
-     * - _record:      full library record — passed to
-     *                 insertCustomItemAtPosition on click.
-     *
-     * Records with empty/whitespace name are filtered out defensively:
-     * an unnamed template would never match a real search term
-     * (`searchQuickItem` requires ≥ 2 chars) but the filter keeps the
-     * array tidy if a record somehow leaked through with no name
-     * (e.g. legacy IDB row from before the canvas-only invariant). */
+    /* Transform library customItem records into the { id, name, _isCustomItem, _record } shape searchQuickItem + the tile renderer expect (id = customItemBaseId; name via helper for legacy rows; _-prefixed markers signal internal). Empty-name records are filtered out defensively. */
     const libraryEntries = (_customItemQuickAddRecordsCache || [])
         .filter(rec => rec && getCustomItemRecordName(rec).trim())
         .map(rec => ({
@@ -27356,16 +25672,13 @@ function onQuickAddChange(e) {
             _record: rec,
         }));
 
-    /* Library entries go FIRST so user-curated templates surface above
-     * device matches — the "what I built" view ranks above "what the
-     * app ships with" when both match the same search term. */
+    /* Library entries go FIRST so user-curated templates rank above shipped devices for the same search term. */
     const allItems = libraryEntries.concat(deviceItems);
 
     const word = e.target.value;
     let matches = searchQuickItem(allItems, word);
 
-    /* MultiRoom overview: only walls/shapes + doors are insertable, so drop
-     * device + library-custom matches from the Quick Add gallery. */
+    /* MultiRoom overview: only walls/shapes + doors insertable, so drop device + library-custom matches. */
     if (isMultiRoomOverviewMode()) {
         matches = matches.filter(m => m && !m._isCustomItem && isAllowedInMultiRoomOverview(m.id));
     } else if (isRoomSubMode()) {
@@ -27379,13 +25692,7 @@ function onQuickAddChange(e) {
     matches.forEach((m, n) => {
 
         if (m._isCustomItem) {
-            /* Library customItem tile — built by the shared
-             * buildCustomItemTile() helper so the Equipment-tab
-             * sidebar pill and the Quick Add modal render identical
-             * tiles. `insertCenter` opts triggers click-to-insert
-             * (modal behaviour, drag disabled). See the helper for
-             * the long-form comments about the ellipsis-span pattern
-             * and click-handler routing. */
+            /* Library customItem tile via shared buildCustomItemTile() (identical to the sidebar pill); 'insertCenter' = click-to-insert, drag disabled. */
             gallery.appendChild(buildCustomItemTile(m._record, { onClick: 'insertCenter' }));
             return;
         }
@@ -27465,57 +25772,13 @@ function onQuickInputKey(event) {
     }
 }
 
-/* Default chair-on-center spacing for the wallChairs ("Row of Chairs")
- * item. Stored as 2.35 ft (≈ 0.7163 m).
- *
- * Rendering model (current — see `layoutWallChairsChildren()`):
- *   The row is a `Konva.Group` containing one transparent bg Rect plus
- *   N `Konva.Image` children, each rendered at a CONSTANT footprint of
- *   `DEFAULT_CHAIR_DEPTH × DEFAULT_CHAIR_SPACING` (≈ 2.13 × 2.35 ft)
- *   sourced from `assets/images/chairs-top.png` — the same 80×87 PNG
- *   the pre-refactor fillPatternImage renderer used, picked because
- *   its chair art fills the canvas edge-to-edge (no per-tile padding)
- *   so consecutive chairs in a row visually touch at default spacing.
- *   (`chair-top.png` was tried briefly but had ~5% padding around the
- *   chair art on every side, which showed up as visible gaps between
- *   chairs in the new per-Image renderer that the legacy fillPattern
- *   tiling had hidden.)
- *
- *   Chair `i`'s frame is placed flush with the start of its slot
- *   (i.e. centred at `chairLengthPx / 2 + i * slotPx`) so the first
- *   chair's leading edge always sits on the row's leading edge —
- *   matching the WD export's `expandChairs()` contract regardless of
- *   the chosen spacing. Adjacent chairs are then separated by
- *   `slotPx` (chair-on-center spacing); a spacing less than the
- *   natural footprint makes them visually overlap, and a spacing
- *   greater than it leaves gaps BETWEEN chairs (plus a partial slot
- *   of trailing whitespace at the row's tail). The chair glyph
- *   itself is never stretched or compressed; only its position
- *   changes. At default spacing `chairLengthPx == slotPx`, so the
- *   placement reduces to `(i + 0.5) * slotPx` — the pre-fix "chair
- *   centred in slot" formula — and rooms saved before this change
- *   load with bit-identical default-spacing layouts.
- *
- *   The row's Width (depth, X axis) is locked at
- *   `DEFAULT_CHAIR_DEPTH_<unit>` (0.65 m / ≈ 2.13 ft). This is the
- *   same canonical value the pre-refactor code wrote via
- *   `wallWidth = 0.65 * scale` (later multiplied by 3.28084 in feet
- *   mode), so existing rooms re-load with the original visual width.
- *
- *   `CHAIR_TILE_IMAGE_WIDTH_PX` (80) and `CHAIR_TILE_IMAGE_HEIGHT_PX`
- *   (87) are the intrinsic pixel dimensions of `chairs-top.png`.
- *   They are NOT currently used to derive the row width (that's
- *   driven by `DEFAULT_CHAIR_DEPTH_*` above) — they're kept as
- *   documentation of the asset's natural aspect ratio (≈ 0.92), which
- *   is slightly wider than the rendered slot's 0.906 ratio
- *   (2.13 / 2.35). The 1.4% horizontal squeeze that results matches
- *   the pre-refactor render exactly, since that code also rendered
- *   the same tile into the same 2.13 × 2.35 ft cell.
- *
- *   Slot count uses `Math.round(height / spacing)` — the same formula
- *   `expandChairs()` uses when exporting to Workspace Designer / DXF /
- *   xConfig, so the canvas preview chair count always matches the
- *   exported chair count. */
+/* wallChairs ("Row of Chairs") rendering constants. Default chair-on-center spacing 2.35 ft (≈ 0.7163 m).
+ * The row is a Konva.Group: one transparent bg Rect + N Konva.Image children, each at a CONSTANT
+ * DEFAULT_CHAIR_DEPTH × DEFAULT_CHAIR_SPACING footprint (chairs-top.png, edge-to-edge art so chairs touch
+ * at default spacing). Chair i is placed flush with its slot start (cy = chairLengthPx/2 + i*slotPx), matching
+ * expandChairs()'s WD-export contract; spacing < footprint overlaps, > footprint gaps. Row width is locked at
+ * DEFAULT_CHAIR_DEPTH_<unit>. The PX image-size consts document the asset's aspect ratio only. Slot count uses
+ * the same Math.round(height/spacing) as expandChairs() so canvas and export counts match. */
 const DEFAULT_CHAIR_SPACING_FEET = 2.35;
 const DEFAULT_CHAIR_SPACING_METERS = DEFAULT_CHAIR_SPACING_FEET / 3.28084;
 const DEFAULT_CHAIR_DEPTH_METERS = 0.65;
@@ -27523,54 +25786,20 @@ const DEFAULT_CHAIR_DEPTH_FEET = DEFAULT_CHAIR_DEPTH_METERS * 3.28084;
 const CHAIR_TILE_IMAGE_HEIGHT_PX = 87;
 const CHAIR_TILE_IMAGE_WIDTH_PX = 80;
 
-/* Hard min/max bounds for the Details-panel `#itemChairSpacing` input.
- * Values typed by the user that fall outside this range are clamped
- * to the nearest bound by `clampChairSpacing()` (called from
- * `updateItem()`); the clamped value is then written back to the
- * input field so the user sees what was actually applied.
- *
- * The feet values are specified verbatim (1.31 ft / 9.84 ft) rather
- * than derived from the meter values so the input rounding in feet
- * mode matches the round-number bounds the user expects. The two
- * unit pairs are not exact reciprocals (0.4 m = 1.3123 ft, 3 m =
- * 9.8425 ft), but the ≈0.2% drift is below the 0.01-unit precision
- * the input field accepts. */
+/* Hard min/max bounds for the #itemChairSpacing input; clampChairSpacing() (from updateItem()) clamps + writes back. Feet values are verbatim round numbers, not derived (the ~0.2% drift from the meter values is below input precision). */
 const MIN_CHAIR_SPACING_METERS = 0.4;
 const MIN_CHAIR_SPACING_FEET = 1.31;
 const MAX_CHAIR_SPACING_METERS = 3;
 const MAX_CHAIR_SPACING_FEET = 9.84;
 
-/* Floor-epsilon for `Math.floor(item.height / spacing + ε)` count
- * derivation. Sized to absorb the 2-decimal-place precision loss
- * that `canvasToJson` / `updateItem` introduce when they store
- * `item.height` via `round(x, -2)`:
- *
- *   max |item.height − count × spacing| ≤ 0.005 (unit)
- *   max |item.height/spacing − count|    ≤ 0.005 / spacing
- *
- * At the smallest allowed spacing (`MIN_CHAIR_SPACING_METERS = 0.4`)
- * the worst-case ratio deviation is `0.005 / 0.4 = 0.0125`. The
- * historical `0.0001` epsilon was sized for IEEE float drift only
- * and was MUCH too small — for an irrational meters spacing like
- * `0.71628` it would silently drop one chair whenever the round-trip
- * landed the stored value just below `count × spacing` (e.g. N=5 →
- * 3.58 m → 4.99807 ratio → floor=4 vs the user-intended 5).
- *
- * The chosen value `0.02` is safely above 0.0125 and well below 0.5,
- * so a half-empty slot mid-drag never produces a phantom chair —
- * the next chair only appears once the user crosses ~98% of the
- * slot, visually indistinguishable from the pre-fix snap-on at 100%.
- * Used by `layoutWallChairsChildren` (canvas render), `expandChairs`
- * (WD/DXF/xConfig export), `updateFormatDetails` (Details-panel
- * "Number of Chairs" populate), and the `transformend` snap. */
+/* Floor-epsilon for Math.floor(item.height/spacing + ε) chair count. Absorbs the 2dp precision loss from round(x,-2)
+ * in canvasToJson/updateItem (worst-case ratio drift 0.005/0.4 = 0.0125 at min spacing). 0.02 is above that and well
+ * below 0.5, so no phantom chair appears mid-drag. The old 0.0001 (IEEE-drift only) silently dropped a chair when a
+ * round-trip landed just below count×spacing (e.g. N=5 → 3.58 m → 4.99807 → floor 4). Used by layoutWallChairsChildren,
+ * expandChairs, updateFormatDetails, and the transformend snap. */
 const WALL_CHAIRS_COUNT_EPSILON = 0.02;
 
-/* Return chair-on-center spacing for a wallChairs row in `unit`.
- *   - Reads item.data_chairSpacing when present (already in the item's
- *     stored unit per the convertItemUnitBasedOnRatio convention).
- *   - Otherwise returns 2.35 ft (feet) or 0.716 m (meters).
- * Defensive: a non-finite or <= 0 override falls back to the default
- * so a hand-edited URL / JSON can't divide-by-zero downstream. */
+/* Chair-on-center spacing for a wallChairs row in `unit`: item.data_chairSpacing if a finite >0 value, else the default (2.35 ft / 0.716 m). Guards against divide-by-zero from hand-edited input. */
 function getChairSpacing(item, unit) {
     unit = unit || roomObj.unit;
     if (item && item.data_chairSpacing != null) {
@@ -27580,10 +25809,7 @@ function getChairSpacing(item, unit) {
     return (unit === 'meters') ? DEFAULT_CHAIR_SPACING_METERS : DEFAULT_CHAIR_SPACING_FEET;
 }
 
-/* Clamp a chair-on-center spacing value to the hard min/max bounds
- * (see MIN/MAX_CHAIR_SPACING_* constants above). Returns the input
- * unchanged when it is already within range. The caller is expected
- * to have already validated `value` as a finite positive number. */
+/* Clamp chair spacing to the MIN/MAX_CHAIR_SPACING_* bounds (caller must pass a finite positive value). */
 function clampChairSpacing(value, unit) {
     unit = unit || roomObj.unit;
     const min = (unit === 'meters') ? MIN_CHAIR_SPACING_METERS : MIN_CHAIR_SPACING_FEET;
@@ -27593,121 +25819,25 @@ function clampChairSpacing(value, unit) {
     return value;
 }
 
-/* Per-row-variant image config used by `layoutWallChairsChildren()`.
- * Each entry maps a `data_deviceid` (member of `isWallChairs()`) to:
- *
- *   src      — chair glyph asset (relative to ./assets/images/).
- *   rotation — degrees applied to each per-slot Konva.Image so the
- *              chair faces +X / RIGHT (back on LEFT) at row rotation
- *              0. Set to 0 for assets that are already authored
- *              back-on-LEFT (only `chairs-top.png` today). Set to
- *              -90 for the standard back-on-TOP chair images
- *              (`chair-top.png`-family glyphs) — rotating -90°
- *              counter-clockwise turns the chair top edge into the
- *              left edge, matching the row's expected orientation.
- *   scale    — anisotropic render scale `{ across, along }` (each
- *              0 < s ≤ 1) applied to each chair's rendered
- *              footprint inside its slot. `across` scales the
- *              across-row dimension (chair depth, Group X axis at
- *              row rotation 0); `along` scales the along-row
- *              dimension (chair length, Group Y axis). The chair
- *              stays centred on its slot centre (cx, cy); scale
- *              values < 1 leave symmetrical padding around the
- *              chair art on the matching axis.
- *
- *              The two fields exist because the source assets are
- *              authored with DIFFERENT chair-art-to-frame ratios:
- *
- *                - `chairs-top.png` (custom 80×87 tile) draws its
- *                  chair at 76×77 px → 95.0% × 88.5% of the frame.
- *                  When rendered into the canonical 2.13 × 2.35
- *                  ft slot, the chair art lands at 2.024 ft (across)
- *                  × 2.080 ft (along), naturally leaving a visible
- *                  along-row gap. `scale: { across: 1, along: 1 }`.
- *                - `chairSwivel-top.png` / `chairHigh-top.png`
- *                  (200×203 standalone glyphs) draw their chair
- *                  art (including arms) all the way to the frame
- *                  edges — 100% × 100%. At `scale: { 1, 1 }`
- *                  consecutive chairs touch (no along-row gap)
- *                  AND the chair extends 5% wider across-row than
- *                  the Row-of-Chairs variant. `scale: { across:
- *                  0.95, along: 0.885 }` exactly mirrors the
- *                  chairs-top.png chair-art ratios (76/80 ≈ 0.95,
- *                  77/87 ≈ 0.885), so the rendered chair art
- *                  measures the same 2.024 × 2.080 ft as Row of
- *                  Chairs and leaves the same visible gap.
- *
- *              A scalar shorthand is also accepted (treated as
- *              `{ across: s, along: s }`); omitted ⇒ `{ 1, 1 }`.
- *              The scale is independent of `data_chairSpacing`
- *              (chair-on-CENTER spacing, shared across all
- *              wallChairs-family variants).
- *
- * When `rotation !== 0` the per-slot Konva.Image's `width` / `height`
- * are swapped (and `offsetX` / `offsetY` follow) so the post-rotation
- * footprint still measures `chairDepthPx` across the row and
- * `chairLengthPx` along the row. See the rotation block inside
- * `layoutWallChairsChildren()`.
- *
- * Adding a fourth Row-of-X variant is a one-line edit here plus the
- * matching id in `isWallChairs()` and a row in
- * `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+/* Per-row-variant image config for layoutWallChairsChildren(). Maps a data_deviceid (an isWallChairs() member) to:
+ *   src      — chair glyph asset under ./assets/images/.
+ *   rotation — degrees per per-slot Image so the chair faces +X/RIGHT at row rotation 0. 0 for back-on-LEFT
+ *              assets (chairs-top.png); -90 for back-on-TOP standalone glyphs.
+ *   scale    — anisotropic { across, along } (0<s≤1) shrinking each chair inside its slot (chair stays slot-centred).
+ *              Lets standalone glyphs (100% frame coverage) match chairs-top.png's 95%×88.5% art ratio so all
+ *              variants render the same 2.024×2.080 ft chair + along-row gap. Scalar shorthand ⇒ {s,s}; omitted ⇒ {1,1}.
+ * When rotation !== 0 the Image width/height (and offsets) are swapped so the post-rotation footprint still measures
+ * chairDepthPx across × chairLengthPx along. Adding a variant = one line here + isWallChairs() + EXPANDED_CHAIR_DEVICE_FOR_ROW. */
 const WALL_CHAIRS_IMAGE_CONFIG = {
-    /* Each Konva.Image is drawn with its FRAME centre anchored at the
-     * slot centre (cx, cy). chairs-top.png has slightly asymmetric
-     * source-pixel padding around its chair art (top 1 px / bottom 9
-     * px, left 1 px / right 3 px in the 80×87 frame), but rendering
-     * the FRAME centred is the original Row-of-Chairs behaviour and
-     * is what the rest of the room geometry (and the Workspace
-     * Designer export) expects: the row's bg Rect spans the slot
-     * extents, so the rightmost chair's source row 0 (transparent
-     * top edge) coincides with the rect's top edge — i.e. visually
-     * flush from the user's perspective at typical zoom levels. An
-     * earlier draft that recentred the chair art bbox on the slot
-     * centre via a per-variant `artOffset` was reverted because it
-     * introduced a visible (~1.6 in) inset between the rightmost
-     * chair art and the rect on the wall side, which then no longer
-     * matched the WD rendering. If a future asset needs proper
-     * art-centring, the wiring lived in `getWallChairsImageArtOffset`
-     * — see git history for the full implementation. */
+    /* Each Image is drawn FRAME-centred on its slot centre (matches original Row-of-Chairs + WD export). A reverted
+     * draft that art-centred via a per-variant `artOffset` left a ~1.6in inset vs WD — see git history (getWallChairsImageArtOffset). */
     'wallChairs': { src: './assets/images/chairs-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
     'wallChairsSwivel': { src: './assets/images/chairsSwivelRow-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
     'wallChairsStool': { src: './assets/images/chairStoolRow-top.png', rotation: 0, scale: { across: 1.00, along: 1.000 } },
 };
 
-/* Lazy-loaded HTMLImageElement cache for the chair glyph used by
- * wallChairs rows. One cache slot per `data_deviceid` so each variant
- * (Row of Chairs / Swivel / Stool) decodes its bitmap once for the
- * lifetime of the page; subsequent `layoutWallChairsChildren()` calls
- * (chair count changes, spacing edits, resize, copy/paste, undo/redo,
- * etc.) attach the same cached bitmap to every new `Konva.Image`
- * instance.
- *
- * Image sources (see `WALL_CHAIRS_IMAGE_CONFIG` above):
- *   - `chairs-top.png` (80×87, back-on-LEFT orientation) — the
- *     custom-authored tile asset for the original Row of Chairs.
- *     Chair art bbox is 76×77 px → 95.0% × 88.5% of the frame, so
- *     consecutive chairs naturally show a visible along-row gap
- *     (~3.2 inches at default spacing) when rendered at the
- *     canonical 2.13 × 2.35 ft slot.
- *   - `chairSwivel-top.png`, `chairHigh-top.png` (200×203 each,
- *     back-on-TOP orientation) — standard standalone-chair glyphs
- *     reused via the per-image -90° rotation in
- *     `WALL_CHAIRS_IMAGE_CONFIG`. Their chair art (including arms)
- *     extends to all four frame edges (100% × 100% bbox), so a
- *     uniform scale of 1.0 would (a) make consecutive chairs touch
- *     along the row direction and (b) overshoot the Row-of-Chairs
- *     across-row chair depth by 5%. The per-variant anisotropic
- *     scale `{ across: 0.95, along: 0.885 }` exactly mirrors the
- *     chairs-top.png chair-art-to-frame ratios so the rendered
- *     chair art measures 2.024 × 2.080 ft in both the original
- *     and the new variants — visually identical chair size and
- *     identical along-row gap across all three "Row of …" rows.
- *     Future tile-specific assets (`chairsSwivel-top.png` /
- *     `chairsHigh-top.png`) authored at the chairs-top.png coverage
- *     ratio can replace the entries in `WALL_CHAIRS_IMAGE_CONFIG`
- *     and drop the per-variant `scale` back to 1.0 without other
- *     code changes. */
+/* Lazy HTMLImageElement cache for chair glyphs, one slot per data_deviceid (decode once per page; reused by every
+ * layoutWallChairsChildren() rebuild). Sources documented in WALL_CHAIRS_IMAGE_CONFIG above. */
 const _wallChairsImageCache = new Map(); /* deviceId -> HTMLImageElement */
 const _wallChairsImagePending = new Map(); /* deviceId -> Array<callback> */
 
@@ -27721,16 +25851,8 @@ function getWallChairsImageRotation(deviceId) {
     return cfg.rotation || 0;
 }
 
-/* Per-variant anisotropic render scale (see WALL_CHAIRS_IMAGE_CONFIG
- * docstring). Returns `{ across, along }` with each component a
- * finite positive number; defaults to `{ across: 1, along: 1 }` when
- * missing or invalid. Accepts:
- *   - cfg.scale === undefined / null   → `{ 1, 1 }`
- *   - cfg.scale === <number>           → `{ s, s }` (uniform shorthand)
- *   - cfg.scale === { across, along }  → as supplied (each falling
- *                                        back to 1 if not finite > 0)
- * The shorthand keeps a hand-edited config entry working when only
- * one isotropic value is desired. */
+/* Per-variant anisotropic render scale (see WALL_CHAIRS_IMAGE_CONFIG): returns { across, along } finite >0, defaulting
+ * to {1,1}. Accepts undefined/null → {1,1}, a number → {s,s}, or { across, along } (each invalid field → 1). */
 function getWallChairsImageScale(deviceId) {
     const cfg = WALL_CHAIRS_IMAGE_CONFIG[deviceId] || WALL_CHAIRS_IMAGE_CONFIG['wallChairs'];
     const s = cfg.scale;
@@ -27771,29 +25893,10 @@ function loadWallChairsChairImage(deviceId, then) {
     img.src = getWallChairsImageSrc(deviceId);
 }
 
-/* Build (or rebuild) the children of a wallChairs Konva.Group:
- *   - One transparent-fill Konva.Rect spanning the group's full bounds
- *     (so the Transformer has a stable bbox AND clicks in the gaps
- *     between chair glyphs still select the row).
- *   - N Konva.Image children, one per chair slot, each rendered at a
- *     CONSTANT footprint (DEFAULT_CHAIR_DEPTH × DEFAULT_CHAIR_SPACING
- *     = 2.13 × 2.35 ft = 0.65 × 0.716 m). Spacing < natural footprint
- *     ⇒ chairs visually overlap; spacing > natural footprint ⇒
- *     chairs leave gaps. The row width never changes, the chair
- *     glyph never distorts.
- *
- *     Image source is `chairs-top.png`, which is naturally oriented
- *     with the chair back on the LEFT side (chair faces +X / RIGHT)
- *     — exactly the orientation a vertical wallChairs row needs at
- *     rotation 0. No per-Image rotation is required.
- *
- * Slot count uses Math.round(height / spacing) — identical to the
- * formula in expandChairs() so the canvas preview matches the chair
- * count emitted to Workspace Designer / DXF / xConfig exports.
- *
- * Destroys-and-rebuilds children every call; cheap because chair count
- * is small (a 30 ft row at 2.35 ft spacing is 13 chairs) and the
- * underlying chair Image bitmap is cached module-level. */
+/* Build/rebuild a wallChairs Konva.Group's children: one transparent bg Rect spanning full bounds (stable Transformer
+ * bbox + clicks in gaps still select the row) plus N Konva.Image chair slots at a CONSTANT DEFAULT_CHAIR_DEPTH ×
+ * DEFAULT_CHAIR_SPACING footprint (spacing < footprint overlaps, > gaps; width/glyph never distort). Slot count matches
+ * expandChairs() so canvas == export. Destroy-and-rebuild every call (cheap: small count, bitmap cached module-level). */
 function layoutWallChairsChildren(group) {
     if (!group) return;
     const groupHeight = group.height() || 0;
@@ -27802,72 +25905,28 @@ function layoutWallChairsChildren(group) {
     const defaultSpacing = (unit === 'meters')
         ? DEFAULT_CHAIR_SPACING_METERS
         : DEFAULT_CHAIR_SPACING_FEET;
-    /* Canonical chair footprint — same 2.13 × 2.35 ft / 0.65 × 0.716
-     * m cell the pre-refactor fillPattern renderer projected each
-     * chairs-top.png tile into. */
+    /* Canonical chair footprint (2.13 × 2.35 ft / 0.65 × 0.716 m). */
     const chairDepthUnit = (unit === 'meters')
         ? DEFAULT_CHAIR_DEPTH_METERS
         : DEFAULT_CHAIR_DEPTH_FEET;
     const chairDepthPx = chairDepthUnit * scale; /* across the row (X) */
     const chairLengthPx = defaultSpacing * scale; /* along the row (Y) */
-    /* Defensive: if width hasn't been set yet (insertTable always sets
-     * it to chairDepthPx, but a future caller might not), fall back to
-     * the canonical depth so we don't paint a zero-width row. */
+    /* Fall back to canonical depth if width isn't set yet, so we never paint a zero-width row. */
     const widthPx = groupWidth || chairDepthPx;
 
-    /* Per-row-variant glyph (image src, optional rotation) — see
-     * `WALL_CHAIRS_IMAGE_CONFIG` above. The deviceId may legitimately
-     * be missing on a freshly-constructed Konva.Group during the very
-     * first render frame (insertTable sets `data_deviceid` AFTER
-     * calling this helper); falling back to 'wallChairs' keeps the
-     * first-frame paint safe. */
+    /* Per-variant glyph (see WALL_CHAIRS_IMAGE_CONFIG). deviceId may be missing on the first render frame (insertTable sets it after this call), so default to 'wallChairs'. */
     const deviceId = group.data_deviceid || 'wallChairs';
     const imageSrcRotation = getWallChairsImageRotation(deviceId);
     const imageRenderScale = getWallChairsImageScale(deviceId);
     const cachedImage = getCachedWallChairsImage(deviceId);
 
     const slotPx = chairSpacing * scale;
-    /* Math.floor (+ WALL_CHAIRS_COUNT_EPSILON to absorb the 2dp
-     * precision loss that `canvasToJson` / `updateItem` introduce
-     * when they store `item.height` via `round(x, -2)`) so a
-     * partially-visible last chair is never drawn. The pre-fix epsilon
-     * (0.0001) was sized for IEEE float drift only and would silently
-     * drop one chair on every drawRoom rebuild whenever the stored
-     * item.height fell just below `count × spacing` (e.g. for meters
-     * spacing 0.71628 a 5-chair row stores as 3.58 m → 4.99807 ratio
-     * → floor=4, so a freshly-saved 5-chair row would re-render as 4
-     * chairs after any drawRoom call). See `WALL_CHAIRS_COUNT_EPSILON`
-     * for the precision math and why 0.02 is safe.
-     *
-     * The pre-fix code originally used Math.round, which caused a
-     * 1-chair pop-in / pop-out flicker at the (N + 0.5)*slot mark
-     * while the user was live-resizing — the new 0.02 epsilon stays
-     * well below 0.5 so no phantom chair appears from a partial
-     * slot during a drag.
-     *
-     * The matching snap-down to `count * slotPx` happens on the
-     * Transformer's `transformend` (see the wallChairs branch of
-     * `tblWallFlr.on('transformend', …)` in `insertTable()`), so the
-     * row's bbox always finishes the drag flush against the last
-     * fully-visible chair. */
+    /* Math.floor + WALL_CHAIRS_COUNT_EPSILON (see that const) so a partial last chair is never drawn and no phantom chair pops in mid-resize. The transformend snap (insertTable's wallChairs branch) sets height to count*slotPx so the drag finishes flush. */
     let count = Math.max(1, Math.floor(groupHeight / slotPx + WALL_CHAIRS_COUNT_EPSILON));
 
     group.destroyChildren();
 
-    /* The bg Rect tracks the live-dragged `groupHeight` (NOT
-     * `count * slotPx`) so the gray outline grows / shrinks smoothly
-     * with the cursor during a Transformer-anchor resize. Painting
-     * it at `count * slotPx` instead made the outline snap in
-     * discrete chair-width jumps every frame, which read as visible
-     * flickering at every slot-boundary cursor crossing.
-     *
-     * The leftover slack between the last chair (at `count * slotPx`)
-     * and the bg Rect's bottom (at `groupHeight`) lasts at most one
-     * full slot AND at most ~100 ms — the transformend snap (see
-     * `tblWallFlr.on('transformend', …)` in `insertTable()`) sets
-     * `chairs.height(count * slotPx)` and re-runs this helper to
-     * paint the bg Rect at the snapped height, and the deferred
-     * `updateItem()` rebuilds the row from scratch shortly after. */
+    /* bg Rect tracks the live-dragged groupHeight (not count*slotPx) so the outline resizes smoothly (painting at count*slotPx flickered in chair-width jumps). The transformend snap + deferred updateItem() reconcile the slack shortly after. */
     group.add(new Konva.Rect({
         x: 0,
         y: 0,
@@ -27880,80 +25939,15 @@ function layoutWallChairsChildren(group) {
         name: 'wallChairs-bg',
     }));
 
-    /* listening:false on each chair Image so all hit-testing routes
-     * to the bg Rect (mirrors the prior single-shape fillPattern
-     * behaviour — the row is one selectable unit).
-     *
-     * Each chair Image renders at chairDepthPx × chairLengthPx
-     * (post-rotation footprint). The chair frame is anchored flush
-     * with the START of its slot (top edge of the row at i=0), so
-     * the first chair's centre is at `chairLengthPx / 2` and
-     * subsequent chairs step by `slotPx`. This matches the WD
-     * export contract in `expandChairs()` (primary chair centred at
-     * `item.y + 0.32`, additional chairs at `+ singleChairWidth*i`)
-     * — WD shows the first chair flush with the row's leading edge
-     * regardless of spacing, and the canvas now mirrors that.
-     *
-     * At default spacing (chairLengthPx == slotPx) the formula
-     * reduces to `(i + 0.5) * slotPx` — identical to the pre-fix
-     * "chair centred in slot" placement, so default-spacing rows
-     * render with no regression. At larger spacings, the extra
-     * room appears as gaps BETWEEN chairs (and a trailing partial
-     * slot at the row's end), never as a leading gap before the
-     * first chair.
-     *
-     * The original Row of Chairs uses `chairs-top.png` which is
-     * already authored back-on-left / facing-right (rotation 0).
-     * The Swivel / Stool variants reuse the standalone-chair
-     * `chair*-top.png` glyphs, which are authored back-on-TOP, so
-     * per `WALL_CHAIRS_IMAGE_CONFIG` we apply a -90° rotation on
-     * each per-slot Image to land back-on-LEFT. When rotated, the
-     * Image's pre-rotation `width` and `height` are swapped so the
-     * post-rotation footprint still measures `chairDepthPx` across
-     * the row and `chairLengthPx` along it (the Konva rotation
-     * pivot lives at offsetX/offsetY, which we set to the post-
-     * rotation centre regardless of the pre-rotation extent).
-     *
-     * At default spacing chairLengthPx == slotPx, so consecutive
-     * chairs touch edge-to-edge and reproduce the pre-refactor
-     * seamless tiled look (modulo the ~5% per-edge padding around
-     * the standalone-chair glyphs — see WALL_CHAIRS_IMAGE_CONFIG
-     * docstring). */
+    /* listening:false on each chair Image so hit-testing routes to the bg Rect (the row is one selectable unit).
+     * Each chair anchors flush with its slot start (first centre at chairLengthPx/2, then step slotPx), matching
+     * expandChairs()'s WD contract; at default spacing this reduces to (i+0.5)*slotPx (no regression). Swivel/Stool
+     * reuse back-on-TOP glyphs via a -90° rotation (width/height swapped so the post-rotation footprint still fits the slot). */
     const isImageRotated = imageSrcRotation !== 0;
-    /* Pre-rotation Image dimensions. For 0° (chairs-top.png) the
-     * Image's natural orientation already matches the row, so the
-     * pre-rotation extent equals the post-rotation footprint. For
-     * ±90° (chair-top family glyphs) we swap so that the post-
-     * rotation footprint lines up with the slot. The Konva offsetX
-     * / offsetY values centre the rotation on the slot's centre,
-     * also using the pre-rotation extent.
-     *
-     * `imageRenderScale` (from `WALL_CHAIRS_IMAGE_CONFIG.scale`,
-     * `{ across, along }`) shrinks the rendered chair art
-     * inside its slot independently along the across-row (chair
-     * depth) and along-row (chair length) axes. Because the
-     * chair's centre is anchored by `offsetX / offsetY =
-     * preRotW/2 / preRotH/2`, scaling preRotW / preRotH leaves
-     * the chair centred at (cx, cy) and adds (1 - scale) × slot
-     * of padding on the matching axis. Anisotropic scales let
-     * the Swivel / Stool variants compensate for their source
-     * assets' 100% × 100% chair-art-to-frame ratios so their
-     * rendered chair art matches the chairs-top.png variant
-     * exactly (2.024 × 2.080 ft). See `WALL_CHAIRS_IMAGE_CONFIG`.
-     *
-     * Axis mapping (post-rotation footprint always lines up with
-     * the slot, so the across/along scales target the user-
-     * visible direction regardless of `imageSrcRotation`):
-     *   - Group X = across-row (chair depth)  → uses scale.across
-     *   - Group Y = along-row  (chair length) → uses scale.along
-     * For `isImageRotated = false` (Row of Chairs), the source
-     * image's width axis IS the across-row direction, so preRotW
-     * uses scale.across and preRotH uses scale.along.
-     * For `isImageRotated = -90` (Swivel / Stool), -90° rotation
-     * swaps the two axes — the source image's width becomes the
-     * post-rotation height (along-row) and the source image's
-     * height becomes the post-rotation width (across-row), so
-     * preRotW uses scale.along and preRotH uses scale.across. */
+    /* Pre-rotation Image dims. 0°: extent == footprint. ±90°: axes swap so the post-rotation footprint fits the slot.
+     * imageRenderScale { across, along } shrinks the art inside the slot per-axis (chair stays centred via offsetX/Y).
+     * Axis map: Group X = across-row → scale.across, Group Y = along-row → scale.along; when rotated the source
+     * width/height map to the swapped axes, so preRotW uses scale.along and preRotH uses scale.across. */
     const preRotW = isImageRotated
         ? chairLengthPx * imageRenderScale.along
         : chairDepthPx * imageRenderScale.across;
@@ -27963,10 +25957,7 @@ function layoutWallChairsChildren(group) {
 
     for (let i = 0; i < count; i++) {
         const cx = widthPx / 2;
-        /* First chair flush with row start; subsequent chairs step by
-         * slotPx (chair-on-center spacing). See the long comment block
-         * above for the WD-export parity rationale and the
-         * default-spacing equivalence with the pre-fix formula. */
+        /* First chair flush with row start; subsequent chairs step by slotPx (see comment block above). */
         const cy = chairLengthPx / 2 + i * slotPx;
         const chair = new Konva.Image({
             x: cx,
@@ -27983,10 +25974,7 @@ function layoutWallChairsChildren(group) {
         group.add(chair);
     }
 
-    /* First-row-of-the-session async load: register a callback that
-     * back-fills every empty chair Image in this group and triggers a
-     * batchDraw once the bitmap is ready. The cache is keyed per
-     * deviceId so each variant decodes its own glyph once. */
+    /* First use this session: async-load the glyph, back-fill every empty chair Image, then batchDraw. */
     if (!cachedImage) {
         loadWallChairsChairImage(deviceId, function wallChairsChairImageReady(img) {
             group.find('.wallChairs-chair').forEach(function (node) {
@@ -27998,39 +25986,20 @@ function layoutWallChairsChildren(group) {
     }
 }
 
-/* Map from a wallChairs-family row's `data_deviceid` to the
- * standalone-chair `data_deviceid` each row member emits on
- * Workspace Designer / DXF / xConfig export. The standalone-chair
- * device defs supply the `workspaceKey` mapping (`workspaceKey.chair`
- * / `workspaceKey.chairSwivel` / `workspaceKey.chairHigh`) and the
- * DXF block library auto-generates a per-id block from the chair's
- * `topImage`, so picking the right id here is the only knob a new
- * Row-of-X variant needs to flip on for the export round-trip. */
+/* Map a wallChairs-family row's data_deviceid to the standalone-chair id each member emits on WD/DXF/xConfig export
+ * (those defs supply workspaceKey + DXF block). Picking the id here is the only knob a new Row-of-X variant needs. */
 const EXPANDED_CHAIR_DEVICE_FOR_ROW = {
     'wallChairs': { id: 'chair', name: 'Chair' },
     'wallChairsSwivel': { id: 'chairSwivel', name: 'Swivel Chair' },
     'wallChairsStool': { id: 'chairHigh', name: 'Stool Chair' },
 };
 
-/* Take a wallChairs-family row item and return an array of individual
- * chair items. The emitted chair `data_deviceid` is keyed off the
- * row's `data_deviceid` via `EXPANDED_CHAIR_DEVICE_FOR_ROW` so a Row
- * of Swivel Chairs emits Swivel Chair items, Row of Stool Chairs
- * emits Stool Chair items, etc. Defaults to plain Chair if the row's
- * id is unrecognised so legacy / hand-edited URLs stay safe. */
+/* Expand a wallChairs-family row into individual chair items, keying the emitted id off EXPANDED_CHAIR_DEVICE_FOR_ROW (defaults to plain Chair for unknown ids). */
 function expandChairs(item, unit = roomObj.unit) {
     let singleChairWidth = getChairSpacing(item, unit);
     let chairArray = [];
 
-    /* Match `layoutWallChairsChildren()` / `updateFormatDetails()` /
-     * `transformend` so WD/DXF/xConfig emit the EXACT chair count the
-     * canvas renders. Math.floor + WALL_CHAIRS_COUNT_EPSILON absorbs
-     * the 2dp precision loss that `round()` in `canvasToJson` /
-     * `updateItem` introduces into `item.height` (e.g. N=5 chairs in
-     * meters stores as 3.58 m → 3.58 / 0.71628 = 4.99807, which the
-     * pre-fix `Math.round` would round UP to 5 even though the canvas
-     * was rendering 4). See `WALL_CHAIRS_COUNT_EPSILON` docstring for
-     * the precision math. */
+    /* Same Math.floor + WALL_CHAIRS_COUNT_EPSILON as layoutWallChairsChildren() so the export count == the rendered count. */
     let numberOfChairs = Math.max(1, Math.floor(item.height / singleChairWidth + WALL_CHAIRS_COUNT_EPSILON));
 
     let rotation = normalizeDegree(item.rotation - 90);
@@ -28566,10 +26535,7 @@ function turnOffBackgroundImageButtons() {
 
 }
 
-/* Shared loader for the Room Floor Plan background image. Accepts a
- * File or Blob plus optional displayName. Centralizes file-picker and
- * clipboard-paste paths. `options`: skipBgImagesAdd, existingBgImageId,
- * scaledWidthMeters, scaledHeightMeters (see "Recent Floor Plans" picker). */
+/* Shared loader for the Room Floor Plan background image (File/Blob + optional displayName); used by the file picker and clipboard paste. options: skipBgImagesAdd, existingBgImageId, scaledWidthMeters, scaledHeightMeters. */
 function processBackgroundImageFile(file, displayName, options) {
     if (!file) return;
     options = options || {};
@@ -28616,8 +26582,7 @@ function processBackgroundImageFile(file, displayName, options) {
 
             konvaBackgroundImageFloor.height(backgroundImageFloor.height / scaleImage);
 
-            /* Caller-supplied saved-scale override (Recent Floor Plans
-             * "Use last saved scale"). Runs after auto-fit. */
+            /* Saved-scale override (Recent Floor Plans "Use last saved scale"), applied after auto-fit. */
             if (options.scaledWidthMeters > 0 && options.scaledHeightMeters > 0) {
                 konvaBackgroundImageFloor.width(options.scaledWidthMeters * scale);
                 konvaBackgroundImageFloor.height(options.scaledHeightMeters * scale);
@@ -28631,8 +26596,7 @@ function processBackgroundImageFile(file, displayName, options) {
             document.getElementById('transparencySlider').value = 50;
             changeTransparency(50);
 
-            /* Persist to IDB "Recent Floor Plans" (FIFO, idbStore.bgImagesMax()).
-             * Blob stored natively. Returned id stamps roomObj.backgroundImage. */
+            /* Persist to IDB "Recent Floor Plans" (FIFO); the returned id stamps roomObj.backgroundImage. */
             if (options.skipBgImagesAdd) {
                 if (options.existingBgImageId) {
                     if (!roomObj.backgroundImage) roomObj.backgroundImage = {};
@@ -28680,13 +26644,7 @@ fileInputImage.addEventListener('change', function (e) {
 });
 
 
-/* "Recent Floor Plans" library (IDB-backed). bgImages store keeps up
- * to 5 previously-uploaded floor plans as Blobs; a button opens a
- * dialog with thumbnails. Button (not <select>) because a select with
- * one option doesn't fire `change` on re-click. Object URLs are
- * revoked when the dialog closes. */
-
-/* Active blob: URLs created for the dialog; revoked on close. */
+/* "Recent Floor Plans" library (IDB-backed): up to 5 prior floor plans as Blobs, shown via a thumbnail dialog. A button (not <select>, which wouldn't re-fire `change`) opens it; object URLs are revoked on close. */
 let _recentFloorPlansActiveObjectUrls = [];
 
 /* Refresh button enabled/disabled state from library size. */
@@ -28742,11 +26700,7 @@ function openRecentFloorPlansDialog(images) {
         dialog.setAttribute('open', '');
     }
 
-    /* The scroll-hint chevron is wired up at startup via initScrollHints()
-     * but the wrapper has zero dimensions while the dialog is closed, so
-     * the initial state is "no overflow". Re-evaluate now that the dialog
-     * is visible and the grid has its real cards. A second pass on the
-     * next frame catches any layout that's still settling. */
+    /* Re-evaluate scroll hints now the dialog is visible (the wrapper had zero size while closed); a second pass next frame catches still-settling layout. */
     if (typeof updateAllScrollHints === 'function') {
         updateAllScrollHints();
         requestAnimationFrame(updateAllScrollHints);
@@ -28767,9 +26721,7 @@ function buildRecentFloorPlanCard(img, currentBgImageId) {
     try {
         objUrl = URL.createObjectURL(img.blob);
         _recentFloorPlansActiveObjectUrls.push(objUrl);
-        /* CSS background-image keeps the file untouched (no DOM <img> with
-         * potential XSS via SVG scripts) — and lets us use object-fit:contain
-         * via background-size. */
+        /* CSS background-image avoids a DOM <img> (no SVG-script XSS) and gives object-fit:contain via background-size. */
         thumb.style.backgroundImage = 'url("' + objUrl + '")';
     } catch (e) {
         thumb.textContent = '(thumbnail unavailable)';
@@ -28803,10 +26755,7 @@ function buildRecentFloorPlanCard(img, currentBgImageId) {
         ev.stopPropagation();
         if (confirm('Delete "' + (img.name || 'this floor plan') + '" from your saved floor plans?')) {
             window.idbStore.bgImagesDelete(img.id).then(function () {
-                /* If the just-deleted image was applied to the current room,
-                 * clear the reference so reopening the room doesn't try to
-                 * rehydrate a missing entry. The on-canvas image stays as-is
-                 * until the user explicitly removes it. */
+                /* If the deleted image was applied to this room, clear the ref so reopening won't rehydrate a missing entry (the on-canvas image stays until removed). */
                 if (roomObj && roomObj.backgroundImage && roomObj.backgroundImage.bgImageId === img.id) {
                     delete roomObj.backgroundImage.bgImageId;
                 }
@@ -28845,10 +26794,7 @@ function revokeActiveRecentFloorPlanObjectUrls() {
     _recentFloorPlansActiveObjectUrls = [];
 }
 
-/* Floor-plan picker: if the IDB record has a saved scale, prompt the
- * user to fit-vs-saved via dialogFloorPlanScaleChoice (otherwise load
- * with auto-fit). Pick is stashed in _pendingFloorPlanPick between
- * applyFloorPlanFromLibrary() and loadPickedFloorPlanWithScaleChoice(). */
+/* Floor-plan picker: if the IDB record has a saved scale, prompt fit-vs-saved via dialogFloorPlanScaleChoice, else auto-fit. Pick is stashed here between applyFloorPlanFromLibrary() and loadPickedFloorPlanWithScaleChoice(). */
 let _pendingFloorPlanPick = null;
 
 function applyFloorPlanFromLibrary(id) {
@@ -28892,8 +26838,7 @@ function loadPickedFloorPlanWithScaleChoice(choice) {
     loadPickedFloorPlan(pick.rec, pick.id, choice);
 }
 
-/* Hand stored Blob to processBackgroundImageFile() with skip-IDB-add,
- * existing-id stamping, and optional saved-scale override. */
+/* Hand the stored Blob to processBackgroundImageFile() with skip-IDB-add, existing-id stamping, and optional saved-scale override. */
 function loadPickedFloorPlan(rec, id, choice) {
     if (!rec || !rec.blob) return;
 
@@ -28938,8 +26883,7 @@ function loadPickedFloorPlan(rec, id, choice) {
 setTimeout(function () { refreshRecentFloorPlansDropdown(); }, 200);
 
 
-/* Convert a data URL ("data:image/png;base64,…") to a Blob. Returns
- * null on parse error. Used to ingest legacy backgroundImageFile. */
+/* Convert a data URL to a Blob (null on parse error). Used to ingest legacy backgroundImageFile. */
 function dataUrlToBlob(dataUrl) {
     if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
     try {
@@ -28965,17 +26909,12 @@ function dataUrlToBlob(dataUrl) {
     }
 }
 
-/* Return true if a backgroundImageFile value is a valid, loadable
- * data URL. Rejects blob: URLs (session-scoped, break on reload),
- * empty/missing strings, and any other non-data-URL values that
- * would put the <img> into a 'broken' state and crash Konva. */
+/* True if a backgroundImageFile is a loadable data URL. Rejects blob: URLs (session-scoped), empty/missing, and other non-data values that would break the <img> and crash Konva. */
 function isValidBackgroundImageDataUrl(val) {
     return typeof val === 'string' && val.startsWith('data:');
 }
 
-/* Persist a freshly-loaded background image into the IDB bgImages
- * library if not already present. Called from the importJson() VRC
- * branch so opening a saved file populates "Recent Floor Plans". */
+/* Persist a freshly-loaded background image into the IDB bgImages library if not already present (called from importJson()'s VRC branch so opening a saved file populates "Recent Floor Plans"). */
 function persistImportedBackgroundImageToIdb() {
     if (!roomObj || !roomObj.backgroundImageFile) return Promise.resolve(null);
     if (!window.idbStore || !window.idbStore.isAvailable()) return Promise.resolve(null);
@@ -29011,9 +26950,7 @@ function persistImportedBackgroundImageToIdb() {
     });
 }
 
-/* If roomObj references an IDB image but backgroundImageFloor hasn't
- * loaded yet (page reload, undo, import without data URL), fetch the
- * Blob and re-apply. Returns Promise<boolean>. */
+/* If roomObj references an IDB image but backgroundImageFloor isn't loaded yet (reload, undo, import w/o data URL), fetch the Blob and re-apply. Returns Promise<boolean>. */
 function rehydrateBackgroundImageFromIdb() {
     if (!roomObj || !roomObj.backgroundImage) return Promise.resolve(false);
     const bgImageId = roomObj.backgroundImage.bgImageId;
@@ -29036,10 +26973,7 @@ function rehydrateBackgroundImageFromIdb() {
                 backgroundImageFloor.removeEventListener('load', onload);
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
-                /* Stamp data URL onto roomObj so JSON exports include the binary.
-                 * resolve() is deferred until the FileReader finishes so that
-                 * callers chaining .then() are guaranteed a data: URL — never
-                 * the temporary blob: URL that was used to load the <img>. */
+                /* Stamp the data URL onto roomObj so JSON exports include the binary; resolve() waits for the FileReader so .then() callers always get a data: URL, never the temp blob:. */
                 try {
                     const fr = new FileReader();
                     fr.onload = function (ev) {
@@ -29070,9 +27004,7 @@ function rehydrateBackgroundImageFromIdb() {
 }
 
 
-/* Paste-from-clipboard for Room Floor Plan background image.
- * Active when the Details > Room Floor Plan sub-tab is open AND
- * mouse is hovering #ContainerInputs. Non-image pastes pass through. */
+/* Clipboard paste for the Room Floor Plan background image. Active only when the Details > Room Floor Plan sub-tab is open AND the mouse is over #ContainerInputs; non-image pastes pass through. */
 let isMouseOverContainerInputs = false;
 const containerInputsEl = document.getElementById('ContainerInputs');
 if (containerInputsEl) {
@@ -29112,15 +27044,7 @@ function importJson(jsonFile) {
     console.info('uploading file....');
     roomObj.roomId = createRoomId();
 
-    /* VRC Custom Item Library file — checked FIRST because it's the
-     * narrowest discriminator (a top-level `vrcCustomItems` array is
-     * specific to this file format) and because its handler is a
-     * different shape from the other two: it does NOT reset the room,
-     * does NOT swap roomObj, and does NOT open the loading template
-     * modal. It just adds template(s) to the library and (for a
-     * single-record file) drops one instance on the canvas. Routing
-     * before the room/customObjects checks lets us bail out cleanly
-     * without the loading-modal flicker. */
+    /* VRC Custom Item Library file — checked FIRST (top-level `vrcCustomItems` is the narrowest discriminator). Its handler doesn't reset the room, swap roomObj, or open the loading modal; it just adds template(s) and (single-record) drops one instance. Routing here avoids the loading-modal flicker. */
     if (Array.isArray(jsonFile.vrcCustomItems)) {
         importCustomItemsFile(jsonFile);
         document.getElementById('fileUpload').value = null;
@@ -29165,10 +27089,7 @@ function importJson(jsonFile) {
             roomObj = structuredClone(jsonFile);
             migrateLegacyOverlayKeys(roomObj);
             roomObj.trNodes = [];
-            /* Third-party-authored .vrc.json files may omit `version`. Backfill from
-             * the boot-time default so downstream consumers (createShareableLink in
-             * particular) never interpolate the literal string `"undefined"` into
-             * the URL grammar — which silently corrupts roomWidth on re-parse. */
+            /* Third-party .vrc.json may omit `version`; backfill so createShareableLink never interpolates "undefined" into the URL grammar (which corrupts roomWidth on re-parse). */
             if (!roomObj.version) roomObj.version = version;
 
             roomObj.multiRoomFloorPlanMode = !!roomObj.multiRoomFloorPlanMode;
@@ -29177,11 +27098,7 @@ function importJson(jsonFile) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
-                /* Persist the just-imported image to the IndexedDB
-                 * "Recent Floor Plans" library so future reloads (and
-                 * "Reload last design") can rehydrate it without needing
-                 * the data URL to ride along in undo snapshots. No-op if
-                 * the file already references an existing library entry. */
+                /* Persist to the IDB "Recent Floor Plans" library so reloads / "Reload last design" can rehydrate without the data URL riding in undo snapshots (no-op if already present). */
                 if (typeof persistImportedBackgroundImageToIdb === 'function') {
                     persistImportedBackgroundImageToIdb();
                 }
@@ -29190,9 +27107,7 @@ function importJson(jsonFile) {
 
                 }, 1000);
             } else if ('backgroundImageFile' in jsonFile && !isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
-                /* File contains an invalid image value (e.g. a blob: URL
-                 * from an older buggy export). Strip it so it doesn't
-                 * propagate, then attempt IDB rehydration as a fallback. */
+                /* Invalid image value (e.g. blob: URL from an old buggy export). Strip it, then try IDB rehydration as a fallback. */
                 console.warn('[VRC] Imported file has invalid backgroundImageFile — stripping:', String(jsonFile.backgroundImageFile).slice(0, 80));
                 delete roomObj.backgroundImageFile;
                 if (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId
@@ -29205,10 +27120,7 @@ function importJson(jsonFile) {
                 }
             } else if (jsonFile.backgroundImage && jsonFile.backgroundImage.bgImageId
                 && typeof rehydrateBackgroundImageFromIdb === 'function') {
-                /* No embedded data URL but the file references an image in
-                 * this browser's IDB library — try to rehydrate. If the
-                 * library no longer has it (evicted, different machine),
-                 * the helper drops the stale reference. */
+                /* No embedded data URL but the file references an IDB-library image — try to rehydrate (helper drops the ref if it was evicted / on another machine). */
                 rehydrateBackgroundImageFromIdb().finally(function () {
                     isBackgroundImageFloorFileLoad = false;
                 });
@@ -29229,19 +27141,11 @@ function importJson(jsonFile) {
             /* Ensure groups array is present (older VRC files won't have it) */
             ensureGroups();
 
-            /* Backfill customItemBaseId for any customItem that lacks
-             * one (older VRC room files predating the library work).
-             * Mirrors the proactive call in the WD import path. */
+            /* Backfill customItemBaseId for customItems lacking one (pre-library VRC files); mirrors the WD import path. */
             ensureCustomItems();
             ensureCustomItemBaseIds();
 
-            /* Legacy-shape auto-migration: older .vrc.json files have
-             * `items: { videoDevices: [...], chairs: [...], ... }`. The
-             * current shape is a flat array. Detect inline (avoids a
-             * circular dep on the lazy-loaded helper) and either run
-             * the migration synchronously when it's already loaded, or
-             * lazy-load it and finish the import inside the .then().
-             * See plan flatten-roomobj-items-array. */
+            /* Legacy-shape migration: old .vrc.json had `items: { videoDevices: [...], ... }`; current shape is a flat array. Detect inline, then migrate sync (helper loaded) or lazy-load then finish in .then(). */
             const needsLegacyMigration = roomObj.items
                 && !Array.isArray(roomObj.items)
                 && typeof roomObj.items === 'object';
@@ -29282,9 +27186,7 @@ function importJson(jsonFile) {
 };
 
 
-/* Route raw uploaded file text to the correct importer (JSON, xConfig,
- * or alert on unrecognized). Order matters: JSON.parse first since
- * xConfig isn't valid JSON. Shared by the picker and drag-and-drop. */
+/* Route raw uploaded file text to the right importer (JSON, xConfig, or alert). JSON.parse first (xConfig isn't valid JSON). Shared by the picker and drag-and-drop. */
 function routeUploadedFileText(text, fileName) {
     closeAllDialogModals();
 
@@ -29300,9 +27202,7 @@ function routeUploadedFileText(text, fileName) {
         return;
     }
 
-    /* Three xConfig flavours: raw RoomOS dump ("*c xConfiguration …"),
-     * exported file ("xConfiguration …"), bare key dump (no prefix).
-     * Regex covers all three; see notes/XCONFIG.md. */
+    /* Three xConfig flavours (raw RoomOS "*c xConfiguration…", exported "xConfiguration…", bare key dump); regex covers all three — see notes/XCONFIG.md. */
     if (typeof text === 'string' && /^((?:\*c )?xConfiguration\b)|(Audio\sPeripherals\sMicrophone\s1\sPlacement)|(Cameras\sCamera\s1\sPlacement\sRX)/m.test(text)) {
         importXConfigFile(text, fileName);
         return;
@@ -29313,9 +27213,7 @@ function routeUploadedFileText(text, fileName) {
 }
 
 
-/* Parse a Cisco xConfiguration .txt dump → { cameras, microphones }
- * indexed by device number. Raw xConfig units (deci-degrees, mm) are
- * preserved; conversion happens in importXConfigFile(). See notes/XCONFIG.md. */
+/* Parse a Cisco xConfiguration .txt dump → { cameras, microphones } indexed by device number. Raw units (deci-degrees, mm) preserved; conversion happens in importXConfigFile(). See notes/XCONFIG.md. */
 function parseXConfigText(text) {
     const result = { cameras: {}, microphones: {} };
     if (typeof text !== 'string' || !text) return { cameras: [], microphones: [] };
@@ -29323,18 +27221,7 @@ function parseXConfigText(text) {
     /* Split on any newline so CRLF and LF dumps both work. */
     const lines = text.split(/\r?\n/);
 
-    /* Three line formats are accepted (see routeUploadedFileText for the
-     * detection logic):
-     *  1. "*c xConfiguration Cameras Camera 1 ..."  (raw RoomOS SSH dump)
-     *  2. "xConfiguration Cameras Camera 1 ..."     (app export, no *c prefix)
-     *  3. "Cameras Camera 1 ..."                    (bare config dump — no
-     *       xConfiguration keyword at all)
-     * The optional prefix is wrapped in a CAPTURING group so that the data
-     * groups are consistently numbered across all five regexes:
-     *   group 1 = optional "*c xConfiguration" prefix (may be undefined)
-     *   group 2 = device number
-     *   group 3 = field name  (or ID string for ID/StreamName regexes)
-     *   group 4 = integer value  (absent for ID/StreamName regexes) */
+    /* Three accepted line formats (raw "*c xConfiguration…", export "xConfiguration…", bare "Cameras Camera 1…"). The optional prefix is a CAPTURING group so data groups number consistently across all regexes: g1=prefix, g2=device number, g3=field (or ID string), g4=int value (absent for ID/StreamName). */
     const cameraRe = /^((?:\*c )?xConfiguration)?\s*Cameras Camera (\d+) Placement (RX|RY|RZ|X|Y|Z):\s*(-?\d+)\s*$/;
     /* New format (RoomOS 11+): Audio Peripherals Microphone N — only RY/X/Y/Z are used. */
     const micPlacementRe = /^((?:\*c )?xConfiguration)?\s*Audio Peripherals Microphone (\d+) Placement (RY|X|Y|Z):\s*(-?\d+)\s*$/;
@@ -29349,23 +27236,16 @@ function parseXConfigText(text) {
         if (!result.cameras[n]) result.cameras[n] = { n: n, rx: 0, ry: 0, rz: 0, x: 0, y: 0, z: 0 };
         return result.cameras[n];
     }
-    /* Mics are tracked by mic-number (which is the Microphone N in the new
-     * format and the Ethernet N in the legacy format). When both formats
-     * appear for the same mic-number, the new format wins — it is the
-     * canonical source on RoomOS 11+. We tag each entry with `source` so the
-     * importer can pick the right label format ("Microphone N ID: ..." for
-     * 'new' vs "Microphone N <stream>" for 'old'). */
+    /* Mics tracked by mic-number (Microphone N new / Ethernet N legacy). New format wins for a shared number (canonical on RoomOS 11+); each entry is tagged with `source` so the importer picks the right label format. */
     function ensureMic(n, source) {
         const existing = result.microphones[n];
         if (!existing) {
             result.microphones[n] = { n: n, ry: 0, x: 0, y: 0, z: 0, id: '', source: source };
         } else if (source === 'new' && existing.source === 'old') {
-            /* Upgrade: new format takes priority — reset values so legacy
-             * placement numbers don't bleed into the new-format mic. */
+            /* Upgrade to new format — reset values so legacy placement doesn't bleed in. */
             result.microphones[n] = { n: n, ry: 0, x: 0, y: 0, z: 0, id: '', source: 'new' };
         } else if (source === 'old' && existing.source === 'new') {
-            /* Already have a new-format entry for this number — ignore the
-             * legacy line. */
+            /* New-format entry already exists for this number — ignore the legacy line. */
             return null;
         }
         return result.microphones[n];
@@ -29431,69 +27311,34 @@ function parseXConfigText(text) {
         }
     }
 
-    /* Convert the index-keyed maps into arrays sorted by device number so the
-     * downstream code can iterate predictably (Camera 1 first, etc.). */
+    /* Index-keyed maps → arrays sorted by device number for predictable iteration (Camera 1 first, etc.). */
     const camArr = Object.values(result.cameras).sort((a, b) => a.n - b.n);
     const micArr = Object.values(result.microphones).sort((a, b) => a.n - b.n);
     return { cameras: camArr, microphones: micArr };
 }
 
 
-/* Import a Cisco xConfiguration .txt dump as a fresh VRC room.
- * See notes/XCONFIG.md for the coordinate model, Quad-Camera offset
- * (+7cm X, +5cm Z) subtraction, device-type mapping, and "not placed"
- * skip rule (X=Y=Z=0, except Camera 1). */
+/* Import a Cisco xConfiguration .txt dump as a fresh VRC room. See notes/XCONFIG.md for the coordinate model, Quad-Camera offset (+7cm X, +5cm Z), device-type mapping, and "not placed" skip rule. */
 function importXConfigFile(text, fileName) {
     const parsed = parseXConfigText(text);
 
-    /* Camera 1 detection.
-     *
-     * Camera 1 in xConfig is conventionally the Quad Camera (which is the
-     * shared coordinate origin for every other peripheral). However it is
-     * legitimate for a customer to wire a Room Vision PTZ into the Camera 1
-     * slot when there is no Quad Cam present. Distinguish the two cases by
-     * how close Camera 1 sits to the (0, *, 0) reference frame:
-     *
-     *   |X| <= 10 mm  AND  |Z| <= 10 mm   -> Quad Camera (roomKitEqQuadCam)
-     *   anything else                      -> Room Vision PTZ (ptzVision2)
-     *
-     * The 10 mm tolerance accommodates real-world rounding/measurement
-     * jitter — a Quad Cam reported at "Camera 1 X: 0 / Z: 8" is still
-     * effectively at the origin.
-     *
-     * If Camera 1 is missing entirely, that's also valid — we now allow
-     * camera-only and microphone-only imports (see below). */
+    /* Camera 1 detection. Conventionally the Quad Camera (shared coordinate origin), but a Room Vision PTZ may occupy the slot when no Quad Cam exists. Distinguish by proximity to origin: |X|<=10mm AND |Z|<=10mm → Quad (roomKitEqQuadCam), else PTZ (ptzVision2). 10mm absorbs measurement jitter. Missing Camera 1 is also valid (camera-only / mic-only imports). */
     const QUAD_TOLERANCE_MM = 10;
 
-    /* Filter out unplaced cameras up-front. A camera with Placement Y = 0
-     * has no height-above-floor configured — that's the default for an
-     * empty xConfig camera slot, and it's also what the official Cisco
-     * placement tool treats as "not really placed". This catches both the
-     * fully-empty slots (X=Y=Z=0, like Cameras 2..6 in a Codec EQ config)
-     * and partially-configured ghosts that have non-zero X/Z but Y=0
-     * (e.g. a stale Camera 7 from a removed device). */
+    /* Drop unplaced cameras (Placement Y=0 = no height configured, the empty-slot default Cisco treats as "not placed"). Catches fully-empty slots and Y=0 ghosts with stray X/Z. */
     const placedCameras = parsed.cameras.filter(c => c.y !== 0);
 
     let cam1 = placedCameras.find(c => c.n === 1) || null;
     const cam1IsQuad = cam1 && Math.abs(cam1.x) <= QUAD_TOLERANCE_MM && Math.abs(cam1.z) <= QUAD_TOLERANCE_MM;
     const otherCameras = placedCameras.filter(c => c.n !== 1);
 
-    /* If Camera 1 is *not* a Quad Camera, demote it to a PTZ entry so it
-     * gets the same treatment as Cameras 2..N (still labelled "Camera 1"). */
+    /* If Camera 1 isn't a Quad, demote it to a PTZ entry treated like Cameras 2..N (still labelled "Camera 1"). */
     if (cam1 && !cam1IsQuad) {
         otherCameras.unshift(cam1);
         cam1 = null;
     }
 
-    /* Mics: skip empty slots.
-     *  - New format ("Audio Peripherals Microphone N"): defaults are X=Y=Z=0,
-     *    so we drop entries where all three are zero.
-     *  - Legacy format ("Audio Input Ethernet N"): the default has Y=730 mm
-     *    (typical table-mic height) with X=Z=0 and an empty StreamName, so
-     *    "all-zero" doesn't trigger. We instead skip when both X and Z are
-     *    zero (mic at the camera origin = not actually placed) — empty
-     *    StreamName isn't a strong enough signal because some real mics
-     *    don't report one. */
+    /* Skip empty mic slots. New format ("Audio Peripherals Microphone N"): drop X=Y=Z=0. Legacy ("Audio Input Ethernet N") defaults Y=730mm, so skip when X and Z are both 0 (mic at origin = not placed); empty StreamName isn't a reliable signal. */
     const microphones = parsed.microphones.filter(m => {
         if (m.source === 'old') {
             return !(m.x === 0 && m.z === 0);
@@ -29501,8 +27346,7 @@ function importXConfigFile(text, fileName) {
         return !(m.x === 0 && m.y === 0 && m.z === 0);
     });
 
-    /* Camera-only and microphone-only imports are both supported, but if the
-     * file has neither there is nothing to draw — abort cleanly. */
+    /* Camera-only and mic-only imports are supported, but abort cleanly if the file has neither. */
     const hasAnyCamera = !!cam1 || otherCameras.length > 0;
     const hasAnyMic = microphones.length > 0;
     if (!hasAnyCamera && !hasAnyMic) {
@@ -29510,9 +27354,7 @@ function importXConfigFile(text, fileName) {
         return;
     }
 
-    /* If only one device class is present, queue a non-blocking notice so
-     * the user knows the room is incomplete by Cisco's design guidelines.
-     * The actual notice is shown after the room finishes loading (below). */
+    /* If only one device class is present, queue a notice (shown after load) that the room is incomplete per Cisco guidelines. */
     let missingDeviceMessage = null;
     if (hasAnyCamera && !hasAnyMic) {
         missingDeviceMessage = 'Calibrated microphone missing';
@@ -29520,32 +27362,16 @@ function importXConfigFile(text, fileName) {
         missingDeviceMessage = 'Cinematic meeting camera missing';
     }
 
-    /* Constants tied to the xConfig coordinate model — see top of function.
-     * NOTE: there is intentionally no X offset. xConfig X for every
-     * peripheral is already measured from the Quad Camera's lens center on
-     * the X axis, so no constant is added/subtracted during import. (Earlier
-     * versions of this importer applied a 0.07 m correction; that has been
-     * removed at the user's direction.) */
+    /* xConfig coordinate-model constants. No X offset: xConfig X is already measured from the Quad Cam lens center (an earlier 0.07 m correction was removed). */
     const Z_OFFSET_M = 0.05; /* xConfig Z origin is 5 cm forward of the Quad Camera lens center */
     const QUAD_Y_OFFSET_M = 0.05; /* xConfig Y for Quad Cam reports base + ~5cm; subtract to get the actual mount elevation */
     const PTZ_Y_OFFSET_M = 0.15; /* xConfig Y for Room Vision PTZ reports its mount point ~15cm above the lens; subtract to get the actual lens elevation */
     const ROOM_BUFFER_M = 0.15; /* min distance kept between any device edge and the room walls */
 
-    /* Build a flat list of "to-place" items so the room-size computation can
-     * see every device in one pass. relX/relY are in METERS, relative to the
-     * xConfig coordinate origin (which is the Quad Camera's lens center
-     * when one is present, or the implicit (0,0) reference frame otherwise).
-     * relX increases to the right, relY (which maps to xConfig Z) increases
-     * away from the camera (further into the room). */
+    /* Flat "to-place" list so the room-size pass sees every device. relX/relY are METERS from the xConfig origin (Quad Cam lens center, or implicit (0,0)); relX right, relY (= xConfig Z) away from the camera. */
     const placements = [];
 
-    /* Quad Camera: physically at relative (0, 0) by definition. Its elevation
-     * comes from xConfig Y minus the 5 cm offset. We import as
-     * `roomKitEqQuadCam` (Room Kit EQ: Quad Camera) rather than the bare
-     * `quadCam` device — they share dimensions (cameraParent: 'quadCam')
-     * but `roomKitEqQuadCam` is the full codec/camera combo that better
-     * matches what an xConfig file actually represents. Skipped entirely
-     * when Camera 1 is missing or is being handled as a PTZ instead. */
+    /* Quad Camera at relative (0,0); elevation = xConfig Y minus the 5cm offset. Imported as roomKitEqQuadCam (full codec/camera combo, shares quadCam dims). Skipped when Camera 1 is missing or handled as a PTZ. */
     if (cam1) {
         placements.push({
             kind: 'quadCam',
@@ -29575,12 +27401,7 @@ function importXConfigFile(text, fileName) {
         /* >= 1.6 m → ceilingMicPro per spec; < 1.6 m → tableMicPro. */
         const deviceId = elevationM >= 1.6 ? 'ceilingMicPro' : 'tableMicPro';
         const idStr = (mic.id || '').trim();
-        /* Always use the "Microphone N ID: <id>" form so the data_labelField
-         * is consistent across both microphone types (ceilingMicPro and
-         * tableMicPro) and across both xConfig source variants (the new
-         * "Audio Peripherals Microphone" lines and the legacy "Audio Input
-         * Ethernet" lines, where the StreamName supplies the id). This also
-         * matches the export-side MIC_LABEL_RE so the file round-trips. */
+        /* Always "Microphone N ID: <id>" so data_labelField is consistent across both mic types and both xConfig source variants, and matches the export MIC_LABEL_RE for round-trip. */
         const label = idStr
             ? `Microphone ${mic.n} ID: ${idStr}`
             : `Microphone ${mic.n}`;
@@ -29595,32 +27416,9 @@ function importXConfigFile(text, fileName) {
         });
     });
 
-    /* Compute room size from the bounding box of all imported devices.
-     *
-     * Camera 1 used to be locked to the X-center of the room and to a
-     * fixed VRC y near the back wall, which forced the room to be
-     * symmetric around it (the old `2 × |relX|` width formula). Now that
-     * the xConfig coordinate origin is tracked independently by the
-     * xConfig XYZ tracking columns (created below), no device is special
-     * — they all just need to fit in the room with a `ROOM_BUFFER_M`
-     * cushion between every device edge and the nearest wall.
-     *
-     * Method:
-     *   1. Find min/max device EDGE on each axis: `relCoord ± halfDim`.
-     *   2. bbox dimension = (max − min) + 2 × ROOM_BUFFER_M.
-     *   3. Floor: roomWidth, roomLength ≥ MIN_ROOM_W_L_M (3 m). Height
-     *      uses its own MIN_ROOM_HEIGHT_M (2 m).
-     *   4. Translate items so the bbox sits CENTERED inside the
-     *      (possibly clamped-up) room — extra slack splits evenly between
-     *      opposing walls. `vrcOriginX` / `vrcOriginY` hold the VRC
-     *      coordinates of xConfig (0, 0); both placements and the
-     *      tracking columns anchor to them.
-     *
-     * Rotation is intentionally ignored when computing half-extents (a
-     * device rotated 90° would actually extend by half-DEPTH on the X
-     * axis rather than half-WIDTH). This matches the legacy behaviour
-     * and is fine in practice — Cisco cameras / mics are roughly square
-     * relative to the wall buffer, so the worst-case error is a few cm. */
+    /* Room size = bounding box of all devices + ROOM_BUFFER_M cushion to each wall (no device is special now that origin is tracked by the XYZ columns).
+     * 1. min/max EDGE per axis (relCoord ± halfDim). 2. bbox = (max−min) + 2×buffer. 3. clamp to MIN_ROOM_W_L_M (3m) / MIN_ROOM_HEIGHT_M (2m).
+     * 4. center bbox in the clamped room (slack splits evenly); vrcOriginX/Y = VRC coords of xConfig (0,0). Rotation ignored for half-extents (a few cm worst case). */
     const DEFAULT_DEVICE_HEIGHT_M = 0.05; /* 50 mm fallback per spec */
     const MIN_ROOM_W_L_M = 3;             /* minimum width / length */
     const MIN_ROOM_HEIGHT_M = 2;          /* minimum ceiling height */
@@ -29653,11 +27451,7 @@ function importXConfigFile(text, fileName) {
         if (heightNeeded > roomHeight) roomHeight = heightNeeded;
     });
 
-    /* Defensive: if every placement was filtered out by the unknown-device
-     * check (allDeviceTypes lookup miss) the bbox is still empty even
-     * though the early "no cameras or microphones" guard let us through.
-     * Fall back to a centered-zero bbox so vrcOrigin lands at the room
-     * center rather than going to NaN/Infinity. */
+    /* If every placement was an unknown device (lookup miss) the bbox is empty; fall back to a zero bbox so vrcOrigin stays finite. */
     if (!isFinite(minXEdge)) { minXEdge = 0; maxXEdge = 0; }
     if (!isFinite(minYEdge)) { minYEdge = 0; maxYEdge = 0; }
 
@@ -29667,32 +27461,19 @@ function importXConfigFile(text, fileName) {
     let roomLength = Math.max(MIN_ROOM_W_L_M, bboxLengthM);
     if (roomHeight < MIN_ROOM_HEIGHT_M) roomHeight = MIN_ROOM_HEIGHT_M;
 
-    /* Round up to 2 decimals so the user sees tidy numbers in the UI. The
-     * extra slack from clamping/rounding flows into vrcOrigin below, so
-     * items remain visually centered in the (possibly larger) room. */
+    /* Round up to 2dp for tidy UI numbers; the slack flows into vrcOrigin so items stay centered. */
     roomWidth = Math.ceil(roomWidth * 100) / 100;
     roomLength = Math.ceil(roomLength * 100) / 100;
     roomHeight = Math.ceil(roomHeight * 100) / 100;
 
-    /* vrcOriginX / vrcOriginY: VRC coordinates of xConfig (0, 0). Items
-     * are placed at (vrcOriginX + relX, vrcOriginY + relY); the X = 0 /
-     * Z = 0 tracking columns anchor to vrcOriginX / vrcOriginY directly.
-     *
-     * Derivation (see math walkthrough in the change-log notes):
-     *   leftmost device's left EDGE in VRC = ROOM_BUFFER_M + slackX/2
-     *   ⇒ vrcOriginX + minXEdge = ROOM_BUFFER_M + slackX/2
-     *   ⇒ vrcOriginX = ROOM_BUFFER_M + slackX/2 − minXEdge
-     * (Same logic for Y.) When `slack == 0` the bbox is anchored to a
-     * single buffered edge; when `slack > 0` the slack splits evenly
-     * between opposing walls so the bbox visually centers. */
+    /* vrcOriginX/Y = VRC coords of xConfig (0,0); items placed at (origin + rel), tracking columns anchor here.
+     * vrcOriginX = ROOM_BUFFER_M + slackX/2 − minXEdge (same for Y): slack splits evenly so the bbox centers. */
     const extraSlackX = roomWidth - bboxWidthM;
     const extraSlackY = roomLength - bboxLengthM;
     const vrcOriginX = ROOM_BUFFER_M + extraSlackX / 2 - minXEdge;
     const vrcOriginY = ROOM_BUFFER_M + extraSlackY / 2 - minYEdge;
 
-    /* From here on we follow the same shape as importWorkspaceDesignerFile():
-     * reset the canvas, build a roomObj2 in meters, then swap it in via
-     * setTimeout so the DOM/Konva is ready by the time drawRoom() fires. */
+    /* Same shape as importWorkspaceDesignerFile(): reset, build roomObj2 in meters, swap in via setTimeout so DOM/Konva is ready before drawRoom(). */
 
     resetRoomObj();
     convertMetersFeet(true, 'meters');
@@ -29711,11 +27492,7 @@ function importXConfigFile(text, fileName) {
         tvDiag: 65,
         drpTvNum: 1,
     };
-    /* xConfig imports start with default walls removed (the file is just a
-     * device list — there is no room geometry to mount on), with the
-     * standard theme, and with all coverage overlays off so the imported
-     * camera/mic positions are easy to read. The grid stays on for
-     * positional reference. */
+    /* xConfig imports: default walls removed (no room geometry in the file), standard theme, all coverage overlays off (grid stays on) so device positions read cleanly. */
     roomObj2.workspace.addCeiling = false;
     roomObj2.workspace.removeDefaultWalls = true;
     roomObj2.workspace.theme = 'standard';
@@ -29729,13 +27506,7 @@ function importXConfigFile(text, fileName) {
         overlayLabels: false,
     };
 
-    /* Convert each placement into a roomObj item. For non-table groups
-     * (mics, cameras, displays, etc.) VRC stores the rotation-aware CENTER
-     * of the device in attrs.x/attrs.y — see canvasToJson() which writes
-     * `getNodeCenter(node)` for these groups, and insertShapeItem() which
-     * reads attrs.x as the center when computing pixelX.
-     * (Tables/walls are different — they store the unrotated upper-left
-     * corner — but we don't import either of those from xConfig.) */
+    /* Convert each placement to a roomObj item. Non-table groups store the rotation-aware CENTER in x/y (per canvasToJson/insertShapeItem); we don't import tables/walls here. */
     placements.forEach(p => {
         const dev = allDeviceTypes[p.deviceId];
         if (!dev) {
@@ -29758,16 +27529,7 @@ function importXConfigFile(text, fileName) {
         if (p.elevationM && p.elevationM !== 0) {
             item.data_zPosition = Math.round(p.elevationM * 100) / 100;
         }
-        /* Default Table Microphone Pro and Room Vision PTZ to the
-         * "Carbon Black" colour finish on import. These two SKUs are
-         * almost always installed in the dark variant in real Cisco
-         * deployments, so picking it up-front saves the user from
-         * having to flip the colour dropdown for every imported item.
-         * Other device types (Quad Cam, Ceiling Mic Pro) keep the
-         * roomObj default so the user picks them explicitly. The
-         * shape `{value, index}` matches the dropdown handler at
-         * updateItem() and the workspace exporter that reads
-         * `item.data_color.value`. */
+        /* Default tableMicPro and ptzVision2 to "Carbon Black" (almost always the dark variant in real deployments). {value,index} matches the dropdown handler and the workspace exporter. */
         if (p.deviceId === 'tableMicPro' || p.deviceId === 'ptzVision2') {
             item.data_color = { value: 'dark', index: 1 };
         }
@@ -29776,35 +27538,14 @@ function importXConfigFile(text, fileName) {
         roomObj2.items.push(item);
     });
 
-    /* xConfig XYZ tracking columns.
-     *
-     * The xConfig coordinate frame is anchored at xConfig (X=0, Z=0) —
-     * which lands at VRC `(vrcOriginX, vrcOriginY)` after the
-     * bounding-box translation above. Historically the exporter
-     * recovered that origin by reading Camera 1's position back out of
-     * the room, which broke as soon as the user dragged Camera 1
-     * anywhere.
-     *
-     * Drop two thin `columnRect` items into the room as visual planes
-     * that mark the xConfig X = 0 axis (blue, runs along the room's
-     * depth) and the xConfig Z = 0 axis (red, runs across the room's
-     * width). The exporter looks these up by id prefix and uses their
-     * VRC coordinates as the origin instead of Camera 1, so cameras
-     * can be moved without shifting every other peripheral.
-     *
-     * Note: the columns are no longer guaranteed to be centered in the
-     * room — they sit wherever xConfig (0, 0) falls relative to the
-     * imported devices' bounding box. This is intentional.
-     *
-     * Both columns live on a dedicated, pre-locked "xConfig XYZ" layer
-     * so they don't clutter the user's edit surface but stay
-     * round-trippable. */
+    /* xConfig XYZ tracking columns. The xConfig origin (X=0, Z=0) lands at VRC (vrcOriginX, vrcOriginY). Drop two thin
+     * columnRect planes marking the X=0 (blue, along depth) and Z=0 (red, across width) axes; the exporter reads their
+     * coords by id prefix instead of Camera 1, so cameras can move without shifting peripherals. They sit wherever
+     * xConfig (0,0) falls (not necessarily centered), on a pre-locked "xConfig XYZ" layer to stay round-trippable. */
     const X_CONFIG_LAYER_NAME = 'xConfig XYZ';
     const X_CONFIG_COL_WIDTH_M = 0.01;
     const xConfigLayerId = crypto.randomUUID();
-    /* _urlNum mirrors nextLayerUrlNumber() but reads from roomObj2.layers
-     * (not the live roomObj which hasn't been swapped in yet). Custom
-     * layers start at 20 — see the URL encoding doc in CLAUDE.md. */
+    /* _urlNum mirrors nextLayerUrlNumber() but reads roomObj2.layers (roomObj isn't swapped in yet). Custom layers start at 20 — see CLAUDE.md. */
     const usedUrlNums = new Set(
         roomObj2.layers
             .filter(l => l.layerid !== '0' && l.layerid !== '1' && typeof l._urlNum === 'number')
@@ -29822,12 +27563,7 @@ function importXConfigFile(text, fileName) {
 
     if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
 
-    /* Blue column: xConfig X = 0 axis line.
-     *
-     * Vertical sliver at VRC x = vrcOriginX (where xConfig X = 0 sits in
-     * VRC coords). Anchored at (vrcOriginX, 0) with rotation 0 so it
-     * spans the full depth of the room. The exporter reads `column.x`
-     * to recover the xConfig X origin in VRC meters. */
+    /* Blue column: xConfig X=0 axis. Vertical sliver at VRC x=vrcOriginX, rotation 0, spanning room depth. Exporter reads column.x for the X origin. */
     roomObj2.items.push({
         id: `xConfig-x-0-${crypto.randomUUID()}`,
         data_deviceid: 'columnRect',
@@ -29842,13 +27578,7 @@ function importXConfigFile(text, fileName) {
         data_layerId: xConfigLayerId,
     });
 
-    /* Red column: xConfig Z = 0 axis line.
-     *
-     * Anchored at (0, vrcOriginY) with rotation -90° so the column
-     * (whose "height" runs downward in its un-rotated frame) sweeps to
-     * the right across the room — yielding a horizontal sliver at
-     * VRC y = vrcOriginY, spanning the full room width. The exporter
-     * reads `column.y` to recover the xConfig Z origin in VRC meters. */
+    /* Red column: xConfig Z=0 axis. Anchored at (0, vrcOriginY), rotation -90° so it sweeps right into a horizontal sliver at VRC y=vrcOriginY spanning room width. Exporter reads column.y for the Z origin. */
     roomObj2.items.push({
         id: `xConfig-z-0-${crypto.randomUUID()}`,
         data_deviceid: 'columnRect',
@@ -29863,60 +27593,19 @@ function importXConfigFile(text, fileName) {
         data_layerId: xConfigLayerId,
     });
 
-    /* xConfig Arrows layer: one arrow-shaped `pathShape` per imported
-     * camera or microphone, dropped at the device's center and sharing
-     * its rotation so the arrow tip points where the device "looks".
-     * Cameras render red, microphones blue, both at 0.5 opacity (read
-     * from the label JSON by the pathShape Konva.Path renderer above
-     * and by the Workspace Designer exporter via
-     * parseDataLabelFieldJson()).
-     *
-     * Geometry — symmetric clean-up of a hand-drawn arrow. Two
-     * variants are emitted; both have identical dimensions (~0.42 m
-     * wide × 0.82 m long) so they read consistently next to one
-     * another, and both close cleanly with `z`:
-     *
-     *   Default arrow (cameras + ceilingMicPro) — tip at +Y:
-     *     tip:        ( 0,     0.41)
-     *     wing tips:  (±0.21,  0.21)
-     *     shoulders:  (±0.06,  0.21)
-     *     shaft tail: (±0.06, -0.41)
-     *
-     *   tableMicPro arrow — tip at -Y (mirrored about the X axis):
-     *     tip:        ( 0,    -0.41)
-     *     wing tips:  (±0.21, -0.21)
-     *     shoulders:  (±0.06, -0.21)
-     *     shaft tail: (±0.06,  0.41)
-     *
-     * Total ~0.42 m wide × 0.82 m long — large enough to be obvious
-     * over a Table Mic Pro (80 mm) and visible over a Room Bar (~534
-     * mm wide) without overwhelming the room. The default arrow's tip
-     * is at +Y so an arrow sharing its parent device's rotation
-     * visually points the same direction the device's image faces
-     * (the device's "front" edge lives at +Y in the canvas frame at
-     * rotation 0). Table Mic Pros use the mirrored variant because
-     * their xConfig RY angle references the opposite side of the
-     * device (the cable side) — flipping the arrow makes the tip
-     * still visually face the talker. The layer is locked by default
-     * so the arrows act as a read-only orientation guide; the user
-     * can unlock it from the Layers tab if they want to delete or
-     * reposition them. */
+    /* xConfig Arrows layer: one arrow pathShape per camera/mic, at the device center, sharing its rotation so the tip points where the
+     * device "looks". Cameras red, mics blue. Two symmetric ~0.42×0.82 m variants: default tip-at-+Y (cameras + ceilingMicPro, matching
+     * the device front at rotation 0) and a mirrored tip-at-−Y for tableMicPro (whose RY references the cable side). Layer locked by
+     * default as a read-only orientation guide. */
     const X_CONFIG_ARROW_LAYER_NAME = 'xConfig Arrows';
     const X_CONFIG_ARROW_PATH_DEFAULT = 'M 0 0.41 L -0.21 0.21 L -0.06 0.21 L -0.06 -0.41 L 0.06 -0.41 L 0.06 0.21 L 0.21 0.21 z';
     const X_CONFIG_ARROW_PATH_TABLE_MIC = 'M0-0.41 L0.21-0.21 L0.06-0.21 L0.06 0.41 L-0.06 0.41 L-0.06-0.21 L-0.21-0.21 z';
-    /* Thin "card" so the arrow sits as a near-flat plane in the WD 3D
-     * preview rather than a full-height extrusion (1 cm). */
+    /* Thin 1cm card so the arrow is a near-flat plane in the WD 3D preview, not a full-height extrusion. */
     const X_CONFIG_ARROW_VHEIGHT_M = 0.01;
-    /* Mic arrows sit 5 cm BELOW the mic so the mic body itself stays
-     * the topmost thing the user clicks on (tableMicPro especially
-     * lives at desk height where 5 cm of clearance is plenty). Camera
-     * arrows match the camera's elevation exactly — cameras are tall
-     * enough that the arrow plane tucks under the housing without
-     * z-fighting. Both offsets are in METERS; applied below by
-     * subtracting from the placement's `elevationM`. */
+    /* ceilingMicPro arrows sit 5cm below the mic so the mic body stays topmost-clickable; cameras match elevation exactly (tall enough to avoid z-fighting). Meters; subtracted from elevationM below. */
     const MIC_ARROW_Z_OFFSET_M = 0.05;
     const xConfigArrowsLayerId = crypto.randomUUID();
-    /* Reserve the next available 20+ slot, after the XYZ layer's slot. */
+    /* Reserve the next 20+ slot after the XYZ layer's. */
     usedUrlNums.add(xConfigUrlNum);
     let xConfigArrowsUrlNum = 20;
     while (usedUrlNums.has(xConfigArrowsUrlNum)) xConfigArrowsUrlNum++;
@@ -29929,29 +27618,14 @@ function importXConfigFile(text, fileName) {
     });
 
     placements.forEach(p => {
-        /* Cameras → royal-blue-ish red (#FA5F55).
-         * Microphones (both tableMicPro and ceilingMicPro) → royal blue (#4169E1).
-         * No opacity key — let the shape render at full Konva opacity (1.0)
-         * so the arrows are always clearly visible on any background. */
+        /* Cameras red (#FA5F55), mics royal blue (#4169E1). No opacity key — full opacity so arrows stay visible on any background. */
         const isMic = p.kind === 'mic';
         const arrowColor = isMic ? '#4169E1' : '#FA5F55';
-        /* Pick the arrow path. Only tableMicPro flips to the mirrored
-         * variant (tip at -Y); cameras and ceilingMicPro share the
-         * default tip-at-+Y arrow so all overhead/wall devices read
-         * consistently. */
+        /* Only tableMicPro uses the mirrored (tip-at-−Y) path; cameras + ceilingMicPro share the default. */
         const arrowPath = (p.deviceId === 'tableMicPro')
             ? X_CONFIG_ARROW_PATH_TABLE_MIC
             : X_CONFIG_ARROW_PATH_DEFAULT;
-        /* Arrow elevation rules:
-         *   cameras      → same z as the device
-         *   tableMicPro  → same z as the device
-         *   ceilingMicPro → device z − 0.05 m (5 cm below, so the mic
-         *                   body itself stays the top-most clickable
-         *                   item; ceiling mics are small and would
-         *                   otherwise be buried under the arrow plane)
-         * All paths: clamp to 0 so data_zPosition is never negative or
-         * NaN when elevationM is 0 or undefined. Round to cm to match
-         * the precision used elsewhere for data_zPosition. */
+        /* Elevation: cameras + tableMicPro match the device; ceilingMicPro sits 5cm below. Clamped to 0 and rounded to cm. */
         const baseElevM = p.elevationM || 0;
         const arrowElevM = (p.deviceId === 'ceilingMicPro')
             ? Math.max(0, baseElevM - MIC_ARROW_Z_OFFSET_M)
@@ -29998,26 +27672,9 @@ function importXConfigFile(text, fileName) {
         }, 500);
     }, 1500);
 
-    /* Post-import success dialog.
-     *
-     * Always shown when at least one camera or microphone landed (the
-     * "nothing to import" case already returned early above). Combines
-     * three things:
-     *   1. A summary count of what was imported (with singular/plural
-     *      handling so "1 microphone" doesn't read "1 microphones").
-     *   2. A heads-up that VRC and xConfig use different coordinate
-     *      systems / origins, plus how to round-trip back via Ctrl/Cmd+
-     *      Shift+E.
-     *   3. A pointer to the auto-created "xConfig XYZ" layer that holds
-     *      the X=0 / Z=0 tracking planes.
-     *
-     * Any "missing camera" / "missing microphone" warning gets prepended
-     * to the same dialog body so we don't stack two modals on top of each
-     * other.
-     *
-     * The 3200 ms delay sits 200 ms past the closeAllDialogModals()
-     * timeout above so this lands cleanly after the loading modal
-     * dismisses, rather than being covered by it. */
+    /* Post-import success dialog: import counts (singular/plural aware), a coordinate-system/round-trip heads-up, and a pointer to the
+     * auto-created "xConfig XYZ" layer. Any missing-device warning is prepended to the same body (avoids stacked modals). The 3200ms
+     * delay sits 200ms past the closeAllDialogModals() timeout so it lands after the loading modal dismisses. */
     const importedCameraCount = (cam1 ? 1 : 0) + otherCameras.length;
     const importedMicCount = microphones.length;
     const camLabel = importedCameraCount === 1 ? 'camera' : 'cameras';
@@ -30048,75 +27705,41 @@ function importXConfigFile(text, fileName) {
 }
 
 
-/* Export the current room as a Cisco xConfiguration .txt file
- * (inverse of importXConfigFile, bound to Ctrl/Cmd+Shift+E). Only
- * camera + microphone device types are emitted; labels must match
- * "Camera <#>" or "Microphone <#> ID: <id>" formats. Missing Quad
- * Camera anchors origin at (roomWidth/2, 0.10 m). See notes/XCONFIG.md. */
+/* Export the room as a Cisco xConfiguration .txt file (inverse of importXConfigFile, bound to Ctrl/Cmd+Shift+E). Only cameras + mics are emitted; labels must match "Camera <#>" / "Microphone <#> ID: <id>". Missing Quad Cam anchors origin at (roomWidth/2, 0.10m). See notes/XCONFIG.md. */
 function exportXConfigFile() {
-    /* Sync canvasToJson() so attrs.x / attrs.y on every item reflect the
-     * latest dragged-around state. canvasToJson() also normalises x/y to
-     * the rotation-aware center for non-table items, which is exactly what
-     * we need for the relative-position math below. */
+    /* Sync canvasToJson() so x/y reflect the latest drag state and are normalised to the rotation-aware center for the relative math below. */
     canvasToJson();
 
-    /* PERF: bucket once across the 3 parentGroups xConfig export reads
-     * (videoDevices / microphones / tables). One O(n) pass instead of
-     * three. */
+    /* PERF: bucket once for the three parentGroups read here (videoDevices / microphones / tables). */
     const xConfigBuckets = bucketItemsByParentGroup();
     const videoDevices = xConfigBuckets.videoDevices || [];
     const microphones = xConfigBuckets.microphones || [];
 
-    /* Either a bare `quadCam` or a `roomKitEqQuadCam` (Room Kit EQ: Quad
-     * Camera) is treated as Camera 1 — the importer creates the latter,
-     * older saves may still have the former, and they share dimensions. */
+    /* Either quadCam or roomKitEqQuadCam counts as Camera 1 (importer makes the latter, old saves may have the former; same dims). */
     const QUAD_DEVICE_IDS = new Set(['quadCam', 'roomKitEqQuadCam']);
     const isQuadDevice = (it) => it && QUAD_DEVICE_IDS.has(it.data_deviceid);
 
-    /* The Quad Camera (if present) anchors the xConfig coordinate frame.
-     * If it's missing we fall back to an implicit origin at the room's
-     * X-center / 0.10 m back-wall offset — this mirrors what the importer
-     * does when there is no Camera 1 entry, so a no-Quad-Cam round-trip
-     * keeps every other device in the same place. */
+    /* The Quad Cam (if present) anchors the xConfig frame; else fall back to the room X-center / 0.10m offset (mirrors the importer for a no-Quad-Cam round-trip). */
     const quadCamItem = videoDevices.find(isQuadDevice) || null;
     const allQuadCams = videoDevices.filter(isQuadDevice);
     if (allQuadCams.length > 1) {
         console.warn('xConfig export: multiple Quad Cameras found; using the first as Camera 1.');
     }
 
-    /* Convert any value stored in current units to METERS. xConfig is
-     * always millimetres, so we always need to start from a meter value. */
+    /* Convert current units to METERS (xConfig output is always mm, so start from meters). */
     const unitToM = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
     const toM = (v) => (typeof v === 'number' ? v * unitToM : 0);
 
-    /* Same offsets used by the importer, in reverse.
-     * NOTE: there is intentionally no X offset on export — xConfig X for
-     * every peripheral is the unmodified offset from the Quad Camera lens
-     * center on the X axis (mirrors the importer). */
+    /* Importer offsets in reverse. No X offset (xConfig X is the raw offset from the Quad Cam lens center; mirrors the importer). */
     const Z_OFFSET_M = 0.05; /* xConfig Z = (relY + 0.05) * 1000 mm  (peripherals only) */
     const QUAD_Y_OFFSET_M = 0.05; /* Quad Cam: xConfig Y = (elevationM + 0.05) * 1000 mm */
     const PTZ_Y_OFFSET_M = 0.15; /* Room Vision PTZ: xConfig Y = (elevationM + 0.15) * 1000 mm */
     const QUAD_VRC_Y_M = 0.10;  /* legacy implicit origin Y when no Quad Cam and no XYZ tracking columns exist (last-resort fallback only) */
 
-    /* Reference-frame origin in VRC meters. For peripherals, relX = device.x − originXM, relY = device.y − originYM.
-     *
-     * Priority order:
-     *   1. The pair of "xConfig XYZ" tracking columns added by
-     *      importXConfigFile() — column.x of the X column gives the xConfig
-     *      X=0 origin in VRC meters; column.y of the Z column gives the
-     *      xConfig Z=0 origin. Using the columns means the user can drag
-     *      Camera 1 anywhere without shifting every other peripheral.
-     *   2. Camera 1 (Quad Cam) position — legacy behaviour for rooms that
-     *      were never imported from xConfig (or where the columns were
-     *      deleted).
-     *   3. Implicit (roomWidth/2, 0.10 m) — last-resort fallback for
-     *      rooms with no Camera 1 AND no tracking columns (e.g. heavily
-     *      hand-edited rooms). Anchors the origin to the back-wall area
-     *      where Camera 1 would conventionally sit.
-     *
-     * Column id matching is case-insensitive so that older saves using the
-     * lowercase `xconfig-x-…` form (see the example `xconfig with xyz
-     * planes.vrc.json`) still round-trip. */
+    /* Reference-frame origin in VRC meters (relX = device.x − originXM, etc.). Priority: (1) the "xConfig XYZ" tracking columns from
+     * importXConfigFile() — lets Camera 1 move without shifting peripherals; (2) Camera 1 (Quad Cam) position — legacy non-imported
+     * rooms; (3) implicit (roomWidth/2, 0.10m) — last resort with no Camera 1 and no columns. Column id match is case-insensitive
+     * so old lowercase `xconfig-x-…` saves round-trip. */
     const tables = xConfigBuckets.tables || [];
     const isXConfigCol = (it, axis) => (
         it
@@ -30141,15 +27764,11 @@ function exportXConfigFile() {
         originYM = QUAD_VRC_Y_M;
     }
 
-    /* Strict label-format checkers — items whose label doesn't match these
-     * exactly are skipped on export. The Quad Cam allowance is "Camera <#>"
-     * (any #) since Cisco emits it as Camera 1 regardless of what the user
-     * called it. */
+    /* Strict label-format checkers — non-matching items are skipped. Quad Cam accepts "Camera <#>" (any #) since Cisco emits it as Camera 1. */
     const CAMERA_LABEL_RE = /^Camera\s+(\d+)\s*$/i;
     const MIC_LABEL_RE = /^Microphone\s+(\d+)\s+ID:\s*(\S.*?)\s*$/i;
 
-    /* Sequentially assign whichever number isn't already taken, starting at
-     * `startAt`. Used to fill in gaps when label numbers collide. */
+    /* Assign the next free number from `startAt`, filling gaps when label numbers collide. */
     function nextFreeNumber(used, startAt) {
         let n = startAt;
         while (used.has(n)) n++;
@@ -30165,20 +27784,9 @@ function exportXConfigFile() {
     const cameraEntries = [];
     const usedCamNumbers = new Set();
 
-    /* Quad Camera always takes the Camera 1 slot — but only emit it if its
-     * label matches the strict "Camera <#>" format. (Position is still used
-     * as the origin in legacy mode even if the label is malformed,
-     * otherwise the other peripherals' relative coords would shift.)
-     *
-     * Coordinate conventions:
-     *   - Without columns: Camera 1 IS the xConfig origin, so x = z = 0.
-     *   - With columns:    Camera 1 is just another camera. emit
-     *                      x = (cam.x − originX) * 1000 mm
-     *                      z = (cam.y − originY) * 1000 mm
-     *     Note: peripherals add Z_OFFSET_M = 0.05 m because xConfig's Z
-     *     origin sits 5 cm forward of the Quad Cam lens. The Quad Cam
-     *     itself is the lens, so it does NOT add that offset — keeping the
-     *     "Quad Cam at columns ⇒ z = 0" round-trip property. */
+    /* Quad Camera takes the Camera 1 slot, but only emitted if its label matches "Camera <#>" (its position still anchors the origin in
+     * legacy mode even when malformed). Without columns Camera 1 IS the origin (x=z=0); with columns it's just another camera. It never
+     * adds Z_OFFSET_M (it's the lens itself), preserving the "Quad Cam at columns ⇒ z=0" round-trip. */
     if (quadCamItem) {
         const quadLabel = (quadCamItem.data_labelField || '').trim();
         if (CAMERA_LABEL_RE.test(quadLabel)) {
@@ -30206,15 +27814,13 @@ function exportXConfigFile() {
 
     const ptzCams = videoDevices.filter(it => it && it.data_deviceid === 'ptzVision2');
 
-    /* Two passes: honour explicit numbers in valid labels first, then fill
-     * gaps. Items with malformed labels are dropped + counted as skipped. */
+    /* Two passes: honour explicit valid-label numbers first, then fill gaps. Malformed labels are dropped + counted as skipped. */
     const ptzNumberFromLabel = ptzCams.map(it => {
         const label = (it.data_labelField || '').trim();
         const m = CAMERA_LABEL_RE.exec(label);
         if (!m) return 'invalid';                 /* sentinel for the second pass */
         const n = parseInt(m[1], 10);
-        /* Camera 1 is reserved for the Quad Cam — a PTZ trying to claim it
-         * gets bumped to the next free number rather than skipped. */
+        /* Camera 1 is reserved for the Quad Cam; a PTZ claiming it is bumped to the next free number. */
         if (n >= 2 && !usedCamNumbers.has(n)) {
             usedCamNumbers.add(n);
             return n;
@@ -30257,9 +27863,7 @@ function exportXConfigFile() {
     const usedMicNumbers = new Set();
     const proMics = microphones.filter(it => it && (it.data_deviceid === 'ceilingMicPro' || it.data_deviceid === 'tableMicPro'));
 
-    /* Same two-pass strategy as cameras. Mics MUST have a non-empty ID
-     * portion in the label per spec — the legacy "Microphone N <stream>"
-     * shape no longer matches because it lacks the literal "ID:" marker. */
+    /* Same two-pass strategy as cameras. Mics MUST have a non-empty ID in the label (legacy "Microphone N <stream>" no longer matches — no literal "ID:"). */
     const micParsedLabels = proMics.map(it => {
         const label = (it.data_labelField || '').trim();
         const m = MIC_LABEL_RE.exec(label);
@@ -30303,8 +27907,7 @@ function exportXConfigFile() {
     });
     micEntries.sort((a, b) => a.n - b.n);
 
-    /* If nothing valid survived the label check, abort with a friendly
-     * dialog rather than emitting an empty file. */
+    /* If nothing valid survived the label check, abort with a dialog instead of an empty file. */
     if (cameraEntries.length === 0 && micEntries.length === 0) {
         const labelHint = labelFormatExplainer();
         alertDialog(
@@ -30367,10 +27970,7 @@ function exportXConfigFile() {
         summaryHtml += `<br><br>${capitalize(skippedSummary)} ${wasOrWere} not exported because the name label did not match the required format. ${labelFormatExplainer()}`;
     }
 
-    /* Cisco rooms are expected to ship cinematic camera(s) AND calibrated
-     * microphone(s) together. If the exported file ends up with one class
-     * but not the other, surface a yellow ⚠️ warning so the user notices
-     * the imbalance before sending the file to a device. */
+    /* Cisco rooms ship cameras AND mics together; warn if the export has one class but not the other. */
     if (camCount > 0 && micCount === 0) {
         summaryHtml += '<br><br>⚠️ Microphone missing — a Cisco room should include at least one microphone alongside the camera(s).';
     } else if (micCount > 0 && camCount === 0) {
@@ -30400,10 +28000,7 @@ function exportXConfigFile() {
 }
 
 
-/* DXF export: walks roomObj.items and emits an AutoCAD .dxf file
- * (AIA / National CAD Standard layers). Always meters. CAD Y grows up
- * (flip), CAD rotation is CCW (flip sign). Hidden VRC layers go on
- * Z-VRC-LAYER-* mirror layers (set OFF). See notes/DXF_EXPORT.md. */
+/* DXF export: walks roomObj.items → AutoCAD .dxf (AIA / National CAD Standard layers). Always meters; CAD Y grows up (flip) and rotation is CCW (flip sign). Hidden VRC layers go on Z-VRC-LAYER-* mirror layers (OFF). See notes/DXF_EXPORT.md. */
 async function exportDxfFile() {
     /* Lazy-load DXF writer + block library on first export. */
     try {
@@ -30460,22 +28057,12 @@ async function exportDxfFile() {
         return lib.useLayer(lib.layerForItem(item, group));
     }
 
-    /* DXF-only device-name overrides. The canonical device names in
-     * `allDeviceTypes` are tuned for the on-canvas menus and the
-     * Workspace Designer / xConfig export (which expect specific
-     * spellings). For the printed CAD drawing we sometimes want a
-     * shorter or differently-cased form so the auto-generated label
-     * fits next to the symbol without crowding. Only consulted when
-     * the user has not supplied their own `data_labelField`. */
+    /* DXF-only device-name overrides — shorter/differently-cased forms so the auto-label fits next to the symbol. Only used when the user hasn't set their own data_labelField. */
     const DXF_DISPLAY_NAME_OVERRIDES = {
         ptzVision2: 'Room Vision PTZ & bracket'
     };
 
-    /** Decide what (if anything) to write as a TEXT label for an item.
-     *  Strips any `{...}` tokens out of `data_labelField` to mirror the
-     *  on-canvas `addLabel()` behavior — those tokens carry metadata
-     *  (e.g. xConfig / Workspace Designer hints) that should never
-     *  appear on the printed CAD drawing. */
+    /** TEXT label for an item, stripping `{...}` metadata tokens like on-canvas addLabel() (those carry xConfig/WD hints that shouldn't print). */
     function labelTextFor(item) {
         const id = item && item.data_deviceid;
         const rawLabel = (item && item.data_labelField) || '';
@@ -30504,25 +28091,13 @@ async function exportDxfFile() {
         });
     }
 
-    /* --- Perimeter wall rectangles ----------------------------------
-     * The VRC's `roomWidth` / `roomLength` define the INNER (usable)
-     * dimensions of the room. For the DXF we draw a real wall section
-     * by offsetting an OUTER perimeter `WALL_THICKNESS_M` outward from
-     * the inner rectangle:
-     *
-     *   • Default (`removeDefaultWalls = false`): both inner and outer
-     *     perimeters are emitted, so the wall reads as a 10cm-thick
-     *     closed section in CAD viewers.
-     *   • `removeDefaultWalls = true`: only the OUTER perimeter is
-     *     emitted. This matches the Workspace Designer convention where
-     *     the user supplies their own walls — the outer rectangle
-     *     remains as a single boundary for reference / clipping. */
+    /* Perimeter walls. roomWidth/roomLength are INNER dims; the DXF offsets an OUTER perimeter WALL_THICKNESS_M outward. Default keeps
+     * both perimeters (10cm-thick section); removeDefaultWalls emits only the outer one (WD convention, user supplies their own walls). */
     const WALL_THICKNESS_M = 0.10;
     const wallLayer = lib.useLayer(DxfBlockLibrary.LAYER.WALL_EXTR);
     const removeDefaultWalls = !!(roomObj.workspace && roomObj.workspace.removeDefaultWalls);
 
-    /* Outer perimeter — always emitted. Offset outward so the room's
-     * interior dimensions remain (0,0) → (roomWidthM, roomLengthM). */
+    /* Outer perimeter — always emitted; offset outward so interior stays (0,0)→(roomWidthM, roomLengthM). */
     dxf.lwpolyline([
         [-WALL_THICKNESS_M, -WALL_THICKNESS_M],
         [roomWidthM + WALL_THICKNESS_M, -WALL_THICKNESS_M],
@@ -30555,15 +28130,7 @@ async function exportDxfFile() {
         if (!item || !item.data_deviceid) return;
         if (DxfBlockLibrary.SKIP_DEVICE_IDS.has(item.data_deviceid)) return;
 
-        /* Row-of-chairs: explode into individual chair INSERTs so the
-         * CAD drawing matches what the Workspace Designer export does
-         * (see expandChairs() / workspaceDesignerExport for the same
-         * pattern). Each chair lands on the chairs layer with its own
-         * block, while inheriting the row's VRC layer assignment so
-         * hide/lock toggles still cover the whole row. Covers every
-         * wallChairs-family device (Row of Chairs / Swivel / Stool);
-         * the per-variant chair `data_deviceid` is stamped by
-         * `expandChairs()` via `EXPANDED_CHAIR_DEVICE_FOR_ROW`. */
+        /* Row-of-chairs: explode into individual chair INSERTs (matches the WD export). Each chair gets its own block on the chairs layer but inherits the row's VRC layer so hide/lock covers the whole row. */
         if (isWallChairs(item.data_deviceid)) {
             emitWallChairsRow(item);
             return;
@@ -30592,19 +28159,9 @@ async function exportDxfFile() {
         exportedCount++;
     }
 
-    /** Expand a `wallChairs` row into N individual chair INSERTs.
-     *  Mirrors the workspace-designer export, which calls
-     *  `expandChairs(item, 'meters')` after converting the row to meters
-     *  (see the `wallChairs` branch of `exportRoomObjToWorkspace()`).
-     *  We do the equivalent here so the spacing math inside
-     *  `expandChairs()` stays in a single, consistent unit (meters).
-     *  The row's label (if any) is placed only on the first chair so it
-     *  is not duplicated N times in the CAD drawing. */
+    /** Expand a wallChairs row into N chair INSERTs (mirrors the WD export's expandChairs(item, 'meters')) so spacing math stays in meters. The row label goes only on the first chair. */
     function emitWallChairsRow(item) {
-        /* Build a meters-unit shadow of the row so expandChairs() can
-         * use the default 2.35 ft / 0.716 m chair-on-center spacing
-         * (or the per-row data_chairSpacing override) with consistent
-         * units. We only need the geometry fields. */
+        /* Meters-unit shadow of the row (geometry fields only) so expandChairs() works in consistent units. */
         const itemM = {
             x: toM(item.x),
             y: toM(item.y),
@@ -30617,10 +28174,7 @@ async function exportDxfFile() {
         if ('data_zPosition' in item) itemM.data_zPosition = item.data_zPosition;
         if ('data_tilt' in item) itemM.data_tilt = item.data_tilt;
         if ('data_slant' in item) itemM.data_slant = item.data_slant;
-        /* Per-row chair-on-center spacing — convert feet → meters when
-         * the room is in feet so expandChairs(itemM, 'meters') sees a
-         * meters-native value. Absent ⇒ falls back to the meters
-         * default inside getChairSpacing(). */
+        /* Per-row spacing: convert feet→meters so expandChairs(itemM, 'meters') sees a meters value (absent ⇒ getChairSpacing() default). */
         if ('data_chairSpacing' in item && item.data_chairSpacing != null) {
             const csNum = Number(item.data_chairSpacing);
             if (isFinite(csNum) && csNum > 0) {
@@ -30633,21 +28187,17 @@ async function exportDxfFile() {
 
         for (let i = 0; i < chairList.length; i++) {
             const chair = chairList[i];
-            /* Chairs inherit the row's VRC layer so hide/lock continues
-             * to apply to the whole row. */
+            /* Chairs inherit the row's VRC layer so hide/lock applies to the whole row. */
             if (item.data_layerId) chair.data_layerId = item.data_layerId;
             const layerName = layerNameForItem(chair, 'chairs');
             const blockName = lib.blockForItem(chair, 'chairs');
             if (!blockName) continue;
-            /* expandChairs(itemM, 'meters') already returns x/y in meters,
-             * so we skip toM() here and only flip Y for the CAD frame. */
+            /* expandChairs returns meters already, so skip toM() and only flip Y for CAD. */
             const cxCad = chair.x;
             const cyCad = flipY(chair.y);
             const rotCad = flipRot(chair.rotation);
             dxf.insert(blockName, cxCad, cyCad, { rotation: rotCad, layer: layerName });
-            /* Only the primary chair carries the row's label so that a
-             * multi-seat row reads as one labeled audience block rather
-             * than N copies of the same label. */
+            /* Only the primary chair carries the label so the row reads as one labeled block, not N copies. */
             if (i === 0) maybeLabel(item, 'chairs', cxCad, cyCad, rotCad);
             exportedCount++;
         }
@@ -30679,10 +28229,7 @@ async function exportDxfFile() {
             return;
         }
 
-        /* Compute the rotation-aware center in CAD coords. The rotation
-         * pivot for tables/walls/etc. is the un-rotated upper-left corner
-         * (x, y). To find the bounding-box center after rotation we apply
-         * the same transform to (w/2, h/2). */
+        /* Rotation-aware center in CAD coords. Pivot is the un-rotated upper-left (x,y); apply the same transform to (w/2, h/2). */
         const cosR = Math.cos(rotDeg * Math.PI / 180);
         const sinR = Math.sin(rotDeg * Math.PI / 180);
         const halfWLocal = widthM / 2;
@@ -30723,11 +28270,7 @@ async function exportDxfFile() {
                 ? toM(item.data_trapNarrowWidth)
                 : widthM * 0.6;
             const halfW = widthM / 2, halfH = heightM / 2, halfN = narrow / 2;
-            /* CAD block-frame convention: +Y = TOP of CAD viewer at rot=0,
-             * which mirrors the TOP of the Konva canvas (where the wide
-             * edge of the trapezoid sits in the VRC sceneFunc). The
-             * earlier order put wide at -Y, which flipped the trapezoid
-             * 180° in any CAD viewer. */
+            /* CAD +Y = top of viewer at rot=0, mirroring the Konva top where the trapezoid's wide edge sits. */
             const local = [
                 [-halfN, -halfH], [halfN, -halfH],   /* narrow at -Y (CAD bottom) */
                 [halfW, halfH], [-halfW, halfH]      /* wide at +Y (CAD top)      */
@@ -30742,7 +28285,7 @@ async function exportDxfFile() {
             return;
         }
         if (id === 'tblShapeU') {
-            /* U-shape: outer rect with a notched cutout on the +Y side. */
+            /* U-shape: outer rect with a notch cut from the +Y side. */
             const halfW = widthM / 2, halfH = heightM / 2;
             const armW = Math.min(0.85, widthM * 0.35);
             const local = [
@@ -30761,11 +28304,7 @@ async function exportDxfFile() {
             return;
         }
         if (id === 'tblBullet') {
-            /* Rectangle (when data_role.index === 1) or rectangle with a
-             * half-circle on the -Y end (rounded). The Konva sceneFunc
-             * uses radius = width/2 and places the rounded end at the
-             * BOTTOM of the bbox (large Konva Y); in CAD block frame
-             * that maps to -Y (bottom of CAD viewer at rot=0). */
+            /* Rectangle (data_role.index===1) or rect + half-circle on the -Y end (radius = width/2; Konva puts the rounded end at bbox bottom → -Y in CAD). */
             const halfW = widthM / 2;
             let halfH = heightM / 2;
             const isRect = item.data_role && item.data_role.index === 1;
@@ -30778,16 +28317,7 @@ async function exportDxfFile() {
                 });
                 dxf.lwpolyline(pts, { closed: true, layer: layerName });
             } else {
-                /* Rectangular portion spans y = (-halfH + halfW) … +halfH.
-                 * Semicircle (radius = halfW) sits below that, with chord
-                 * at y = -halfH + halfW and apex at y = -halfH. The arc
-                 * traverses CW from (+halfW,-halfH+halfW) → (-halfW,-halfH+halfW)
-                 * passing through (0,-halfH); CW arcs in DXF use a
-                 * negative bulge magnitude, and bulge=-1 gives a
-                 * semicircle. The Konva sceneFunc clamps height to at
-                 * least the radius (=halfW), so we mirror that here to
-                 * avoid a self-intersecting outline when the user shrinks
-                 * a bullet table below its width/2. */
+                /* Rect spans y=(-halfH+halfW)…+halfH; a semicircle (radius=halfW, bulge=-1 for the CW arc) caps the -Y end. Clamp halfH≥halfW (like the Konva sceneFunc) so the outline can't self-intersect. */
                 halfH = Math.max(halfH, halfW);
                 const arcChord = -halfH + halfW;
                 const local2 = [
@@ -30807,7 +28337,7 @@ async function exportDxfFile() {
             return;
         }
         if (id === 'credenza') {
-            /* Outer rectangle + interior horizontal split line. */
+            /* Outer rect + an interior horizontal split line. */
             const halfW = widthM / 2, halfH = heightM / 2;
             const corners = [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]];
             const pts = corners.map(([px, py]) => {
@@ -30824,10 +28354,7 @@ async function exportDxfFile() {
             return;
         }
 
-        /* Default: rotated rectangle, optionally rounded.
-         * - tblRect uses data_cornerRadius (and possibly data_cornerRadiusRight)
-         * - tblSchoolDesk has soft default rounding
-         * - stageFloor / carpet / box use a dashed outline (linetype on layer) */
+        /* Default: rotated rect, optionally rounded (tblRect via data_cornerRadius; tblSchoolDesk soft default; stage/carpet/box dashed outline). */
         let cornerR = 0;
         if (id === 'tblRect' && typeof item.data_cornerRadius === 'number') {
             cornerR = toM(item.data_cornerRadius);
@@ -30851,9 +28378,7 @@ async function exportDxfFile() {
         exportedCount++;
     }
 
-    /* Emit a (possibly rotated) ellipse by writing a single ELLIPSE entity.
-     * `halfW` and `halfH` are the un-rotated semi-axes; the major axis is
-     * picked as whichever is larger. */
+    /* Emit a (possibly rotated) ELLIPSE entity. halfW/halfH are un-rotated semi-axes; the larger is the major axis. */
     function emitEllipse(cxCad, cyCad, halfW, halfH, rotCad, layerName) {
         const isMajorH = halfH > halfW;
         const major = isMajorH ? halfH : halfW;
@@ -30886,10 +28411,7 @@ async function exportDxfFile() {
             return [cxCad + rx, cyCad + ry];
         });
         dxf.lwpolyline(pts, { closed: true, layer: layerName });
-        /* A short line on the -Y (room-facing) edge indicates the screen
-         * face. The `displaySngl-top.png` asset shows the screen as the
-         * wider bottom edge and the wall side as the narrower top edge,
-         * so in CAD block frame the screen side maps to -Y. */
+        /* Short line on the -Y (room-facing) edge marks the screen face (the asset shows the screen as the wider edge → -Y in CAD). */
         const a = rotatePoint(-widthM / 2 + 0.02, -depthM / 2 + 0.005, rotCad);
         const b = rotatePoint(widthM / 2 - 0.02, -depthM / 2 + 0.005, rotCad);
         dxf.line(cxCad + a[0], cyCad + a[1], cxCad + b[0], cyCad + b[1], { layer: layerName });
@@ -30897,9 +28419,7 @@ async function exportDxfFile() {
         exportedCount++;
     }
 
-    /* SVG path tessellation. Path data lives inside item.data_labelField as
-     * JSON: { "path": "...", "scale": [sx, sy] (optional) }. We sample
-     * cubic / quadratic curves into polylines (DxfWriter.tessellateSvgPath). */
+    /* SVG path tessellation. Path JSON in item.data_labelField: { "path":"...", "scale":[sx,sy]? }. Curves sampled to polylines via DxfWriter.tessellateSvgPath. */
     function emitPathShape(item, layerName, tlxM, tlyM, rotDeg) {
         let json;
         try { json = JSON.parse(item.data_labelField || '{}'); }
@@ -30914,8 +28434,7 @@ async function exportDxfFile() {
         for (const pts of subpaths) {
             if (pts.length < 2) continue;
             const transformed = pts.map(([px, py]) => {
-                /* SVG Y is also down — apply the rotation in VRC space then
-                 * flip the final Y at the room frame. */
+                /* SVG Y is also down — rotate in VRC space, then flip final Y for the room frame. */
                 const [rx, ry] = rotatePoint(px * sx, py * sy, rotDeg);
                 return [tlxM + rx, flipY(tlyM + ry)];
             });
@@ -30958,10 +28477,7 @@ async function exportDxfFile() {
 const fileJsonUpload = document.getElementById('fileUpload');
 
 fileJsonUpload.addEventListener('change', function (e) {
-    /* The picker accepts both .json and .txt now (xConfiguration dumps are
-     * .txt). The actual format is detected by content sniffing inside
-     * routeUploadedFileText(), so the file name itself is only used for
-     * naming the imported room. */
+    /* Picker accepts .json and .txt (xConfig dumps); format is content-sniffed in routeUploadedFileText(), so the name only seeds the imported room name. */
     closeAllDialogModals();
 
     if (e.target.files && e.target.files[0]) {
@@ -31032,9 +28548,7 @@ function vrcConfirm(headerHtml, mainHtml, okLabel, onConfirm, onCancel) {
     dialog.showModal();
 }
 
-/* Non-blocking toast notification. Container is created lazily and
- * reused; toasts stack vertically. msg is plain text (never HTML).
- * durationMs defaults to 3000; fade in/out is 180ms (CSS class). */
+/* Non-blocking toast. Container created lazily and reused; toasts stack. msg is plain text (never HTML); durationMs defaults 3000, fade 180ms. */
 function showToast(msg, durationMs) {
     if (msg == null) return;
     const text = String(msg);
@@ -31052,15 +28566,11 @@ function showToast(msg, durationMs) {
     toast.className = 'vrc-toast';
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'polite');
-    /* textContent (never innerHTML) — guards against any caller that passes
-     * unsanitized user input (e.g. a data_labelField with HTML in it). */
+    /* textContent (never innerHTML) guards against unsanitized caller input (e.g. data_labelField with HTML). */
     toast.textContent = text;
     container.appendChild(toast);
 
-    /* Two requestAnimationFrames before adding the .vrc-toast-visible class
-     * so the browser commits the initial opacity:0 / translateY(8px) state
-     * before the transition begins. A single rAF is unreliable on Firefox
-     * when the element was just appended in the same frame. */
+    /* Two rAFs before adding .vrc-toast-visible so the initial opacity:0/translateY(8px) commits before the transition (single rAF is unreliable on Firefox). */
     requestAnimationFrame(function () {
         requestAnimationFrame(function () { toast.classList.add('vrc-toast-visible'); });
     });
@@ -31232,12 +28742,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     }
 
 
-    /* Legacy dual Room Vision PTZ (front wall) WD pattern:
-     * a placeholder "mainDeviceVision*" item carries the dual-camera intent,
-     * and the two Room Vision PTZ cameras are marked role="mainCamera".
-     * VRC does not support the mainCamera role; mimic it with crossView.
-     * Gated on the auto-conversion toggle being ON (checkbox unchecked) —
-     * same gate as the tree -> plant rewrite below. */
+    /* Legacy dual Room Vision PTZ (front wall) WD pattern: a "mainDeviceVision*" placeholder + two role="mainCamera" cameras. VRC has no mainCamera role, so mimic with crossView. Gated on the auto-conversion toggle (same as the tree→plant rewrite below). */
     if (document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
         let mainDevicePlaceholderIdxs = [];
         let roomVisionMainCamIdxs = [];
@@ -31254,11 +28759,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
         if (mainDevicePlaceholderIdxs.length > 0 && roomVisionMainCamIdxs.length > 0) {
             mainDevicePlaceholderIdxs.forEach(function (i) { wdItems[i] = null; });
             roomVisionMainCamIdxs.forEach(function (i) { wdItems[i].role = 'crossview'; });
-            /* Defer the alert past importJson()'s 3000 ms
-             * closeAllDialogModals() timer (it dismisses the
-             * dialogLoadingTemplate); otherwise the same timeout would
-             * also force-close this alert before the user can read it.
-             * Same 3200 ms pattern as the xConfig post-import dialog. */
+            /* Defer past importJson()'s 3000ms closeAllDialogModals() timer (same 3200ms pattern as the xConfig post-import dialog) so it isn't force-closed. */
             setTimeout(function () {
                 alertDialog(
                     'Dual Room Vision PTZ Cameras Not Supported',
@@ -31279,14 +28780,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         if (wdItem) {
 
-            /* Children of a VRC parentItem (cylinder + sphere + ... emitted
-             * as composite parts of e.g. genericSecurityCamera). The parent
-             * is reconstructed below from data.vrc.parentItems[]; the child
-             * WD objects are pure derived geometry and do NOT become
-             * roomObj items. The `vrcParent` attribute (with vrc namespace
-             * prefix per the WD-team contract — only `group` is formally
-             * agreed) is the discriminator. See CLAUDE.md "Parent Items"
-             * for the full round-trip contract. */
+            /* Children of a VRC parentItem (composite parts of e.g. genericSecurityCamera). The parent is rebuilt below from data.vrc.parentItems[]; these child WD objects are derived geometry and never become roomObj items. `vrcParent` is the discriminator — see CLAUDE.md "Parent Items". */
             if (wdItem.vrcParent) {
                 delete wdItems[i];
                 continue;
@@ -31430,15 +28924,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
-            /* xConfig coordinate-reference columns (ids starting with
-             * "xConfig-x-0-" or "xConfig-z-0-") are always imported as
-             * columnRect regardless of what the scoring loop above guessed.
-             * These columns round-trip the X/Z planes that VRC creates on
-             * xConfig import so we can reconstruct the xConfig coordinate
-             * frame on the next export. The override runs after the
-             * scoring loop so it wins even when the WD object happens to
-             * carry an objectType that would otherwise match a different
-             * key (e.g. "wall"). */
+            /* xConfig coordinate-reference columns (ids "xConfig-x-0-"/"xConfig-z-0-") always import as columnRect, overriding the scoring loop, so the X/Z planes round-trip and the xConfig frame can be rebuilt on the next export. */
             if (wdItem.id
                 && (wdItem.id.startsWith('xConfig-x-0-') || wdItem.id.startsWith('xConfig-z-0-'))) {
                 candidateKeyName = 'columnRect';
@@ -31446,34 +28932,10 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 candidateWdItem = structuredClone(wdItem);
             }
 
-            /* Wall vs. Column discriminator by WD `length`.
-             *
-             * Both `wallStd` and `columnRect` export as objectType:'wall'.
-             * The previous discriminator (workspaceKey.columnRect.color ===
-             * '#808080') fails when the user picks a custom column fill via
-             * configurableColor — without the color match, the scoring loop's
-             * +4 tie-break never fires and wallStd wins by iteration order.
-             *
-             * Heuristic: VRC's `wallStd` has a fixed `item.width = 0.10`
-             * (line ~14837 wallWidth + line ~15511 Konva.Shape; line ~6057
-             * `resizeable: ['depth', 'vheight']` makes the width un-resizable),
-             * and the exporter writes `"length": item.width` (line ~30834).
-             * So a VRC-exported wall has WD length = 0.10 and a column has
-             * WD length = its user-set width (default 0.305).
-             *
-             * Guards:
-             *  - Only fires when the scoring loop picked wallStd or
-             *    columnRect (wallGlass / wallWindow / any future wall variant
-             *    are skipped — they score higher via model/idRegex).
-             *  - xConfig coordinate-reference columns are handled by the
-             *    override immediately above and skipped here to keep that
-             *    dedicated override authoritative (their width 0.01 is
-             *    already outside [0.07, 0.13] so the result would match
-             *    anyway).
-             *  - display21_9 walls have their own legacy workaround above
-             *    (line ~28390) that forces color='#808080' and width=0.08;
-             *    skip them so a length near 0.10 doesn't flip them to
-             *    wallStd. */
+            /* Wall vs. Column discriminator by WD `length` (both export as objectType:'wall'). The old color-based discriminator failed for
+             * custom column fills. VRC wallStd has a fixed width 0.10 (exported as length), columns use their user width (default 0.305),
+             * so length in [0.07, 0.13] ⇒ wallStd, else columnRect. Guards: only when scoring picked wallStd/columnRect; skip xConfig
+             * columns (handled above) and display21_9 walls (own workaround above). */
             if ((candidateKeyName === 'wallStd' || candidateKeyName === 'columnRect')
                 && wdItem.objectType === 'wall'
                 && typeof wdItem.length === 'number'
@@ -31492,20 +28954,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
                     candidateKey = { id: wdItem.id };
                     candidateWdItem = structuredClone(wdItem);
                 }
-                /* Mirror the scoring loop's "delete modifiedWdItem.color"
-                 * step (see line ~28480) so a default-color match doesn't
-                 * leak through configurableColor handling as an explicit
-                 * `data_fill`. Without this, a VRC-exported default column
-                 * (workspaceKey.columnRect.color === '#808080') would
-                 * re-import with `data_fill: '#808080'` set explicitly even
-                 * though the user never picked a color. Visually identical
-                 * (device default `gray` resolves to '#808080') but
-                 * pollutes URL encoding (extra `u128128128`) and changes the
-                 * Details picker from the `#FFFFFF` "no-override" sentinel
-                 * to '#808080'. A user-picked custom color falls through
-                 * because the workspaceKey.color !== wdItem.color check
-                 * fails — exactly the case this whole override was built
-                 * to fix. */
+                /* Mirror the scoring loop's color-delete so a default-color match doesn't leak through as an explicit data_fill (which
+                 * would pollute URL encoding and flip the Details picker off its #FFFFFF "no-override" sentinel). User-picked colors fall
+                 * through because the workspaceKey.color !== wdItem.color check fails. */
                 const __chosenKey = workspaceKey[candidateKeyName];
                 if (__chosenKey && 'color' in __chosenKey
                     && candidateWdItem.color === __chosenKey.color) {
@@ -31513,9 +28964,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 }
             }
 
-            /* A WD cylinder carrying `radius2` is a VRC cone. Runs after
-             * the scoring loop so even when scoring picked 'cylinder' on
-             * objectType match, presence of radius2 reroutes to 'cone'. */
+            /* A WD cylinder with `radius2` is a VRC cone — reroute after the scoring loop's 'cylinder' match. */
             if (candidateKeyName === 'cylinder'
                 && wdItem.objectType === 'cylinder'
                 && 'radius2' in wdItem) {
@@ -31524,11 +28973,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 candidateWdItem = structuredClone(wdItem);
             }
 
-            /* A WD screen carrying a `model` that matches the certified-
-             * display catalogue is a VRC certifiedDisplay. Runs after the
-             * scoring loop so a generic 'screen' match is rerouted when the
-             * model is recognised. The index + locked size are stamped in
-             * wdItemToRoomObjItem(); model/aspect are cleared there too. */
+            /* A WD screen whose `model` matches the certified-display catalogue is a VRC certifiedDisplay — reroute the generic 'screen' match (index + locked size stamped in wdItemToRoomObjItem()). */
             if (wdItem.objectType === 'screen'
                 && wdItem.model
                 && certifiedDisplays.some(d => d.model === wdItem.model)) {
@@ -31596,24 +29041,15 @@ function importWorkspaceDesignerFile(workspaceObj) {
         }
     }
 
-    /* Restore VRC-only vrcText items from data.vrc.vrcTexts. The exporter
-     * wrote each item's full record verbatim in meters (VRC top-left
-     * frame, no roomX/roomY shift) — matches the in-meters convention
-     * used by data.vrc.groups / data.vrc.customItems — so we just clone
-     * each entry back into roomObj2.items. Layer is reconstructed from
-     * layerName via resolveImportLayerName() (creates a custom layer if
-     * the name isn't already present). MUST run BEFORE the groups /
-     * customItems restore blocks below: those blocks rebuild
-     * groupMembers / customItemMembers by scanning roomObj2.items for
-     * data_groupId / data_customItemId references, so any vrcText
-     * carrying bundle membership needs to be in items[] by then. */
+    /* Restore VRC-only vrcText items from data.vrc.vrcTexts (verbatim meters, VRC top-left frame) by cloning into roomObj2.items;
+     * layerName → layerid via resolveImportLayerName(). MUST run BEFORE the groups / customItems restores, which rebuild member
+     * arrays by scanning items for data_groupId / data_customItemId. */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.vrcTexts)) {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         workspaceObj.data.vrc.vrcTexts.forEach(vt => {
             if (!vt || vt.data_deviceid !== 'vrcText') return;
             const item = structuredClone(vt);
-            /* layerName ⇒ layerid (mirror of the groups / customItems
-             * restore pattern). Empty/missing ⇒ Default ('0'). */
+            /* layerName ⇒ layerid (empty/missing ⇒ Default '0'). */
             item.data_layerId = vt.layerName
                 ? resolveImportLayerName(vt.layerName, roomObj2)
                 : '0';
@@ -31622,15 +29058,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
-    /* Restore VRC-only dimensionLine items from data.vrc.dimensionLines —
-     * mirror of the vrcTexts restore block above. The exporter writes
-     * each item's full record verbatim in meters (VRC top-left frame,
-     * no roomX/roomY shift); we clone it back into roomObj2.items and
-     * resolve layerName to a layerid (creating the layer if needed).
-     * MUST run BEFORE the groups / customItems restore blocks below for
-     * the same reason vrcTexts does: those blocks rebuild member
-     * arrays by scanning roomObj2.items for data_groupId /
-     * data_customItemId references. */
+    /* Restore VRC-only dimensionLine items from data.vrc.dimensionLines — mirror of the vrcTexts block (clone, resolve layerName; run before groups/customItems restores). */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.dimensionLines)) {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         workspaceObj.data.vrc.dimensionLines.forEach(dl => {
@@ -31644,13 +29072,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
-    /* Restore ceilingGrid items from data.vrc.ceilingGrids — mirror of
-     * the vrcTexts / dimensionLines restore blocks above. The verbatim
-     * meters record (VRC top-left frame) is cloned back into
-     * roomObj2.items; the matching gridLines~* boxes were already dropped
-     * at the top of the scoring loop. MUST run BEFORE the groups /
-     * customItems restore blocks so their member-rebuild passes pick up
-     * any data_groupId / data_customItemId on the restored item. */
+    /* Restore ceilingGrid items from data.vrc.ceilingGrids — mirror of the vrcTexts/dimensionLines blocks (matching gridLines~* boxes were already dropped in the scoring loop; run before groups/customItems restores). */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.ceilingGrids)) {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         workspaceObj.data.vrc.ceilingGrids.forEach(cg => {
@@ -31664,20 +29086,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
-    /* Restore VRC Parent Items from data.vrc.parentItems. The exporter
-     * wrote each parent's full record in meters (VRC top-left frame, no
-     * roomX/roomY shift) — same convention as data.vrc.vrcTexts /
-     * dimensionLines / groups / customItems — so we just clone the
-     * record back into roomObj2.items. The matching child WD primitives
-     * (cylinder + sphere + ...) were already dropped at the top of the
-     * scoring loop above via the `vrcParent` early-continue.
-     *
-     * MUST run BEFORE the data.vrc.groups / data.vrc.customItems restore
-     * blocks below: those blocks rebuild groupMembers / customItemMembers
-     * by scanning roomObj2.items for data_groupId / data_customItemId
-     * references, so any parent item carrying bundle membership needs to
-     * be in items[] by then. See CLAUDE.md "Parent Items" for the full
-     * round-trip contract. */
+    /* Restore VRC Parent Items from data.vrc.parentItems (verbatim meters); child WD primitives were already dropped via the vrcParent
+     * early-continue. MUST run BEFORE the groups/customItems restores (member-array rebuild). See CLAUDE.md "Parent Items". */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.parentItems)) {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         workspaceObj.data.vrc.parentItems.forEach(p => {
@@ -31701,25 +29111,13 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
-    /* Restore VRC Groups from data.vrc.groups (paired with the per-item
-     * "group" attribute already extracted by wdItemToRoomObjItem). The
-     * import roomObj2 is always meters (line ~23300 sets roomObj2.unit =
-     * 'meters' and convertMetersFeet has switched the canvas to meters
-     * earlier), and the exporter wrote group geometry in meters in VRC
-     * top-left coordinates with no roomX/roomY shift, so we can copy
-     * x/y/width/height/rotation/data_zPosition straight across.
-     * groupMembers is rebuilt below by scanning items for data_groupId
-     * references — same pattern the URL parser uses (see post-parse
-     * rebuild near line 5921). Empty groups (no member references
-     * anywhere in roomObj2.items) are dropped by the same filter. */
+    /* Restore VRC Groups from data.vrc.groups (paired with the per-item "group" attr from wdItemToRoomObjItem). Geometry is meters in VRC
+     * top-left coords, copied straight across; groupMembers is rebuilt below by scanning items for data_groupId (empty groups dropped). */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.groups)) {
         ensureGroups(roomObj2);
         workspaceObj.data.vrc.groups.forEach(g => {
             if (!g || !g.groupid) return;
-            /* Group's layer name resolves to the same layerid items got
-             * during their own resolveImportLayerName() pass, because
-             * groups always share their members' layer (createGroup() and
-             * updateItemLayer() enforce this). Default is implicit. */
+            /* Group layer resolves to the same layerid its members got (groups always share their members' layer). */
             const groupLayerId = g.layerName
                 ? resolveImportLayerName(g.layerName, roomObj2)
                 : '0';
@@ -31737,13 +29135,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
             });
         });
 
-        /* Rebuild groupMembers from items now that every item has its
-         * data_groupId set (see wdItem.group extraction in
-         * wdItemToRoomObjItem). Mirror the URL parser's post-parse pass:
-         * walk every category, push matching item ids, then drop any
-         * group whose members never resolved (empty H block on a
-         * hand-edited file, or all members landed in a hidden layer that
-         * was filtered on export). */
+        /* Rebuild groupMembers now that every item has data_groupId (mirrors the URL parser's post-parse pass); drop groups whose members never resolved. */
         if (roomObj2.groups.length && Array.isArray(roomObj2.items)) {
             roomObj2.groups.forEach(grp => { grp.groupMembers = []; });
             roomObj2.items.forEach(it => {
@@ -31755,11 +29147,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
         }
     }
 
-    /* Restore VRC CustomItems from data.vrc.customItems. Mirror of the
-     * Groups restore block above — see that for the full rationale
-     * (always meters in VRC top-left coords, layerName -> layerid lookup,
-     * customItemMembers rebuilt by scanning items for data_customItemId,
-     * empty customItems dropped). */
+    /* Restore VRC CustomItems from data.vrc.customItems — mirror of the Groups block above (meters, layerName→layerid, customItemMembers rebuilt by scanning data_customItemId, empties dropped). */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.customItems)) {
         ensureCustomItems(roomObj2);
         workspaceObj.data.vrc.customItems.forEach(c => {
@@ -31769,14 +29157,10 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 : '0';
             roomObj2.customItems.push({
                 customitemid: c.customitemid,
-                /* Preserve family / template id if present; otherwise
-                 * the boot backfill (ensureCustomItemBaseIds, called
-                 * from canvasToJson) assigns a fresh one. */
+                /* Preserve family/template id if present; else the boot backfill assigns one. */
                 customItemBaseId: c.customItemBaseId || undefined,
                 name: c.name || '',
-                /* Descriptive metadata. Older WD files won't carry
-                 * these keys — collapse to '' / '1' so downstream
-                 * dialog renderers see consistent string types. */
+                /* Metadata; older WD files lack these — collapse to ''/'1' for consistent types. */
                 author: c.author ? String(c.author) : '',
                 description: c.description ? String(c.description) : '',
                 version: c.version ? String(c.version) : '1',
@@ -31800,15 +29184,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
             });
             roomObj2.customItems = roomObj2.customItems.filter(c => c.customItemMembers && c.customItemMembers.length);
         }
-        /* Proactive backfill — assigns customItemBaseId to any imported
-         * customItem that didn't carry one (pre-baseId WD files). This
-         * runs before the structuredClone into roomObj so the imported
-         * customItems are immediately addressable by their family id
-         * (used later for IDB library lookups and "Add to Library"
-         * menu state). canvasToJson() does the same backfill as a
-         * defensive backstop, but doing it here too avoids a brief
-         * window where an "Add to Library" action could see a
-         * baseId-less customItem. */
+        /* Backfill customItemBaseId for pre-baseId WD files before the clone into roomObj, so imported customItems are immediately addressable by family id (canvasToJson() repeats this defensively). */
         ensureCustomItemBaseIds(roomObj2);
     }
 
@@ -31824,9 +29200,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
             backgroundImageFloor.src = roomObj.backgroundImageFile;
             insertKonvaBackgroundImageFloor();
             turnOnBackgroundImageButtons();
-            /* Mirror the .vrc.json import path: persist the freshly-loaded
-             * data URL to the IDB library so future page reloads can
-             * rehydrate the image. */
+            /* Mirror the .vrc.json path: persist the data URL to the IDB library so reloads can rehydrate. */
             if (typeof persistImportedBackgroundImageToIdb === 'function') {
                 persistImportedBackgroundImageToIdb();
             }
@@ -31857,10 +29231,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
 
 
-/* Resolve a Workspace Designer "layer" name to a VRC layerid in the in-progress
- * import roomObj2.layers, creating a new custom layer if the name isn't already
- * present. Reserved names "Default" and "Ceiling" map to the built-in layers
- * '0' and '1' regardless of case. Returns '0' (Default) for empty/invalid input. */
+/* Resolve a WD "layer" name to a VRC layerid in roomObj2.layers, creating a custom layer if absent. "Default"/"Ceiling" map to '0'/'1' (case-insensitive); empty/invalid → '0'. */
 function resolveImportLayerName(layerName, roomObj2) {
     if (!layerName || typeof layerName !== 'string') return '0';
     const trimmed = layerName.trim();
@@ -31881,7 +29252,7 @@ function resolveImportLayerName(layerName, roomObj2) {
     return newLayer.layerid;
 }
 
-/* convert a single Workspace Designer Item into the identified VRC data_devcied. Update roomObj2. Use original workspaceObj to do any checks */
+/* Convert a single WD item into the identified VRC data_deviceid and add to roomObj2 (original workspaceObj available for checks). */
 function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let regexSecondary = /^secondary(_|-).*/i;
 
@@ -31911,13 +29282,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     let item = {};
     item.id = wdItem.id.replace(/ /g, "_").replace(/#/g, "__"); /* Konva.js and VRC don't like spaces in the ID, replace with _ */
 
-    /* Strip the VRC-emitted `stageFloor~` export prefix so the imported
-     * item keeps its original UUID. The exporter (see line ~30119) re-adds
-     * the prefix on the next export via its existing startsWith('stage')
-     * guard, so VRC -> WD JSON -> VRC -> WD JSON cycles stay stable
-     * instead of growing the id by `stageFloor~` each pass. Legacy
-     * WD-authored ids (the whole-string `stage` or `step-N`) are
-     * untouched. */
+    /* Strip the VRC-emitted `stageFloor~` prefix so the item keeps its original UUID (the exporter re-adds it), keeping round-trips stable. Legacy WD ids are untouched. */
     if (data_deviceid === 'stageFloor' && item.id.startsWith('stageFloor~')) {
         item.id = item.id.slice('stageFloor~'.length);
     }
@@ -31925,23 +29290,14 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
-    /* Restore VRC layer assignment from the optional Workspace Designer "layer"
-     * attribute. Layer names map case-insensitively to existing layers in
-     * roomObj2.layers; new names create a custom layer. The Default layer ('0')
-     * is implicit, so its data_layerId is intentionally NOT set on the item.
-     * Strip the key from wdItem so it doesn't leak into data_labelField below. */
+    /* Restore VRC layer from the optional WD "layer" attr (case-insensitive; new names create a layer). Default ('0') is implicit so data_layerId isn't set. Strip the key so it doesn't leak into data_labelField. */
     if ('layer' in wdItem) {
         const importedLayerId = resolveImportLayerName(wdItem.layer, roomObj2);
         if (importedLayerId !== '0') item.data_layerId = importedLayerId;
         delete wdItem.layer;
     }
 
-    /* Restore VRC Group membership from the optional Workspace Designer "group"
-     * attribute. The matching group geometry/metadata lives in
-     * workspaceObj.data.vrc.groups and is restored separately at the end of
-     * importWorkspaceDesignerFile(); after all items are placed,
-     * groupMembers is rebuilt by scanning items for data_groupId references.
-     * Strip the key from wdItem so it doesn't leak into data_labelField below. */
+    /* Restore VRC group membership from the optional WD "group" attr (group geometry restored separately; groupMembers rebuilt later by scanning data_groupId). Strip the key so it doesn't leak into data_labelField. */
     if ('group' in wdItem) {
         if (wdItem.group && typeof wdItem.group === 'string') {
             item.data_groupId = wdItem.group;
@@ -31949,11 +29305,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.group;
     }
 
-    /* Restore VRC CustomItem membership from the optional Workspace Designer
-     * "customItem" attribute. Mirror of the "group" extraction above —
-     * matching customItem geometry/metadata lives in
-     * workspaceObj.data.vrc.customItems and is restored separately at the
-     * end of importWorkspaceDesignerFile(). */
+    /* Restore VRC customItem membership from the optional WD "customItem" attr — mirror of the "group" extraction above. */
     if ('customItem' in wdItem) {
         if (wdItem.customItem && typeof wdItem.customItem === 'string') {
             item.data_customItemId = wdItem.customItem;
@@ -31961,9 +29313,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.customItem;
     }
 
-    /* wdText: capture wdItem.text into data_labelField up front so the
-     * "unused keys → data_labelField" merger near the end of this
-     * function doesn't double-stringify it as a JSON blob. */
+    /* wdText: capture wdItem.text into data_labelField up front so the unused-keys merger below doesn't double-stringify it as JSON. */
     if (data_deviceid === 'wdText' && typeof wdItem.text === 'string') {
         item.data_labelField = wdItem.text;
         delete wdItem.text;
@@ -32261,10 +29611,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.size;
     }
 
-    /* certifiedDisplay: resolve the catalogue index from the WD model and
-     * lock the diagonal to its size. model/aspect are cleared so they
-     * don't survive into roomObj.items (data_certifiedDisplayIndex is the
-     * source of truth). */
+    /* certifiedDisplay: resolve the catalogue index from the WD model and lock the diagonal to its size; clear model/aspect (data_certifiedDisplayIndex is the source of truth). */
     if (data_deviceid === 'certifiedDisplay') {
         const cdEntry = wdItem.model ? certifiedDisplays.find(d => d.model === wdItem.model) : null;
         if (cdEntry) {
@@ -32339,17 +29686,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
-    /* Configurable fill / opacity import (box / carpet / stageFloor and
-     * any future configurableColor / wdOpacity device). Gated on the
-     * device-def flags so the existing roomBar-style dropdown
-     * `data_color` import block above stays the canonical path for
-     * `colors:`-array devices. `wdItem.color` may arrive as a hex
-     * (e.g. "#FFAA00") OR as a CSS named color (e.g. "AliceBlue",
-     * "red") — normalizeColorToHex() handles both via the browser's
-     * own CSS parser, results cached in _namedColorToHexCache.
-     * `wdItem.opacity` arrives as a STRING per the workspace convention
-     * and is parsed + clamped to [0, 1) (1.0 is the implicit default
-     * and is omitted from data_opacity entirely). */
+    /* Configurable fill/opacity import (configurableColor / wdOpacity devices), gated on device-def flags so the colors:-array path above stays canonical. color may be hex or a CSS named color (normalizeColorToHex handles both); opacity arrives as a string, parsed + clamped to [0,1) (1.0 default omitted). */
     if (deviceType && deviceType.configurableColor && 'color' in wdItem && wdItem.color) {
         const hex = normalizeColorToHex(wdItem.color);
         if (hex) {
@@ -32359,12 +29696,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
     if (deviceType && deviceType.wdOpacity && 'opacity' in wdItem && wdItem.opacity != null) {
         const opNum = parseFloat(wdItem.opacity);
-        /* pathShape and cone share the 0.999 "no override" sentinel
-         * (workspaceObjFurniturePush() / workspaceObjWallPush() clamp
-         * default opacity 1 -> 0.999 to dodge a WD render bug that drops
-         * `color` when opacity == 1). Snap >= 0.999 back to default on
-         * import so a VRC -> WD JSON -> VRC round-trip preserves the
-         * implicit "1" default. */
+        /* pathShape/cone use the 0.999 "no override" sentinel (export clamps default 1→0.999 to dodge a WD bug that drops color at opacity 1). Snap ≥0.999 back to default so round-trips preserve the implicit "1". */
         const isDefaultSentinel = (
             (item.data_deviceid === 'pathShape' || item.data_deviceid === 'cone')
             && !isNaN(opNum) && opNum >= 0.999
@@ -32416,14 +29748,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
-    /* For wdText, the WD `comment` field intentionally falls through to
-     * the unused-keys merger below so it lands INSIDE the JSON blob in
-     * data_labelField (not as the free-text prefix the way every other
-     * boxes-bucket item handles it). The free-text prefix slot is
-     * reserved for the rendered glyph (wdItem.text, captured up front
-     * earlier in this function). See CLAUDE.md "VRC-only text item
-     * (vrcText)" → wdText section and notes/WORKSPACE_DESIGNER.md
-     * "Comment & unknown-attribute preservation". */
+    /* For wdText the `comment` field falls through to the unused-keys merger so it lands INSIDE the JSON blob (the free-text prefix slot is reserved for the rendered glyph, wdItem.text, captured earlier). See CLAUDE.md / notes/WORKSPACE_DESIGNER.md. */
     let comment = '';
     if (wdItem.comment && data_deviceid !== 'wdText') {
         comment = wdItem.comment.trim();
@@ -32467,14 +29792,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
 
-    /* merge comments and unused JSON attributes.
-     *
-     * wdText divergence: data_labelField is "<rendered text> {<json>}" —
-     * the free-text prefix is the glyph (already captured into
-     * item.data_labelField from wdItem.text earlier in this function),
-     * and the JSON blob carries `comment` + any unknown attrs for
-     * forward-compat round-trip. PREPEND the captured text rather than
-     * overwriting, which is what the legacy branch did. */
+    /* Merge comments + unused JSON attrs. wdText divergence: data_labelField is "<text> {<json>}" — prepend the captured glyph (don't overwrite); the JSON blob carries comment + unknown attrs for round-trip. */
     if (Object.keys(wdItem).length > 0) {
         if (data_deviceid === 'wdText') {
             const textPrefix = (item.data_labelField || '').trim();
@@ -32511,11 +29829,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 /* find any roomKitEqx in the roomObj, then look for duplicate displays and delete them */
 function deletePossibleRoomKitEqxDisplays(roomObj) {
 
-    /* PERF: bucket once for the 2 parentGroups read below. The local
-     * `displays` / `videoDevices` arrays are filtered views; matching
-     * displays are deleted from the canonical roomObj.items array via
-     * id, so the splice that used to mutate roomObj.items.displays
-     * directly still removes the same entries. */
+    /* PERF: bucket once for the 2 parentGroups read below. displays/videoDevices are filtered views; matches are removed from the canonical roomObj.items by id. */
     const dpBuckets = bucketItemsByParentGroup(roomObj);
     let displays = dpBuckets.displays || [];
     let videoDevices = dpBuckets.videoDevices || [];
@@ -32870,12 +30184,7 @@ function exportRoomObjToWorkspace() {
     /* Items in hidden VRC layers are omitted from the Workspace Designer export entirely. */
     removeHiddenLayerItemsForExport(roomObj2);
 
-    /* For every exported item that belongs to a non-Default VRC layer, attach the
-     * layer's name as a "layer" attribute on the workspaceItem. Importers (including
-     * VRC's own importer) can then restore the layer assignment by name.
-     * Default ('0') is the implicit layer and is intentionally NOT emitted to keep
-     * the JSON minimal. convertToMeters() drops roomObj2.layers, so we look up the
-     * layer name from the global roomObj.layers, which is the source of truth. */
+    /* Attach the layer NAME as a "layer" attr for items on non-Default layers so importers can restore by name. Default ('0') is implicit/omitted. Names come from the global roomObj.layers (convertToMeters drops roomObj2.layers). */
     function setLayerOnWorkspaceItem(workspaceItem, item) {
         const layerId = item && item.data_layerId;
         if (!layerId || layerId === '0') return; /* Default layer is implicit */
@@ -32884,15 +30193,7 @@ function exportRoomObjToWorkspace() {
         if (layer && layer.name) workspaceItem.layer = layer.name;
     }
 
-    /* For every exported item that belongs to a VRC Group / CustomItem,
-     * attach the bundle's id as a "group" / "customItem" attribute on the
-     * workspaceItem. Workspace Designer does not understand Group/CustomItem
-     * items themselves, but it preserves arbitrary string attributes on
-     * customObjects, so the references round-trip cleanly. The matching
-     * geometry/metadata is emitted separately under workspaceObj.data.vrc.groups
-     * and workspaceObj.data.vrc.customItems (see below). The Konva Group/
-     * CustomItem rects themselves (data_deviceid === 'group' / 'customItem')
-     * are never pushed to customObjects. */
+    /* Attach a Group/CustomItem id as a "group"/"customItem" attr so the reference round-trips (WD preserves arbitrary string attrs). Bundle geometry is emitted separately under data.vrc.groups/customItems; the Konva group/customItem rects are never pushed to customObjects. */
     function setGroupOnWorkspaceItem(workspaceItem, item) {
         if (!item) return;
         if (item.data_groupId) workspaceItem.group = item.data_groupId;
@@ -32934,7 +30235,7 @@ function exportRoomObjToWorkspace() {
 
     ]
 
-    /* the default walls roomShape format above is inserting a tree. Adding walls one at time but onnly for designer.webex.com */
+    /* the default walls roomShape format above inserts a tree; add walls one at a time (designer.webex.com only) */
     let altDefaultWall = false;
 
     if (altDefaultWall === true && !roomObj.workspace.removeDefaultWalls) {
@@ -33045,22 +30346,7 @@ function exportRoomObjToWorkspace() {
         workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
     }
 
-    /* VRC Groups round-trip via data.vrc.groups. The Workspace Designer has
-     * no concept of a Group item, so each member's data_groupId rides on the
-     * member as a plain "group" string attribute (set by
-     * setGroupOnWorkspaceItem above) and the Group rect's geometry +
-     * metadata are stashed here in VRC's own JSON namespace — same approach
-     * the background image uses. Stored in meters always (apply ratio if
-     * the source roomObj is in feet); coordinates stay in VRC top-left
-     * frame (no roomX/roomY shift) so they sit alongside the items the
-     * importer reconstructs at VRC top-left coords. groupMembers is
-     * intentionally NOT emitted: it's rebuilt on import by walking the
-     * imported items and collecting every item whose data_groupId matches
-     * the group's groupid. Empty groups are skipped — they're already
-     * filtered out by the URL encoder and would just be dropped on
-     * round-trip rebuild. The Konva Group rect (data_deviceid === 'group')
-     * is never an item in roomObj.items, so customObjects don't include
-     * it; only the H-block-style metadata here represents the rect. */
+    /* VRC Groups round-trip via data.vrc.groups: each member's data_groupId rides as a plain "group" attr, and the Group rect's geometry/metadata is stashed here (meters, VRC top-left frame). groupMembers is NOT emitted — it's rebuilt on import by matching data_groupId. Empty groups are skipped. */
     if (Array.isArray(roomObj.groups) && roomObj.groups.length > 0) {
         const groupRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
         const exportedGroups = [];
@@ -33077,11 +30363,7 @@ function exportRoomObjToWorkspace() {
                 rotation: g.rotation || 0,
                 data_zPosition: round((g.data_zPosition || 0) * groupRatio),
             };
-            /* Mirror the per-item layer convention: emit the layer NAME
-             * (not the UUID) so that data.vrc.groups is human-readable and
-             * stable across round-trips that may regenerate layer UUIDs.
-             * Default ('0') is implicit. Lookups go through roomObj.layers
-             * because convertToMeters() drops layers from roomObj2. */
+            /* Emit the layer NAME (not UUID) so it's stable across UUID-regenerating round-trips; Default ('0') implicit. Lookup via roomObj.layers (convertToMeters drops roomObj2.layers). */
             const groupLayerId = g.data_layerId;
             if (groupLayerId && groupLayerId !== '0' && roomObj.layers) {
                 const groupLayer = roomObj.layers.find(l => l.layerid === groupLayerId);
@@ -33094,13 +30376,7 @@ function exportRoomObjToWorkspace() {
         }
     }
 
-    /* VRC CustomItems round-trip via data.vrc.customItems. Mirror of the
-     * Groups block above — see that block for the full rationale (always
-     * meters, VRC top-left coords, customItemMembers omitted on export and
-     * rebuilt on import, empty customItems skipped, layerName instead of
-     * layerid for human-readability). The CustomItem rect Konva node has
-     * data_deviceid === 'customItem' and is never pushed to customObjects;
-     * only the metadata block here represents the rect. */
+    /* VRC CustomItems round-trip via data.vrc.customItems — mirror of the Groups block above (meters, VRC top-left, members rebuilt on import, empties skipped, layerName). */
     if (Array.isArray(roomObj.customItems) && roomObj.customItems.length > 0) {
         const customItemRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
         const exportedCustomItems = [];
@@ -33109,18 +30385,10 @@ function exportRoomObjToWorkspace() {
             if (Array.isArray(c.customItemMembers) && c.customItemMembers.length === 0) return;
             const exportedCustomItem = {
                 customitemid: c.customitemid,
-                /* Family / template id — round-trips through WD JSON so
-                 * "Save Workspace" then "Open Workspace" preserves the
-                 * VRC Custom Item Library identity of every customItem.
-                 * Omitted if missing on the source (e.g. ungrouped /
-                 * malformed roomObj) — importer assigns a fresh baseId. */
+                /* Family/template id — round-trips so Save/Open Workspace preserves Library identity; omitted if missing (importer assigns a fresh baseId). */
                 customItemBaseId: c.customItemBaseId || undefined,
                 name: c.name || '',
-                /* Optional descriptive metadata. Emitted only when
-                 * present and non-empty so older importers don't see
-                 * `"author": ""` noise on bundles that never carried
-                 * the field. version defaults to '1' on the wire when
-                 * the field exists at all (set by createCustomItem). */
+                /* Optional metadata, emitted only when present so older importers don't see empty-string noise. */
                 author: c.author || undefined,
                 description: c.description || undefined,
                 version: c.version || undefined,
@@ -33147,32 +30415,14 @@ function exportRoomObjToWorkspace() {
         }
     }
 
-    /* VRC-only text items (data_deviceid === 'vrcText') round-trip via
-     * workspaceObj.data.vrc.vrcTexts[]. Workspace Designer cannot render
-     * vrcText (it has no matching objectType), so we deliberately
-     * exclude it from `customObjects` (see the wdBuckets.boxes dispatch
-     * above) and instead stash the full item record here in VRC's own
-     * JSON namespace — same approach the background image / groups /
-     * customItems blocks use. Stored in meters always (apply ratio if
-     * the source roomObj is in feet); coordinates stay in VRC top-left
-     * frame (no roomX/roomY shift) so the importer can push the item
-     * straight back into roomObj2.items. The layer is emitted as
-     * `layerName` (matching the groups / customItems convention) so
-     * hand-edited WD JSON is human-readable and stable across
-     * round-trips that may regenerate layer UUIDs. data_groupId /
-     * data_customItemId ride through verbatim and feed into the
-     * existing post-import group / customItem member rebuild passes. */
+    /* VRC-only vrcText items round-trip via data.vrc.vrcTexts[] (WD can't render them, so they're excluded from customObjects and stashed here verbatim in meters, VRC top-left frame; layer emitted as layerName; data_groupId/data_customItemId ride through). */
     if (Array.isArray(roomObj.items)) {
         const vrcTextRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
         const exportedVrcTexts = [];
         roomObj.items.forEach(it => {
             if (!it || it.data_deviceid !== 'vrcText') return;
             const exportedVrcText = structuredClone(it);
-            /* Unit-scaled numeric fields. width/height are auto-sized
-             * from the inner Konva.Text on insert but we preserve the
-             * last-canvas-measured values for completeness (matches the
-             * wdText round-trip's getItemCenter() math). data_zPosition
-             * is included even when 0 to keep the wire shape uniform. */
+            /* Unit-scaled numeric fields (width/height preserved for completeness; data_zPosition kept even at 0 for uniform wire shape). */
             if (typeof exportedVrcText.x === 'number') {
                 exportedVrcText.x = round(exportedVrcText.x * vrcTextRatio);
             }
@@ -33188,10 +30438,7 @@ function exportRoomObjToWorkspace() {
             if (typeof exportedVrcText.data_zPosition === 'number') {
                 exportedVrcText.data_zPosition = round(exportedVrcText.data_zPosition * vrcTextRatio);
             }
-            /* Swap data_layerId UUID for the human-readable layerName.
-             * Default ('0') is implicit — omit on the wire. Lookups go
-             * through roomObj.layers (the global / source of truth);
-             * convertToMeters() drops layers from roomObj2. */
+            /* Swap data_layerId UUID for layerName (Default '0' omitted); lookup via roomObj.layers. */
             const vrcTextLayerId = exportedVrcText.data_layerId;
             if (vrcTextLayerId && vrcTextLayerId !== '0' && roomObj.layers) {
                 const vrcTextLayer = roomObj.layers.find(l => l.layerid === vrcTextLayerId);
@@ -33205,15 +30452,7 @@ function exportRoomObjToWorkspace() {
         }
     }
 
-    /* VRC-only dimension-line items (data_deviceid === 'dimensionLine')
-     * round-trip via workspaceObj.data.vrc.dimensionLines[]. Mirror of
-     * the vrcTexts block above — Workspace Designer has no native
-     * dimension-line objectType, so we deliberately exclude these from
-     * `customObjects` (see the wdBuckets.boxes dispatch above) and
-     * stash the full record in VRC's own JSON namespace. Same conventions
-     * apply: stored in meters always; coordinates stay in VRC top-left
-     * frame (no roomX/roomY shift); layer is emitted as `layerName`;
-     * data_groupId / data_customItemId ride through verbatim. */
+    /* VRC-only dimensionLine items round-trip via data.vrc.dimensionLines[] — mirror of the vrcTexts block above. */
     if (Array.isArray(roomObj.items)) {
         const dimLineRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
         const exportedDimLines = [];
@@ -33235,13 +30474,7 @@ function exportRoomObjToWorkspace() {
             if (typeof exported.data_zPosition === 'number') {
                 exported.data_zPosition = round(exported.data_zPosition * dimLineRatio);
             }
-            /* data_lineWidth and data_pointerSize are stored as WD pt-like
-             * units (1 unit ≈ 0.01 m physical extent — same convention
-             * as data_fontSize). The unit is fixed and unit-agnostic
-             * (no feet/meters bookkeeping needed): the renderer applies
-             * `* 0.01 m * scale` via computeDimensionLineCanvasPx() at
-             * paint time so the on-canvas widget scales with the room.
-             * No ratio applied here on export. */
+            /* data_lineWidth/data_pointerSize are unit-agnostic pt-like units (1 ≈ 0.01m, like data_fontSize); renderer applies *0.01m*scale at paint time, so no ratio here. */
             const lineLayerId = exported.data_layerId;
             if (lineLayerId && lineLayerId !== '0' && roomObj.layers) {
                 const lineLayer = roomObj.layers.find(l => l.layerid === lineLayerId);
@@ -33255,15 +30488,7 @@ function exportRoomObjToWorkspace() {
         }
     }
 
-    /* ceilingGrid parent records round-trip verbatim via
-     * workspaceObj.data.vrc.ceilingGrids[]. The on-canvas grid is also
-     * emitted as one thin box per line under customObjects (see
-     * pushCeilingGridChildren + the wdBuckets.boxes dispatch above);
-     * those gridLines~* boxes are dropped on import so only this
-     * verbatim record rebuilds the ceilingGrid item. Same conventions as
-     * the vrcTexts / dimensionLines blocks: meters always, VRC top-left
-     * coords (no roomX/roomY shift), layer emitted as layerName,
-     * data_groupId / data_customItemId ride through verbatim. */
+    /* ceilingGrid parent records round-trip verbatim via data.vrc.ceilingGrids[] (the grid is also emitted as thin gridLines~* boxes, dropped on import). Mirror of the vrcTexts/dimensionLines blocks. */
     if (Array.isArray(roomObj.items)) {
         const cgRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
         const exportedCeilingGrids = [];
@@ -33381,25 +30606,7 @@ function exportRoomObjToWorkspace() {
      * passes (N=7). See plan flatten-roomobj-items-array. */
     const wdBuckets = bucketItemsByParentGroup(roomObj2);
 
-    /* Parent Items: composite WD export from a single VRC item.
-     *
-     * Workspace Designer has no native concept of a composite item, so VRC
-     * items whose `workspaceKey[id].parentItem === true` are emitted as
-     * multiple WD primitives (one per entry in `childItemParts`) plus a
-     * metadata block in `data.vrc.parentItems[]` that round-trips the
-     * original parent record. Each emitted child carries
-     * `vrcParent: '<parent-instance-uuid>'` and `vrcParentDeviceId: '<deviceid>'`
-     * so the importer can drop the children before the workspaceKey
-     * scoring loop runs. The `vrc` prefix namespaces these against the
-     * formal WD-team contract (the WD team has only agreed on `group`).
-     *
-     * The pre-pass below pulls flagged items out of every bucket BEFORE
-     * the per-bucket push runs, so the normal microphone / videoDevice /
-     * etc. dispatch never sees them. The helpers
-     * `pushParentItemChildren()` and `buildParentItemExportRecord()` are
-     * function declarations so they hoist above this call site.
-     *
-     * See CLAUDE.md "Parent Items" for the full round-trip contract. */
+    /* Parent Items: a single VRC item with workspaceKey[id].parentItem===true is emitted as multiple WD primitives (one per childItemParts) plus a data.vrc.parentItems[] record. Each child carries vrcParent / vrcParentDeviceId so the importer drops them before scoring. This pre-pass pulls flagged items from every bucket before the per-bucket push. See CLAUDE.md "Parent Items". */
     const exportedParentItems = [];
     for (const bucketName in wdBuckets) {
         const bucket = wdBuckets[bucketName];
@@ -33546,17 +30753,9 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid === 'wdText') {
             workspaceObjTextPush(item);
         } else if (item.data_deviceid === 'vrcText') {
-            /* vrcText is VRC-only — Workspace Designer cannot render it,
-             * so we deliberately skip the customObjects push. The full
-             * item is emitted separately under workspaceObj.data.vrc.vrcTexts
-             * (see the data.vrc.vrcTexts block below in this function)
-             * so it round-trips cleanly through "Save Workspace" /
-             * "Open Workspace". */
+            /* vrcText is VRC-only: skip the customObjects push; emitted separately under data.vrc.vrcTexts. */
         } else if (item.data_deviceid === 'dimensionLine') {
-            /* dimensionLine is VRC-only too (Workspace Designer has no
-             * native dimension-line concept). Same skip + round-trip
-             * pattern as vrcText — see workspaceObj.data.vrc.dimensionLines[]
-             * emission below and the matching restore on import. */
+            /* dimensionLine is VRC-only too: same skip + round-trip as vrcText (data.vrc.dimensionLines). */
         } else {
             workspaceObjWallPush(item);
         }
