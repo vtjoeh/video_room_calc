@@ -19159,7 +19159,7 @@ function changeZheightOfItem(dragItem, dragNode) {
         let children = compareToGroups[i].getChildren();
         for (let j = 0; j < children.length; j++) {
             let node = children[j];
-            if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && 'data_deviceid' in node) {
+            if (!(node.data_deviceid === 'boxRoomPart' || node.data_deviceid === 'polyRoom' || node.id() === dragNode.id()) && node.isVisible() && 'data_deviceid' in node) {
 
                 let fourCorners = findFourCornersOfNode(node);
 
@@ -19208,7 +19208,7 @@ function changeZheightOfItem(dragItem, dragNode) {
                         }
 
 
-                        if ('data_diagonalInches' in node && !node.data_deviceid?.match(/brdPro|boardPro|webexDesk/)) {
+                        if ('data_diagonalInches' in node) {
 
                             if (node.getParent().name() === 'displays') {
                                 height = (fillInTopElevationDisplay(node, false) || 0);
