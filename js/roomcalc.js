@@ -1,7 +1,6 @@
 const version = "v0.1.652";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Phase 2 module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
-const createUuid = window.VRC.util.createUuid;
 const convertToUnit = window.VRC.util.convertToUnit;
 const convertToMeters = window.VRC.util.convertToMeters;
 const convertMetersFeet = window.VRC.util.convertMetersFeet;
@@ -112,7 +111,7 @@ let layerBackgroundImageFloor = new Konva.Group({
     name: 'layerBackgroundImageFloor'
 })
 
-const sessionId = createUuid(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */
+const sessionId = crypto.randomUUID(); /* Each browser session has a unique sessionId to keep track of statistics. No cookies used for this. */
 const startTime = new Date(Date.now()); /* startTime is for statistics */
 const clientTimeStamp = startTime.toUTCString();
 let fullShareLink;
@@ -974,7 +973,7 @@ function ensureCustomItemBaseIds(obj) {
     target.customItems.forEach(c => {
         if (!c) return;
         if (!c.customItemBaseId) {
-            c.customItemBaseId = createUuid();
+            c.customItemBaseId = crypto.randomUUID();
             assigned++;
         }
     });
@@ -1231,7 +1230,7 @@ function createCustomItemMenuImage(record) {
     }
 
     /* Off-DOM Konva stage; unique id per call avoids concurrent collisions. */
-    const divContainerId = 'containerCustomItemMenuImageCreate-' + createUuid();
+    const divContainerId = 'containerCustomItemMenuImageCreate-' + crypto.randomUUID();
     const existing = document.getElementById(divContainerId);
     if (existing) existing.remove();
     const container = document.createElement('div');
@@ -2605,7 +2604,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
     const layerSel = document.getElementById('drpAddItemLayer');
     const targetLayerId = (layerSel && layerSel.value) || '0';
 
-    const customitemid = createUuid();
+    const customitemid = crypto.randomUUID();
     const newMembers = [];
 
     const pendingInserts = [];
@@ -2618,7 +2617,7 @@ function insertCustomItemAtPosition(record, worldX, worldY) {
         const dt = allDeviceTypes[part.data_deviceid];
         if (!dt) return; /* validator already rejected, defensive guard */
 
-        const uuid = createUuid();
+        const uuid = crypto.randomUUID();
         const newItem = {
             id: uuid,
             data_deviceid: part.data_deviceid,
@@ -3323,7 +3322,7 @@ function addLayer(name) {
         name = makeUniqueLayerName(name);
     }
     const urlNum = nextLayerUrlNumber();
-    const newLayer = { name: name, visible: true, locked: false, layerid: createUuid(), _urlNum: urlNum };
+    const newLayer = { name: name, visible: true, locked: false, layerid: crypto.randomUUID(), _urlNum: urlNum };
     roomObj.layers.push(newLayer);
     renderLayersList();
     canvasToJson();
@@ -3518,7 +3517,7 @@ function openTextInsertDialog(data_deviceid, attrs) {
          * 'Text' placeholder so the item still inserts. */
         attrs.data_labelField = attrs.data_labelField || 'Text';
         attrs.data_deviceid = data_deviceid;
-        const fallbackUuid = createUuid();
+        const fallbackUuid = crypto.randomUUID();
         attrs.id = fallbackUuid;
         insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, fallbackUuid, true);
         roomObj.items.push(attrs);
@@ -3590,7 +3589,7 @@ function confirmTextInsertFromDialog() {
     const dlg = document.getElementById('dialogTextInsert');
     if (dlg) dlg.close();
 
-    const uuid = createUuid();
+    const uuid = crypto.randomUUID();
     attrs.id = uuid;
     insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
     roomObj.items.push(attrs);
@@ -3696,7 +3695,7 @@ function finishCertifiedDisplayInsert(attrs) {
         attrs.data_role = { value: 'singleScreen', index: 0 };
     }
     attrs.data_deviceid = 'certifiedDisplay';
-    const uuid = createUuid();
+    const uuid = crypto.randomUUID();
     attrs.id = uuid;
     insertShapeItem('certifiedDisplay', allDeviceTypes['certifiedDisplay'].parentGroup, attrs, uuid, true);
     roomObj.items.push(attrs);
@@ -5215,7 +5214,7 @@ function finishPolyBuilder() {
                 delete attrs.metersY;
                 /* New polyRoom goes into the user's selected "Add Items to:" layer */
                 attrs.data_layerId = getDefaultLayerForNewItems();
-                let uuid = createUuid();
+                let uuid = crypto.randomUUID();
                 insertShapeItem('polyRoom', allDeviceTypes['polyRoom'].parentGroup, attrs, uuid, true);
 
                 attrs.id = uuid;
@@ -5574,7 +5573,7 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
 
     wallCounter = wallCounter + 1;
 
-    let uuid = createUuid();
+    let uuid = crypto.randomUUID();
 
     if (!isNaN(width) && width > 0.01 && !isNaN(height) && (height > 0.01)) {
 
@@ -7503,7 +7502,7 @@ function expandVideoDeviceArray() {
 creatArrayKeysTypes();
 
 function createRoomId() {
-    let roomId = createUuid();
+    let roomId = crypto.randomUUID();
     return roomId;
 }
 
@@ -8641,7 +8640,7 @@ function parseShortenedXYUrl(parameters) {
                         existing.visible = visible;
                         existing.locked = locked;
                     } else {
-                        roomObj.layers.push({ name: layerName, visible: visible, locked: locked, layerid: createUuid(), _urlNum: urlNum });
+                        roomObj.layers.push({ name: layerName, visible: visible, locked: locked, layerid: crypto.randomUUID(), _urlNum: urlNum });
                     }
                 }
             }
@@ -8667,7 +8666,7 @@ function parseShortenedXYUrl(parameters) {
                         if (!roomObj.layers) roomObj.layers = getDefaultLayers();
                         let matchedLayer = roomObj.layers.find(l => l._urlNum === layerUrlNum);
                         if (!matchedLayer) {
-                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: layerUrlNum };
+                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: crypto.randomUUID(), _urlNum: layerUrlNum };
                             roomObj.layers.push(matchedLayer);
                         }
                         grpLayerId = matchedLayer.layerid;
@@ -8693,7 +8692,7 @@ function parseShortenedXYUrl(parameters) {
                     existingGroup.height = grpH;
                 } else {
                     roomObj.groups.push({
-                        groupid: createUuid(),
+                        groupid: crypto.randomUUID(),
                         name: grpName,
                         data_layerId: grpLayerId,
                         x: grpX,
@@ -8728,7 +8727,7 @@ function parseShortenedXYUrl(parameters) {
                         if (!roomObj.layers) roomObj.layers = getDefaultLayers();
                         let matchedLayer = roomObj.layers.find(l => l._urlNum === layerUrlNum);
                         if (!matchedLayer) {
-                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: layerUrlNum };
+                            matchedLayer = { name: 'Layer ' + layerUrlNum, visible: true, locked: false, layerid: crypto.randomUUID(), _urlNum: layerUrlNum };
                             roomObj.layers.push(matchedLayer);
                         }
                         cLayerId = matchedLayer.layerid;
@@ -8754,7 +8753,7 @@ function parseShortenedXYUrl(parameters) {
                     existingCustomItem.height = cH;
                 } else {
                     roomObj.customItems.push({
-                        customitemid: createUuid(),
+                        customitemid: crypto.randomUUID(),
                         name: cName,
                         data_layerId: cLayerId,
                         x: cX,
@@ -8945,7 +8944,7 @@ function parseShortenedXYUrl(parameters) {
                     if (matchedLayer) {
                         newItem.data_layerId = matchedLayer.layerid;
                     } else {
-                        const fallbackLayer = { name: 'Layer ' + urlNum, visible: true, locked: false, layerid: createUuid(), _urlNum: urlNum };
+                        const fallbackLayer = { name: 'Layer ' + urlNum, visible: true, locked: false, layerid: crypto.randomUUID(), _urlNum: urlNum };
                         if (!roomObj.layers) roomObj.layers = getDefaultLayers();
                         roomObj.layers.push(fallbackLayer);
                         newItem.data_layerId = fallbackLayer.layerid;
@@ -8960,7 +8959,7 @@ function parseShortenedXYUrl(parameters) {
                     let matchedGroup = roomObj.groups.find(g => g._urlNum === grpUrlNum);
                     if (!matchedGroup) {
                         matchedGroup = {
-                            groupid: createUuid(),
+                            groupid: crypto.randomUUID(),
                             data_layerId: '0',
                             x: 0, y: 0, width: 0, height: 0,
                             rotation: 0,
@@ -8984,7 +8983,7 @@ function parseShortenedXYUrl(parameters) {
                     let matchedCustomItem = roomObj.customItems.find(c => c._urlNum === cUrlNum);
                     if (!matchedCustomItem) {
                         matchedCustomItem = {
-                            customitemid: createUuid(),
+                            customitemid: crypto.randomUUID(),
                             data_layerId: '0',
                             x: 0, y: 0, width: 0, height: 0,
                             rotation: 0,
@@ -9094,7 +9093,7 @@ function parseShortenedXYUrl(parameters) {
                 newItem.name = (allDeviceTypes.wdText && allDeviceTypes.wdText.name) || 'Workspace Designer Text';
             }
 
-            newItem.id = createUuid();
+            newItem.id = crypto.randomUUID();
 
 
         }
@@ -9851,7 +9850,7 @@ function createTableChairs(table, tableUuid) {
         baseUuid = tableUuid;
     }
     else {
-        baseUuid = createUuid();
+        baseUuid = crypto.randomUUID();
     }
 
     const chairLayerId = (table && table.data_layerId) ? table.data_layerId : getDefaultLayerForNewItems();
@@ -9913,7 +9912,7 @@ function quickSetupInsert() {
 
     const newItemLayerId = getDefaultLayerForNewItems();
 
-    let tableUuid = createUuid();
+    let tableUuid = crypto.randomUUID();
     let tblAttrs = {};
     tblAttrs.x = roomWidth / 2 - tableWidth / 2;
     tblAttrs.y = frntWallToTv + distDisplayToTable;
@@ -9929,7 +9928,7 @@ function quickSetupInsert() {
 
     createTableChairs(tblAttrs, tableUuid);
 
-    let videoDeviceUuid = createUuid();
+    let videoDeviceUuid = crypto.randomUUID();
     let videoAttr = {};
     videoAttr.x = roomWidth / 2;
     videoAttr.rotation = 0;
@@ -9973,7 +9972,7 @@ function quickSetupInsert() {
                 primaryDeviceIsAllInOne = true;
             } else {
                 primaryDeviceIsAllInOne = false;
-                let displayUuid = createUuid();
+                let displayUuid = crypto.randomUUID();
                 let displayAttr = {};
 
                 displayAttr.x = roomWidth / 2;
@@ -13320,7 +13319,7 @@ function copyToCanvasClipBoard(nodes) {
         let x2Offset, y2Offset, x2, y2; /* new x and new y */
         let attrs = node.attrs;
 
-        let uuid = createUuid();
+        let uuid = crypto.randomUUID();
 
         uuids.push(uuid);
 
@@ -13474,7 +13473,7 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_gridLength = Number(node.data_gridLength);
         }
 
-        clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: createUuid() });
+        clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: crypto.randomUUID() });
 
     });
 
@@ -13567,10 +13566,10 @@ function pasteItems(duplicate = true) {
     const oldToNewCustomItemId = {};
     itemsObj.items.forEach(it => {
         if (it.isGroupRect && it.oldGroupId) {
-            oldToNewGroupId[it.oldGroupId] = createUuid();
+            oldToNewGroupId[it.oldGroupId] = crypto.randomUUID();
         }
         if (it.isCustomItemRect && it.oldCustomItemId) {
-            oldToNewCustomItemId[it.oldCustomItemId] = createUuid();
+            oldToNewCustomItemId[it.oldCustomItemId] = crypto.randomUUID();
         }
     });
 
@@ -13647,7 +13646,7 @@ function pasteItems(duplicate = true) {
             }
         }
 
-        let uuid = createUuid();
+        let uuid = crypto.randomUUID();
         uuids.push(uuid);
         item.newAttr.x = item.newAttr.x + xOffset;
         item.newAttr.y = item.newAttr.y + yOffset;
@@ -13709,7 +13708,7 @@ function pasteItems(duplicate = true) {
 
         const newCustomItem = {
             customitemid: newCustomItemId,
-            customItemBaseId: item.customItemAttrs.customItemBaseId || createUuid(),
+            customItemBaseId: item.customItemAttrs.customItemBaseId || crypto.randomUUID(),
             name: item.customItemAttrs.name || '',
             author: item.customItemAttrs.author || '',
             description: item.customItemAttrs.description || '',
@@ -15010,7 +15009,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
     if (uuid === '') {
-        uuid = createUuid();
+        uuid = crypto.randomUUID();
     }
     // else {
     //     updateNode = canvasNodesMap.get(uuid);
@@ -19725,7 +19724,7 @@ function createGroup(nodesToGroup) {
     const lowestZ = Math.min(...finalNodes.map(n => parseFloat(n.data_zPosition) || 0));
 
     const newGroup = {
-        groupid: createUuid(),
+        groupid: crypto.randomUUID(),
         // name: 'Group ' + (roomObj.groups.length + 1),
         name: '',
         data_layerId: targetLayerId,
@@ -19933,7 +19932,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
     const lowestZ = Math.min(...finalNodes.map(n => parseFloat(n.data_zPosition) || 0));
 
     const newCustomItem = {
-        customitemid: createUuid(),
+        customitemid: crypto.randomUUID(),
         /* Template / "family" id — stable across copies, pastes, exports,
          * and IDB library entries. Used as the primary key when saving
          * the customItem template to the VRC Custom Item Library
@@ -19941,7 +19940,7 @@ function createCustomItem(nodesToGroup, name, author, description) {
          * vrcCustomItems file overwrites an existing library entry.
          * customitemid is the per-instance id (changes on paste);
          * customItemBaseId is the per-template id (persists). */
-        customItemBaseId: createUuid(),
+        customItemBaseId: crypto.randomUUID(),
         /* Name supplied by the dialog (openCreateCustomItemDialog). Falls
          * back to '' if the function is called programmatically without
          * a name — matches the schema for import paths that may carry
@@ -20163,7 +20162,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     /* each shape gets a unique uuid for tracking.  This UUID is also in the roomObj JSON and not recreated if it exists */
     if (uuid === '') {
-        uuid = createUuid();
+        uuid = crypto.randomUUID();
     }
     // else {
     //     updateNode = canvasNodesMap.get(uuid);
@@ -24661,7 +24660,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
         showRoleOptions(data_deviceid, attrs);
 
     } else {
-        let uuid = createUuid();
+        let uuid = crypto.randomUUID();
 
         attrs.data_deviceid = data_deviceid;
         attrs.id = uuid;
@@ -29211,7 +29210,7 @@ function importXConfigFile(text, fileName) {
         const centerY = vrcOriginY + p.relY;
 
         const item = {
-            id: createUuid(),
+            id: crypto.randomUUID(),
             data_deviceid: p.deviceId,
             name: dev.name,
             x: Math.round(centerX * 1000) / 1000,
@@ -29265,7 +29264,7 @@ function importXConfigFile(text, fileName) {
      * round-trippable. */
     const X_CONFIG_LAYER_NAME = 'xConfig XYZ';
     const X_CONFIG_COL_WIDTH_M = 0.01;
-    const xConfigLayerId = createUuid();
+    const xConfigLayerId = crypto.randomUUID();
     /* _urlNum mirrors nextLayerUrlNumber() but reads from roomObj2.layers
      * (not the live roomObj which hasn't been swapped in yet). Custom
      * layers start at 20 — see the URL encoding doc in CLAUDE.md. */
@@ -29293,7 +29292,7 @@ function importXConfigFile(text, fileName) {
      * spans the full depth of the room. The exporter reads `column.x`
      * to recover the xConfig X origin in VRC meters. */
     roomObj2.items.push({
-        id: `xConfig-x-0-${createUuid()}`,
+        id: `xConfig-x-0-${crypto.randomUUID()}`,
         data_deviceid: 'columnRect',
         name: 'Column',
         x: Math.round(vrcOriginX * 1000) / 1000,
@@ -29314,7 +29313,7 @@ function importXConfigFile(text, fileName) {
      * VRC y = vrcOriginY, spanning the full room width. The exporter
      * reads `column.y` to recover the xConfig Z origin in VRC meters. */
     roomObj2.items.push({
-        id: `xConfig-z-0-${createUuid()}`,
+        id: `xConfig-z-0-${crypto.randomUUID()}`,
         data_deviceid: 'columnRect',
         name: 'Column',
         x: 0,
@@ -29379,7 +29378,7 @@ function importXConfigFile(text, fileName) {
      * z-fighting. Both offsets are in METERS; applied below by
      * subtracting from the placement's `elevationM`. */
     const MIC_ARROW_Z_OFFSET_M = 0.05;
-    const xConfigArrowsLayerId = createUuid();
+    const xConfigArrowsLayerId = crypto.randomUUID();
     /* Reserve the next available 20+ slot, after the XYZ layer's slot. */
     usedUrlNums.add(xConfigUrlNum);
     let xConfigArrowsUrlNum = 20;
@@ -29421,7 +29420,7 @@ function importXConfigFile(text, fileName) {
             ? Math.max(0, baseElevM - MIC_ARROW_Z_OFFSET_M)
             : baseElevM;
         roomObj2.items.push({
-            id: createUuid(),
+            id: crypto.randomUUID(),
             data_deviceid: 'pathShape',
             name: 'Custom Path Shape',
             x: Math.round((vrcOriginX + p.relX) * 1000) / 1000,
@@ -31292,7 +31291,7 @@ function resolveImportLayerName(layerName, roomObj2) {
     const existing = roomObj2.layers.find(l => l.name && l.name.toLowerCase() === lower);
     if (existing) return existing.layerid;
 
-    const newLayer = { name: trimmed, visible: true, locked: false, layerid: createUuid() };
+    const newLayer = { name: trimmed, visible: true, locked: false, layerid: crypto.randomUUID() };
     roomObj2.layers.push(newLayer);
     return newLayer.layerid;
 }

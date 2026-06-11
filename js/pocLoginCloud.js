@@ -174,12 +174,6 @@
      * OAuth implicit-grant flow
      * ---------------------------------------------------------------- */
 
-    function getCreateUuid() {
-        return (VRC.util && VRC.util.createUuid)
-            ? VRC.util.createUuid
-            : () => (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
-    }
-
     function startWebexLogin() {
         if (!CONFIG.clientId) {
             alert(
@@ -190,7 +184,7 @@
             return;
         }
 
-        const stateValue = getCreateUuid()();
+        const stateValue = crypto.randomUUID();
         try { sessionStorage.setItem(storageKey('state'), stateValue); } catch (_) {}
 
         const redirectUri = window.location.origin + window.location.pathname;
