@@ -1,38 +1,18 @@
-/* Workspace Designer keys: workspaceKey
+/* Workspace Designer keys: workspaceKey (pure data, no DOM/Konva/functions).
  *
- * Pure data — maps each VRC item type to the Workspace Designer object
- * that represents it on import / export. No DOM access, no Konva calls,
- * no functions. The object is attached to `window.VRC.workspaceKey`
- * (per the namespace convention in notes/TECH_NOTES.md) and `roomcalc.js`
- * pulls it back in as a top-level `workspaceKey` const so the read
- * sites scattered through that file stay unchanged.
- *
- * Loaded BEFORE roomcalc.js. See `<script>` tag order in
- * RoomCalculator.html.
- *
- * The Workspace Designer and Video Room Calc have different coordinate
- * systems:
- *   VRC x              = Designer x
- *   VRC y              = Designer z
- *   VRC data_zPosition = Designer y
- *   Rotation: VRC degrees = Designer -1 * (radians)
- *
- * Per-entry attributes:
- *   vertOffset: meters; VRC data_zPosition value added when exporting
- *               to the Workspace Designer.
- *   yOffset:    meters; difference between the VRC and Designer Y for
- *               this object before export.
- *   role:       default role for the device; can be overridden per item.
+ * Maps each VRC item type to its Workspace Designer object for import/export.
+ * Attached to window.VRC.workspaceKey; roomCalc.js reads it as a top-level
+ * const. Loaded BEFORE roomCalc.js (see <script> order in RoomCalculator.html).
+ * Coordinate systems differ: VRC x = WD x, VRC y = WD z, VRC data_zPosition =
+ * WD y, VRC rotation degrees = WD -1*(radians). Per-entry: vertOffset/yOffset
+ * (meters, applied on export), role (default, per-item overridable).
+ * See notes/COMMENT_NOTES.md "Workspace Designer keys".
  */
 
 window.VRC = window.VRC || {};
 window.VRC.workspaceKey = {};
 
-/* Wrap the assignments in an IIFE so the local `workspaceKey` alias is
- * scoped to this file. roomcalc.js declares its own top-level
- * `const workspaceKey = window.VRC.workspaceKey;`, and two top-level
- * `const` declarations of the same name in classic <script> tags
- * collide on the shared script-level lexical environment. */
+/* IIFE scopes the local `workspaceKey` alias so it can't collide with roomCalc.js's top-level const. */
 (function () {
 const workspaceKey = window.VRC.workspaceKey;
 
@@ -186,8 +166,7 @@ workspaceKey.display21_9 = { objectType: 'screen', aspect: '21:9', yOffset: -0.0
 
 workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0.01 }; /* display21_9 is now the primary option */
 
-/* certifiedDisplay: model/aspect/size are derived from the picked
- * certifiedDisplays[] entry at export time (see workspaceObjDisplayPush). */
+/* certifiedDisplay: model/aspect/size derived from the picked certifiedDisplays[] entry at export time (see workspaceObjDisplayPush). */
 workspaceKey.certifiedDisplay = { objectType: 'screen', yOffset: -0.01 };
 
 workspaceKey.displayMonitor = { objectType: "monitor" }
@@ -299,21 +278,7 @@ workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit 
 /* end of defining workSpaceKey */
 
 
-/* Parent Items: composite WD export from a single VRC item. The
- * `parentItem: true` flag routes the item out of the normal per-bucket
- * push and into `pushParentItemChildren()` in roomcalc.js, which emits
- * one WD primitive per entry in `childItemParts` (each tagged with
- * `vrcParent` / `vrcParentDeviceId`) plus a metadata record in
- * `workspaceObj.data.vrc.parentItems[]` for round-trip restore.
- *
- * Each child template's x / y / width / height / rotation /
- * data_zPosition / data_vHeight / data_tilt / data_slant follow VRC's
- * native item convention: x/y is the offset (meters) from the parent's
- * upper-left corner in the parent's local (un-rotated) frame, with
- * width as the X-extent and height as the Y-extent. data_fill /
- * data_opacity / data_radius2 / data_labelField pass through verbatim
- * when present. See CLAUDE.md "Parent Items" for the full round-trip
- * contract. */
+/* Parent Items: `parentItem: true` emits one WD primitive per childItemParts entry plus a data.vrc.parentItems[] record. See notes/COMMENT_NOTES.md "Parent Items" and CLAUDE.md. */
 
 // workspaceKey.genericSecurityCamera = {
 //     parentItem: true,

@@ -1,41 +1,11 @@
-/* Unit conversion helpers: convertToUnit, convertToMeters, convertMetersFeet
+/* Unit conversion helpers: convertToUnit, convertToMeters, convertMetersFeet.
  *
- * Extracted from roomcalc.js as part of Phase 2 of the modularization
- * plan in notes/TECH_NOTES.md. These three functions handle every unit
- * conversion the app does:
- *
- *   convertToUnit(input)        -- parses a free-form text field
- *                                  ("5 ft 6 in", "1 m", "10' 6\"") into
- *                                  a number in the room's current unit.
- *   convertToMeters(roomObj2)   -- normalizes a roomObj clone to meters
- *                                  for export to the Workspace Designer.
- *   convertMetersFeet(...)      -- toggles the whole room between feet
- *                                  and meters; rewrites every item.
- *
- * Attached to `window.VRC.util.<name>` (per the namespace convention in
- * notes/TECH_NOTES.md). roomcalc.js aliases them back as top-level
- * `const convertToUnit = VRC.util.convertToUnit;` (etc.) so the call
- * sites scattered through that file stay unchanged.
- *
- * Loaded BEFORE roomcalc.js. See `<script>` tag order in
- * RoomCalculator.html.
- *
- * Cross-script references resolved lazily:
- *   - convertToUnit reads the module-scoped `unit` from roomcalc.js
- *     (note: this can briefly differ from `roomObj.unit` while the user
- *     is mid-toggle on the feet/meters dropdown, which is why the
- *     existing call sites read `unit` rather than `roomObj.unit`).
- *   - convertToMeters reads `activeRoomX/Y/Width/Length`,
- *     `itemsOffStageId`, `isActiveRoomPart`, `round`.
- *   - convertMetersFeet calls back into roomcalc.js for DOM and Konva
- *     side effects (`drawRoom`, `wallBuilderOn`, `zoomInOut`, etc.).
- *
- * All of those names live in the shared classic-script lexical scope,
- * so the references resolve at call time after roomcalc.js has run.
- *
- * The IIFE wrapper mirrors `js/data/workspaceKey.js`: it scopes the
- * local `util` alias to this file so two top-level `const` declarations
- * across classic <script> tags can't collide.
+ * Extracted from roomCalc.js (Phase 2, notes/TECH_NOTES.md). Attached to
+ * window.VRC.util.<name>; roomCalc.js aliases them back as top-level consts.
+ * Loaded BEFORE roomCalc.js (see <script> order in RoomCalculator.html).
+ * Cross-script refs (unit, activeRoom*, round, drawRoom, etc.) resolve lazily
+ * at call time in the shared classic-script scope. IIFE scopes the local
+ * `util` alias. See notes/COMMENT_NOTES.md "Unit conversion helpers".
  */
 
 window.VRC = window.VRC || {};
@@ -95,8 +65,7 @@ window.VRC.util = window.VRC.util || {};
     };
 
 
-    /* converts the roomObj2, used for exporting to meters for 3d Workspace file.  If the
-    roomObj is already in meters, it  */
+    /* Normalize a roomObj clone to meters for Workspace Designer export. */
     util.convertToMeters = function convertToMeters(roomObj2) {
 
         let roomObjTemp = {};
@@ -295,24 +264,14 @@ window.VRC.util = window.VRC.util || {};
             roomObj.items[i] = convertItemUnitBasedOnRatio(item, ratio);
         });
 
-        /* VRC Groups: roomObj.groups[].x/y/width/height/data_zPosition are
-         * stored in unit-space (same convention as items + data.vrc.groups
-         * in the Workspace Designer round-trip). They MUST be scaled by the
-         * same ratio as items, otherwise the Group rect drifts away from
-         * its members on the next drawRoom() — insertGroupRect() reads
-         * group.x/y/width/height and multiplies by `scale` (pixels per
-         * current unit), so a missed conversion here lands the rect at
-         * the OLD unit's coordinate in the NEW unit's pixel grid.
-         * convertItemUnitBasedOnRatio() handles exactly the fields a group
-         * entry needs (x, y, width, height, data_zPosition), so reuse it. */
+        /* Groups store geometry in unit-space and must scale with items, else the rect drifts from members on redraw (see notes/COMMENT_NOTES.md). */
         if (Array.isArray(roomObj.groups) && roomObj.groups.length) {
             for (const i in roomObj.groups) {
                 roomObj.groups[i] = convertItemUnitBasedOnRatio(roomObj.groups[i], ratio);
             }
         }
 
-        /* Same scaling for VRC CustomItems — they share the same
-         * unit-space convention as Groups. */
+        /* Same unit-space scaling for CustomItems as Groups. */
         if (Array.isArray(roomObj.customItems) && roomObj.customItems.length) {
             for (const i in roomObj.customItems) {
                 roomObj.customItems[i] = convertItemUnitBasedOnRatio(roomObj.customItems[i], ratio);

@@ -1,26 +1,12 @@
-/* Certified Displays catalogue: certifiedDisplays
+/* Certified Displays catalogue: certifiedDisplays (pure data).
  *
- * Pure data — the list of Cisco-certified displays the user can pick
- * from when inserting a `certifiedDisplay` item. Attached to
- * `window.VRC.certifiedDisplays` (per the namespace convention in
- * notes/TECH_NOTES.md); roomcalc.js pulls it back in as a top-level
- * `certifiedDisplays` const.
- *
- * Loaded BEFORE roomcalc.js. See the <script> tag order in
- * RoomCalculator.html.
- *
- * APPEND-ONLY: each entry's `index` equals its position in this array,
- * and the per-item attribute `data_certifiedDisplayIndex` (stored in the
- * shareable URL as `cd<index>`) references it by position. Never reorder
- * or remove entries — doing so would resolve previously-saved URLs / JSON
- * to the wrong (or a missing) display. Only append new entries at the end.
- *
- * Per-entry attributes:
- *   index:  array position (append-only, see above).
- *   size:   display diagonal in inches (locks the on-canvas size).
- *   model:  Workspace Designer model id (round-tripped via WD JSON).
- *   aspect: aspect ratio string, e.g. "16:9".
- *   name:   user-facing label; the picker falls back to `model` when absent.
+ * Cisco-certified displays for the `certifiedDisplay` item picker. Attached to
+ * window.VRC.certifiedDisplays; roomCalc.js reads it as a top-level const.
+ * Loaded BEFORE roomCalc.js (see <script> order in RoomCalculator.html).
+ * APPEND-ONLY: each entry's `index` = its array position, referenced by
+ * data_certifiedDisplayIndex (URL `cd<index>`); never reorder/remove entries.
+ * Per-entry: index, size (diagonal in), model (WD id), aspect, name.
+ * See notes/COMMENT_NOTES.md "Certified Displays catalogue".
  */
 
 window.VRC = window.VRC || {};
