@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.653 Release Notes**
+- Shortened the Shareable Template Hyperlink for repeated items. Larger rooms could see a 20-40% reduction in URL length.
+- Bug fixes 🐞 and optimization 🐇.
+
 **v0.1.652 Release Notes** 🚀
 - New product **Board Pro G3** 🎉
 - Added new item Bar (table) 🍻

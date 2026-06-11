@@ -16621,15 +16621,6 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
                 let height = shape.height();
                 let width = shape.width();
-                let radius = 10;
-                let x = 0;
-                let y = 0;
-
-                let heightA = height - 8;
-                let widthA = width * 0.3;
-                let radiusA = 6;
-                let xA = 0;
-                let yA = 4;
 
                 if (width < unitScale * 0.3) {
                     width = 0.3 * unitScale;
@@ -16640,6 +16631,16 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                     height = 0.3 * unitScale;
                     shape.height(height);
                 }
+
+                let x = 0;
+                let y = 0;
+                let radius = Math.min(width, height) * 0.1; // proportional outer corner
+
+                let xA = 0;
+                let yA = height * 0.03; // proportional inner cushion margin
+                let heightA = height - 2 * yA;
+                let widthA = width * 0.3;
+                let radiusA = Math.min(widthA, heightA) * 0.2;
 
                 ctx.beginPath();
 
