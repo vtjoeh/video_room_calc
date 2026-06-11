@@ -16341,8 +16341,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 let width = shape.width();
                 let height = shape.height();
                 let uShapeWidth = 0.85 * scale;
+                let unitScale = scale;
                 if (roomObj.unit === 'feet') {
                     uShapeWidth = uShapeWidth * 3.28084;
+                    unitScale = scale * 3.28084; // live value, not stale closure capture
                 }
 
                 if (width < unitScale * 1.85) {
@@ -36077,3 +36079,4 @@ function splitViewUpdateBreakpointClasses() {
     DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
 
 */
+
