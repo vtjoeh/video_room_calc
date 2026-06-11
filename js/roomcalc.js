@@ -157,6 +157,8 @@ roomObj.workspace.removeDefaultWalls = false; /* Workspace Designer setting to r
 roomObj.workspace.addCeiling = false; /* Add a semi-transparent ceiling on export to the Workspace Designer */
 roomObj.workspace.theme = 'standard'; /* 'christmas' or 'standard' in the Workspace Designer */
 
+roomObj.multiRoomFloorPlanMode = false; /* sticky design-level flag; when true the design is a multi-room floor plan with MultiRoom (floor overview) and Room (zoomed roomPart) sub-modes. Round-trips via data.vrc.multiRoomFloorPlanMode. */
+
 roomObj.layers = getDefaultLayers();
 roomObj.groups = [];
 roomObj.customItems = [];
@@ -169,6 +171,200 @@ roomObj.customItems = [];
  * is a single-line edit. */
 function isTextItem(deviceId) {
     return deviceId === 'wdText' || deviceId === 'vrcText';
+}
+
+/* roomPart membership test: a boxRoomPart or polyRoom defines an individual room inside a multi-room floor plan. */
+function isRoomPart(deviceId) {
+    return deviceId === 'boxRoomPart' || deviceId === 'polyRoom';
+}
+
+/* True when the design is a multi-room floor plan (sticky design-level flag). */
+function isMultiRoomFloorPlanMode() {
+    return !!roomObj.multiRoomFloorPlanMode;
+}
+
+/* True when in the floor-plan overview sub-mode (flag on, not zoomed into a room). */
+function isMultiRoomOverviewMode() {
+    return isMultiRoomFloorPlanMode() && !isActiveRoomPart;
+}
+
+/* True when in the per-room sub-mode (flag on, zoomed into a roomPart). */
+function isRoomSubMode() {
+    return isMultiRoomFloorPlanMode() && isActiveRoomPart;
+}
+
+/* In the MultiRoom overview the insert menus are limited to wall/shape
+ * structural items plus doors (everything in wallsMenu, plus the three
+ * door tiles) and the Room Parts themselves (so more rooms can be added
+ * from search). Single source of truth shared by the Equipment tab,
+ * sidebar search, and the Quick Add modal. Room Parts are conversely
+ * BLOCKED in Room sub-mode (you can't nest a room inside a room). */
+const MULTI_ROOM_OVERVIEW_MENU_ITEMS = [
+    'boxRoomPart', 'polyRoom',
+    'wallBuilder', 'wallStd', 'wallGlass', 'wallWindow',
+    'columnRect', 'cylinder', 'ceilingGrid', 'box', 'cone', 'sphere',
+    'pathShape', 'wdText', 'vrcText', 'dimensionLine',
+    'doorRight2', 'doorLeft2', 'doorDouble2'
+];
+
+function isAllowedInMultiRoomOverview(deviceId) {
+    return MULTI_ROOM_OVERVIEW_MENU_ITEMS.includes(deviceId);
+}
+
+/* Tracks the last overview state the insert menus were built for, so
+ * applyMultiRoomModeUi() rebuilds tiles only when the state flips. */
+let _lastMultiRoomOverviewMenuState = null;
+
+/* Default Walls editing target: Room mode on a rectangular boxRoomPart edits
+ * that room's per-room attrs; otherwise the global roomObj surfaces/workspace. */
+function activeDefaultWallsSurfaces() {
+    if (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart' && activeRoomPartItem.data_roomSurfaces) {
+        return activeRoomPartItem.data_roomSurfaces;
+    }
+    return roomObj.roomSurfaces;
+}
+
+function activeDefaultWallsWorkspace() {
+    if (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart' && activeRoomPartItem.data_workspace) {
+        return activeRoomPartItem.data_workspace;
+    }
+    return roomObj.workspace;
+}
+
+/* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag. Both
+ * directions are guarded by a confirm: turning ON mirrors the Room Part
+ * entry prompt; turning OFF warns because the design already contains
+ * rooms (and first leaves any active roomPart zoom — showEntireFloor needs
+ * isActiveRoomPart). Cancel / dismiss reverts the checkbox to its prior
+ * state in either direction. */
+function toggleMultiRoomFloorPlanMode(event) {
+    let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
+    if (!checkbox) return;
+
+    if (checkbox.checked) {
+        /* Checkbox was just checked — confirm before turning the mode on
+         * (mirrors the Room Part entry prompt in insertItemFromMenu). */
+        vrcConfirm(
+            'Enter Multi-Room Floor Plan Mode?',
+            'Room Parts let you lay out several rooms on one floor plan and zoom into each room to design it. '
+            + 'Turning this on switches the design into Multi-Room Floor Plan Mode.',
+            'Enter',
+            function () {
+                roomObj.multiRoomFloorPlanMode = true;
+                applyMultiRoomModeUi();
+                setTimeout(() => { canvasToJson() }, 100);
+            },
+            function () {
+                /* Cancelled — restore the toggle to its off state. */
+                checkbox.checked = false;
+            }
+        );
+        return;
+    }
+
+    /* Checkbox was just unchecked — confirm before turning the mode off. */
+    vrcConfirm(
+        'Turn off Multi-Room Floor Plan Mode?',
+        'This returns the design to a single room. Your Room Parts and their contents stay on the canvas, '
+        + 'but you will no longer be able to zoom into individual rooms.',
+        'Turn Off',
+        function () {
+            if (isActiveRoomPart) {
+                showEntireFloor();
+            }
+            roomObj.multiRoomFloorPlanMode = false;
+            applyMultiRoomModeUi();
+            setTimeout(() => { canvasToJson() }, 100);
+        },
+        function () {
+            /* Cancelled — restore the toggle to its on state. */
+            checkbox.checked = true;
+        }
+    );
+}
+
+/* Keep the Settings-tab toggle in sync with the per-design flag. Called
+ * when the Settings subtab opens (the flag lives on roomObj, not in
+ * localStorage, so it changes whenever a different design is loaded). */
+function syncMultiRoomFloorPlanModeToggle() {
+    let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
+    if (checkbox) checkbox.checked = isMultiRoomFloorPlanMode();
+}
+
+/* Single source of truth for mode-dependent UI gating. Called from
+ * drawRoom() and every mode transition. Only the MultiRoom overview
+ * sub-mode (flag on AND not zoomed into a room) changes the UI; normal
+ * mode and Room sub-mode share the default layout. */
+function applyMultiRoomModeUi() {
+    const overview = isMultiRoomOverviewMode();
+    const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
+    const dwMessageOnly = overview || polyRoomActive; /* Default Walls panel is read-only message here. */
+
+    /* Coverage-shading buttons + Software Experience are disabled in the
+     * MultiRoom overview (per-room concerns; re-enabled inside a room). */
+    ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'drpSoftware'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = overview;
+        /* belt-and-braces: the coverage buttons wire pointerdown/up listeners
+         * that can still fire on a `disabled` <button>, so also kill
+         * pointer-events and grey the button + its hold triangle in MultiRoom. */
+        el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
+    });
+
+    /* Room Floor Plan (background image) sub-tab: inside a room there is no
+     * per-room file to upload, so hide every setting except Opacity and point
+     * the user back to the overview for image changes. */
+    const inRoomBgMode = isRoomSubMode();
+    document.querySelectorAll('.bgFloorOnlySetting').forEach(function (el) {
+        el.style.display = inRoomBgMode ? 'none' : '';
+    });
+    const bgRoomMsg = document.getElementById('bgImageRoomModeMsg');
+    if (bgRoomMsg) bgRoomMsg.style.display = inRoomBgMode ? '' : 'none';
+
+    /* "Remove Default Walls" rows hidden whenever the Default Walls panel is message-only. */
+    const rdwRow = document.getElementById('removeDefaultWallsRow');
+    if (rdwRow) rdwRow.style.display = dwMessageOnly ? 'none' : '';
+    const rdwRow2 = document.getElementById('removeDefaultWallsRow2');
+    if (rdwRow2) rdwRow2.style.display = dwMessageOnly ? 'none' : '';
+
+    /* Floor vs Room label swaps. */
+    const tab = document.getElementById('defaultOpenTab');
+    if (tab) tab.textContent = overview ? 'Floor' : 'Room';
+    const roomNameLabel = document.getElementById('roomNameLabel');
+    if (roomNameLabel) roomNameLabel.textContent = overview ? 'Floor name:' : 'Room name:';
+    const rotateLabel = document.getElementById('rotateRoomLabel');
+    if (rotateLabel) rotateLabel.textContent = overview ? 'Rotate Floor:' : 'Rotate Room:';
+
+    /* Default Walls subtab is message-only in the overview and for irregular
+     * (polyRoom) rooms; editable for rectangular rooms and normal mode. The
+     * editable panel mirrors the active (per-room or global) removeDefaultWalls. */
+    const dwMsg = document.getElementById('defaultWallsMultiRoomMsg');
+    if (dwMsg) {
+        dwMsg.style.display = dwMessageOnly ? '' : 'none';
+        if (dwMessageOnly) {
+            dwMsg.textContent = overview
+                ? 'Not available in multi-room floor plan view. Select a rectangular individual room.'
+                : 'Not available for irregular rooms. Select a rectangular room.';
+        }
+    }
+    const dwSettings = document.getElementById('defaultWallSettings');
+    if (dwSettings) {
+        if (dwMessageOnly) {
+            dwSettings.style.display = 'none';
+        } else {
+            dwSettings.style.display =
+                (activeDefaultWallsWorkspace().removeDefaultWalls === false) ? '' : 'none';
+        }
+    }
+
+    /* Rebuild the insert menus only when the overview state actually flips,
+     * so the tile set (walls/shapes + doors vs. everything) reflects the
+     * mode without rebuilding on every drawRoom. */
+    if (_lastMultiRoomOverviewMenuState !== overview) {
+        _lastMultiRoomOverviewMenuState = overview;
+        if (typeof createEquipmentMenu === 'function') createEquipmentMenu();
+    }
 }
 
 function isDimensionLine(deviceId) {
@@ -4369,6 +4565,14 @@ let groupRooms = new Konva.Group(
         name: 'rooms',
     }
 )
+
+/* MultiRoom overview: per-room default-walls + door previews (visual only). */
+let groupRoomPartWallsPreview = new Konva.Group({
+    name: 'roomPartWallsPreview',
+    listening: false,
+})
+
+let windowPatternImage = null; /* cached wallWindowBackground image for window-wall preview fill */
 
 let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices];
 
@@ -9202,6 +9406,8 @@ function resetRoomObj() {
     roomObj.groups = [];
     roomObj.customItems = [];
 
+    roomObj.multiRoomFloorPlanMode = false;
+
     roomObj.roomSurfaces =
     {
         leftwall: { type: 'regular', acousticTreatment: false },
@@ -10053,6 +10259,27 @@ function updateButtonRoomDimensions() {
     }, 750)
 }
 
+/* Room sub-mode: the Room tab is read-only (disableRoomSettings keeps every
+ * field disabled), but we OVERRIDE the floor values it just loaded so the user
+ * sees THIS room part's name and size — i.e. which room they're inside.
+ * No-op outside Room sub-mode on a rectangular room part. */
+function populateRoomTabFromActiveRoomPart() {
+    if (!(isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart')) {
+        return;
+    }
+
+    const item = activeRoomPartItem;
+
+    const nameEl = document.getElementById('roomName');
+    if (nameEl) nameEl.value = item.data_labelField || '';
+
+    const widthEl = document.getElementById('roomWidth');
+    if (widthEl && item.width) widthEl.value = round(item.width);
+
+    const lengthEl = document.getElementById('roomLength');
+    if (lengthEl && item.height) lengthEl.value = round(item.height);
+}
+
 
 function drpVideoDeviceChange(firstRun = false) {
     let drpVideoDevice = document.getElementById('drpVideoDevice');
@@ -10158,7 +10385,157 @@ function getDistanceB(degreeB, distanceA) {
 
 
 
+/* Preview fill per wall type (mirrors updateDefaultWallTypeOnCanvas). */
+function defaultWallTypeFill(type) {
+    if (type === 'glass') return 'lightblue';
+    return '#cccccc';
+}
+
+/* Fill a wall rect with the window pattern, scaled so the panes fit the wall
+ * thickness and tile along its length. Async-safe; triggers a redraw on load
+ * (the missing redraw + native-size tiling on a thin wall is why window walls
+ * used to show as a black bar). Used by both the overview preview and the
+ * in-room legacy wall renderer. */
+function applyWindowPatternToRect(rect, layer) {
+    if (!windowPatternImage) {
+        windowPatternImage = new Image();
+        windowPatternImage.src = './assets/images/wallWindowBackground.png';
+    }
+    const apply = () => {
+        const imgW = windowPatternImage.naturalWidth || windowPatternImage.width || 1;
+        const thickness = Math.min(rect.width(), rect.height()) || imgW;
+        const patScale = thickness / imgW;
+        rect.fill('');
+        rect.fillPatternImage(windowPatternImage);
+        rect.fillPatternRepeat('repeat');
+        rect.fillPatternScale({ x: patScale, y: patScale });
+        rect.fillPatternOffset({ x: 0, y: 0 });
+        const lyr = layer || rect.getLayer();
+        if (lyr) lyr.batchDraw();
+    };
+    if (windowPatternImage.complete && windowPatternImage.naturalWidth) {
+        apply();
+    } else {
+        windowPatternImage.addEventListener('load', apply, { once: true });
+    }
+}
+
+/* Add a simple door opening + leaf indicator to a preview wall. wallGeom is in
+ * the room's local (un-rotated) space; doorPosition is 'left' | 'center' | 'right'. */
+function addRoomPartDoorPreview(group, wallGeom, doorPosition, wallThickness) {
+    const span = wallGeom.horizontal ? wallGeom.width : wallGeom.height;
+    const margin = 0.15 * scale;
+    const doorWidth = Math.min(0.9 * scale, Math.max(span - margin * 2, span * 0.4));
+
+    let offset;
+    if (doorPosition === 'left') offset = margin;
+    else if (doorPosition === 'right') offset = span - doorWidth - margin;
+    else offset = (span - doorWidth) / 2;
+
+    let openingX, openingY, openingW, openingH, leafPoints;
+    if (wallGeom.horizontal) {
+        openingX = wallGeom.x + offset;
+        openingY = wallGeom.y;
+        openingW = doorWidth;
+        openingH = wallGeom.height;
+        leafPoints = [openingX, openingY, openingX, openingY + doorWidth];
+    } else {
+        openingX = wallGeom.x;
+        openingY = wallGeom.y + offset;
+        openingW = wallGeom.width;
+        openingH = doorWidth;
+        leafPoints = [openingX, openingY, openingX + doorWidth, openingY];
+    }
+
+    group.add(new Konva.Rect({
+        x: openingX, y: openingY, width: openingW, height: openingH,
+        fill: 'white', listening: false,
+    }));
+    group.add(new Konva.Line({
+        points: leafPoints, stroke: '#666666', strokeWidth: 1, listening: false,
+    }));
+}
+
+/* MultiRoom overview: rebuild the per-room default-walls + door preview for
+ * every rectangular boxRoomPart that has walls on. Visual only — the WD export
+ * (step 8) builds the real geometry. Rebuilt each drawRoom and on roomPart drop. */
+function drawRoomPartDefaultWallsPreviews() {
+    if (typeof groupRoomPartWallsPreview === 'undefined') return;
+    groupRoomPartWallsPreview.destroyChildren();
+
+    if (!isMultiRoomOverviewMode()) {
+        layerTransform.batchDraw();
+        return;
+    }
+
+    /* Wall thickness is 0.115 m; convert to feet so feet-unit rooms aren't
+     * drawn too thin (matches drawOutsideWall's outsideWallThickness). */
+    let wallThicknessUnits = 0.115;
+    if (roomObj.unit === 'feet') wallThicknessUnits *= 3.28084;
+    const wallThickness = wallThicknessUnits * scale;
+
+    groupRooms.getChildren().forEach(node => {
+        if (node.data_deviceid !== 'boxRoomPart') return;
+
+        /* Prefer the roomObj item (carries Room-mode edits); fall back to the
+         * node attrs so a freshly-inserted room (not yet in the map) still draws. */
+        const item = roomObjItemsMap.get(node.id());
+        const surfaces = (item && item.data_roomSurfaces) || node.data_roomSurfaces;
+        const ws = (item && item.data_workspace) || node.data_workspace;
+        if (!surfaces) return;
+        if (ws && ws.removeDefaultWalls) return;
+
+        const w = node.width() * (node.scaleX() || 1);
+        const h = node.height() * (node.scaleY() || 1);
+        if (!(w > 0) || !(h > 0)) return;
+
+        const previewGroup = new Konva.Group({
+            id: 'rpwPreview~' + node.id(),
+            name: 'roomPartWallPreview',
+            x: node.x(),
+            y: node.y(),
+            rotation: node.rotation(),
+            listening: false,
+        });
+
+        const wallRects = {
+            videowall: { x: 0, y: 0, width: w, height: wallThickness, horizontal: true },
+            backwall: { x: 0, y: h - wallThickness, width: w, height: wallThickness, horizontal: true },
+            leftwall: { x: 0, y: 0, width: wallThickness, height: h, horizontal: false },
+            rightwall: { x: w - wallThickness, y: 0, width: wallThickness, height: h, horizontal: false },
+        };
+
+        Object.keys(wallRects).forEach(wallName => {
+            const geom = wallRects[wallName];
+            const surface = surfaces[wallName] || {};
+            const wallRect = new Konva.Rect({
+                x: geom.x, y: geom.y, width: geom.width, height: geom.height,
+                fill: defaultWallTypeFill(surface.type),
+                opacity: 0.6,
+                listening: false,
+            });
+            previewGroup.add(wallRect);
+
+            if (surface.type === 'window') {
+                applyWindowPatternToRect(wallRect, layerTransform);
+            } else if (surface.door && surface.door !== 'none') {
+                addRoomPartDoorPreview(previewGroup, geom, surface.door, wallThickness);
+            }
+        });
+
+        groupRoomPartWallsPreview.add(previewGroup);
+    });
+
+    layerTransform.batchDraw();
+}
+
 function drawOutsideWall(grOuterWall) {
+
+    /* Room sub-mode: walls hug the active room's bounding box. In normal /
+     * overview mode activeRoomWidth/Length equal roomWidth/Length, so these
+     * local shadows are a no-op there. */
+    let roomWidth = activeRoomWidth;
+    let roomLength = activeRoomLength;
 
     let outsideWallThickness = 0.115;
 
@@ -10184,7 +10561,7 @@ function drawOutsideWall(grOuterWall) {
     let defaultWallColor = '#cccccc';
     let defaultWallOpacity = 0.6;
 
-    if (!roomObj.workspace.removeDefaultWalls) {
+    if (!activeDefaultWallsWorkspace().removeDefaultWalls && !isMultiRoomOverviewMode()) {
 
         outsideWall.stroke('#888888');
 
@@ -10637,6 +11014,16 @@ function zoomRoomPart(roomPart) {
 
     activeRoomPartItem = roomObjItemsMap.get(id);
 
+    /* boxRoomPart: backfill per-room attrs for older designs before drawing. */
+    if (activeRoomPartItem && roomPart.data_deviceid === 'boxRoomPart') {
+        if (!activeRoomPartItem.data_roomSurfaces) {
+            activeRoomPartItem.data_roomSurfaces = structuredClone(defaultRoomSurfaces);
+        }
+        if (!activeRoomPartItem.data_workspace) {
+            activeRoomPartItem.data_workspace = { removeDefaultWalls: false };
+        }
+    }
+
     document.getElementById('btnBackToFloorPlan').style.display = '';
 
     let boundingBox = getBoundingBoxInUnit(roomPart);
@@ -10675,6 +11062,11 @@ function zoomRoomPart(roomPart) {
         backgroundImageFloor.height(backgroundImageFloor.height() * oldScale / scale);
     }
 
+    /* Surface the Room (formerly Floor) details tab on entry so the room's
+     * name, size, height and software are immediately visible/editable. */
+    const roomDetailsTab = document.getElementById('defaultOpenTab');
+    if (roomDetailsTab) roomDetailsTab.click();
+
 }
 
 
@@ -10696,6 +11088,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     document.getElementById('drpMetersFeet').value = unit;
 
     updateFeetMetersToggleBtn();
+
+    applyMultiRoomModeUi();
 
     if (redrawShapes) {
         clearShapeNodesFromStage(dontCloseDetailsTab);
@@ -10764,6 +11158,11 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         activeRoomLength = roomLength;
         activeRoomWidth = roomWidth;
     }
+
+    /* Room sub-mode (read-only): override the displayed Room-tab values to show
+     * THIS room part's name/size so the user knows which room they're in. MUST
+     * run AFTER the read-back above so roomObj.room keeps the FLOOR's values. */
+    populateRoomTabFromActiveRoomPart();
 
     let divRmContainerDOMRect = document.getElementById('scroll-container').getBoundingClientRect();
 
@@ -10923,7 +11322,15 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     layerGrid.add(groupOuterWall);
     stage.add(layerGrid);
 
-    if (!isActiveRoomPart) {
+    /* The outer-wall OUTLINE draws in normal single-room mode, the MultiRoom
+     * overview (floor outline kept for alignment/snapping) and inside a
+     * rectangular room. The FILLED default walls are suppressed in the
+     * overview (see the !isMultiRoomOverviewMode() gate in drawOutsideWall) —
+     * only the outline is wanted on the floor. */
+    const drawFloorPlanWalls =
+        !isActiveRoomPart ||
+        (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart');
+    if (drawFloorPlanWalls) {
         drawOutsideWall(groupOuterWall);
     }
 
@@ -11000,6 +11407,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         insertKonvaBackgroundImageFloor(true);
     }
+
+    drawRoomPartDefaultWallsPreviews();
 
     setTimeout(() => {
 
@@ -12992,6 +13401,10 @@ function openSubTab2(evt, tabName) {
 
     evt.currentTarget.className += " active";
 
+    if (tabName === 'SettingDetails') {
+        syncMultiRoomFloorPlanModeToggle();
+    }
+
     resetBackgroundImageFloorSettings();
     updateAllScrollHints();
 
@@ -13473,6 +13886,13 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_gridLength = Number(node.data_gridLength);
         }
 
+        if (node.data_roomSurfaces != null) {
+            newAttr.data_roomSurfaces = structuredClone(node.data_roomSurfaces);
+        }
+        if (node.data_workspace != null) {
+            newAttr.data_workspace = structuredClone(node.data_workspace);
+        }
+
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: crypto.randomUUID() });
 
     });
@@ -13800,6 +14220,8 @@ function stageAddLayers() {
     layerTransform.add(groupMicrophones);
 
     layerTransform.add(groupRooms);
+
+    layerTransform.add(groupRoomPartWallsPreview);
 
     layerTransform.add(overlayLabels);
 
@@ -14202,6 +14624,13 @@ function deleteTrNodes(save = true) {
     });
 
     tr.nodes([]);
+
+    /* Deleting a boxRoomPart must also clear its default-walls preview from
+     * the overview canvas (the preview group isn't tied to the node). */
+    const deletedRoomPart = copyTrNodes.some(n => n.data_deviceid === 'boxRoomPart');
+    if (deletedRoomPart && typeof drawRoomPartDefaultWallsPreviews === 'function') {
+        drawRoomPartDefaultWallsPreviews();
+    }
 
     enableCopyDelBtn();
 
@@ -14673,6 +15102,13 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_gridLength = Number(node.data_gridLength);
         }
 
+        if (node.data_roomSurfaces != null) {
+            itemAttr.data_roomSurfaces = structuredClone(node.data_roomSurfaces);
+        }
+        if (node.data_workspace != null) {
+            itemAttr.data_workspace = structuredClone(node.data_workspace);
+        }
+
         let item = roomObjItemsMap.get(node.id());
 
         if (item) {
@@ -14764,6 +15200,17 @@ function updateRoomObjFromTrNode() {
                 item.data_gridLength = itemAttr.data_gridLength;
             } else {
                 delete item.data_gridLength;
+            }
+
+            if (itemAttr.data_roomSurfaces != null) {
+                item.data_roomSurfaces = itemAttr.data_roomSurfaces;
+            } else {
+                delete item.data_roomSurfaces;
+            }
+            if (itemAttr.data_workspace != null) {
+                item.data_workspace = itemAttr.data_workspace;
+            } else {
+                delete item.data_workspace;
             }
 
             if (itemAttr.data_certifiedDisplayIndex != null) {
@@ -16336,6 +16783,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_lineWidth = (attrs.data_lineWidth == null) ? null : Number(attrs.data_lineWidth);
     tblWallFlr.data_pointerSize = (attrs.data_pointerSize == null) ? null : Number(attrs.data_pointerSize);
 
+    /* boxRoomPart per-room default-walls config (objects cloned to keep nodes independent). */
+    tblWallFlr.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
+    tblWallFlr.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
+
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
     } else {
@@ -16511,6 +16962,17 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         endDriftCheck('tblWallFlr.dragend');
         /* canvasToJson() deferred — see stage mouseup/touchend. */
     });
+
+    /* MultiRoom overview: the default-walls preview stays frozen during the
+     * move/resize gesture and is rebuilt in the correct place only on drop. */
+    if (insertDevice.id === 'boxRoomPart') {
+        tblWallFlr.on('dragend transformend', function roomPartPreviewRebuild() {
+            drawRoomPartDefaultWallsPreviews();
+        });
+        /* Draw this room's walls immediately when first placed on the canvas
+         * (insert happens outside drawRoom; no-op unless in overview). */
+        drawRoomPartDefaultWallsPreviews();
+    }
 
     tblWallFlr.on('transformstart', function tableOnTransformStart(e) {
         lastSelectedNodePosition = deepCopyNode(tblWallFlr);
@@ -20385,6 +20847,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_gridWidth = (attrs.data_gridWidth == null) ? null : Number(attrs.data_gridWidth);
         node.data_gridLength = (attrs.data_gridLength == null) ? null : Number(attrs.data_gridLength);
 
+        /* boxRoomPart per-room default-walls config — defensive mirror. */
+        node.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
+        node.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
+
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
         }
@@ -22138,8 +22604,9 @@ function convertDefaultWallsOff(e) {
 }
 
 function updateRemoveDefaultWallsCheckBox() {
-    document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls;
-    document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls;
+    const ws = activeDefaultWallsWorkspace();
+    document.getElementById('removeDefaultWallsCheckBox').checked = ws.removeDefaultWalls;
+    document.getElementById('removeDefaultWallsCheckBox2').checked = ws.removeDefaultWalls;
 
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
 
@@ -22153,7 +22620,7 @@ function updateRemoveDefaultWallsCheckBox() {
 
     */
 
-    if (roomObj.workspace.removeDefaultWalls === false) {
+    if (ws.removeDefaultWalls === false) {
         document.getElementById('addCeilingCheckBox').checked = true;
 
         document.getElementById('addCeilingDiv').style.display = 'none';
@@ -22170,10 +22637,11 @@ function updateRemoveDefaultWallsCheckBox() {
 }
 
 function removeDefaultWallsChange(e) {
+    const ws = activeDefaultWallsWorkspace();
     if (e.srcElement.checked) {
-        roomObj.workspace.removeDefaultWalls = true;
+        ws.removeDefaultWalls = true;
     } else {
-        roomObj.workspace.removeDefaultWalls = false;
+        ws.removeDefaultWalls = false;
     }
 
     updateRemoveDefaultWallsCheckBox();
@@ -22212,12 +22680,13 @@ function updateDefaultWallsMenuAndCanvas() {
     let wall = currentDefaultWall;
     let wallType = document.getElementById('drpWallType').value;
     let accousticTreatment = document.getElementById('acousticTreatment').checked;
+    let surfaces = activeDefaultWallsSurfaces();
 
-    roomObj.roomSurfaces[wall].type = wallType;
-    roomObj.roomSurfaces[wall].acousticTreatment = accousticTreatment;
+    surfaces[wall].type = wallType;
+    surfaces[wall].acousticTreatment = accousticTreatment;
 
     if (wallType === 'window') {
-        delete roomObj.roomSurfaces[wall].door;
+        delete surfaces[wall].door;
     } else {
         //      roomObj.roomSurfaces[wall].door = defaultWallDoor || 'none';
 
@@ -22247,8 +22716,9 @@ function updateDefaultWallsMenu(event) {
     }
 
     currentDefaultWall = wall;
-    document.getElementById('drpWallType').value = roomObj.roomSurfaces[wall].type;
-    document.getElementById('acousticTreatment').checked = roomObj.roomSurfaces[wall].acousticTreatment;
+    let surfaces = activeDefaultWallsSurfaces();
+    document.getElementById('drpWallType').value = surfaces[wall].type;
+    document.getElementById('acousticTreatment').checked = surfaces[wall].acousticTreatment;
 
     if (wall === 'backwall') {
         rotateSelectionDiv = 0;
@@ -22264,8 +22734,11 @@ function updateDefaultWallsMenu(event) {
     doorSelectionDiv.style.transform = `rotate(-${rotateSelectionDiv}deg)`;
     doorNoneDiv.style.transform = `rotate(${rotateSelectionDiv}deg)`;
 
-    if (roomObj.roomSurfaces[wall].type === 'window') {
-
+    if (isRoomSubMode()) {
+        /* Default Door option removed in Room mode (per-room) — hidden entirely. */
+        document.getElementById('pickDoorSelection').style.display = 'none';
+        document.getElementById('noDoorSelectionDiv').style.display = 'none';
+    } else if (surfaces[wall].type === 'window') {
         document.getElementById('pickDoorSelection').style.display = 'none';
         document.getElementById('noDoorSelectionDiv').style.display = '';
     } else {
@@ -22278,16 +22751,17 @@ function updateDefaultWallsMenu(event) {
     updateBtnWallUpateMenu(wall);
 
 
-    showSelectedWallDoorMenu(roomObj.roomSurfaces[wall].door || 'none');
+    showSelectedWallDoorMenu(surfaces[wall].door || 'none');
 
 
 }
 
 function doorSelected(door) {
+    let surfaces = activeDefaultWallsSurfaces();
     if (door === 'none') {
-        delete roomObj.roomSurfaces[currentDefaultWall].door;
+        delete surfaces[currentDefaultWall].door;
     } else {
-        roomObj.roomSurfaces[currentDefaultWall].door = door;
+        surfaces[currentDefaultWall].door = door;
     }
 
     updateDefaultWallsMenuAndCanvas();
@@ -22322,8 +22796,6 @@ function showSelectedWallDoorMenu(doorLocation) {
 
 function updateDefaultWallTypeOnCanvas(defaultWallName) {
     let defaultWall = stage.findOne('.' + defaultWallName);
-    let xOffset = 8; /* default for leftwall */
-    let yOffset = 0;
 
 
     if (!defaultWall) {
@@ -22332,24 +22804,17 @@ function updateDefaultWallTypeOnCanvas(defaultWallName) {
     }
 
 
-    let type = roomObj.roomSurfaces[defaultWall.name()].type;
+    let type = activeDefaultWallsSurfaces()[defaultWall.name()].type;
 
     if (type === 'regular') {
+        defaultWall.fillPatternImage(null);
         defaultWall.fill('#cccccc');
     }
     else if (type === 'glass') {
+        defaultWall.fillPatternImage(null);
         defaultWall.fill('lightblue');
     } else if (type === 'window') {
-        defaultWall.fill('');
-        const windowBackgroundObj = new Image();
-
-        windowBackgroundObj.onload = function windowBackgroundObjOnload() {
-            defaultWall.fillPatternImage(windowBackgroundObj);
-            defaultWall.fillPatternRepeat('repeat');
-
-            defaultWall.fillPatternOffset({ x: xOffset, y: yOffset });
-        };
-        windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
+        applyWindowPatternToRect(defaultWall);
     }
 
 
@@ -22357,6 +22822,10 @@ function updateDefaultWallTypeOnCanvas(defaultWallName) {
 
 function insertDefaultDoorsOnCanvas() {
     /* first delete all existing doors, then create */
+
+    /* Room sub-mode uses the active room's bounding box (see drawOutsideWall). */
+    let roomWidth = activeRoomWidth;
+    let roomLength = activeRoomLength;
 
     let imageOffset;
     let leftRightOffset = 1.47 * scale;
@@ -22394,9 +22863,10 @@ function insertDefaultDoorsOnCanvas() {
 
         let img = doorRightImg;
 
-        if (roomObj.roomSurfaces[wallType].door && roomObj.roomSurfaces[wallType].door != 'none') {
+        let wallSurface = activeDefaultWallsSurfaces()[wallType];
+        if (wallSurface.door && wallSurface.door != 'none') {
             let rotation = 0;
-            let door = roomObj.roomSurfaces[wallType].door;
+            let door = wallSurface.door;
 
 
             if (wallType === 'leftwall') {
@@ -23664,7 +24134,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemZposition').value = "";
     }
 
-    if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices') {
+    /* Room Parts (boxRoomPart / polyRoom) never support tilt/lean — hide the
+     * controls the same way videoDevices do. */
+    const isRoomPartShape = ['polyRoom', 'boxRoomPart'].includes(shape.data_deviceid);
+
+    if (document.getElementById('showTiltSlantCheckBox').checked === true && parentGroup != 'videoDevices' && !isRoomPartShape) {
         document.getElementById('itemTiltSlantDiv').style.display = '';
         document.getElementById('itemTiltDiv').style.display = '';
         document.getElementById('itemSlantDiv').style.display = '';
@@ -23675,7 +24149,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemTiltSlantDiv').style.display = 'none';
     }
 
-    if (item.data_tilt || item.data_slant) {
+    if (!isRoomPartShape && (item.data_tilt || item.data_slant)) {
         document.getElementById('itemTiltDiv').style.display = '';
         document.getElementById('itemSlantDiv').style.display = '';
         document.getElementById('itemTiltSlantDiv').style.display = '';
@@ -24571,6 +25045,27 @@ function insertItemFromMenu(data_deviceid, attrs) {
         return;
     };
 
+    /* Multi-Room entry prompt: the first Room Part (boxRoomPart / polyRoom)
+     * inserted into a fresh design flips on the sticky multiRoomFloorPlanMode
+     * flag. We prompt once here (before any attrs mutation or the polyRoom
+     * early-return) and, on confirm, re-enter insertItemFromMenu with the
+     * flag now set so the normal insert path runs. Cancel aborts the insert.
+     * Subsequent roomPart inserts skip the prompt because the flag is on. */
+    if (isRoomPart(data_deviceid) && !isMultiRoomFloorPlanMode()) {
+        vrcConfirm(
+            'Enter Multi-Room Floor Plan Mode?',
+            'Room Parts let you lay out several rooms on one floor plan and zoom into each room to design it. '
+            + 'Adding this Room Part switches the design into Multi-Room Floor Plan Mode.',
+            'Enter',
+            function () {
+                roomObj.multiRoomFloorPlanMode = true;
+                applyMultiRoomModeUi();
+                insertItemFromMenu(data_deviceid, attrs);
+            }
+        );
+        return;
+    }
+
     if (data_deviceid === 'polyRoom') {
         polyBuilderOn(true, 'polyRoom')
         return;
@@ -24626,6 +25121,16 @@ function insertItemFromMenu(data_deviceid, attrs) {
         }
         if (attrs.data_gridLength == null) {
             attrs.data_gridLength = (roomObj.unit === 'feet') ? 4 : 1.2;
+        }
+    }
+
+    /* boxRoomPart: seed per-room default-walls config (kept default-walls on). */
+    if (data_deviceid === 'boxRoomPart') {
+        if (attrs.data_roomSurfaces == null) {
+            attrs.data_roomSurfaces = structuredClone(defaultRoomSurfaces);
+        }
+        if (attrs.data_workspace == null) {
+            attrs.data_workspace = { removeDefaultWalls: false };
         }
     }
 
@@ -24926,6 +25431,15 @@ function removeElementsByClass(className) {
 function createItemsOnMenu(divMenuContainerId, menuItems) {
 
     let divMenuContainer = document.getElementById(divMenuContainerId);
+
+    /* MultiRoom overview restricts every tile-building site (Equipment tab
+     * + sidebar search "Other") to walls/shapes + doors. */
+    if (isMultiRoomOverviewMode()) {
+        menuItems = menuItems.filter(isAllowedInMultiRoomOverview);
+    } else if (isRoomSubMode()) {
+        /* Room sub-mode: can't insert a Room Part inside a room. */
+        menuItems = menuItems.filter(id => !isRoomPart(id));
+    }
 
     menuItems.forEach((menuItem) => {
 
@@ -26836,7 +27350,16 @@ function onQuickAddChange(e) {
     const allItems = libraryEntries.concat(deviceItems);
 
     const word = e.target.value;
-    const matches = searchQuickItem(allItems, word);
+    let matches = searchQuickItem(allItems, word);
+
+    /* MultiRoom overview: only walls/shapes + doors are insertable, so drop
+     * device + library-custom matches from the Quick Add gallery. */
+    if (isMultiRoomOverviewMode()) {
+        matches = matches.filter(m => m && !m._isCustomItem && isAllowedInMultiRoomOverview(m.id));
+    } else if (isRoomSubMode()) {
+        /* Room sub-mode: can't insert a Room Part inside a room. */
+        matches = matches.filter(m => m && !isRoomPart(m.id));
+    }
 
     const gallery = document.querySelector('.quick-dialog .gallery');
 
@@ -28635,6 +29158,8 @@ function importJson(jsonFile) {
              * particular) never interpolate the literal string `"undefined"` into
              * the URL grammar — which silently corrupts roomWidth on re-parse. */
             if (!roomObj.version) roomObj.version = version;
+
+            roomObj.multiRoomFloorPlanMode = !!roomObj.multiRoomFloorPlanMode;
 
             if ('backgroundImageFile' in jsonFile && isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
                 backgroundImageFloor.src = jsonFile.backgroundImageFile;
@@ -30451,6 +30976,50 @@ function alertDialog(headerHtml, mainHtml) {
 
 }
 
+/* Reusable confirm modal (Cancel / OK). onConfirm runs only when OK is clicked; Cancel / close run onCancel (if given) and never onConfirm. */
+function vrcConfirm(headerHtml, mainHtml, okLabel, onConfirm, onCancel) {
+    let dialog = document.getElementById('dialogVrcConfirm');
+    let header = document.getElementById('dialogVrcConfirmHeader');
+    let main = document.getElementById('dialogVrcConfirmMain');
+    let okBtn = document.getElementById('dialogVrcConfirmOkBtn');
+    let cancelBtn = document.getElementById('dialogVrcConfirmCancelBtn');
+    if (!dialog || !okBtn) return;
+
+    header.innerHTML = headerHtml || '';
+    main.innerHTML = mainHtml || '';
+    okBtn.textContent = okLabel || 'OK';
+
+    let settled = false;
+
+    let cleanup = function () {
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        dialog.removeEventListener('close', onClose);
+    };
+
+    let onClose = function () {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (typeof onCancel === 'function') onCancel();
+    };
+
+    okBtn.onclick = function () {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        dialog.close();
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+
+    cancelBtn.onclick = function () {
+        dialog.close();
+    };
+
+    dialog.addEventListener('close', onClose);
+    dialog.showModal();
+}
+
 /* Non-blocking toast notification. Container is created lazily and
  * reused; toasts stack vertically. msg is plain text (never HTML).
  * durationMs defaults to 3000; fade in/out is 180ms (CSS class). */
@@ -30997,6 +31566,10 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
 
         console.info('roomObj.workspace.theme: ', roomObj2.workspace.theme);
+    }
+
+    if (workspaceObj.data && workspaceObj.data.vrc && workspaceObj.data.vrc.multiRoomFloorPlanMode) {
+        roomObj2.multiRoomFloorPlanMode = true;
     }
 
     if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc) {
@@ -32450,6 +33023,10 @@ function exportRoomObjToWorkspace() {
     workspaceObj.data.vrc = {};
     workspaceObj.data.vrc.workspace = {};
     workspaceObj.data.vrc.workspace.theme = roomObj.workspace.theme || 'regular';
+
+    if (roomObj.multiRoomFloorPlanMode) {
+        workspaceObj.data.vrc.multiRoomFloorPlanMode = true;
+    }
 
     if ('backgroundImageFile' in roomObj && 'backgroundImage' in roomObj2) {
         workspaceObj.data.vrc.backgroundImageFile = roomObj.backgroundImageFile;

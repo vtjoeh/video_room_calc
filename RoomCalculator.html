@@ -156,7 +156,7 @@
       <div id="containerInputTabContent">
         <div id="Room" class="tabcontent" style="display: flex;">
           <div class="inputField">
-            <label>Room name:</label>
+            <label id="roomNameLabel">Room name:</label>
             <input type="text" id="roomName" name="roomName" class="textInput">
           </div>
 
@@ -205,7 +205,7 @@
           </div>
           <div class="inputRow">
 
-            <div class="inputField">
+            <div class="inputField" id="removeDefaultWallsRow">
               <label>Remove Default Walls:</label>
               <label class="switch">
                 <input id="removeDefaultWallsCheckBox" type="checkbox" onclick="removeDefaultWallsChange(event)">
@@ -214,7 +214,7 @@
             </div>
 
             <div class="inputField">
-              <label>Rotate Room:</label>
+              <label id="rotateRoomLabel">Rotate Room:</label>
               <label>
                 <button class="rotateButton" title="Rotate Room Clockwise [ctrl- . ]" onclick="rotateRoom(-90)"> <i
                     class="icon icon-rotate-content-bold" style="transform: scaleX(-1);"></i></button>
@@ -1084,7 +1084,12 @@
           </div>
 
           <div id="DefaultWalls" class="subtabcontent2 subtabcontent2a">
-            <div class="inputRow">
+            <!-- Shown only in Multi-Room Floor Plan overview (no room selected);
+                 hidden in normal/Room mode. Toggled by applyMultiRoomModeUi(). -->
+            <div id="defaultWallsMultiRoomMsg" style="display: none; font-size: 14px; padding: 8px 0;">
+              Not available in multi-room floor plan view. Select a rectangular individual room.
+            </div>
+            <div class="inputRow" id="removeDefaultWallsRow2">
               <div class="inputField inputFieldRow">
                 <label>Remove Default Walls:</label>
                 <label class="switch">
@@ -1180,14 +1185,18 @@
           </div>
           <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
 
+            <div id="bgImageRoomModeMsg" style="display: none; text-align: left; font-size:12px;">
+              <i>To add or change the room floor plan background image, switch to the Multi-Room Floor Plan overview
+                (exit this room). Only opacity can be adjusted here.</i>
+            </div>
 
-            <div style="text-align: left; font-size:12px; ">
+            <div class="bgFloorOnlySetting" style="text-align: left; font-size:12px; ">
               <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
                 saved to the Shareable Hyperlink Template.</i>
 
             </div>
-            <br>
-            <div class="inputField">
+            <br class="bgFloorOnlySetting">
+            <div class="inputField bgFloorOnlySetting">
               <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
                 upload:
                 <!-- <i class="icon icon-info-circle-bold"></i>
@@ -1197,27 +1206,27 @@
                 <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
               </span>
             </div>
-            <div class="inputField">
+            <div class="inputField bgFloorOnlySetting">
               <input type="button" id="btnRecentFloorPlans" value="Recent Floor Plans"
                 onclick="openRecentFloorPlansPicker()" class="linkButton"
                 title="Up to 10 previously uploaded floor plan images are remembered in this browser. Click to pick one to re-apply without re-uploading. Oldest entries are removed when an 11th image is added.">
             </div>
 
-            <div class="inputField"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
+            <div class="inputField bgFloorOnlySetting"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
                 distance between
                 them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
               <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points"
                 class="button" disabled>
             </div>
 
-            <div class="inputField">
+            <div class="inputField bgFloorOnlySetting">
               <label class="tooltipBottom">3) Distance between 2 points:</label>
               <!-- <i class="icon icon-info-circle-bold"></i>
                                 <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
               <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
               <label class="unitFeetMeters">ft</label>
             </div>
-            <div class="inputField">
+            <div class="inputField bgFloorOnlySetting">
               <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
                 onclick="updateBackgroundImageScale()" class="button" disabled>
             </div>
@@ -1230,7 +1239,7 @@
                 oninput="changeTransparency(this.value)" disabled>
             </div>
 
-            <div class="inputField">
+            <div class="inputField bgFloorOnlySetting">
               <label class="tooltip">5) Move room floor plan:
                 <i class="icon icon-info-circle-bold"></i>
                 <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
@@ -1241,13 +1250,25 @@
                 <span class="slider round"></span>
               </label>
             </div>
-            <div class="inputField">
+            <div class="inputField bgFloorOnlySetting">
               <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()"
                 class="button" id="btnDeleteBackgroundImage" disabled>
             </div>
           </div>
 
           <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
+            <div class="inputField" id="multiRoomFloorPlanModeDiv">
+              <label class="tooltipBottom">Multi-Room Floor Plan Mode:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Lay out several rooms on one floor plan using Room Parts, and zoom
+                  into each room to design it. Turning this off returns the design to a single room; your Room Parts
+                  and their contents remain on the canvas.</span></label>
+              <label class="switch">
+                <input id="multiRoomFloorPlanModeCheckBox" type="checkbox" onclick="toggleMultiRoomFloorPlanMode(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
             <div class="inputField">
               <label class="tooltipBottom">Load in original unit (m/f):
                 <i class="icon icon-info-circle-bold"></i>
@@ -1399,7 +1420,7 @@
     <div id="ContainerRoomSvg" class="floatColumns">
       <div id="controlButtons" class="hideScroll">
         <div class="button-group" id="btnBackToFloorPlan" style="display:none;">
-          <button class="btn" id="btnBackToFloorPlan" onclick="showEntireFloor()" title="Back to floor plan">
+          <button class="btn" id="btnBackToFloorPlanBtn" onclick="showEntireFloor()" title="Back to floor plan">
             <i class="icon icon-back-bold"></i>
           </button>
         </div>
@@ -2643,6 +2664,24 @@
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
       <button class="button" id="dialogCustomItemDeleteConfirmBtn">Delete</button>
+    </div>
+  </dialog>
+
+  <!--
+    Reusable confirm modal used by Multi-Room Floor Plan Mode (entry prompt
+    on first roomPart insert, and the warn-before-off toggle in Settings).
+    Header / body / confirm-label are set by vrcConfirm() in roomcalc.js,
+    which also wires the confirm button's onConfirm callback per call.
+  -->
+  <dialog id="dialogVrcConfirm" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader"><div id="dialogVrcConfirmHeader"></div></header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div id="dialogVrcConfirmMain"></div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" id="dialogVrcConfirmCancelBtn" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" id="dialogVrcConfirmOkBtn">OK</button>
     </div>
   </dialog>
 
