@@ -28113,11 +28113,11 @@ async function exportDxfFile() {
     }
 
     /* --- Walk every item category ---------------------------------- */
-    const items = roomObj.items || {};
+    const buckets = bucketItemsByParentGroup(roomObj);
     const groups = ['videoDevices', 'microphones', 'chairs', 'tables', 'displays', 'stageFloors', 'boxes', 'rooms'];
 
     for (const group of groups) {
-        const arr = items[group];
+        const arr = buckets[group];
         if (!Array.isArray(arr)) continue;
         for (const item of arr) {
             try { emitItem(item, group); }
