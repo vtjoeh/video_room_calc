@@ -7711,6 +7711,7 @@ function windowResizeEvent() {
 
 
 function copyLinkToClipboard() {
+    roomObj.items = reorderItemsForSharing(roomObj.items);
     createShareableLink();
 
     let hyperTextName;
@@ -7907,6 +7908,7 @@ function getQueryString() {
         keepDefaultUnit();
 
         dedupeRoomItems(roomObj);
+        roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
         drawRoom(true, true, false);
 
         roomLoadedFromXQuery = true;
@@ -11537,6 +11539,33 @@ function creatArrayKeysTypes() {
 
 
 
+/* Reorder roomObj.items to maximize `_` URL compression: group by type prefix (sid), order fewer-attribute items first (each becomes a superset of the prior), then cluster identical attribute-sets/values so labels and shared fragments drop out. Off-stage items (not URL-encoded) are preserved at the end. Mutated in place by copyLinkToClipboard so future shareable links stay compact. */
+function reorderItemsForSharing(items) {
+    const buckets = new Map();
+    const sidOrder = [];
+    const offStage = [];
+    items.forEach(item => {
+        if (itemsOffStageId.includes(item.id)) { offStage.push(item); return; }
+        const { tokens } = createShareableLinkItem(item, null);
+        if (!tokens) { offStage.push(item); return; }
+        if (!buckets.has(tokens.sid)) { buckets.set(tokens.sid, []); sidOrder.push(tokens.sid); }
+        buckets.get(tokens.sid).push({
+            item: item,
+            keyCount: tokens.keys.length,
+            keySig: tokens.keys.slice().sort().join(','),
+            full: tokens.sid + tokens.keys.map(k => tokens.map[k]).join('')
+        });
+    });
+    const ordered = [];
+    sidOrder.forEach(sid => {
+        buckets.get(sid)
+            .sort((a, b) => a.keyCount - b.keyCount || a.keySig.localeCompare(b.keySig) || a.full.localeCompare(b.full))
+            .forEach(e => ordered.push(e.item));
+    });
+    offStage.forEach(it => ordered.push(it));
+    return ordered;
+}
+
 function createShareableLink() {
 
     if (itemCount > 750) {
@@ -11549,7 +11578,6 @@ function createShareableLink() {
     listItemsOffStage();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
-    strUrlQuery2 += `${roomObj.version || version}`;
     strUrlQuery2 += `b${expand(roomObj.room.roomWidth)}c${expand(roomObj.room.roomLength)}`;
 
     if (roomObj.software === 'webex') {
@@ -11775,7 +11803,7 @@ function createShareableLink() {
         document.getElementById('qrCodeLinkText').style.backgroundColor = '#f9bfbf';
     }
 
-    let regex = /^A[01]v[0-9\.]+b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}(D0a1)?$/;
+    let regex = /^A[01](?:v[0-9\.]+)?b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}(D0a1)?$/;
     let queryParams = new URLSearchParams(window.location.search);
 
 
@@ -25018,6 +25046,7 @@ function loadTemplate(x) {
     roomObj.roomId = createRoomId();
 
     dedupeRoomItems(roomObj);
+    roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
     drawRoom(true, true);
     document.getElementById("defaultOpenTab").click();
     setTimeout(() => {
@@ -27155,6 +27184,7 @@ function importJson(jsonFile) {
                 document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
                 dedupeRoomItems(roomObj);
+                roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
                 drawRoom(true, false, false);
             };
 
@@ -29210,6 +29240,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
         }
 
         dedupeRoomItems(roomObj);
+        roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
         drawRoom(true, false, false);
 
         setTimeout(() => {

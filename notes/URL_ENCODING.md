@@ -23,15 +23,24 @@ Do not confuse them.
 ## URL Structure
 
 ```
-?A1v0.1.631b2600c2000e0f300~RoomName~B10010100C~v1.0~D1a1E2F0G0AB150a200b90c53d6f450...
+?A1b2600c2000e0f300~RoomName~B10010100C~v1.0~D1a1E2F0G0AB150a200b90c53d6f450...
 ```
+
+> **Version omitted (2026):** `createShareableLink()` no longer emits the
+> app version (`v0.1.653`) — it cost ~8 fixed chars and the decoder never
+> read it. Legacy URLs that still carry `v…` decode unchanged (the parser
+> stores `item.v` on the `A` item and ignores it). The empty-room
+> detection regex makes the `v…` group optional:
+> `/^A[01](?:v[0-9\.]+)?b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}(D0a1)?$/`.
+> Trade-off: the URL can no longer be version-gated on decode (a
+> capability that was never actually used).
 
 ## Room-Level Parameters (appear once at start)
 
 | Code | Type | Meaning |
 |------|------|---------|
 | `A` | Prefix | Unit: `A0`=meters, `A1`=feet |
-| `v` | Prefix | Version string (e.g., `v0.1.631`) |
+| `v` | Prefix | App version (e.g., `v0.1.631`) — **legacy/optional**: no longer emitted by the encoder, ignored on decode |
 | `b` | Param | Room width in mm (e.g., `b2600` = 2600mm) |
 | `c` | Param | Room length in mm |
 | `e` | Param | Software: `e0`=Webex, `e1`=MTR |
@@ -290,6 +299,73 @@ differs (or is new); unchanged fragments are dropped.
 | Encoder | `createShareableLinkItem(item, prevTokens)` — builds ordered `{key, str}` fragments, returns `{str, tokens}`, runs the diff at the end |
 | Encoder loop | `createShareableLink()` — tracks `prevTokens` of the **last actually-emitted** item (off-stage items, which return `''`, do not advance the diff base) |
 | Decoder | `parseShortenedXYUrl()` — `if (char === '_' …)` branch clones `output[objCount]` and continues overriding |
+
+## Item Ordering Optimization
+
+The `_` repeat compression (above) only collapses **consecutive**
+same-`sid` items, and `createShareableLink()` walks `roomObj.items` in
+insertion/z-order — so interleaved same-type items break the chain.
+
+`reorderItemsForSharing()` reorders `roomObj.items` **in place** to
+maximize `_` chaining. It runs at two times:
+
+1. **On every load** — right after `dedupeRoomItems()` and before the
+   first draw, on all four load paths: URL page load (`getQueryString`),
+   template-string loader (`loadTemplate`), `.vrc.json` import
+   (`finishVrcImport`), and WD `.json` import
+   (`importWorkspaceDesignerFile`). So a freshly loaded room is already
+   compact without any user action. (Deliberately **not** wired into the
+   undo/redo restore or xConfig-import paths.)
+2. **On the Shareable Template Hyperlink button** (`copyLinkToClipboard()`)
+   — re-runs with warm encode maps for the optimal result.
+
+The reorder persists (mutates `roomObj.items`), so every later
+auto-synced link in the session stays compact.
+
+> **Cold maps on load:** at load time `_groupUrlEncodeMap` /
+> `_layerUrlEncodeMap` / `itemsOffStageId` aren't built yet (they're
+> populated inside `createShareableLink()`), so the load-time sort of
+> *grouped/layered* items is slightly less optimal than the button's.
+> The URL is still correct and the common case (repeated ungrouped
+> items) is fully optimized; clicking the button self-heals to optimal.
+>
+> **Stored template URLs** (`js/templates.js`) are intentionally left in
+> old full-form — they auto-optimize on load via path #1, so there's no
+> need to pre-compress the source strings.
+
+### Ordering rules (`reorderItemsForSharing()`)
+
+1. Group by type prefix (`sid`) in first-appearance order — makes all
+   same-type items consecutive.
+2. Within a group, sort by **fewer attributes first** (`keyCount`) so
+   each item is a superset of the prior (the `_` diff can add/override
+   but not remove keys).
+3. Then by attribute-set signature (`keySig`) to cluster identical
+   structures, then by full encoded string to cluster identical
+   labels/geometry — so `~text~` and shared value fragments drop out of
+   the diff.
+4. Off-stage items (`itemsOffStageId`, never URL-encoded) are preserved
+   at the end so no item is lost when the array is reassigned.
+
+### Safety
+
+- Reorder can only help or be neutral — the `_` diff already falls back
+  to a full `SID…` repeat when not beneficial.
+- Only **z-order (draw stacking)** is affected; group/customItem
+  membership is rebuilt post-parse from `data_groupId` /
+  `data_customItemId` (order-independent).
+- `canvasToJson()` / `updateRoomObjFromTrNode()` update items **in place
+  by id** and only append genuinely-new items, so the persisted reorder
+  survives subsequent edits (new items append at the end until the next
+  template-link click regroups them).
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Reorder helper | `reorderItemsForSharing(items)` — just above `createShareableLink()` |
+| Button trigger | `copyLinkToClipboard()` — `roomObj.items = reorderItemsForSharing(roomObj.items)` before `createShareableLink()` |
+| Load triggers | after `dedupeRoomItems()` in `getQueryString` (URL), `loadTemplate` (templates/default), `finishVrcImport` (.vrc.json), and the WD-import block (`importWorkspaceDesignerFile`) |
 
 ## ConfigurableColor URL Encoding (`u` / `v`)
 
