@@ -25288,6 +25288,13 @@ function setupDragAndDropImport() {
         const item = e.dataTransfer?.items?.[0];
         if (item && item.kind === 'file') {
             const file = item.getAsFile();
+            if (file.type && file.type.startsWith('image/')) { /* image drop → background image */
+                processBackgroundImageFile(file, file.name);
+                document.getElementById("tabItem").click();
+                document.getElementById("subTabRoomFloorPlan").click();
+                alertDialog('', 'Image dropped as background image.');
+                return;
+            }
             const fileName = file.name;
             const reader = new FileReader();
             reader.readAsText(file, 'UTF-8');
@@ -27085,6 +27092,8 @@ document.addEventListener('paste', function (e) {
                 const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
                 const pasteName = `pasted-image-${Date.now()}.${ext}`;
                 processBackgroundImageFile(blob, pasteName);
+                document.getElementById("tabItem").click();
+                document.getElementById("subTabRoomFloorPlan").click();
                 alertDialog('', 'Image pasted from clipboard as background image.');
                 return;
             }
