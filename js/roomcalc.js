@@ -27058,7 +27058,7 @@ function rehydrateBackgroundImageFromIdb() {
 }
 
 
-/* Clipboard paste for the Room Floor Plan background image. Active only when the Details > Room Floor Plan sub-tab is open AND the mouse is over #ContainerInputs; non-image pastes pass through. */
+/* Clipboard image paste sets the Room Floor Plan background; active when the mouse is over #ContainerInputs and the target isn't a text field, so text paste is never hijacked. */
 let isMouseOverContainerInputs = false;
 const containerInputsEl = document.getElementById('ContainerInputs');
 if (containerInputsEl) {
@@ -27069,10 +27069,9 @@ if (containerInputsEl) {
 document.addEventListener('paste', function (e) {
     if (!isMouseOverContainerInputs) return;
 
-    const itemTab = document.getElementById('Item');
-    const backgroundSubtab = document.getElementById('BackgroundImage');
-    if (!itemTab || itemTab.style.display !== 'block') return;
-    if (!backgroundSubtab || backgroundSubtab.style.display !== 'block') return;
+    const target = e.target;
+    const tag = target && target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (target && target.isContentEditable)) return;
 
     const cd = e.clipboardData || window.clipboardData;
     if (!cd || !cd.items) return;
@@ -27086,6 +27085,7 @@ document.addEventListener('paste', function (e) {
                 const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
                 const pasteName = `pasted-image-${Date.now()}.${ext}`;
                 processBackgroundImageFile(blob, pasteName);
+                alertDialog('', 'Image pasted from clipboard as background image.');
                 return;
             }
         }
