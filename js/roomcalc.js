@@ -5665,8 +5665,17 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
             measuringToolLabel.show();
         }
 
+        let endX = canvasPixel.x;
+        let endY = canvasPixel.y;
+        if (isShiftKeyDown) {
+            if (Math.abs(circleStart.x() - endX) > Math.abs(circleStart.y() - endY)) {
+                endY = circleStart.y();
+            } else {
+                endX = circleStart.x();
+            }
+        }
         distanceLine.show();
-        distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
+        distanceLine.points([circleStart.x(), circleStart.y(), endX, endY]);
 
         if (mouseUnit.x < 0) {
             measuringToolLabel.x(pxOffset);
@@ -5674,17 +5683,17 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
         else if (mouseUnit.x > roomObj.room.roomWidth) {
             measuringToolLabel.x(pxOffset + roomObj.room.roomWidth * scale)
         } else {
-            measuringToolLabel.x(canvasPixel.x);
+            measuringToolLabel.x(endX);
         }
 
         if (mouseUnit.y > 0.1) {
-            measuringToolLabel.y(canvasPixel.y - 25);
+            measuringToolLabel.y(endY - 25);
         } else {
-            measuringToolLabel.y(canvasPixel.y + 60);
+            measuringToolLabel.y(endY + 60);
         }
 
 
-        let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
+        let lineDistance = Math.sqrt((circleStart.x() - endX) ** 2 + (circleStart.y() - endY) ** 2);
         lineDistance = round(lineDistance / scale).toFixed(2);
         let txtUnit = 'ft';
         if (roomObj.unit === 'meters') {
@@ -5702,12 +5711,21 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(event) {
     if (isMeasuringToolOn) {
         measuringToolLabel.show();
     }
-    circleEnd.x(canvasPixel.x);
-    circleEnd.y(canvasPixel.y);
+    let endX = canvasPixel.x;
+    let endY = canvasPixel.y;
+    if (isShiftKeyDown) {
+        if (Math.abs(circleStart.x() - endX) > Math.abs(circleStart.y() - endY)) {
+            endY = circleStart.y();
+        } else {
+            endX = circleStart.x();
+        }
+    }
+    circleEnd.x(endX);
+    circleEnd.y(endY);
 
-    distanceLine.points([circleStart.x(), circleStart.y(), canvasPixel.x, canvasPixel.y]);
+    distanceLine.points([circleStart.x(), circleStart.y(), endX, endY]);
 
-    measuringToolLabel.x(canvasPixel.x);
+    measuringToolLabel.x(endX);
 
     if (mouseUnit.x < 0) {
         measuringToolLabel.x(pxOffset);
@@ -5715,16 +5733,16 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(event) {
     else if (mouseUnit.x > roomObj.room.roomWidth) {
         measuringToolLabel.x(pxOffset + roomObj.room.roomWidth * scale)
     } else {
-        measuringToolLabel.x(canvasPixel.x);
+        measuringToolLabel.x(endX);
     }
 
     if (mouseUnit.y > 0.1) {
-        measuringToolLabel.y(canvasPixel.y - 25);
+        measuringToolLabel.y(endY - 25);
     } else {
-        measuringToolLabel.y(canvasPixel.y + 60);
+        measuringToolLabel.y(endY + 60);
     }
 
-    let lineDistance = Math.sqrt((circleStart.x() - canvasPixel.x) ** 2 + (circleStart.y() - canvasPixel.y) ** 2);
+    let lineDistance = Math.sqrt((circleStart.x() - endX) ** 2 + (circleStart.y() - endY) ** 2);
     lineDistance = round(lineDistance / scale);
     let txtUnit = 'ft';
     if (roomObj.unit === 'meters') {
