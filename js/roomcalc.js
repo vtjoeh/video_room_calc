@@ -3444,7 +3444,6 @@ function customSplitView() {
     const dlg = document.getElementById('dialogCustomSplitView');
     const input = document.getElementById('customSplitViewInput');
     if (!dlg || !input) return;
-    input.value = '';
     dlg.showModal();
     setTimeout(() => { input.focus(); }, 0);
 }
