@@ -1748,11 +1748,20 @@
         </div>
 
         <div class="dropDownPNG">
-          <button class="button drpDownBtnMainFull dropDownBtnWhite" id="shareLink" onclick="copyLinkToClipboard()"
-            href="" style="padding-left: 50px; "></i>
+          <button class="button drpDownBtnMain dropDownBtnWhite" id="shareLink" onclick="copyLinkToClipboard(null)"
+            href="" style="padding-left: 50px; ">
             <span style="position: relative; ">Shareable Template Hyperlink<i
                 class="icon icon-copy-bold iconLeftOfText"></i></span>
           </button>
+          <span>
+            <button class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowShareLink">▼</button>
+            <div class="dropDownBtnMenu" id="drpDownShareLinkContent">
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="shareLinkSplitViewMenuItem" onclick="customSplitView()">
+                <i class="icon icon-video-layout-equal-dual-regular"
+                  style="font-size: large; transform: translate(0px,5px);"></i>Workspace Designer split view
+              </div>
+            </div>
+          </span>
           <div id="shareLinkCopiedBanner" class="shareLinkCopiedBanner" role="status" aria-live="polite">Hyperlink copied to clipboard</div>
         </div>
 
@@ -2591,6 +2600,22 @@
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
       <button class="button" onclick="confirmTextInsertFromDialog()">Add</button>
+    </div>
+  </dialog>
+
+  <dialog id="dialogCustomSplitView" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Custom split view</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div class="inputField" style="max-width: none;">
+        <label for="customSplitViewInput" style="margin-bottom: 6px; display: block;">Please enter the percent to show the Workspace Designer on open. Enter a number 25-100:</label>
+        <input type="number" id="customSplitViewInput" min="25" max="100" style="width: 120px; box-sizing: border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmCustomSplitViewFromDialog();}" />
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+      <button class="button" onclick="confirmCustomSplitViewFromDialog()">Create Shareable Template Hyperlink</button>
     </div>
   </dialog>
 

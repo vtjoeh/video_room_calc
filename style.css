@@ -2642,7 +2642,8 @@ hr.rightClickHorizontalLine {
 }
 
 .showJSONDropDown,
-.showPNGDropDown {
+.showPNGDropDown,
+.showShareLinkDropDown {
   display: inline-flex;
   flex-direction: column;
   gap: 3px;

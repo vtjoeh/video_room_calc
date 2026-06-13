@@ -3440,6 +3440,27 @@ function certifiedDisplayLabel(entry) {
     return entry.aspect ? (base + ' (' + entry.aspect + ')') : base;
 }
 
+function customSplitView() {
+    const dlg = document.getElementById('dialogCustomSplitView');
+    const input = document.getElementById('customSplitViewInput');
+    if (!dlg || !input) return;
+    input.value = '';
+    dlg.showModal();
+    setTimeout(() => { input.focus(); }, 0);
+}
+
+function confirmCustomSplitViewFromDialog() {
+    const input = document.getElementById('customSplitViewInput');
+    const value = parseInt(input.value);
+    if (value >= 25 && value <= 100) {
+        copyLinkToClipboard(value);
+        const dlg = document.getElementById('dialogCustomSplitView');
+        if (dlg) dlg.close();
+    } else {
+        alert('Please enter a number 25-100');
+    }
+}
+
 /* Fill a <select> with one <option> per certifiedDisplays[] entry; optionally pre-selects an index. Used by the Details-panel dropdown. */
 function populateCertifiedDisplaySelect(selectEl, selectedIndex) {
     if (!selectEl) return;
@@ -7710,13 +7731,16 @@ function windowResizeEvent() {
 }
 
 
-function copyLinkToClipboard() {
+function copyLinkToClipboard(splitViewPercent = null) {
     roomObj.items = reorderItemsForSharing(roomObj.items);
     createShareableLink();
 
     let hyperTextName;
 
-    const textUrl = document.getElementById('shareLink').getAttribute('href');
+    let textUrl = document.getElementById('shareLink').getAttribute('href');
+    if (splitViewPercent !== null && splitViewPercent >= 1 && splitViewPercent <= 100) {
+        textUrl = textUrl + '&s=' + splitViewPercent;
+    }
     if (roomObj.name === '') {
         hyperTextName = 'Video Room Calculator';
         const firstVideoDevice = firstItemOfParentGroup('videoDevices');
@@ -8111,10 +8135,11 @@ function getQueryString() {
         console.info('test2 in querystring. Test & test2 fields shown.  Try fields are works in progress, highly experimental and unstable.');
     }
 
-    /* ?split=<0-100>: open the WD split-view at that width % (forceExact bypasses drag-snap zones). Deferred so drawRoom() finishes first; a pleaseWait dialog masks the iframe-load window. */
+    /* ?split=<0-100> or ?s=<0-100>: open the WD split-view at that width % (forceExact bypasses drag-snap zones). Deferred so drawRoom() finishes first; a pleaseWait dialog masks the iframe-load window. */
     const QS_SPLIT = (window.VRC && VRC.constants && VRC.constants.QS_SPLIT) || 'split';
-    if (urlParams.has(QS_SPLIT)) {
-        const splitPctRaw = parseFloat(urlParams.get(QS_SPLIT));
+    const splitParamValue = urlParams.get(QS_SPLIT) || urlParams.get('s');
+    if (splitParamValue) {
+        const splitPctRaw = parseFloat(splitParamValue);
         if (Number.isFinite(splitPctRaw) && splitPctRaw >= 1) {
             const splitPct = Math.min(100, splitPctRaw);
             setTimeout(() => {
@@ -9072,11 +9097,11 @@ function binaryToBase26(binary) {
 
 
 
-/* ?split=<1-100>: show the "Opening Workspace Designer View" pleaseWait dialog immediately (before IDB hydration / onLoad / drawRoom); getQueryString() dismisses it 2s after splitViewOpen(). */
+/* ?split=<1-100> or ?s=<1-100>: show the "Opening Workspace Designer View" pleaseWait dialog immediately (before IDB hydration / onLoad / drawRoom); getQueryString() dismisses it 2s after splitViewOpen(). */
 (function showEarlySplitDialog() {
     try {
         const params = new URLSearchParams(window.location.search);
-        const splitRaw = parseFloat(params.get('split'));
+        const splitRaw = parseFloat(params.get('split') || params.get('s'));
         if (Number.isFinite(splitRaw) && splitRaw >= 1) {
             const dlg = document.getElementById('dialogOpeningWorkspace');
             if (dlg && typeof dlg.showModal === 'function' && !dlg.open) {
@@ -32914,6 +32939,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    //
+    // ShareLink split-button
+    //
+    const shareLinkArrowBtn = document.getElementById("drpDownBtnArrowShareLink");
+    const shareLinkMenu = document.getElementById("drpDownShareLinkContent");
+    const shareLinkItems = shareLinkMenu.querySelectorAll(".dropDownMenuItem");
+
+    if (shareLinkArrowBtn && shareLinkMenu) {
+        shareLinkArrowBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            jsonMenu.classList.remove("showJSONDropDown");
+            pngMenu.classList.remove("showPNGDropDown");
+            shareLinkMenu.classList.toggle("showShareLinkDropDown");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!shareLinkArrowBtn.contains(e.target) && !shareLinkMenu.contains(e.target)) {
+                shareLinkMenu.classList.remove("showShareLinkDropDown");
+            }
+        });
+
+        shareLinkItems.forEach((item) => {
+            item.addEventListener("click", () => {
+                shareLinkMenu.classList.remove("showShareLinkDropDown");
+            });
+        });
+    }
+
 
     let wsdArrowBtn = document.getElementById("drpDownBtnArrowWSD");
     let wsdMenu = document.getElementById("drpDownWSDContent");
@@ -33084,9 +33137,7 @@ function splitViewClose(fromDrag) {
    pct 25-75 → keep value
    pct > 75  → fullscreen (100%)
    Loads the iframe on the first non-zero call.
-   forceExact=true bypasses snap zones (URL-init `?split=N` path). The value is
-   clamped to [1, 100]; very narrow widths render but are intentionally allowed
-   so a shared `?split=20` link reproduces exactly what the sender requested. */
+*/
 function splitViewSetWidth(pct, forceExact) {
     if (forceExact === true) {
         if (!Number.isFinite(pct)) { return; }
