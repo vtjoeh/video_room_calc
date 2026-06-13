@@ -264,3 +264,55 @@ These are NOT bugs and should not be "fixed":
   comment block above the declaration explains the history. Renaming it
   would touch many call sites for no functional gain. Defer until the
   rendering module is extracted (Phase 3).
+
+---
+
+## 7. Wall Builder snap-to-wall
+
+`findWallBuilderSnap(px, py)` finds the nearest wall to snap a new wall's
+start/end onto, in canvas-pixel space (`convertMouseToCanvasPixel`). It is
+called from the `wallBuilderRect` pointerdown (start point) and pointermove
+(live end point), gated by the `snapToWallCheckBox` toggle (`snapToWallEnabled`,
+persisted to localStorage, default ON).
+
+Two snap modes per candidate, ends win over centerline:
+
+- **end**: within 0.18 m of a wall centerline endpoint -> snap to that endpoint.
+- **line**: within 0.10 m of the centerline (interior, `0.02 < t < 0.98`) ->
+  snap to the projected point.
+
+Holding **Shift** makes `findWallBuilderSnap` return `null` immediately
+(`!snapToWallEnabled || isShiftKeyDown`), so snap never fires and the existing
+Shift axis-lock (`isShiftKeyDown && !snapped` in the pointermove handler) always
+takes full precedence — the wall stays strictly horizontal or vertical.
+
+Candidates come from two sources:
+
+- **Interior walls**: `groupTables` children whose `data_deviceid` starts with
+  `wall` (excluding the `wallChairs` family). Centerline endpoints are derived
+  from `findFourCornersOfNode`. The most recently drawn wall
+  (`lastInsertedWallId`, set in `insertWallBasedOnPixelXY`, cleared in
+  `wallBuilderRestart`) is excluded so a chain does not snap back onto the
+  segment it is extending from.
+- **Outer walls**: `getOuterWallSnapSegments()` synthesises four virtual wall
+  centrelines directly from the room footprint (`pxOffset/pyOffset`, `scale`,
+  `activeRoomWidth/activeRoomLength`, and the `0.115 m` default wall thickness).
+  Computing from geometry rather than from the drawn nodes means snapping works
+  identically whether **Remove Default Walls** is on (single grey `outsideWall`
+  stroke) or off (four `defaultOutsideWall*` rects). The function returns `[]`
+  in MultiRoom overview or if `#outsideWall` is absent.
+
+  Each of the four centrelines spans the FULL outer perimeter, so the four
+  corners yield **8 distinct end snap points** (two per corner, one per wall):
+  e.g. at the top-left outer corner the videowall end sits at offset
+  `(0, +half_thickness)` and the left-wall end at `(+half_thickness, 0)`. Offset
+  is half the wall thickness (`0.115/2 = 0.0575 m`), i.e. each wall's true
+  centreline; the bottom-right corner mirrors this with negative offsets. The
+  outline corners extend left/right walls to overlap the video/back walls.
+
+Highlight (`showWallBuilderSnapHighlight`): a solid baby-blue (`#89CFF0`)
+`wallSnapRect` square marks the snap point. The `wallSnapOutline` polygon
+highlights the whole wall for `line` snaps and for ALL outer-wall snaps. Outer
+walls always highlight the full wall because their ends overlap at room corners,
+making end-only markers ambiguous. Both helper nodes live in `layerSelectionBox`,
+which shares the canvas-pixel coordinate space.

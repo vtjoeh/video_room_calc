@@ -128,15 +128,24 @@
 
       </ul>
 
-      <div class="inputField" style="position: relative; ">
 
-      </div>
       <div class="wallBuilderButtonDiv">
 
         <button id="btnNextWallBuilderSegment" class="button wallBuilderButton" onclick="wallBuilderRestart();">Next
           Wall Segment (esc)</button>
 
         <button class="button wallBuilderButton" onclick="wallBuilderOn(false);">Close Wall Builder (esc-esc)</button>
+      </div>
+
+            <div class="inputField" style="position: relative; ">
+        <label class="tooltipBottom">Snap End to Wall:
+          <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptextBottom">Snap a new wall's start or end to an existing wall. Hover near a
+            wall end to snap to it, or along a wall to snap to its centerline.</span></label>
+        <label class="switch">
+          <input id="snapToWallCheckBox" type="checkbox" checked onclick="snapToWallChange(event)">
+          <span class="slider round"></span>
+        </label>
       </div>
 
     </div>

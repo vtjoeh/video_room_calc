@@ -4588,6 +4588,32 @@ layerSelectionBox.add(newCornerNode);
 
 newCornerNode.hide();
 
+let snapToWallEnabled = true; /* Wall Builder: snap new walls to existing walls */
+let wallBuilderSnapPoint = null; /* {x,y,mode} canvas-pixel snap target while drawing, or null */
+let lastInsertedWallId = null; /* id of the most recently drawn wall; excluded from snapping */
+
+let wallSnapRect = new Konva.Rect({
+    width: 10,
+    height: 10,
+    stroke: '#89CFF0',
+    strokeWidth: 1,
+    fill: '#89CFF0',
+    name: 'wallSnapRect',
+    listening: false,
+});
+layerSelectionBox.add(wallSnapRect);
+wallSnapRect.hide();
+
+let wallSnapOutline = new Konva.Line({
+    stroke: 'yellow',
+    strokeWidth: 2,
+    closed: true,
+    name: 'wallSnapOutline',
+    listening: false,
+});
+layerSelectionBox.add(wallSnapOutline);
+wallSnapOutline.hide();
+
 const rectHeight = 10;
 
 let wallBuilderType = 'wallStd'; /* wallStd, wallGlass or wallWindow */
@@ -4725,6 +4751,12 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
 
         setWallBuilderHelperDefaults();
 
+        let startSnap = findWallBuilderSnap(canvasX, canvasY);
+        if (startSnap) {
+            canvasX = startSnap.x;
+            canvasY = startSnap.y;
+        }
+
         lastWallBuilderNode.x(canvasX);
         lastWallBuilderNode.y(canvasY);
         //  lastWallBuilderNode.show();
@@ -4741,14 +4773,21 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
 
 wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
 
-
-    if (wallBuilderWritingState === 'none') return;
-
     const canvasXY = convertMouseToCanvasPixel(pointer.evt.clientX, pointer.evt.clientY);
     let pointerX = canvasXY.canvasPixel.x;
     let pointerY = canvasXY.canvasPixel.y;
 
+    let snap = findWallBuilderSnap(pointerX, pointerY);
+    showWallBuilderSnapHighlight(snap);
+    wallBuilderSnapPoint = snap;
 
+    let snapped = !!snap;
+    if (snapped) {
+        pointerX = snap.x;
+        pointerY = snap.y;
+    }
+
+    if (wallBuilderWritingState === 'none') return;
 
     let lastX = lastWallBuilderNode.x();
     let lastY = lastWallBuilderNode.y();
@@ -4809,7 +4848,7 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
             factor = 1;
         }
 
-        if (isShiftKeyDown) {
+        if (isShiftKeyDown && !snapped) {
             if (Math.abs(newDegreePoint.x - pointerX) > Math.abs(newDegreePoint.y - pointerY)) {
                 pointerY = newDegreePoint.y;
             } else {
@@ -4865,7 +4904,7 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
             adjLastY = newXY2.y;
 
 
-            if (isShiftKeyDown) {
+            if (isShiftKeyDown && !snapped) {
                 if (Math.abs(adjLastX - pointerX) > Math.abs(adjLastY - pointerY)) {
                     pointerY = adjLastY;
                 } else {
@@ -4878,7 +4917,7 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
             adjLastX = newXY1.x;
             adjLastY = newXY1.y;
 
-            if (isShiftKeyDown) {
+            if (isShiftKeyDown && !snapped) {
                 if (Math.abs(adjLastX - pointerX) > Math.abs(adjLastY - pointerY)) {
                     pointerY = adjLastY;
                 } else {
@@ -4893,7 +4932,7 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
     }
 
 
-    if (isShiftKeyDown) {
+    if (isShiftKeyDown && !snapped) {
         if (Math.abs(lastX - pointerX) > Math.abs(lastY - pointerY)) {
             pointerY = adjLastY;
         } else {
@@ -5421,6 +5460,8 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
         attrs.data_deviceid = wallBuilderType;
 
         roomObj.items.push(attrs);
+
+        lastInsertedWallId = uuid;
     }
 
 
@@ -5447,6 +5488,122 @@ function findEndPointCoordinates(x1, y1, length, angleDegrees) {
     const y2 = y1 + length * Math.sin(angleRadians);
 
     return { x: x2, y: y2 };
+}
+
+/* convert a length in meters to Wall Builder canvas pixels (handles feet unit) */
+function metersToWallBuilderPixels(meters) {
+    let px = scale * meters;
+    if (roomObj.unit === 'feet') px = px * 3.28084;
+    return px;
+}
+
+/* project point (px,py) onto segment a-b; returns nearest point plus unclamped parameter t */
+function projectPointOnSegment(px, py, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { x: a.x, y: a.y, t: 0 };
+    const t = ((px - a.x) * dx + (py - a.y) * dy) / len2;
+    const tc = Math.max(0, Math.min(1, t));
+    return { x: a.x + tc * dx, y: a.y + tc * dy, t: t };
+}
+
+/* build 4 virtual outer-wall snap segments from the room footprint (works whether default walls are shown or removed); see TECH_NOTES.md section 7 */
+function getOuterWallSnapSegments() {
+    if (!stage.findOne('#outsideWall') || isMultiRoomOverviewMode()) return [];
+    if (!isFinite(activeRoomWidth) || !isFinite(activeRoomLength)) return [];
+
+    let t = 0.115;
+    if (roomObj.unit === 'feet') t = t * 3.28084;
+    const ts = t * scale, ht = ts / 2;
+    const w = activeRoomWidth * scale, h = activeRoomLength * scale;
+    const oL = pxOffset - ts, oT = pyOffset - ts;
+    const oR = pxOffset + w + ts, oB = pyOffset + h + ts;
+    const iL = pxOffset, iT = pyOffset, iR = pxOffset + w, iB = pyOffset + h;
+
+    return [
+        { a: { x: oL, y: oT + ht }, b: { x: oR, y: oT + ht }, corners: [{ x: oL, y: oT }, { x: oR, y: oT }, { x: oR, y: iT }, { x: oL, y: iT }] },
+        { a: { x: oL, y: oB - ht }, b: { x: oR, y: oB - ht }, corners: [{ x: oL, y: iB }, { x: oR, y: iB }, { x: oR, y: oB }, { x: oL, y: oB }] },
+        { a: { x: oL + ht, y: oT }, b: { x: oL + ht, y: oB }, corners: [{ x: oL, y: oT }, { x: iL, y: oT }, { x: iL, y: oB }, { x: oL, y: oB }] },
+        { a: { x: oR - ht, y: oT }, b: { x: oR - ht, y: oB }, corners: [{ x: iR, y: oT }, { x: oR, y: oT }, { x: oR, y: oB }, { x: iR, y: oB }] },
+    ];
+}
+
+/* find the nearest existing wall to snap to; ends win over centerline. Returns {x,y,mode,node,corners,rotation,isOuter} or null */
+function findWallBuilderSnap(px, py) {
+    if (!snapToWallEnabled || isShiftKeyDown) return null; /* Shift takes full precedence: axis-lock wins */
+    const endThreshold = metersToWallBuilderPixels(0.18);
+    const lineThreshold = metersToWallBuilderPixels(0.10);
+    let bestEnd = null, bestEndDist = Infinity;
+    let bestLine = null, bestLineDist = Infinity;
+
+    /* a,b = wall centerline endpoints; outlineCorners = polygon to highlight */
+    function consider(a, b, node, outlineCorners, isOuter, rotation) {
+        const dA = Math.hypot(px - a.x, py - a.y);
+        const dB = Math.hypot(px - b.x, py - b.y);
+        if (dA <= endThreshold && dA < bestEndDist) { bestEndDist = dA; bestEnd = { x: a.x, y: a.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter }; }
+        if (dB <= endThreshold && dB < bestEndDist) { bestEndDist = dB; bestEnd = { x: b.x, y: b.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter }; }
+
+        const proj = projectPointOnSegment(px, py, a, b);
+        const dL = Math.hypot(px - proj.x, py - proj.y);
+        if (dL <= lineThreshold && proj.t > 0.02 && proj.t < 0.98 && dL < bestLineDist) {
+            bestLineDist = dL;
+            bestLine = { x: proj.x, y: proj.y, mode: 'line', node, corners: outlineCorners, rotation, isOuter };
+        }
+    }
+
+    groupTables.getChildren().forEach(node => {
+        const did = node.data_deviceid;
+        if (!did || !did.startsWith('wall') || isWallChairs(did) || !node.isVisible()) return;
+        if (lastInsertedWallId && node.id() === lastInsertedWallId) return;
+        const corners = findFourCornersOfNode(node);
+        if (!corners || corners.length < 4) return;
+        const a = { x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2 };
+        const b = { x: (corners[2].x + corners[3].x) / 2, y: (corners[2].y + corners[3].y) / 2 };
+        consider(a, b, node, corners, false, node.rotation());
+    });
+
+    getOuterWallSnapSegments().forEach(seg => consider(seg.a, seg.b, null, seg.corners, true, 0));
+
+    return bestEnd || bestLine;
+}
+
+/* draw the yellow snap highlight: a 0.13 m square on the snap point, plus the wall outline when snapping along a wall */
+function showWallBuilderSnapHighlight(snap) {
+    if (!snap) {
+        wallSnapRect.hide();
+        wallSnapOutline.hide();
+        return;
+    }
+    const sizePx = metersToWallBuilderPixels(0.13);
+    wallSnapRect.width(sizePx);
+    wallSnapRect.height(sizePx);
+    wallSnapRect.offsetX(sizePx / 2);
+    wallSnapRect.offsetY(sizePx / 2);
+    wallSnapRect.x(snap.x);
+    wallSnapRect.y(snap.y);
+    wallSnapRect.rotation(snap.rotation || 0);
+    wallSnapRect.moveToTop();
+    wallSnapRect.show();
+
+    if (snap.mode === 'line' || snap.isOuter) {
+        let pts = [];
+        snap.corners.forEach(c => pts.push(c.x, c.y));
+        wallSnapOutline.points(pts);
+        wallSnapOutline.moveToTop();
+        wallSnapOutline.show();
+    } else {
+        wallSnapOutline.hide();
+    }
+}
+
+/* Snap to Wall toggle handler */
+function snapToWallChange(e) {
+    snapToWallEnabled = e.target.checked;
+    setItemForLocalStorage('snapToWallEnabled', snapToWallEnabled ? 'true' : 'false');
+    if (!snapToWallEnabled) {
+        wallBuilderSnapPoint = null;
+        showWallBuilderSnapHighlight(null);
+    }
 }
 
 function getVectorAngleDegrees(A, B, C) {
@@ -9291,6 +9448,10 @@ function onLoad() {
 
     }
 
+    snapToWallEnabled = localStorage.getItem('snapToWallEnabled') !== 'false';
+    let snapToWallCheckBox = document.getElementById('snapToWallCheckBox');
+    if (snapToWallCheckBox) snapToWallCheckBox.checked = snapToWallEnabled;
+
 
 
 
@@ -11166,6 +11327,9 @@ function wallBuilderRestart() {
     lastWallBuilderNode.hide();
     wallBuilderWritingState = 'none';
     wallBuilderLineArray.points([]);
+    wallBuilderSnapPoint = null;
+    lastInsertedWallId = null;
+    showWallBuilderSnapHighlight(null);
     document.getElementById("canvasDiv").style.cursor = "crosshair";
     document.getElementById('btnNextWallBuilderSegment').disabled = true;
 }
