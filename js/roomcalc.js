@@ -1,4 +1,4 @@
-const version = "v0.1.653";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.654";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
@@ -4591,6 +4591,8 @@ newCornerNode.hide();
 let snapToWallEnabled = true; /* Wall Builder: snap new walls to existing walls */
 let wallBuilderSnapPoint = null; /* {x,y,mode} canvas-pixel snap target while drawing, or null */
 let lastInsertedWallId = null; /* id of the most recently drawn wall; excluded from snapping */
+let wallBuilderCreatedWallIds = [];
+let wallBuilderCreatedWallStates = [];
 
 let wallSnapRect = new Konva.Rect({
     width: 10,
@@ -4727,11 +4729,26 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
 
     if (wallBuilderWritingState === 'firstNode' || wallBuilderWritingState === 'writing') {
 
+        let preDrawState = {
+            state: wallBuilderWritingState,
+            lastX: lastWallBuilderNode.x(),
+            lastY: lastWallBuilderNode.y(),
+            beforeX: beforeLastWallBuilderNode.x(),
+            beforeY: beforeLastWallBuilderNode.y(),
+            rotation: lastWallBuilderRotation,
+        };
+
+        let wallCountBeforeInsert = wallBuilderCreatedWallIds.length;
+
         wallBuilderWritingState = 'writing';
 
         let points = wallBuilderConnectorLine.points();
 
         insertWallBasedOnPixelXY(points[0], points[1], points[2], points[3]);
+
+        if (wallBuilderCreatedWallIds.length > wallCountBeforeInsert) {
+            wallBuilderCreatedWallStates.push(preDrawState);
+        }
 
         beforeLastWallBuilderNode.x(points[0]);
         beforeLastWallBuilderNode.y(points[1]);
@@ -4940,8 +4957,21 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
         }
     }
 
+    let endX = pointerX;
+    let endY = pointerY;
+
+    /* Mitered end: when the drawn wall snaps its end onto an existing wall corner,
+     * overlap into that wall just like a mid-chain start overlaps the prior segment. */
+    if (snapped) {
+        const miterEnd = computeWallBuilderEndMiter(snap, adjLastX, adjLastY);
+        if (miterEnd) {
+            endX = miterEnd.x;
+            endY = miterEnd.y;
+        }
+    }
+
     wallBuilderConnectorLine.show();
-    wallBuilderConnectorLine.points([adjLastX, adjLastY, pointerX, pointerY]);
+    wallBuilderConnectorLine.points([adjLastX, adjLastY, endX, endY]);
 
 });
 
@@ -5462,6 +5492,7 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
         roomObj.items.push(attrs);
 
         lastInsertedWallId = uuid;
+        wallBuilderCreatedWallIds.push(uuid);
     }
 
 
@@ -5538,16 +5569,18 @@ function findWallBuilderSnap(px, py) {
 
     /* a,b = wall centerline endpoints; outlineCorners = polygon to highlight */
     function consider(a, b, node, outlineCorners, isOuter, rotation) {
+        const centerA = { x: a.x, y: a.y };
+        const centerB = { x: b.x, y: b.y };
         const dA = Math.hypot(px - a.x, py - a.y);
         const dB = Math.hypot(px - b.x, py - b.y);
-        if (dA <= endThreshold && dA < bestEndDist) { bestEndDist = dA; bestEnd = { x: a.x, y: a.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter }; }
-        if (dB <= endThreshold && dB < bestEndDist) { bestEndDist = dB; bestEnd = { x: b.x, y: b.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter }; }
+        if (dA <= endThreshold && dA < bestEndDist) { bestEndDist = dA; bestEnd = { x: a.x, y: a.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter, centerA, centerB }; }
+        if (dB <= endThreshold && dB < bestEndDist) { bestEndDist = dB; bestEnd = { x: b.x, y: b.y, mode: 'end', node, corners: outlineCorners, rotation, isOuter, centerA, centerB }; }
 
         const proj = projectPointOnSegment(px, py, a, b);
         const dL = Math.hypot(px - proj.x, py - proj.y);
         if (dL <= lineThreshold && proj.t > 0.02 && proj.t < 0.98 && dL < bestLineDist) {
             bestLineDist = dL;
-            bestLine = { x: proj.x, y: proj.y, mode: 'line', node, corners: outlineCorners, rotation, isOuter };
+            bestLine = { x: proj.x, y: proj.y, mode: 'line', node, corners: outlineCorners, rotation, isOuter, centerA, centerB };
         }
     }
 
@@ -5565,6 +5598,63 @@ function findWallBuilderSnap(px, py) {
     getOuterWallSnapSegments().forEach(seg => consider(seg.a, seg.b, null, seg.corners, true, 0));
 
     return bestEnd || bestLine;
+}
+
+/* Compute the mitered junction point for a wall meeting another wall at a corner.
+ * Mirrors the live mid-chain miter math in the wallBuilderRect pointermove handler:
+ *   - corner    = shared corner point
+ *   - prevFar   = the OTHER wall's far centerline endpoint (sets the turn side)
+ *   - wallRot   = lineAngleDegrees(prevFar -> corner) of the OTHER wall
+ *   - tip       = the far end of the segment being drawn
+ *   - width     = half wall thickness in canvas pixels
+ * Returns {x,y} of the adjusted centerline point, or null when degenerate. */
+function computeMiteredJunction(cornerX, cornerY, prevFarX, prevFarY, wallRot, tipX, tipY, width) {
+    const newDegreePoint = pointAtDistanceFromP2TowardP1(prevFarX, prevFarY, cornerX, cornerY, width);
+    if (!newDegreePoint) return null;
+
+    const deg = getVectorAngleDegrees({ x: prevFarX, y: prevFarY }, { x: newDegreePoint.x, y: newDegreePoint.y }, { x: tipX, y: tipY });
+
+    let factor = 1;
+    if (deg > 89) factor = 1;
+    else if (deg < -89) factor = -1;
+    else if (deg >= 0) factor = -1;
+    else factor = 1;
+
+    const XY = findEndPointCoordinates(cornerX, cornerY, factor * width, wallRot);
+
+    const endCorners = rightTriangleThirdPointFromHypotenuse(XY.x, XY.y, tipX, tipY, width);
+    let endCornerXY;
+    if (endCorners.length < 1) return null;
+    else if (endCorners.length === 1) endCornerXY = endCorners[0];
+    else if (deg < 0) endCornerXY = endCorners[0];
+    else endCornerXY = endCorners[1];
+
+    const newXYpoints = rightAnglePoint(XY.x, XY.y, endCornerXY.x, endCornerXY.y, width);
+    if (!newXYpoints) return null;
+
+    const chosen = (deg < 0) ? newXYpoints[1] : newXYpoints[0];
+    if (!chosen || !('x' in chosen)) return null;
+    return { x: chosen.x, y: chosen.y };
+}
+
+/* When the wall being drawn snaps its END onto an existing wall corner, return the
+ * adjusted (mitered) end point so the drawn wall overlaps into the existing wall,
+ * exactly like a mid-chain segment overlaps the previous segment. `tip` is the
+ * drawn segment's start (its far end from the snap corner). Returns {x,y} or null. */
+function computeWallBuilderEndMiter(snap, tipX, tipY) {
+    if (!snap || snap.mode !== 'end' || !snap.centerA || !snap.centerB) return null;
+
+    const dA = Math.hypot(snap.x - snap.centerA.x, snap.y - snap.centerA.y);
+    const dB = Math.hypot(snap.x - snap.centerB.x, snap.y - snap.centerB.y);
+    const prevFar = dA >= dB ? snap.centerA : snap.centerB;
+
+    let width = (roomObj.unit === 'feet') ? (3.28084 / 10) : 0.10;
+    width = width / 2;
+    width = scale * width * 0.97;
+
+    const wallRot = lineAngleDegrees(prevFar.x, prevFar.y, snap.x, snap.y);
+
+    return computeMiteredJunction(snap.x, snap.y, prevFar.x, prevFar.y, wallRot, tipX, tipY, width);
 }
 
 /* draw the yellow snap highlight: a 0.13 m square on the snap point, plus the wall outline when snapping along a wall */
@@ -11335,6 +11425,47 @@ function wallBuilderRestart() {
 }
 
 
+function undoLastWallBuilderWall() {
+    if (!wallBuilderCreatedWallIds.length) return false;
+
+    const id = wallBuilderCreatedWallIds.pop();
+    const snapshot = wallBuilderCreatedWallStates.pop();
+    const node = stage.findOne('#' + id);
+
+    if (node) {
+        tr.nodes([node]);
+        deleteTrNodes();
+    }
+
+    if (snapshot) {
+        wallBuilderWritingState = snapshot.state;
+        lastWallBuilderNode.x(snapshot.lastX);
+        lastWallBuilderNode.y(snapshot.lastY);
+        beforeLastWallBuilderNode.x(snapshot.beforeX);
+        beforeLastWallBuilderNode.y(snapshot.beforeY);
+        lastWallBuilderRotation = snapshot.rotation;
+    } else {
+        wallBuilderWritingState = 'none';
+    }
+
+    lastInsertedWallId = wallBuilderCreatedWallIds.length
+        ? wallBuilderCreatedWallIds[wallBuilderCreatedWallIds.length - 1]
+        : null;
+
+    wallBuilderConnectorLine.hide();
+    hingeNode.hide();
+    newStartNode.hide();
+    newStartNode2.hide();
+    newCornerNode.hide();
+    showWallBuilderSnapHighlight(null);
+
+    document.getElementById('btnNextWallBuilderSegment').disabled = wallBuilderCreatedWallIds.length === 0;
+
+    layer.batchDraw();
+    return true;
+}
+
+
 function wallBuilderRestart2() {
     let convert = true;
 
@@ -11398,6 +11529,8 @@ function wallBuilderOn(event) {
         document.getElementById('wallBuilderDiv').style.display = '';
 
         wallBuilderRestart();
+        wallBuilderCreatedWallIds = [];
+        wallBuilderCreatedWallStates = [];
 
         wallBuilderRect.show();
         isWallBuilderOn = true;
@@ -11416,6 +11549,8 @@ function wallBuilderOn(event) {
         document.getElementById('wallBuilderDiv').style.display = 'none';
 
         wallBuilderRestart();
+        wallBuilderCreatedWallIds = [];
+        wallBuilderCreatedWallStates = [];
 
         isWallBuilderOn = false;
         wallBuilderConnectorLine.hide();
@@ -25712,6 +25847,10 @@ function onKeyDown(e) {
 
         if (key === 'y' & redoArray.length > 0) {
             isShortCutKeyUsed = true;
+        }
+        else if (key === 'z' && isWallBuilderOn) {
+            /* In Wall Builder, ctrl-z removes the last created wall instead of running the standard undo. */
+            if (undoLastWallBuilderWall()) isShortCutKeyUsed = true;
         }
         else if (key === 'z' && undoArray.length > 1) {
             btnUndoClicked();
