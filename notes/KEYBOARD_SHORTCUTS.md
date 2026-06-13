@@ -13,6 +13,7 @@ The current bindings live in the keyboard handler near `onkeydown` /
 | `Space` | Quick add menu |
 | `Ctrl+C` | Copy |
 | `Ctrl+V` | Paste |
+| `Ctrl+X` | Cut |
 | `Ctrl+D` | Duplicate |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Shift+Ctrl+Z` | Redo |
@@ -24,11 +25,19 @@ The current bindings live in the keyboard handler near `onkeydown` /
 | `Ctrl+Shift+E` | Export to Cisco xConfiguration .txt |
 | `Ctrl+Shift+D` | Export to AutoCAD R12 DXF |
 | `Ctrl+I` | Import file |
+| `Ctrl+M` | Measuring Tool |
+| `Ctrl+3` / `Ctrl+W` | Toggle Split View |
 | `Delete` / `Backspace` | Delete selected |
-| `Esc` | Deselect all |
+| `Esc` | Deselect all / exit tools |
 | `C` | Toggle camera coverage |
 | `M` | Toggle microphone coverage |
 | `D` | Toggle display coverage |
 | `Arrow keys` | Move selected items |
+| `Shift` | Draw vertical & horizontal lines in Measure Tool or Wall Builder |
+| `Shift` / `Ctrl` / `Cmd` + click | Select/unselect item |
 
 `Cmd` is accepted in place of `Ctrl` on macOS for every shortcut above.
+
+**Other shortcuts:**
+- Copy and paste image over the sidebar to quickly upload a background image
+- Drag and drop .json file or images on the room canvas to upload

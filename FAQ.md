@@ -26,6 +26,8 @@ The following list is also found under the help menu. `cmd` is accepted in place
 
 `ctrl-v / cmd-v` = paste (at the location of the pointer)
 
+`ctrl-x / cmd-x` = cut
+
 `ctrl-d / cmd-d` = duplicate
 
 `ctrl-z / cmd-z` = undo
@@ -41,6 +43,8 @@ The following list is also found under the help menu. `cmd` is accepted in place
 `shift + ctrl-g / shift + cmd-g` = Ungroup (dissolve, keep items)
 
 `ctrl-m` = turn on the Measuring Tool
+
+`ctrl-3 / ctrl-w` = toggle Split View
 
 `esc` = unselect items (or turn off the Measuring Tool)
 
@@ -66,7 +70,13 @@ The following list is also found under the help menu. `cmd` is accepted in place
 
 `d` = Display coverage toggle
 
+`shift` = draw vertical & horizontal lines in modes like Measure Tool or Wall Builder
+
 __`ctrl-3` = open iFrame window if enabled__
+
+**Other shortcuts:**
+- Copy and paste image over the sidebar to quickly upload a background image
+- Drag and drop .json file or images on the room canvas to upload
 
 From the Workspace Designer, use `ctrl-e` to export a file to the Video Room Calculator.
 

@@ -8,6 +8,10 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.654 Release Notes**
+- Option to have Shareable Template Hyperlink open Workspace Designer automatically. Use dropdown to select the percentage.
+- Wall Builder improvements for snapping to walls.
+
 **v0.1.653 Release Notes**
 - Shortened the Shareable Template Hyperlink for repeated items. Larger rooms could see a 20-40% reduction in URL length.
 - Bug fixes 🐞 and optimization 🐇.
