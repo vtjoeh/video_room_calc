@@ -21529,6 +21529,7 @@ function updateRemoveDefaultWallsCheckBox() {
     const ws = activeDefaultWallsWorkspace();
     document.getElementById('removeDefaultWallsCheckBox').checked = ws.removeDefaultWalls;
     document.getElementById('removeDefaultWallsCheckBox2').checked = ws.removeDefaultWalls;
+    document.getElementById('removeDefaultWallsCheckBox3').checked = ws.removeDefaultWalls;
 
     document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling;
 
@@ -22568,7 +22569,7 @@ function fillInTopElevationDisplay(shape, updateTextBox = true) {
 /* When in an active room, disable the main menu for the room (which has now become the floor plan) */
 function disableRoomSettings(disable = true) {
 
-    ['drpMetersFeet', 'roomWidth', 'roomHeight', 'roomLength', 'drpSoftware', 'authorVersion', 'removeDefaultWallsCheckBox', 'updateButtonId', 'roomName'].forEach(elementId => {
+    ['drpMetersFeet', 'roomWidth', 'roomHeight', 'roomLength', 'drpSoftware', 'authorVersion', 'removeDefaultWallsCheckBox', 'removeDefaultWallsCheckBox3', 'updateButtonId', 'roomName'].forEach(elementId => {
         let element = document.getElementById(elementId);
         if (element) {
             element.disabled = disable;
@@ -27398,6 +27399,7 @@ function importJson(jsonFile) {
             const finishVrcImport = () => {
                 document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
+                document.getElementById('removeDefaultWallsCheckBox3').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
                 dedupeRoomItems(roomObj);
                 roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
@@ -27902,6 +27904,7 @@ function importXConfigFile(text, fileName) {
 
         document.getElementById('removeDefaultWallsCheckBox').checked = roomObj.workspace.removeDefaultWalls || false;
         document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
+        document.getElementById('removeDefaultWallsCheckBox3').checked = roomObj.workspace.removeDefaultWalls || false;
         document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
 
         dedupeRoomItems(roomObj);
@@ -28962,9 +28965,11 @@ function importWorkspaceDesignerFile(workspaceObj) {
     if (roomObj2.workspace.removeDefaultWalls) {
         document.getElementById("removeDefaultWallsCheckBox").checked = true;
         document.getElementById("removeDefaultWallsCheckBox2").checked = true;
+        document.getElementById("removeDefaultWallsCheckBox3").checked = true;
     } else {
         document.getElementById("removeDefaultWallsCheckBox").checked = false;
         document.getElementById("removeDefaultWallsCheckBox2").checked = false;
+        document.getElementById("removeDefaultWallsCheckBox3").checked = false;
     }
 
     /* determine if there is a ceiling.  */
@@ -30066,6 +30071,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         roomObj2.workspace.removeDefaultWalls = false;
         document.getElementById('removeDefaultWallsCheckBox').checked = false;
         document.getElementById("removeDefaultWallsCheckBox2").checked = false;
+        document.getElementById("removeDefaultWallsCheckBox3").checked = false;
     } else {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         roomObj2.items.push(item);
