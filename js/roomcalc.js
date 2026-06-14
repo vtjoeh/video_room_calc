@@ -3754,6 +3754,14 @@ function resetFillToDefault() {
     }
 }
 
+function resetFillToDefault2() {
+    const fillEl = document.getElementById('itemFill2');
+    const opEl = document.getElementById('itemOpacity2');
+    if (fillEl) fillEl.value = '#ffffff';
+    if (opEl) opEl.value = '';
+}
+
+
 /* Session-only target layer for new items (Add Items to: dropdown); not persisted in roomObj/URL. */
 let currentAddLayerId = '0';
 
@@ -4682,18 +4690,21 @@ function changeWallBuilderWall(key) {
         wallBuilderConnectorLine.dash([]);
         wallBuilderLabelField = '';
         document.getElementById('btnWallBuilderStd').classList.add('wallBuilderWallSelected');
+        document.getElementById('fillDiv2').style.display = '';
     }
     else if (key === 'w') {
         wallBuilderType = 'wallWindow';
         wallBuilderConnectorLine.stroke('#8993ff');
         wallBuilderLabelField = '';
         document.getElementById('btnWallBuilderWindow').classList.add('wallBuilderWallSelected');
+        document.getElementById('fillDiv2').style.display = 'none';
     } else if (key === 'g') {
         wallBuilderType = 'wallGlass';
         wallBuilderConnectorLine.stroke('#ADD8E6');
         wallBuilderConnectorLine.dash([]);
         wallBuilderLabelField = '';
         document.getElementById('btnWallBuilderGlass').classList.add('wallBuilderWallSelected');
+        document.getElementById('fillDiv2').style.display = 'none';
     } else if (key === 'c') {
         wallBuilderType = 'wallStd';
         wallBuilderConnectorLine.stroke('#5e3b50cc');
@@ -5476,6 +5487,16 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
 
     let attrs = { x: XY.x, y: XY.y, rotation: rotation - 180, height: height, width: width, data_labelField: wallBuilderLabelField, data_layerId: getDefaultLayerForNewItems() };
 
+    if (wallBuilderType === 'wallStd'){
+        const opacityValue = document.getElementById('itemOpacity2').value;
+        if (opacityValue && opacityValue !== '1') {
+            attrs.data_opacity = opacityValue;
+        }
+        const fillColor = document.getElementById('itemFill2').value;
+        if (fillColor && fillColor !== '#ffffff') {
+            attrs.data_fill = fillColor;
+        }
+    }
 
     wallCounter = wallCounter + 1;
 

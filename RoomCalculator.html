@@ -13,11 +13,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
     integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- templates.js is eager-loaded (see bottom <script> block) so the
-       New Room dialog's tile data is parsed alongside roomcalc.js and
-       populateTemplates() runs synchronously from the top of onLoad().
-       PNG thumbnails under assets/images/templates/ still load with
-       their natural network delay. -->
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./assets/momentum-icons.css" />
 </head>
@@ -75,11 +70,7 @@
 
   <div id="openSideBar" class="button-group" style="display: none;" onpointerdown="closeOpenSidebar()">
 
-    <!-- <button id="1" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('defaultOpenTab')"
-      style="padding-left: 22px;">Room</button>
-    <button id="2" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabEquipment')">Equipment&nbsp;&nbsp;
-    </button>
-    <button id="3" class="tablinks tablinksfake" onpointerdown="closeOpenSidebar('tabItem')">Details</button> -->
+
     <button id="openSideBarBtn" class="btn closeOpenButton"><i
         style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
         class="icon icon-arrow-circle-right-regular"></i></button>
@@ -123,8 +114,7 @@
             (w)</label>
         </button>
 
-        <!-- <button title="Wall with Windows" id="btnWallBuilderCustom"  class="btnWallBuilderWall" onclick="changeWallBuilderWall('c');"><img src="./assets/images/wallStd-front.png"><label>Custom wall (c)</label>
-      </button> -->
+
 
       </ul>
 
@@ -154,6 +144,24 @@
           <input id="removeDefaultWallsCheckBox3" type="checkbox" onclick="removeDefaultWallsChange(event)">
           <span class="slider round"></span>
         </label>
+      </div>
+
+      <div class="inputRow" id="fillDiv2">
+        <div class="inputField fillField">
+          <label for="itemFill2" class="tooltip">Color:
+            <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">Custom fill color and opacity for this item. Applied to both the
+              canvas and the Workspace Designer export. Click the reset button to clear the override
+              and fall back to the default appearance.</span>
+          </label>
+          <input type="color" id="itemFill2" value="#ffffff" class="fillColorInput">
+
+          <label for="itemOpacity2" id="itemOpacityLabel2" class="fillOpacityLabel">Opacity:</label>
+          <input type="number" id="itemOpacity2" min="0" max="1" step="0.01" placeholder="1" class="fillOpacityInput allowBlank">
+          <button type="button" id="btnFillReset2" title="Reset fill and opacity to default" class="btn" onclick="resetFillToDefault2()">
+            <i class="icon icon-reset-bold"></i>
+          </button>
+        </div>
       </div>
 
     </div>
@@ -269,11 +277,7 @@
 
         <!-- Equipment tab is below -->
         <div id="Insert" class="tabcontent">
-          <!-- Inline search bar (replaces the four .btnItemSearch floating
-               buttons). Filters tiles across ALL category panels in-place
-               and auto-switches the active pill if the best match lives in
-               another category. Space still opens the full Quick Add modal
-               for users who prefer that flow. -->
+          <!-- Inline search bar -->
           <div id="equipmentSearchBar">
             <i class="icon icon-search-bold"></i>
             <input type="search" id="equipmentSearch" placeholder="Search devices, mics, tables..."
@@ -282,11 +286,7 @@
               title="Clear" onclick="clearEquipmentSearch()">&#x2715;</button>
           </div>
 
-          <!-- Horizontally-scrolling category pills (replaces the four
-               hardcoded .subtablinks sub-tabs). The pill row scrolls
-               horizontally when it overflows; the chevron buttons appear
-               only when there's content to scroll to. Adding a new
-               category later = appending another button here. -->
+
           <div class="equipmentCategoryPillsWrap" id="equipmentCategoryPillsWrap">
             <button type="button" class="pillScrollChevron pillScrollChevronLeft"
               aria-label="Scroll categories left">&lsaquo;</button>
@@ -306,12 +306,7 @@
               aria-label="Scroll categories right">&rsaquo;</button>
           </div>
 
-          <!-- Single long-scroll container that holds all category panels.
-               All .subtabcontent children are visible at once (CSS overrides
-               the legacy display:none default scoped to this wrapper). The
-               scroll-spy in initEquipmentScrollSpy() listens to this element
-               and updates the active pill as the user scrolls past each
-               panel's boundary. -->
+          <!-- Single long-scroll container that holds all category panels -->
           <div id="equipmentScrollArea">
 
           <div id="Cameras" class="subtabcontent">
@@ -472,11 +467,7 @@
 
           <!-- Search-only "Other" panel. Holds devices that match the current
                search query but are NOT in any of the 5 curated category
-               panels (e.g. items normally gated behind the WD-partial toggle
-               or the `**` query prefix). Hidden by default; revealed only
-               while `#Insert.searching` is active AND `.hasMatches` is set
-               by onEquipmentSearchChange. Excluded from the scroll-spy
-               (no pill exists for "Other"). -->
+               panels(no pill exists for "Other"). -->
           <div id="OtherSearch" class="subtabcontent searchOnlyPanel">
             <div class="menuDivider">Other</div>
             <div id="otherSearchMenuContainer" class="containerItems"></div>
