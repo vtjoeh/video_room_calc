@@ -429,6 +429,286 @@ button:not(:disabled) {
   flex: 0 0 auto;
 }
 
+/* Inline fill swatch button (replaces the native <input type="color">).
+ * Shows the chosen color at its chosen opacity over a checkerboard so the
+ * transparency reads at a glance. Clicking opens the custom color modal. */
+.fillSwatchBtn {
+  width: 38px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border: 2px solid #888;
+  cursor: pointer;
+  flex: 0 0 auto;
+  overflow: hidden;
+  position: relative;
+  background-image:
+    linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+  background-color: #fff;
+}
+
+.fillSwatchBtn .fillSwatchColor {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-color: #ffffff;
+}
+
+.fillSwatchBtn:hover {
+  border-color: #555;
+}
+
+/* custom color/opacity popover (js/colorPicker.js) */
+.colorPickerPopover {
+  position: fixed;
+  z-index: 100000;
+  background: #fff;
+  width: 300px;
+  max-width: 92vw;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+  border: 1px solid #d0d0d0;
+  padding: 14px;
+  font-size: 14px;
+  color: #222;
+  user-select: none;
+}
+
+.colorPickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.colorPickerTitle {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.colorPickerClose {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  color: #555;
+  padding: 2px;
+  line-height: 1;
+}
+
+.colorPickerClose:hover {
+  color: #000;
+}
+
+.colorPickerColorSection {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.colorPickerSV {
+  position: relative;
+  flex: 1 1 auto;
+  height: 150px;
+  border-radius: 6px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.colorPickerSVWhite,
+.colorPickerSVBlack {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+}
+
+.colorPickerSVWhite {
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+}
+
+.colorPickerSVBlack {
+  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0));
+}
+
+.colorPickerSVThumb {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.colorPickerHue {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 150px;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  border-radius: 9px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(to top,
+      #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+.colorPickerHue::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 8px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #888;
+  cursor: pointer;
+}
+
+.colorPickerHue::-moz-range-thumb {
+  width: 22px;
+  height: 8px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #888;
+  cursor: pointer;
+}
+
+.colorPickerHexRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.colorPickerHexLabel {
+  font-weight: 600;
+  font-size: 12px;
+  color: #555;
+}
+
+.colorPickerHexInput {
+  flex: 1 1 auto;
+  text-transform: uppercase;
+  font-family: monospace;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.colorPickerCopy {
+  border: 2px solid #888;
+  background: #fff;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  color: #555;
+  flex: 0 0 auto;
+}
+
+.colorPickerCopy:hover {
+  color: #000;
+}
+
+.colorPickerCopy.colorPickerCopied {
+  color: #1a8917;
+  border-color: #1a8917;
+}
+
+.colorPickerOpacitySection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.colorPickerOpacityLabel {
+  font-weight: 600;
+  font-size: 12px;
+  color: #555;
+  flex: 0 0 auto;
+}
+
+.colorPickerOpacitySlider {
+  flex: 1 1 auto;
+  cursor: pointer;
+}
+
+.colorPickerOpacityValueWrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.colorPickerOpacityInput {
+  width: 52px;
+}
+
+.colorPickerOpacityPct {
+  color: #555;
+  font-size: 12px;
+}
+
+.colorPickerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.colorPickerPreviewWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.colorPickerPreviewLabel {
+  font-size: 10px;
+  color: #777;
+}
+
+.colorPickerPreview {
+  width: 34px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #888;
+  overflow: hidden;
+  position: relative;
+  background-image:
+    linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+.colorPickerPreviewColor {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: #fff;
+}
+
+.colorPickerReset {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.colorPickerDone {
+  font-size: 13px;
+  padding: 6px 16px;
+}
+
 .inputField label {
   font-size: 14px;
   display: flex;

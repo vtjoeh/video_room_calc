@@ -3748,6 +3748,7 @@ function resetFillToDefault() {
     const opEl = document.getElementById('itemOpacity');
     if (fillEl) fillEl.value = '#FFFFFF';
     if (opEl) opEl.value = '';
+    updateFillSwatch('itemFill', 'itemOpacity', 'itemFillSwatch');
 
     if (!multiUpdateMode) {
         updateItem();
@@ -3759,6 +3760,45 @@ function resetFillToDefault2() {
     const opEl = document.getElementById('itemOpacity2');
     if (fillEl) fillEl.value = '#ffffff';
     if (opEl) opEl.value = '';
+    updateFillSwatch('itemFill2', 'itemOpacity2', 'itemFillSwatch2');
+}
+
+/* Paint an inline fill swatch from its hidden inputs. See notes/COLOR_PICKER.md */
+function updateFillSwatch(fillId, opacityId, swatchId) {
+    const swatch = document.getElementById(swatchId);
+    if (!swatch) return;
+    const colorEl = swatch.querySelector('.fillSwatchColor');
+    if (!colorEl) return;
+    const fillEl = document.getElementById(fillId);
+    const opEl = document.getElementById(opacityId);
+    const hex = (fillEl && fillEl.value) ? fillEl.value : '#FFFFFF';
+    let opacity = (opEl && opEl.value !== '') ? Number(opEl.value) : 1;
+    if (isNaN(opacity)) opacity = 1;
+    colorEl.style.backgroundColor = hex;
+    colorEl.style.opacity = String(opacity);
+}
+window.updateFillSwatch = updateFillSwatch;
+
+/* Lazy-load + open the custom color/opacity popover. See notes/COLOR_PICKER.md */
+async function openFillPicker(which) {
+    const isWall = which === 'wall';
+    const swatchId = isWall ? 'itemFillSwatch2' : 'itemFillSwatch';
+    const swatch = document.getElementById(swatchId);
+    const showColor = !swatch || swatch.dataset.showColor !== '0';
+    const showOpacity = !swatch || swatch.dataset.showOpacity !== '0';
+
+    await loadScriptOnce(VRC.constants.SCRIPT_COLOR_PICKER);
+
+    VRC_openColorPicker({
+        fillId: isWall ? 'itemFill2' : 'itemFill',
+        opacityId: isWall ? 'itemOpacity2' : 'itemOpacity',
+        swatchId,
+        showColor: isWall ? true : showColor,
+        showOpacity: isWall ? true : showOpacity,
+        onApply: isWall ? null : function () {
+            if (!multiUpdateMode) updateItem();
+        },
+    });
 }
 
 
@@ -5493,8 +5533,8 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
             attrs.data_opacity = opacityValue;
         }
         const fillColor = document.getElementById('itemFill2').value;
-        if (fillColor && fillColor !== '#ffffff') {
-            attrs.data_fill = fillColor;
+        if (fillColor && fillColor.toUpperCase() !== '#FFFFFF') {
+            attrs.data_fill = fillColor.toUpperCase();
         }
     }
 
@@ -23353,7 +23393,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         }
     }
 
-    /* Configurable fill/opacity (devices flagged configurableColor or wdOpacity): toggle #fillDiv, populate #itemFill (fallback #FFFFFF for a valid color input) and #itemOpacity (blank = no override). */
+    /* Configurable fill/opacity: populate hidden inputs + swatch. See notes/COLOR_PICKER.md */
     const fillDiv = document.getElementById('fillDiv');
     if (fillDiv) {
         const deviceDef = allDeviceTypes[shape.data_deviceid];
@@ -23361,16 +23401,18 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             fillDiv.style.display = '';
             const fillInput = document.getElementById('itemFill');
             const opacityInput = document.getElementById('itemOpacity');
-            const opacityLabel = document.getElementById('itemOpacityLabel');
+            const swatch = document.getElementById('itemFillSwatch');
             if (fillInput) {
                 fillInput.value = shape.data_fill || '#FFFFFF';
-                fillInput.style.display = deviceDef.configurableColor ? '' : 'none';
             }
             if (opacityInput) {
                 opacityInput.value = (shape.data_opacity == null) ? '' : shape.data_opacity;
-                opacityInput.style.display = deviceDef.wdOpacity ? '' : 'none';
-                if (opacityLabel) opacityLabel.style.display = deviceDef.wdOpacity ? '' : 'none';
             }
+            if (swatch) {
+                swatch.dataset.showColor = deviceDef.configurableColor ? '1' : '0';
+                swatch.dataset.showOpacity = deviceDef.wdOpacity ? '1' : '0';
+            }
+            updateFillSwatch('itemFill', 'itemOpacity', 'itemFillSwatch');
         } else {
             fillDiv.style.display = 'none';
         }

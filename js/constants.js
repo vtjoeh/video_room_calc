@@ -24,6 +24,7 @@ window.VRC.constants = Object.freeze({
     SCRIPT_DXF_WRITER:             './js/dxfWriter.js',
     SCRIPT_DXF_BLOCK_LIB:          './js/dxfBlockLibrary.js',
     SCRIPT_MIGRATE_LEGACY_ITEMS:   './js/migrateLegacyItemsShape.js',
+    SCRIPT_COLOR_PICKER:           './js/colorPicker.js',
 
     /* Debug overlay (?debug=1). Refresh interval for the item / node
      * count display in milliseconds. The FPS readout updates once per
@@ -33,13 +34,13 @@ window.VRC.constants = Object.freeze({
     /* Query-string flag names. Centralizing these makes it harder to
      * accidentally check `urlParams.has('Debug')` somewhere. */
     QS_DEBUG: 'debug',
-    QS_TEST_LOGIN: 'testLogin', /* for testing login feature */ 
+    QS_TEST_LOGIN: 'testLogin', /* for testing login feature */
     QS_SPLIT: 'split',
 
     /* Webex cloud-storage proof of concept (js/pocLoginCloud.js).
      * Only used when the page is loaded with `?testLogin=1`. */
     WEBEX_API_BASE: 'https://webexapis.com/v1',
-    WEBEX_OAUTH_AUTHORIZE_URL: 'https://webexapis.com/v1/authorize',  /* for testing only */ 
+    WEBEX_OAUTH_AUTHORIZE_URL: 'https://webexapis.com/v1/authorize',  /* for testing only */
     /* UMD bundle for the Webex JavaScript SDK. webexapis.com refuses
      * direct browser fetch() (no CORS on /v1/people/me, /v1/contents/*,
      * etc.), so the PoC routes every Webex call through this SDK's
@@ -55,9 +56,9 @@ window.VRC.constants = Object.freeze({
      * preflight echoes the page origin in Access-Control-Allow-Origin,
      * so browser fetch() works. Wired into Webex.init() under
      * config.services.discovery.hydra by pocLoginCloud.js.
-     * 
+     *
      * */
-    WEBEX_HYDRA_URL: 'https://hydra-a.wbx2.com/v1',  /* for testing only */ 
+    WEBEX_HYDRA_URL: 'https://hydra-a.wbx2.com/v1',  /* for testing only */
     WEBEX_SPACE_TITLE: 'Video Room Calculator rooms [Created by VRC login]',
     WEBEX_ROOMMAP_FILENAME: 'RoomMap.json',
     WEBEX_OAUTH_STORAGE_PREFIX: 'vrc_poc_webex',

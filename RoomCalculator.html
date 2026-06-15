@@ -148,19 +148,16 @@
 
       <div class="inputRow" id="fillDiv2">
         <div class="inputField fillField">
-          <label for="itemFill2" class="tooltip">Color:
+          <label class="tooltip">Color:
             <i class="icon icon-info-circle-bold"></i>
             <span class="tooltiptext">Custom fill color and opacity for this item. Applied to both the
-              canvas and the Workspace Designer export. Click the reset button to clear the override
-              and fall back to the default appearance.</span>
+              canvas and the Workspace Designer export. Click the swatch to choose a color and opacity;
+              use Reset inside the picker to clear the override and fall back to the default appearance.</span>
           </label>
-          <input type="color" id="itemFill2" value="#ffffff" class="fillColorInput">
-
-          <label for="itemOpacity2" id="itemOpacityLabel2" class="fillOpacityLabel">Opacity:</label>
-          <input type="number" id="itemOpacity2" min="0" max="1" step="0.01" placeholder="1" class="fillOpacityInput allowBlank">
-          <button type="button" id="btnFillReset2" title="Reset fill and opacity to default" class="btn" onclick="resetFillToDefault2()">
-            <i class="icon icon-reset-bold"></i>
-          </button>
+          <button type="button" id="itemFillSwatch2" class="fillSwatchBtn" title="Choose color and opacity"
+            onclick="openFillPicker('wall')"><span class="fillSwatchColor"></span></button>
+          <input type="hidden" id="itemFill2" value="#ffffff">
+          <input type="hidden" id="itemOpacity2" value="">
         </div>
       </div>
 
@@ -770,19 +767,16 @@
 
               <div class="inputRow" id="fillDiv" style="display: none;">
                 <div class="inputField fillField">
-                  <label for="itemFill" class="tooltip">Color:
+                  <label id="itemFillLabel" class="tooltip">Color:
                     <i class="icon icon-info-circle-bold"></i>
                     <span class="tooltiptext">Custom fill color and opacity for this item. Applied to both the
-                      canvas and the Workspace Designer export. Click the reset button to clear the override
-                      and fall back to the default appearance.</span>
+                      canvas and the Workspace Designer export. Click the swatch to choose a color and opacity;
+                      use Reset inside the picker to clear the override and fall back to the default appearance.</span>
                   </label>
-                  <input type="color" id="itemFill" value="#ffffff" class="fillColorInput">
-
-                  <label for="itemOpacity" id="itemOpacityLabel" class="fillOpacityLabel">Opacity:</label>
-                  <input type="number" id="itemOpacity" min="0" max="1" step="0.01" placeholder="1" class="fillOpacityInput allowBlank">
-                  <button type="button" id="btnFillReset" title="Reset fill and opacity to default" class="btn" onclick="resetFillToDefault()">
-                    <i class="icon icon-reset-bold"></i>
-                  </button>
+                  <button type="button" id="itemFillSwatch" class="fillSwatchBtn" title="Choose color and opacity"
+                    onclick="openFillPicker('item')"><span class="fillSwatchColor"></span></button>
+                  <input type="hidden" id="itemFill" value="#ffffff">
+                  <input type="hidden" id="itemOpacity" value="">
                 </div>
               </div>
 
