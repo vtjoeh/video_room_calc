@@ -15,8 +15,37 @@
             h = h.split('').map(c => c + c).join('');
         }
         if (/^[0-9a-fA-F]{6}$/.test(h)) {
-            return '#' + h.toUpperCase();
+            return '#' + h;
         }
+        return null;
+    }
+
+    function colorNameToHex(name) {
+        if (typeof name !== 'string') return null;
+        const key = name.trim();
+        if (!key) return null;
+        const hex = normalizeHex(key);
+        if (hex) return hex;
+
+        try {
+            const probe = document.createElement('div');
+            probe.style.color = '';
+            probe.style.color = key;
+            if (probe.style.color !== '') {
+                document.body.appendChild(probe);
+                const rgb = getComputedStyle(probe).color;
+                document.body.removeChild(probe);
+                const m = rgb && rgb.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+                if (m) {
+                    const r = Math.min(255, parseInt(m[1], 10));
+                    const g = Math.min(255, parseInt(m[2], 10));
+                    const b = Math.min(255, parseInt(m[3], 10));
+                    return '#' + r.toString(16).padStart(2, '0')
+                               + g.toString(16).padStart(2, '0')
+                               + b.toString(16).padStart(2, '0');
+                }
+            }
+        } catch (_) {}
         return null;
     }
 
@@ -31,7 +60,7 @@
 
     function rgbToHex(r, g, b) {
         const to2 = n => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0');
-        return ('#' + to2(r) + to2(g) + to2(b)).toUpperCase();
+        return '#' + to2(r) + to2(g) + to2(b);
     }
 
     function rgbToHsv(r, g, b) {
@@ -102,7 +131,7 @@
             <div class="colorPickerHexRow">
               <label class="colorPickerHexLabel">HEX</label>
               <input type="text" class="colorPickerHexInput" spellcheck="false" autocomplete="off"
-                     maxlength="7" aria-label="Hex color code">
+                     maxlength="30" aria-label="Hex color code">
               <button type="button" class="colorPickerCopy" title="Copy hex code">
                 <i class="icon icon-copy-bold"></i>
               </button>
@@ -275,8 +304,16 @@
             }
         });
         dom.hexInput.addEventListener('blur', () => {
-            const norm = normalizeHex(dom.hexInput.value);
-            dom.hexInput.value = norm || currentHex();
+            const norm = normalizeHex(dom.hexInput.value) || colorNameToHex(dom.hexInput.value);
+            if (norm) {
+                const rgb = hexToRgb(norm);
+                const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+                state.h = hsv.h; state.s = hsv.s; state.v = hsv.v;
+                render();
+                commit();
+            } else {
+                dom.hexInput.value = currentHex();
+            }
         });
         dom.hexInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') dom.hexInput.blur();
