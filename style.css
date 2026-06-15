@@ -467,11 +467,13 @@ button:not(:disabled) {
 .colorPickerPopover {
   position: fixed;
   z-index: 100000;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   width: 300px;
   max-width: 92vw;
   border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
   border: 1px solid #d0d0d0;
   padding: 14px;
   font-size: 14px;
@@ -649,7 +651,7 @@ button:not(:disabled) {
 }
 
 .colorPickerOpacityInput {
-  width: 52px;
+  width: 53px;
 }
 
 .colorPickerOpacityPct {
@@ -699,9 +701,20 @@ button:not(:disabled) {
   background: #fff;
 }
 
-.colorPickerReset {
-  font-size: 12px;
-  padding: 6px 10px;
+button.colorPickerReset {
+  background: #fff !important;
+  border: none !important;
+  color: #888 !important;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+button.colorPickerReset i {
+  font-size: 20px;
+}
+button.colorPickerReset:hover {
+  color: #444 !important;
 }
 
 .colorPickerDone {

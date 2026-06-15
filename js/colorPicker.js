@@ -119,7 +119,7 @@
             </div>
 
             <div class="colorPickerFooter">
-              <button type="button" class="colorPickerReset button">Reset to default</button>
+              <button type="button" class="colorPickerReset button" title="Reset to default"><i class="icon icon-reset-bold"></i></button>
               <div class="colorPickerPreviewWrap">
                 <span class="colorPickerPreviewLabel">Preview</span>
                 <span class="colorPickerPreview"><span class="colorPickerPreviewColor"></span></span>
