@@ -5177,6 +5177,7 @@ function finishPolyBuilder() {
                 attrs.id = uuid;
                 attrs.data_deviceid = 'polyRoom';
                 roomObj.items.push(attrs);
+                roomObjItemsMap.set(uuid, attrs);
 
 
                 polyBuilderOn(false);
@@ -5550,6 +5551,7 @@ function insertWallBasedOnPixelXY(startX, startY, endX, endY) {
         attrs.data_deviceid = wallBuilderType;
 
         roomObj.items.push(attrs);
+        roomObjItemsMap.set(uuid, attrs);
 
         lastInsertedWallId = uuid;
         wallBuilderCreatedWallIds.push(uuid);
