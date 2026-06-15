@@ -129,7 +129,7 @@
             </div>
 
             <div class="colorPickerHexRow">
-              <label class="colorPickerHexLabel">HEX</label>
+              <label class="colorPickerHexLabel tooltip">HEX <i class="icon icon-info-circle-bold"></i><span class="tooltiptext">Enter a HEX color code (e.g. #FF0000) or a CSS color name (e.g. blue, AliceBlue).</span></label>
               <input type="text" class="colorPickerHexInput" spellcheck="false" autocomplete="off"
                      maxlength="30" aria-label="Hex color code">
               <button type="button" class="colorPickerCopy" title="Copy hex code">
