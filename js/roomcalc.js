@@ -4642,8 +4642,8 @@ let wallBuilderCreatedWallIds = [];
 let wallBuilderCreatedWallStates = [];
 
 let wallSnapRect = new Konva.Rect({
-    width: 10,
-    height: 10,
+    width: 20,
+    height: 20,
     stroke: '#89CFF0',
     strokeWidth: 1,
     fill: '#89CFF0',
@@ -5734,7 +5734,6 @@ function showWallBuilderSnapHighlight(snap) {
     wallSnapRect.x(snap.x);
     wallSnapRect.y(snap.y);
     wallSnapRect.rotation(snap.rotation || 0);
-    wallSnapRect.moveToTop();
     wallSnapRect.show();
 
     if (snap.mode === 'line' || snap.isOuter) {
@@ -5746,6 +5745,7 @@ function showWallBuilderSnapHighlight(snap) {
     } else {
         wallSnapOutline.hide();
     }
+    wallSnapRect.moveToTop();
 }
 
 /* Snap to Wall toggle handler */
