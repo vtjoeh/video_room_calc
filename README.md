@@ -8,6 +8,9 @@ Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md)
 
 ### Release Notes:
 
+**v0.1.655 Release Notes**
+- Support for Cisco Devices for Zoom Roomss. For more information see [InfoComm 2026: Extending the Agentic Workplace to Every Meeting Platform](https://blog.webex.com/collaboration/infocomm-2026-extending-agentic-workplace-every-meeting-platform/).
+
 **v0.1.654 Release Notes**
 - Option to have Shareable Template Hyperlink open Workspace Designer automatically. Use dropdown to select the percentage.
 - Wall Builder improvements for snapping to walls.
