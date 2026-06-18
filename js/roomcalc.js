@@ -8688,7 +8688,10 @@ function parseShortenedXYUrl(parameters) {
                 if (item.e == "0") {
                     roomObj.software = 'webex';
                 } else if (item.e == '1') {
-                    roomObj.software = 'mtr'
+                    roomObj.software = 'mtr';
+                }
+                else if (item.e == '2'){
+                    roomObj.software = 'zoomRooms';
                 }
             }
 
@@ -11002,6 +11005,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
         else if (roomObj.software == 'mtr') {
             document.getElementById('drpSoftware').value = 'mtr';
+        } else if (roomObj.software == 'zoomRooms'){
+            document.getElementById('drpSoftware').value = 'zoomRooms';
         }
         else {
             document.getElementById('drpSoftware').value = 'select';
@@ -11989,6 +11994,9 @@ function createShareableLink() {
     }
     else if (roomObj.software === 'mtr') {
         strUrlQuery2 += 'e1';
+    }
+    else if (roomObj.software === 'zoomRooms'){
+        strUrlQuery2 += 'e2';
     }
 
 
@@ -30776,7 +30784,12 @@ function exportRoomObjToWorkspace() {
 
 
     if (roomObj.software) {
-        workspaceObj.meetingPlatform = roomObj.software;
+        if(roomObj.software === 'zoomRooms'){
+            workspaceObj.meetingPlatform = 'bolt'; /* 'bolt' is used for Zoom Rooms */
+        } else {
+             workspaceObj.meetingPlatform = roomObj.software;
+        }
+
     }
 
     workspaceObj.roomId = roomObj.roomId;
