@@ -1,0 +1,22 @@
+{
+  "name": "Video Room Calculator",
+  "short_name": "VRC",
+  "description": "Room designer for Cisco video devices running Microsoft Teams Rooms or RoomOS",
+  "start_url": "./RoomCalculator.html",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#1a1a2e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
