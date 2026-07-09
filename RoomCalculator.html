@@ -2206,9 +2206,21 @@
         </div>
         <br>
 
-        <!-- <div><a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md" target="_blank"
-            style="outline: none; ">FAQ on GitHub.</a> <img src="assets/images/pop-out-bold.svg" width="14px">
-        </div> -->
+
+        <div><a href="#" onclick="event.preventDefault(); openModalFaq();"
+            style="outline: none; ">Frequently Asked Questions</a>
+        </div>
+        <br>
+
+        <div><a href="#" onclick="event.preventDefault(); openModalReleaseNotes();"
+            style="outline: none; ">Release Notes</a>
+        </div>
+        <br>
+       <div><a href="https://apps.apple.com/us/app/video-room-scanner/id6771168512" target="_blank"
+            style="outline: none; ">Video Room Scanner</a> <img src="assets/images/pop-out-bold.svg" width="14px"> by Richard Hermann (requires iPhone Pro lidar)
+        </div>
+        <br>
+
 
         <hr />
         <label class="underlineHeader">Export a file from the Workspace Designer:</label> <br>
@@ -2322,10 +2334,6 @@
 
         <hr />
 
-        <div>
-          <a href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#faq-for-the-video-room-calculator"
-            target="_blank">Video Room Calculator FAQ</a> <img src="assets/images/pop-out-bold.svg" width="14px">
-        </div>
         <div>
           <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
             Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">
@@ -2442,9 +2450,9 @@
           width="14px">
         setting. Reduces image resolution for a tighter zoom. Lighting can be important.
         <br> -->
-        <br>
+        <!-- <br>
         <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <img
-            src="assets/images/pop-out-bold.svg" width="14px"></a> for this project.
+            src="assets/images/pop-out-bold.svg" width="14px"></a> for this project. -->
 
 
         <hr />
@@ -2972,6 +2980,24 @@
       Alternatively, you may continue working on the room and save the file by downloading it.
       <br>
 
+    </main>
+  </dialog>
+
+  <dialog id="dialogFaq" class='dialogWhiteBox dialogFullPage'>
+    <header class="dialogWhiteBoxHeader">Frequently Asked Questions</header>
+    <a class="dialogOpenNewPage" href="#" onclick="event.preventDefault(); window.open('./faq.html', '_blank');">Open in new page</a>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main>
+      <iframe id="iframeFaq" style="width: 100%; height: 100%; border: none;"></iframe>
+    </main>
+  </dialog>
+
+  <dialog id="dialogReleaseNotes" class='dialogWhiteBox dialogFullPage'>
+    <header class="dialogWhiteBoxHeader">Release Notes</header>
+    <a class="dialogOpenNewPage" href="#" onclick="event.preventDefault(); window.open('./releasenotes.html', '_blank');">Open in new page</a>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main>
+      <iframe id="iframeReleaseNotes" style="width: 100%; height: 100%; border: none;"></iframe>
     </main>
   </dialog>
 

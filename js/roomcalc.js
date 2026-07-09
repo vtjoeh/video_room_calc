@@ -2276,16 +2276,8 @@ function exportCustomItemRecordFromLibrary(baseId) {
         if ('data_labelField' in rec) delete rec.data_labelField;
         const fileObj = { vrcCustomItems: [rec] };
         const json = JSON.stringify(fileObj, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
         const safeName = name.replace(/[/\\?%*:|"<>]/g, '-').trim().slice(0, 60) || 'custom_item';
-        link.download = safeName + '.vrcCustomItems.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        downloadWithFallback(json, safeName + '.vrcCustomItems.json', 'application/json');
         showToast('Custom Item exported');
     }).catch(function (e) {
         console.warn('[customItemLibrary] export from library failed:', e && e.message);
@@ -2325,19 +2317,10 @@ function exportCustomItem(customItem) {
             });
         }
 
-        /* Single-entry array; format reserves shape for multi-record export. */
         const fileObj = { vrcCustomItems: [record] };
         const json = JSON.stringify(fileObj, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
         const safeName = name.replace(/[/\\?%*:|"<>]/g, '-').trim().slice(0, 60) || 'custom_item';
-        link.download = safeName + '.vrcCustomItems.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        downloadWithFallback(json, safeName + '.vrcCustomItems.json', 'application/json');
 
         showToast('Custom Item exported');
     });
@@ -2362,23 +2345,15 @@ function exportAllCustomItemsFromLibrary() {
         }
         const fileObj = { vrcCustomItems: records };
         const json = JSON.stringify(fileObj, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        /* ISO date stamp; OS adds -2/-3 suffix to same-day duplicates. */
-        const stamp = new Date().toISOString().slice(0, 10); /* YYYY-MM-DD */
-        link.download = 'customItemLibrary-' + stamp + '.vrcCustomItems.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const stamp = new Date().toISOString().slice(0, 10);
+        const fileName = 'customItemLibrary-' + stamp + '.vrcCustomItems.json';
+        downloadWithFallback(json, fileName, 'application/json');
 
         const n = records.length;
         alertDialog(
             'Custom Items Exported',
             n + ' Custom Item' + (n === 1 ? '' : 's') + ' exported to ' +
-            '<code>' + (typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(link.download) : link.download) + '</code>.'
+            '<code>' + (typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(fileName) : fileName) + '</code>.'
         );
     }).catch(function (e) {
         console.warn('[customItemLibrary] exportAllCustomItemsFromLibrary failed:', e && e.message);
@@ -12663,7 +12638,7 @@ function downloadCanvasPNG() {
     setTimeout(() => { downloadCanvasPNG2(true); }, 100);
 }
 
-function downloadCanvasPNG2(isSolidBackground = true) {
+async function downloadCanvasPNG2(isSolidBackground = true) {
 
     txtAttribution.visible(true);
 
@@ -12683,18 +12658,11 @@ function downloadCanvasPNG2(isSolidBackground = true) {
             downloadRoomName = downloadRoomName.trim() + '.png'
         }
 
-        function downloadURI(uri, name) {
-            let link = document.createElement('a');
-            link.download = name;
-            link.href = uri;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            delete link;
-        }
-
         let stageDataUrl = stage.toDataURL({ pixelRatio: 5 });
-        downloadURI(stageDataUrl, downloadRoomName);
+
+        const response = await fetch(stageDataUrl);
+        const blob = await response.blob();
+        downloadWithFallback(blob, downloadRoomName, 'image/png');
 
         lastAction = 'download png';
         postHeartbeat();
@@ -28410,12 +28378,7 @@ function exportXConfigFile() {
     downloadName = downloadName.replace(/[/\\?%*:|"<>]/g, '-');
     downloadName = `${downloadName}_${localISOTime}.xconfig.txt`;
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = downloadName;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadWithFallback(content, downloadName, 'text/plain');
 
     /* --- Surface a summary dialog --------------------------------------- */
     const camCount = cameraEntries.length;
@@ -28934,11 +28897,34 @@ async function exportDxfFile() {
 }
 
 
+async function openFileWithPicker() {
+    if ('showOpenFilePicker' in window) {
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [
+                    { description: 'JSON files', accept: { 'application/json': ['.json'] } },
+                    { description: 'Text files', accept: { 'text/plain': ['.txt'] } }
+                ],
+                multiple: false
+            });
+            const file = await handle.getFile();
+            const text = await file.text();
+            routeUploadedFileText(text, file.name);
+            return true;
+        } catch (err) {
+            if (err.name !== 'AbortError') console.error('File open failed:', err);
+        }
+    }
+    return false;
+}
+
 const fileJsonUpload = document.getElementById('fileUpload');
 
-fileJsonUpload.addEventListener('change', function (e) {
-    /* Picker accepts .json and .txt (xConfig dumps); format is content-sniffed in routeUploadedFileText(), so the name only seeds the imported room name. */
+fileJsonUpload.addEventListener('change', async function (e) {
     closeAllDialogModals();
+
+    const opened = await openFileWithPicker();
+    if (opened) return;
 
     if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
@@ -30510,6 +30496,18 @@ function openModalWorkspace() {
 
 function closeModalWorkspace() {
     document.getElementById('modalWorkspace').close();
+}
+
+function openModalFaq() {
+    closeAllDialogModals();
+    document.getElementById('iframeFaq').src = './faq.html';
+    document.getElementById('dialogFaq').showModal();
+}
+
+function openModalReleaseNotes() {
+    closeAllDialogModals();
+    document.getElementById('iframeReleaseNotes').src = './releasenotes.html';
+    document.getElementById('dialogReleaseNotes').showModal();
 }
 
 function openDetailsRoomTab() {
@@ -32531,18 +32529,40 @@ function combinePathShapeLabel(label, path) {
 
 
 
-function downloadJsonWorkpaceFile(workspaceObj) {
+async function saveFileWithPicker(content, suggestedName, mimeType = 'text/plain') {
+    if (!('showSaveFilePicker' in window)) return false; // unsupported, use download fallback
+    try {
+        const handle = await window.showSaveFilePicker({
+            suggestedName: suggestedName,
+            types: [{ description: mimeType, accept: { [mimeType]: ['.json', '.png', '.txt'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        return true;
+    } catch (err) {
+        if (err.name === 'AbortError') return true; // user cancelled, do not fall back
+        console.error('File save failed:', err);
+        return false; // real error, use download fallback
+    }
+}
 
-    let downloadRoomName;
-    const link = document.createElement("a");
+async function downloadWithFallback(content, fileName, mimeType = 'text/plain') {
+    const saved = await saveFileWithPicker(content, fileName, mimeType);
+    if (!saved) {
+        const link = document.createElement("a");
+        const file = new Blob([content], { type: mimeType });
+        link.href = URL.createObjectURL(file);
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+}
+
+function downloadJsonWorkpaceFile(workspaceObj) {
     const content = JSON.stringify(workspaceObj, null, 5);
-    const file = new Blob([content], { type: 'text/plain' });
-    link.href = URL.createObjectURL(file);
-    downloadRoomName = workspaceObj.title.replace(/[/\\?%*:|"<>]/g, '-');
-    downloadRoomName = downloadRoomName.trim() + '.json';
-    link.download = downloadRoomName;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const downloadRoomName = workspaceObj.title.replace(/[/\\?%*:|"<>]/g, '-').trim() + '.json';
+    downloadWithFallback(content, downloadRoomName, 'text/plain');
 }
 
 /* download native VRC file format */
@@ -32604,14 +32624,9 @@ window.VRC = window.VRC || {};
 window.VRC.roomFile = window.VRC.roomFile || {};
 window.VRC.roomFile.buildRoomObjJsonPayload = buildRoomObjJsonPayload;
 
-function downloadRoomObj() {
+async function downloadRoomObj() {
     const { content, fileName } = buildRoomObjJsonPayload();
-    const link = document.createElement("a");
-    const file = new Blob([content], { type: 'text/plain' });
-    link.href = URL.createObjectURL(file);
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadWithFallback(content, fileName, 'text/plain');
 }
 
 
@@ -33293,6 +33308,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const jsonMenu = document.getElementById("drpDownJSONContent");
     const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
 
+    // Update Download to Save button in PWA with File System Access API
+    const isPWA = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay']
+        .some(mode => window.matchMedia('(display-mode: ' + mode + ')').matches)
+        || window.navigator.standalone === true;
+    if ('showSaveFilePicker' in window && isPWA) {
+        const downloadButton = document.getElementById("downloadJSONButton");
+        if (downloadButton) {
+            const span = downloadButton.querySelector('span');
+            if (span) {
+                span.innerHTML = span.innerHTML.replace('Download File', 'Save File');
+            }
+        }
+    }
 
     //
     // PNG split-button

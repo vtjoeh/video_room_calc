@@ -17,68 +17,18 @@ Double-click on any object on the canvas to view its details and edit it.
 ### How do I export a design from the Workspace Designer?
 In the Workspace Designer type `ctrl-e` to export your design to a JSON file. Import the file in the Video Room Calculator by clicking **New** --> **Open File**.
 
-### What are the shortcut keys?
-The following list is also found under the help menu. `cmd` is accepted in place of `ctrl` on macOS.
+### How to scan a room?
+The Video Room Calculator does not have native scanning. Instead, use the [Video Room Scanner](https://apps.apple.com/us/app/video-room-scanner/id6771168512) app by Richard Hermann on an iPhone Pro with LiDAR.
 
-`space` = open the Quick Add menu
+### What is a Progressive Web App (PWA) and how do I install it?
+A Progressive Web App (PWA) is a web application that can be installed on your computer and run like a native app. Once installed, the Video Room Calculator can be used offline, which is useful when moving between rooms without internet connectivity. Note that Workspace Designer integration still requires an active internet connection.
 
-`ctrl-c / cmd-c` = copy
-
-`ctrl-v / cmd-v` = paste (at the location of the pointer)
-
-`ctrl-x / cmd-x` = cut
-
-`ctrl-d / cmd-d` = duplicate
-
-`ctrl-z / cmd-z` = undo
-
-`ctrl-y / cmd-y` = redo
-
-`shift + ctrl-z / shift + cmd-z` = redo
-
-`ctrl-r / cmd-r` = rotate 90 degrees
-
-`ctrl-g / cmd-g` = Group selected items (2 or more required)
-
-`shift + ctrl-g / shift + cmd-g` = Ungroup (dissolve, keep items)
-
-`ctrl-m` = turn on the Measuring Tool
-
-`ctrl-3 / ctrl-w` = toggle Split View
-
-`esc` = unselect items (or turn off the Measuring Tool)
-
-`Delete` / `Backspace` = delete items
-
-`←,↑,→,↓` arrows = move selected items
-
-`[shift / ctrl / cmd] + click` = select/unselect item
-
-`ctrl-s / cmd-s` = Save (download) Video Room Calculator JSON file.
-
-`ctrl-e / cmd-e` = Export to Workspace Designer file format.
-
-`shift + ctrl-e / shift + cmd-e` = Export to Cisco xConfiguration `.txt` file.
-
-`shift + ctrl-d / shift + cmd-d` = Export to AutoCAD R12 DXF file.
-
-`ctrl-i / cmd-i` = Import Video Room Calculator, Workspace Designer, or xConfiguration file.
-
-`c` = Camera coverage toggle
-
-`m` = Microphone coverage toggle
-
-`d` = Display coverage toggle
-
-`shift` = draw vertical & horizontal lines in modes like Measure Tool or Wall Builder
-
-__`ctrl-3` = open iFrame window if enabled__
-
-**Other shortcuts:**
-- Copy and paste image over the sidebar to quickly upload a background image
-- Drag and drop .json file or images on the room canvas to upload
-
-From the Workspace Designer, use `ctrl-e` to export a file to the Video Room Calculator.
+**How to install on Desktop (Windows, macOS, Linux, ChromeOS):**
+1. Open Chrome and navigate to https://collabexperience.com
+2. Click the Install icon on the far right of the address bar
+3. Alternatively, click the three dots menu in the top-right corner, select "Cast, save, and share", and click "Install page as app"
+4. Click "Install" in the pop-up prompt
+5. The web app will now appear in your Start menu, Applications folder, or Chrome App Launcher
 
 ### What browsers does the Video Room Calculator work in?
 The goal is to support the following:

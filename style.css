@@ -1676,6 +1676,32 @@ input:placeholder-shown {
 
 }
 
+.dialogFullPage[open] {
+  width: 90vw;
+  height: 90vh;
+  max-width: 1200px;
+  max-height: 90vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+
+.dialogFullPage main {
+  flex: 1;
+  max-height: none;
+  padding: 0;
+}
+
+.dialogOpenNewPage {
+  position: absolute;
+  top: 22px;
+  right: 55px;
+  font-size: 14px;
+}
+
 
 .holdIndicator {
   width: 5.5px;

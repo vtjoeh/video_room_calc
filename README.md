@@ -1,12 +1,10 @@
-# video_room_calc
+
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
-Video Room Calculator is a community project aimed at creating collaboration rooms using Cisco video devices. While it is not an official Cisco site, it utilizes the [Workspace Designer](https://www.webex.com/us/en/workspaces/workspace-designer.html#) Custom Rooms API to transform 2D images into 3D. 🎥🛠️
-
-Please see the [FAQ](https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md).
-
-### Release Notes:
+**v0.1.656 Release Notes**
+- Progressive Web App (PWA). Added support as a Progressive Web App so the Video Room Calculator can be installed locally on a PC or Mac. Workspace Designer integration still requires an active internet connection.
+- Moved the FAQ and Release Notes off of GitHub and onto the website. Look on the help menu for the links.
 
 **v0.1.655 Release Notes**
 - Support for Cisco Devices for Zoom Roomss. For more information see [InfoComm 2026: Extending the Agentic Workplace to Every Meeting Platform](https://blog.webex.com/collaboration/infocomm-2026-extending-agentic-workplace-every-meeting-platform/).
@@ -486,29 +484,24 @@ Huge update:
 - Backwards compatible with v0.1, except for custom cameras.  Shareable Link URLs created in v0.1 with a custom camera or v0.0 redirect to an archive of the previous version.
 
 **v0.1**
-(circa 10/2023) Updated table / camera FOV based on more accurate data. Picture  SVG based.
+(10/2023) Updated table / camera FOV based on more accurate data. Picture  SVG based.
 
 **v0.0**
-(circa 9/2023) First release.  Table / camera FOV and distances only. Picture SVG based.
+(9/2023) First release.  Table / camera FOV and distances only. Picture SVG based.
 
 ### License/Attribution
-- Google Fonts: https://fonts.google.com/ license can be found at https://fonts.google.com/attribution
 - Konva.js: MIT license can be found at https://github.com/konvajs/konva/blob/master/LICENSE
 - DOMPurify: https://github.com/cure53/DOMPurify license can be found at https://github.com/cure53/DOMPurify/blob/main/LICENSE
 - kazuhikoarase QR Code Generator: https://github.com/kazuhikoarase/qrcode-generator
 
 
-
 ### Special thanks to those who have tested, gave feedback or were just really patient.
 <sub>* Workspace Designer team </sub> \
-<sub>*  **Mark Baker** </sub> \
-<sub>* Alexis B. </sub> \
-<sub>*  Bobby McGonigle. </sub> \
+<sub>* Bobby McGonigle. </sub> \
 <sub>* Julie, Anna, Paul & Joshua</sub> \
-<sub>* Those who wish to be uncredited</sub> \
 <sub>* The Famous One</sub>
 
-_Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof this is not written by AI._
+_Spelling errors, typos, unused functions, incomplete commenting are all purposly inserted as proof of parts of the project written pre-AI._
 
 
 

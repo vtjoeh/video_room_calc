@@ -1,6 +1,6 @@
 {
   "name": "Video Room Calculator",
-  "short_name": "VRC",
+  "short_name": "Video Room Calc",
   "description": "Room designer for Cisco video devices running Microsoft Teams Rooms or RoomOS",
   "start_url": "./RoomCalculator.html",
   "display": "standalone",
