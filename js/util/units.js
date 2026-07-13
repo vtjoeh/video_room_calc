@@ -123,7 +123,9 @@ window.VRC.util = window.VRC.util || {};
         (roomObj2.items || []).forEach(item => {
             const isItemOnStage = !itemsOffStageId.includes(item.id);
 
-            if (!(isItemOnStage || isActiveRoomPart)) return; /* only add the node if it is onstage */
+            if (isActiveRoomPart && isRoomPart(item.data_deviceid)) return; /* roomParts never export from inside a room */
+
+            if (!isItemOnStage) return; /* only export items on stage (normal) or intersecting the active roomPart (Room mode) */
 
             if ('x' in item) {
                 item.x = (item.x * ratio) - roomX;
