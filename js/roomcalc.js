@@ -190,7 +190,7 @@ function isRoomSubMode() {
 
 /* Items allowed in MultiRoom overview: walls/shapes/doors + Room Parts. Shared by Equipment tab, search, and Quick Add. */
 const MULTI_ROOM_OVERVIEW_MENU_ITEMS = [
-    'boxRoomPart', 'polyRoom',
+    'boxRoomPart', 'boxRoomPartNoWalls', 'polyRoom',
     'wallBuilder', 'wallStd', 'wallGlass', 'wallWindow',
     'columnRect', 'cylinder', 'ceilingGrid', 'box', 'cone', 'sphere',
     'pathShape', 'wdText', 'vrcText', 'dimensionLine',
@@ -203,16 +203,26 @@ function isAllowedInMultiRoomOverview(deviceId) {
 
 let _lastMultiRoomOverviewMenuState = null; /* last overview state menus were built for; rebuild only when it flips */
 
-/* Default Walls editing target: Room mode on a rectangular boxRoomPart edits per-room attrs; otherwise global roomObj. */
+/* True when zoomed into a rectangular boxRoomPart. Wall behavior keys off the ZOOM state, not the multiRoom flag — the flag doesn't ride the shareable URL, and a Room Part's walls must stay per-room regardless. */
+function isZoomedIntoBoxRoomPart() {
+    return isActiveRoomPart && !!activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart';
+}
+
+/* Zoomed into a boxRoomPart whose rotation survived normalization (odd angle) — the native bbox default walls can't represent it, so walls draw/export rotated instead. */
+function isActiveRoomPartRotated() {
+    return isZoomedIntoBoxRoomPart() && Math.abs(Number(activeRoomPartItem.rotation) || 0) >= 0.5;
+}
+
+/* Default Walls editing target: zoomed into a rectangular boxRoomPart edits per-room attrs; otherwise global roomObj. */
 function activeDefaultWallsSurfaces() {
-    if (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart' && activeRoomPartItem.data_roomSurfaces) {
+    if (isZoomedIntoBoxRoomPart() && activeRoomPartItem.data_roomSurfaces) {
         return activeRoomPartItem.data_roomSurfaces;
     }
     return roomObj.roomSurfaces;
 }
 
 function activeDefaultWallsWorkspace() {
-    if (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart' && activeRoomPartItem.data_workspace) {
+    if (isZoomedIntoBoxRoomPart() && activeRoomPartItem.data_workspace) {
         return activeRoomPartItem.data_workspace;
     }
     return roomObj.workspace;
@@ -7559,9 +7569,20 @@ let rooms = [
         resizeable: []
     },
     {
-        name: 'Room Part (Experimental)**',
+        name: 'Room Part with Default Walls (Experimental)**',
         id: 'boxRoomPart',
         key: 'ZZ',
+        frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'darkgrey',
+        strokeWidth: 3,
+        fill: 'lightblue',
+        resizeable: ['width', 'depth', 'vheight']
+    },
+    {
+        name: 'Room Part - No Walls (Experimental)**',
+        id: 'boxRoomPartNoWalls', /* menu-only alias: insertItemFromMenu converts it to boxRoomPart with walls pre-disabled */
+        key: 'ZW',
         frontImage: 'box-front.png',
         family: 'wallBox',
         stroke: 'darkgrey',
@@ -10145,7 +10166,7 @@ function updateButtonRoomDimensions() {
 
 /* Room sub-mode: Room tab is read-only, but override the loaded floor values to show THIS room part's name/size. No-op outside Room sub-mode on a rectangular room part. */
 function populateRoomTabFromActiveRoomPart() {
-    if (!(isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart')) {
+    if (!isZoomedIntoBoxRoomPart()) {
         return;
     }
 
@@ -10332,23 +10353,78 @@ function addRoomPartDoorPreview(group, wallGeom, doorPosition, wallThickness) {
     }));
 }
 
+/* Zoom uses the axis-aligned bbox, so a boxRoomPart rotated a multiple of 90 is rebaked to rotation 0 (bbox UL, w/h swap) with its wall settings shifted one side per clockwise quarter turn. Returns true when the item changed; caller must full-redraw. Odd angles are left alone (zoomed-in walls draw rotated instead). */
+function normalizeRoomPartRotation(item) {
+    if (!item || item.data_deviceid !== 'boxRoomPart') return false;
+
+    const rot = (((Number(item.rotation) || 0) % 360) + 360) % 360;
+    if (rot < 0.5 || rot > 359.5) {
+        if (item.rotation !== 0) item.rotation = 0;
+        return false;
+    }
+    if (Math.abs(rot - Math.round(rot / 90) * 90) > 0.5) return false;
+
+    const quarter = Math.round(rot / 90) % 4;
+    const corners = findFourCorners(item);
+    const minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+    const minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+
+    if (quarter === 1 || quarter === 3) {
+        const w = item.width;
+        item.width = item.height;
+        item.height = w;
+    }
+    item.x = minX;
+    item.y = minY;
+    item.rotation = 0;
+
+    if (item.data_roomSurfaces) {
+        const cycle = ['videowall', 'rightwall', 'backwall', 'leftwall']; /* clockwise from the top side */
+        const remapped = structuredClone(item.data_roomSurfaces);
+        cycle.forEach((side, i) => {
+            remapped[cycle[(i + quarter) % 4]] = item.data_roomSurfaces[side];
+        });
+        item.data_roomSurfaces = remapped;
+    }
+    return true;
+}
+
+/* Every boxRoomPart owns walls: seed missing per-room wall attrs (standard walls, on) on the item AND its Konva node, so URL/WD-import/legacy rooms behave like fresh inserts. */
+function ensureRoomPartWallDefaults() {
+    (roomObj.items || []).forEach(item => {
+        if (item.data_deviceid !== 'boxRoomPart') return;
+
+        if (!item.data_roomSurfaces) item.data_roomSurfaces = structuredClone(defaultRoomSurfaces);
+        if (!item.data_workspace) item.data_workspace = { removeDefaultWalls: false };
+
+        /* Node mirror matters: updateRoomObjFromTrNode's delete-on-absent branch would wipe an item-only backfill on the next drag. */
+        const node = stage.findOne('#' + item.id);
+        if (node) {
+            if (!node.data_roomSurfaces) node.data_roomSurfaces = structuredClone(item.data_roomSurfaces);
+            if (!node.data_workspace) node.data_workspace = structuredClone(item.data_workspace);
+        }
+    });
+}
+
 /* MultiRoom overview: rebuild the per-room default-walls + door preview for every walled boxRoomPart. Visual only (WD export builds real geometry); rebuilt each drawRoom / roomPart drop. */
 function drawRoomPartDefaultWallsPreviews() {
     if (typeof groupRoomPartWallsPreview === 'undefined') return;
     groupRoomPartWallsPreview.destroyChildren();
 
-    if (!isMultiRoomOverviewMode()) {
+    /* Zoomed out: draw for every part. Zoomed in: only an odd-rotated active part draws its walls here — axis-aligned rooms use the native default walls. */
+    if (isActiveRoomPart && !isActiveRoomPartRotated()) {
         layerTransform.batchDraw();
         return;
     }
 
-    /* Wall thickness 0.115 m; convert to feet so feet rooms aren't too thin (matches drawOutsideWall). */
-    let wallThicknessUnits = 0.115;
+    /* Wall thickness 0.10 m (matches the exported WD walls); convert to feet so feet rooms aren't too thin. */
+    let wallThicknessUnits = 0.10;
     if (roomObj.unit === 'feet') wallThicknessUnits *= 3.28084;
     const wallThickness = wallThicknessUnits * scale;
 
     groupRooms.getChildren().forEach(node => {
         if (node.data_deviceid !== 'boxRoomPart') return;
+        if (isActiveRoomPart && (!activeRoomPartItem || node.id() !== activeRoomPartItem.id)) return;
 
         /* Prefer the roomObj item (carries Room-mode edits); fall back to node attrs for a freshly-inserted room. */
         const item = roomObjItemsMap.get(node.id());
@@ -10370,11 +10446,12 @@ function drawRoomPartDefaultWallsPreviews() {
             listening: false,
         });
 
+        /* Walls sit OUTSIDE the part (mirrors drawOutsideWall); top/bottom extend past the corners to cover them. */
         const wallRects = {
-            videowall: { x: 0, y: 0, width: w, height: wallThickness, horizontal: true },
-            backwall: { x: 0, y: h - wallThickness, width: w, height: wallThickness, horizontal: true },
-            leftwall: { x: 0, y: 0, width: wallThickness, height: h, horizontal: false },
-            rightwall: { x: w - wallThickness, y: 0, width: wallThickness, height: h, horizontal: false },
+            videowall: { x: -wallThickness, y: -wallThickness, width: w + 2 * wallThickness, height: wallThickness, horizontal: true },
+            backwall: { x: -wallThickness, y: h, width: w + 2 * wallThickness, height: wallThickness, horizontal: true },
+            leftwall: { x: -wallThickness, y: 0, width: wallThickness, height: h, horizontal: false },
+            rightwall: { x: w, y: 0, width: wallThickness, height: h, horizontal: false },
         };
 
         Object.keys(wallRects).forEach(wallName => {
@@ -10892,6 +10969,8 @@ function zoomRoomPart(roomPart) {
         if (!activeRoomPartItem.data_workspace) {
             activeRoomPartItem.data_workspace = { removeDefaultWalls: false };
         }
+        /* 90-multiple rotations are rebaked here so the bbox below and the native default walls line up; the drawRoom(true) full redraw rebuilds the node. */
+        normalizeRoomPartRotation(activeRoomPartItem);
     }
 
     document.getElementById('btnBackToFloorPlan').style.display = '';
@@ -11194,7 +11273,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     /* Draw the outer-wall outline in single-room mode, the MultiRoom overview, and inside a rectangular room. Filled default walls are suppressed in the overview (gate in drawOutsideWall). */
     const drawFloorPlanWalls =
         !isActiveRoomPart ||
-        (isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'boxRoomPart');
+        (isZoomedIntoBoxRoomPart() && !isActiveRoomPartRotated());
     if (drawFloorPlanWalls) {
         drawOutsideWall(groupOuterWall);
     }
@@ -11272,6 +11351,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         insertKonvaBackgroundImageFloor(true);
     }
+
+    ensureRoomPartWallDefaults();
 
     drawRoomPartDefaultWallsPreviews();
 
@@ -19243,6 +19324,38 @@ function doPolygonsIntersect(a, b) {
 }
 
 /* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
+/* Items within 0.10 m outside a Room Part still count as intersecting (drop margin, matches the wall-truncation margin; unit-adjusted). */
+function roomPartBoundsMarginUnits() {
+    return 0.10 * (roomObj.unit === 'feet' ? 3.28084 : 1);
+}
+
+/* Miter-offset a polygon outward by margin; winding detected via the shoelace sign, miter clamped for spike vertices. */
+function expandPolygonByMargin(points, margin) {
+    const n = Array.isArray(points) ? points.length : 0;
+    if (n < 3 || !(margin > 0)) return points;
+
+    let area = 0;
+    for (let i = 0; i < n; i++) {
+        const a = points[i], b = points[(i + 1) % n];
+        area += a.x * b.y - b.x * a.y;
+    }
+    const cw = area >= 0; /* screen coords are y-down; rect corners in this codebase wind this way */
+
+    const normals = [];
+    for (let i = 0; i < n; i++) {
+        const a = points[i], b = points[(i + 1) % n];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const dx = (b.x - a.x) / len, dy = (b.y - a.y) / len;
+        normals.push(cw ? { x: dy, y: -dx } : { x: -dy, y: dx });
+    }
+
+    return points.map((v, i) => {
+        const n0 = normals[(i - 1 + n) % n], n1 = normals[i];
+        const denom = Math.max(1 + (n0.x * n1.x + n0.y * n1.y), 0.2);
+        return { x: v.x + margin * (n0.x + n1.x) / denom, y: v.y + margin * (n0.y + n1.y) / denom };
+    });
+}
+
 function listItemsOffStage() {
 
     itemsOffStageId = [];
@@ -19265,22 +19378,25 @@ function listItemsOffStage() {
 
     } else if (activeRoomPartItem) {
 
-        xBoundMin = activeRoomX;
-        yBoundMin = activeRoomY;
-        xBoundMax = activeRoomX + activeRoomWidth;
-        yBoundMax = activeRoomY + activeRoomLength;
+        const margin = roomPartBoundsMarginUnits();
+
+        xBoundMin = activeRoomX - margin;
+        yBoundMin = activeRoomY - margin;
+        xBoundMax = activeRoomX + activeRoomWidth + margin;
+        yBoundMax = activeRoomY + activeRoomLength + margin;
 
 
-        border = activeRoomAbsPoints;
+        border = expandPolygonByMargin(activeRoomAbsPoints, margin);
 
 
     } else {
 
+        const margin = roomPartBoundsMarginUnits();
 
-        xBoundMin = activeRoomX;
-        yBoundMin = activeRoomY;
-        xBoundMax = activeRoomX + activeRoomWidth;
-        yBoundMax = activeRoomY + activeRoomLength;
+        xBoundMin = activeRoomX - margin;
+        yBoundMin = activeRoomY - margin;
+        xBoundMax = activeRoomX + activeRoomWidth + margin;
+        yBoundMax = activeRoomY + activeRoomLength + margin;
 
 
         border[0] = { x: xBoundMin, y: yBoundMin };
@@ -21792,6 +21908,7 @@ function updateDefaultWallsMenuAndCanvas() {
 
     updateDefaultWallTypeOnCanvas(wall);
     insertDefaultDoorsOnCanvas();
+    drawRoomPartDefaultWallsPreviews(); /* odd-rotated zoomed-in rooms render walls via the preview, not the native rects */
     updateDefaultWallsMenu(wall);
 
 
@@ -21830,8 +21947,8 @@ function updateDefaultWallsMenu(event) {
     doorSelectionDiv.style.transform = `rotate(-${rotateSelectionDiv}deg)`;
     doorNoneDiv.style.transform = `rotate(${rotateSelectionDiv}deg)`;
 
-    if (isRoomSubMode()) {
-        /* Default Door option removed in Room mode (per-room) — hidden entirely. */
+    if (isZoomedIntoBoxRoomPart()) {
+        /* Per-room walls have no door option — hidden entirely. */
         document.getElementById('pickDoorSelection').style.display = 'none';
         document.getElementById('noDoorSelectionDiv').style.display = 'none';
     } else if (surfaces[wall].type === 'window') {
@@ -23956,6 +24073,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         return;
     };
+
+    /* Menu-only alias: stored items are always plain boxRoomPart; this tile just pre-disables the walls. */
+    if (data_deviceid === 'boxRoomPartNoWalls') {
+        data_deviceid = 'boxRoomPart';
+        attrs.data_workspace = { removeDefaultWalls: true };
+    }
 
     if (data_deviceid === 'polyRoom') {
         polyBuilderOn(true, 'polyRoom')
@@ -30631,6 +30754,76 @@ function addDefaultsToWorkspaceObj() {
 }
 
 
+/* Liang-Barsky segment/rect clip; returns {p1, p2} in original direction or null when fully outside. */
+function clipSegmentToRect(p1, p2, xMin, yMin, xMax, yMax) {
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    let t0 = 0, t1 = 1;
+    const p = [-dx, dx, -dy, dy];
+    const q = [p1.x - xMin, xMax - p1.x, p1.y - yMin, yMax - p1.y];
+    for (let i = 0; i < 4; i++) {
+        if (p[i] === 0) {
+            if (q[i] < 0) return null;
+        } else {
+            const t = q[i] / p[i];
+            if (p[i] < 0) {
+                if (t > t1) return null;
+                if (t > t0) t0 = t;
+            } else {
+                if (t < t0) return null;
+                if (t < t1) t1 = t;
+            }
+        }
+    }
+    return { p1: { x: p1.x + t0 * dx, y: p1.y + t0 * dy }, p2: { x: p1.x + t1 * dx, y: p1.y + t1 * dy } };
+}
+
+/* Room-mode WD export: truncate walls at the roomPart boundary +0.10 m via the wall's centerline (midpoints of the two short sides). See notes/MULTI_ROOM_FLOOR_PLAN.md step 8. */
+function truncateWallsToActiveRoomRect(roomObj2) {
+    const margin = 0.10;
+    const xMin = -margin, yMin = -margin;
+    const xMax = roomObj2.room.roomWidth + margin;
+    const yMax = roomObj2.room.roomLength + margin;
+    const wallIds = ['wallStd', 'wallGlass', 'wallWindow'];
+
+    roomObj2.items.forEach(item => {
+        if (!wallIds.includes(item.data_deviceid)) return;
+        if (!(item.width > 0) || !(item.height > 0)) return;
+
+        const w = { x: item.x, y: item.y, rotation: item.rotation || 0 }; /* UL anchor; main rotation only (tilt/lean ignored) */
+        const alongY = item.height >= item.width; /* run axis = longer side */
+        const thickness = alongY ? item.width : item.height;
+        const runLength = alongY ? item.height : item.width;
+
+        /* negative deltas ADD the rotated local vector to the UL anchor (findNewTransformationCoordinate convention) */
+        const p1 = alongY
+            ? findNewTransformationCoordinate(w, -thickness / 2, 0)
+            : findNewTransformationCoordinate(w, 0, -thickness / 2);
+        const p2 = alongY
+            ? findNewTransformationCoordinate(w, -thickness / 2, -runLength)
+            : findNewTransformationCoordinate(w, -runLength, -thickness / 2);
+
+        const clipped = clipSegmentToRect(p1, p2, xMin, yMin, xMax, yMax);
+        if (!clipped) return; /* centerline never enters the rect: leave untouched (intersection filter already ran) */
+
+        const newLength = Math.hypot(clipped.p2.x - clipped.p1.x, clipped.p2.y - clipped.p1.y);
+        if (newLength < 0.01 || Math.abs(newLength - runLength) < 0.001) return;
+
+        /* positive deltas SUBTRACT the rotated local vector: recover the UL anchor from the clipped start point */
+        const clipFrame = { x: clipped.p1.x, y: clipped.p1.y, rotation: w.rotation };
+        const newUL = alongY
+            ? findNewTransformationCoordinate(clipFrame, thickness / 2, 0)
+            : findNewTransformationCoordinate(clipFrame, 0, thickness / 2);
+
+        item.x = newUL.x;
+        item.y = newUL.y;
+        if (alongY) {
+            item.height = newLength;
+        } else {
+            item.width = newLength;
+        }
+    });
+}
+
 
 function exportRoomObjToWorkspace() {
 
@@ -30641,7 +30834,7 @@ function exportRoomObjToWorkspace() {
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
 
-    roomObj2 = convertToMeters(roomObj2); /* convertToMeters() converts feet to meters and omits items whose ids are in itemsOffStageId (unless isActiveRoomPart). */
+    roomObj2 = convertToMeters(roomObj2); /* converts feet to meters and drops itemsOffStageId items; in Room mode also drops roomPart items. */
 
     /* Items in hidden VRC layers are omitted from the Workspace Designer export entirely. */
     removeHiddenLayerItemsForExport(roomObj2);
@@ -30667,6 +30860,48 @@ function exportRoomObjToWorkspace() {
     let activeRoomX = roomObj2.activeRoomX;
     let activeRoomY = roomObj2.activeRoomY;
 
+    /* Room mode: re-frame the export so the zoomed roomPart IS the WD room (notes/MULTI_ROOM_FLOOR_PLAN.md step 8). */
+    let rotatedActiveRoomPartFrame = null;
+    if (isActiveRoomPart) {
+        const frameShiftX = (roomObj2.room.roomWidth - activeRoomWidth) / 2;
+        const frameShiftY = (roomObj2.room.roomLength - activeRoomLength) / 2;
+        roomObj2.items.forEach(item => {
+            if ('x' in item) item.x = item.x - frameShiftX;
+            if ('y' in item) item.y = item.y - frameShiftY;
+        });
+        if (roomObj2.backgroundImage) {
+            roomObj2.backgroundImage.x = roomObj2.backgroundImage.x - frameShiftX;
+            roomObj2.backgroundImage.y = roomObj2.backgroundImage.y - frameShiftY;
+        }
+
+        /* Odd-rotated room: roomShape can't rotate, so capture a frame-space part record to emit as real rotated walls below. */
+        if (isActiveRoomPartRotated()) {
+            const rpRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+            rotatedActiveRoomPartFrame = {
+                id: activeRoomPartItem.id,
+                data_deviceid: 'boxRoomPart',
+                x: activeRoomPartItem.x * rpRatio - activeRoomX - frameShiftX,
+                y: activeRoomPartItem.y * rpRatio - activeRoomY - frameShiftY,
+                width: activeRoomPartItem.width * rpRatio,
+                height: activeRoomPartItem.height * rpRatio,
+                rotation: Number(activeRoomPartItem.rotation) || 0,
+                data_roomSurfaces: activeRoomPartItem.data_roomSurfaces,
+                data_workspace: activeRoomPartItem.data_workspace,
+                data_layerId: activeRoomPartItem.data_layerId,
+            };
+        }
+
+        roomObj2.room.roomWidth = activeRoomWidth;
+        roomObj2.room.roomLength = activeRoomLength;
+        activeRoomX = 0;
+        activeRoomY = 0;
+        truncateWallsToActiveRoomRect(roomObj2);
+    }
+
+    /* polyRoom rooms have hand-drawn walls and rotated rooms emit real rotated walls, so neither gets roomShape default walls. */
+    const exportRemoveDefaultWalls = ((isActiveRoomPart && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom') || rotatedActiveRoomPartFrame != null)
+        ? true
+        : !!activeDefaultWallsWorkspace().removeDefaultWalls;
 
     let workspaceObj = {};
     workspaceObj.title = '';
@@ -30683,24 +30918,27 @@ function exportRoomObjToWorkspace() {
         workspaceObj.roomShape.length = roomObj2.room.roomWidth;
     }
 
+    /* Cloned so door cleanup never mutates the live (global or per-room) surfaces. */
+    const exportRoomSurfaces = structuredClone(activeDefaultWallsSurfaces());
+
     ['leftwall', 'videowall', 'rightwall', 'backwall'].forEach(roomSurfaceId => {
-        if (roomObj.roomSurfaces[roomSurfaceId].door === 'none') {
-            delete roomObj.roomSurfaces[roomSurfaceId].door;
+        if (exportRoomSurfaces[roomSurfaceId].door === 'none') {
+            delete exportRoomSurfaces[roomSurfaceId].door;
         }
     })
 
     workspaceObj.roomShape.roomSurfaces = [
-        { ...{ objectId: 'leftwall' }, ...roomObj.roomSurfaces.leftwall },
-        { ...{ objectId: 'videowall' }, ...roomObj.roomSurfaces.videowall },
-        { ...{ objectId: 'rightwall' }, ...roomObj.roomSurfaces.rightwall },
-        { ...{ objectId: 'backwall' }, ...roomObj.roomSurfaces.backwall },
+        { ...{ objectId: 'leftwall' }, ...exportRoomSurfaces.leftwall },
+        { ...{ objectId: 'videowall' }, ...exportRoomSurfaces.videowall },
+        { ...{ objectId: 'rightwall' }, ...exportRoomSurfaces.rightwall },
+        { ...{ objectId: 'backwall' }, ...exportRoomSurfaces.backwall },
 
     ]
 
     /* the default walls roomShape format above inserts a tree; add walls one at a time (designer.webex.com only) */
     let altDefaultWall = false;
 
-    if (altDefaultWall === true && !roomObj.workspace.removeDefaultWalls) {
+    if (altDefaultWall === true && !exportRemoveDefaultWalls) {
         let backwall = {};
         let leftwall = {};
         let rightwall = {};
@@ -30745,22 +30983,22 @@ function exportRoomObjToWorkspace() {
         [backwall, leftwall, rightwall, videowall].forEach(wall => {
             let jsonLabel = {}
 
-            if (roomObj.roomSurfaces[wall.id].type === 'regular') {
+            if (exportRoomSurfaces[wall.id].type === 'regular') {
                 wall.data_deviceid = 'wallStd';
             }
-            else if (roomObj.roomSurfaces[wall.id].type === 'glass') {
+            else if (exportRoomSurfaces[wall.id].type === 'glass') {
                 wall.data_deviceid = 'wallGlass';
             }
-            else if (roomObj.roomSurfaces[wall.id].type === 'window') {
+            else if (exportRoomSurfaces[wall.id].type === 'window') {
                 wall.data_deviceid = 'wallWindow';
             }
 
-            if ('acousticTreatment' in roomObj.roomSurfaces[wall.id]) {
-                jsonLabel.acousticTreatment = roomObj.roomSurfaces[wall.id].acousticTreatment;
+            if ('acousticTreatment' in exportRoomSurfaces[wall.id]) {
+                jsonLabel.acousticTreatment = exportRoomSurfaces[wall.id].acousticTreatment;
             }
 
-            if ('door' in roomObj.roomSurfaces[wall.id]) {
-                jsonLabel.door = roomObj.roomSurfaces[wall.id].door;
+            if ('door' in exportRoomSurfaces[wall.id]) {
+                jsonLabel.door = exportRoomSurfaces[wall.id].door;
             }
 
             wall.data_labelField = JSON.stringify(jsonLabel);
@@ -30983,7 +31221,7 @@ function exportRoomObjToWorkspace() {
     }
 
 
-    if (altDefaultWall && document.getElementById('removeDefaultWallsCheckBox').checked === false) {
+    if (altDefaultWall && !exportRemoveDefaultWalls) {
         delete workspaceObj.roomShape;
         let floor = {
             x: roomObj2.room.roomWidth + 0.1 - activeRoomX,
@@ -31001,7 +31239,7 @@ function exportRoomObjToWorkspace() {
         workspaceObjWallPush(floor);
     }
 
-    if (document.getElementById('removeDefaultWallsCheckBox').checked === true) {
+    if (exportRemoveDefaultWalls) {
         delete workspaceObj.roomShape;
 
         let wallWidth = 0.10; /* Add in the floor width to include the outer wall */
@@ -31039,7 +31277,7 @@ function exportRoomObjToWorkspace() {
 
     }
 
-    if ((roomObj.workspace.addCeiling === true && roomObj.workspace.removeDefaultWalls)) {
+    if ((roomObj.workspace.addCeiling === true && exportRemoveDefaultWalls)) {
         let wallWidth = 0;
         let ceiling = {
             "x": 0 - wallWidth - activeRoomX,
@@ -31232,6 +31470,68 @@ function exportRoomObjToWorkspace() {
     (wdBuckets.rooms || []).forEach((item) => {
         workspaceObjWallPush(item);
     });
+
+    /* Emit a walled boxRoomPart's default walls as 4 real WD walls on the outside of the part (secondary- ids are dropped on WD import). */
+    function pushRoomPartDefaultWalls(part) {
+        const surfaces = part.data_roomSurfaces || defaultRoomSurfaces; /* ensureRoomPartWallDefaults safety net */
+        if (part.data_workspace && part.data_workspace.removeDefaultWalls) return;
+        if (!(part.width > 0) || !(part.height > 0)) return;
+
+        const t = 0.10;
+        const wallHeight = roomObj2.room.roomHeight || defaultWallHeight;
+        const typeToDevice = { regular: 'wallStd', glass: 'wallGlass', window: 'wallWindow' };
+        const rot = part.rotation || 0;
+
+        /* Local rects match the canvas preview: outside the part, top/bottom extended past the corners. */
+        const localRects = {
+            videowall: { x: -t, y: -t, width: part.width + 2 * t, height: t },
+            backwall: { x: -t, y: part.height, width: part.width + 2 * t, height: t },
+            leftwall: { x: -t, y: 0, width: t, height: part.height },
+            rightwall: { x: part.width, y: 0, width: t, height: part.height },
+        };
+
+        Object.keys(localRects).forEach(wallName => {
+            const surface = surfaces[wallName] || {};
+            const geom = localRects[wallName];
+            const worldUL = findNewTransformationCoordinate({ x: part.x, y: part.y, rotation: rot }, -geom.x, -geom.y);
+
+            const wall = {
+                id: 'secondary-roomPartWall-' + wallName + '-' + part.id,
+                data_deviceid: typeToDevice[surface.type] || 'wallStd',
+                x: worldUL.x,
+                y: worldUL.y,
+                width: geom.width,
+                height: geom.height,
+                rotation: rot,
+                data_zPosition: 0,
+                data_vHeight: wallHeight,
+            };
+
+            if ('acousticTreatment' in surface) {
+                wall.data_labelField = JSON.stringify({ acousticTreatment: surface.acousticTreatment });
+            }
+
+            if (part.data_layerId) {
+                wall.data_layerId = part.data_layerId;
+            }
+
+            workspaceObjWallPush(wall);
+        });
+    }
+
+    /* Zoomed out: each walled boxRoomPart exports real walls; zoomed in, the active room exports them as native WD default walls instead. */
+    if (!isActiveRoomPart) {
+        (wdBuckets.rooms || []).forEach((item) => {
+            if (item.data_deviceid === 'boxRoomPart') {
+                pushRoomPartDefaultWalls(item);
+            }
+        });
+    }
+
+    /* Zoomed into an odd-rotated room: its walls ride as real rotated wall objects (roomShape was suppressed above). */
+    if (rotatedActiveRoomPartFrame) {
+        pushRoomPartDefaultWalls(rotatedActiveRoomPartFrame);
+    }
 
     (wdBuckets.videoDevices || []).forEach((item) => {
         /* Adjust the height and create a pole for a flipped camera */
