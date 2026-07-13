@@ -9194,6 +9194,11 @@ function parseShortenedXYUrl(parameters) {
                 }
             }
 
+            /* rs = boxRoomPart per-room default walls (mirror of encodeRoomPartWallsDigits). */
+            if ('rs' in item && newItem.data_deviceid === 'boxRoomPart') {
+                decodeRoomPartWallsDigits(item.rs, newItem);
+            }
+
             /* x = wallChairs chair-on-center spacing (÷100 to unit); applies to every wallChairs variant — see isWallChairs(). */
             if ('x' in item && isWallChairs(newItem.data_deviceid)) {
                 const csNum = Number(item.x) / 100;
@@ -12031,6 +12036,93 @@ function reorderItemsForSharing(items) {
     return ordered;
 }
 
+/* Rotated room-mode link: materialize the part's walls as real wall items (unit space, room-relative). */
+function buildRoomPartWallItems(part, offsetX, offsetY, t) {
+    const surfaces = part.data_roomSurfaces || defaultRoomSurfaces;
+    const typeToDevice = { regular: 'wallStd', glass: 'wallGlass', window: 'wallWindow' };
+    const rot = Number(part.rotation) || 0;
+    const anchor = { x: part.x - offsetX, y: part.y - offsetY, rotation: rot };
+
+    const localRects = {
+        videowall: { x: -t, y: -t, width: part.width + 2 * t, height: t },
+        backwall: { x: -t, y: part.height, width: part.width + 2 * t, height: t },
+        leftwall: { x: -t, y: 0, width: t, height: part.height },
+        rightwall: { x: part.width, y: 0, width: t, height: part.height },
+    };
+
+    return Object.keys(localRects).map(wallName => {
+        const surface = surfaces[wallName] || {};
+        const geom = localRects[wallName];
+        const worldUL = findNewTransformationCoordinate(anchor, -geom.x, -geom.y);
+        const wall = {
+            id: createUuid(),
+            data_deviceid: typeToDevice[surface.type] || 'wallStd',
+            x: worldUL.x,
+            y: worldUL.y,
+            width: geom.width,
+            height: geom.height,
+            rotation: rot,
+        };
+        if (surface.acousticTreatment) {
+            wall.data_labelField = JSON.stringify({ acousticTreatment: true });
+        }
+        return wall;
+    });
+}
+
+/* Zoomed into a Room Part, the shareable link is a standalone single-room design of what's on screen — same scoping as the WD export (intersecting items, truncated walls, per-room default walls). */
+function buildRoomModeLinkSource() {
+    if (!isActiveRoomPart) {
+        return {
+            roomWidth: roomObj.room.roomWidth,
+            roomLength: roomObj.room.roomLength,
+            roomSurfaces: roomObj.roomSurfaces,
+            removeDefaultWalls: null, /* null = read the global roomObj.workspace flag */
+            items: roomObj.items,
+            offsetX: 0,
+            offsetY: 0,
+        };
+    }
+
+    const items = [];
+    roomObj.items.forEach(item => {
+        if (isRoomPart(item.data_deviceid)) return;
+        if (itemsOffStageId.includes(item.id)) return;
+        const clone = structuredClone(item);
+        if ('x' in clone) clone.x = clone.x - activeRoomX;
+        if ('y' in clone) clone.y = clone.y - activeRoomY;
+        items.push(clone);
+    });
+
+    truncateWallItemsToRect(items, activeRoomWidth, activeRoomLength, roomPartBoundsMarginUnits());
+
+    const roomSurfaces = structuredClone(activeDefaultWallsSurfaces());
+    let removeDefaultWalls = !!activeDefaultWallsWorkspace().removeDefaultWalls;
+
+    if (activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom') {
+        removeDefaultWalls = true;
+    }
+
+    /* Odd-rotated room: walls ride as real wall items (roomShape-style default walls can't rotate). */
+    if (isActiveRoomPartRotated()) {
+        if (!removeDefaultWalls) {
+            const t = 0.10 * (roomObj.unit === 'feet' ? 3.28084 : 1);
+            buildRoomPartWallItems(activeRoomPartItem, activeRoomX, activeRoomY, t).forEach(w => items.push(w));
+        }
+        removeDefaultWalls = true;
+    }
+
+    return {
+        roomWidth: activeRoomWidth,
+        roomLength: activeRoomLength,
+        roomSurfaces: roomSurfaces,
+        removeDefaultWalls: removeDefaultWalls,
+        items: items,
+        offsetX: activeRoomX,
+        offsetY: activeRoomY,
+    };
+}
+
 function createShareableLink() {
 
     if (itemCount > 750) {
@@ -12041,9 +12133,10 @@ function createShareableLink() {
     }
 
     listItemsOffStage();
+    const linkSrc = buildRoomModeLinkSource();
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
-    strUrlQuery2 += `b${expand(roomObj.room.roomWidth)}c${expand(roomObj.room.roomLength)}`;
+    strUrlQuery2 += `b${expand(linkSrc.roomWidth)}c${expand(linkSrc.roomLength)}`;
 
     if (roomObj.software === 'webex') {
         strUrlQuery2 += `e0`;
@@ -12063,44 +12156,44 @@ function createShareableLink() {
     strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
 
 
-    strUrlQuery2 += createShareableLinkItemShading();
+    strUrlQuery2 += createShareableLinkItemShading(linkSrc.removeDefaultWalls);
 
     strUrlQuery2 += `${roomObj.authorVersion == '' ? '' : 'C~' + encodeURIComponent(roomObj.authorVersion).replaceAll('%20', '+') + '~'}`;
 
-    if ('roomSurfaces' in roomObj) {
+    if (linkSrc.roomSurfaces) {
 
         ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(wall => {
             let strWall = '';
-            if (wall in roomObj.roomSurfaces) {
-                if ('type' in roomObj.roomSurfaces[wall]) {
-                    if (roomObj.roomSurfaces[wall].type === 'regular') {
+            if (wall in linkSrc.roomSurfaces) {
+                if ('type' in linkSrc.roomSurfaces[wall]) {
+                    if (linkSrc.roomSurfaces[wall].type === 'regular') {
                         strWall += '0';
                     }
-                    else if (roomObj.roomSurfaces[wall].type === 'glass') {
+                    else if (linkSrc.roomSurfaces[wall].type === 'glass') {
                         strWall += '1';
                     }
-                    else if (roomObj.roomSurfaces[wall].type === 'window') {
+                    else if (linkSrc.roomSurfaces[wall].type === 'window') {
                         strWall += '2';
                     } else {
                         strWall += '0';
                     }
                 }
 
-                if ('acousticTreatment' in roomObj.roomSurfaces[wall]) {
-                    if (roomObj.roomSurfaces[wall].acousticTreatment === true) {
+                if ('acousticTreatment' in linkSrc.roomSurfaces[wall]) {
+                    if (linkSrc.roomSurfaces[wall].acousticTreatment === true) {
                         strWall += 'a1';
                     }
                 }
 
-                if ('door' in roomObj.roomSurfaces[wall] && roomObj.roomSurfaces[wall] != 'none') {
+                if ('door' in linkSrc.roomSurfaces[wall] && linkSrc.roomSurfaces[wall] != 'none') {
                     strWall += 'b';
-                    if (roomObj.roomSurfaces[wall].door === 'left') {
+                    if (linkSrc.roomSurfaces[wall].door === 'left') {
                         strWall += '0';
                     }
-                    else if (roomObj.roomSurfaces[wall].door === 'center') {
+                    else if (linkSrc.roomSurfaces[wall].door === 'center') {
                         strWall += '1';
                     }
-                    else if (roomObj.roomSurfaces[wall].door === 'right') {
+                    else if (linkSrc.roomSurfaces[wall].door === 'right') {
                         strWall += '2';
                     }
                     else {
@@ -12167,7 +12260,7 @@ function createShareableLink() {
     _customItemUrlEncodeMap = {};
     if (roomObj.groups && roomObj.groups.length) {
         const groupsWithMembers = new Set();
-        roomObj.items.forEach(it => {
+        linkSrc.items.forEach(it => {
             if (it.data_groupId) groupsWithMembers.add(it.data_groupId);
         });
         let urlGroupNum = 1;
@@ -12175,8 +12268,8 @@ function createShareableLink() {
             if (!groupsWithMembers.has(group.groupid)) return;
             _groupUrlEncodeMap[group.groupid] = urlGroupNum;
             let grpStr = 'H' + urlGroupNum;
-            grpStr += 'x' + Math.round((group.x || 0) * 100);
-            if (group.y) grpStr += 'y' + Math.round(group.y * 100);
+            grpStr += 'x' + Math.round(((group.x || 0) - linkSrc.offsetX) * 100);
+            if (group.y) grpStr += 'y' + Math.round((group.y - linkSrc.offsetY) * 100);
             if (group.data_zPosition) grpStr += 'z' + Math.round(group.data_zPosition * 100);
             grpStr += 'w' + Math.round((group.width || 0) * 100);
             if (group.height) grpStr += 'h' + Math.round(group.height * 100);
@@ -12200,7 +12293,7 @@ function createShareableLink() {
     /* J{n} customItem blocks — mirror H{n}; per-item ref is t{n}. */
     if (roomObj.customItems && roomObj.customItems.length) {
         const customItemsWithMembers = new Set();
-        roomObj.items.forEach(it => {
+        linkSrc.items.forEach(it => {
             if (it.data_customItemId) customItemsWithMembers.add(it.data_customItemId);
         });
         let urlCustomItemNum = 1;
@@ -12208,8 +12301,8 @@ function createShareableLink() {
             if (!customItemsWithMembers.has(customItem.customitemid)) return;
             _customItemUrlEncodeMap[customItem.customitemid] = urlCustomItemNum;
             let cStr = 'J' + urlCustomItemNum;
-            cStr += 'x' + Math.round((customItem.x || 0) * 100);
-            if (customItem.y) cStr += 'y' + Math.round(customItem.y * 100);
+            cStr += 'x' + Math.round(((customItem.x || 0) - linkSrc.offsetX) * 100);
+            if (customItem.y) cStr += 'y' + Math.round((customItem.y - linkSrc.offsetY) * 100);
             if (customItem.data_zPosition) cStr += 'z' + Math.round(customItem.data_zPosition * 100);
             cStr += 'w' + Math.round((customItem.width || 0) * 100);
             if (customItem.height) cStr += 'h' + Math.round(customItem.height * 100);
@@ -12231,7 +12324,7 @@ function createShareableLink() {
     }
 
     let prevTokens = null; /* tokens of the last actually-emitted item (drives `_` repeat diff) */
-    roomObj.items.forEach((item) => {
+    linkSrc.items.forEach((item) => {
         const res = createShareableLinkItem(item, prevTokens);
         strUrlQuery2 += res.str;
         if (res.str !== '') prevTokens = res.tokens; /* skip off-stage items so the diff base stays the last emitted item */
@@ -12276,7 +12369,9 @@ function createShareableLink() {
 
 
 
-    if (regex.test(strUrlQuery2) || fullShareLink.length > 8189) {
+    if (isActiveRoomPart) {
+        /* Zoomed-in link is room-scoped; keep the address bar on the full-floor URL so a reload restores the whole design. */
+    } else if (regex.test(strUrlQuery2) || fullShareLink.length > 8189) {
         queryParams.delete("x", strUrlQuery2);
         history.replaceState(null, null, location.origin + location.pathname);
     } else {
@@ -12309,6 +12404,35 @@ function createShareableLink() {
 
 function expand(num) {
     return Math.round(num * 100);
+}
+
+/* rs code = per-room walls: sentinel '1' + [type, acoustic] x (left, video, right, back) + removeDefaultWalls; '' when equal to the seeded defaults. */
+function encodeRoomPartWallsDigits(item) {
+    const typeDigit = { regular: '0', glass: '1', window: '2' };
+    const order = ['leftwall', 'videowall', 'rightwall', 'backwall'];
+    let digits = '1';
+    order.forEach(wallName => {
+        const s = (item.data_roomSurfaces && item.data_roomSurfaces[wallName]) || {};
+        digits += (typeDigit[s.type] || '0') + (s.acousticTreatment ? '1' : '0');
+    });
+    digits += (item.data_workspace && item.data_workspace.removeDefaultWalls) ? '1' : '0';
+    return digits === '1010000000' ? '' : digits;
+}
+
+function decodeRoomPartWallsDigits(value, newItem) {
+    const digits = String(value);
+    if (!/^1([0-2][01]){4}[01]$/.test(digits)) return;
+    const digitType = { '0': 'regular', '1': 'glass', '2': 'window' };
+    const order = ['leftwall', 'videowall', 'rightwall', 'backwall'];
+    const surfaces = {};
+    order.forEach((wallName, i) => {
+        surfaces[wallName] = {
+            type: digitType[digits[1 + i * 2]],
+            acousticTreatment: digits[2 + i * 2] === '1',
+        };
+    });
+    newItem.data_roomSurfaces = surfaces;
+    newItem.data_workspace = { removeDefaultWalls: digits[9] === '1' };
 }
 
 /* u-letter RGB triple (hexToUrlRgb cached; urlRgbToHex uncached). */
@@ -12605,6 +12729,12 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
+    /* rs = boxRoomPart per-room default walls; persists wall types through URL round-trips. */
+    if (item.data_deviceid === 'boxRoomPart') {
+        const rsDigits = encodeRoomPartWallsDigits(item);
+        if (rsDigits) add('rs', 'rs' + rsDigits);
+    }
+
     if ('data_labelField' in item) {
         if (item.data_labelField && item.data_labelField.trim() !== '{}') {
             add('text', '~' + encodeURIComponent(item.data_labelField.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~');
@@ -12643,7 +12773,7 @@ function createLinkSingleItemShadingDecimal(item) {
     return totalDecimal;
 }
 
-function createShareableLinkItemShading() {
+function createShareableLinkItemShading(removeDefaultWallsOverride = null) {
     let shadeArray = [];
     if (roomObj.overlaysVisible.cameraCoverage) {
         shadeArray[0] = 1;
@@ -12676,7 +12806,7 @@ function createShareableLinkItemShading() {
     }
 
 
-    if (roomObj.workspace.removeDefaultWalls) {
+    if (removeDefaultWallsOverride != null ? removeDefaultWallsOverride : roomObj.workspace.removeDefaultWalls) {
         shadeArray[5] = 1;
     } else {
         shadeArray[5] = 0;
@@ -30777,15 +30907,14 @@ function clipSegmentToRect(p1, p2, xMin, yMin, xMax, yMax) {
     return { p1: { x: p1.x + t0 * dx, y: p1.y + t0 * dy }, p2: { x: p1.x + t1 * dx, y: p1.y + t1 * dy } };
 }
 
-/* Room-mode WD export: truncate walls at the roomPart boundary +0.10 m via the wall's centerline (midpoints of the two short sides). See notes/MULTI_ROOM_FLOOR_PLAN.md step 8. */
-function truncateWallsToActiveRoomRect(roomObj2) {
-    const margin = 0.10;
+/* Truncate walls at the room boundary + margin via the wall's centerline (midpoints of the two short sides). Unit-agnostic: WD export passes meters, the room-mode link passes room units. See notes/MULTI_ROOM_FLOOR_PLAN.md step 8. */
+function truncateWallItemsToRect(items, rectWidth, rectLength, margin) {
     const xMin = -margin, yMin = -margin;
-    const xMax = roomObj2.room.roomWidth + margin;
-    const yMax = roomObj2.room.roomLength + margin;
+    const xMax = rectWidth + margin;
+    const yMax = rectLength + margin;
     const wallIds = ['wallStd', 'wallGlass', 'wallWindow'];
 
-    roomObj2.items.forEach(item => {
+    items.forEach(item => {
         if (!wallIds.includes(item.data_deviceid)) return;
         if (!(item.width > 0) || !(item.height > 0)) return;
 
@@ -30822,6 +30951,10 @@ function truncateWallsToActiveRoomRect(roomObj2) {
             item.width = newLength;
         }
     });
+}
+
+function truncateWallsToActiveRoomRect(roomObj2) {
+    truncateWallItemsToRect(roomObj2.items, roomObj2.room.roomWidth, roomObj2.room.roomLength, 0.10);
 }
 
 
@@ -31467,9 +31600,7 @@ function exportRoomObjToWorkspace() {
     });
 
 
-    (wdBuckets.rooms || []).forEach((item) => {
-        workspaceObjWallPush(item);
-    });
+    /* roomParts themselves are NOT pushed to WD — the old hidden 0.01-opacity box cast shadows in the Designer. Only their walls export (below). */
 
     /* Emit a walled boxRoomPart's default walls as 4 real WD walls on the outside of the part (secondary- ids are dropped on WD import). */
     function pushRoomPartDefaultWalls(part) {
@@ -32305,11 +32436,6 @@ function exportRoomObjToWorkspace() {
             "height": verticalHeight,
             "length": item.width,
             "width": item.height,
-        }
-
-        if (item.data_deviceid === 'boxRoomPart' || item.data_deviceid === 'polyRoom') {
-            workspaceItem.hidden = true;
-            workspaceItem.opacity = 0.01;
         }
 
         if (item.data_deviceid === 'sphere') {

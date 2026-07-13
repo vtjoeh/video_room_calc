@@ -16,7 +16,7 @@ Add a sticky, design-level "Multi-Room Floor Plan Mode" with two sub-modes (Mult
 | 6 | Per-roomPart Default Walls storage | **Done** |
 | 7 | Default Walls preview on boxRoomPart | **Done** |
 | 8 | WD export changes | **Partial** (Room mode done — room-sized export, intersection filter +0.10 m margin, wall truncation, per-room default walls; zoomed-out export emits each walled boxRoomPart's 4 walls as real WD walls; overview ignore-gating still pending) |
-| 9 | Shareable link changes | Pending |
+| 9 | Shareable link changes | **Done** (Room-mode scoped link mirrors WD export; per-room walls persist via the `rs` item code; address bar untouched while zoomed) |
 | 10 | Undo/Redo + round-trip integrity | Partial (flag + per-room attrs round-trip; WD wall geometry waits on step 8) |
 | 11 | Docs | In progress (this file) |
 
@@ -131,7 +131,7 @@ Add helper `isMultiRoomFloorPlanMode()` reading `roomObj.multiRoomFloorPlanMode`
 #### Room-mode round 3 (done) — every room owns walls by default
 - **`ensureRoomPartWallDefaults()`** (next to the preview builder, called from `drawRoom()` right before `drawRoomPartDefaultWallsPreviews()`): seeds missing `data_roomSurfaces` (clone of `defaultRoomSurfaces` — all standard walls) + `data_workspace` (`{removeDefaultWalls: false}`) on EVERY `boxRoomPart` item AND its Konva node. Fresh inserts were already seeded in `insertItemFromMenu()`; this covers rooms arriving via shareable URL, WD import, or pre-step-6 designs, which previously had no wall attrs → no preview walls, no exported walls, and no per-room Default Walls editing until zoomed once. The node mirror is required because `updateRoomObjFromTrNode()`'s delete-on-absent branch would wipe an item-only backfill on the next drag of the part. `pushRoomPartDefaultWalls()` keeps a `|| defaultRoomSurfaces` safety net.
 - **Net behavior**: every rectangular room shows standard walls drawn on its outside from the moment it exists; zoomed-in Details → Default Walls always has per-room attrs to edit (accessors `activeDefaultWallsSurfaces()`/`activeDefaultWallsWorkspace()`); zoomed-out export emits the walls as real WD objects; zoomed-in export as native roomShape default walls.
-- **Persistence caveat**: per-room wall attrs ride `.vrc.json` and undo snapshots, but NOT the shareable URL yet (step 9) — a URL round-trip re-backfills custom wall types to standard.
+- **Persistence**: per-room wall attrs ride `.vrc.json`, undo snapshots, AND (since step 9 landed) the shareable URL via the `rs` item code.
 
 #### Room-mode round 4 (done) — Room Part walls decoupled from the mode flag
 - **Root cause**: `zoomRoomPart()` fires on dblclick regardless of `roomObj.multiRoomFloorPlanMode`, but the wall accessors were gated on `isRoomSubMode()` (= flag AND zoomed) and the preview on `isMultiRoomOverviewMode()` (= flag AND not zoomed). The flag does NOT ride the shareable URL (step 9 pending), so a URL-loaded floor plan had flag=false → no walls drew around Room Parts, and zoomed-in Details → Default Walls fell back to editing the GLOBAL `roomObj.roomSurfaces` — the Room Part and the floor shared one setting.
@@ -144,16 +144,28 @@ Add helper `isMultiRoomFloorPlanMode()` reading `roomObj.multiRoomFloorPlanMode`
 - **Odd angles (1°, 40°, 113°…)** — `isActiveRoomPartRotated()`: zoomed in, the native bbox default walls are suppressed (`drawFloorPlanWalls` gate) and the rotated wall rects draw around the actual part via `drawRoomPartDefaultWallsPreviews()` (which now also runs zoomed-in for the active odd-rotated part only; `updateDefaultWallsMenuAndCanvas()` rebuilds it so zoomed-in wall edits show). WD export: `roomShape` walls suppressed (`exportRemoveDefaultWalls` forced) and the walls emit as real rotated wall objects via a frame-space part record (`rotatedActiveRoomPartFrame`) fed to `pushRoomPartDefaultWalls()`.
 - **Two Room Part menu types** — `boxRoomPart` tile renamed "Room Part with Default Walls"; new menu-only alias device `boxRoomPartNoWalls` (key `ZW`, "Room Part - No Walls") converts to a plain `boxRoomPart` with `data_workspace = {removeDefaultWalls: true}` at the top of `insertItemFromMenu()`. Stored items/URLs/WD JSON only ever carry `boxRoomPart`; the alias id never persists.
 
+#### Room-mode round 6 (done) — invisible roomPart box removed from WD export
+- roomParts were pushed to `customObjects` as a `hidden: true, opacity: 0.01` wall box, which cast shadows in the Designer. The rooms-bucket push (and the dead hidden/opacity branch in `workspaceObjWallPush`) are removed — roomParts themselves never reach WD in any mode; only their walls export (real walls zoomed out / roomShape or rotated walls zoomed in). roomParts still persist via `.vrc.json` and the shareable URL; they were never restored from WD JSON anyway (the hidden box imported back as a plain wall).
+
 #### MultiRoom overview (still pending — ignore:true gating, menu-item scoping)
 - **MultiRoom mode:** do NOT send roomPart items; set `"ignore": true` on all emitted WD objects. For each `boxRoomPart` with default walls on, emit the equivalent walls + door (2 rooms × 4 walls ⇒ 8 walls). Reuse the existing `altDefaultWall` wall-builder logic, parameterized per roomPart bounding box.
 - **Room mode:** export only items inside the active room (existing `isActiveRoomPart` + `convertToMeters` coordinate shift already scopes most of this). WD room size = roomPart size (boxRoomPart straightforward; polyRoom must fit inside the WD rectangle). Items keep `ignore:false`/absent unless overridden by Item-Label JSON.
 - **Wall clipping (Room mode):** for `wallStd`/`wallGlass`/`wallWindow` extending outside the room, truncate `item.height` (length) so it fits within room −0.10/+0.10 m, using only the main VRC `rotation` (ignore tilt/lean). Do this on the VRC-item clone right before WD push (cleanest in `convertToMeters` output stage or at top of the wall push loop).
 - **Normal mode:** unchanged.
 
-### 9. Shareable link (`createShareableLink`)  — PENDING (no mode handling yet)
-- **MultiRoom mode:** skip link generation entirely (early return / clear link).
-- **Room mode:** include only items inside the active room.
-- **Normal/default mode:** unchanged. (Shareable Template Hyperlink works in Room mode and normal mode, not MultiRoom mode.)
+### 9. Shareable link (`createShareableLink`)  — DONE (Room-mode scoping + per-room walls in URL)
+
+#### Per-room walls in the URL — the `rs` item code
+`boxRoomPart` items carry a 2-char `rs` code (parsed by the same consecutive-letter state machine as `ll`/`cd`/`gw`): sentinel `1` + `[type, acoustic]` digit pairs for leftwall/videowall/rightwall/backwall (type 0=regular 1=glass 2=window) + a final removeDefaultWalls digit. The leading sentinel keeps the fixed-width digit string safe from leading-zero loss. Omitted entirely when equal to the seeded defaults (`1010000000` — left regular+acoustic, rest regular, walls on); the load-time `ensureRoomPartWallDefaults()` backfill regenerates the defaults. Encoder: `encodeRoomPartWallsDigits()` (called from `createShareableLinkItem`); decoder: `decodeRoomPartWallsDigits()` (called from `parseShortenedXYUrl`).
+
+#### Room-mode link scoping — `buildRoomModeLinkSource()`
+Zoomed into a Room Part, the shareable link is a standalone single-room design of exactly what's on screen, mirroring the WD export scoping:
+- items filtered to those intersecting the room (+0.10 m margin via `itemsOffStageId`), roomParts excluded, coordinates shifted to room-relative, walls truncated via the shared `truncateWallItemsToRect()` (unit-agnostic core extracted from the WD truncator; WD passes meters, the link passes room units)
+- room size = the part's bbox; `D/E/F/G` walls from `activeDefaultWallsSurfaces()`; `B` flag bit 5 from the per-room removeDefaultWalls (override param on `createShareableLinkItemShading()`)
+- polyRoom / odd-rotated rooms force remove-default-walls; an odd-rotated walled room additionally materializes its 4 walls as REAL wall items via `buildRoomPartWallItems()` (unit-space sibling of the WD `pushRoomPartDefaultWalls()`, fresh `createUuid()` ids)
+- `H{n}`/`J{n}` bundle rects shift by the same offset and membership is computed from the SCOPED item list
+- **the address bar is NOT rewritten while zoomed in** (`history.replaceState` skipped) so a reload restores the whole floor plan; only the Share link/QR are room-scoped. Zooming back out refreshes the address bar on the next canvasToJson.
+- **MultiRoom overview:** link stays the full floor plan (roomParts + `rs` walls ride along) — the earlier "skip link generation in overview" idea was dropped in favor of full-floor persistence, since the URL is the primary save mechanism.
 
 ### 10. Undo/Redo + round-trip integrity  — PARTIAL
 - DONE: flag + per-roomPart `data_roomSurfaces`/`data_workspace` live in `roomObj`, ride existing undo snapshots + `canvasToJson()` (four-place rule), and the flag round-trips through `.vrc.json` (backfill `27095`) and WD `data.vrc.multiRoomFloorPlanMode` (export `30340` / import `29028`).
