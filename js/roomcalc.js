@@ -228,6 +228,14 @@ function activeDefaultWallsWorkspace() {
     return roomObj.workspace;
 }
 
+/* Effective software experience: the zoomed room's data_software when set, else the design-level roomObj.software. */
+function activeSoftware() {
+    if (isZoomedIntoBoxRoomPart() && activeRoomPartItem.data_software) {
+        return activeRoomPartItem.data_software;
+    }
+    return roomObj.software;
+}
+
 /* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
 function toggleMultiRoomFloorPlanMode(event) {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
@@ -7837,7 +7845,12 @@ function addOnNumberInputListener() {
             event.target.value = event.target.value.replace(/[>]/i, '\uFF1E');  /* don't allow scripting tags be typed, replace with similar unicode. */
             event.target.value = event.target.value.replace(/[~]/i, '\u301C'); /* tilde ~ is a control character in the URL and is replaced with a similar unicode character */
             if (event.target.id === 'roomName') {
-                roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
+                const cleanedName = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
+                if (isZoomedIntoBoxRoomPart()) {
+                    setActiveRoomPartLabel(cleanedName);
+                } else {
+                    roomObj.name = cleanedName;
+                }
             }
         })
 
@@ -7853,7 +7866,12 @@ function addOnNumberInputListener() {
             event.target.value = event.target.value.replace(/[~]/gi, '\u301C'); /* tilde ~ is a control character in the URL and is replaced with a similar unicode character */
 
             if (event.target.id === 'roomName') {
-                roomObj.name = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
+                const cleanedName = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
+                if (isZoomedIntoBoxRoomPart()) {
+                    setActiveRoomPartLabel(cleanedName);
+                } else {
+                    roomObj.name = cleanedName;
+                }
             }
 
             if (!multiUpdateMode) {
@@ -8057,6 +8075,10 @@ function windowResizeEvent() {
 function copyLinkToClipboard(splitViewPercent = null) {
     roomObj.items = reorderItemsForSharing(roomObj.items);
     createShareableLink();
+
+    if (isActiveRoomPart) {
+        alertDialog('Room Part Only', 'Only the viewed room part is captured in the Shareable Template Hyperlink.');
+    }
 
     let hyperTextName;
 
@@ -9199,6 +9221,12 @@ function parseShortenedXYUrl(parameters) {
                 decodeRoomPartWallsDigits(item.rs, newItem);
             }
 
+            /* sw = boxRoomPart per-room software (0=webex 1=mtr 2=zoomRooms). */
+            if ('sw' in item && newItem.data_deviceid === 'boxRoomPart') {
+                const swDecoded = ['webex', 'mtr', 'zoomRooms'][parseInt(item.sw, 10)];
+                if (swDecoded) newItem.data_software = swDecoded;
+            }
+
             /* x = wallChairs chair-on-center spacing (÷100 to unit); applies to every wallChairs variant — see isWallChairs(). */
             if ('x' in item && isWallChairs(newItem.data_deviceid)) {
                 const csNum = Number(item.x) / 100;
@@ -9785,13 +9813,16 @@ function updateSelectVideoDeviceOptions() {
 }
 
 function update() {
-    roomObj.room.roomWidth = getNumberValue('roomWidth');
-    roomObj.room.roomLength = getNumberValue('roomLength');
+    /* Zoomed into a Room Part the width/length inputs show the PART's dims — writing them back would resize the floor. */
+    if (!isActiveRoomPart) {
+        roomObj.room.roomWidth = getNumberValue('roomWidth');
+        roomObj.room.roomLength = getNumberValue('roomLength');
 
-    let roomHeight = document.getElementById('roomHeight').value;
-    if (roomHeight != 0 || roomHeight != '') {
-        roomObj.room.roomHeight = Number(roomHeight);
-        defaultWallHeight = roomObj.room.roomHeight;
+        let roomHeight = document.getElementById('roomHeight').value;
+        if (roomHeight != 0 || roomHeight != '') {
+            roomObj.room.roomHeight = Number(roomHeight);
+            defaultWallHeight = roomObj.room.roomHeight;
+        }
     }
 
     updateRoomDetails();
@@ -10177,14 +10208,32 @@ function populateRoomTabFromActiveRoomPart() {
 
     const item = activeRoomPartItem;
 
+    /* Room name + software are editable PER ROOM while zoomed in; the other Room-tab inputs stay disabled. */
     const nameEl = document.getElementById('roomName');
-    if (nameEl) nameEl.value = item.data_labelField || '';
+    if (nameEl) {
+        nameEl.value = item.data_labelField || '';
+        nameEl.disabled = false;
+    }
+
+    const swEl = document.getElementById('drpSoftware');
+    if (swEl) {
+        swEl.disabled = false;
+        if (item.data_software) swEl.value = item.data_software;
+    }
 
     const widthEl = document.getElementById('roomWidth');
     if (widthEl && item.width) widthEl.value = round(item.width);
 
     const lengthEl = document.getElementById('roomLength');
     if (lengthEl && item.height) lengthEl.value = round(item.height);
+}
+
+/* Zoomed-in Room tab name edits write the Room Part's label, not the floor name. */
+function setActiveRoomPartLabel(text) {
+    if (!isZoomedIntoBoxRoomPart()) return;
+    activeRoomPartItem.data_labelField = text;
+    const node = stage.findOne('#' + activeRoomPartItem.id);
+    if (node) node.data_labelField = text;
 }
 
 
@@ -12078,6 +12127,7 @@ function buildRoomModeLinkSource() {
             roomLength: roomObj.room.roomLength,
             roomSurfaces: roomObj.roomSurfaces,
             removeDefaultWalls: null, /* null = read the global roomObj.workspace flag */
+            software: roomObj.software,
             items: roomObj.items,
             offsetX: 0,
             offsetY: 0,
@@ -12117,6 +12167,7 @@ function buildRoomModeLinkSource() {
         roomLength: activeRoomLength,
         roomSurfaces: roomSurfaces,
         removeDefaultWalls: removeDefaultWalls,
+        software: activeSoftware(),
         items: items,
         offsetX: activeRoomX,
         offsetY: activeRoomY,
@@ -12138,13 +12189,13 @@ function createShareableLink() {
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
     strUrlQuery2 += `b${expand(linkSrc.roomWidth)}c${expand(linkSrc.roomLength)}`;
 
-    if (roomObj.software === 'webex') {
+    if (linkSrc.software === 'webex') {
         strUrlQuery2 += `e0`;
     }
-    else if (roomObj.software === 'mtr') {
+    else if (linkSrc.software === 'mtr') {
         strUrlQuery2 += 'e1';
     }
-    else if (roomObj.software === 'zoomRooms'){
+    else if (linkSrc.software === 'zoomRooms'){
         strUrlQuery2 += 'e2';
     }
 
@@ -12733,6 +12784,10 @@ function createShareableLinkItem(item, prevTokens) {
     if (item.data_deviceid === 'boxRoomPart') {
         const rsDigits = encodeRoomPartWallsDigits(item);
         if (rsDigits) add('rs', 'rs' + rsDigits);
+
+        /* sw = per-room software (same digit mapping as the room-level e code). */
+        const swIndex = ['webex', 'mtr', 'zoomRooms'].indexOf(item.data_software);
+        if (swIndex > -1) add('sw', 'sw' + swIndex);
     }
 
     if ('data_labelField' in item) {
@@ -13990,6 +14045,9 @@ function copyToCanvasClipBoard(nodes) {
         if (node.data_workspace != null) {
             newAttr.data_workspace = structuredClone(node.data_workspace);
         }
+        if (node.data_software) {
+            newAttr.data_software = node.data_software;
+        }
 
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: crypto.randomUUID() });
 
@@ -15189,6 +15247,9 @@ function updateRoomObjFromTrNode() {
         if (node.data_workspace != null) {
             itemAttr.data_workspace = structuredClone(node.data_workspace);
         }
+        if (node.data_software) {
+            itemAttr.data_software = node.data_software;
+        }
 
         let item = roomObjItemsMap.get(node.id());
 
@@ -15292,6 +15353,11 @@ function updateRoomObjFromTrNode() {
                 item.data_workspace = itemAttr.data_workspace;
             } else {
                 delete item.data_workspace;
+            }
+            if (itemAttr.data_software != null) {
+                item.data_software = itemAttr.data_software;
+            } else {
+                delete item.data_software;
             }
 
             if (itemAttr.data_certifiedDisplayIndex != null) {
@@ -16709,6 +16775,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     /* boxRoomPart per-room default-walls config (objects cloned to keep nodes independent). */
     tblWallFlr.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
     tblWallFlr.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
+    tblWallFlr.data_software = attrs.data_software || null;
 
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
@@ -17997,8 +18064,17 @@ function updateMultipleItems() {
 
 /* Item is updated after clicking Update item on web page from Details tab */
 function updateItem() {
-    /* Group fast-path — regular flow uses roomObjItemsMap which has no group entry. */
     const __detailsItemId = document.getElementById('itemId').innerText;
+
+    /* Zoomed into a roomPart the Details panel can still hold that part with stale FLOOR-frame values; rebuilding from them re-materializes the part offset inside the zoomed view. */
+    if (isActiveRoomPart) {
+        const __detailsItem = roomObjItemsMap.get(__detailsItemId);
+        if (__detailsItem && isRoomPart(__detailsItem.data_deviceid)) {
+            return;
+        }
+    }
+
+    /* Group fast-path — regular flow uses roomObjItemsMap which has no group entry. */
     const __activeGroup = getGroupById(__detailsItemId);
     if (__activeGroup) {
         updateGroupItem(__activeGroup);
@@ -20358,6 +20434,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         /* boxRoomPart per-room default-walls config — defensive mirror. */
         node.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
         node.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
+        node.data_software = attrs.data_software || null;
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -22682,7 +22759,18 @@ function updateRoomDetails() {
     roomObj.authorVersion = authorVersion;
 
 
-    if (drpSoftware != 'select') {
+    if (isZoomedIntoBoxRoomPart()) {
+        /* Software is per-room while zoomed in; the design-level roomObj.software is untouched. */
+        const roomSw = (drpSoftware != 'select') ? drpSoftware : '';
+        const partNode = stage.findOne('#' + activeRoomPartItem.id);
+        if (roomSw) {
+            activeRoomPartItem.data_software = roomSw;
+            if (partNode) partNode.data_software = roomSw;
+        } else {
+            delete activeRoomPartItem.data_software;
+            if (partNode) partNode.data_software = null;
+        }
+    } else if (drpSoftware != 'select') {
         roomObj.software = drpSoftware;
     } else {
         roomObj.software = '';
@@ -31152,11 +31240,12 @@ function exportRoomObjToWorkspace() {
     }
 
 
-    if (roomObj.software) {
-        if(roomObj.software === 'zoomRooms'){
+    const exportSoftware = activeSoftware(); /* zoomed into a room, its per-room software wins */
+    if (exportSoftware) {
+        if (exportSoftware === 'zoomRooms') {
             workspaceObj.meetingPlatform = 'bolt'; /* 'bolt' is used for Zoom Rooms */
         } else {
-             workspaceObj.meetingPlatform = roomObj.software;
+            workspaceObj.meetingPlatform = exportSoftware;
         }
 
     }
