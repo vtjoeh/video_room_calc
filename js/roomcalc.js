@@ -11122,18 +11122,6 @@ function zoomRoomPart(roomPart) {
         newNode.fill('');
     }
 
-    let oldScale = scale;
-
-    let backgroundImageFloor = getKonvaBackgroundImageFloor();
-
-    if (backgroundImageFloor) {
-
-        backgroundImageFloor.x(backgroundImageFloor.x() - activeRoomX * scale);
-        backgroundImageFloor.y(backgroundImageFloor.y() - activeRoomY * scale);
-        backgroundImageFloor.width(backgroundImageFloor.width() * oldScale / scale);
-        backgroundImageFloor.height(backgroundImageFloor.height() * oldScale / scale);
-    }
-
     /* Surface the Room details tab on entry so name/size/height/software are immediately editable. */
     const roomDetailsTab = document.getElementById('defaultOpenTab');
     if (roomDetailsTab) roomDetailsTab.click();
@@ -11472,7 +11460,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
             trNodesFromUuids(roomObj.trNodes, false);
         }
 
-        insertKonvaBackgroundImageFloor(true);
+        insertKonvaBackgroundImageFloor();
     }
 
     ensureRoomPartWallDefaults();
@@ -11604,7 +11592,7 @@ function measuringToolOn(event = true) {
     updateModeStatusBadge();
 }
 
-function insertKonvaBackgroundImageFloor(includeActiveRoomPart = false) {
+function insertKonvaBackgroundImageFloor() {
 
     let tempKonvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
 
@@ -11613,15 +11601,11 @@ function insertKonvaBackgroundImageFloor(includeActiveRoomPart = false) {
     }
 
     if ('backgroundImage' in roomObj) {
-        let pixelX = scale * roomObj.backgroundImage.x + pxOffset;
-        let pixelY = scale * roomObj.backgroundImage.y + pyOffset;
+        /* backgroundImage.x/y are floor coords; activeRoomX/Y re-anchor them when zoomed into a Room Part (both 0 otherwise, mirroring the +activeRoomX write-back in canvasToJson). */
+        let pixelX = scale * (roomObj.backgroundImage.x - activeRoomX) + pxOffset;
+        let pixelY = scale * (roomObj.backgroundImage.y - activeRoomY) + pyOffset;
         let heightPixel = scale * roomObj.backgroundImage.height;
         let widthPixel = scale * roomObj.backgroundImage.width;
-
-        if (includeActiveRoomPart) {
-            pixelX = pixelX - activeRoomX * scale;
-            pixelY = pixelY - activeRoomY * scale;
-        }
 
         let konvaBackgroundImageFloor = new Konva.Image({
             image: backgroundImageFloor,
@@ -15035,6 +15019,11 @@ function applyRoomObjDelta(prev, next) {
             case 'gridLines': gridLinesVisible(v); break;
         }
     });
+
+    /* Background image geometry/opacity rides the fast path (same bgImageId guaranteed — a swap forces the fallback); re-insert from the restored roomObj so the node tracks the snapshot. */
+    if (JSON.stringify(prev && prev.backgroundImage) !== JSON.stringify(next && next.backgroundImage)) {
+        insertKonvaBackgroundImageFloor();
+    }
 
     /* Rebuild roomObjItemsMap from the now-authoritative roomObj.items: after `roomObj = next`, unchanged items' map entries still point at the previous snapshot's orphan objects. */
     roomObjItemsMap.clear();
@@ -21469,6 +21458,23 @@ function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
 
     });
 
+    /* Room Parts with default walls: add the OUTER wall faces as snap targets (the inner faces come from the draggable room-part rect above). The preview group only holds walled parts, so removeDefaultWalls parts are skipped automatically. */
+    if (typeof groupRoomPartWallsPreview !== 'undefined') {
+        groupRoomPartWallsPreview.getChildren().forEach((previewGroup) => {
+            /* Skip the dragged part's own walls — they travel with it. */
+            if (skipShape && previewGroup.id() === 'rpwPreview~' + skipShape.id()) return;
+            const box = previewGroup.getClientRect();
+            if (!(box.width > 0) || !(box.height > 0)) return;
+            if (resize) {
+                vertical.push([box.x, box.x + box.width]);
+                horizontal.push([box.y, box.y + box.height]);
+            } else {
+                vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
+                horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
+            }
+        });
+    }
+
 
     return {
         vertical: vertical.flat(),
@@ -26420,6 +26426,11 @@ function onKeyDown(e) {
             updateFormatDetails(shape.id());
         }
     })
+
+    /* Arrow-key nudge fires no dragend, so rebuild the room-part wall preview here the way the drag path does. */
+    if (isShortCutKeyUsed && trNodesCopy.some(shape => isRoomPart(shape.data_deviceid))) {
+        drawRoomPartDefaultWallsPreviews();
+    }
 
     hideAllCoverageGroups(false);
     tr.nodes(trNodesCopy);

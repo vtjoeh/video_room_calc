@@ -641,6 +641,7 @@ Otherwise returns **false** and the fast path runs.
 | Added / changed customItem | `insertCustomItemRect(customItem)` — same self-destroy. |
 | Any layer list change (add / remove / rename / visible / locked) | `applyAllLayerStates()` + `renderLayersList()`. The delta is collapsed to a single boolean because every layer-list change has the same response. |
 | Any `roomObj.overlaysVisible.*` change | Re-invoke the matching toggle (`cameraCoverageVisible(true/false)` etc.) with an explicit boolean — bypasses the `state === 'buttonPress'` branch so the toggle never calls back into `saveToUndoArray()`. |
+| `roomObj.backgroundImage` geometry/opacity change (same `bgImageId` — a swap forces the fallback) | `insertKonvaBackgroundImageFloor()` re-creates the node from the restored `roomObj`. The insert always subtracts `activeRoomX/Y` (0 when not zoomed into a Room Part), so the image lands correctly in both the floor view and a zoomed-in room — `backgroundImage.x/y` are stored in floor coords and `canvasToJson()` adds `activeRoomX/Y` back on write. |
 | Selection (`roomObj.trNodes`) | `trNodesFromUuids(next.trNodes, false)` — the existing 200 ms timeout means freshly-inserted nodes are findable by id; `save=false` prevents a `canvasToJson()` write-back. |
 
 #### Why this is safe
