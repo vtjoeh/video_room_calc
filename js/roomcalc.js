@@ -20615,7 +20615,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         /* only add labels to Video Devices and Microphones, or devices that have labels */
         if (groupName === 'videoDevices' || groupName === 'microphones' || 'data_labelField' in attrs) {
 
-            if ((groupName === 'videoDevices' || groupName === 'microphones') && (deviceId != 'laptop')) {
+            if (isCiscoInventoryDevice(deviceId)) {
                 addLabel(imageItem, attrs, true);
             }
             else if (attrs.data_labelField) {
@@ -28777,9 +28777,10 @@ function openInventoryCsvDialog() {
     dlg.showModal();
 }
 
+/* Also the always-label predicate in insertShapeItem() — laptop/keyboard ride the microphones bucket but are not Cisco devices. */
 function isCiscoInventoryDevice(deviceId) {
     const deviceType = allDeviceTypes[deviceId];
-    if (!deviceType || deviceId === 'laptop') return false;
+    if (!deviceType || deviceId === 'laptop' || deviceId === 'keyboard') return false;
     return deviceType.parentGroup === 'videoDevices' || deviceType.parentGroup === 'microphones';
 }
 
@@ -28801,6 +28802,7 @@ function polygonAreaShoelace(points) {
 function getInventoryRoomParts() {
     const margin = roomPartBoundsMarginUnits();
     const parts = [];
+    let unnamedCount = 0;
 
     roomObj.items.forEach(item => {
         if (!item || !isRoomPart(item.data_deviceid)) return;
@@ -28822,7 +28824,7 @@ function getInventoryRoomParts() {
         }
 
         parts.push({
-            name: inventoryLabelText(item) || 'Room Part',
+            name: inventoryLabelText(item) || ('Unnamed Rm ' + (++unnamedCount)),
             area: area,
             polygon: expandPolygonByMargin(polygon, margin)
         });
@@ -28891,6 +28893,7 @@ function exportInventoryCsv(includeLabeledItems) {
 
     const lines = [];
     lines.push(csvField(roomObj.name || '') + ',' + csvField('Exported: ' + localDate));
+    lines.push('');
 
     if (!hasRoomParts) {
         lines.push(['Device', 'Item Label', 'Quantity'].map(csvField).join(','));
@@ -28914,6 +28917,7 @@ function exportInventoryCsv(includeLabeledItems) {
             });
         });
 
+        lines.push('');
         Array.from(totals.values()).sort(rowSort).forEach(r => {
             lines.push(['Total', r.device, r.label, r.qty].map(csvField).join(','));
         });
