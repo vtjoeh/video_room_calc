@@ -10278,8 +10278,15 @@ function populateRoomTabFromActiveRoomPart() {
         const heightEl = document.getElementById('roomHeight');
         if (heightEl) {
             heightEl.disabled = false;
-            const effH = activeRoomPartItem.data_roomHeight || roomObj.room.roomHeight;
-            heightEl.value = effH ? round(effH) : '';
+            if (activeRoomPartItem.data_roomHeight) {
+                /* Explicit per-room override: show it as a real value. */
+                heightEl.value = round(activeRoomPartItem.data_roomHeight);
+                heightEl.placeholder = '';
+            } else {
+                /* Inherited from the floor: show the floor height as a grey placeholder, not a real value. */
+                heightEl.value = '';
+                heightEl.placeholder = roomObj.room.roomHeight ? String(round(roomObj.room.roomHeight)) : '';
+            }
         }
     }
 
@@ -11194,6 +11201,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     document.getElementById('roomLength').value = round(roomObj.room.roomLength);
 
     document.getElementById('roomName').value = roomObj.name;
+    /* Clear any inherited-height placeholder left over from a Room Part; populateRoomTabFromActiveRoomPart() re-sets it when zoomed in. */
+    document.getElementById('roomHeight').placeholder = '';
     if (roomObj.room.roomHeight) {
         document.getElementById('roomHeight').value = round(roomObj.room.roomHeight);
     }

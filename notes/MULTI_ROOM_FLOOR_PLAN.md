@@ -271,8 +271,12 @@ per-room software:
   set, else `roomObj.room.roomHeight`. Sibling of `activeSoftware()`.
 - **UI:** the Height field is UNLOCKED zoomed in (removed from the
   pointer-events lock list + its HTML wrapper's `roomPartLockedSettingClick`
-  guard removed; `populateRoomTabFromActiveRoomPart()` re-enables it and
-  shows `data_roomHeight || floor height`). Saving goes through
+  guard removed). `populateRoomTabFromActiveRoomPart()` re-enables it;
+  an explicit `data_roomHeight` shows as a real `value`, while an
+  inherited room shows the floor height as a grey **placeholder**
+  (empty `value`) so the user can tell inherited from overridden at a
+  glance. `drawRoom()`'s zoomed-out height set clears the placeholder
+  first so it never lingers on the floor view. Saving goes through
   `updateRoomDetails()`: zoomed in, a positive value DIFFERENT from the
   floor height writes `data_roomHeight` (item + node mirror); blank, 0,
   or exactly the floor value deletes it (stays inherited, so later floor
