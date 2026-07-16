@@ -300,7 +300,7 @@ function syncMultiRoomFloorPlanModeToggle() {
 function applyMultiRoomModeUi() {
     const overview = isMultiRoomOverviewMode();
     const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
-    const dwMessageOnly = overview || polyRoomActive; /* Default Walls panel is read-only message here. */
+    const dwMessageOnly = polyRoomActive; /* Default Walls panel is read-only message only for irregular rooms; the overview edits the FLOOR's outside walls (activeDefaultWalls* fall back to the globals there). */
 
     /* Coverage-shading buttons are disabled in the MultiRoom overview (per-room concerns). */
     ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'btnSpeakerShadeToggle'].forEach(function (id) {
@@ -324,7 +324,7 @@ function applyMultiRoomModeUi() {
     const bgRoomMsg = document.getElementById('bgImageRoomModeMsg');
     if (bgRoomMsg) bgRoomMsg.style.display = inRoom ? '' : 'none';
 
-    /* Room-tab "Remove Default Walls" is hidden everywhere in floor-plan mode (per-room walls live in the Default Walls subtab); the subtab row keeps the message-only rule. */
+    /* Room-tab "Remove Default Walls" applies to the floor's outside walls, so it shows in overview; zoomed in it's hidden (per-room walls live in the Default Walls subtab). */
     const rdwRow = document.getElementById('removeDefaultWallsRow');
     if (rdwRow) rdwRow.style.display = (dwMessageOnly || inRoom) ? 'none' : '';
     const rdwRow2 = document.getElementById('removeDefaultWallsRow2');
@@ -346,6 +346,12 @@ function applyMultiRoomModeUi() {
     const notesRow = document.getElementById('roomNotesRow');
     if (notesRow) notesRow.style.display = inRoom ? '' : 'none';
 
+    /* Zoomed in, the floor Update button (locked dims) is replaced by "Update Room" for the per-room fields (name/software/notes). */
+    const floorUpdateBtn = document.getElementById('updateButtonId');
+    if (floorUpdateBtn) floorUpdateBtn.style.display = inRoom ? 'none' : '';
+    const roomUpdateBtn = document.getElementById('btnUpdateRoomPartFields');
+    if (roomUpdateBtn) roomUpdateBtn.style.display = inRoom ? '' : 'none';
+
     /* Zoomed in, Unit/Width/Length/Height are locked to the floor; pointer-events off the disabled inputs so the wrapper's click guard can explain why. */
     ['drpMetersFeet', 'roomWidth', 'roomLength', 'roomHeight'].forEach(function (id) {
         const el = document.getElementById(id);
@@ -357,9 +363,7 @@ function applyMultiRoomModeUi() {
     if (dwMsg) {
         dwMsg.style.display = dwMessageOnly ? '' : 'none';
         if (dwMessageOnly) {
-            dwMsg.textContent = overview
-                ? 'Not available in multi-room floor plan view. Select a rectangular individual room.'
-                : 'Not available for irregular rooms. Select a rectangular room.';
+            dwMsg.textContent = 'Not available for irregular rooms. Select a rectangular room.';
         }
     }
     const dwSettings = document.getElementById('defaultWallSettings');
@@ -10295,6 +10299,21 @@ function setActiveRoomPartNotes(text) {
     if (node) node.data_roomNotes = cleaned || null;
 }
 
+/* Zoomed-in "Update Room" button: saves the per-room fields (name, notes, software) — the floor Update button is hidden here. */
+function updateActiveRoomPartFields() {
+    if (!isRoomSubMode() || !activeRoomPartItem) return;
+
+    const nameEl = document.getElementById('roomName');
+    if (nameEl && !nameEl.disabled) {
+        setActiveRoomPartLabel(nameEl.value.replace(/^[\s_]+|[\s_]+$/g, ''));
+    }
+
+    const notesEl = document.getElementById('roomNotes');
+    if (notesEl) setActiveRoomPartNotes(notesEl.value);
+
+    updateRoomDetails(); /* per-room software write + canvasToJson (undo snapshot / share link) */
+}
+
 /* Wrapper click guard for the Unit/Width/Length/Height fields, which are locked to the floor while zoomed into a room. */
 function roomPartLockedSettingClick() {
     if (!isRoomSubMode()) return;
@@ -10628,7 +10647,7 @@ function drawOutsideWall(grOuterWall) {
     let defaultWallColor = '#cccccc';
     let defaultWallOpacity = 0.6;
 
-    if (!activeDefaultWallsWorkspace().removeDefaultWalls && !isMultiRoomOverviewMode()) {
+    if (!activeDefaultWallsWorkspace().removeDefaultWalls) {
 
         outsideWall.stroke('#888888');
 

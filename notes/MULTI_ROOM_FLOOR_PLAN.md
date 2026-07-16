@@ -237,3 +237,26 @@ saved settings, and the toggle buttons work normally there):
   coverage-button disable list (was missing; camera/mic/display were
   already there) so all four toggles are consistently disabled in the
   overview and enabled only when zoomed into a room.
+
+## Round 11 (2026-07) — floor-level Default Walls in overview, per-room Update button
+
+- **Floor Default Walls restored in the overview:** `dwMessageOnly` in
+  `applyMultiRoomModeUi()` no longer includes `overview` (only
+  polyRoom-zoomed keeps the read-only message). In the overview the
+  Default Walls subtab and the Room-tab "Remove Default Walls" row edit
+  the FLOOR's outside walls — `activeDefaultWallsSurfaces()` /
+  `activeDefaultWallsWorkspace()` already fall back to
+  `roomObj.roomSurfaces` / `roomObj.workspace` when not zoomed into a
+  rectangular room, so no handler changes were needed. The
+  `!isMultiRoomOverviewMode()` suppression in `drawOutsideWall()` is
+  removed, so the floor's filled default walls render in the overview
+  per those settings. (`getOuterWallSnapSegments()` still returns [] in
+  overview — door snap-to-outer-wall stays room-scoped.)
+- **Per-room Update button:** zoomed into a room, the floor Update
+  button (`#updateButtonId`, disabled + pointless there) is hidden and
+  `#btnUpdateRoomPartFields` ("Update Room") shows in its place.
+  `updateActiveRoomPartFields()` saves the per-room fields — name (via
+  `setActiveRoomPartLabel`, skipped when the input is disabled i.e.
+  polyRoom), notes (via `setActiveRoomPartNotes`), and software (via
+  `updateRoomDetails()`, which also fires `canvasToJson()` for the undo
+  snapshot / share link). Both buttons toggle in `applyMultiRoomModeUi()`.
