@@ -12421,7 +12421,9 @@ function createShareableLink() {
 
 
     if (isActiveRoomPart) {
-        /* Zoomed-in link is room-scoped; keep the address bar on the full-floor URL so a reload restores the whole design. */
+        /* Zoomed-in link is room-scoped; strip ?x= entirely so the address bar carries no room-part state. */
+        queryParams.delete("x", strUrlQuery2);
+        history.replaceState(null, null, location.origin + location.pathname);
     } else if (regex.test(strUrlQuery2) || fullShareLink.length > 8189) {
         queryParams.delete("x", strUrlQuery2);
         history.replaceState(null, null, location.origin + location.pathname);
@@ -28761,6 +28763,173 @@ function exportXConfigFile() {
     function labelFormatExplainer() {
         return 'Cameras must be labelled <code>Camera &lt;#&gt;</code> (e.g. <code>Camera 7</code>) and microphones must be labelled <code>Microphone &lt;#&gt; ID: &lt;id&gt;</code> (e.g. <code>Microphone 2 ID: 50:00:e0:32:ec:cd</code>).';
     }
+}
+
+
+/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (same predicate insertShapeItem() uses to always-label videoDevices/microphones, minus laptop) or Cisco devices + any item with a non-empty label. When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
+function openInventoryCsvDialog() {
+    const dlg = document.getElementById('dialogInventoryCsv');
+    if (!dlg) {
+        alertDialog('Export Inventory CSV',
+            'The "Export Inventory CSV" dialog is unavailable in this build. Please refresh the page.');
+        return;
+    }
+    dlg.showModal();
+}
+
+function isCiscoInventoryDevice(deviceId) {
+    const deviceType = allDeviceTypes[deviceId];
+    if (!deviceType || deviceId === 'laptop') return false;
+    return deviceType.parentGroup === 'videoDevices' || deviceType.parentGroup === 'microphones';
+}
+
+/* Label text with `{...}` metadata tokens stripped, like on-canvas addLabel(). */
+function inventoryLabelText(item) {
+    return String((item && item.data_labelField) || '').replace(/{.*?}/g, '').trim();
+}
+
+function polygonAreaShoelace(points) {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        const a = points[i], b = points[(i + 1) % points.length];
+        area += a.x * b.y - b.x * a.y;
+    }
+    return Math.abs(area) / 2;
+}
+
+/* Room Part polygons (room units) with the 0.10 m drop margin pre-applied, sorted smallest area first so a device in a nested part lands in the inner room. */
+function getInventoryRoomParts() {
+    const margin = roomPartBoundsMarginUnits();
+    const parts = [];
+
+    roomObj.items.forEach(item => {
+        if (!item || !isRoomPart(item.data_deviceid)) return;
+
+        let polygon = null;
+        const node = stage.findOne('#' + item.id);
+        if (node) {
+            const bounds = getBoundingBoxInUnit(node);
+            if (bounds && Array.isArray(bounds.corners)) polygon = bounds.corners;
+        }
+        if (!polygon) polygon = findFourCorners(item);
+        if (!polygon || polygon.length < 3) return;
+
+        let area;
+        if (item.data_deviceid === 'polyRoom') {
+            area = polygonAreaShoelace(polygon);
+        } else {
+            area = (Number(item.width) || 0) * (Number(item.height) || 0);
+        }
+
+        parts.push({
+            name: inventoryLabelText(item) || 'Room Part',
+            area: area,
+            polygon: expandPolygonByMargin(polygon, margin)
+        });
+    });
+
+    parts.sort((a, b) => a.area - b.area);
+    return parts;
+}
+
+function exportInventoryCsv(includeLabeledItems) {
+    closeAllDialogModals();
+    canvasToJson();
+
+    const roomParts = getInventoryRoomParts();
+    const hasRoomParts = roomParts.length > 0;
+
+    const SEP = '\u0001';
+    const groups = new Map(); /* roomPartName -> Map(device+SEP+label -> {device, label, qty}) */
+    const groupOrder = roomParts.map(p => p.name).filter((n, i, arr) => arr.indexOf(n) === i);
+    let itemCount = 0;
+
+    roomObj.items.forEach(item => {
+        const deviceId = item && item.data_deviceid;
+        if (!deviceId || isRoomPart(deviceId)) return;
+
+        const label = inventoryLabelText(item);
+        if (!isCiscoInventoryDevice(deviceId) && !(includeLabeledItems && label)) return;
+
+        const deviceType = allDeviceTypes[deviceId];
+        const device = item.name || (deviceType && deviceType.name) || deviceId;
+
+        let partName = '';
+        if (hasRoomParts) {
+            partName = 'Unassigned';
+            const corners = findFourCorners(item);
+            for (const part of roomParts) {
+                if (doPolygonsIntersect2(part.polygon, corners)) {
+                    partName = part.name;
+                    break;
+                }
+            }
+        }
+
+        if (!groups.has(partName)) groups.set(partName, new Map());
+        const rows = groups.get(partName);
+        const key = device + SEP + label;
+        const row = rows.get(key) || { device: device, label: label, qty: 0 };
+        row.qty++;
+        rows.set(key, row);
+        itemCount++;
+    });
+
+    if (itemCount === 0) {
+        alertDialog('Export Inventory CSV',
+            includeLabeledItems
+                ? 'No Cisco devices or labeled items found to export.'
+                : 'No Cisco devices found to export.');
+        return;
+    }
+
+    const csvField = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rowSort = (a, b) => a.device.localeCompare(b.device) || a.label.localeCompare(b.label);
+
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    const localDate = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
+
+    const lines = [];
+    lines.push(csvField(roomObj.name || '') + ',' + csvField('Exported: ' + localDate));
+
+    if (!hasRoomParts) {
+        lines.push(['Device', 'Item Label', 'Quantity'].map(csvField).join(','));
+        const rows = Array.from((groups.get('') || new Map()).values()).sort(rowSort);
+        rows.forEach(r => lines.push([r.device, r.label, r.qty].map(csvField).join(',')));
+    } else {
+        lines.push(['Room Part Name', 'Device', 'Item Label', 'Quantity'].map(csvField).join(','));
+
+        if (groups.has('Unassigned')) groupOrder.push('Unassigned');
+
+        const totals = new Map();
+        groupOrder.forEach(partName => {
+            const rows = groups.get(partName);
+            if (!rows) return;
+            Array.from(rows.values()).sort(rowSort).forEach(r => {
+                lines.push([partName, r.device, r.label, r.qty].map(csvField).join(','));
+                const key = r.device + SEP + r.label;
+                const total = totals.get(key) || { device: r.device, label: r.label, qty: 0 };
+                total.qty += r.qty;
+                totals.set(key, total);
+            });
+        });
+
+        Array.from(totals.values()).sort(rowSort).forEach(r => {
+            lines.push(['Total', r.device, r.label, r.qty].map(csvField).join(','));
+        });
+    }
+
+    let tzIsoTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
+    tzIsoTime = tzIsoTime.replaceAll(/:/g, '');
+    let baseName = ((roomObj.name || 'VideoRoomCalc') + '').replace(/[/\\?%*:|"<>]/g, '-').trim();
+    if (!baseName) baseName = 'VideoRoomCalc';
+
+    const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${baseName}_inventory_${tzIsoTime}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 }
 
 

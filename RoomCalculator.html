@@ -1726,6 +1726,12 @@
                   style="font-size: large;transform:  translate(0px,5px);"></i>Export CAD
                 DXF (meters)
               </div>
+              <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadInventoryCsvMenuItem"
+                onclick="openInventoryCsvDialog()">
+                <i class="icon icon-file-spreadsheet-bold"
+                  style="font-size: large;transform:  translate(0px,5px);"></i>Export Inventory
+                CSV
+              </div>
 
             </div>
           </span>
@@ -2549,6 +2555,22 @@
     <form method="dialog">
       <button class="button">OK</button>
     </form>
+  </dialog>
+
+  <dialog id="dialogInventoryCsv" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Export Inventory CSV</header>
+    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div style="margin-bottom: 10px;">Choose which items to include in the CSV:</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="button" style="width: 100%;" onclick="exportInventoryCsv(false)">Cisco Devices</button>
+        <button class="button" style="width: 100%;" onclick="exportInventoryCsv(true)">Cisco Devices and Items with a
+          Label</button>
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="closeAllDialogModals()">Cancel</button>
+    </div>
   </dialog>
 
   <dialog id="dialogLayerAdd" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
