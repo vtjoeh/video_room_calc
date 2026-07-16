@@ -209,19 +209,6 @@ function isRoomSubMode() {
     return isMultiRoomFloorPlanMode() && isActiveRoomPart;
 }
 
-/* Items allowed in MultiRoom overview: walls/shapes/doors + Room Parts. Shared by Equipment tab, search, and Quick Add. */
-const MULTI_ROOM_OVERVIEW_MENU_ITEMS = [
-    'boxRoomPart', 'boxRoomPartNoWalls', 'polyRoom',
-    'wallBuilder', 'wallStd', 'wallGlass', 'wallWindow',
-    'columnRect', 'cylinder', 'ceilingGrid', 'box', 'cone', 'sphere',
-    'pathShape', 'wdText', 'vrcText', 'dimensionLine',
-    'doorRight2', 'doorLeft2', 'doorDouble2'
-];
-
-function isAllowedInMultiRoomOverview(deviceId) {
-    return MULTI_ROOM_OVERVIEW_MENU_ITEMS.includes(deviceId);
-}
-
 let _lastMultiRoomOverviewMenuState = null; /* last overview state menus were built for; rebuild only when it flips */
 
 /* True when zoomed into a rectangular boxRoomPart. Wall behavior keys off the ZOOM state, not the multiRoom flag — the flag doesn't ride the shareable URL, and a Room Part's walls must stay per-room regardless. */
@@ -249,9 +236,9 @@ function activeDefaultWallsWorkspace() {
     return roomObj.workspace;
 }
 
-/* Effective software experience: the zoomed room's data_software when set, else the design-level roomObj.software. */
+/* Effective software experience: the zoomed room's data_software when set (either part type), else the design-level default roomObj.software. */
 function activeSoftware() {
-    if (isZoomedIntoBoxRoomPart() && activeRoomPartItem.data_software) {
+    if (isActiveRoomPart && activeRoomPartItem && activeRoomPartItem.data_software) {
         return activeRoomPartItem.data_software;
     }
     return roomObj.software;
@@ -315,14 +302,18 @@ function applyMultiRoomModeUi() {
     const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
     const dwMessageOnly = overview || polyRoomActive; /* Default Walls panel is read-only message here. */
 
-    /* Coverage-shading buttons + Software Experience are disabled in the MultiRoom overview (per-room concerns). */
-    ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'drpSoftware'].forEach(function (id) {
+    /* Coverage-shading buttons are disabled in the MultiRoom overview (per-room concerns). */
+    ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = overview;
         /* belt-and-braces: coverage buttons can still fire on a disabled <button>, so also kill pointer-events + grey it. */
         el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
     });
+
+    /* Overview edits the design-level default each room inherits; zoomed in it's per-room. */
+    const swLabel = document.getElementById('softwareExperienceLabel');
+    if (swLabel) swLabel.textContent = overview ? 'Default Software Experience:' : 'Software Experience:';
 
     const inRoom = isRoomSubMode();
 
@@ -5200,6 +5191,10 @@ function finishPolyBuilder() {
                 delete attrs.metersY;
                 /* New polyRoom goes into the user's selected "Add Items to:" layer */
                 attrs.data_layerId = getDefaultLayerForNewItems();
+                /* Inherit the floor's Default Software Experience (before insertShapeItem so the node mirror carries it). */
+                if (roomObj.software && !attrs.data_software) {
+                    attrs.data_software = roomObj.software;
+                }
                 let uuid = crypto.randomUUID();
                 insertShapeItem('polyRoom', allDeviceTypes['polyRoom'].parentGroup, attrs, uuid, true);
 
@@ -7605,7 +7600,7 @@ let boxes = [
 
 let rooms = [
     {
-        name: 'Irregular Room**',
+        name: 'Room Part Irregular Shape', 
         id: 'polyRoom',
         key: 'ZY',
         frontImage: 'pathShape-menu.png',
@@ -7614,7 +7609,7 @@ let rooms = [
         resizeable: []
     },
     {
-        name: 'Room Part with Default Walls**',
+        name: 'Room Part with Default Walls',
         id: 'boxRoomPart',
         key: 'ZZ',
         frontImage: 'box-front.png',
@@ -7625,7 +7620,7 @@ let rooms = [
         resizeable: ['width', 'depth', 'vheight']
     },
     {
-        name: 'Room Part - No Walls**',
+        name: 'Room Part - No Walls',
         id: 'boxRoomPartNoWalls', /* menu-only alias: insertItemFromMenu converts it to boxRoomPart with walls pre-disabled */
         key: 'ZW',
         frontImage: 'box-front.png',
@@ -10246,10 +10241,17 @@ function updateButtonRoomDimensions() {
 
 /* Room sub-mode: Room tab is read-only, but override the loaded floor values to show THIS room part's name/size. No-op outside Room sub-mode on a rectangular room part. */
 function populateRoomTabFromActiveRoomPart() {
-    /* Room notes are per-room for BOTH part types (boxRoomPart and polyRoom). */
+    /* Room notes + software are per-room for BOTH part types (boxRoomPart and polyRoom). */
     if (isRoomSubMode() && activeRoomPartItem) {
         const notesEl = document.getElementById('roomNotes');
         if (notesEl) notesEl.value = activeRoomPartItem.data_roomNotes || '';
+
+        const swEl = document.getElementById('drpSoftware');
+        if (swEl) {
+            swEl.disabled = false;
+            /* No per-room value yet: show the inherited floor default. */
+            swEl.value = activeRoomPartItem.data_software || roomObj.software || 'select';
+        }
     }
 
     if (!isZoomedIntoBoxRoomPart()) {
@@ -10258,17 +10260,11 @@ function populateRoomTabFromActiveRoomPart() {
 
     const item = activeRoomPartItem;
 
-    /* Room name + software are editable PER ROOM while zoomed in; the other Room-tab inputs stay disabled. */
+    /* Room name is editable PER ROOM while zoomed in; the other Room-tab inputs stay disabled. */
     const nameEl = document.getElementById('roomName');
     if (nameEl) {
         nameEl.value = item.data_labelField || '';
         nameEl.disabled = false;
-    }
-
-    const swEl = document.getElementById('drpSoftware');
-    if (swEl) {
-        swEl.disabled = false;
-        if (item.data_software) swEl.value = item.data_software;
     }
 
     const widthEl = document.getElementById('roomWidth');
@@ -11118,14 +11114,6 @@ function zoomRoomPart(roomPart) {
 
     drawRoom(true, true, true, true);
 
-    let newNode = stage.findOne('#' + id);
-    if (newNode) {
-        newNode.show();
-        newNode.listening(false);
-        newNode.draggable(false);
-        newNode.fill('');
-    }
-
     /* Surface the Room details tab on entry so name/size/height/software are immediately editable. */
     const roomDetailsTab = document.getElementById('defaultOpenTab');
     if (roomDetailsTab) roomDetailsTab.click();
@@ -11465,6 +11453,17 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         }
 
         insertKonvaBackgroundImageFloor();
+    }
+
+    /* Zoomed into a Room Part: every full rebuild re-creates the part's node with its default blue fill — re-apply the transparent/passive state here (not just in zoomRoomPart) so Update-triggered redraws don't paint the blue rect back. */
+    if (isActiveRoomPart && activeRoomPartItem) {
+        const activePartNode = stage.findOne('#' + activeRoomPartItem.id);
+        if (activePartNode) {
+            activePartNode.show();
+            activePartNode.listening(false);
+            activePartNode.draggable(false);
+            activePartNode.fill('');
+        }
     }
 
     ensureRoomPartWallDefaults();
@@ -22863,8 +22862,8 @@ function updateRoomDetails() {
     roomObj.authorVersion = authorVersion;
 
 
-    if (isZoomedIntoBoxRoomPart()) {
-        /* Software is per-room while zoomed in; the design-level roomObj.software is untouched. */
+    if (isActiveRoomPart && activeRoomPartItem) {
+        /* Software is per-room while zoomed in (both part types); the design-level default roomObj.software is untouched. */
         const roomSw = (drpSoftware != 'select') ? drpSoftware : '';
         const partNode = stage.findOne('#' + activeRoomPartItem.id);
         if (roomSw) {
@@ -24491,6 +24490,11 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_deviceid = data_deviceid;
         attrs.id = uuid;
 
+        /* New Room Part inherits the floor's Default Software Experience (stamped before insertShapeItem so the node mirror carries it). */
+        if (isRoomPart(data_deviceid) && roomObj.software && !attrs.data_software) {
+            attrs.data_software = roomObj.software;
+        }
+
         insertShapeItem(data_deviceid, allDeviceTypes[data_deviceid].parentGroup, attrs, uuid, true);
 
         roomObj.items.push(attrs);
@@ -24757,12 +24761,8 @@ function createItemsOnMenu(divMenuContainerId, menuItems) {
 
     let divMenuContainer = document.getElementById(divMenuContainerId);
 
-    /* MultiRoom overview restricts every tile-building site (Equipment tab
-     * + sidebar search "Other") to walls/shapes + doors. */
-    if (isMultiRoomOverviewMode()) {
-        menuItems = menuItems.filter(isAllowedInMultiRoomOverview);
-    } else if (isRoomSubMode()) {
-        /* Room sub-mode: can't insert a Room Part inside a room. */
+    /* Room sub-mode: can't insert a Room Part inside a room. */
+    if (isRoomSubMode()) {
         menuItems = menuItems.filter(id => !isRoomPart(id));
     }
 
@@ -26555,11 +26555,8 @@ function onQuickAddChange(e) {
     const word = e.target.value;
     let matches = searchQuickItem(allItems, word);
 
-    /* MultiRoom overview: only walls/shapes + doors insertable, so drop device + library-custom matches. */
-    if (isMultiRoomOverviewMode()) {
-        matches = matches.filter(m => m && !m._isCustomItem && isAllowedInMultiRoomOverview(m.id));
-    } else if (isRoomSubMode()) {
-        /* Room sub-mode: can't insert a Room Part inside a room. */
+    /* Room sub-mode: can't insert a Room Part inside a room. */
+    if (isRoomSubMode()) {
         matches = matches.filter(m => m && !isRoomPart(m.id));
     }
 
