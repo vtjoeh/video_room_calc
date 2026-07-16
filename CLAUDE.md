@@ -611,6 +611,30 @@ flowchart LR
     patch --> sel["trNodesFromUuids(next.trNodes, false)"]
 ```
 
+#### Undo auto-unzoom out of a Room Part
+
+Zoom state (`isActiveRoomPart` / `activeRoomPartItem` / `activeRoomX/Y`) is
+runtime-only — it is NOT stored in undo snapshots, so a restore never
+changes the zoom by itself. Without help, undoing edits made while zoomed
+into a Room Part would leave the user zoomed in even after every in-room
+change is reversed, hiding the full floor plan.
+
+`zoomRoomPart()` captures `roomPartZoomUndoBaselineEntry` = the object
+reference on top of `undoArray` at zoom-in (the pre-in-room-edit state;
+zoom-in itself pushes nothing — its `drawRoom(true,true,true,true)` runs
+with `dontSaveUndo=true`). Each in-room edit pushes above it. In
+`btnUndoClicked()`, after the restore, if the array top is that same
+reference again (identity compare — all in-room edits undone) and we're
+still zoomed in, it calls `showEntireFloor(true)`. The `true` sets
+`drawRoom`'s `dontSaveUndo`, so the unzoom's redraw does NOT schedule
+`canvasToJson()` → `saveToUndoArray()` and the redo stack the undo just
+built is preserved. `showEntireFloor()` clears the baseline; a manual
+Back-to-Floor-Plan click clears it too. If the baseline entry is shifted
+off the bottom by the 100-entry cap (100+ edits in one room session), the
+identity never matches and it degrades to the old "stay zoomed" behaviour.
+Redo does not re-zoom (out of scope) — redoing an in-room edit after the
+auto-unzoom applies it at the floor-plan view.
+
 #### Classifier — when the fast path runs
 
 `VRC.undoApply.requiresFullRedraw(prev, next)` returns **true** (→ legacy

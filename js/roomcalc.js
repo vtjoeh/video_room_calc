@@ -25,6 +25,7 @@ let isRotatingRoom = false; /* keep track if the room is being rotated */
 let blockKeyActions = false; /* keep key inputs from happening */
 let isActiveRoomPart = false; /* keep track if the VRC is in an Active Room Part */
 let activeRoomPartItem; /* keep track of Node when isActiveRoomPart = true */
+let roomPartZoomUndoBaselineEntry = null; /* undoArray top captured at zoom-in; undo auto-unzooms once it resurfaces (all in-room edits undone) */
 let activeRoomLength; /* on zoom of a Room Part, keep track of the active Room Length or Room Width */
 let activeRoomWidth;
 let activeRoomY = 0;
@@ -11039,7 +11040,7 @@ function getKonvaBackgroundImageFloor() {
     return konvaBackgroundImageFloor;
 }
 
-function showEntireFloor() {
+function showEntireFloor(dontSaveUndo = false) {
     blurRoom();
 
     disableRoomSettings(false);
@@ -11050,9 +11051,9 @@ function showEntireFloor() {
     activeRoomX = 0;
     activeRoomY = 0;
     isActiveRoomPart = false;
+    roomPartZoomUndoBaselineEntry = null;
 
-
-    let activeRoomNode = stage.findOne('#' + activeRoomPartItem.id);
+    let activeRoomNode = activeRoomPartItem && stage.findOne('#' + activeRoomPartItem.id);
 
     activeRoomPartItem = null;
 
@@ -11063,7 +11064,7 @@ function showEntireFloor() {
         activeRoomNode.draggable(true);
     }
 
-    drawRoom(true);
+    drawRoom(true, false, dontSaveUndo);
 
 
 }
@@ -11111,6 +11112,9 @@ function zoomRoomPart(roomPart) {
 
     isActiveRoomPart = true;
     tr.nodes([]);
+
+    /* Remember the undo top at entry so undo can auto-unzoom once every in-room edit is reversed. */
+    roomPartZoomUndoBaselineEntry = undoArray.length ? undoArray[undoArray.length - 1] : null;
 
     drawRoom(true, true, true, true);
 
@@ -13774,6 +13778,14 @@ function btnUndoClicked() {
         const prev = roomObj;
         const next = structuredClone(undoArray[undoArray.length - 1]);
         restoreSnapshotToCanvas(prev, next);
+
+        /* Zoomed into a Room Part: once undo resurfaces the entry that was on top at zoom-in (every in-room edit reversed), return to the full floor plan so the user sees it. dontSaveUndo=true keeps the redo stack intact. */
+        if (isActiveRoomPart && activeRoomPartItem
+            && roomPartZoomUndoBaselineEntry
+            && undoArray[undoArray.length - 1] === roomPartZoomUndoBaselineEntry) {
+            showEntireFloor(true);
+        }
+
         enableBtnUndoRedo();
         setTimeout(() => {
             createShareableLink();
