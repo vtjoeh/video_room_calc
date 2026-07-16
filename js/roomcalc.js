@@ -1,4 +1,4 @@
-const version = "v0.1.656";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = "v0.1.657";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
 
 /* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
@@ -173,9 +173,29 @@ function isRoomPart(deviceId) {
     return deviceId === 'boxRoomPart' || deviceId === 'polyRoom';
 }
 
-/* True when the design is a multi-room floor plan (sticky design-level flag). */
+/* True when the design is a multi-room floor plan: sticky flag OR any Room Part on the canvas (flag doesn't ride the shareable URL, so presence is the fallback). */
 function isMultiRoomFloorPlanMode() {
-    return !!roomObj.multiRoomFloorPlanMode;
+    return !!roomObj.multiRoomFloorPlanMode || roomObjHasRoomPart();
+}
+
+function roomObjHasRoomPart() {
+    return Array.isArray(roomObj.items) && roomObj.items.some(it => it && isRoomPart(it.data_deviceid));
+}
+
+/* Called after a Room Part insert; on the design's FIRST part, set the sticky flag and tell the user what just changed. */
+function enterRoomFloorPlanModeOnFirstRoomPart() {
+    const isFirstPart = roomObj.items.filter(it => it && isRoomPart(it.data_deviceid)).length === 1;
+    if (roomObj.multiRoomFloorPlanMode && !isFirstPart) return;
+    const showAlert = !roomObj.multiRoomFloorPlanMode && isFirstPart;
+    roomObj.multiRoomFloorPlanMode = true;
+    applyMultiRoomModeUi();
+    if (showAlert) {
+        alertDialog('Room Floor Plan Mode',
+            'Adding a Room Part turns this design into a multi-room floor plan.<br><br>'
+            + 'Zoomed out, you lay out the whole floor. Double-click a Room Part to zoom into that '
+            + 'room and design it — the room name, walls, software, and notes are saved per room.<br><br>'
+            + 'Use the back arrow above the canvas to return to the full floor plan.');
+    }
 }
 
 /* True when in the floor-plan overview sub-mode (flag on, not zoomed into a room). */
@@ -303,27 +323,42 @@ function applyMultiRoomModeUi() {
         el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
     });
 
+    const inRoom = isRoomSubMode();
+
     /* Room bg-image sub-tab: inside a room hide every setting except Opacity and point the user back to the overview. */
-    const inRoomBgMode = isRoomSubMode();
     document.querySelectorAll('.bgFloorOnlySetting').forEach(function (el) {
-        el.style.display = inRoomBgMode ? 'none' : '';
+        el.style.display = inRoom ? 'none' : '';
     });
     const bgRoomMsg = document.getElementById('bgImageRoomModeMsg');
-    if (bgRoomMsg) bgRoomMsg.style.display = inRoomBgMode ? '' : 'none';
+    if (bgRoomMsg) bgRoomMsg.style.display = inRoom ? '' : 'none';
 
-    /* "Remove Default Walls" rows hidden whenever the Default Walls panel is message-only. */
+    /* Room-tab "Remove Default Walls" is hidden everywhere in floor-plan mode (per-room walls live in the Default Walls subtab); the subtab row keeps the message-only rule. */
     const rdwRow = document.getElementById('removeDefaultWallsRow');
-    if (rdwRow) rdwRow.style.display = dwMessageOnly ? 'none' : '';
+    if (rdwRow) rdwRow.style.display = (dwMessageOnly || inRoom) ? 'none' : '';
     const rdwRow2 = document.getElementById('removeDefaultWallsRow2');
     if (rdwRow2) rdwRow2.style.display = dwMessageOnly ? 'none' : '';
 
-    /* Floor vs Room label swaps. */
+    /* Floor vs Room label swaps: the tab reads "Floor" for the whole floor-plan mode; the name label is "Room name:" only when zoomed into a room. */
     const tab = document.getElementById('defaultOpenTab');
-    if (tab) tab.textContent = overview ? 'Floor' : 'Room';
+    if (tab) tab.textContent = isMultiRoomFloorPlanMode() ? 'Floor' : 'Room';
     const roomNameLabel = document.getElementById('roomNameLabel');
     if (roomNameLabel) roomNameLabel.textContent = overview ? 'Floor name:' : 'Room name:';
     const rotateLabel = document.getElementById('rotateRoomLabel');
     if (rotateLabel) rotateLabel.textContent = overview ? 'Rotate Floor:' : 'Rotate Room:';
+
+    /* Zoomed into a room: rotate + Version/Author are floor-level concerns (hidden); per-room notes shown instead. */
+    const rotateRow = document.getElementById('rotateRoomRow');
+    if (rotateRow) rotateRow.style.display = inRoom ? 'none' : '';
+    const vaRow = document.getElementById('versionAuthorRow');
+    if (vaRow) vaRow.style.display = inRoom ? 'none' : '';
+    const notesRow = document.getElementById('roomNotesRow');
+    if (notesRow) notesRow.style.display = inRoom ? '' : 'none';
+
+    /* Zoomed in, Unit/Width/Length/Height are locked to the floor; pointer-events off the disabled inputs so the wrapper's click guard can explain why. */
+    ['drpMetersFeet', 'roomWidth', 'roomLength', 'roomHeight'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.style.pointerEvents = inRoom ? 'none' : '';
+    });
 
     /* Default Walls subtab is message-only in overview and for polyRoom; editable for rectangular rooms and normal mode. */
     const dwMsg = document.getElementById('defaultWallsMultiRoomMsg');
@@ -5172,6 +5207,7 @@ function finishPolyBuilder() {
                 roomObj.items.push(attrs);
                 roomObjItemsMap.set(uuid, attrs);
 
+                enterRoomFloorPlanModeOnFirstRoomPart();
 
                 polyBuilderOn(false);
 
@@ -7568,7 +7604,7 @@ let boxes = [
 
 let rooms = [
     {
-        name: 'Irregular Room (polyRoom) Experimental**',
+        name: 'Irregular Room**',
         id: 'polyRoom',
         key: 'ZY',
         frontImage: 'pathShape-menu.png',
@@ -7577,7 +7613,7 @@ let rooms = [
         resizeable: []
     },
     {
-        name: 'Room Part with Default Walls (Experimental)**',
+        name: 'Room Part with Default Walls**',
         id: 'boxRoomPart',
         key: 'ZZ',
         frontImage: 'box-front.png',
@@ -7588,7 +7624,7 @@ let rooms = [
         resizeable: ['width', 'depth', 'vheight']
     },
     {
-        name: 'Room Part - No Walls (Experimental)**',
+        name: 'Room Part - No Walls**',
         id: 'boxRoomPartNoWalls', /* menu-only alias: insertItemFromMenu converts it to boxRoomPart with walls pre-disabled */
         key: 'ZW',
         frontImage: 'box-front.png',
@@ -7852,6 +7888,9 @@ function addOnNumberInputListener() {
                     roomObj.name = cleanedName;
                 }
             }
+            if (event.target.id === 'roomNotes') {
+                setActiveRoomPartNotes(event.target.value);
+            }
         })
 
         txtInputs[i].addEventListener("blur", (event) => {
@@ -7872,6 +7911,10 @@ function addOnNumberInputListener() {
                 } else {
                     roomObj.name = cleanedName;
                 }
+            }
+
+            if (event.target.id === 'roomNotes') {
+                setActiveRoomPartNotes(event.target.value);
             }
 
             if (!multiUpdateMode) {
@@ -10202,6 +10245,12 @@ function updateButtonRoomDimensions() {
 
 /* Room sub-mode: Room tab is read-only, but override the loaded floor values to show THIS room part's name/size. No-op outside Room sub-mode on a rectangular room part. */
 function populateRoomTabFromActiveRoomPart() {
+    /* Room notes are per-room for BOTH part types (boxRoomPart and polyRoom). */
+    if (isRoomSubMode() && activeRoomPartItem) {
+        const notesEl = document.getElementById('roomNotes');
+        if (notesEl) notesEl.value = activeRoomPartItem.data_roomNotes || '';
+    }
+
     if (!isZoomedIntoBoxRoomPart()) {
         return;
     }
@@ -10234,6 +10283,26 @@ function setActiveRoomPartLabel(text) {
     activeRoomPartItem.data_labelField = text;
     const node = stage.findOne('#' + activeRoomPartItem.id);
     if (node) node.data_labelField = text;
+}
+
+/* Zoomed-in "Room notes" edits write the Room Part's data_roomNotes (either part type). */
+function setActiveRoomPartNotes(text) {
+    if (!isRoomSubMode() || !activeRoomPartItem) return;
+    const cleaned = DOMPurify.sanitize(text).trim();
+    if (cleaned) {
+        activeRoomPartItem.data_roomNotes = cleaned;
+    } else {
+        delete activeRoomPartItem.data_roomNotes;
+    }
+    const node = stage.findOne('#' + activeRoomPartItem.id);
+    if (node) node.data_roomNotes = cleaned || null;
+}
+
+/* Wrapper click guard for the Unit/Width/Length/Height fields, which are locked to the floor while zoomed into a room. */
+function roomPartLockedSettingClick() {
+    if (!isRoomSubMode()) return;
+    alertDialog('Room Floor Plan Mode',
+        'Go back to the full floor plan to make changes to this setting.');
 }
 
 
@@ -13696,6 +13765,8 @@ function restoreSnapshotToCanvas(prev, next) {
         drawRoom(true, true, true);
     } else {
         applyRoomObjDelta(prev, next);
+        /* Floor-plan mode is item-derived; the fast path skips drawRoom so refresh the mode UI here. */
+        applyMultiRoomModeUi();
     }
 }
 
@@ -14049,6 +14120,9 @@ function copyToCanvasClipBoard(nodes) {
         }
         if (node.data_software) {
             newAttr.data_software = node.data_software;
+        }
+        if (node.data_roomNotes) {
+            newAttr.data_roomNotes = node.data_roomNotes;
         }
 
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: crypto.randomUUID() });
@@ -15252,6 +15326,9 @@ function updateRoomObjFromTrNode() {
         if (node.data_software) {
             itemAttr.data_software = node.data_software;
         }
+        if (node.data_roomNotes) {
+            itemAttr.data_roomNotes = node.data_roomNotes;
+        }
 
         let item = roomObjItemsMap.get(node.id());
 
@@ -15360,6 +15437,11 @@ function updateRoomObjFromTrNode() {
                 item.data_software = itemAttr.data_software;
             } else {
                 delete item.data_software;
+            }
+            if (itemAttr.data_roomNotes != null) {
+                item.data_roomNotes = itemAttr.data_roomNotes;
+            } else {
+                delete item.data_roomNotes;
             }
 
             if (itemAttr.data_certifiedDisplayIndex != null) {
@@ -16778,6 +16860,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
     tblWallFlr.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
     tblWallFlr.data_software = attrs.data_software || null;
+    tblWallFlr.data_roomNotes = attrs.data_roomNotes || null;
 
     if ('name' in attrs) {
         tblWallFlr.name(attrs.name);
@@ -20437,6 +20520,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
         node.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
         node.data_software = attrs.data_software || null;
+        node.data_roomNotes = attrs.data_roomNotes || null;
 
         if ('name' in insertDevice) {
             node.name(insertDevice.name);
@@ -24394,6 +24478,10 @@ function insertItemFromMenu(data_deviceid, attrs) {
         roomObj.items.push(attrs);
 
         roomObjItemsMap.set(attrs.id, attrs);
+
+        if (data_deviceid === 'boxRoomPart') {
+            enterRoomFloorPlanModeOnFirstRoomPart();
+        }
 
         checkForMultipleCodecsOnDragEnd(data_deviceid);
 
