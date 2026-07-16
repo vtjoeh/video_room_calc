@@ -303,7 +303,7 @@ function applyMultiRoomModeUi() {
     const dwMessageOnly = overview || polyRoomActive; /* Default Walls panel is read-only message here. */
 
     /* Coverage-shading buttons are disabled in the MultiRoom overview (per-room concerns). */
-    ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance'].forEach(function (id) {
+    ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'btnSpeakerShadeToggle'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = overview;
@@ -11416,6 +11416,14 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     displayDistanceCoverageVisible(roomObj.overlaysVisible.displayDistanceCoverage);
     cameraCoverageVisible(roomObj.overlaysVisible.cameraCoverage);
     speakerCoverageVisible(roomObj.overlaysVisible.speakerCoverage);
+
+    /* MultiRoom overview: coverage is a per-room concern (its toggle buttons are disabled here). Force the four coverage groups hidden WITHOUT touching roomObj.overlaysVisible, so zooming into a room restores the user's settings. Group visibility cascades, so items inserted onto the floor while in overview stay uncovered too. */
+    if (isMultiRoomOverviewMode()) {
+        cameraCoverage.visible(false);
+        microphoneCoverage.visible(false);
+        speakerCoverage.visible(false);
+        displayDistanceCoverage.visible(false);
+    }
 
     updateRemoveDefaultWallsCheckBox();
 
@@ -22603,11 +22611,14 @@ function hideAllCoverageGroups(hide = true, minimumNodeCount = 150) {
         });
     }
 
+    /* MultiRoom overview keeps coverage hidden regardless of saved settings (per-room concern); the drag/transform show-cycle must not leak it back. */
+    const overviewForcesHidden = isMultiRoomOverviewMode();
+
     allCoverageGroups.forEach(group => {
         if (hide) {
             group.hide();
         } else {
-            if (roomObj.overlaysVisible[group.name()] === true) {
+            if (roomObj.overlaysVisible[group.name()] === true && !overviewForcesHidden) {
                 group.show();
             }
         }
@@ -24564,6 +24575,9 @@ function showTestLog(...args) {
 /* Checks to see if the last item dropped is also a codec.
 takes a string of the droppedItem id/data_deviceid */
 function checkForMultipleCodecsOnDragEnd(droppedItem) {
+
+    /* Multi-Room Floor Plan: each Room Part is its own room, so 2+ video devices across the whole floor is expected, not a mistake. */
+    if (isMultiRoomFloorPlanMode()) return;
 
     setTimeout(() => {
 

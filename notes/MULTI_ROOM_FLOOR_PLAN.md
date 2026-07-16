@@ -209,3 +209,31 @@ Zoomed into a Room Part, the shareable link is a standalone single-room design o
 - **Inheritance model:** a NEW Room Part (both types: `insertItemFromMenu` boxRoomPart path and `finishPolyBuilder` polyRoom path) is stamped `data_software = roomObj.software` at insert — BEFORE `insertShapeItem()` so the Konva node mirror carries it (else `updateRoomObjFromTrNode`'s delete-on-absent would wipe it on the next selection sync). Paste / URL / imports are untouched (they carry their own value or none). At WD-export/link time, `activeSoftware()` falls back to `roomObj.software` for a part with no `data_software` (pre-existing designs), so export inheritance works without stamping.
 - **Per-room software now covers BOTH part types:** `activeSoftware()`, the per-room write in `updateRoomDetails()`, and the Room-tab populate were gated on `isZoomedIntoBoxRoomPart()`; all three now gate on `isActiveRoomPart && activeRoomPartItem`, since stamped polyRooms carry `data_software` and it must stay editable per-room (previously a software change inside a polyRoom silently overwrote the global default). The populate shows the inherited floor default when the room has no override.
 - **Equipment menu in overview:** the walls/shapes+doors restriction is removed — `MULTI_ROOM_OVERVIEW_MENU_ITEMS` and `isAllowedInMultiRoomOverview()` are deleted; the Equipment tab, sidebar search, and Quick Add offer everything in the overview (items land on the floor). The only remaining menu filter is Room sub-mode (no Room Part tiles inside a room). The `_lastMultiRoomOverviewMenuState` rebuild-on-flip trigger stays: room-sub-mode entry/exit always passes through an overview flip, so the roomPart filter is applied/cleared correctly.
+
+## Round 10 (2026-07) — coverage overlays forced off in the overview
+
+Coverage overlays (camera FOV / mic / speaker / display-distance) are a
+per-room concern — their toggle buttons are disabled in the MultiRoom
+overview. But the overlay *groups* still rendered from
+`roomObj.overlaysVisible.*` (all default `true`), so a video device
+dropped on the floor in overview showed its FOV.
+
+Fix — force the four coverage groups hidden whenever
+`isMultiRoomOverviewMode()` is true, WITHOUT writing
+`roomObj.overlaysVisible` (so zooming into a room restores the user's
+saved settings, and the toggle buttons work normally there):
+
+- `drawRoom()`: right after the six `*Visible(roomObj.overlaysVisible.*)`
+  calls, an overview guard sets `cameraCoverage/microphoneCoverage/
+  speakerCoverage/displayDistanceCoverage .visible(false)`. Group
+  visibility cascades, so a device inserted onto the floor while in
+  overview stays uncovered (its freshly-added `#fov~`/`#audio~` child
+  lands in an already-hidden group; no `drawRoom` on insert needed).
+- `hideAllCoverageGroups(false)` (the show side of the drag/transform/
+  arrow-nudge hide-cycle): the `group.show()` branch now also checks
+  `!isMultiRoomOverviewMode()`, so dragging/nudging an item in the
+  overview can't leak coverage back on.
+- `applyMultiRoomModeUi()`: `btnSpeakerShadeToggle` added to the
+  coverage-button disable list (was missing; camera/mic/display were
+  already there) so all four toggles are consistently disabled in the
+  overview and enabled only when zoomed into a room.
