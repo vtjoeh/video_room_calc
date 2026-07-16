@@ -244,6 +244,14 @@ function activeSoftware() {
     return roomObj.software;
 }
 
+/* Effective room height: the zoomed room's data_roomHeight when set (either part type), else the floor's roomObj.room.roomHeight. */
+function activeRoomHeight() {
+    if (isActiveRoomPart && activeRoomPartItem && activeRoomPartItem.data_roomHeight) {
+        return activeRoomPartItem.data_roomHeight;
+    }
+    return roomObj.room.roomHeight;
+}
+
 /* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
 function toggleMultiRoomFloorPlanMode(event) {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
@@ -352,8 +360,8 @@ function applyMultiRoomModeUi() {
     const roomUpdateBtn = document.getElementById('btnUpdateRoomPartFields');
     if (roomUpdateBtn) roomUpdateBtn.style.display = inRoom ? '' : 'none';
 
-    /* Zoomed in, Unit/Width/Length/Height are locked to the floor; pointer-events off the disabled inputs so the wrapper's click guard can explain why. */
-    ['drpMetersFeet', 'roomWidth', 'roomLength', 'roomHeight'].forEach(function (id) {
+    /* Zoomed in, Unit/Width/Length are locked to the floor; pointer-events off the disabled inputs so the wrapper's click guard can explain why. Height stays editable (per-room, inherits the floor default). */
+    ['drpMetersFeet', 'roomWidth', 'roomLength'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el) el.style.pointerEvents = inRoom ? 'none' : '';
     });
@@ -8267,6 +8275,10 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_vHeight = round(item.data_vHeight * ratio);
     }
 
+    if ('data_roomHeight' in item && !isNaN(item.data_roomHeight)) {
+        item.data_roomHeight = round(item.data_roomHeight * ratio);
+    }
+
     if ('data_trapNarrowWidth' in item && !isNaN(item.data_trapNarrowWidth)) {
         item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
     }
@@ -9270,6 +9282,12 @@ function parseShortenedXYUrl(parameters) {
                 if (swDecoded) newItem.data_software = swDecoded;
             }
 
+            /* rh = per-room height ÷100 (both part types); absent = inherit the floor height. */
+            if ('rh' in item && isRoomPart(newItem.data_deviceid)) {
+                const rhNum = Number(item.rh) / 100;
+                if (isFinite(rhNum) && rhNum > 0) newItem.data_roomHeight = rhNum;
+            }
+
             /* x = wallChairs chair-on-center spacing (÷100 to unit); applies to every wallChairs variant — see isWallChairs(). */
             if ('x' in item && isWallChairs(newItem.data_deviceid)) {
                 const csNum = Number(item.x) / 100;
@@ -10255,6 +10273,13 @@ function populateRoomTabFromActiveRoomPart() {
             swEl.disabled = false;
             /* No per-room value yet: show the inherited floor default. */
             swEl.value = activeRoomPartItem.data_software || roomObj.software || 'select';
+        }
+
+        const heightEl = document.getElementById('roomHeight');
+        if (heightEl) {
+            heightEl.disabled = false;
+            const effH = activeRoomPartItem.data_roomHeight || roomObj.room.roomHeight;
+            heightEl.value = effH ? round(effH) : '';
         }
     }
 
@@ -12283,8 +12308,10 @@ function createShareableLink() {
     }
 
 
-    if (!(roomObj.room.roomHeight == 0 || roomObj.room.roomHeight == '')) {
-        strUrlQuery2 += 'f' + Math.round(roomObj.room.roomHeight * 100);
+    /* Zoomed into a room, the standalone room link carries the room's effective height (activeRoomHeight falls back to the floor's). */
+    const linkRoomHeight = activeRoomHeight();
+    if (!(linkRoomHeight == 0 || linkRoomHeight == '' || linkRoomHeight == null)) {
+        strUrlQuery2 += 'f' + Math.round(linkRoomHeight * 100);
     }
 
     strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
@@ -12873,6 +12900,11 @@ function createShareableLinkItem(item, prevTokens) {
         /* sw = per-room software (same digit mapping as the room-level e code). */
         const swIndex = ['webex', 'mtr', 'zoomRooms'].indexOf(item.data_software);
         if (swIndex > -1) add('sw', 'sw' + swIndex);
+    }
+
+    /* rh = per-room height ×100 (mirror of the room-level f code), BOTH part types; absent = inherit the floor height. */
+    if (isRoomPart(item.data_deviceid) && item.data_roomHeight > 0) {
+        add('rh', 'rh' + Math.round(item.data_roomHeight * 100));
     }
 
     if ('data_labelField' in item) {
@@ -14146,6 +14178,9 @@ function copyToCanvasClipBoard(nodes) {
         if (node.data_roomNotes) {
             newAttr.data_roomNotes = node.data_roomNotes;
         }
+        if (node.data_roomHeight != null) {
+            newAttr.data_roomHeight = Number(node.data_roomHeight);
+        }
 
         clipBoardArray.push({ deviceId: deviceId, parent: node.getParent().name(), newAttr: newAttr, uuid: crypto.randomUUID() });
 
@@ -15356,6 +15391,9 @@ function updateRoomObjFromTrNode() {
         if (node.data_roomNotes) {
             itemAttr.data_roomNotes = node.data_roomNotes;
         }
+        if (node.data_roomHeight != null) {
+            itemAttr.data_roomHeight = Number(node.data_roomHeight);
+        }
 
         let item = roomObjItemsMap.get(node.id());
 
@@ -15469,6 +15507,11 @@ function updateRoomObjFromTrNode() {
                 item.data_roomNotes = itemAttr.data_roomNotes;
             } else {
                 delete item.data_roomNotes;
+            }
+            if (itemAttr.data_roomHeight != null) {
+                item.data_roomHeight = itemAttr.data_roomHeight;
+            } else {
+                delete item.data_roomHeight;
             }
 
             if (itemAttr.data_certifiedDisplayIndex != null) {
@@ -16887,6 +16930,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
     tblWallFlr.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
     tblWallFlr.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
     tblWallFlr.data_software = attrs.data_software || null;
+    tblWallFlr.data_roomHeight = attrs.data_roomHeight || null;
     tblWallFlr.data_roomNotes = attrs.data_roomNotes || null;
 
     if ('name' in attrs) {
@@ -20547,6 +20591,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_roomSurfaces = attrs.data_roomSurfaces ? structuredClone(attrs.data_roomSurfaces) : null;
         node.data_workspace = attrs.data_workspace ? structuredClone(attrs.data_workspace) : null;
         node.data_software = attrs.data_software || null;
+        node.data_roomHeight = attrs.data_roomHeight || null;
         node.data_roomNotes = attrs.data_roomNotes || null;
 
         if ('name' in insertDevice) {
@@ -22882,7 +22927,18 @@ function updateRoomDetails() {
     let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value).trim();
     let drpSoftware = document.getElementById('drpSoftware').value;
 
-    if (roomHeight != 0 || roomHeight != '') {
+    if (isActiveRoomPart && activeRoomPartItem) {
+        /* Height is per-room while zoomed in; blank (or matching the floor default) inherits roomObj.room.roomHeight. */
+        const partNodeH = stage.findOne('#' + activeRoomPartItem.id);
+        const rh = Number(roomHeight);
+        if (roomHeight !== '' && isFinite(rh) && rh > 0 && rh !== Number(roomObj.room.roomHeight)) {
+            activeRoomPartItem.data_roomHeight = rh;
+            if (partNodeH) partNodeH.data_roomHeight = rh;
+        } else {
+            delete activeRoomPartItem.data_roomHeight;
+            if (partNodeH) partNodeH.data_roomHeight = null;
+        }
+    } else if (roomHeight != 0 || roomHeight != '') {
         roomObj.room.roomHeight = Number(roomHeight);
         defaultWallHeight = roomObj.room.roomHeight;
     }
@@ -31368,6 +31424,11 @@ function exportRoomObjToWorkspace() {
     let swapXY = true;
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
+
+    /* Zoomed into a room with its own height: the export's room height (roomShape + wall defaults) inherits the part's value; still in current unit here, convertToMeters scales it. */
+    if (isActiveRoomPart && activeRoomPartItem && activeRoomPartItem.data_roomHeight) {
+        roomObj2.room.roomHeight = activeRoomPartItem.data_roomHeight;
+    }
 
     roomObj2 = convertToMeters(roomObj2); /* converts feet to meters and drops itemsOffStageId items; in Room mode also drops roomPart items. */
 

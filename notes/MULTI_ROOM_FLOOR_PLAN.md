@@ -260,3 +260,36 @@ saved settings, and the toggle buttons work normally there):
   polyRoom), notes (via `setActiveRoomPartNotes`), and software (via
   `updateRoomDetails()`, which also fires `canvasToJson()` for the undo
   snapshot / share link). Both buttons toggle in `applyMultiRoomModeUi()`.
+
+## Round 12 (2026-07) — per-room Room Height (`data_roomHeight`)
+
+Room Parts inherit the floor's `roomObj.room.roomHeight`; a per-room
+override lives in `item.data_roomHeight` (both part types). Model mirrors
+per-room software:
+
+- **Helper:** `activeRoomHeight()` — zoomed room's `data_roomHeight` when
+  set, else `roomObj.room.roomHeight`. Sibling of `activeSoftware()`.
+- **UI:** the Height field is UNLOCKED zoomed in (removed from the
+  pointer-events lock list + its HTML wrapper's `roomPartLockedSettingClick`
+  guard removed; `populateRoomTabFromActiveRoomPart()` re-enables it and
+  shows `data_roomHeight || floor height`). Saving goes through
+  `updateRoomDetails()`: zoomed in, a positive value DIFFERENT from the
+  floor height writes `data_roomHeight` (item + node mirror); blank, 0,
+  or exactly the floor value deletes it (stays inherited, so later floor
+  height changes flow into never-diverged rooms). Zoomed out the original
+  floor write is unchanged.
+- **Four-place rule:** copy (`copyToCanvasClipBoard`), push + map-hit
+  (delete-on-absent) in `updateRoomObjFromTrNode`, `insertTable()` writer,
+  `updateNodeAttributes()` mirror — all alongside `data_software`.
+- **URL:** 2-char `rh` code = height ×100 in current unit, encoded for
+  BOTH part types (own `isRoomPart()` gate — the `rs`/`sw` block is
+  boxRoomPart-only); decoder mirrors. Absent = inherit.
+- **Units:** `data_roomHeight` scales in `convertItemUnitBasedOnRatio()`
+  (feet↔meters toggle) and in `convertToMeters()`'s item loop (WD export).
+- **WD export:** `exportRoomObjToWorkspace()` overrides
+  `roomObj2.room.roomHeight` with the part's value (pre-`convertToMeters`,
+  so unit scaling applies) — `roomShape.height` and any wall-default
+  heights derived from the room height inherit it.
+- **Room-scoped share link:** the room-level `f` height code now emits
+  `activeRoomHeight()` so a zoomed-in link carries the room's effective
+  height; zoomed out this is byte-identical to the old output.
