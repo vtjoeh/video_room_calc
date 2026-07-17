@@ -312,3 +312,55 @@ out (`activeRoomX/Y === 0`) it's a no-op, so single-room drawing is
 unchanged. Covers both the fresh-insert auto-launch and re-editing an
 existing pathShape's path (both route through the same branch).
 The WD export shares the same root cause: `workspaceObjItemPush()` reads `item.x`, so the double-offset made the exported shape land ~`activeRoomX/Y` off. Correcting `item.x` fixes both surfaces at once (A/B verified: with the fix a zoomed-in pathShape exports at the centered room-relative position; the old code exported it shifted by the room offset). No WD-specific change needed.
+
+## Round 14 (2026-07) — polyRoom wall truncation along the polyline on WD export
+
+Zoomed into a polyRoom, the WD export (and the room-scoped share link)
+previously cut walls only against the part's axis-aligned BBOX
+(`truncateWallsToActiveRoomRect`), so walls extending into a concave
+polyRoom's notch exported whole. Walls (`wallStd` / `wallGlass` /
+`wallWindow`) are now additionally cut along the polyline itself, mirror
+of the boxRoomPart behaviour.
+
+- **New helper `truncateWallItemsToPolygon(items, polygonPoints, margin)`**
+  (next to `truncateWallItemsToRect` in `js/roomcalc.js`). Clips each
+  wall's centerline against the polygon expanded by the margin (reuses
+  `expandPolygonByMargin` — same expansion `listItemsOffStage()` uses for
+  the intersection filter, so the two stay consistent: a wall the filter
+  keeps is truncated, never orphaned). Crossing parameters come from
+  `segmentPolygonCrossingTs()`; each sub-interval keeps or drops by an
+  `isPointInPolygon` midpoint test, so **concave polygons work** — a wall
+  spanning a U-shaped room's notch SPLITS into multiple wall pieces
+  (extras appended with fresh `crypto.randomUUID()` ids). A wall whose
+  centerline runs along a polygon edge (within margin) is left whole,
+  same as the rect version's margin semantics. Unit-agnostic like the
+  rect version.
+- **Shared centerline math extracted**: `wallCenterlineGeom(item)` /
+  `setWallFromCenterlineStart(item, geom, startPt, newLength)` are now
+  used by both the rect and the polygon truncators (rect behaviour
+  unchanged — regression-checked).
+- **WD export wiring** (`exportRoomObjToWorkspace()`, inside the
+  `isActiveRoomPart` block, AFTER `truncateWallsToActiveRoomRect`):
+  gated on `activeRoomPartItem.data_deviceid === 'polyRoom'`.
+  `activeRoomAbsPoints` (unit-space floor coords, captured at
+  `zoomRoomPart()`) is converted to the items' room-local METERS frame
+  via `p * rpRatio - (roomObj2.activeRoomX + frameShiftX)` — note the
+  local `activeRoomX` variable is shadowed and already zeroed at that
+  point, hence the reconstruction from `roomObj2.activeRoomX +
+  frameShift`. Margin 0.10 m (same as the rect call).
+- **Share-link wiring** (`buildRoomModeLinkSource()`, after its
+  `truncateWallItemsToRect` call): polygon shifted by the global
+  `activeRoomX/Y` (unit space), margin `roomPartBoundsMarginUnits()`.
+  Split pieces ride into the URL as additional wall items.
+- **Latent bug fixed in passing**: `buildRoomPartWallItems()` (rotated
+  room-mode link path) called the nonexistent `createUuid()` —
+  `crypto.randomUUID()` is the codebase-wide convention (there is no
+  `js/util/uuid.js` in this repo despite older doc references). Any
+  rotated-boxRoomPart share link with default walls would have thrown a
+  ReferenceError.
+- **Verified**: Node geometry harness (L-shape truncation both axes,
+  U-shape split, 45°-rotated deep-diagonal split at notch edges ±margin,
+  margin-graze untouched, rect regression) + live browser end-to-end in
+  meters AND feet (feet U-shape wall exported as two 1.01 m pieces =
+  0.914 m notch edge + 0.10 m margin; off-stage notch wall dropped
+  entirely; link path split matches).

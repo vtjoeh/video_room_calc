@@ -12241,7 +12241,7 @@ function buildRoomPartWallItems(part, offsetX, offsetY, t) {
         const geom = localRects[wallName];
         const worldUL = findNewTransformationCoordinate(anchor, -geom.x, -geom.y);
         const wall = {
-            id: createUuid(),
+            id: crypto.randomUUID(),
             data_deviceid: typeToDevice[surface.type] || 'wallStd',
             x: worldUL.x,
             y: worldUL.y,
@@ -12282,6 +12282,12 @@ function buildRoomModeLinkSource() {
     });
 
     truncateWallItemsToRect(items, activeRoomWidth, activeRoomLength, roomPartBoundsMarginUnits());
+
+    if (activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom'
+        && Array.isArray(activeRoomAbsPoints) && activeRoomAbsPoints.length >= 3) {
+        const polyLocal = activeRoomAbsPoints.map(p => ({ x: p.x - activeRoomX, y: p.y - activeRoomY }));
+        truncateWallItemsToPolygon(items, polyLocal, roomPartBoundsMarginUnits());
+    }
 
     const roomSurfaces = structuredClone(activeDefaultWallsSurfaces());
     let removeDefaultWalls = !!activeDefaultWallsWorkspace().removeDefaultWalls;
@@ -31238,18 +31244,6 @@ function closeModalWorkspace() {
     document.getElementById('modalWorkspace').close();
 }
 
-function openModalFaq() {
-    closeAllDialogModals();
-    document.getElementById('iframeFaq').src = './faq.html';
-    document.getElementById('dialogFaq').showModal();
-}
-
-function openModalReleaseNotes() {
-    closeAllDialogModals();
-    document.getElementById('iframeReleaseNotes').src = './releasenotes.html';
-    document.getElementById('dialogReleaseNotes').showModal();
-}
-
 function openDetailsRoomTab() {
     document.getElementById('modalWorkspace').close();
     document.getElementById("tabItem").click();
@@ -31394,6 +31388,39 @@ function clipSegmentToRect(p1, p2, xMin, yMin, xMax, yMax) {
     return { p1: { x: p1.x + t0 * dx, y: p1.y + t0 * dy }, p2: { x: p1.x + t1 * dx, y: p1.y + t1 * dy } };
 }
 
+/* Wall centerline (midpoints of the two short sides) from the UL anchor; main rotation only (tilt/lean ignored). Negative deltas ADD the rotated local vector to the UL anchor (findNewTransformationCoordinate convention). */
+function wallCenterlineGeom(item) {
+    const w = { x: item.x, y: item.y, rotation: item.rotation || 0 };
+    const alongY = item.height >= item.width; /* run axis = longer side */
+    const thickness = alongY ? item.width : item.height;
+    const runLength = alongY ? item.height : item.width;
+
+    const p1 = alongY
+        ? findNewTransformationCoordinate(w, -thickness / 2, 0)
+        : findNewTransformationCoordinate(w, 0, -thickness / 2);
+    const p2 = alongY
+        ? findNewTransformationCoordinate(w, -thickness / 2, -runLength)
+        : findNewTransformationCoordinate(w, -runLength, -thickness / 2);
+
+    return { p1: p1, p2: p2, alongY: alongY, thickness: thickness, runLength: runLength, rotation: w.rotation };
+}
+
+/* Positive deltas SUBTRACT the rotated local vector: recover the UL anchor from a clipped centerline start point. */
+function setWallFromCenterlineStart(item, geom, startPt, newLength) {
+    const clipFrame = { x: startPt.x, y: startPt.y, rotation: geom.rotation };
+    const newUL = geom.alongY
+        ? findNewTransformationCoordinate(clipFrame, geom.thickness / 2, 0)
+        : findNewTransformationCoordinate(clipFrame, 0, geom.thickness / 2);
+
+    item.x = newUL.x;
+    item.y = newUL.y;
+    if (geom.alongY) {
+        item.height = newLength;
+    } else {
+        item.width = newLength;
+    }
+}
+
 /* Truncate walls at the room boundary + margin via the wall's centerline (midpoints of the two short sides). Unit-agnostic: WD export passes meters, the room-mode link passes room units. See notes/MULTI_ROOM_FLOOR_PLAN.md step 8. */
 function truncateWallItemsToRect(items, rectWidth, rectLength, margin) {
     const xMin = -margin, yMin = -margin;
@@ -31405,39 +31432,96 @@ function truncateWallItemsToRect(items, rectWidth, rectLength, margin) {
         if (!wallIds.includes(item.data_deviceid)) return;
         if (!(item.width > 0) || !(item.height > 0)) return;
 
-        const w = { x: item.x, y: item.y, rotation: item.rotation || 0 }; /* UL anchor; main rotation only (tilt/lean ignored) */
-        const alongY = item.height >= item.width; /* run axis = longer side */
-        const thickness = alongY ? item.width : item.height;
-        const runLength = alongY ? item.height : item.width;
+        const geom = wallCenterlineGeom(item);
 
-        /* negative deltas ADD the rotated local vector to the UL anchor (findNewTransformationCoordinate convention) */
-        const p1 = alongY
-            ? findNewTransformationCoordinate(w, -thickness / 2, 0)
-            : findNewTransformationCoordinate(w, 0, -thickness / 2);
-        const p2 = alongY
-            ? findNewTransformationCoordinate(w, -thickness / 2, -runLength)
-            : findNewTransformationCoordinate(w, -runLength, -thickness / 2);
-
-        const clipped = clipSegmentToRect(p1, p2, xMin, yMin, xMax, yMax);
+        const clipped = clipSegmentToRect(geom.p1, geom.p2, xMin, yMin, xMax, yMax);
         if (!clipped) return; /* centerline never enters the rect: leave untouched (intersection filter already ran) */
 
         const newLength = Math.hypot(clipped.p2.x - clipped.p1.x, clipped.p2.y - clipped.p1.y);
-        if (newLength < 0.01 || Math.abs(newLength - runLength) < 0.001) return;
+        if (newLength < 0.01 || Math.abs(newLength - geom.runLength) < 0.001) return;
 
-        /* positive deltas SUBTRACT the rotated local vector: recover the UL anchor from the clipped start point */
-        const clipFrame = { x: clipped.p1.x, y: clipped.p1.y, rotation: w.rotation };
-        const newUL = alongY
-            ? findNewTransformationCoordinate(clipFrame, thickness / 2, 0)
-            : findNewTransformationCoordinate(clipFrame, 0, thickness / 2);
-
-        item.x = newUL.x;
-        item.y = newUL.y;
-        if (alongY) {
-            item.height = newLength;
-        } else {
-            item.width = newLength;
-        }
+        setWallFromCenterlineStart(item, geom, clipped.p1, newLength);
     });
+}
+
+function isPointInPolygon(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.y > pt.y) !== (b.y > pt.y)
+            && pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+/* Parameters t in (0,1) where segment p1-p2 crosses a polygon edge. Parallel/degenerate edges skipped: the interval midpoint test in the caller decides those regions. */
+function segmentPolygonCrossingTs(p1, p2, poly) {
+    const ts = [];
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length];
+        const ex = b.x - a.x, ey = b.y - a.y;
+        const denom = dx * ey - dy * ex;
+        if (Math.abs(denom) < 1e-12) continue;
+        const t = ((a.x - p1.x) * ey - (a.y - p1.y) * ex) / denom;
+        const u = ((a.x - p1.x) * dy - (a.y - p1.y) * dx) / denom;
+        if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+    }
+    return ts;
+}
+
+/* polyRoom variant of truncateWallItemsToRect: cut walls along the room polyline + margin. A concave polygon can split one wall into several pieces — extras are appended with fresh ids. Unit-agnostic like the rect version. */
+function truncateWallItemsToPolygon(items, polygonPoints, margin) {
+    if (!Array.isArray(polygonPoints) || polygonPoints.length < 3) return;
+    const poly = expandPolygonByMargin(polygonPoints, margin);
+    const wallIds = ['wallStd', 'wallGlass', 'wallWindow'];
+    const extraWalls = [];
+
+    items.forEach(item => {
+        if (!wallIds.includes(item.data_deviceid)) return;
+        if (!(item.width > 0) || !(item.height > 0)) return;
+
+        const geom = wallCenterlineGeom(item);
+        const p1 = geom.p1, p2 = geom.p2;
+
+        const ts = segmentPolygonCrossingTs(p1, p2, poly);
+        ts.push(0, 1);
+        ts.sort((a, b) => a - b);
+
+        /* keep the sub-intervals whose midpoint is inside the expanded polygon; merge adjacent keeps */
+        const spans = [];
+        for (let i = 0; i < ts.length - 1; i++) {
+            const t0 = ts[i], t1 = ts[i + 1];
+            if (t1 - t0 < 1e-9) continue;
+            const tMid = (t0 + t1) / 2;
+            const mid = { x: p1.x + tMid * (p2.x - p1.x), y: p1.y + tMid * (p2.y - p1.y) };
+            if (!isPointInPolygon(mid, poly)) continue;
+            if (spans.length && Math.abs(spans[spans.length - 1].t1 - t0) < 1e-9) {
+                spans[spans.length - 1].t1 = t1;
+            } else {
+                spans.push({ t0: t0, t1: t1 });
+            }
+        }
+
+        const keptSpans = spans.filter(s => (s.t1 - s.t0) * geom.runLength >= 0.01);
+        if (!keptSpans.length) return; /* centerline never inside: leave untouched (intersection filter already ran) */
+        if (keptSpans.length === 1 && keptSpans[0].t0 < 1e-9 && keptSpans[0].t1 > 1 - 1e-9) return; /* fully inside */
+
+        const template = structuredClone(item);
+        keptSpans.forEach((span, idx) => {
+            const target = idx === 0 ? item : structuredClone(template);
+            const start = { x: p1.x + span.t0 * (p2.x - p1.x), y: p1.y + span.t0 * (p2.y - p1.y) };
+            setWallFromCenterlineStart(target, geom, start, (span.t1 - span.t0) * geom.runLength);
+            if (idx > 0) {
+                target.id = crypto.randomUUID();
+                extraWalls.push(target);
+            }
+        });
+    });
+
+    extraWalls.forEach(w => items.push(w));
 }
 
 function truncateWallsToActiveRoomRect(roomObj2) {
@@ -31521,6 +31605,17 @@ function exportRoomObjToWorkspace() {
         activeRoomX = 0;
         activeRoomY = 0;
         truncateWallsToActiveRoomRect(roomObj2);
+
+        /* polyRoom: additionally cut walls along the polyline itself, not just the bbox rect. activeRoomAbsPoints are unit-space floor coords; items here are room-local meters, so shift by the bbox origin (roomObj2.activeRoomX + frameShiftX = meters bbox UL). */
+        if (activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom'
+            && Array.isArray(activeRoomAbsPoints) && activeRoomAbsPoints.length >= 3) {
+            const rpRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+            const polyLocal = activeRoomAbsPoints.map(p => ({
+                x: p.x * rpRatio - (roomObj2.activeRoomX + frameShiftX),
+                y: p.y * rpRatio - (roomObj2.activeRoomY + frameShiftY),
+            }));
+            truncateWallItemsToPolygon(roomObj2.items, polyLocal, 0.10);
+        }
     }
 
     /* polyRoom rooms have hand-drawn walls and rotated rooms emit real rotated walls, so neither gets roomShape default walls. */
