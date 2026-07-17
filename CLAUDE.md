@@ -17,7 +17,7 @@ video_room_calculator/
 ├── RoomCalculator.html      # Main entry point
 ├── style.css                # Styles with CSS custom properties
 ├── CLAUDE.md                # This developer reference
-├── README.md                # Release notes & user-facing docs
+├── README.md                # Project description, links to RELEASE_NOTES.md / FAQ.md / collabexperience.com, license/attribution
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
 ├── notes/                          # Lazy-loaded references (not in CLAUDE.md context)
