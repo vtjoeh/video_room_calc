@@ -86,16 +86,17 @@
     <div id="content"></div>
 
     <script>
-        fetch('./README.md')
+        fetch('./RELEASE_NOTES.md')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Failed to load README.md');
+                    throw new Error('Failed to load RELEASE_NOTES.md');
                 }
                 return response.text();
             })
             .then(markdown => {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').innerHTML = marked.parse(markdown);
+                openContentLinksInNewTab();
                 addHeaderAnchors();
             })
             .catch(error => {
@@ -103,6 +104,14 @@
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('error').textContent = 'Error loading release notes: ' + error.message;
             });
+
+        /* Release Notes render inside an iframe modal; markdown-authored links must escape it into a new tab rather than navigating the iframe. Runs before addHeaderAnchors() so it doesn't touch the pilcrow copy-link anchors. */
+        function openContentLinksInNewTab() {
+            document.querySelectorAll('#content a[href]').forEach(link => {
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            });
+        }
 
         function addHeaderAnchors() {
             const headers = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
