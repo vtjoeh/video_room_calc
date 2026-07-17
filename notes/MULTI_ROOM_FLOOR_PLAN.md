@@ -389,3 +389,36 @@ floor coords (12,3) not A-relative; and switching into B via **any**
 path — direct out→B, poly A→B, box A→B — produces byte-identical
 `activeRoomX/Y/W/L`, `activeRoomAbsPoints`, and on-screen device pixel
 positions.
+
+## Round 16 (2026-07) — pathShape dropped from WD export in an offset Room Part
+
+Same root-cause family as Round 15, different function. A pathShape (or
+polyRoom) inside a Room Part whose `activeRoomX/Y` is non-zero was
+filtered out of the Workspace Designer export (and the room-scoped share
+link) when zoomed into that part. Zooming into the Room Part at the
+floor origin ("Room 1", `activeRoomX/Y ≈ 0`) worked; any other part
+dropped the shape.
+
+Root cause: `findFourCorners()`'s pathShape/polyRoom branch takes the
+live node's `getClientRect()` (on-screen pixels) and converts to units
+with `(b.x - pxOffset) / scale`, **omitting `+ activeRoomX/Y`**. So the
+computed corners came back shifted toward the origin by the active
+room's offset. `listItemsOffStage()` builds the room border in FLOOR
+coords, so the shifted corners failed the intersection test and the
+shape was pushed onto `itemsOffStageId` → excluded from
+`customObjects[]`. (Other `findFourCorners()` callers — the boxRoomPart
+rotation normalizer and the inventory CSV/room-part polygon builders —
+also compare against floor coords, so the fix makes all of them
+consistent; the non-path branches already read `item.x/item.y` = floor
+coords.)
+
+Fix: the pathShape/polyRoom branch of `findFourCorners()` now adds
+`activeRoomX` / `activeRoomY` (and uses `pyOffset` for y). Both are 0
+when zoomed out, so single-room and zoomed-out behaviour is unchanged.
+
+Verified live (A/B against the pre-fix branch): zoomed into an offset
+Room Part (activeRoom 13,2), a pathShape at floor (15,5) previously
+computed corners at ~(1.5,2.5) → off-stage → absent from export; with
+the fix corners are ~(14.5,4.5) → on-stage → present. Full matrix
+(pathShape in each of two rooms, zoom into each, meters AND feet): each
+room exports exactly its own pathShape and not the other's.

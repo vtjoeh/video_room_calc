@@ -17414,8 +17414,9 @@ function findFourCorners(item) {
         if (node) {
             let b = node.getClientRect();
 
-            let x = (b.x - pxOffset) / scale;
-            let y = (b.y - pxOffset) / scale;
+            /* +activeRoomX/Y so corners are FLOOR coords (0 when zoomed out). getClientRect() is on-screen pixels, so without this the bbox comes back relative to the active Room Part — the off-stage/intersection tests (listItemsOffStage, inventory) compare against floor-coord room borders, so an offset room would wrongly filter this shape out of the WD export. Matches the (pixel - pxOffset)/scale + activeRoomX convention used everywhere else. */
+            let x = ((b.x - pxOffset) / scale) + activeRoomX;
+            let y = ((b.y - pyOffset) / scale) + activeRoomY;
             let width = b.width / scale;
             let height = b.height / scale;
 
