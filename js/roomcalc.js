@@ -17585,8 +17585,9 @@ function getAbsolutePointsOfLine(node, pixelUnit = false) {
             x = point.x;
             y = point.y;
         } else {
-            x = (point.x - pxOffset) / scale;
-            y = (point.y - pyOffset) / scale;
+            /* +activeRoomX/Y so the result is FLOOR coords (0 when zoomed out). Without this, computing a polyRoom's bbox while already zoomed into another Room Part returns coords relative to the active room, so switching rooms mislocates everything. Matches the (pixel - pxOffset)/scale + activeRoomX convention used everywhere else. */
+            x = ((point.x - pxOffset) / scale) + activeRoomX;
+            y = ((point.y - pyOffset) / scale) + activeRoomY;
         }
 
 

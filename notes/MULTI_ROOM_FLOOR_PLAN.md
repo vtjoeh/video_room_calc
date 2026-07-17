@@ -364,3 +364,28 @@ of the boxRoomPart behaviour.
   meters AND feet (feet U-shape wall exported as two 1.01 m pieces =
   0.914 m notch edge + 0.10 m margin; off-stage notch wall dropped
   entirely; link path split matches).
+
+## Round 15 (2026-07) — switching to a polyRoom while already zoomed in mislocated everything
+
+Zoomed into Room Part A, then double-clicking a polyRoom Room Part B put
+the whole room + its contents at the wrong position. Root cause:
+`getBoundingBoxInUnit()`'s Line branch → `getAbsolutePointsOfLine(node)`
+converted the node's absolute pixel points to units with
+`(point.x - pxOffset) / scale` but **omitted the `+ activeRoomX/Y`** that
+every other pixel→floor-unit conversion in the codebase applies. While
+zoomed into A, those points came back relative to A's frame, so
+`zoomRoomPart()` seeded `activeRoomX/Y` and `activeRoomAbsPoints` from
+A-relative coords instead of B's floor coords. The boxRoomPart branch of
+`getBoundingBoxInUnit()` reads `item.x/item.y` (already floor coords), so
+only polyRoom targets were affected.
+
+Fix: the `pixelUnit === false` branch of `getAbsolutePointsOfLine()` now
+adds `activeRoomX` / `activeRoomY` (both 0 when zoomed out, so
+single-room and zoomed-out behaviour is byte-identical). The `pixelUnit
+=== true` caller (`24202`, drag-snap outline) is untouched.
+
+Verified live: computing polyRoom B's bbox while zoomed into A returns
+floor coords (12,3) not A-relative; and switching into B via **any**
+path — direct out→B, poly A→B, box A→B — produces byte-identical
+`activeRoomX/Y/W/L`, `activeRoomAbsPoints`, and on-screen device pixel
+positions.
