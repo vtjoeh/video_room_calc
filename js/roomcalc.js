@@ -5243,9 +5243,9 @@ function finishPolyBuilder() {
 
                 let attrs = convertPointsToUnit(points, true);
 
-
-                document.getElementById('itemX').value = round(attrs.x);
-                document.getElementById('itemY').value = round(attrs.y);
+                /* convertPointsToUnit returns floor coords (adds activeRoomX/Y); the Details X/Y fields are room-relative and updateItem() adds activeRoomX/Y back, so subtract them here to avoid a double offset when zoomed into a Room Part. */
+                document.getElementById('itemX').value = round(attrs.x - activeRoomX);
+                document.getElementById('itemY').value = round(attrs.y - activeRoomY);
                 document.getElementById('labelPath').value = attrs.path;
                 document.getElementById('itemRotation').value = '0';
 

@@ -2,6 +2,10 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**0.1.657 Release Notes**
+- Room parts to support multi-room desings. 
+- Export inventory to CSV. 
+ 
 **v0.1.656 Release Notes**
 - Progressive Web App (PWA). Added support as a Progressive Web App so the Video Room Calculator can be installed locally on a PC or Mac. Workspace Designer integration still requires an active internet connection.
 - Moved the FAQ and Release Notes off of GitHub and onto the website. Look on the help menu for the links.

@@ -297,3 +297,18 @@ per-room software:
 - **Room-scoped share link:** the room-level `f` height code now emits
   `activeRoomHeight()` so a zoomed-in link carries the room's effective
   height; zoomed out this is byte-identical to the old output.
+
+## Round 13 (2026-07) — pathShape draw offset when zoomed into a Room Part
+
+Drawing a Path Shape (customPathEditor poly builder) while zoomed into a
+Room Part placed it offset by `(activeRoomX, activeRoomY)` from where it
+was drawn. `convertPointsToUnit()` returns FLOOR coords (it adds
+`activeRoomX/Y`), and `finishPolyBuilder()` wrote those straight into the
+Details `#itemX`/`#itemY` fields — but those fields are ROOM-RELATIVE and
+`updateItem()` adds `activeRoomX/Y` back, double-applying the offset. Fix:
+`finishPolyBuilder()`'s customPathEditor branch now writes
+`attrs.x - activeRoomX` / `attrs.y - activeRoomY` into the fields. Zoomed
+out (`activeRoomX/Y === 0`) it's a no-op, so single-room drawing is
+unchanged. Covers both the fresh-insert auto-launch and re-editing an
+existing pathShape's path (both route through the same branch).
+The WD export shares the same root cause: `workspaceObjItemPush()` reads `item.x`, so the double-offset made the exported shape land ~`activeRoomX/Y` off. Correcting `item.x` fixes both surfaces at once (A/B verified: with the fix a zoomed-in pathShape exports at the centered room-relative position; the old code exported it shifted by the room offset). No WD-specific change needed.
