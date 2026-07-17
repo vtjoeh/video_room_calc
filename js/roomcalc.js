@@ -5058,6 +5058,17 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
 });
 
 
+/* Shift-drag axis lock for the poly builder (polyRoom + pathShape): snap the new point to a pure horizontal or vertical from the last committed vertex, whichever axis the mouse moved further along. Raw point when Shift is up or there's no prior vertex. */
+function constrainPolyPointToAxis(existingPoints, px, py, shiftHeld) {
+    if (!shiftHeld || existingPoints.length < 2) return { x: px, y: py };
+    const lastX = existingPoints[existingPoints.length - 2];
+    const lastY = existingPoints[existingPoints.length - 1];
+    if (Math.abs(px - lastX) >= Math.abs(py - lastY)) {
+        return { x: px, y: lastY };
+    }
+    return { x: lastX, y: py };
+}
+
 polyBuilderRect.on('pointerdown', function polyBuilderRectPointerDown(pointer) {
 
     let polyBuilderConnectorLine = stage.findOne('#polyBuilderConnectorLine');
@@ -5082,6 +5093,12 @@ polyBuilderRect.on('pointerdown', function polyBuilderRectPointerDown(pointer) {
     let pointerY = canvasXY.canvasPixel.y;
 
     let points = polyBuilderConnectorLine.clone().points();
+
+    /* Shift held: lock this vertex horizontal/vertical from the previous one. */
+    const constrained = constrainPolyPointToAxis(points, pointerX, pointerY, pointer.evt.shiftKey);
+    pointerX = constrained.x;
+    pointerY = constrained.y;
+
     points.push(pointerX, pointerY);
 
     if (!polylineSelfIntersects(points, { closed: false })) {
@@ -5161,7 +5178,10 @@ polyBuilderRect.on('pointermove', function polyBuilderRectPointerDown(pointer) {
     polyBuilderNextLine.show();
     polyBuilderNextLine.zIndex(1);
     let points = polyBuilderConnectorLine.clone().points();
-    points.push(pointerX, pointerY);
+
+    /* Shift held: preview the axis-locked segment so it matches what a click will commit. */
+    const constrained = constrainPolyPointToAxis(points, pointerX, pointerY, pointer.evt.shiftKey);
+    points.push(constrained.x, constrained.y);
 
     if (!polylineSelfIntersects(points, { ignoreEndpointTouches: false })) {
         polyBuilderNextLine.points(points);

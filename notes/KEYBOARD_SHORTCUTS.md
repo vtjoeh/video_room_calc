@@ -33,7 +33,7 @@ The current bindings live in the keyboard handler near `onkeydown` /
 | `M` | Toggle microphone coverage |
 | `D` | Toggle display coverage |
 | `Arrow keys` | Move selected items |
-| `Shift` | Draw vertical & horizontal lines in Measure Tool or Wall Builder |
+| `Shift` | Draw vertical & horizontal lines in Measure Tool, Wall Builder, or the poly builder (Irregular Room / Path Shape) |
 | `Shift` / `Ctrl` / `Cmd` + click | Select/unselect item |
 
 `Cmd` is accepted in place of `Ctrl` on macOS for every shortcut above.
