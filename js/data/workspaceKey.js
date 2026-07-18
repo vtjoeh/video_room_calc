@@ -169,6 +169,9 @@ workspaceKey.display21_9_2 = { objectType: 'screen', aspect: '21:9', yOffset: -0
 /* certifiedDisplay: model/aspect/size derived from the picked certifiedDisplays[] entry at export time (see workspaceObjDisplayPush). */
 workspaceKey.certifiedDisplay = { objectType: 'screen', yOffset: -0.01 };
 
+/* displayCustom (Custom Reach Display): WD has no DISCAS concept, so it exports as a plain single screen. The data_discas* attrs never leave the VRC. 21:9 aspect is attached at export time in workspaceObjDisplayPush when data_aspectRatio is 21:9. */
+workspaceKey.displayCustom = { objectType: 'screen', yOffset: -0.01 };
+
 workspaceKey.displayMonitor = { objectType: "monitor" }
 
 

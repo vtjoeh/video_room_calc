@@ -519,6 +519,13 @@
                 </select>
               </div>
 
+              <div class="inputField" id="discasSettingsDiv" style="display: none;">
+                <label class="tooltipBottom">Viewer Reach: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptextBottom">Coverage shows the area of conformance based on the AVIXA DISCAS
+                    standard: closest viewer, farthest viewer, and 60&deg; horizontal viewing angles.</span></label>
+                <input type="button" value="DISCAS Settings..." class="button" onclick="openDiscasDialogForSelected()">
+              </div>
+
               <div class="inputField" id="labelFieldDiv">
                 <label class="tooltipBottom"><span id="itemLabeldiv">Item Label:</span><i
                     class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels the item. Should be
@@ -2625,6 +2632,115 @@
   </dialog>
 
   <!--
+    Custom Reach Display (displayCustom) — DISCAS settings modal. Opened on
+    insert (insertItemFromMenu early branch) and from the Details panel's
+    "DISCAS Settings..." button. Computed Image size / Closest / Farthest
+    outputs update live; Apply stores only non-default inputs on the item
+    (see the discas* helpers in js/roomcalc.js). Closing without Apply
+    during an insert lands the display with the standard defaults.
+  -->
+  <dialog id="dialogDiscas" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Custom Reach Display &mdash; Viewer Coverage</header>
+    <div class="closeDialogX" onclick="document.getElementById('dialogDiscas').close()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
+        Calculates the closest viewer, farthest viewer, and 60&deg; horizontal viewing angles for this display,
+        based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01, Display Image Size for 2D Content).
+      </div>
+
+      <div class="inputField" style="max-width: none;">
+        <label class="tooltip">Viewing Category: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Basic Decision Making (BDM): viewers make decisions from the content &mdash;
+            presentations, spreadsheets, documents. Analytic Decision Making (ADM): viewers must resolve full
+            image detail &mdash; technical drawings, medical or forensic imagery. ADM has no closest-viewer
+            limit.</span></label>
+        <select id="discasModeSelect" class="drpDown" onchange="discasRecalcOutputs()">
+          <option value="bdm">Basic Decision Making (BDM)</option>
+          <option value="adm">Analytic Decision Making (ADM)</option>
+        </select>
+      </div>
+
+      <div class="inputField" style="max-width: none;">
+        <label class="tooltip">Display Diagonal (inches):</label>
+        <input type="number" id="discasDiagonalInput" min="10" max="300" step="1" style="width: 90px;"
+          oninput="discasRecalcOutputs()">
+      </div>
+
+      <div class="inputField" style="max-width: none;">
+        <label class="tooltip">Image Aspect Ratio: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Aspect ratio of the displayed image. The image height used by the DISCAS
+            calculations comes from the diagonal and this ratio.</span></label>
+        <select id="discasAspectSelect" class="drpDown" onchange="discasRecalcOutputs()">
+          <option value="1.78">16:9 (1.78)</option>
+          <option value="2.33">21:9 (2.33)</option>
+          <option value="1.33">4:3 (1.33)</option>
+        </select>
+      </div>
+
+      <div class="inputField" style="max-width: none;" id="discasPercentElRow">
+        <label class="tooltip">%Element Height: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Height of the smallest meaningful content element (for text, the lowercase
+            character height) as a percent of the image height. Smaller percentages pull the farthest viewer
+            closer. Typical presentation text is around 2&ndash;4%; 3% is a common planning default.</span></label>
+        <input type="number" id="discasPercentElInput" min="0.5" max="10" step="0.25" style="width: 90px;"
+          oninput="discasRecalcOutputs()"> %
+      </div>
+
+      <div class="inputField" style="max-width: none; display: none;" id="discasResolutionRow">
+        <label class="tooltip">Content Resolution (lines): <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Vertical resolution of the displayed image. ADM requires each image line to
+            remain resolvable (one arcminute per line), so higher resolution requires a larger image at the same
+            distance.</span></label>
+        <select id="discasResolutionSelect" class="drpDown" onchange="discasRecalcOutputs()">
+          <option value="720">720</option>
+          <option value="1080">1080</option>
+          <option value="2160">2160 (4K)</option>
+          <option value="4320">4320 (8K)</option>
+        </select>
+      </div>
+
+      <div class="inputField" style="max-width: none;" id="discasEyeLevelRow">
+        <label class="tooltip">Eye Level: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Viewer eye height above the floor. AVIXA standard eye levels: 1200 mm (48 in)
+            seated, 1500 mm (62 in) standing. Used with the display mounting height to place the closest
+            viewer (sight line to the top of the image limited to 30&deg;).</span></label>
+        <select id="discasEyeLevelSelect" class="drpDown" style="width: auto;" onchange="discasRecalcOutputs()">
+          <option value="seated">Seated &mdash; standard</option>
+          <option value="standing">Standing &mdash; standard</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input type="number" id="discasEyeLevelCustomInput" min="0" step="0.01" style="width: 80px; display: none;"
+          oninput="discasRecalcOutputs()"> <span class="discasUnitLbl"></span>
+      </div>
+
+      <div class="inputField" style="max-width: none;" id="discasMountRow">
+        <label class="tooltip">Bottom of Image Height: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Height of the bottom of the display image above the floor (the item's
+            elevation). Raising the display raises the sight line to the top of the image, which pushes the
+            closest viewer farther back.</span></label>
+        <input type="number" id="discasMountInput" min="0" step="0.01" style="width: 90px;"
+          oninput="discasRecalcOutputs()"> <span class="discasUnitLbl"></span>
+      </div>
+
+      <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 13px;">
+        <div>Image size: <b id="discasOutImage"></b></div>
+        <div>Closest viewer: <b id="discasOutClosest"></b></div>
+        <div>Farthest viewer: <b id="discasOutFarthest"></b></div>
+      </div>
+
+      <div style="font-size: 11px; color: #777; margin-top: 10px; font-style: italic;">
+        Based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01). DISCAS is a standard of
+        <a href="https://www.avixa.org/standards" target="_blank" rel="noopener noreferrer">AVIXA</a>;
+        this tool is not affiliated with or endorsed by AVIXA.
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="document.getElementById('dialogDiscas').close()">Cancel</button>
+      <button class="button" id="discasApplyBtn" onclick="confirmDiscasDialog()">Insert Display</button>
+    </div>
+  </dialog>
+
+  <!--
     Text Insert — opened from insertItemFromMenu() when the user inserts a
     wdText or vrcText item (drag from the Walls menu, Quick Add palette,
     etc.). Prompts for the text before the item lands on canvas, similar
@@ -3116,6 +3232,9 @@
   </div>
 
 
+  <!-- version.js has zero dependencies and is read by both roomcalc.js and sw.js
+       (via importScripts), so it loads first. -->
+  <script src="./js/version.js"></script>
   <script src="./js/konva.min.js"></script>
   <!-- <script src="https://unpkg.com/konva@9/konva.min.js"></script> -->
   <script src="./js/constants.js"></script>
@@ -3148,6 +3267,12 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then((registration) => {
         console.log('Service Worker registered:', registration);
+        /* Force an immediate byte-compare check against sw.js (and its
+         * importScripts, i.e. js/version.js) on every load, rather than
+         * waiting on the browser's internal (~24h) background check. Cheap:
+         * this is a network HEAD/GET-equivalent check, not a full re-cache --
+         * the cache only refreshes if APP_VERSION actually changed. */
+        registration.update();
       }).catch((error) => {
         console.log('Service Worker registration failed:', error);
       });

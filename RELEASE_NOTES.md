@@ -2,6 +2,9 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**v0.1.658** 
+- Custom Display coverage based on AVIXA DISCAS BDM and ADM. This is only shown in the Video Room Calculator and not the Workspace Designer. 
+
 **0.1.657 Release Notes**
 - Room parts to support multi-room desings. 
 - Export inventory to CSV. 

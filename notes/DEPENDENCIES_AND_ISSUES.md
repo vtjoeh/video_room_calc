@@ -17,12 +17,52 @@ a new CDN dependency or diagnosing a reported runtime issue.
 
 All other dependencies are local in the `js/` folder. There is **no**
 build step — every JS file under `js/` is loaded directly from disk.
-The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
-`data/workspaceKey.js` → `util/uuid.js` → `util/units.js` →
-`undoApply.js` → `idbStorage.js` → `templates.js` → `roomcalc.js`.
-Lazy-loaded modules (`qrcode.js`, `drpDownOverride.js`, `dxfWriter.js`,
-`dxfBlockLibrary.js`, `migrateLegacyItemsShape.js`) are pulled in on
-demand by `loadScriptOnce()`.
+The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
+`constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →
+`data/menuItemsAndMessages.js` → `util/units.js` → `undoApply.js` →
+`idbStorage.js` → `templates.js` → `roomcalc.js`. Lazy-loaded modules
+(`qrcode.js`, `drpDownOverride.js`, `dxfWriter.js`, `dxfBlockLibrary.js`,
+`migrateLegacyItemsShape.js`) are pulled in on demand by
+`loadScriptOnce()`.
+
+## PWA / Service Worker caching
+
+`sw.js` is a **cache-first** service worker (checks `caches.match()`
+before ever touching the network) that precaches `RoomCalculator.html`,
+every eager `js/` file, and the core assets. Its cache name is
+`vrc-pwa-${CACHE_VERSION}`, where `CACHE_VERSION` is `APP_VERSION` read
+from `js/version.js` via `importScripts()` at the top of `sw.js`.
+
+**`js/version.js` is the single source of truth for the app version.**
+`roomcalc.js`'s `const version = APP_VERSION;` (line 1) reads it on the
+page side; `sw.js` reads the same file via `importScripts()`. Bumping
+the string in `js/version.js` is therefore the ONLY step required to
+get users off a stale cached build — no separate "remember to also
+edit `sw.js`" step, because the browser's service-worker update check
+does a byte-for-byte comparison of the SW's main script **plus every
+file it pulls in via `importScripts()`**, so a changed `version.js`
+alone is picked up as a new service worker on the next check (page
+load, `registration.update()` call, or the browser's background
+~24h check). The new worker's `activate` handler deletes every old
+`vrc-pwa-*` cache, so stale entries never accumulate.
+
+Before this fix (`CACHE_VERSION` was a hardcoded `'v1'` that no commit
+ever bumped since PWA support was added), the browser had **no signal
+that anything changed** on ordinary app deploys — editing
+`roomcalc.js` alone doesn't touch `sw.js`'s bytes, so the SW update
+check never fires, and the cache-first fetch handler serves the
+original install-time copy of every precached file indefinitely. This
+is also why `Ctrl+Shift+R` doesn't fix it: hard-reload bypasses the
+*browser's* HTTP cache, but a page's requests are still intercepted by
+its *active* service worker regardless of how the reload was
+triggered, and a cache-first worker answers from its own cache without
+ever asking the network.
+
+**If you land a change and still see old behavior while testing**, the
+version bump normally handles it, but the reliable manual fallback is
+DevTools → Application → **Storage** → **Clear site data** (or,
+narrower: Application → Service Workers → Unregister, then Application
+→ Cache Storage → delete the `vrc-pwa-*` entry, then reload).
 
 ## Common Issues & Solutions
 
@@ -32,3 +72,4 @@ demand by `loadScriptOnce()`.
 | Images not loading | Verify paths in `assets/images/` |
 | URL too long | Room has too many objects (>500), use JSON file instead |
 | Workspace Designer export fails | Check `workspaceKey` mapping exists |
+| App shows stale JS after a deploy | Bump `js/version.js`'s `APP_VERSION`. If it's already current, see "PWA / Service Worker caching" above for the manual cache-clear fallback |

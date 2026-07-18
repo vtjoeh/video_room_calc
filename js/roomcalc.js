@@ -1,4 +1,4 @@
-const version = "v0.1.657";  /* format example "v0.1" or "v0.2.3" - ver 0.1.1 and 0.1.2 should be compatible with a Shareable Link because ver, v0.0, 0.1 and ver 0.2 are not compatible. */
+const version = APP_VERSION;  /* single source of truth is js/version.js, loaded before this file -- also read by sw.js to auto-bump the PWA cache */
 
 /* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
@@ -959,7 +959,7 @@ function populateGroupDetails(rectNode) {
 
     /* Hide everything that doesn't apply to a Group (non-group branch of updateFormatDetails re-shows itemNameDiv). */
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -2879,7 +2879,7 @@ function populateCustomItemDetails(rectNode) {
     if (!customItem) return;
 
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -3568,6 +3568,249 @@ function finishCertifiedDisplayInsert(attrs) {
     const uuid = crypto.randomUUID();
     attrs.id = uuid;
     insertShapeItem('certifiedDisplay', allDeviceTypes['certifiedDisplay'].parentGroup, attrs, uuid, true);
+    roomObj.items.push(attrs);
+    roomObjItemsMap.set(attrs.id, attrs);
+    setTimeout(() => { canvasToJson() }, 100);
+    canvasToJson();
+}
+
+/* ---- displayCustom (Custom Reach Display) — coverage per the AVIXA DISCAS standard (ANSI/AVIXA V201.01) ----
+ *
+ * BDM (Basic Decision Making):
+ *   Farthest Viewer  FV = IH x %EH x 2          (element >= 1/200th of the viewing distance)
+ *   Closest Viewer   CV = max(0, IH + IO) x 1.732  (sight line to the TOP of the image <= 30 deg above eye level)
+ *   IO = (bottom-of-image height) - (eye level)
+ * ADM (Analytic Decision Making):
+ *   Farthest Viewer  FV = 3438 x IH / (vertical content resolution)   (each pixel subtends 1 arcminute)
+ *   No closest-viewer line (vertical viewing distances are not considered for ADM).
+ * Plan view (both): 60-degree lines drawn from each image edge, measured from the display
+ * perpendicular, toward the opposite side of the image; the conformance area is bounded by
+ * those lines, the closest-viewer line (BDM only), and the farthest-viewer arc.
+ * Only non-default inputs are stored on the item (data_percentElementHeight, data_aspectRatio,
+ * data_eyeLevel, data_discasMode, data_imageResolution); IH/IW/CV/FV are always derived. */
+
+const DISCAS_DEFAULT_PERCENT_EL = 3;
+const DISCAS_DEFAULT_ASPECT = 1.78;      /* 16:9 */
+const DISCAS_DEFAULT_RESOLUTION = 2160;
+const DISCAS_EYE_SEATED_M = 1.2;         /* AVIXA standard eye levels: 1200mm (48") seated */
+const DISCAS_EYE_STANDING_M = 1.5;       /* 1500mm (62") standing */
+
+function discasEyeLevelDefault() {
+    return DISCAS_EYE_SEATED_M * ((roomObj.unit === 'feet') ? 3.28084 : 1);
+}
+
+function discasEyeLevelStanding() {
+    return DISCAS_EYE_STANDING_M * ((roomObj.unit === 'feet') ? 3.28084 : 1);
+}
+
+/* Effective DISCAS inputs for an item/attrs object, defaults applied. All lengths in the current unit. */
+function discasResolveSettings(src) {
+    const unitFactor = (roomObj.unit === 'feet') ? 3.28084 : 1;
+    return {
+        diag: Number(src.data_diagonalInches) || 55,
+        aspect: Number(src.data_aspectRatio) || DISCAS_DEFAULT_ASPECT,
+        pe: Number(src.data_percentElementHeight) || DISCAS_DEFAULT_PERCENT_EL,
+        mode: (src.data_discasMode === 'adm') ? 'adm' : 'bdm',
+        res: Number(src.data_imageResolution) || DISCAS_DEFAULT_RESOLUTION,
+        eyeLevel: (src.data_eyeLevel != null && src.data_eyeLevel !== '') ? Number(src.data_eyeLevel) : discasEyeLevelDefault(),
+        zPos: (src.data_zPosition != null && src.data_zPosition !== '') ? Number(src.data_zPosition) : 1.01 * unitFactor,
+    };
+}
+
+/* Derived DISCAS geometry in the current unit: image height/width, closest viewer, farthest viewer. */
+function discasComputeGeometry(src) {
+    const s = discasResolveSettings(src);
+    const inchesPerUnit = (roomObj.unit === 'feet') ? 12 : 39.3701;
+    const ih = (s.diag / Math.sqrt(1 + s.aspect * s.aspect)) / inchesPerUnit;
+    const iw = ih * s.aspect;
+    const fv = (s.mode === 'adm') ? (3438 * ih / s.res) : (ih * s.pe * 2);
+    const io = s.zPos - s.eyeLevel;
+    const cv = (s.mode === 'adm') ? 0 : Math.max(0, (ih + io) * 1.732);
+    return { ...s, ih: ih, iw: iw, fv: fv, cv: cv };
+}
+
+let _discasDialogMode = null;      /* 'insert' | 'edit' */
+let _discasPendingAttrs = null;    /* insert mode: attrs waiting for the dialog */
+let _discasEditItemId = null;      /* edit mode: id of the item being edited */
+let _discasConfirmed = false;
+let _discasCloseWired = false;
+
+/* Insertion-time DISCAS dialog. Closing without Apply inserts with the standard defaults (never aborts). */
+function openDiscasDialog(attrs) {
+    const dlg = document.getElementById('dialogDiscas');
+    if (!dlg) { finishDiscasInsert(attrs); return; }
+    _discasDialogMode = 'insert';
+    _discasPendingAttrs = attrs;
+    _discasEditItemId = null;
+    _discasConfirmed = false;
+    document.getElementById('discasApplyBtn').innerText = 'Insert Display';
+    populateDiscasDialog(attrs);
+    wireDiscasDialogClose(dlg);
+    dlg.showModal();
+}
+
+/* Details-panel entry point: edit the currently selected displayCustom. */
+function openDiscasDialogForSelected() {
+    const id = document.getElementById('itemId').innerText;
+    const item = roomObjItemsMap.get(id);
+    if (!item || item.data_deviceid !== 'displayCustom') return;
+    const dlg = document.getElementById('dialogDiscas');
+    if (!dlg) return;
+    _discasDialogMode = 'edit';
+    _discasPendingAttrs = null;
+    _discasEditItemId = id;
+    _discasConfirmed = false;
+    document.getElementById('discasApplyBtn').innerText = 'Update Display';
+    populateDiscasDialog(item);
+    wireDiscasDialogClose(dlg);
+    dlg.showModal();
+}
+
+function wireDiscasDialogClose(dlg) {
+    if (_discasCloseWired) return;
+    _discasCloseWired = true;
+    dlg.addEventListener('close', () => {
+        if (_discasDialogMode === 'insert' && !_discasConfirmed && _discasPendingAttrs) {
+            finishDiscasInsert(_discasPendingAttrs); /* Cancel/Esc on insert = insert with defaults */
+        }
+        _discasDialogMode = null;
+        _discasPendingAttrs = null;
+        _discasEditItemId = null;
+    });
+}
+
+function populateDiscasDialog(src) {
+    const s = discasResolveSettings(src);
+    const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
+    document.getElementById('discasModeSelect').value = s.mode;
+    document.getElementById('discasDiagonalInput').value = s.diag;
+    document.getElementById('discasAspectSelect').value = String(s.aspect);
+    document.getElementById('discasPercentElInput').value = s.pe;
+    document.getElementById('discasResolutionSelect').value = String(s.res);
+    document.getElementById('discasMountInput').value = round(s.zPos);
+
+    const eyeSel = document.getElementById('discasEyeLevelSelect');
+    const eyeCustom = document.getElementById('discasEyeLevelCustomInput');
+    if (Math.abs(s.eyeLevel - discasEyeLevelDefault()) < 0.005) {
+        eyeSel.value = 'seated';
+    } else if (Math.abs(s.eyeLevel - discasEyeLevelStanding()) < 0.005) {
+        eyeSel.value = 'standing';
+    } else {
+        eyeSel.value = 'custom';
+    }
+    eyeCustom.value = round(s.eyeLevel);
+
+    document.querySelectorAll('.discasUnitLbl').forEach(el => { el.innerText = abbr; });
+    discasRecalcOutputs();
+}
+
+/* Read the dialog fields into a plain values object (lengths in current unit). */
+function discasDialogValues() {
+    const mode = document.getElementById('discasModeSelect').value === 'adm' ? 'adm' : 'bdm';
+    const eyeSel = document.getElementById('discasEyeLevelSelect').value;
+    let eyeLevel;
+    if (eyeSel === 'seated') eyeLevel = discasEyeLevelDefault();
+    else if (eyeSel === 'standing') eyeLevel = discasEyeLevelStanding();
+    else eyeLevel = Number(document.getElementById('discasEyeLevelCustomInput').value) || discasEyeLevelDefault();
+    return {
+        mode: mode,
+        diag: Number(document.getElementById('discasDiagonalInput').value) || 55,
+        aspect: Number(document.getElementById('discasAspectSelect').value) || DISCAS_DEFAULT_ASPECT,
+        pe: Number(document.getElementById('discasPercentElInput').value) || DISCAS_DEFAULT_PERCENT_EL,
+        res: Number(document.getElementById('discasResolutionSelect').value) || DISCAS_DEFAULT_RESOLUTION,
+        eyeLevel: eyeLevel,
+        zPos: Number(document.getElementById('discasMountInput').value) || 0,
+    };
+}
+
+/* Live-recompute the read-only outputs and toggle the mode/eye-level dependent rows. */
+function discasRecalcOutputs() {
+    const v = discasDialogValues();
+    const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
+    document.getElementById('discasPercentElRow').style.display = (v.mode === 'bdm') ? '' : 'none';
+    document.getElementById('discasResolutionRow').style.display = (v.mode === 'adm') ? '' : 'none';
+    document.getElementById('discasEyeLevelRow').style.display = (v.mode === 'bdm') ? '' : 'none';
+    document.getElementById('discasMountRow').style.display = (v.mode === 'bdm') ? '' : 'none';
+    document.getElementById('discasEyeLevelCustomInput').style.display =
+        (document.getElementById('discasEyeLevelSelect').value === 'custom') ? '' : 'none';
+
+    const g = discasComputeGeometry({
+        data_diagonalInches: v.diag,
+        data_aspectRatio: v.aspect,
+        data_percentElementHeight: v.pe,
+        data_discasMode: v.mode,
+        data_imageResolution: v.res,
+        data_eyeLevel: v.eyeLevel,
+        data_zPosition: v.zPos,
+    });
+    document.getElementById('discasOutImage').innerText =
+        round(g.iw) + ' x ' + round(g.ih) + ' ' + abbr + ' (image W x H)';
+    document.getElementById('discasOutClosest').innerText =
+        (g.mode === 'adm') ? 'n/a for ADM' : (round(g.cv) + ' ' + abbr);
+    document.getElementById('discasOutFarthest').innerText = round(g.fv) + ' ' + abbr;
+}
+
+/* Write dialog values onto an item/attrs object. Defaults are DELETED, not stored (minimum-storage rule). */
+function applyDiscasValuesToTarget(target, v) {
+    target.data_diagonalInches = v.diag;
+    if (Math.abs(v.aspect - DISCAS_DEFAULT_ASPECT) > 0.001) target.data_aspectRatio = v.aspect;
+    else delete target.data_aspectRatio;
+    if (v.mode === 'bdm' && Math.abs(v.pe - DISCAS_DEFAULT_PERCENT_EL) > 0.001) target.data_percentElementHeight = v.pe;
+    else delete target.data_percentElementHeight;
+    if (v.mode === 'adm') target.data_discasMode = 'adm';
+    else delete target.data_discasMode;
+    if (v.mode === 'adm' && v.res !== DISCAS_DEFAULT_RESOLUTION) target.data_imageResolution = v.res;
+    else delete target.data_imageResolution;
+    if (Math.abs(v.eyeLevel - discasEyeLevelDefault()) > 0.005) target.data_eyeLevel = round(v.eyeLevel);
+    else delete target.data_eyeLevel;
+    if (v.zPos > 0) target.data_zPosition = round(v.zPos);
+}
+
+function confirmDiscasDialog() {
+    const v = discasDialogValues();
+    _discasConfirmed = true;
+
+    if (_discasDialogMode === 'insert' && _discasPendingAttrs) {
+        applyDiscasValuesToTarget(_discasPendingAttrs, v);
+        const attrs = _discasPendingAttrs;
+        _discasPendingAttrs = null;
+        document.getElementById('dialogDiscas').close();
+        finishDiscasInsert(attrs);
+        return;
+    }
+
+    if (_discasDialogMode === 'edit' && _discasEditItemId) {
+        const item = roomObjItemsMap.get(_discasEditItemId);
+        document.getElementById('dialogDiscas').close();
+        if (item) {
+            applyDiscasValuesToTarget(item, v);
+            /* Destroy-and-reinsert (same pattern as updateItem/applyRoomObjDelta) so the node mirror and the DISCAS coverage rebuild from the new attrs. */
+            const id = item.id;
+            const node = stage.find('#' + id)[0];
+            if (node) {
+                tr.nodes([]);
+                ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
+                    stage.find('#' + prefix + id).forEach(n => { n.destroy(); canvasNodesMap.delete(prefix + id); });
+                });
+                node.destroy();
+                canvasNodesMap.delete(id);
+            }
+            insertItem(item, id, true);
+            canvasToJson();
+        }
+        return;
+    }
+}
+
+/* Complete a fresh displayCustom insert (mirror of finishCertifiedDisplayInsert). */
+function finishDiscasInsert(attrs) {
+    if (!attrs.data_role) {
+        attrs.data_role = { value: 'singleScreen', index: 0 };
+    }
+    attrs.data_deviceid = 'displayCustom';
+    const uuid = crypto.randomUUID();
+    attrs.id = uuid;
+    insertShapeItem('displayCustom', allDeviceTypes['displayCustom'].parentGroup, attrs, uuid, true);
     roomObj.items.push(attrs);
     roomObjItemsMap.set(attrs.id, attrs);
     setTimeout(() => { canvasToJson() }, 100);
@@ -7532,6 +7775,21 @@ let displays = [
         roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
     },
 
+    /* Coverage drawn per the AVIXA DISCAS standard (ANSI/AVIXA V201.01) — see the discas* helpers and the displayCustom branch of the dispDist~ coverage builder. */
+    {
+        name: 'Custom Reach Display',
+        id: 'displayCustom',
+        key: 'DL',
+        frontImage: 'displaySngl-front.png',
+        topImage: 'displaySngl-top.png',
+        width: displayWidth_2 * 1,
+        depth: displayDepth_2,
+        height: displayHeight_2,
+        diagonalInches: diagonalInches,
+        defaultVert: 1010,
+        roles: [{ 'singleScreen': 'Single Screen' }, { 'firstScreen': 'First Screen' }, { 'secondScreen': 'Second Screen' }, { 'thirdScreen': 'PresenterTrack Display' }]
+    },
+
 
 ]
 
@@ -7836,6 +8094,11 @@ function updateWidthOfDisplay(inches) {
         }
         else if (data_deviceid === 'display21_9_2') {
             width = (displayWidth21_9_2 / diagonalInches21_9) * inches / 1000 * displayNumber * unitRatio;
+        } else if (data_deviceid === 'displayCustom') {
+            /* Aspect-aware: exact image width from diagonal + data_aspectRatio (25.4mm/in x A/sqrt(1+A^2)). */
+            const _dcItem = roomObjItemsMap.get(document.getElementById('itemId').innerText) || {};
+            const _a = Number(_dcItem.data_aspectRatio) || DISCAS_DEFAULT_ASPECT;
+            width = (25.4 * _a / Math.sqrt(1 + _a * _a)) * inches / 1000 * unitRatio;
         } else if (newDisplayRegex.test(data_deviceid)) {
             width = (displayWidth_2 / diagonalInches) * inches / 1000 * displayNumber * unitRatio;
         } else {
@@ -8297,6 +8560,10 @@ function convertItemUnitBasedOnRatio(item, ratio) {
 
     if ('data_roomHeight' in item && !isNaN(item.data_roomHeight)) {
         item.data_roomHeight = round(item.data_roomHeight * ratio);
+    }
+
+    if ('data_eyeLevel' in item && !isNaN(item.data_eyeLevel)) {
+        item.data_eyeLevel = round(item.data_eyeLevel * ratio);
     }
 
     if ('data_trapNarrowWidth' in item && !isNaN(item.data_trapNarrowWidth)) {
@@ -9118,6 +9385,29 @@ function parseShortenedXYUrl(parameters) {
                 const cdEntry = certifiedDisplays.find(d => d.index === cdIndex);
                 if (cdEntry) {
                     newItem.data_diagonalInches = cdEntry.size;
+                }
+            }
+
+            /* displayCustom DISCAS inputs (see the encoder for the code table). */
+            if (newItem.data_deviceid === 'displayCustom') {
+                if ('pe' in item) {
+                    const peNum = Number(item.pe) / 10;
+                    if (isFinite(peNum) && peNum > 0) newItem.data_percentElementHeight = peNum;
+                }
+                if ('ar' in item) {
+                    const arNum = Number(item.ar) / 100;
+                    if (isFinite(arNum) && arNum > 0) newItem.data_aspectRatio = arNum;
+                }
+                if ('el' in item) {
+                    const elNum = Number(item.el) / 100;
+                    if (isFinite(elNum) && elNum > 0) newItem.data_eyeLevel = elNum;
+                }
+                if ('dm' in item && Number(item.dm) === 1) {
+                    newItem.data_discasMode = 'adm';
+                }
+                if ('ir' in item) {
+                    const irNum = Number(item.ir);
+                    if (isFinite(irNum) && irNum > 0) newItem.data_imageResolution = irNum;
                 }
             }
 
@@ -12759,6 +13049,26 @@ function createShareableLinkItem(item, prevTokens) {
         add('cd', 'cd' + item.data_certifiedDisplayIndex);
     }
 
+    /* displayCustom DISCAS inputs — 2-char codes (parsed like `ll`/`cd`), only non-defaults emitted.
+     * pe = %EH x10, ar = aspect x100, el = eye level x100 (current unit), dm1 = ADM, ir = content resolution. */
+    if (item.data_deviceid === 'displayCustom') {
+        if (item.data_percentElementHeight != null && Math.abs(item.data_percentElementHeight - DISCAS_DEFAULT_PERCENT_EL) > 0.001) {
+            add('pe', 'pe' + Math.round(item.data_percentElementHeight * 10));
+        }
+        if (item.data_aspectRatio != null && Math.abs(item.data_aspectRatio - DISCAS_DEFAULT_ASPECT) > 0.001) {
+            add('ar', 'ar' + Math.round(item.data_aspectRatio * 100));
+        }
+        if (item.data_eyeLevel != null && item.data_eyeLevel !== '') {
+            add('el', 'el' + Math.round(item.data_eyeLevel * 100));
+        }
+        if (item.data_discasMode === 'adm') {
+            add('dm', 'dm1');
+        }
+        if (item.data_imageResolution != null && item.data_imageResolution !== DISCAS_DEFAULT_RESOLUTION) {
+            add('ir', 'ir' + Math.round(item.data_imageResolution));
+        }
+    }
+
     if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
         add('h', 'h' + Math.round(round(item.tblRectRadius) * 100));
     }
@@ -14096,6 +14406,13 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_certifiedDisplayIndex = node.data_certifiedDisplayIndex;
         }
 
+        /* displayCustom DISCAS inputs. */
+        if (node.data_percentElementHeight != null) newAttr.data_percentElementHeight = node.data_percentElementHeight;
+        if (node.data_aspectRatio != null) newAttr.data_aspectRatio = node.data_aspectRatio;
+        if (node.data_eyeLevel != null) newAttr.data_eyeLevel = node.data_eyeLevel;
+        if (node.data_discasMode) newAttr.data_discasMode = node.data_discasMode;
+        if (node.data_imageResolution != null) newAttr.data_imageResolution = node.data_imageResolution;
+
         if ('data_zPosition' in node) {
             newAttr.data_zPosition = node.data_zPosition;
         }
@@ -15299,6 +15616,13 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_certifiedDisplayIndex = node.data_certifiedDisplayIndex;
         }
 
+        /* displayCustom DISCAS inputs. */
+        if (node.data_percentElementHeight != null) itemAttr.data_percentElementHeight = node.data_percentElementHeight;
+        if (node.data_aspectRatio != null) itemAttr.data_aspectRatio = node.data_aspectRatio;
+        if (node.data_eyeLevel != null) itemAttr.data_eyeLevel = node.data_eyeLevel;
+        if (node.data_discasMode) itemAttr.data_discasMode = node.data_discasMode;
+        if (node.data_imageResolution != null) itemAttr.data_imageResolution = node.data_imageResolution;
+
         if ('data_zPosition' in node) {
             itemAttr.data_zPosition = node.data_zPosition;
         }
@@ -15554,6 +15878,18 @@ function updateRoomObjFromTrNode() {
             } else {
                 delete item.data_certifiedDisplayIndex;
             }
+
+            /* displayCustom DISCAS inputs — explicit-delete-on-absent so a reset propagates. */
+            if (itemAttr.data_percentElementHeight != null) item.data_percentElementHeight = itemAttr.data_percentElementHeight;
+            else delete item.data_percentElementHeight;
+            if (itemAttr.data_aspectRatio != null) item.data_aspectRatio = itemAttr.data_aspectRatio;
+            else delete item.data_aspectRatio;
+            if (itemAttr.data_eyeLevel != null) item.data_eyeLevel = itemAttr.data_eyeLevel;
+            else delete item.data_eyeLevel;
+            if (itemAttr.data_discasMode) item.data_discasMode = itemAttr.data_discasMode;
+            else delete item.data_discasMode;
+            if (itemAttr.data_imageResolution != null) item.data_imageResolution = itemAttr.data_imageResolution;
+            else delete item.data_imageResolution;
 
         } else {
             /* New item — trust map, no findIndex scan. */
@@ -20512,6 +20848,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
         else if (deviceId === 'display21_9_2') {
             width = (displayWidth21_9_2 / diagonalInches21_9) * data_diagonalInches / 1000 * scale * displayNumber;
+        } else if (deviceId === 'displayCustom') {
+            /* Aspect-aware image width: 25.4mm/in x A/sqrt(1+A^2) mm per diagonal inch. */
+            const _dcAspect = Number(attrs.data_aspectRatio) || DISCAS_DEFAULT_ASPECT;
+            width = (25.4 * _dcAspect / Math.sqrt(1 + _dcAspect * _dcAspect)) * data_diagonalInches / 1000 * scale;
         } else if (/display.*_2$/.test(deviceId)) {
             width = (displayWidth_2 / diagonalInches) * data_diagonalInches / 1000 * scale * displayNumber;
         } else {
@@ -20564,6 +20904,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         }
 
         node.data_certifiedDisplayIndex = (attrs.data_certifiedDisplayIndex != null) ? attrs.data_certifiedDisplayIndex : null;
+
+        /* displayCustom DISCAS inputs (absent = standard default). */
+        node.data_percentElementHeight = (attrs.data_percentElementHeight != null) ? attrs.data_percentElementHeight : null;
+        node.data_aspectRatio = (attrs.data_aspectRatio != null) ? attrs.data_aspectRatio : null;
+        node.data_eyeLevel = (attrs.data_eyeLevel != null) ? attrs.data_eyeLevel : null;
+        node.data_discasMode = attrs.data_discasMode || null;
+        node.data_imageResolution = (attrs.data_imageResolution != null) ? attrs.data_imageResolution : null;
 
         if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
             node.data_zPosition = data_zPosition;
@@ -21195,8 +21542,102 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
 
+    /* displayCustom: DISCAS plan-view coverage (see the discas* helpers for the standard's formulas).
+     * Local coords: display image centered at the group origin along x, viewers in +y.
+     * Drawn as two Konva.Shapes in the standard dispDist~ group so drag-follow (updateShading),
+     * the D-key toggle, VRC-layer hiding, and the per-item hide flag all apply unchanged. */
+    if (deviceId === 'displayCustom') {
+
+        const dg = discasComputeGeometry(attrs);
+        const halfPx = (dg.iw * scale) / 2;
+        const cvPx = dg.cv * scale;
+        const fvPx = dg.fv * scale;
+        const TAN30 = Math.tan(Math.PI / 6);
+        const SIN60 = Math.sin(Math.PI / 3);
+        const apexY = halfPx * TAN30; /* depth where the two 60-deg edge lines cross */
+        const nearY = Math.max(cvPx, apexY);
+
+        /* Far corners: the 60-deg line from the LEFT image edge (-half,0), direction (sin60, cos60),
+         * intersected with the farthest-viewer arc (radius FV centered on the image center). */
+        const discR = fvPx * fvPx - 0.25 * halfPx * halfPx;
+        const tFar = (discR > 0) ? (SIN60 * halfPx + Math.sqrt(discR)) : 0;
+        const xFar = -halfPx + SIN60 * tFar;  /* right-far corner x (left-far is the mirror) */
+        const yFar = 0.5 * tFar;
+        const xNear = Math.max(0, nearY / TAN30 - halfPx);
+        const hasArea = tFar > 0 && yFar > nearY;
+
+        let groupItemDisplayDistance = new Konva.Group({
+            id: 'dispDist~' + uuid,
+            x: pixelX,
+            y: pixelY,
+            listening: false,
+            rotation: 0,
+            name: 'shading_group',
+        });
+
+        canvasNodesMap.set('dispDist~' + uuid, groupItemDisplayDistance);
+        groupItemDisplayDistance.visible(!attrs.data_dispDistHidden);
+
+        /* Area of conformance: closest line -> up the left 60-deg boundary -> farthest arc -> down the right boundary. */
+        const discasConformance = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.5,
+            fill: '#0080004d',
+            stroke: '#96969680',
+            strokeWidth: 2,
+            name: 'shading_group',
+            sceneFunc: (context, shape) => {
+                if (!hasArea) return;
+                const aLeft = Math.atan2(yFar, -xFar);
+                const aRight = Math.atan2(yFar, xFar);
+                context.beginPath();
+                context.moveTo(-xNear, nearY);
+                context.lineTo(-xFar, yFar);
+                context.arc(0, 0, fvPx, aLeft, aRight, true);
+                context.lineTo(xNear, nearY);
+                context.closePath();
+                context.fillStrokeShape(shape);
+            },
+        });
+        discasConformance.getSelfRect = function () {
+            return { x: -fvPx, y: 0, width: 2 * fvPx, height: yFar + 4 };
+        };
+
+        /* Construction lines per the CTS plan-view drawing: the two 60-deg lines drawn from each
+         * image edge toward the opposite side, and (BDM) the closest-viewer line. */
+        const discasConstruction = new Konva.Shape({
+            listening: false,
+            perfectDrawEnabled: perfectDrawEnabled,
+            opacity: 0.6,
+            stroke: '#96969680',
+            strokeWidth: 1,
+            dash: [6, 4],
+            name: 'shading_group',
+            sceneFunc: (context, shape) => {
+                if (tFar <= 0) return;
+                context.beginPath();
+                context.moveTo(-halfPx, 0);
+                context.lineTo(xFar, yFar);
+                context.moveTo(halfPx, 0);
+                context.lineTo(-xFar, yFar);
+                if (dg.mode === 'bdm' && cvPx > 0) {
+                    const xCv = Math.max(xNear, 0.5);
+                    context.moveTo(-xCv, cvPx);
+                    context.lineTo(xCv, cvPx);
+                }
+                context.strokeShape(shape);
+            },
+        });
+        discasConstruction.getSelfRect = discasConformance.getSelfRect;
+
+        groupItemDisplayDistance.add(discasConformance);
+        groupItemDisplayDistance.add(discasConstruction);
+        displayDistanceCoverage.add(groupItemDisplayDistance);
+
+    }
     /* Add shading lines for a display */
-    if (data_diagonalInches > 0) {
+    else if (data_diagonalInches > 0) {
 
         let groupItemDisplayDistance = new Konva.Group({
             id: 'dispDist~' + uuid,
@@ -23569,6 +24010,12 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         }
     }
 
+    /* displayCustom: surface the DISCAS Settings button. */
+    const discasSettingsDiv = document.getElementById('discasSettingsDiv');
+    if (discasSettingsDiv) {
+        discasSettingsDiv.style.display = (shape.data_deviceid === 'displayCustom') ? '' : 'none';
+    }
+
 
 
     if ('data_deviceid' in item && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
@@ -24608,6 +25055,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
         return;
     }
 
+    /* displayCustom: open the DISCAS settings modal before inserting. Paste/import bypass this (they never route through insertItemFromMenu). Closing without Apply inserts with defaults. */
+    if (data_deviceid === 'displayCustom') {
+        openDiscasDialog(attrs);
+        return;
+    }
+
 
     if (allDeviceTypes[data_deviceid].rolesDialog) {
 
@@ -24987,7 +25440,7 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'projector', 'displayScreen_2'];
+    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'displayCustom', 'projector', 'displayScreen_2'];
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 
@@ -32680,6 +33133,11 @@ function exportRoomObjToWorkspace() {
 
         workspaceItem = { ...attr, ...workspaceItem };
         delete workspaceItem.idRegex;
+
+        /* displayCustom: DISCAS attrs never leave the VRC, but a 21:9 aspect pick maps to WD's native ultrawide aspect. */
+        if (item.data_deviceid === 'displayCustom' && item.data_aspectRatio != null && Math.abs(item.data_aspectRatio - 2.33) < 0.01) {
+            workspaceItem.aspect = '21:9';
+        }
 
         if ('data_role' in item && item.data_role) {
             workspaceItem.role = item.data_role.value;

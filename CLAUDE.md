@@ -34,6 +34,7 @@ video_room_calculator/
 │   ├── KEYBOARD_SHORTCUTS.md       # Canonical keyboard shortcut list
 │   └── DEPENDENCIES_AND_ISSUES.md  # External CDN deps + common issues cheat sheet
 ├── js/
+│   ├── version.js           # APP_VERSION single source of truth (loaded first; also read by sw.js via importScripts)
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
 │   ├── data/
@@ -66,11 +67,15 @@ video_room_calculator/
 
 There is no build step. Open `RoomCalculator.html` directly in a browser.
 
-The eager-loaded `<script>` order is `konva.min.js` → `constants.js` →
-`data/workspaceKey.js` → `data/certifiedDisplays.js` → `util/uuid.js` →
-`util/units.js` → `undoApply.js` → `idbStorage.js` → `templates.js` →
-`roomcalc.js`. Every
-module before `roomcalc.js` attaches to the shared `window.VRC` namespace
+The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
+`constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →
+`data/menuItemsAndMessages.js` → `util/units.js` → `undoApply.js` →
+`idbStorage.js` → `templates.js` → `roomcalc.js`. `version.js` is the
+single source of truth for `APP_VERSION` (also read by `sw.js` via
+`importScripts()` — see "PWA / Service Worker caching" in
+`notes/DEPENDENCIES_AND_ISSUES.md`); it carries no `VRC` surface and
+loads first because everything else may want it. Every other module
+before `roomcalc.js` attaches to the shared `window.VRC` namespace
 (per the convention in `notes/TECH_NOTES.md`); `roomcalc.js` then aliases
 the public names back into local `const` bindings near the top of the
 file so existing call sites stay unchanged. See the Phase 2 header
@@ -1328,6 +1333,92 @@ cleanly as long as the token carries its own number (it always does).
 
 No special handling — `data_certifiedDisplayIndex` is a plain field on
 `roomObj.items`.
+
+---
+
+## Custom Reach Display (`displayCustom`) — AVIXA DISCAS coverage
+
+`displayCustom` is a `displays`-class device (key `DL`) whose coverage
+overlay draws the **area of conformance per the AVIXA DISCAS standard
+(ANSI/AVIXA V201.01)** instead of the generic display-distance wedge:
+the two 60°-from-perpendicular horizontal viewing-angle lines drawn from
+each image edge toward the opposite side, the closest-viewer line
+(parallel to the screen, BDM only), and the farthest-viewer arc.
+
+### Formulas (verified against AVIXA CTS-Prep worked examples)
+
+| Quantity | BDM (Basic Decision Making) | ADM (Analytic Decision Making) |
+|----------|------------------------------|--------------------------------|
+| Farthest Viewer | `FV = IH × %EH × 2` (element ≥ 1/200th of viewing distance) | `FV = 3438 × IH / contentResolution` (1 arcmin per line) |
+| Closest Viewer | `CV = max(0, IH + IO) × 1.732` (sight line to top of image ≤ 30° above eye level); `IO = zPosition − eyeLevel` | none |
+| Image Height | `IH = diagonal / √(1 + aspect²)` (inches → current unit) | same |
+
+All math lives in `discasResolveSettings()` / `discasComputeGeometry()`
+in `js/roomcalc.js` (near the certifiedDisplay helpers). Numbers were
+validated against AVIXA's published examples: 75″ 16:9 → IH 36.8″, FV
+18.4 ft @3 %EH, CV 63.7″ (IO = 0); ADM 138″ @1080 → FV 215″.
+
+### Storage — minimum set, defaults never stored
+
+| Attr | Default (absent) | Notes |
+|------|-------------------|-------|
+| `data_diagonalInches` | 55 | existing attr, URL letter `g` |
+| `data_percentElementHeight` | 3 | BDM only |
+| `data_aspectRatio` | 1.78 (16:9) | 2.33 = 21:9, 1.33 = 4:3 |
+| `data_eyeLevel` | 1.2 m / 3.94 ft (AVIXA seated) | current-unit value; standing = 1.5 m; converted by `convertItemUnitBasedOnRatio()` |
+| `data_discasMode` | `'bdm'` | only `'adm'` is ever stored |
+| `data_imageResolution` | 2160 | ADM only |
+
+CV/FV/IH/IW are always derived, never stored. The four-place rule is
+wired for all five attrs (`updateNodeAttributes`,
+`updateRoomObjFromTrNode` push + map-hit delete-on-absent,
+`copyToCanvasClipBoard`).
+
+### URL encoding — 2-char codes (parsed like `ll`/`cd`), gated on the device id
+
+`pe` = %EH ×10, `ar` = aspect ×100, `el` = eye level ×100 (current
+unit), `dm1` = ADM, `ir` = content resolution. Only non-defaults are
+emitted; `g`/`b` carry diagonal/elevation as usual.
+
+### UI — the DISCAS modal (`#dialogDiscas`)
+
+Opens on insert (`insertItemFromMenu` early branch — mirror of the
+certifiedDisplay gate; paste/import bypass it) and from the Details
+panel's `DISCAS Settings…` button (`#discasSettingsDiv`, shown only for
+`displayCustom`; in both group-details `hideIds` lists). Inputs:
+viewing category, diagonal, aspect, %EH (BDM), content resolution
+(ADM), eye level (seated/standing/custom), bottom-of-image height
+(maps to `data_zPosition`); read-only Image size / Closest / Farthest
+outputs recompute live (`discasRecalcOutputs()`). **Closing without
+Apply during an insert lands the display with the standard defaults**
+(never aborts — `wireDiscasDialogClose`). Every input carries an 'i'
+tooltip with paraphrased (not copied) guidance, and the footer credits
+the standard: "Based on the AVIXA DISCAS standard (ANSI/AVIXA
+V201.01)" with a link and a non-affiliation note.
+
+### Canvas rendering
+
+Two `Konva.Shape` sceneFuncs in the standard `dispDist~{id}` coverage
+group (so drag-follow via `updateShading`, the D-key toggle, VRC-layer
+hiding, and `data_dispDistHidden` all apply unchanged): a filled
+conformance region (closest line → 60° boundary → arc → boundary) and
+a dashed construction-lines shape (the two 60° lines + the closest
+chord). Local frame: image centered on the group origin along x,
+viewers toward +y; the wedge apex (where the crossing 60° lines meet)
+is at `(IW/2) × tan30°`, and the near boundary is
+`max(CV, apex)`. The canvas footprint is aspect-aware (both
+`insertShapeItem`'s display width branch and `updateWidthOfDisplay()`
+compute `25.4 × A/√(1+A²)` mm per diagonal inch).
+
+### Workspace Designer
+
+Exports as a plain `screen` (`workspaceKey.displayCustom`); DISCAS
+attrs never leave the VRC. A 21:9 aspect pick maps to WD's native
+`aspect: '21:9'` in `workspaceObjDisplayPush()`. On import, plain WD
+screens still resolve to `displaySngl_2` (scoring ties keep the first
+`workspaceKey` entry), so `displayCustom` never steals generic screen
+imports; a WD round-trip intentionally comes back as a standard
+display.
 
 ---
 

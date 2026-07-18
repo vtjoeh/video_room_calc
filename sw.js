@@ -1,4 +1,12 @@
-const CACHE_VERSION = 'v1';
+/* js/version.js is the single source of truth for APP_VERSION (also read by
+ * roomcalc.js on the page side). The service-worker update check byte-compares
+ * the main script AND every importScripts() file against the previously
+ * installed worker, so a bump to APP_VERSION alone is enough for the browser
+ * to detect this as a new service worker, install it, and re-populate the
+ * cache under the new CACHE_NAME below -- no separate step required. */
+importScripts('./js/version.js');
+
+const CACHE_VERSION = APP_VERSION;
 const CACHE_NAME = `vrc-pwa-${CACHE_VERSION}`;
 
 const PRECACHE_ASSETS = [
@@ -6,6 +14,7 @@ const PRECACHE_ASSETS = [
   './RoomCalculator.html',
   './style.css',
   './manifest.json',
+  './js/version.js',
   './js/purify.min.js',
   './js/konva.min.js',
   './js/constants.js',
