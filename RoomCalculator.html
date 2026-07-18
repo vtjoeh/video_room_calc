@@ -2646,6 +2646,7 @@
       <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
         Calculates the closest viewer, farthest viewer, and 60&deg; horizontal viewing angles for this display,
         based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01, Display Image Size for 2D Content).
+        <br><b>These viewer coverage values are not sent to or shown in the Workspace Designer.</b>
       </div>
 
       <div class="inputField" style="max-width: none;">
@@ -2682,8 +2683,11 @@
           <span class="tooltiptext">Height of the smallest meaningful content element (for text, the lowercase
             character height) as a percent of the image height. Smaller percentages pull the farthest viewer
             closer. Typical presentation text is around 2&ndash;4%; 3% is a common planning default.</span></label>
-        <input type="number" id="discasPercentElInput" min="0.5" max="10" step="0.25" style="width: 90px;"
-          oninput="discasRecalcOutputs()"> %
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input type="number" id="discasPercentElInput" min="0.5" max="10" step="0.25" style="width: 90px;"
+            oninput="discasRecalcOutputs()">
+          <span>%</span>
+        </div>
       </div>
 
       <div class="inputField" style="max-width: none; display: none;" id="discasResolutionRow">
@@ -2709,8 +2713,11 @@
           <option value="standing">Standing &mdash; standard</option>
           <option value="custom">Custom</option>
         </select>
-        <input type="number" id="discasEyeLevelCustomInput" min="0" step="0.01" style="width: 80px; display: none;"
-          oninput="discasRecalcOutputs()"> <span class="discasUnitLbl"></span>
+        <div id="discasEyeLevelCustomWrap" style="display: none; align-items: center; gap: 6px;">
+          <input type="number" id="discasEyeLevelCustomInput" min="0" step="0.01" style="width: 80px;"
+            oninput="discasRecalcOutputs()">
+          <span class="discasUnitLbl"></span>
+        </div>
       </div>
 
       <div class="inputField" style="max-width: none;" id="discasMountRow">
@@ -2718,8 +2725,11 @@
           <span class="tooltiptext">Height of the bottom of the display image above the floor (the item's
             elevation). Raising the display raises the sight line to the top of the image, which pushes the
             closest viewer farther back.</span></label>
-        <input type="number" id="discasMountInput" min="0" step="0.01" style="width: 90px;"
-          oninput="discasRecalcOutputs()"> <span class="discasUnitLbl"></span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input type="number" id="discasMountInput" min="0" step="0.01" style="width: 90px;"
+            oninput="discasRecalcOutputs()">
+          <span class="discasUnitLbl"></span>
+        </div>
       </div>
 
       <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 13px;">

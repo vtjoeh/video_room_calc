@@ -3731,8 +3731,8 @@ function discasRecalcOutputs() {
     document.getElementById('discasResolutionRow').style.display = (v.mode === 'adm') ? '' : 'none';
     document.getElementById('discasEyeLevelRow').style.display = (v.mode === 'bdm') ? '' : 'none';
     document.getElementById('discasMountRow').style.display = (v.mode === 'bdm') ? '' : 'none';
-    document.getElementById('discasEyeLevelCustomInput').style.display =
-        (document.getElementById('discasEyeLevelSelect').value === 'custom') ? '' : 'none';
+    document.getElementById('discasEyeLevelCustomWrap').style.display =
+        (document.getElementById('discasEyeLevelSelect').value === 'custom') ? 'flex' : 'none';
 
     const g = discasComputeGeometry({
         data_diagonalInches: v.diag,
