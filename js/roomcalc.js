@@ -12190,54 +12190,14 @@ function simplePathEditor(idOverride) {
     polyBuilderOn(true, 'customPathEditor');
 }
 
-/* Fresh-pathShape chooser (reuses the shared roleSelectionDialog, same pattern as
- * openCertifiedDisplayDialog): Draw Simple Path (poly builder) vs. the SVG Path Editor. */
-function openPathShapeDrawChooser(uuid) {
-    const dialogHeader = document.getElementById('headerRoleSelection');
-    const chooserDialog = document.getElementById('roleSelectionDialog');
-    const innerDiv = document.getElementById('roleSelection');
-
-    if (!dialogHeader || !chooserDialog || !innerDiv) {
-        simplePathEditor(uuid);
-        return;
-    }
-
-    dialogHeader.innerText = 'How do you want to draw the path?';
-    innerDiv.innerHTML = '';
-
-    [
-        { label: 'Draw Simple Path', action: () => simplePathEditor(uuid) },
-        { label: 'SVG Path Editor', action: () => openSvgPathEditor(uuid) },
-    ].forEach(opt => {
-        const buttonDiv = document.createElement('div');
-        const button = document.createElement('button');
-        const buttonLabel = document.createElement('span');
-
-        buttonLabel.innerText = opt.label;
-        buttonLabel.classList.add('roleSelectButtonLabel');
-        buttonLabel.style.margin = 'auto';
-
-        button.classList.add('roleSelectButton');
-        button.appendChild(buttonLabel);
-
-        innerDiv.appendChild(buttonDiv);
-        buttonDiv.appendChild(button);
-
-        button.onclick = () => {
-            chooserDialog.close();
-            opt.action();
-        };
-    });
-
-    chooserDialog.showModal();
-}
-
 /* Open the lazy-loaded VRC SVG Path Editor (js/pathEditor/) for a pathShape.
- * The editor works in floor-meters; this glue converts room units on the way in
+ * The editor works in item-local meters; this glue converts room units on the way in
  * (item x/y/rotation, labelField JSON scale, background image rect) and writes the
  * result back through the same Details-field + updateItem() pipeline the simple
- * builder uses, with rotation and JSON scale baked into the returned coordinates. */
-function openSvgPathEditor(idOverride) {
+ * builder uses, with rotation and JSON scale baked into the returned coordinates.
+ * startMode 'draw' (fresh inserts — blank canvas, click to place points) or
+ * 'edit' (default — reopening an existing shape). */
+function openSvgPathEditor(idOverride, startMode) {
     const id = (typeof idOverride === 'string' && idOverride)
         ? idOverride
         : document.getElementById('itemId').innerText;
@@ -12277,6 +12237,7 @@ function openSvgPathEditor(idOverride) {
     loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR).then(() => {
         window.VRC.pathEditor.open({
             path: lbl.path,
+            startMode: startMode,
             scaleX: scaleX,
             scaleY: scaleY,
             rotationDeg: Number(item.rotation) || 0,
@@ -25216,12 +25177,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         canvasToJson();
 
-        /* pathShape: offer Draw Simple Path vs. SVG Path Editor on insert.
-         * The 300 ms defer is past the 250 ms tr.nodes()/updateFormatDetails()
-         * timer inside insertShapeItem() so #itemId is fully populated
-         * before either editor takes over. */
+        /* pathShape: open the SVG Path Editor in Draw mode so the user starts
+         * drawing immediately (no chooser dialog). The 300 ms defer is past the
+         * 250 ms tr.nodes()/updateFormatDetails() timer inside insertShapeItem()
+         * so #itemId is fully populated before the editor takes over. */
         if (data_deviceid === 'pathShape') {
-            setTimeout(() => { openPathShapeDrawChooser(uuid); }, 300);
+            setTimeout(() => { openSvgPathEditor(uuid, 'draw'); }, 300);
         }
 
         showDeviceInsertMessage(data_deviceid)

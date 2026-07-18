@@ -23,13 +23,18 @@
  *                    null when the path is empty/degenerate.
  * }
  *
- * Interactions (mirrors the Draw Simple Path builder where it applies):
- *   click empty space  — add a point (Line or Curve segment per the mode buttons) while the path is open
- *   click first point  — close the path (first point is enlarged and highlights yellow, like the simple builder)
- *   click a segment    — insert a point at that spot
- *   click a point      — select it; the segment into it draws purple
- *   drag a point       — move it (adjacent curve controls move rigidly with it)
- *   drag empty space   — pan;  scroll — zoom
+ * Two modes (Draw / Edit toolbar buttons):
+ *   DRAW — mirrors the Draw Simple Path builder: click to place points
+ *   sequentially (Line or Curve segment per the Line/Curve buttons, dashed
+ *   rubber band to the pointer), click the first point (enlarged, yellow on
+ *   hover) to close — closing switches to Edit. Clicking the Draw Mode
+ *   button DELETES the current path and starts over. Fresh inserts open in
+ *   Draw mode (opts.startMode); reopening an existing shape opens in Edit.
+ *   EDIT — drag points (hover = baby blue + slightly larger), click a point
+ *   to select (point + its segment draw purple), click a segment to insert
+ *   a point at that spot, Line↔Curve conversion / Delete Point on the
+ *   selection.
+ *   Both: drag empty space — pan;  scroll — zoom.
  *
  * Supported path commands: M L H V C S Q T A Z, absolute and relative.
  * H/V normalize to L, S to C, T to Q on parse; output uses M L C Q A Z only.
@@ -46,6 +51,7 @@
     const MAX_PX_PER_M = 2000;
     const SELECT_COLOR = '#8000c8';   /* purple — selected segment + anchor */
     const PATH_COLOR = '#0352a6';
+    const HOVER_COLOR = '#89CFF0';    /* baby blue — edit-mode point hover */
 
     let dlg = null;
     let ui = {};
@@ -56,7 +62,9 @@
     let segs = [];
     let initialSegs = null;
     let selIndex = -1;
-    let drawMode = 'L';              /* 'L' or 'C' — what a click on empty space appends */
+    let drawMode = 'L';              /* 'L' or 'C' — segment type placed while drawing */
+    let editorMode = 'edit';         /* 'draw' or 'edit' */
+    let rubberBand = null;           /* dashed preview line, draw mode only */
     let anchorNodes = [];            /* [{ segIndex, node }] for in-place restyle (no rebuild on select — a rebuild mid-mousedown destroys the node being dragged) */
     let activeOpts = null;
     let rafPending = false;
@@ -280,6 +288,9 @@
         dlg.innerHTML = `
             <div class="vrcpe-toolbar">
                 <span class="vrcpe-title">SVG Path Editor</span>
+                <button id="vrcpeDrawMode">Draw Mode</button>
+                <button id="vrcpeEditMode">Edit Mode</button>
+                <span class="vrcpe-sep"></span>
                 <button id="vrcpeModeLine" class="vrcpe-mode-active">Line</button>
                 <button id="vrcpeModeCurve">Curve</button>
                 <span class="vrcpe-sep"></span>
@@ -287,7 +298,7 @@
                 <button id="vrcpeToLine" disabled>Curve &rarr; Line</button>
                 <button id="vrcpeDeletePt" disabled>Delete Point</button>
                 <button id="vrcpeRevert">Revert</button>
-                <span class="vrcpe-hint">Click to add a point &middot; click the first point to close &middot; click a line to insert a point &middot; drag a point to move it &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter</span>
+                <span class="vrcpe-hint" id="vrcpeHint"></span>
                 <button id="vrcpeClose" class="vrcpe-close">Close</button>
             </div>
             <div class="vrcpe-body">
@@ -300,6 +311,8 @@
         document.body.appendChild(dlg);
 
         ui = {
+            drawModeBtn: dlg.querySelector('#vrcpeDrawMode'),
+            editModeBtn: dlg.querySelector('#vrcpeEditMode'),
             modeLine: dlg.querySelector('#vrcpeModeLine'),
             modeCurve: dlg.querySelector('#vrcpeModeCurve'),
             toCurve: dlg.querySelector('#vrcpeToCurve'),
@@ -309,12 +322,25 @@
             close: dlg.querySelector('#vrcpeClose'),
             canvas: dlg.querySelector('#vrcpeCanvas'),
             pathText: dlg.querySelector('#vrcpePathText'),
+            hint: dlg.querySelector('#vrcpeHint'),
         };
 
         ui.close.onclick = () => { finishAndApply(); dlg.close(); };
         ui.revert.onclick = () => {
             segs = structuredClone(initialSegs);
             selIndex = -1;
+            setEditorMode(segs.length ? 'edit' : 'draw');
+            refreshAll();
+        };
+        /* Draw Mode button = start over: delete the current path and draw fresh (per spec) */
+        ui.drawModeBtn.onclick = () => {
+            segs = [];
+            selIndex = -1;
+            setEditorMode('draw');
+            refreshAll();
+        };
+        ui.editModeBtn.onclick = () => {
+            setEditorMode('edit');
             refreshAll();
         };
         ui.modeLine.onclick = () => setDrawMode('L');
@@ -370,6 +396,40 @@
         ui.modeCurve.classList.toggle('vrcpe-mode-active', mode === 'C');
     }
 
+    function setEditorMode(mode) {
+        editorMode = mode;
+        ui.drawModeBtn.classList.toggle('vrcpe-mode-active', mode === 'draw');
+        ui.editModeBtn.classList.toggle('vrcpe-mode-active', mode === 'edit');
+        ui.hint.innerHTML = (mode === 'draw')
+            ? 'Click to place points &middot; Line / Curve picks the segment type &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter'
+            : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter';
+        if (mode === 'edit') hideRubberBand();
+    }
+
+    function hideRubberBand() {
+        if (rubberBand) { rubberBand.destroy(); rubberBand = null; }
+    }
+
+    function updateRubberBand() {
+        if (editorMode !== 'draw' || !segs.length || !isPathOpen()) { hideRubberBand(); return; }
+        const last = segs[segs.length - 1];
+        if (!('x' in last)) { hideRubberBand(); return; }
+        const wp = worldPointer();
+        if (!wp) return;
+        const s = konvaStage.scaleX();
+        if (!rubberBand) {
+            rubberBand = new Konva.Line({
+                stroke: '#555',
+                opacity: 0.5,
+                listening: false,
+            });
+            pathLayer.add(rubberBand);
+        }
+        rubberBand.points([last.x, last.y, wp.x, wp.y]);
+        rubberBand.strokeWidth(1 / s);
+        rubberBand.dash([6 / s, 4 / s]);
+    }
+
     /* ---------------- Konva stage ---------------- */
 
     function buildStage() {
@@ -406,18 +466,19 @@
             scheduleRedraw(true);
         });
 
-        /* Click on empty canvas: append a point while the path is open (Konva suppresses click after a drag, so pans don't add points).
-         * A click NEAR the first point closes the path instead — covers near-misses of the (small) first-point circle. */
+        /* DRAW mode: click on empty canvas places the next point (Konva suppresses click
+         * after a drag, so pans don't add points); a click NEAR the first point closes the
+         * path instead (covers near-misses of the small circle) and switches to Edit mode.
+         * EDIT mode: click on empty canvas just deselects. */
         konvaStage.on('click tap', (e) => {
             if (e.target !== konvaStage) return;
-            if (isPathOpen()) {
+            if (editorMode === 'draw' && isPathOpen()) {
                 const wp = worldPointer();
                 const m0 = segs[0];
-                if (m0 && segs.filter(g => g.c !== 'Z').length >= 3) {
+                if (wp && m0 && segs.filter(g => g.c !== 'Z').length >= 3) {
                     const r = handleRadius() * 2.5;
                     if ((wp.x - m0.x) ** 2 + (wp.y - m0.y) ** 2 <= r * r) {
-                        segs.push({ c: 'Z' });
-                        refreshAll();
+                        closeDrawnPath();
                         return;
                     }
                 }
@@ -425,17 +486,29 @@
             }
             else { selIndex = -1; syncSelection(); }
         });
+
+        konvaStage.on('pointermove', () => updateRubberBand());
     }
 
     function destroyStage() {
         if (konvaStage) { konvaStage.destroy(); konvaStage = null; }
         previewPath = null;
         selectedOverlay = null;
+        rubberBand = null;
         anchorNodes = [];
+    }
+
+    /* Z + hand off to Edit mode — after closing, the natural next step is refining points. */
+    function closeDrawnPath() {
+        segs.push({ c: 'Z' });
+        selIndex = -1;
+        setEditorMode('edit');
+        refreshAll();
     }
 
     function worldPointer() {
         const p = konvaStage.getPointerPosition();
+        if (!p) return null;
         const s = konvaStage.scaleX();
         return { x: (p.x - konvaStage.x()) / s, y: (p.y - konvaStage.y()) / s };
     }
@@ -551,7 +624,9 @@
             hitStrokeWidth: 14,
         });
         previewPath.on('click tap', () => {
-            const best = nearestSegment(worldPointer());
+            if (editorMode !== 'edit') return;
+            const wp = worldPointer();
+            const best = wp && nearestSegment(wp);
             if (best) {
                 splitSegment(best.i, best.t);
                 selIndex = best.i; /* the inserted point's segment */
@@ -581,7 +656,7 @@
 
     function styleAnchor(entry) {
         const isSel = entry.segIndex === selIndex;
-        const isFirstOpen = entry.segIndex === 0 && isPathOpen();
+        const isFirstOpen = editorMode === 'draw' && entry.segIndex === 0 && isPathOpen();
         entry.node.radius(handleRadius() * (isFirstOpen ? 1.5 : 1));
         entry.node.fill(isSel ? SELECT_COLOR : (isFirstOpen ? '#fffbe0' : '#fff'));
         entry.node.stroke(isSel ? SELECT_COLOR : PATH_COLOR);
@@ -592,7 +667,7 @@
             x: s.x, y: s.y,
             radius: handleRadius(),
             strokeWidth: 1.5 / konvaStage.scaleX(),
-            draggable: true,
+            draggable: editorMode === 'edit',
         });
         const entry = { segIndex: i, node: a };
         anchorNodes.push(entry);
@@ -600,21 +675,28 @@
 
         /* select WITHOUT rebuilding handles — a rebuild here destroys this node mid-mousedown and kills the drag */
         a.on('mousedown touchstart', () => {
+            if (editorMode !== 'edit') return;
             selIndex = i;
             syncSelection();
         });
 
         /* click the enlarged first point while drawing → close the path (mirrors the simple builder) */
         a.on('click tap', () => {
-            if (i === 0 && isPathOpen() && segs.filter(g => g.c !== 'Z').length >= 3) {
-                segs.push({ c: 'Z' });
-                refreshAll();
+            if (editorMode === 'draw' && i === 0 && isPathOpen() && segs.filter(g => g.c !== 'Z').length >= 3) {
+                closeDrawnPath();
             }
         });
-        if (i === 0) {
-            a.on('mouseover', () => { if (isPathOpen()) { a.fill('yellow'); a.radius(handleRadius() * 2); } });
-            a.on('mouseleave', () => styleAnchor(entry));
-        }
+
+        a.on('mouseover', () => {
+            if (editorMode === 'draw') {
+                if (i === 0 && isPathOpen()) { a.fill('yellow'); a.radius(handleRadius() * 2); }
+            } else {
+                /* edit-mode hover affordance: a little larger + baby blue */
+                a.fill(HOVER_COLOR);
+                a.radius(handleRadius() * 1.4);
+            }
+        });
+        a.on('mouseleave', () => styleAnchor(entry));
 
         a.on('dragmove', () => {
             const nx = a.x(), ny = a.y();
@@ -636,7 +718,7 @@
             fill: '#f5a623',
             stroke: '#a06800',
             strokeWidth: 1 / konvaStage.scaleX(),
-            draggable: true,
+            draggable: editorMode === 'edit',
         });
         const tether = new Konva.Line({
             points: [anchorPt.x, anchorPt.y, s[keyX], s[keyY]],
@@ -659,13 +741,16 @@
         anchorNodes = [];
         segs.forEach((s, i) => {
             if (s.c === 'Z') return;
-            const p0 = segStartPoint(i);
-            if (s.c === 'C' && p0) {
-                makeControl(s, 'x1', 'y1', p0);
-                makeControl(s, 'x2', 'y2', { x: s.x, y: s.y });
-            }
-            if (s.c === 'Q' && p0) {
-                makeControl(s, 'x1', 'y1', p0);
+            /* control handles are edit-mode only — while drawing they'd just be clutter */
+            if (editorMode === 'edit') {
+                const p0 = segStartPoint(i);
+                if (s.c === 'C' && p0) {
+                    makeControl(s, 'x1', 'y1', p0);
+                    makeControl(s, 'x2', 'y2', { x: s.x, y: s.y });
+                }
+                if (s.c === 'Q' && p0) {
+                    makeControl(s, 'x1', 'y1', p0);
+                }
             }
             makeAnchor(i, s);
         });
@@ -692,7 +777,7 @@
     function syncSelection() {
         anchorNodes.forEach(styleAnchor);
         updateSelectedOverlay();
-        const s = segs[selIndex];
+        const s = (editorMode === 'edit') ? segs[selIndex] : null;
         ui.toCurve.disabled = !(s && s.c === 'L');
         ui.toLine.disabled = !(s && (s.c === 'C' || s.c === 'Q'));
         ui.deletePt.disabled = !(s && s.c !== 'Z');
@@ -761,8 +846,15 @@
 
     function appendPointAtPointer() {
         const wp = worldPointer();
-        const last = segs.length ? segs[segs.length - 1] : null;
-        const lastPt = (last && 'x' in last) ? { x: last.x, y: last.y } : { x: 0, y: 0 };
+        if (!wp) return;
+        if (!segs.length) {
+            /* first click of a fresh drawing starts the subpath */
+            segs.push({ c: 'M', x: wp.x, y: wp.y });
+            refreshAll();
+            return;
+        }
+        const last = segs[segs.length - 1];
+        const lastPt = ('x' in last) ? { x: last.x, y: last.y } : { x: 0, y: 0 };
         let np;
         if (drawMode === 'C') {
             np = {
@@ -775,7 +867,6 @@
             np = { c: 'L', x: wp.x, y: wp.y };
         }
         segs.push(np);
-        selIndex = segs.length - 1;
         refreshAll();
     }
 
@@ -849,6 +940,12 @@
         initialSegs = structuredClone(segs);
         selIndex = -1;
         setDrawMode('L');
+
+        /* Fresh inserts open in Draw mode with a clean canvas (the placeholder shape is
+         * ignored; closing without drawing keeps the item unchanged since finishAndApply
+         * returns null for an empty path). Reopening an existing shape opens in Edit. */
+        setEditorMode(opts.startMode === 'draw' ? 'draw' : 'edit');
+        if (editorMode === 'draw') segs = [];
 
         dlg.showModal();
         buildStage();

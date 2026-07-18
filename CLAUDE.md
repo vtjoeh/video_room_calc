@@ -1476,15 +1476,28 @@ editor code lives in `js/pathEditor/` (`pathEditor.js` +
 global) the only dependency, and nothing in the module reads VRC
 globals — the roomcalc.js glue passes everything in through `opts`.
 
-### Entry points
+### Entry points & modes
 
-- **Fresh insert**: `insertItemFromMenu()`'s pathShape branch opens
-  `openPathShapeDrawChooser(uuid)` (reuses the shared
-  `roleSelectionDialog`, same pattern as certifiedDisplay) offering
-  **Draw Simple Path** (the existing poly builder) or **SVG Path
-  Editor**.
-- **Details → Items**: the `labelPathId` row carries both buttons
-  (`simplePathEditor()` / `openSvgPathEditor()`).
+The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
+
+- **Fresh insert**: `insertItemFromMenu()`'s pathShape branch calls
+  `openSvgPathEditor(uuid, 'draw')` directly — **no chooser dialog**.
+  Draw mode starts with a BLANK canvas (the placeholder path is
+  ignored; closing without drawing returns null from
+  `finishAndApply()` so the item keeps its placeholder).
+- **Details → Items**: the `labelPathId` row carries Draw Simple Path
+  (`simplePathEditor()`) and SVG Path Editor (`openSvgPathEditor()`,
+  no mode arg → **Edit mode**).
+- **Draw mode** mirrors the Draw Simple Path builder: click to place
+  points sequentially (the Line/Curve buttons pick the segment type,
+  dashed rubber band follows the pointer), the enlarged first point
+  closes the path on click — closing **auto-switches to Edit mode**.
+  Clicking the **Draw Mode toolbar button deletes the current path
+  and starts over** (per spec). No dragging/selection/controls while
+  drawing.
+- **Edit mode**: everything else below (drag, select, insert, convert,
+  delete). **Hovering a point enlarges it slightly and fills it baby
+  blue (`#89CFF0`)** so the user knows it's clickable.
 
 ### Coordinate model (the important part)
 
@@ -1514,14 +1527,14 @@ simple builder uses, so undo/URL/labelField-merge come free.
 - Supported commands: M L H V C S Q T A Z, absolute + relative
   (H/V→L, S→C, T→Q normalized on parse; output is absolute
   M L C Q A Z). Packed arc-flag shorthand (`011`) is not tokenized.
-- **Click interactions** (mirrors the Draw Simple Path builder):
-  click empty space adds a point (**Line / Curve mode buttons**
-  choose the segment type) while the path is open; the **first point
-  is enlarged and highlights yellow on hover — clicking it (or near
-  it) closes the path** (mirror of the polyBuilder finish circle);
-  click a segment to insert a point at that spot (de Casteljau split
-  for C/Q); click a point to select it — the selected point and the
-  segment into it draw **purple** (`#8000c8`).
+- **Draw-mode clicks**: first click places the M, each further click
+  appends L or C (**Line / Curve buttons**); the **first point is
+  enlarged and highlights yellow on hover — clicking it (or near it)
+  closes the path** (mirror of the polyBuilder finish circle) and
+  switches to Edit. **Edit-mode clicks**: click a segment to insert a
+  point at that spot (de Casteljau split for C/Q); click a point to
+  select it — the selected point and the segment into it draw
+  **purple** (`#8000c8`); empty-space clicks just deselect.
 - Draggable anchors (adjacent control points move rigidly with the
   anchor) + orange bezier control handles with dashed tethers.
   **Selection restyles handles in place — never rebuild handles in a
