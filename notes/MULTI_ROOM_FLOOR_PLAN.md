@@ -422,3 +422,41 @@ computed corners at ~(1.5,2.5) → off-stage → absent from export; with
 the fix corners are ~(14.5,4.5) → on-stage → present. Full matrix
 (pathShape in each of two rooms, zoom into each, meters AND feet): each
 room exports exactly its own pathShape and not the other's.
+
+## Round 17 (2026-07) — toolbar-zoom (zoomValue > 100) before double-clicking a Room Part
+
+If the user zoomed the canvas in with the toolbar zoom button
+(`zoomInOut()` → `zoomValue > 100`, `stage.scaleX/Y > 1`) and *then*
+double-clicked a Room Part, the part sometimes opened at the wrong
+location or looked empty. At `zoomValue === 100` it was always fine.
+
+Root cause: `getClientRect()` / `getAbsoluteTransform()` bake in the
+stage's zoom scale (`stage.scaleX/Y`), but the pixel→unit conversion in
+`getAbsolutePointsOfLine()` (polyRoom bbox) and `findFourCorners()`
+(pathShape/polyRoom off-stage test) divide by the **un-zoomed** global
+`scale` and subtract the un-zoomed `pxOffset`. So when the stage scale
+was ≠ 1 at read time, the polyRoom bbox came back inflated and offset
+(e.g. at 1.3× a floor-(13,2) 8×8 room read as x≈17.3, w≈10.4) →
+`zoomRoomPart()` seeded a bad `activeRoomX/Y/W/L` (**wrong location**)
+and the inflated/misplaced bounds pushed the room's items onto
+`itemsOffStageId` (**room looks empty**). boxRoomPart is immune (its
+bbox branch reads `item.x/item.y`, which are scale-free floor coords),
+matching the report that it's the polyRoom / contents that misbehave.
+
+`zoomRoomPart()` does call `zoomInOut('reset')` first (sets
+`stage.scaleX(1)`), which is why it's intermittent — normally the reset
+lands before the bbox read, but a stale Konva absolute-transform cache
+can leave `getClientRect()` reporting the pre-reset scale for one frame.
+
+Fix: make both readers scale-invariant by dividing the client-rect /
+absolute-transform pixels by the live `stage.scaleX()/scaleY()` (guarded
+`|| 1`) before the `pxOffset`/`scale` conversion. At 1× this is a no-op,
+so single-room and zoomed-out behaviour is unchanged; at any other zoom
+the bbox is now correct regardless of whether the reset has propagated.
+The `pixelUnit === true` branch of `getAbsolutePointsOfLine()` (drag-snap
+outline, wants on-screen pixels) is left untouched.
+
+Verified live: `getBoundingBoxInUnit()` on a floor-(13,2) 8×8 polyRoom
+returns x=13 y=2 w=8 h=8 at stage scales 1×, 1.3×, 2.5×, 4× (old
+un-guarded math returned x≈17.3 w≈10.4 at 1.3×); its device + pathShape
+stay on-stage.
