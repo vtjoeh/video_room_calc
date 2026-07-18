@@ -1421,6 +1421,23 @@ paraphrased (not copied) guidance, and the footer credits the
 standard: "Based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01)"
 with a link and a non-affiliation note.
 
+### Details panel — Image Aspect Ratio dropdown (`#itemDiscasAspectDiv`)
+
+Sits directly under the Display Diagonal Inches field
+(`#itemDiagonalTvDiv`) in the Details panel and mirrors
+`#discasAspectSelect` in the DISCAS dialog exactly — same three
+options (16:9 1.78 / 21:9 2.33 / 4:3 1.33), same underlying
+`item.data_aspectRatio` field, same default-omission threshold. Both
+controls read/write the same item field, so they naturally stay in
+sync without any two-way binding — each just reads fresh state when
+it opens/populates. `updateFormatDetails()` shows the div only for
+`displayCustom` and populates it from
+`Number(shape.data_aspectRatio) || DISCAS_DEFAULT_ASPECT`;
+`updateItem()` writes it back with the same
+`Math.abs(aspect - DISCAS_DEFAULT_ASPECT) > 0.001` store-or-delete
+rule `applyDiscasValuesToTarget()` uses. In both group-details
+`hideIds` lists next to `itemDiagonalTvDiv`.
+
 ### Canvas rendering
 
 Two `Konva.Shape` sceneFuncs in the standard `dispDist~{id}` coverage
@@ -1446,6 +1463,91 @@ screens still resolve to `displaySngl_2` (scoring ties keep the first
 `workspaceKey` entry), so `displayCustom` never steals generic screen
 imports; a WD round-trip intentionally comes back as a standard
 display.
+
+---
+
+## SVG Path Editor (`js/pathEditor/`)
+
+A lazy-loaded, self-contained visual editor for `pathShape` items —
+the native replacement for pointing users at external SVG tools. All
+editor code lives in `js/pathEditor/` (`pathEditor.js` +
+`pathEditor.css`) so it stays separable from core VRC;
+`window.VRC.pathEditor.open(opts)` is the only surface, Konva (already
+global) the only dependency, and nothing in the module reads VRC
+globals — the roomcalc.js glue passes everything in through `opts`.
+
+### Entry points
+
+- **Fresh insert**: `insertItemFromMenu()`'s pathShape branch opens
+  `openPathShapeDrawChooser(uuid)` (reuses the shared
+  `roleSelectionDialog`, same pattern as certifiedDisplay) offering
+  **Draw Simple Path** (the existing poly builder) or **SVG Path
+  Editor**.
+- **Details → Items**: the `labelPathId` row carries both buttons
+  (`simplePathEditor()` / `openSvgPathEditor()`).
+
+### Coordinate model (the important part)
+
+The editor canvas is the room floor plan in **meters, y-down** —
+1 editor unit = 1 m, matching the pathShape storage convention (path
+coords are meters; the Konva render multiplies by
+`scale × (feet ? 3.28084 : 1)`). `openSvgPathEditor()` (roomcalc.js)
+converts on the way in: item `x/y` (room units, floor coords) →
+anchor meters; labelField JSON `"scale"` multipliers and item
+`rotation` are **baked into the coordinates**; the background image
+rect (`roomObj.backgroundImage`, room units, opacity 0–100) →
+meters + 0–1 opacity, image element reused from
+`getKonvaBackgroundImageFloor()`. On close the editor re-centers the
+path on its anchor bbox center (Draw Simple Path convention: item
+x/y = center) and the glue writes `#itemX`/`#itemY`/`#itemRotation`
+(=0, rotation was baked)/`#labelPath`, strips the now-baked `"scale"`
+key from the `#labelField` JSON, and calls `updateItem()` — the same
+pipeline the simple builder uses, so undo/URL/labelField-merge come
+free.
+
+### Editor behaviour
+
+- Supported commands: M L H V C S Q T A Z, absolute + relative
+  (H/V→L, S→C, T→Q normalized on parse; output is absolute
+  M L C Q A Z). Packed arc-flag shorthand (`011`) is not tokenized.
+- Draggable anchors (adjacent control points move rigidly with the
+  anchor) + orange bezier control handles with dashed tethers;
+  double-click a segment to split it (de Casteljau for C/Q);
+  double-click empty space to append; Line ↔ Curve conversion and
+  Delete Point for the selected anchor; Revert restores the
+  as-opened path; raw path text field syncs both ways (invalid input
+  = red border, last good model kept).
+- **Snap to Grid and Fill reset to unchecked on every open** (per
+  spec). Snap step 0.1 m. Fill preview uses the item's fill color /
+  opacity (Details picker > label JSON > device default).
+- Close button (and Esc) **applies the path back** — there is no
+  cancel path; Revert-then-Close is the undo story inside the
+  editor, and the standard VRC undo covers the rest.
+- 1 m grid with adaptive step/labels, wheel zoom to cursor, drag to
+  pan, view auto-fits the path (else background, else room).
+
+### Footguns (learned the hard way)
+
+- The dialog `close` event is **unreliably delivered in some embedded
+  browsers** — sometimes never, sometimes late after a re-open (which
+  destroyed the new session's stage). Hence: `finishAndApply()` is
+  idempotent, invoked directly from the Close button and the Esc
+  keydown, and the `close` listener ignores events that arrive while
+  `dlg.open` is true.
+- The stylesheet must not set a bare `display: flex` on the dialog —
+  it overrides the UA's `display: none` for closed dialogs and leaves
+  a ghost on screen. `#vrcPathEditorDialog[open]` carries the flex.
+- Stage construction must wait for `pathEditor.css` to load
+  (`await cssReady`) — without it the flex layout hasn't run and the
+  Konva stage is created 0-high. A ResizeObserver on the canvas div
+  covers later size changes.
+- A dialog-level `keydown` handler stops propagation (except Esc) so
+  VRC's document-level shortcuts (Delete = delete item, Space =
+  Quick Add) can't fire while editing; Delete/Backspace inside the
+  editor deletes the selected anchor instead.
+
+Both files are in `sw.js` `PRECACHE_ASSETS`; the script is loaded via
+`loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR)`.
 
 ---
 

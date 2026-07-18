@@ -1,0 +1,141 @@
+/* VRC SVG Path Editor — all styles for the js/pathEditor/ module.
+ * Kept in this folder so the editor stays separable from core VRC.
+ * Class prefix: vrcpe- */
+
+#vrcPathEditorDialog {
+    position: fixed;
+    inset: 0;
+    width: 96vw;
+    height: 94vh;
+    max-width: 96vw;
+    max-height: 94vh;
+    margin: auto;
+    padding: 0;
+    border: 1px solid #bbb;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    display: none; /* the [open] rule below flips to flex — a bare `display: flex` here would override the UA's display:none for CLOSED dialogs and leave a ghost on screen */
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Inter', Helvetica, sans-serif;
+}
+
+#vrcPathEditorDialog[open] {
+    display: flex;
+}
+
+#vrcPathEditorDialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.vrcpe-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: #1a1a1a;
+    color: #fff;
+    flex: 0 0 auto;
+}
+
+.vrcpe-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-right: 6px;
+}
+
+.vrcpe-toolbar label.vrcpe-check {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.vrcpe-toolbar button {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #888;
+    border-radius: 14px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.vrcpe-toolbar button:hover:not(:disabled) {
+    background: #dceafc;
+    border-color: var(--active, #0352a6);
+}
+
+.vrcpe-toolbar button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.vrcpe-sep {
+    width: 1px;
+    align-self: stretch;
+    background: #555;
+    margin: 2px 2px;
+}
+
+.vrcpe-hint {
+    font-size: 11px;
+    color: #bbb;
+    margin-left: auto;
+    margin-right: 10px;
+}
+
+button.vrcpe-close {
+    background: var(--active, #0352a6);
+    color: #fff;
+    border-color: var(--active, #0352a6);
+    font-weight: 600;
+    padding: 5px 18px;
+}
+
+button.vrcpe-close:hover {
+    background: #0466cc !important;
+    color: #fff;
+}
+
+.vrcpe-canvas {
+    flex: 1 1 auto;
+    min-height: 0;
+    background: #fafafa;
+    position: relative;
+    overflow: hidden;
+}
+
+.vrcpe-pathbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    border-top: 1px solid #ccc;
+    flex: 0 0 auto;
+}
+
+.vrcpe-pathbar label {
+    font-size: 12px;
+    white-space: nowrap;
+    color: #333;
+}
+
+.vrcpe-pathbar input {
+    flex: 1 1 auto;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid #999;
+    border-radius: 6px;
+}
+
+.vrcpe-pathbar input.vrcpe-invalid {
+    border-color: #b00020;
+    outline: 1px solid #b00020;
+    background: #fff3f4;
+}

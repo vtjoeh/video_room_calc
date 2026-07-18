@@ -29,6 +29,8 @@ const PRECACHE_ASSETS = [
   './js/dxfWriter.js',
   './js/dxfBlockLibrary.js',
   './js/drpDownOverride.js',
+  './js/pathEditor/pathEditor.js',
+  './js/pathEditor/pathEditor.css',
   './js/util/units.js',
   './js/data/workspaceKey.js',
   './js/data/certifiedDisplays.js',

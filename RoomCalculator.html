@@ -546,11 +546,12 @@
                 <label class="tooltipBottom">Path Shape: <i class="icon icon-info-circle-bold"></i> <span
                     class="tooltiptextBottom">Path Shape are objects using SVG paths to create your own shapes in the
                     Video Room Calculator and Workspace Designer. Useful for table tops or curved walls. Use the <b>Draw
-                      Simple Path</b> tool for straight lines only. For curves, use a 3rd party tool like SvgPathEditor.
-                    For more
+                      Simple Path</b> tool for straight lines only. For curves, use the <b>SVG Path Editor</b>. For more
                     information, see the FAQ.</span><button class="button"
                     style="font-size: xx-small; padding: 4px 12px; align-self: inherit;"
-                    onclick="simplePathEditor()">Draw Simple Path</button></label>
+                    onclick="simplePathEditor()">Draw Simple Path</button><button class="button"
+                    style="font-size: xx-small; padding: 4px 12px; align-self: inherit; margin-left: 6px;"
+                    onclick="openSvgPathEditor()">SVG Path Editor</button></label>
                 <input type="text" id="labelPath" size="45" class="textInput">
 
               </div>
@@ -721,6 +722,17 @@
                     inches.</span></label>
                 <input type="text" id="itemDiagonalTv" maxlength="6" size="5" class="numberInput updateWidthOfDisplay">
                 <label class="unitInches">in</label>
+              </div>
+
+              <div class="inputField" id="itemDiscasAspectDiv" style="display: none;">
+                <label class="tooltip">Image Aspect Ratio: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Aspect ratio of the displayed image. Mirrors the Image Aspect
+                    Ratio setting in the DISCAS Viewer Coverage dialog.</span></label>
+                <select id="itemDiscasAspectSelect" class="drpDown" onchange="updateItem()">
+                  <option value="1.78">16:9 (1.78)</option>
+                  <option value="2.33">21:9 (2.33)</option>
+                  <option value="1.33">4:3 (1.33)</option>
+                </select>
               </div>
 
               <div class="inputRow" id="itemLineWidthPointerSizeRow" style="display: none;">

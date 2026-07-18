@@ -959,7 +959,7 @@ function populateGroupDetails(rectNode) {
 
     /* Hide everything that doesn't apply to a Group (non-group branch of updateFormatDetails re-shows itemNameDiv). */
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -2879,7 +2879,7 @@ function populateCustomItemDetails(rectNode) {
     if (!customItem) return;
 
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -12190,6 +12190,136 @@ function simplePathEditor(idOverride) {
     polyBuilderOn(true, 'customPathEditor');
 }
 
+/* Fresh-pathShape chooser (reuses the shared roleSelectionDialog, same pattern as
+ * openCertifiedDisplayDialog): Draw Simple Path (poly builder) vs. the SVG Path Editor. */
+function openPathShapeDrawChooser(uuid) {
+    const dialogHeader = document.getElementById('headerRoleSelection');
+    const chooserDialog = document.getElementById('roleSelectionDialog');
+    const innerDiv = document.getElementById('roleSelection');
+
+    if (!dialogHeader || !chooserDialog || !innerDiv) {
+        simplePathEditor(uuid);
+        return;
+    }
+
+    dialogHeader.innerText = 'How do you want to draw the path?';
+    innerDiv.innerHTML = '';
+
+    [
+        { label: 'Draw Simple Path', action: () => simplePathEditor(uuid) },
+        { label: 'SVG Path Editor', action: () => openSvgPathEditor(uuid) },
+    ].forEach(opt => {
+        const buttonDiv = document.createElement('div');
+        const button = document.createElement('button');
+        const buttonLabel = document.createElement('span');
+
+        buttonLabel.innerText = opt.label;
+        buttonLabel.classList.add('roleSelectButtonLabel');
+        buttonLabel.style.margin = 'auto';
+
+        button.classList.add('roleSelectButton');
+        button.appendChild(buttonLabel);
+
+        innerDiv.appendChild(buttonDiv);
+        buttonDiv.appendChild(button);
+
+        button.onclick = () => {
+            chooserDialog.close();
+            opt.action();
+        };
+    });
+
+    chooserDialog.showModal();
+}
+
+/* Open the lazy-loaded VRC SVG Path Editor (js/pathEditor/) for a pathShape.
+ * The editor works in floor-meters; this glue converts room units on the way in
+ * (item x/y/rotation, labelField JSON scale, background image rect) and writes the
+ * result back through the same Details-field + updateItem() pipeline the simple
+ * builder uses, with rotation and JSON scale baked into the returned coordinates. */
+function openSvgPathEditor(idOverride) {
+    const id = (typeof idOverride === 'string' && idOverride)
+        ? idOverride
+        : document.getElementById('itemId').innerText;
+
+    const node = stage.findOne('#' + id);
+    const item = roomObjItemsMap.get(id) || roomObj.items.find(i => i.id === id);
+    if (!node || !item || item.data_deviceid !== 'pathShape') return;
+
+    document.getElementById('itemId').innerText = id;
+    tr.nodes([node]);
+    enableCopyDelBtn();
+    updateFormatDetails(id); /* populate every Details field so the close-path updateItem() carries the item's current values */
+
+    const toM = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+    const lbl = parsePathShapeLabelFieldJson(item);
+    const labelStr = String(item.data_labelField || '');
+
+    let scaleX = 1, scaleY = 1;
+    const sm = labelStr.match(/"scale"\s*:\s*\[\s*([\-0-9.]+)\s*,\s*[\-0-9.]+\s*,\s*([\-0-9.]+)\s*\]/);
+    if (sm) { scaleX = Number(sm[1]) || 1; scaleY = Number(sm[2]) || 1; }
+
+    const cm = labelStr.match(/"color"\s*:\s*"([^"]+)"/);
+    const om = labelStr.match(/"opacity"\s*:\s*"?([\d.]+)"?/);
+    const fillColor = item.data_fill || (cm ? cm[1] : '#D3D3D3');
+    const fillOpacity = (item.data_opacity != null) ? Number(item.data_opacity) : (om ? parseFloat(om[1]) : 0.4);
+
+    let background = null;
+    const bgNode = getKonvaBackgroundImageFloor();
+    if (bgNode && typeof bgNode.image === 'function' && bgNode.image() && roomObj.backgroundImage) {
+        const bg = roomObj.backgroundImage;
+        background = {
+            image: bgNode.image(),
+            xM: (Number(bg.x) || 0) * toM,
+            yM: (Number(bg.y) || 0) * toM,
+            wM: (Number(bg.width) || 0) * toM,
+            hM: (Number(bg.height) || 0) * toM,
+            rotationDeg: Number(bg.rotation) || 0,
+            opacity: (bg.opacity != null) ? Number(bg.opacity) / 100 : 0.5, /* transparencySlider is 0-100 */
+        };
+    }
+
+    loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR).then(() => {
+        window.VRC.pathEditor.open({
+            path: lbl.path,
+            scaleX: scaleX,
+            scaleY: scaleY,
+            rotationDeg: Number(item.rotation) || 0,
+            anchorXM: (Number(item.x) || 0) * toM,
+            anchorYM: (Number(item.y) || 0) * toM,
+            fillColor: fillColor,
+            fillOpacity: fillOpacity,
+            background: background,
+            roomWM: (Number(roomObj.room.roomWidth) || 8) * toM,
+            roomLM: (Number(roomObj.room.roomLength) || 6) * toM,
+            onClose: (res) => {
+                if (!res) return;
+                document.getElementById('itemX').value = round(res.centerXM / toM - activeRoomX);
+                document.getElementById('itemY').value = round(res.centerYM / toM - activeRoomY);
+                document.getElementById('itemRotation').value = '0';
+                document.getElementById('labelPath').value = res.path;
+                /* Scale was baked into the returned coordinates — strip any "scale" key from
+                 * the label JSON so combinePathShapeLabel() doesn't re-apply it on render. */
+                const lblInput = document.getElementById('labelField');
+                const jsonPart = /{.*}/.exec(lblInput.value);
+                if (jsonPart) {
+                    try {
+                        const obj = JSON.parse(jsonPart[0]);
+                        if ('scale' in obj) {
+                            delete obj.scale;
+                            const textPart = lblInput.value.replace(/{.*?}/g, '').trim();
+                            lblInput.value = (textPart + (Object.keys(obj).length ? JSON.stringify(obj) : '')).trim();
+                        }
+                    } catch { /* unparseable JSON — leave the label untouched */ }
+                }
+                updateItem();
+            },
+        });
+    }).catch(() => {
+        alertDialog('SVG Path Editor', 'Could not load the path editor module. Please refresh the page and try again.');
+    });
+}
+
 function polyBuilderOn(event, mode = 'polyRoom') {
     let turnOn;
 
@@ -18760,6 +18890,15 @@ function updateItem() {
             applyCertifiedDisplayIndexToAttrs(item, __cdIndex);
         }
 
+        /* displayCustom: Image Aspect Ratio dropdown mirrors discasAspectSelect in the DISCAS
+         * dialog — same field (data_aspectRatio), same default-omission threshold. */
+        if (data_deviceid === 'displayCustom') {
+            const __dcAspSel = document.getElementById('itemDiscasAspectSelect');
+            const __dcAspect = __dcAspSel ? (Number(__dcAspSel.value) || DISCAS_DEFAULT_ASPECT) : (Number(item.data_aspectRatio) || DISCAS_DEFAULT_ASPECT);
+            if (Math.abs(__dcAspect - DISCAS_DEFAULT_ASPECT) > 0.001) item.data_aspectRatio = __dcAspect;
+            else delete item.data_aspectRatio;
+        }
+
         if (document.getElementById('drpRole').options.length > 0) {
 
             item.data_role = {};
@@ -23994,6 +24133,17 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         discasSettingsDiv.style.display = (shape.data_deviceid === 'displayCustom') ? '' : 'none';
     }
 
+    /* displayCustom: Image Aspect Ratio dropdown, mirrors discasAspectSelect in the DISCAS dialog. */
+    const itemDiscasAspectDiv = document.getElementById('itemDiscasAspectDiv');
+    if (itemDiscasAspectDiv) {
+        if (shape.data_deviceid === 'displayCustom') {
+            itemDiscasAspectDiv.style.display = '';
+            document.getElementById('itemDiscasAspectSelect').value = String(Number(shape.data_aspectRatio) || DISCAS_DEFAULT_ASPECT);
+        } else {
+            itemDiscasAspectDiv.style.display = 'none';
+        }
+    }
+
 
 
     if ('data_deviceid' in item && 'wideHorizontalFOV' in allDeviceTypes[item.data_deviceid]) {
@@ -25073,14 +25223,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         canvasToJson();
 
-        /* pathShape: auto-launch the simple path editor so the user
-         * starts drawing immediately rather than having to select the
-         * placeholder shape and click "Draw Simple Path". The 300 ms
-         * defer is past the 250 ms tr.nodes()/updateFormatDetails()
+        /* pathShape: offer Draw Simple Path vs. SVG Path Editor on insert.
+         * The 300 ms defer is past the 250 ms tr.nodes()/updateFormatDetails()
          * timer inside insertShapeItem() so #itemId is fully populated
-         * before the editor hides the node and enters polyBuilder mode. */
+         * before either editor takes over. */
         if (data_deviceid === 'pathShape') {
-            setTimeout(() => { simplePathEditor(uuid); }, 300);
+            setTimeout(() => { openPathShapeDrawChooser(uuid); }, 300);
         }
 
         showDeviceInsertMessage(data_deviceid)

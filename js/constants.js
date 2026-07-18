@@ -25,6 +25,7 @@ window.VRC.constants = Object.freeze({
     SCRIPT_DXF_BLOCK_LIB:          './js/dxfBlockLibrary.js',
     SCRIPT_MIGRATE_LEGACY_ITEMS:   './js/migrateLegacyItemsShape.js',
     SCRIPT_COLOR_PICKER:           './js/colorPicker.js',
+    SCRIPT_PATH_EDITOR:            './js/pathEditor/pathEditor.js',
 
     /* Debug overlay (?debug=1). Refresh interval for the item / node
      * count display in milliseconds. The FPS readout updates once per
