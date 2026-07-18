@@ -460,3 +460,46 @@ Verified live: `getBoundingBoxInUnit()` on a floor-(13,2) 8×8 polyRoom
 returns x=13 y=2 w=8 h=8 at stage scales 1×, 1.3×, 2.5×, 4× (old
 un-guarded math returned x≈17.3 w≈10.4 at 1.3×); its device + pathShape
 stay on-stage.
+
+## Round 18 (2026-07) — the real cause of Round 17: stage PAN position (scroll), not just zoom scale
+
+Round 17's scale-only guard was **incomplete**. The actual trigger is
+the stage **pan position**, not the zoom scale. `repositionStage()`
+([js/roomcalc.js](js/roomcalc.js), bound to the scroll-container's
+`'scroll'` event) sets `stage.x(-scrollLeft)` / `stage.y(-scrollTop)`
+every time the canvas scrolls. When the user toolbar-zooms (zoomValue >
+100) and **scrolls** to bring a Room Part into view before
+double-clicking it, `stage.x/y` hold a large negative pan.
+
+`zoomRoomPart()` → `zoomInOut('reset')` sets `scrollLeft/Top = 0`, but
+`repositionStage()` (which would zero `stage.x/y`) runs on the **async**
+`'scroll'` event — it hasn't fired by the time `getBoundingBoxInUnit()`
+runs synchronously in the same call stack. So `stage.x/y` still holds
+the pre-reset pan (e.g. `stage.y() === -825`), and
+`getClientRect()` / `getAbsoluteTransform()` (which bake in stage
+position) come back offset by the scroll amount. Result: `activeRoomY`
+resolved to ≈ -58.8 instead of 70, the room's items failed the
+floor-coord intersection test in `listItemsOffStage()`, and the room
+opened **empty**. This is why image-3 showed 100 % zoom (scale already
+reset) yet still broken — the leftover was the pan, not the scale.
+
+Fix (completes Round 17): invert BOTH stage transforms in the
+`pixelUnit === false` branch of `getAbsolutePointsOfLine()` and in the
+pathShape/polyRoom branch of `findFourCorners()` — **subtract
+`stage.x()` / `stage.y()`** and then divide by `stage.scaleX()/scaleY()`:
+
+```
+unit = ((clientPixel - stagePos) / stageScale - pxOffset) / scale + activeRoom
+```
+
+Widths/heights only divide by scale (deltas — the pan cancels). At the
+floor view (`stage.x/y === 0`, scale 1) every term is a no-op, so
+zoomed-out and single-room behaviour is byte-identical. The
+`pixelUnit === true` branch (drag-snap outline) is still untouched.
+
+Verified live with the reporter's exact flow — L-shape polyRoom in the
+bottom-left of a 110×88 ft floor, zoom to 225 %, scroll to the room,
+double-click: A/B in one session showed the scale-only build resolving
+`activeRoomY ≈ -58.8` with the chair off-stage (empty room) and the
+full build resolving `activeRoomY = 70` with the chair on-stage across
+scroll fractions 0 / 0.5 / 1.0.

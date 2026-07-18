@@ -17414,12 +17414,12 @@ function findFourCorners(item) {
         if (node) {
             let b = node.getClientRect();
 
-            /* getClientRect() bakes in the stage zoom (stage.scaleX/Y); pxOffset/scale are un-zoomed logical pixels, so divide it out (1 when not toolbar-zoomed) or an offset/inflated bbox mis-classifies the shape in the off-stage filter. See getAbsolutePointsOfLine for the same guard. */
+            /* getClientRect() bakes in the stage pan position (stage.x/y) AND zoom (stage.scaleX/Y); pxOffset/scale are un-panned, un-zoomed logical pixels, so invert both (subtract stage position, divide by stage scale) or a scrolled/zoomed bbox mis-classifies the shape in the off-stage filter. See getAbsolutePointsOfLine for the same guard and the scroll/reset race it defends against. */
             const stageScaleX = stage.scaleX() || 1;
             const stageScaleY = stage.scaleY() || 1;
             /* +activeRoomX/Y so corners are FLOOR coords (0 when zoomed out). getClientRect() is on-screen pixels, so without this the bbox comes back relative to the active Room Part — the off-stage/intersection tests (listItemsOffStage, inventory) compare against floor-coord room borders, so an offset room would wrongly filter this shape out of the WD export. Matches the (pixel - pxOffset)/scale + activeRoomX convention used everywhere else. */
-            let x = ((b.x / stageScaleX - pxOffset) / scale) + activeRoomX;
-            let y = ((b.y / stageScaleY - pyOffset) / scale) + activeRoomY;
+            let x = (((b.x - stage.x()) / stageScaleX - pxOffset) / scale) + activeRoomX;
+            let y = (((b.y - stage.y()) / stageScaleY - pyOffset) / scale) + activeRoomY;
             let width = (b.width / stageScaleX) / scale;
             let height = (b.height / stageScaleY) / scale;
 
@@ -17589,12 +17589,12 @@ function getAbsolutePointsOfLine(node, pixelUnit = false) {
             x = point.x;
             y = point.y;
         } else {
-            /* getAbsoluteTransform() bakes in the stage zoom (stage.scaleX/Y), but pxOffset/scale are un-zoomed logical pixels — divide it out so the bbox is correct at any zoom. Without this, zooming in with the toolbar (zoomValue > 100) then double-clicking a Room Part reads an inflated/offset bbox → wrong activeRoomX/Y (room mislocated) and wrong bounds (items filtered off-stage → room looks empty). */
+            /* getAbsoluteTransform() bakes in the stage's pan position (stage.x/y, set to -scrollLeft/-scrollTop by repositionStage on scroll) AND its zoom (stage.scaleX/Y), but pxOffset/scale are un-panned, un-zoomed logical pixels. Invert both — subtract the stage position, divide by the stage scale — so the bbox is correct regardless of scroll/zoom. Without this, toolbar-zooming (zoomValue > 100) and scrolling to a Room Part before double-clicking it reads an offset/inflated bbox → wrong activeRoomX/Y (room mislocated) and wrong bounds (items filtered off-stage → room looks empty). The reset in zoomRoomPart clears scroll but repositionStage runs on the async scroll event, so stage.x/y can still hold the pre-reset pan when this runs synchronously. */
             const stageScaleX = stage.scaleX() || 1;
             const stageScaleY = stage.scaleY() || 1;
             /* +activeRoomX/Y so the result is FLOOR coords (0 when zoomed out). Without this, computing a polyRoom's bbox while already zoomed into another Room Part returns coords relative to the active room, so switching rooms mislocates everything. Matches the (pixel - pxOffset)/scale + activeRoomX convention used everywhere else. */
-            x = ((point.x / stageScaleX - pxOffset) / scale) + activeRoomX;
-            y = ((point.y / stageScaleY - pyOffset) / scale) + activeRoomY;
+            x = (((point.x - stage.x()) / stageScaleX - pxOffset) / scale) + activeRoomX;
+            y = (((point.y - stage.y()) / stageScaleY - pyOffset) / scale) + activeRoomY;
         }
 
 
