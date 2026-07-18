@@ -1488,43 +1488,57 @@ globals — the roomcalc.js glue passes everything in through `opts`.
 
 ### Coordinate model (the important part)
 
-The editor canvas is the room floor plan in **meters, y-down** —
-1 editor unit = 1 m, matching the pathShape storage convention (path
-coords are meters; the Konva render multiplies by
-`scale × (feet ? 3.28084 : 1)`). `openSvgPathEditor()` (roomcalc.js)
-converts on the way in: item `x/y` (room units, floor coords) →
-anchor meters; labelField JSON `"scale"` multipliers and item
-`rotation` are **baked into the coordinates**; the background image
-rect (`roomObj.backgroundImage`, room units, opacity 0–100) →
-meters + 0–1 opacity, image element reused from
-`getKonvaBackgroundImageFloor()`. On close the editor re-centers the
-path on its anchor bbox center (Draw Simple Path convention: item
-x/y = center) and the glue writes `#itemX`/`#itemY`/`#itemRotation`
-(=0, rotation was baked)/`#labelPath`, strips the now-baked `"scale"`
-key from the `#labelField` JSON, and calls `updateItem()` — the same
-pipeline the simple builder uses, so undo/URL/labelField-merge come
-free.
+The editor canvas is **item-local meters, y-down** — 1 editor unit =
+1 m, the path centered around the origin exactly as stored in the
+labelField JSON (path coords are meters; the Konva render multiplies
+by `scale × (feet ? 3.28084 : 1)`). Blue center axes cross at the
+origin. The background image and the room wall outline are translated
+by **minus the item anchor** so they sit at their true positions
+relative to the path. `openSvgPathEditor()` (roomcalc.js) converts on
+the way in: item `x/y` (room units, floor coords) → anchor meters
+(passed for the bg/walls translation); labelField JSON `"scale"`
+multipliers and item `rotation` are **baked into the path
+coordinates**; the background image rect (`roomObj.backgroundImage`,
+room units, opacity 0–100) → meters + 0–1 opacity, image element
+reused from `getKonvaBackgroundImageFloor()`. On close the editor
+re-centers the path on its anchor bbox center (Draw Simple Path
+convention: item x/y = center), returns the new center in FLOOR
+meters (anchor + local delta), and the glue writes
+`#itemX`/`#itemY`/`#itemRotation` (=0, rotation was baked)/
+`#labelPath`, strips the now-baked `"scale"` key from the
+`#labelField` JSON, and calls `updateItem()` — the same pipeline the
+simple builder uses, so undo/URL/labelField-merge come free.
 
 ### Editor behaviour
 
 - Supported commands: M L H V C S Q T A Z, absolute + relative
   (H/V→L, S→C, T→Q normalized on parse; output is absolute
   M L C Q A Z). Packed arc-flag shorthand (`011`) is not tokenized.
+- **Click interactions** (mirrors the Draw Simple Path builder):
+  click empty space adds a point (**Line / Curve mode buttons**
+  choose the segment type) while the path is open; the **first point
+  is enlarged and highlights yellow on hover — clicking it (or near
+  it) closes the path** (mirror of the polyBuilder finish circle);
+  click a segment to insert a point at that spot (de Casteljau split
+  for C/Q); click a point to select it — the selected point and the
+  segment into it draw **purple** (`#8000c8`).
 - Draggable anchors (adjacent control points move rigidly with the
-  anchor) + orange bezier control handles with dashed tethers;
-  double-click a segment to split it (de Casteljau for C/Q);
-  double-click empty space to append; Line ↔ Curve conversion and
-  Delete Point for the selected anchor; Revert restores the
-  as-opened path; raw path text field syncs both ways (invalid input
-  = red border, last good model kept).
-- **Snap to Grid and Fill reset to unchecked on every open** (per
-  spec). Snap step 0.1 m. Fill preview uses the item's fill color /
-  opacity (Details picker > label JSON > device default).
+  anchor) + orange bezier control handles with dashed tethers.
+  **Selection restyles handles in place — never rebuild handles in a
+  mousedown handler**: destroying the node under the pointer kills
+  the drag before it starts (the "points won't drag" bug).
+- Line ↔ Curve conversion and Delete Point for the selected anchor;
+  Revert restores the as-opened path; the **left side pane (≥200 px)**
+  holds the path textarea, synced both ways (invalid input = red
+  border, last good model kept). No snap, no fill toggle — stroke-only
+  preview.
 - Close button (and Esc) **applies the path back** — there is no
   cancel path; Revert-then-Close is the undo story inside the
   editor, and the standard VRC undo covers the rest.
 - 1 m grid with adaptive step/labels, wheel zoom to cursor, drag to
-  pan, view auto-fits the path (else background, else room).
+  pan; **room wall outline** drawn from `roomWM/roomLM` in the local
+  frame; view fits the union of the path bbox and the walls so the
+  room context is visible on open.
 
 ### Footguns (learned the hard way)
 

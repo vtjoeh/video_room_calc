@@ -24,10 +24,6 @@
     display: flex;
 }
 
-#vrcPathEditorDialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
-}
-
 .vrcpe-toolbar {
     display: flex;
     align-items: center;
@@ -43,15 +39,6 @@
     font-weight: 600;
     font-size: 15px;
     margin-right: 6px;
-}
-
-.vrcpe-toolbar label.vrcpe-check {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    cursor: pointer;
-    user-select: none;
 }
 
 .vrcpe-toolbar button {
@@ -72,6 +59,12 @@
 .vrcpe-toolbar button:disabled {
     opacity: 0.4;
     cursor: default;
+}
+
+.vrcpe-toolbar button.vrcpe-mode-active {
+    background: var(--active, #0352a6);
+    color: #fff;
+    border-color: var(--active, #0352a6);
 }
 
 .vrcpe-sep {
@@ -101,41 +94,52 @@ button.vrcpe-close:hover {
     color: #fff;
 }
 
-.vrcpe-canvas {
+.vrcpe-body {
     flex: 1 1 auto;
     min-height: 0;
-    background: #fafafa;
-    position: relative;
-    overflow: hidden;
-}
-
-.vrcpe-pathbar {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
+}
+
+.vrcpe-sidepane {
+    flex: 0 0 220px;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
     background: #f0f0f0;
-    border-top: 1px solid #ccc;
-    flex: 0 0 auto;
+    border-right: 1px solid #ccc;
 }
 
-.vrcpe-pathbar label {
+.vrcpe-sidepane label {
     font-size: 12px;
-    white-space: nowrap;
     color: #333;
+    font-weight: 600;
 }
 
-.vrcpe-pathbar input {
+.vrcpe-sidepane textarea {
     flex: 1 1 auto;
+    resize: none;
     font-family: monospace;
     font-size: 12px;
-    padding: 5px 8px;
+    line-height: 1.5;
+    padding: 6px 8px;
     border: 1px solid #999;
     border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
-.vrcpe-pathbar input.vrcpe-invalid {
+.vrcpe-sidepane textarea.vrcpe-invalid {
     border-color: #b00020;
     outline: 1px solid #b00020;
     background: #fff3f4;
+}
+
+.vrcpe-canvas {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #fafafa;
+    position: relative;
+    overflow: hidden;
 }

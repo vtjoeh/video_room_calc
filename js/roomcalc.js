@@ -12259,11 +12259,6 @@ function openSvgPathEditor(idOverride) {
     const sm = labelStr.match(/"scale"\s*:\s*\[\s*([\-0-9.]+)\s*,\s*[\-0-9.]+\s*,\s*([\-0-9.]+)\s*\]/);
     if (sm) { scaleX = Number(sm[1]) || 1; scaleY = Number(sm[2]) || 1; }
 
-    const cm = labelStr.match(/"color"\s*:\s*"([^"]+)"/);
-    const om = labelStr.match(/"opacity"\s*:\s*"?([\d.]+)"?/);
-    const fillColor = item.data_fill || (cm ? cm[1] : '#D3D3D3');
-    const fillOpacity = (item.data_opacity != null) ? Number(item.data_opacity) : (om ? parseFloat(om[1]) : 0.4);
-
     let background = null;
     const bgNode = getKonvaBackgroundImageFloor();
     if (bgNode && typeof bgNode.image === 'function' && bgNode.image() && roomObj.backgroundImage) {
@@ -12287,8 +12282,6 @@ function openSvgPathEditor(idOverride) {
             rotationDeg: Number(item.rotation) || 0,
             anchorXM: (Number(item.x) || 0) * toM,
             anchorYM: (Number(item.y) || 0) * toM,
-            fillColor: fillColor,
-            fillOpacity: fillOpacity,
             background: background,
             roomWM: (Number(roomObj.room.roomWidth) || 8) * toM,
             roomLM: (Number(roomObj.room.roomLength) || 6) * toM,

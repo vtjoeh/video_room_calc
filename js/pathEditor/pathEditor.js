@@ -5,23 +5,31 @@
  * (roomObj, stage, scale, ...) so the module stays separable. Konva is
  * the only external dependency (already loaded globally by VRC).
  *
- * Coordinate model: the editor canvas is the room floor plan in METERS
- * (1 editor unit = 1 m, y-down like both SVG and the VRC canvas). The
- * caller converts feet to meters before open() and back after onClose.
+ * Coordinate model: ITEM-LOCAL METERS, y-down — the path is centered
+ * around the origin (the item anchor), exactly as stored in the
+ * labelField JSON. The background image and the room wall outline are
+ * translated by minus the item anchor so everything sits at its true
+ * relative position. 1 editor unit = 1 m; the caller converts feet.
  *
  * opts = {
  *   path:            SVG path string (pathShape convention: meters, (0,0) at the item anchor)
  *   scaleX, scaleY:  labelField JSON scale multipliers to bake into coords (default 1)
  *   rotationDeg:     item rotation to bake into coords (default 0)
- *   anchorXM, anchorYM: floor position in meters where path (0,0) lands
- *   fillColor, fillOpacity: preview fill when the Fill checkbox is on
- *   background:      null | { image: HTMLImageElement, xM, yM, wM, hM, rotationDeg, opacity }
- *   roomWM, roomLM:  room size in meters (view fallback when there is no path/background)
- *   onClose(result): result = { path, centerXM, centerYM } — path is re-centered on its
- *                    bounding-box center (matching the Draw Simple Path convention), always
- *                    absolute commands in meters, rotation baked in (caller writes rotation 0).
+ *   anchorXM, anchorYM: item anchor in floor meters (translates background/walls; returned center is floor coords)
+ *   background:      null | { image: HTMLImageElement, xM, yM, wM, hM, rotationDeg, opacity }  (floor meters)
+ *   roomWM, roomLM:  room size in meters (wall outline + view fallback)
+ *   onClose(result): result = { path, centerXM, centerYM } — path re-centered on its anchor
+ *                    bbox center, centerXM/YM in FLOOR meters (anchor + local center).
  *                    null when the path is empty/degenerate.
  * }
+ *
+ * Interactions (mirrors the Draw Simple Path builder where it applies):
+ *   click empty space  — add a point (Line or Curve segment per the mode buttons) while the path is open
+ *   click first point  — close the path (first point is enlarged and highlights yellow, like the simple builder)
+ *   click a segment    — insert a point at that spot
+ *   click a point      — select it; the segment into it draws purple
+ *   drag a point       — move it (adjacent curve controls move rigidly with it)
+ *   drag empty space   — pan;  scroll — zoom
  *
  * Supported path commands: M L H V C S Q T A Z, absolute and relative.
  * H/V normalize to L, S to C, T to Q on parse; output uses M L C Q A Z only.
@@ -34,21 +42,25 @@
 
     window.VRC = window.VRC || {};
 
-    const SNAP_STEP = 0.1;           /* meters */
     const MIN_PX_PER_M = 2;
     const MAX_PX_PER_M = 2000;
+    const SELECT_COLOR = '#8000c8';   /* purple — selected segment + anchor */
+    const PATH_COLOR = '#0352a6';
 
     let dlg = null;
-    let ui = {};                     /* toolbar/input elements, filled by buildDialog() */
+    let ui = {};
     let konvaStage = null;
     let gridLayer, bgLayer, pathLayer, handleLayer;
     let previewPath = null;
-    let segs = [];                   /* parsed absolute segments */
-    let initialSegs = null;          /* deep copy for Revert */
-    let selIndex = -1;               /* selected segment index (its endpoint is the anchor) */
+    let selectedOverlay = null;      /* purple Konva.Path over the selected segment */
+    let segs = [];
+    let initialSegs = null;
+    let selIndex = -1;
+    let drawMode = 'L';              /* 'L' or 'C' — what a click on empty space appends */
+    let anchorNodes = [];            /* [{ segIndex, node }] for in-place restyle (no rebuild on select — a rebuild mid-mousedown destroys the node being dragged) */
     let activeOpts = null;
     let rafPending = false;
-    let cssReady = null;             /* stylesheet load promise — stage layout depends on it */
+    let cssReady = null;
 
     /* ---------------- path parsing / serializing ---------------- */
 
@@ -56,14 +68,13 @@
         return String(d || '').match(/[MmLlHhVvCcSsQqTtAaZz]|-?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) || [];
     }
 
-    /* Parse to absolute segments: {c:'M'|'L',x,y} {c:'C',x1,y1,x2,y2,x,y} {c:'Q',x1,y1,x,y} {c:'A',rx,ry,rot,laf,sf,x,y} {c:'Z'}. Throws on malformed input. */
     function parsePathD(d) {
         const t = tokenizePathD(d);
         if (!t.length) throw new Error('empty path');
         const out = [];
         let i = 0, cx = 0, cy = 0, sx = 0, sy = 0;
         let cmd = null;
-        let prevC = null, prevQ = null; /* previous control points for S/T reflection */
+        let prevC = null, prevQ = null;
 
         const num = () => {
             const v = parseFloat(t[i++]);
@@ -75,7 +86,6 @@
             const tok = t[i];
             if (/[A-Za-z]/.test(tok)) { cmd = tok; i++; }
             else if (cmd === null) throw new Error('path must start with M');
-            /* implicit repeat: M repeats as L (m as l) */
             else if (cmd === 'M') cmd = 'L';
             else if (cmd === 'm') cmd = 'l';
 
@@ -176,13 +186,13 @@
         return parts.join(' ');
     }
 
-    /* Bake labelField scale + item rotation + anchor into absolute floor-meter coords. */
-    function transformSegsIntoFloor(list, scaleX, scaleY, rotationDeg, anchorXM, anchorYM) {
+    /* Bake labelField scale + item rotation into the local coords (origin stays at the item anchor). */
+    function bakeScaleRotation(list, scaleX, scaleY, rotationDeg) {
         const rad = (rotationDeg || 0) * Math.PI / 180;
         const cos = Math.cos(rad), sin = Math.sin(rad);
         const tp = (x, y) => {
             const px = x * scaleX, py = y * scaleY;
-            return { x: anchorXM + px * cos - py * sin, y: anchorYM + px * sin + py * cos };
+            return { x: px * cos - py * sin, y: px * sin + py * cos };
         };
         list.forEach(s => {
             if (s.c === 'Z') return;
@@ -198,8 +208,11 @@
 
     /* ---------------- geometry helpers ---------------- */
 
+    function isPathOpen() {
+        return !segs.some(s => s.c === 'Z');
+    }
+
     function segStartPoint(index) {
-        /* start point of segment = endpoint of the previous drawable segment (or subpath M for the segment after Z) */
         for (let i = index - 1; i >= 0; i--) {
             const s = segs[i];
             if (s.c === 'Z') {
@@ -222,14 +235,12 @@
                 y: u * u * p0.y + 2 * u * t * s.y1 + t * t * s.y,
             };
         }
-        /* C */
         return {
             x: u * u * u * p0.x + 3 * u * u * t * s.x1 + 3 * u * t * t * s.x2 + t * t * t * s.x,
             y: u * u * u * p0.y + 3 * u * u * t * s.y1 + 3 * u * t * t * s.y2 + t * t * t * s.y,
         };
     }
 
-    /* Nearest drawable segment + parameter t to a world point (sampled). */
     function nearestSegment(wp) {
         let best = null;
         segs.forEach((s, i) => {
@@ -269,26 +280,28 @@
         dlg.innerHTML = `
             <div class="vrcpe-toolbar">
                 <span class="vrcpe-title">SVG Path Editor</span>
-                <label class="vrcpe-check"><input type="checkbox" id="vrcpeSnap"> Snap to Grid</label>
-                <label class="vrcpe-check"><input type="checkbox" id="vrcpeFill"> Fill</label>
+                <button id="vrcpeModeLine" class="vrcpe-mode-active">Line</button>
+                <button id="vrcpeModeCurve">Curve</button>
                 <span class="vrcpe-sep"></span>
                 <button id="vrcpeToCurve" disabled>Line &rarr; Curve</button>
                 <button id="vrcpeToLine" disabled>Curve &rarr; Line</button>
                 <button id="vrcpeDeletePt" disabled>Delete Point</button>
                 <button id="vrcpeRevert">Revert</button>
-                <span class="vrcpe-hint">Double-click a segment to add a point &middot; double-click empty space to append &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter</span>
+                <span class="vrcpe-hint">Click to add a point &middot; click the first point to close &middot; click a line to insert a point &middot; drag a point to move it &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter</span>
                 <button id="vrcpeClose" class="vrcpe-close">Close</button>
             </div>
-            <div class="vrcpe-canvas" id="vrcpeCanvas"></div>
-            <div class="vrcpe-pathbar">
-                <label>Path (meters):</label>
-                <input type="text" id="vrcpePathText" spellcheck="false" autocomplete="off">
+            <div class="vrcpe-body">
+                <div class="vrcpe-sidepane">
+                    <label>Path (meters):</label>
+                    <textarea id="vrcpePathText" spellcheck="false" autocomplete="off"></textarea>
+                </div>
+                <div class="vrcpe-canvas" id="vrcpeCanvas"></div>
             </div>`;
         document.body.appendChild(dlg);
 
         ui = {
-            snap: dlg.querySelector('#vrcpeSnap'),
-            fill: dlg.querySelector('#vrcpeFill'),
+            modeLine: dlg.querySelector('#vrcpeModeLine'),
+            modeCurve: dlg.querySelector('#vrcpeModeCurve'),
             toCurve: dlg.querySelector('#vrcpeToCurve'),
             toLine: dlg.querySelector('#vrcpeToLine'),
             deletePt: dlg.querySelector('#vrcpeDeletePt'),
@@ -304,7 +317,8 @@
             selIndex = -1;
             refreshAll();
         };
-        ui.fill.onchange = () => applyFill();
+        ui.modeLine.onclick = () => setDrawMode('L');
+        ui.modeCurve.onclick = () => setDrawMode('C');
         ui.toCurve.onclick = () => convertSelected('C');
         ui.toLine.onclick = () => convertSelected('L');
         ui.deletePt.onclick = () => deleteSelected();
@@ -315,7 +329,7 @@
                 ui.pathText.classList.remove('vrcpe-invalid');
                 segs = parsed;
                 selIndex = -1;
-                refreshAll(true); /* skip text rewrite while the user is typing */
+                refreshAll(true);
             } catch {
                 ui.pathText.classList.add('vrcpe-invalid');
             }
@@ -348,6 +362,12 @@
         };
         window.addEventListener('resize', syncStageSize);
         new ResizeObserver(syncStageSize).observe(ui.canvas);
+    }
+
+    function setDrawMode(mode) {
+        drawMode = mode;
+        ui.modeLine.classList.toggle('vrcpe-mode-active', mode === 'L');
+        ui.modeCurve.classList.toggle('vrcpe-mode-active', mode === 'C');
     }
 
     /* ---------------- Konva stage ---------------- */
@@ -386,19 +406,32 @@
             scheduleRedraw(true);
         });
 
-        konvaStage.on('dblclick dbltap', (e) => {
+        /* Click on empty canvas: append a point while the path is open (Konva suppresses click after a drag, so pans don't add points).
+         * A click NEAR the first point closes the path instead — covers near-misses of the (small) first-point circle. */
+        konvaStage.on('click tap', (e) => {
             if (e.target !== konvaStage) return;
-            appendPointAtPointer();
-        });
-
-        konvaStage.on('mousedown touchstart', (e) => {
-            if (e.target === konvaStage) { selIndex = -1; syncSelectionUi(); rebuildHandles(); }
+            if (isPathOpen()) {
+                const wp = worldPointer();
+                const m0 = segs[0];
+                if (m0 && segs.filter(g => g.c !== 'Z').length >= 3) {
+                    const r = handleRadius() * 2.5;
+                    if ((wp.x - m0.x) ** 2 + (wp.y - m0.y) ** 2 <= r * r) {
+                        segs.push({ c: 'Z' });
+                        refreshAll();
+                        return;
+                    }
+                }
+                appendPointAtPointer();
+            }
+            else { selIndex = -1; syncSelection(); }
         });
     }
 
     function destroyStage() {
         if (konvaStage) { konvaStage.destroy(); konvaStage = null; }
         previewPath = null;
+        selectedOverlay = null;
+        anchorNodes = [];
     }
 
     function worldPointer() {
@@ -407,9 +440,7 @@
         return { x: (p.x - konvaStage.x()) / s, y: (p.y - konvaStage.y()) / s };
     }
 
-    const snapVal = (v) => ui.snap.checked ? Math.round(v / SNAP_STEP) * SNAP_STEP : v;
-
-    /* ---------------- grid ---------------- */
+    /* ---------------- grid + axes + walls ---------------- */
 
     function visibleWorldRect() {
         const s = konvaStage.scaleX();
@@ -437,11 +468,11 @@
         const y0 = Math.floor(r.y / step) * step;
         const showLabels = step * s >= 40;
         for (let x = x0; x <= r.x + r.w; x += step) {
-            const onAxis = Math.abs(x) < step / 2000;
+            if (Math.abs(x) < step / 2000) continue; /* axis drawn separately below */
             gridLayer.add(new Konva.Line({
                 points: [x, r.y, x, r.y + r.h],
-                stroke: onAxis ? '#7aa7d4' : '#ddd',
-                strokeWidth: onAxis ? 2 * lw : lw,
+                stroke: '#ddd',
+                strokeWidth: lw,
             }));
             if (showLabels) {
                 gridLayer.add(new Konva.Text({
@@ -451,18 +482,35 @@
             }
         }
         for (let y = y0; y <= r.y + r.h; y += step) {
-            const onAxis = Math.abs(y) < step / 2000;
+            if (Math.abs(y) < step / 2000) continue;
             gridLayer.add(new Konva.Line({
                 points: [r.x, y, r.x + r.w, y],
-                stroke: onAxis ? '#7aa7d4' : '#ddd',
-                strokeWidth: onAxis ? 2 * lw : lw,
+                stroke: '#ddd',
+                strokeWidth: lw,
             }));
-            if (showLabels && Math.abs(y) > step / 2000) {
+            if (showLabels) {
                 gridLayer.add(new Konva.Text({
                     x: r.x + 3 / s, y: y + 3 / s,
                     text: fmt(y), fontSize: 11 / s, fill: '#999',
                 }));
             }
+        }
+
+        /* center axes through the origin (= the path center once saved) */
+        gridLayer.add(new Konva.Line({ points: [0, r.y, 0, r.y + r.h], stroke: '#4477cc', strokeWidth: 2 * lw }));
+        gridLayer.add(new Konva.Line({ points: [r.x, 0, r.x + r.w, 0], stroke: '#4477cc', strokeWidth: 2 * lw }));
+
+        /* room wall outline, translated into the item-local frame */
+        if (activeOpts && activeOpts.roomWM > 0 && activeOpts.roomLM > 0) {
+            gridLayer.add(new Konva.Rect({
+                x: -activeOpts.anchorXM,
+                y: -activeOpts.anchorYM,
+                width: activeOpts.roomWM,
+                height: activeOpts.roomLM,
+                stroke: '#555',
+                strokeWidth: 3,
+                strokeScaleEnabled: false,
+            }));
         }
     }
 
@@ -471,6 +519,7 @@
         rafPending = true;
         requestAnimationFrame(() => {
             rafPending = false;
+            if (!konvaStage) return;
             drawGrid();
             if (withHandles === true) rebuildHandles();
         });
@@ -482,59 +531,96 @@
         if (!bg || !bg.image) return;
         bgLayer.add(new Konva.Image({
             image: bg.image,
-            x: bg.xM, y: bg.yM,
+            x: bg.xM - activeOpts.anchorXM,
+            y: bg.yM - activeOpts.anchorYM,
             width: bg.wM, height: bg.hM,
             rotation: bg.rotationDeg || 0,
             opacity: (bg.opacity != null) ? Number(bg.opacity) : 0.5,
         }));
     }
 
-    /* ---------------- path preview + handles ---------------- */
-
-    function applyFill() {
-        if (!previewPath) return;
-        previewPath.fill(ui.fill.checked ? (activeOpts.fillColor || '#D3D3D3') : null);
-        previewPath.opacity(ui.fill.checked ? ((activeOpts.fillOpacity != null) ? Number(activeOpts.fillOpacity) : 0.4) : 1);
-    }
+    /* ---------------- path preview + selection overlay + handles ---------------- */
 
     function rebuildPreview() {
         pathLayer.destroyChildren();
         previewPath = new Konva.Path({
             data: serializeSegs(segs),
-            stroke: '#0352a6',
+            stroke: PATH_COLOR,
             strokeWidth: 1.5,
             strokeScaleEnabled: false,
-            hitStrokeWidth: 12,
+            hitStrokeWidth: 14,
         });
-        previewPath.on('dblclick dbltap', () => {
+        previewPath.on('click tap', () => {
             const best = nearestSegment(worldPointer());
-            if (best) splitSegment(best.i, best.t);
+            if (best) {
+                splitSegment(best.i, best.t);
+                selIndex = best.i; /* the inserted point's segment */
+                syncSelection();
+            }
         });
-        pathLayer.add(previewPath);
-        applyFill();
+        selectedOverlay = new Konva.Path({
+            data: '',
+            stroke: SELECT_COLOR,
+            strokeWidth: 3,
+            strokeScaleEnabled: false,
+            listening: false,
+        });
+        pathLayer.add(previewPath, selectedOverlay);
+        updateSelectedOverlay();
+    }
+
+    function updateSelectedOverlay() {
+        if (!selectedOverlay) return;
+        const s = segs[selIndex];
+        const p0 = (s && s.c !== 'M' && s.c !== 'Z') ? segStartPoint(selIndex) : null;
+        if (!s || !p0) { selectedOverlay.data(''); return; }
+        selectedOverlay.data('M ' + fmt(p0.x) + ' ' + fmt(p0.y) + ' ' + serializeSegs([s]));
     }
 
     function handleRadius() { return 6 / konvaStage.scaleX(); }
+
+    function styleAnchor(entry) {
+        const isSel = entry.segIndex === selIndex;
+        const isFirstOpen = entry.segIndex === 0 && isPathOpen();
+        entry.node.radius(handleRadius() * (isFirstOpen ? 1.5 : 1));
+        entry.node.fill(isSel ? SELECT_COLOR : (isFirstOpen ? '#fffbe0' : '#fff'));
+        entry.node.stroke(isSel ? SELECT_COLOR : PATH_COLOR);
+    }
 
     function makeAnchor(i, s) {
         const a = new Konva.Circle({
             x: s.x, y: s.y,
             radius: handleRadius(),
-            fill: (i === selIndex) ? '#0352a6' : '#fff',
-            stroke: '#0352a6',
             strokeWidth: 1.5 / konvaStage.scaleX(),
             draggable: true,
         });
-        a.on('mousedown touchstart', () => { selIndex = i; syncSelectionUi(); rebuildHandles(); });
+        const entry = { segIndex: i, node: a };
+        anchorNodes.push(entry);
+        styleAnchor(entry);
+
+        /* select WITHOUT rebuilding handles — a rebuild here destroys this node mid-mousedown and kills the drag */
+        a.on('mousedown touchstart', () => {
+            selIndex = i;
+            syncSelection();
+        });
+
+        /* click the enlarged first point while drawing → close the path (mirrors the simple builder) */
+        a.on('click tap', () => {
+            if (i === 0 && isPathOpen() && segs.filter(g => g.c !== 'Z').length >= 3) {
+                segs.push({ c: 'Z' });
+                refreshAll();
+            }
+        });
+        if (i === 0) {
+            a.on('mouseover', () => { if (isPathOpen()) { a.fill('yellow'); a.radius(handleRadius() * 2); } });
+            a.on('mouseleave', () => styleAnchor(entry));
+        }
+
         a.on('dragmove', () => {
-            const nx = snapVal(a.x()), ny = snapVal(a.y());
-            a.position({ x: nx, y: ny });
+            const nx = a.x(), ny = a.y();
             const dx = nx - s.x, dy = ny - s.y;
-            /* carry the outgoing segment's leading control with the anchor */
             const next = segs[i + 1];
-            if (next && next.c === 'C') { next.x1 += dx; next.y1 += dy; }
-            if (next && next.c === 'Q') { next.x1 += dx; next.y1 += dy; }
-            /* and this segment's trailing control */
+            if (next && (next.c === 'C' || next.c === 'Q')) { next.x1 += dx; next.y1 += dy; }
             if (s.c === 'C') { s.x2 += dx; s.y2 += dy; }
             s.x = nx; s.y = ny;
             refreshPathOnly();
@@ -560,17 +646,17 @@
             listening: false,
         });
         c.on('dragmove', () => {
-            const nx = snapVal(c.x()), ny = snapVal(c.y());
-            c.position({ x: nx, y: ny });
-            s[keyX] = nx; s[keyY] = ny;
-            tether.points([anchorPt.x, anchorPt.y, nx, ny]);
+            s[keyX] = c.x(); s[keyY] = c.y();
+            tether.points([anchorPt.x, anchorPt.y, c.x(), c.y()]);
             refreshPathOnly();
         });
         handleLayer.add(tether, c);
     }
 
     function rebuildHandles() {
+        if (!konvaStage) return;
         handleLayer.destroyChildren();
+        anchorNodes = [];
         segs.forEach((s, i) => {
             if (s.c === 'Z') return;
             const p0 = segStartPoint(i);
@@ -587,6 +673,7 @@
 
     function refreshPathOnly() {
         previewPath.data(serializeSegs(segs));
+        updateSelectedOverlay();
         ui.pathText.value = serializeSegs(segs);
         ui.pathText.classList.remove('vrcpe-invalid');
     }
@@ -598,10 +685,13 @@
             ui.pathText.value = serializeSegs(segs);
             ui.pathText.classList.remove('vrcpe-invalid');
         }
-        syncSelectionUi();
+        syncSelection();
     }
 
-    function syncSelectionUi() {
+    /* selection changed: restyle anchors in place, redraw purple overlay, sync toolbar — NO handle rebuild */
+    function syncSelection() {
+        anchorNodes.forEach(styleAnchor);
+        updateSelectedOverlay();
         const s = segs[selIndex];
         ui.toCurve.disabled = !(s && s.c === 'L');
         ui.toLine.disabled = !(s && (s.c === 'C' || s.c === 'Q'));
@@ -632,7 +722,7 @@
         const s = segs[selIndex];
         if (!s || s.c === 'Z') return;
         const anchorCount = segs.filter(g => g.c !== 'Z').length;
-        if (anchorCount <= 3) return; /* keep at least a triangle */
+        if (anchorCount <= 3) return;
         if (s.c === 'M') {
             const next = segs[selIndex + 1];
             if (!next || next.c === 'Z') return;
@@ -648,12 +738,9 @@
         const p0 = segStartPoint(i);
         if (!s || !p0 || s.c === 'M' || s.c === 'Z') return;
         const mid = pointOnSeg(s, p0, t);
-        mid.x = snapVal(mid.x); mid.y = snapVal(mid.y);
         if (s.c === 'L' || s.c === 'A') {
             segs.splice(i, 0, { c: 'L', x: mid.x, y: mid.y });
-            if (s.c === 'A') { /* keep the arc as the second half; radii unchanged is an approximation */ }
         } else if (s.c === 'Q') {
-            /* de Casteljau */
             const q0 = { x: p0.x + (s.x1 - p0.x) * t, y: p0.y + (s.y1 - p0.y) * t };
             const q1 = { x: s.x1 + (s.x - s.x1) * t, y: s.y1 + (s.y - s.y1) * t };
             segs.splice(i, 1,
@@ -674,11 +761,21 @@
 
     function appendPointAtPointer() {
         const wp = worldPointer();
-        const np = { c: 'L', x: snapVal(wp.x), y: snapVal(wp.y) };
-        /* insert before a trailing Z of the last subpath so closed paths stay closed */
-        if (segs.length && segs[segs.length - 1].c === 'Z') segs.splice(segs.length - 1, 0, np);
-        else segs.push(np);
-        selIndex = segs[segs.length - 1].c === 'Z' ? segs.length - 2 : segs.length - 1;
+        const last = segs.length ? segs[segs.length - 1] : null;
+        const lastPt = (last && 'x' in last) ? { x: last.x, y: last.y } : { x: 0, y: 0 };
+        let np;
+        if (drawMode === 'C') {
+            np = {
+                c: 'C',
+                x1: lastPt.x + (wp.x - lastPt.x) / 3, y1: lastPt.y + (wp.y - lastPt.y) / 3,
+                x2: lastPt.x + 2 * (wp.x - lastPt.x) / 3, y2: lastPt.y + 2 * (wp.y - lastPt.y) / 3,
+                x: wp.x, y: wp.y,
+            };
+        } else {
+            np = { c: 'L', x: wp.x, y: wp.y };
+        }
+        segs.push(np);
+        selIndex = segs.length - 1;
         refreshAll();
     }
 
@@ -686,13 +783,17 @@
 
     function fitView() {
         const cw = konvaStage.width(), ch = konvaStage.height();
+        /* fit the union of the path bbox and the room wall outline so the room context is visible on open */
+        const walls = { x: -activeOpts.anchorXM, y: -activeOpts.anchorYM, width: activeOpts.roomWM || 8, height: activeOpts.roomLM || 6 };
         let b = modelBBox();
-        if (!b || b.width < 0.01 || b.height < 0.01) {
-            const bg = activeOpts.background;
-            if (bg && bg.image) b = { x: bg.xM, y: bg.yM, width: bg.wM, height: bg.hM };
-            else b = { x: 0, y: 0, width: activeOpts.roomWM || 8, height: activeOpts.roomLM || 6 };
+        if (!b || !isFinite(b.width)) b = walls;
+        else {
+            const minX = Math.min(b.x, walls.x), minY = Math.min(b.y, walls.y);
+            const maxX = Math.max(b.x + b.width, walls.x + walls.width);
+            const maxY = Math.max(b.y + b.height, walls.y + walls.height);
+            b = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
         }
-        const pad = 0.25;
+        const pad = 0.08;
         const sFit = Math.min(cw / (b.width * (1 + 2 * pad)), ch / (b.height * (1 + 2 * pad)));
         const s = Math.max(MIN_PX_PER_M, Math.min(MAX_PX_PER_M, sFit));
         konvaStage.scale({ x: s, y: s });
@@ -713,13 +814,12 @@
         const drawable = segs.filter(s => s.c !== 'Z' && s.c !== 'M');
         if (!drawable.length) { opts.onClose(null); return; }
 
-        /* re-center on the bbox center (Draw Simple Path convention: item x/y = center) */
+        /* re-center on the anchor bbox center (Draw Simple Path convention: item x/y = center) */
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         segs.forEach(s => {
             if (!('x' in s)) return;
             minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x);
             minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y);
-            /* control points intentionally excluded — bbox from anchors matches how VRC centers simple paths */
         });
         if (!isFinite(minX)) { opts.onClose(null); return; }
         const cx = Math.round(((minX + maxX) / 2) * 1000) / 1000;
@@ -727,8 +827,8 @@
 
         opts.onClose({
             path: serializeSegs(segs, -cx, -cy),
-            centerXM: cx,
-            centerYM: cy,
+            centerXM: (Number(opts.anchorXM) || 0) + cx,
+            centerYM: (Number(opts.anchorYM) || 0) + cy,
         });
     }
 
@@ -743,16 +843,12 @@
             console.warn('[VRC pathEditor] could not parse path, starting from a default square:', err && err.message);
             segs = parsePathD('M -0.5 -0.5 L 0.5 -0.5 L 0.5 0.5 L -0.5 0.5 Z');
         }
-        transformSegsIntoFloor(segs,
+        bakeScaleRotation(segs,
             (Number(opts.scaleX) || 1), (Number(opts.scaleY) || 1),
-            (Number(opts.rotationDeg) || 0),
-            (Number(opts.anchorXM) || 0), (Number(opts.anchorYM) || 0));
+            (Number(opts.rotationDeg) || 0));
         initialSegs = structuredClone(segs);
         selIndex = -1;
-
-        /* defaults every open, per spec */
-        ui.snap.checked = false;
-        ui.fill.checked = false;
+        setDrawMode('L');
 
         dlg.showModal();
         buildStage();
@@ -763,7 +859,7 @@
         drawGrid();
         ui.pathText.value = serializeSegs(segs);
         ui.pathText.classList.remove('vrcpe-invalid');
-        syncSelectionUi();
+        syncSelection();
     }
 
     window.VRC.pathEditor = { open };
