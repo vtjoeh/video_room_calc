@@ -21557,14 +21557,18 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         const apexY = halfPx * TAN30; /* depth where the two 60-deg edge lines cross */
         const nearY = Math.max(cvPx, apexY);
 
-        /* Far corners: the 60-deg line from the LEFT image edge (-half,0), direction (sin60, cos60),
-         * intersected with the farthest-viewer arc (radius FV centered on the image center). */
-        const discR = fvPx * fvPx - 0.25 * halfPx * halfPx;
-        const tFar = (discR > 0) ? (SIN60 * halfPx + Math.sqrt(discR)) : 0;
-        const xFar = -halfPx + SIN60 * tFar;  /* right-far corner x (left-far is the mirror) */
-        const yFar = 0.5 * tFar;
+        /* Far boundary per the standard's plan-view figures: TWO arcs of radius FV, each swept from an
+         * image EDGE, crossing at the centerline (the slightly pointed far edge in AVIXA's BDM/ADM
+         * drawings). This keeps every conforming viewer within FV of BOTH edges -- i.e., of every part
+         * of the image -- which a single image-center arc does not (an on-axis viewer at FV from the
+         * center is sqrt(FV^2 + half^2) from each edge). The right half of the region is governed
+         * entirely by the LEFT edge (its 60-deg line AND its FV arc), so the far corner falls exactly
+         * at distance FV along that edge's 60-deg line. */
+        const xFar = -halfPx + SIN60 * fvPx;  /* right-far corner x (left-far is the mirror) */
+        const yFar = 0.5 * fvPx;
+        const yCross = Math.sqrt(Math.max(0, fvPx * fvPx - halfPx * halfPx)); /* two-arc crease on the centerline */
         const xNear = Math.max(0, nearY / TAN30 - halfPx);
-        const hasArea = tFar > 0 && yFar > nearY;
+        const hasArea = fvPx > halfPx && yCross > nearY;
 
         let groupItemDisplayDistance = new Konva.Group({
             id: 'dispDist~' + uuid,
@@ -21578,7 +21582,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         canvasNodesMap.set('dispDist~' + uuid, groupItemDisplayDistance);
         groupItemDisplayDistance.visible(!attrs.data_dispDistHidden);
 
-        /* Area of conformance: closest line -> up the left 60-deg boundary -> farthest arc -> down the right boundary. */
+        /* Area of conformance: closest line -> up the left 60-deg boundary -> right-edge FV arc to the
+         * centerline crease -> left-edge FV arc -> down the right boundary. */
         const discasConformance = new Konva.Shape({
             listening: false,
             perfectDrawEnabled: perfectDrawEnabled,
@@ -21589,19 +21594,24 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             name: 'shading_group',
             sceneFunc: (context, shape) => {
                 if (!hasArea) return;
-                const aLeft = Math.atan2(yFar, -xFar);
-                const aRight = Math.atan2(yFar, xFar);
+                /* angles measured from each arc's own center (the image edge) */
+                const aFL = Math.atan2(yFar, -xFar - halfPx);      /* left-far corner, from right edge */
+                const aCrossR = Math.atan2(yCross, -halfPx);       /* crease, from right edge */
+                const aCrossL = Math.atan2(yCross, halfPx);        /* crease, from left edge */
+                const aFR = Math.atan2(yFar, xFar + halfPx);       /* right-far corner, from left edge */
                 context.beginPath();
                 context.moveTo(-xNear, nearY);
                 context.lineTo(-xFar, yFar);
-                context.arc(0, 0, fvPx, aLeft, aRight, true);
+                context.arc(halfPx, 0, fvPx, aFL, aCrossR, true);  /* arc centered on the RIGHT image edge */
+                context.arc(-halfPx, 0, fvPx, aCrossL, aFR, true); /* arc centered on the LEFT image edge */
                 context.lineTo(xNear, nearY);
                 context.closePath();
                 context.fillStrokeShape(shape);
             },
         });
         discasConformance.getSelfRect = function () {
-            return { x: -fvPx, y: 0, width: 2 * fvPx, height: yFar + 4 };
+            const xMax = Math.max(xFar, halfPx);
+            return { x: -xMax, y: 0, width: 2 * xMax, height: Math.max(yCross, yFar) + 4 };
         };
 
         /* Construction lines per the CTS plan-view drawing: the two 60-deg lines drawn from each
@@ -21615,7 +21625,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             dash: [6, 4],
             name: 'shading_group',
             sceneFunc: (context, shape) => {
-                if (tFar <= 0) return;
+                if (fvPx <= 0) return;
                 context.beginPath();
                 context.moveTo(-halfPx, 0);
                 context.lineTo(xFar, yFar);

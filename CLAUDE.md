@@ -1343,7 +1343,20 @@ overlay draws the **area of conformance per the AVIXA DISCAS standard
 (ANSI/AVIXA V201.01)** instead of the generic display-distance wedge:
 the two 60°-from-perpendicular horizontal viewing-angle lines drawn from
 each image edge toward the opposite side, the closest-viewer line
-(parallel to the screen, BDM only), and the farthest-viewer arc.
+(parallel to the screen, BDM only), and the farthest-viewer boundary.
+
+**The far boundary is TWO arcs of radius FV, each centered on an image
+EDGE, crossing at the centerline** (`yCross = √(FV² − (IW/2)²)`) — the
+slightly pointed, leaf-shaped far edge in AVIXA's own BDM/ADM plan-view
+figures, NOT a single arc centered on the image center. This keeps
+every conforming viewer within FV of *both* edges (i.e., of every part
+of the image); a single center-arc would put an on-axis viewer
+`√(FV² + (IW/2)²)` from each edge, violating the criterion. The right
+half of the region is governed entirely by the LEFT edge (its 60° line
+AND its FV arc), so each far corner falls at exactly distance FV along
+the opposite edge's 60° line: `(±(sin60°·FV − IW/2), 0.5·FV)`.
+Verified numerically: every sampled boundary point ≤ FV from both
+edges.
 
 ### Formulas (verified against AVIXA CTS-Prep worked examples)
 
@@ -1401,14 +1414,16 @@ V201.01)" with a link and a non-affiliation note.
 Two `Konva.Shape` sceneFuncs in the standard `dispDist~{id}` coverage
 group (so drag-follow via `updateShading`, the D-key toggle, VRC-layer
 hiding, and `data_dispDistHidden` all apply unchanged): a filled
-conformance region (closest line → 60° boundary → arc → boundary) and
-a dashed construction-lines shape (the two 60° lines + the closest
-chord). Local frame: image centered on the group origin along x,
-viewers toward +y; the wedge apex (where the crossing 60° lines meet)
-is at `(IW/2) × tan30°`, and the near boundary is
-`max(CV, apex)`. The canvas footprint is aspect-aware (both
-`insertShapeItem`'s display width branch and `updateWidthOfDisplay()`
-compute `25.4 × A/√(1+A²)` mm per diagonal inch).
+conformance region (closest line → 60° boundary → right-edge FV arc →
+centerline crease → left-edge FV arc → boundary; see the two-arc far
+boundary note at the top of this section) and a dashed
+construction-lines shape (the two 60° lines + the closest chord).
+Local frame: image centered on the group origin along x, viewers
+toward +y; the wedge apex (where the crossing 60° lines meet) is at
+`(IW/2) × tan30°`, and the near boundary is `max(CV, apex)`. The
+canvas footprint is aspect-aware (both `insertShapeItem`'s display
+width branch and `updateWidthOfDisplay()` compute `25.4 × A/√(1+A²)`
+mm per diagonal inch).
 
 ### Workspace Designer
 
