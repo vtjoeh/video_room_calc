@@ -143,3 +143,44 @@ button.vrcpe-close:hover {
     position: relative;
     overflow: hidden;
 }
+
+/* nested Draw Mode choice dialog */
+dialog.vrcpe-choice {
+    border: 1px solid #bbb;
+    border-radius: 10px;
+    padding: 18px 22px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    display: none;
+    font-family: 'Inter', Helvetica, sans-serif;
+}
+
+dialog.vrcpe-choice[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+dialog.vrcpe-choice::backdrop {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.vrcpe-choice-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+dialog.vrcpe-choice button {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #888;
+    border-radius: 14px;
+    padding: 7px 16px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+dialog.vrcpe-choice button:hover {
+    background: #dceafc;
+    border-color: var(--active, #0352a6);
+}

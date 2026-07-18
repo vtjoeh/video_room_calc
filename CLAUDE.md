@@ -1485,15 +1485,26 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   Draw mode starts with a BLANK canvas (the placeholder path is
   ignored; closing without drawing returns null from
   `finishAndApply()` so the item keeps its placeholder).
-- **Details → Items**: the `labelPathId` row carries Draw Simple Path
-  (`simplePathEditor()`) and SVG Path Editor (`openSvgPathEditor()`,
-  no mode arg → **Edit mode**).
+- **Details → Items**: the `labelPathId` row carries only the SVG
+  Path Editor button (`openSvgPathEditor()`, no mode arg → **Edit
+  mode**). The Draw Simple Path BUTTON was removed but
+  `simplePathEditor()` / the polyBuilder plumbing is intentionally
+  left intact in case the button returns.
 - **Draw mode** mirrors the Draw Simple Path builder: click to place
-  points sequentially (the Line/Curve buttons pick the segment type,
-  dashed rubber band follows the pointer), the enlarged first point
-  closes the path on click — closing **auto-switches to Edit mode**.
-  Clicking the **Draw Mode toolbar button deletes the current path
-  and starts over** (per spec). No dragging/selection/controls while
+  points sequentially (the Line/Curve buttons pick the segment type —
+  **keys L / C toggle them while drawing**), a dotted rubber band
+  follows the pointer from the last placed point (recreate it when its
+  node is destroyed OR detached — `rebuildPreview()`'s
+  `destroyChildren()` kills it while the module reference survives),
+  and the enlarged first point of the CURRENT subpath closes it on
+  click — closing **auto-switches to Edit mode**. Clicking the **Draw
+  Mode toolbar button** with a non-empty path opens a small nested
+  choice dialog (`#vrcpeDrawChoice`, appended to `document.body` so
+  its keystrokes don't hit the editor's Esc-applies keydown handler):
+  **Add New Shape** keeps the path and the next click starts another
+  `M` subpath (drawing operates on the LAST subpath —
+  `lastSubpathOpen()` / `currentSubpathStart()`), or **Erase & Start
+  Over** clears everything. No dragging/selection/controls while
   drawing.
 - **Edit mode**: everything else below (drag, select, insert, convert,
   delete). **Hovering a point enlarges it slightly and fills it baby
@@ -1504,10 +1515,10 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
 The editor canvas is **item-local meters, y-down** — 1 editor unit =
 1 m, the path centered around the origin exactly as stored in the
 labelField JSON (path coords are meters; the Konva render multiplies
-by `scale × (feet ? 3.28084 : 1)`). Blue center axes cross at the
-origin. The background image and the room wall outline are translated
-by **minus the item anchor** so they sit at their true positions
-relative to the path. `openSvgPathEditor()` (roomcalc.js) converts on
+by `scale × (feet ? 3.28084 : 1)`). (Center axis lines were removed
+per feedback — plain grid only.) The background image and the room
+wall outline are translated by **minus the item anchor** so they sit
+at their true positions relative to the path. `openSvgPathEditor()` (roomcalc.js) converts on
 the way in: item `x/y` (room units, floor coords) → anchor meters
 (passed for the bg/walls translation); labelField JSON `"scale"`
 multipliers and item `rotation` are **baked into the path

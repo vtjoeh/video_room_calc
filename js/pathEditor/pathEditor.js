@@ -216,8 +216,20 @@
 
     /* ---------------- geometry helpers ---------------- */
 
-    function isPathOpen() {
-        return !segs.some(s => s.c === 'Z');
+    /* Drawing works on the LAST subpath so a closed shape can be followed by another M
+     * (Draw Mode → "Add New Shape"). Open = the segment list doesn't end with Z. */
+    function lastSubpathOpen() {
+        return segs.length > 0 && segs[segs.length - 1].c !== 'Z';
+    }
+
+    function currentSubpathStart() {
+        for (let i = segs.length - 1; i >= 0; i--) if (segs[i].c === 'M') return i;
+        return -1;
+    }
+
+    function currentSubpathAnchorCount() {
+        const m = currentSubpathStart();
+        return m < 0 ? 0 : segs.length - m;
     }
 
     function segStartPoint(index) {
@@ -310,7 +322,23 @@
             </div>`;
         document.body.appendChild(dlg);
 
+        /* nested choice dialog for the Draw Mode button — appended to body (NOT inside
+         * dlg) so its keystrokes don't hit dlg's keydown handler (Esc = apply there) */
+        const drawChoice = document.createElement('dialog');
+        drawChoice.id = 'vrcpeDrawChoice';
+        drawChoice.className = 'vrcpe-choice';
+        drawChoice.innerHTML = `
+            <div class="vrcpe-choice-title">Draw Mode</div>
+            <button id="vrcpeDrawAddShape">Add New Shape</button>
+            <button id="vrcpeDrawEraseAll">Erase &amp; Start Over</button>
+            <button id="vrcpeDrawCancel">Cancel</button>`;
+        document.body.appendChild(drawChoice);
+
         ui = {
+            drawChoice: drawChoice,
+            drawAddShape: drawChoice.querySelector('#vrcpeDrawAddShape'),
+            drawEraseAll: drawChoice.querySelector('#vrcpeDrawEraseAll'),
+            drawCancel: drawChoice.querySelector('#vrcpeDrawCancel'),
             drawModeBtn: dlg.querySelector('#vrcpeDrawMode'),
             editModeBtn: dlg.querySelector('#vrcpeEditMode'),
             modeLine: dlg.querySelector('#vrcpeModeLine'),
@@ -332,17 +360,35 @@
             setEditorMode(segs.length ? 'edit' : 'draw');
             refreshAll();
         };
-        /* Draw Mode button = start over: delete the current path and draw fresh (per spec) */
+        /* Draw Mode with an existing path: choose between adding another shape (new M
+         * subpath) and erasing everything. Empty canvas skips straight to drawing. */
         ui.drawModeBtn.onclick = () => {
-            segs = [];
-            selIndex = -1;
-            setEditorMode('draw');
-            refreshAll();
+            if (!segs.length) {
+                selIndex = -1;
+                setEditorMode('draw');
+                refreshAll();
+                return;
+            }
+            ui.drawChoice.showModal();
         };
         ui.editModeBtn.onclick = () => {
             setEditorMode('edit');
             refreshAll();
         };
+        ui.drawAddShape.onclick = () => {
+            ui.drawChoice.close();
+            selIndex = -1;
+            setEditorMode('draw'); /* path kept closed — the next click starts a new M */
+            refreshAll();
+        };
+        ui.drawEraseAll.onclick = () => {
+            ui.drawChoice.close();
+            segs = [];
+            selIndex = -1;
+            setEditorMode('draw');
+            refreshAll();
+        };
+        ui.drawCancel.onclick = () => ui.drawChoice.close();
         ui.modeLine.onclick = () => setDrawMode('L');
         ui.modeCurve.onclick = () => setDrawMode('C');
         ui.toCurve.onclick = () => convertSelected('C');
@@ -363,11 +409,17 @@
 
         /* Keep VRC's document-level shortcuts (Delete = delete item, space = Quick Add, ...) from firing while the editor is open. */
         dlg.addEventListener('keydown', (e) => {
+            const typing = document.activeElement === ui.pathText;
             if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (document.activeElement !== ui.pathText && selIndex >= 0) {
+                if (!typing && selIndex >= 0) {
                     deleteSelected();
                     e.preventDefault();
                 }
+            }
+            /* draw-mode segment-type toggle: C = Curve, L = Line */
+            if (!typing && editorMode === 'draw') {
+                if (e.key === 'c' || e.key === 'C') setDrawMode('C');
+                if (e.key === 'l' || e.key === 'L') setDrawMode('L');
             }
             if (e.key === 'Escape') finishAndApply(); /* the default Esc close follows */
             else e.stopPropagation();
@@ -401,7 +453,7 @@
         ui.drawModeBtn.classList.toggle('vrcpe-mode-active', mode === 'draw');
         ui.editModeBtn.classList.toggle('vrcpe-mode-active', mode === 'edit');
         ui.hint.innerHTML = (mode === 'draw')
-            ? 'Click to place points &middot; Line / Curve picks the segment type &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter'
+            ? 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter'
             : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter';
         if (mode === 'edit') hideRubberBand();
     }
@@ -410,24 +462,27 @@
         if (rubberBand) { rubberBand.destroy(); rubberBand = null; }
     }
 
+    /* Dotted preview from the last placed point to the pointer (polyBuilder-style). */
     function updateRubberBand() {
-        if (editorMode !== 'draw' || !segs.length || !isPathOpen()) { hideRubberBand(); return; }
+        if (editorMode !== 'draw' || !lastSubpathOpen()) { hideRubberBand(); return; }
         const last = segs[segs.length - 1];
         if (!('x' in last)) { hideRubberBand(); return; }
         const wp = worldPointer();
         if (!wp) return;
         const s = konvaStage.scaleX();
-        if (!rubberBand) {
+        if (!rubberBand || !rubberBand.getLayer()) {
+            /* re-create when missing OR detached — rebuildPreview()'s destroyChildren()
+             * kills the node while this reference survives (the invisible-rubber-band bug) */
             rubberBand = new Konva.Line({
-                stroke: '#555',
-                opacity: 0.5,
+                stroke: 'black',
+                opacity: 0.4,
                 listening: false,
             });
             pathLayer.add(rubberBand);
         }
         rubberBand.points([last.x, last.y, wp.x, wp.y]);
         rubberBand.strokeWidth(1 / s);
-        rubberBand.dash([6 / s, 4 / s]);
+        rubberBand.dash([10 / s, 5 / s]);
     }
 
     /* ---------------- Konva stage ---------------- */
@@ -472,17 +527,17 @@
          * EDIT mode: click on empty canvas just deselects. */
         konvaStage.on('click tap', (e) => {
             if (e.target !== konvaStage) return;
-            if (editorMode === 'draw' && isPathOpen()) {
+            if (editorMode === 'draw') {
                 const wp = worldPointer();
-                const m0 = segs[0];
-                if (wp && m0 && segs.filter(g => g.c !== 'Z').length >= 3) {
+                if (lastSubpathOpen() && currentSubpathAnchorCount() >= 3) {
+                    const m0 = segs[currentSubpathStart()];
                     const r = handleRadius() * 2.5;
-                    if ((wp.x - m0.x) ** 2 + (wp.y - m0.y) ** 2 <= r * r) {
+                    if (wp && m0 && (wp.x - m0.x) ** 2 + (wp.y - m0.y) ** 2 <= r * r) {
                         closeDrawnPath();
                         return;
                     }
                 }
-                appendPointAtPointer();
+                appendPointAtPointer(); /* starts a new M subpath when nothing is open */
             }
             else { selIndex = -1; syncSelection(); }
         });
@@ -541,7 +596,6 @@
         const y0 = Math.floor(r.y / step) * step;
         const showLabels = step * s >= 40;
         for (let x = x0; x <= r.x + r.w; x += step) {
-            if (Math.abs(x) < step / 2000) continue; /* axis drawn separately below */
             gridLayer.add(new Konva.Line({
                 points: [x, r.y, x, r.y + r.h],
                 stroke: '#ddd',
@@ -555,7 +609,6 @@
             }
         }
         for (let y = y0; y <= r.y + r.h; y += step) {
-            if (Math.abs(y) < step / 2000) continue;
             gridLayer.add(new Konva.Line({
                 points: [r.x, y, r.x + r.w, y],
                 stroke: '#ddd',
@@ -568,10 +621,6 @@
                 }));
             }
         }
-
-        /* center axes through the origin (= the path center once saved) */
-        gridLayer.add(new Konva.Line({ points: [0, r.y, 0, r.y + r.h], stroke: '#4477cc', strokeWidth: 2 * lw }));
-        gridLayer.add(new Konva.Line({ points: [r.x, 0, r.x + r.w, 0], stroke: '#4477cc', strokeWidth: 2 * lw }));
 
         /* room wall outline, translated into the item-local frame */
         if (activeOpts && activeOpts.roomWM > 0 && activeOpts.roomLM > 0) {
@@ -656,7 +705,7 @@
 
     function styleAnchor(entry) {
         const isSel = entry.segIndex === selIndex;
-        const isFirstOpen = editorMode === 'draw' && entry.segIndex === 0 && isPathOpen();
+        const isFirstOpen = editorMode === 'draw' && lastSubpathOpen() && entry.segIndex === currentSubpathStart();
         entry.node.radius(handleRadius() * (isFirstOpen ? 1.5 : 1));
         entry.node.fill(isSel ? SELECT_COLOR : (isFirstOpen ? '#fffbe0' : '#fff'));
         entry.node.stroke(isSel ? SELECT_COLOR : PATH_COLOR);
@@ -680,16 +729,16 @@
             syncSelection();
         });
 
-        /* click the enlarged first point while drawing → close the path (mirrors the simple builder) */
+        /* click the enlarged first point while drawing → close the current subpath (mirrors the simple builder) */
         a.on('click tap', () => {
-            if (editorMode === 'draw' && i === 0 && isPathOpen() && segs.filter(g => g.c !== 'Z').length >= 3) {
+            if (editorMode === 'draw' && lastSubpathOpen() && i === currentSubpathStart() && currentSubpathAnchorCount() >= 3) {
                 closeDrawnPath();
             }
         });
 
         a.on('mouseover', () => {
             if (editorMode === 'draw') {
-                if (i === 0 && isPathOpen()) { a.fill('yellow'); a.radius(handleRadius() * 2); }
+                if (lastSubpathOpen() && i === currentSubpathStart()) { a.fill('yellow'); a.radius(handleRadius() * 2); }
             } else {
                 /* edit-mode hover affordance: a little larger + baby blue */
                 a.fill(HOVER_COLOR);
@@ -847,8 +896,8 @@
     function appendPointAtPointer() {
         const wp = worldPointer();
         if (!wp) return;
-        if (!segs.length) {
-            /* first click of a fresh drawing starts the subpath */
+        if (!lastSubpathOpen()) {
+            /* first click of a fresh drawing (or after a closed shape) starts a subpath */
             segs.push({ c: 'M', x: wp.x, y: wp.y });
             refreshAll();
             return;
