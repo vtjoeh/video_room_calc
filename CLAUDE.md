@@ -1339,15 +1339,26 @@ No special handling — `data_certifiedDisplayIndex` is a plain field on
 ## Custom Reach Display (`displayCustom`) — AVIXA DISCAS coverage
 
 `displayCustom` is a `displays`-class device (key `DL`) whose coverage
-overlay draws the **area of conformance per the AVIXA DISCAS standard
-(ANSI/AVIXA V201.01)** instead of the generic display-distance wedge:
-the two 60°-from-perpendicular horizontal viewing-angle lines drawn from
-each image edge toward the opposite side, the closest-viewer line
-(parallel to the screen, BDM only), and the farthest-viewer boundary.
+overlay draws the **area of conformance per AVIXA DISCAS Basic Decision
+Making (BDM) (ANSI/AVIXA V201.01)** instead of the generic
+display-distance wedge: the two 60°-from-perpendicular horizontal
+viewing-angle lines drawn from each image edge toward the opposite
+side, the closest-viewer line (parallel to the screen), and the
+farthest-viewer boundary.
+
+**Only BDM is implemented — ADM (Analytic Decision Making) was
+deliberately left out.** ADM's acuity-based farthest-viewer formula
+(`FV = 3438 × IH / contentResolution`, one arcminute per line) demands
+an impractically large display at typical content resolutions — e.g.
+viewing an 8K image from 6′ recommends a 184″ diagonal — which is not
+a useful planning number for the conference-room displays this device
+models. If ADM is ever reconsidered, the deleted logic (mode toggle,
+`data_discasMode`/`data_imageResolution` attrs, `dm`/`ir` URL codes) is
+recoverable from git history.
 
 **The far boundary is TWO arcs of radius FV, each centered on an image
 EDGE, crossing at the centerline** (`yCross = √(FV² − (IW/2)²)`) — the
-slightly pointed, leaf-shaped far edge in AVIXA's own BDM/ADM plan-view
+slightly pointed, leaf-shaped far edge in AVIXA's own BDM plan-view
 figures, NOT a single arc centered on the image center. This keeps
 every conforming viewer within FV of *both* edges (i.e., of every part
 of the image); a single center-arc would put an on-axis viewer
@@ -1360,38 +1371,36 @@ edges.
 
 ### Formulas (verified against AVIXA CTS-Prep worked examples)
 
-| Quantity | BDM (Basic Decision Making) | ADM (Analytic Decision Making) |
-|----------|------------------------------|--------------------------------|
-| Farthest Viewer | `FV = IH × %EH × 2` (element ≥ 1/200th of viewing distance) | `FV = 3438 × IH / contentResolution` (1 arcmin per line) |
-| Closest Viewer | `CV = max(0, IH + IO) × 1.732` (sight line to top of image ≤ 30° above eye level); `IO = zPosition − eyeLevel` | none |
-| Image Height | `IH = diagonal / √(1 + aspect²)` (inches → current unit) | same |
+| Quantity | Formula |
+|----------|---------|
+| Farthest Viewer | `FV = IH × %EH × 2` (element ≥ 1/200th of viewing distance) |
+| Closest Viewer | `CV = max(0, IH + IO) × 1.732` (sight line to top of image ≤ 30° above eye level); `IO = zPosition − eyeLevel` |
+| Image Height | `IH = diagonal / √(1 + aspect²)` (inches → current unit) |
 
 All math lives in `discasResolveSettings()` / `discasComputeGeometry()`
 in `js/roomcalc.js` (near the certifiedDisplay helpers). Numbers were
-validated against AVIXA's published examples: 75″ 16:9 → IH 36.8″, FV
-18.4 ft @3 %EH, CV 63.7″ (IO = 0); ADM 138″ @1080 → FV 215″.
+validated against AVIXA's published example: 75″ 16:9 → IH 36.8″, FV
+18.4 ft @3 %EH, CV 63.7″ (IO = 0).
 
 ### Storage — minimum set, defaults never stored
 
 | Attr | Default (absent) | Notes |
 |------|-------------------|-------|
 | `data_diagonalInches` | 55 | existing attr, URL letter `g` |
-| `data_percentElementHeight` | 3 | BDM only |
+| `data_percentElementHeight` | 3 | |
 | `data_aspectRatio` | 1.78 (16:9) | 2.33 = 21:9, 1.33 = 4:3 |
 | `data_eyeLevel` | 1.2 m / 3.94 ft (AVIXA seated) | current-unit value; standing = 1.5 m; converted by `convertItemUnitBasedOnRatio()` |
-| `data_discasMode` | `'bdm'` | only `'adm'` is ever stored |
-| `data_imageResolution` | 2160 | ADM only |
 
 CV/FV/IH/IW are always derived, never stored. The four-place rule is
-wired for all five attrs (`updateNodeAttributes`,
+wired for all three attrs (`updateNodeAttributes`,
 `updateRoomObjFromTrNode` push + map-hit delete-on-absent,
 `copyToCanvasClipBoard`).
 
 ### URL encoding — 2-char codes (parsed like `ll`/`cd`), gated on the device id
 
 `pe` = %EH ×10, `ar` = aspect ×100, `el` = eye level ×100 (current
-unit), `dm1` = ADM, `ir` = content resolution. Only non-defaults are
-emitted; `g`/`b` carry diagonal/elevation as usual.
+unit). Only non-defaults are emitted; `g`/`b` carry diagonal/elevation
+as usual.
 
 ### UI — the DISCAS modal (`#dialogDiscas`)
 
@@ -1399,15 +1408,18 @@ Opens on insert (`insertItemFromMenu` early branch — mirror of the
 certifiedDisplay gate; paste/import bypass it) and from the Details
 panel's `DISCAS Settings…` button (`#discasSettingsDiv`, shown only for
 `displayCustom`; in both group-details `hideIds` lists). Inputs:
-viewing category, diagonal, aspect, %EH (BDM), content resolution
-(ADM), eye level (seated/standing/custom), bottom-of-image height
-(maps to `data_zPosition`); read-only Image size / Closest / Farthest
-outputs recompute live (`discasRecalcOutputs()`). **Closing without
-Apply during an insert lands the display with the standard defaults**
-(never aborts — `wireDiscasDialogClose`). Every input carries an 'i'
-tooltip with paraphrased (not copied) guidance, and the footer credits
-the standard: "Based on the AVIXA DISCAS standard (ANSI/AVIXA
-V201.01)" with a link and a non-affiliation note.
+diagonal, aspect, %EH, eye level (seated/standing/custom),
+bottom-of-image height (maps to `data_zPosition`); read-only Image
+size / Closest / Farthest outputs recompute live
+(`discasRecalcOutputs()`), including a red `#discasOutWarning` when the
+conformance area is empty (FV ≤ IW/2 or the far boundary lands inside
+the near boundary — e.g. a very low %EH on a wide display; mirrors the
+canvas `hasArea` test). **Closing without Apply during an insert lands
+the display with the standard defaults** (never aborts —
+`wireDiscasDialogClose`). Every input carries an 'i' tooltip with
+paraphrased (not copied) guidance, and the footer credits the
+standard: "Based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01)"
+with a link and a non-affiliation note.
 
 ### Canvas rendering
 

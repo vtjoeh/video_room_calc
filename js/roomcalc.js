@@ -3574,24 +3574,24 @@ function finishCertifiedDisplayInsert(attrs) {
     canvasToJson();
 }
 
-/* ---- displayCustom (Custom Reach Display) — coverage per the AVIXA DISCAS standard (ANSI/AVIXA V201.01) ----
+/* ---- displayCustom (Custom Reach Display) — coverage per AVIXA DISCAS Basic Decision Making
+ * (BDM) (ANSI/AVIXA V201.01) ----
  *
- * BDM (Basic Decision Making):
  *   Farthest Viewer  FV = IH x %EH x 2          (element >= 1/200th of the viewing distance)
  *   Closest Viewer   CV = max(0, IH + IO) x 1.732  (sight line to the TOP of the image <= 30 deg above eye level)
  *   IO = (bottom-of-image height) - (eye level)
- * ADM (Analytic Decision Making):
- *   Farthest Viewer  FV = 3438 x IH / (vertical content resolution)   (each pixel subtends 1 arcminute)
- *   No closest-viewer line (vertical viewing distances are not considered for ADM).
- * Plan view (both): 60-degree lines drawn from each image edge, measured from the display
+ * Plan view: 60-degree lines drawn from each image edge, measured from the display
  * perpendicular, toward the opposite side of the image; the conformance area is bounded by
- * those lines, the closest-viewer line (BDM only), and the farthest-viewer arc.
+ * those lines, the closest-viewer line, and the farthest-viewer arc.
  * Only non-default inputs are stored on the item (data_percentElementHeight, data_aspectRatio,
- * data_eyeLevel, data_discasMode, data_imageResolution); IH/IW/CV/FV are always derived. */
+ * data_eyeLevel); IH/IW/CV/FV are always derived.
+ * ADM (Analytic Decision Making) was deliberately left out: its acuity-based farthest-viewer
+ * formula (FV = 3438 x IH / vertical resolution) demands an impractically large display for
+ * typical content resolutions -- e.g. viewing an 8K image from 6' recommends a 184" diagonal --
+ * which is not a useful planning number for the conference-room displays this device models. */
 
 const DISCAS_DEFAULT_PERCENT_EL = 3;
 const DISCAS_DEFAULT_ASPECT = 1.78;      /* 16:9 */
-const DISCAS_DEFAULT_RESOLUTION = 2160;
 const DISCAS_EYE_SEATED_M = 1.2;         /* AVIXA standard eye levels: 1200mm (48") seated */
 const DISCAS_EYE_STANDING_M = 1.5;       /* 1500mm (62") standing */
 
@@ -3610,8 +3610,6 @@ function discasResolveSettings(src) {
         diag: Number(src.data_diagonalInches) || 55,
         aspect: Number(src.data_aspectRatio) || DISCAS_DEFAULT_ASPECT,
         pe: Number(src.data_percentElementHeight) || DISCAS_DEFAULT_PERCENT_EL,
-        mode: (src.data_discasMode === 'adm') ? 'adm' : 'bdm',
-        res: Number(src.data_imageResolution) || DISCAS_DEFAULT_RESOLUTION,
         eyeLevel: (src.data_eyeLevel != null && src.data_eyeLevel !== '') ? Number(src.data_eyeLevel) : discasEyeLevelDefault(),
         zPos: (src.data_zPosition != null && src.data_zPosition !== '') ? Number(src.data_zPosition) : 1.01 * unitFactor,
     };
@@ -3623,9 +3621,9 @@ function discasComputeGeometry(src) {
     const inchesPerUnit = (roomObj.unit === 'feet') ? 12 : 39.3701;
     const ih = (s.diag / Math.sqrt(1 + s.aspect * s.aspect)) / inchesPerUnit;
     const iw = ih * s.aspect;
-    const fv = (s.mode === 'adm') ? (3438 * ih / s.res) : (ih * s.pe * 2);
+    const fv = ih * s.pe * 2;
     const io = s.zPos - s.eyeLevel;
-    const cv = (s.mode === 'adm') ? 0 : Math.max(0, (ih + io) * 1.732);
+    const cv = Math.max(0, (ih + io) * 1.732);
     return { ...s, ih: ih, iw: iw, fv: fv, cv: cv };
 }
 
@@ -3682,11 +3680,9 @@ function wireDiscasDialogClose(dlg) {
 function populateDiscasDialog(src) {
     const s = discasResolveSettings(src);
     const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
-    document.getElementById('discasModeSelect').value = s.mode;
     document.getElementById('discasDiagonalInput').value = s.diag;
     document.getElementById('discasAspectSelect').value = String(s.aspect);
     document.getElementById('discasPercentElInput').value = s.pe;
-    document.getElementById('discasResolutionSelect').value = String(s.res);
     document.getElementById('discasMountInput').value = round(s.zPos);
 
     const eyeSel = document.getElementById('discasEyeLevelSelect');
@@ -3706,31 +3702,24 @@ function populateDiscasDialog(src) {
 
 /* Read the dialog fields into a plain values object (lengths in current unit). */
 function discasDialogValues() {
-    const mode = document.getElementById('discasModeSelect').value === 'adm' ? 'adm' : 'bdm';
     const eyeSel = document.getElementById('discasEyeLevelSelect').value;
     let eyeLevel;
     if (eyeSel === 'seated') eyeLevel = discasEyeLevelDefault();
     else if (eyeSel === 'standing') eyeLevel = discasEyeLevelStanding();
     else eyeLevel = Number(document.getElementById('discasEyeLevelCustomInput').value) || discasEyeLevelDefault();
     return {
-        mode: mode,
         diag: Number(document.getElementById('discasDiagonalInput').value) || 55,
         aspect: Number(document.getElementById('discasAspectSelect').value) || DISCAS_DEFAULT_ASPECT,
         pe: Number(document.getElementById('discasPercentElInput').value) || DISCAS_DEFAULT_PERCENT_EL,
-        res: Number(document.getElementById('discasResolutionSelect').value) || DISCAS_DEFAULT_RESOLUTION,
         eyeLevel: eyeLevel,
         zPos: Number(document.getElementById('discasMountInput').value) || 0,
     };
 }
 
-/* Live-recompute the read-only outputs and toggle the mode/eye-level dependent rows. */
+/* Live-recompute the read-only outputs and toggle the eye-level custom row. */
 function discasRecalcOutputs() {
     const v = discasDialogValues();
     const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
-    document.getElementById('discasPercentElRow').style.display = (v.mode === 'bdm') ? '' : 'none';
-    document.getElementById('discasResolutionRow').style.display = (v.mode === 'adm') ? '' : 'none';
-    document.getElementById('discasEyeLevelRow').style.display = (v.mode === 'bdm') ? '' : 'none';
-    document.getElementById('discasMountRow').style.display = (v.mode === 'bdm') ? '' : 'none';
     document.getElementById('discasEyeLevelCustomWrap').style.display =
         (document.getElementById('discasEyeLevelSelect').value === 'custom') ? 'flex' : 'none';
 
@@ -3738,16 +3727,22 @@ function discasRecalcOutputs() {
         data_diagonalInches: v.diag,
         data_aspectRatio: v.aspect,
         data_percentElementHeight: v.pe,
-        data_discasMode: v.mode,
-        data_imageResolution: v.res,
         data_eyeLevel: v.eyeLevel,
         data_zPosition: v.zPos,
     });
     document.getElementById('discasOutImage').innerText =
         round(g.iw) + ' x ' + round(g.ih) + ' ' + abbr + ' (image W x H)';
-    document.getElementById('discasOutClosest').innerText =
-        (g.mode === 'adm') ? 'n/a for ADM' : (round(g.cv) + ' ' + abbr);
+    document.getElementById('discasOutClosest').innerText = round(g.cv) + ' ' + abbr;
     document.getElementById('discasOutFarthest').innerText = round(g.fv) + ' ' + abbr;
+
+    /* Mirror of the canvas hasArea test: warn when the two-arc conformance region is empty
+     * (e.g. a very small %Element Height on a wide display -- FV drops below half the image width). */
+    const dcHalf = g.iw / 2;
+    const dcCross = Math.sqrt(Math.max(0, g.fv * g.fv - dcHalf * dcHalf));
+    const dcApex = dcHalf * Math.tan(Math.PI / 6);
+    const dcNear = Math.max(g.cv, dcApex);
+    const dcWarn = document.getElementById('discasOutWarning');
+    if (dcWarn) dcWarn.style.display = (g.fv > dcHalf && dcCross > dcNear) ? 'none' : '';
 }
 
 /* Write dialog values onto an item/attrs object. Defaults are DELETED, not stored (minimum-storage rule). */
@@ -3755,12 +3750,8 @@ function applyDiscasValuesToTarget(target, v) {
     target.data_diagonalInches = v.diag;
     if (Math.abs(v.aspect - DISCAS_DEFAULT_ASPECT) > 0.001) target.data_aspectRatio = v.aspect;
     else delete target.data_aspectRatio;
-    if (v.mode === 'bdm' && Math.abs(v.pe - DISCAS_DEFAULT_PERCENT_EL) > 0.001) target.data_percentElementHeight = v.pe;
+    if (Math.abs(v.pe - DISCAS_DEFAULT_PERCENT_EL) > 0.001) target.data_percentElementHeight = v.pe;
     else delete target.data_percentElementHeight;
-    if (v.mode === 'adm') target.data_discasMode = 'adm';
-    else delete target.data_discasMode;
-    if (v.mode === 'adm' && v.res !== DISCAS_DEFAULT_RESOLUTION) target.data_imageResolution = v.res;
-    else delete target.data_imageResolution;
     if (Math.abs(v.eyeLevel - discasEyeLevelDefault()) > 0.005) target.data_eyeLevel = round(v.eyeLevel);
     else delete target.data_eyeLevel;
     if (v.zPos > 0) target.data_zPosition = round(v.zPos);
@@ -9402,13 +9393,6 @@ function parseShortenedXYUrl(parameters) {
                     const elNum = Number(item.el) / 100;
                     if (isFinite(elNum) && elNum > 0) newItem.data_eyeLevel = elNum;
                 }
-                if ('dm' in item && Number(item.dm) === 1) {
-                    newItem.data_discasMode = 'adm';
-                }
-                if ('ir' in item) {
-                    const irNum = Number(item.ir);
-                    if (isFinite(irNum) && irNum > 0) newItem.data_imageResolution = irNum;
-                }
             }
 
             if ('h' in item) {
@@ -13050,7 +13034,7 @@ function createShareableLinkItem(item, prevTokens) {
     }
 
     /* displayCustom DISCAS inputs — 2-char codes (parsed like `ll`/`cd`), only non-defaults emitted.
-     * pe = %EH x10, ar = aspect x100, el = eye level x100 (current unit), dm1 = ADM, ir = content resolution. */
+     * pe = %EH x10, ar = aspect x100, el = eye level x100 (current unit). */
     if (item.data_deviceid === 'displayCustom') {
         if (item.data_percentElementHeight != null && Math.abs(item.data_percentElementHeight - DISCAS_DEFAULT_PERCENT_EL) > 0.001) {
             add('pe', 'pe' + Math.round(item.data_percentElementHeight * 10));
@@ -13060,12 +13044,6 @@ function createShareableLinkItem(item, prevTokens) {
         }
         if (item.data_eyeLevel != null && item.data_eyeLevel !== '') {
             add('el', 'el' + Math.round(item.data_eyeLevel * 100));
-        }
-        if (item.data_discasMode === 'adm') {
-            add('dm', 'dm1');
-        }
-        if (item.data_imageResolution != null && item.data_imageResolution !== DISCAS_DEFAULT_RESOLUTION) {
-            add('ir', 'ir' + Math.round(item.data_imageResolution));
         }
     }
 
@@ -14410,8 +14388,6 @@ function copyToCanvasClipBoard(nodes) {
         if (node.data_percentElementHeight != null) newAttr.data_percentElementHeight = node.data_percentElementHeight;
         if (node.data_aspectRatio != null) newAttr.data_aspectRatio = node.data_aspectRatio;
         if (node.data_eyeLevel != null) newAttr.data_eyeLevel = node.data_eyeLevel;
-        if (node.data_discasMode) newAttr.data_discasMode = node.data_discasMode;
-        if (node.data_imageResolution != null) newAttr.data_imageResolution = node.data_imageResolution;
 
         if ('data_zPosition' in node) {
             newAttr.data_zPosition = node.data_zPosition;
@@ -15620,8 +15596,6 @@ function updateRoomObjFromTrNode() {
         if (node.data_percentElementHeight != null) itemAttr.data_percentElementHeight = node.data_percentElementHeight;
         if (node.data_aspectRatio != null) itemAttr.data_aspectRatio = node.data_aspectRatio;
         if (node.data_eyeLevel != null) itemAttr.data_eyeLevel = node.data_eyeLevel;
-        if (node.data_discasMode) itemAttr.data_discasMode = node.data_discasMode;
-        if (node.data_imageResolution != null) itemAttr.data_imageResolution = node.data_imageResolution;
 
         if ('data_zPosition' in node) {
             itemAttr.data_zPosition = node.data_zPosition;
@@ -15886,10 +15860,6 @@ function updateRoomObjFromTrNode() {
             else delete item.data_aspectRatio;
             if (itemAttr.data_eyeLevel != null) item.data_eyeLevel = itemAttr.data_eyeLevel;
             else delete item.data_eyeLevel;
-            if (itemAttr.data_discasMode) item.data_discasMode = itemAttr.data_discasMode;
-            else delete item.data_discasMode;
-            if (itemAttr.data_imageResolution != null) item.data_imageResolution = itemAttr.data_imageResolution;
-            else delete item.data_imageResolution;
 
         } else {
             /* New item — trust map, no findIndex scan. */
@@ -20909,8 +20879,6 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_percentElementHeight = (attrs.data_percentElementHeight != null) ? attrs.data_percentElementHeight : null;
         node.data_aspectRatio = (attrs.data_aspectRatio != null) ? attrs.data_aspectRatio : null;
         node.data_eyeLevel = (attrs.data_eyeLevel != null) ? attrs.data_eyeLevel : null;
-        node.data_discasMode = attrs.data_discasMode || null;
-        node.data_imageResolution = (attrs.data_imageResolution != null) ? attrs.data_imageResolution : null;
 
         if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
             node.data_zPosition = data_zPosition;
@@ -21631,7 +21599,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 context.lineTo(xFar, yFar);
                 context.moveTo(halfPx, 0);
                 context.lineTo(-xFar, yFar);
-                if (dg.mode === 'bdm' && cvPx > 0) {
+                if (cvPx > 0) {
                     const xCv = Math.max(xNear, 0.5);
                     context.moveTo(-xCv, cvPx);
                     context.lineTo(xCv, cvPx);

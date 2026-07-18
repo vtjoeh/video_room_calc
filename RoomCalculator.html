@@ -2640,25 +2640,13 @@
     during an insert lands the display with the standard defaults.
   -->
   <dialog id="dialogDiscas" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
-    <header class="dialogWhiteBoxHeader">Custom Reach Display &mdash; Viewer Coverage</header>
+    <header class="dialogWhiteBoxHeader">Custom Reach Display: Viewer Coverage</header>
     <div class="closeDialogX" onclick="document.getElementById('dialogDiscas').close()">&#x2715;</div>
     <main class="dialogAlertMain">
       <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
         Calculates the closest viewer, farthest viewer, and 60&deg; horizontal viewing angles for this display,
-        based on the AVIXA DISCAS standard (ANSI/AVIXA V201.01, Display Image Size for 2D Content).
+        based on AVIXA DISCAS Basic Decision Making (BDM) (ANSI/AVIXA V201.01, Display Image Size for 2D Content).
         <br><b>These viewer coverage values are not sent to or shown in the Workspace Designer.</b>
-      </div>
-
-      <div class="inputField" style="max-width: none;">
-        <label class="tooltip">Viewing Category: <i class="icon icon-info-circle-bold"></i>
-          <span class="tooltiptext">Basic Decision Making (BDM): viewers make decisions from the content &mdash;
-            presentations, spreadsheets, documents. Analytic Decision Making (ADM): viewers must resolve full
-            image detail &mdash; technical drawings, medical or forensic imagery. ADM has no closest-viewer
-            limit.</span></label>
-        <select id="discasModeSelect" class="drpDown" onchange="discasRecalcOutputs()">
-          <option value="bdm">Basic Decision Making (BDM)</option>
-          <option value="adm">Analytic Decision Making (ADM)</option>
-        </select>
       </div>
 
       <div class="inputField" style="max-width: none;">
@@ -2678,7 +2666,7 @@
         </select>
       </div>
 
-      <div class="inputField" style="max-width: none;" id="discasPercentElRow">
+      <div class="inputField" style="max-width: none;">
         <label class="tooltip">%Element Height: <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptext">Height of the smallest meaningful content element (for text, the lowercase
             character height) as a percent of the image height. Smaller percentages pull the farthest viewer
@@ -2690,20 +2678,7 @@
         </div>
       </div>
 
-      <div class="inputField" style="max-width: none; display: none;" id="discasResolutionRow">
-        <label class="tooltip">Content Resolution (lines): <i class="icon icon-info-circle-bold"></i>
-          <span class="tooltiptext">Vertical resolution of the displayed image. ADM requires each image line to
-            remain resolvable (one arcminute per line), so higher resolution requires a larger image at the same
-            distance.</span></label>
-        <select id="discasResolutionSelect" class="drpDown" onchange="discasRecalcOutputs()">
-          <option value="720">720</option>
-          <option value="1080">1080</option>
-          <option value="2160">2160 (4K)</option>
-          <option value="4320">4320 (8K)</option>
-        </select>
-      </div>
-
-      <div class="inputField" style="max-width: none;" id="discasEyeLevelRow">
+      <div class="inputField" style="max-width: none;">
         <label class="tooltip">Eye Level: <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptext">Viewer eye height above the floor. AVIXA standard eye levels: 1200 mm (48 in)
             seated, 1500 mm (62 in) standing. Used with the display mounting height to place the closest
@@ -2720,7 +2695,7 @@
         </div>
       </div>
 
-      <div class="inputField" style="max-width: none;" id="discasMountRow">
+      <div class="inputField" style="max-width: none;">
         <label class="tooltip">Bottom of Image Height: <i class="icon icon-info-circle-bold"></i>
           <span class="tooltiptext">Height of the bottom of the display image above the floor (the item's
             elevation). Raising the display raises the sight line to the top of the image, which pushes the
@@ -2736,6 +2711,10 @@
         <div>Image size: <b id="discasOutImage"></b></div>
         <div>Closest viewer: <b id="discasOutClosest"></b></div>
         <div>Farthest viewer: <b id="discasOutFarthest"></b></div>
+        <div id="discasOutWarning" style="display: none; color: #b00020; font-weight: bold; margin-top: 6px;">
+          No conforming viewing area: the farthest-viewer distance is too short for this image width, so no
+          position keeps the entire image within reach. Increase the display size or raise the %Element Height.
+        </div>
       </div>
 
       <div style="font-size: 11px; color: #777; margin-top: 10px; font-style: italic;">
