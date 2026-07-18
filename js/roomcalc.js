@@ -29460,6 +29460,26 @@ function inventoryLabelText(item) {
     return String((item && item.data_labelField) || '').replace(/{.*?}/g, '').trim();
 }
 
+/* Resolves a device-def `colors:`/`roles:`/`mounts:` array entry (each entry shaped
+ * `{key: 'Label'}`) against an item's `{value, index}` selection, e.g. deviceType.colors[1]
+ * = {dark: 'Carbon Black'}, data_color = {value:'dark', index:1} -> 'Carbon Black'. Falls
+ * back to a key search if the index is stale (defensive; index should always agree with value). */
+function inventoryOptionLabel(list, sel) {
+    if (!Array.isArray(list) || !sel || !sel.value) return '';
+    const entry = (Number.isInteger(sel.index) && list[sel.index] && sel.value in list[sel.index])
+        ? list[sel.index]
+        : list.find(o => sel.value in o);
+    return entry ? (entry[sel.value] || '') : '';
+}
+
+function inventoryColorText(item, deviceType) {
+    return inventoryOptionLabel(deviceType && deviceType.colors, item && item.data_color);
+}
+
+function inventoryRoleText(item, deviceType) {
+    return inventoryOptionLabel(deviceType && deviceType.roles, item && item.data_role);
+}
+
 function polygonAreaShoelace(points) {
     let area = 0;
     for (let i = 0; i < points.length; i++) {
@@ -29526,6 +29546,8 @@ function exportInventoryCsv(includeLabeledItems) {
 
         const deviceType = allDeviceTypes[deviceId];
         const device = item.name || (deviceType && deviceType.name) || deviceId;
+        const color = inventoryColorText(item, deviceType);
+        const role = inventoryRoleText(item, deviceType);
 
         let partName = '';
         if (hasRoomParts) {
@@ -29541,8 +29563,8 @@ function exportInventoryCsv(includeLabeledItems) {
 
         if (!groups.has(partName)) groups.set(partName, new Map());
         const rows = groups.get(partName);
-        const key = device + SEP + label;
-        const row = rows.get(key) || { device: device, label: label, qty: 0 };
+        const key = device + SEP + label + SEP + color + SEP + role;
+        const row = rows.get(key) || { device: device, label: label, color: color, role: role, qty: 0 };
         row.qty++;
         rows.set(key, row);
         itemCount++;
@@ -29557,7 +29579,8 @@ function exportInventoryCsv(includeLabeledItems) {
     }
 
     const csvField = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const rowSort = (a, b) => a.device.localeCompare(b.device) || a.label.localeCompare(b.label);
+    const rowSort = (a, b) => a.device.localeCompare(b.device) || a.label.localeCompare(b.label)
+        || a.color.localeCompare(b.color) || a.role.localeCompare(b.role);
 
     const tzoffset = (new Date()).getTimezoneOffset() * 60000;
     const localDate = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
@@ -29567,11 +29590,11 @@ function exportInventoryCsv(includeLabeledItems) {
     lines.push('');
 
     if (!hasRoomParts) {
-        lines.push(['Device', 'Item Label', 'Quantity'].map(csvField).join(','));
+        lines.push(['Device', 'Item Label', 'Color', 'Role', 'Quantity'].map(csvField).join(','));
         const rows = Array.from((groups.get('') || new Map()).values()).sort(rowSort);
-        rows.forEach(r => lines.push([r.device, r.label, r.qty].map(csvField).join(',')));
+        rows.forEach(r => lines.push([r.device, r.label, r.color, r.role, r.qty].map(csvField).join(',')));
     } else {
-        lines.push(['Room Part Name', 'Device', 'Item Label', 'Quantity'].map(csvField).join(','));
+        lines.push(['Room Part Name', 'Device', 'Item Label', 'Color', 'Role', 'Quantity'].map(csvField).join(','));
 
         if (groups.has('Unassigned')) groupOrder.push('Unassigned');
 
@@ -29580,9 +29603,9 @@ function exportInventoryCsv(includeLabeledItems) {
             const rows = groups.get(partName);
             if (!rows) return;
             Array.from(rows.values()).sort(rowSort).forEach(r => {
-                lines.push([partName, r.device, r.label, r.qty].map(csvField).join(','));
-                const key = r.device + SEP + r.label;
-                const total = totals.get(key) || { device: r.device, label: r.label, qty: 0 };
+                lines.push([partName, r.device, r.label, r.color, r.role, r.qty].map(csvField).join(','));
+                const key = r.device + SEP + r.label + SEP + r.color + SEP + r.role;
+                const total = totals.get(key) || { device: r.device, label: r.label, color: r.color, role: r.role, qty: 0 };
                 total.qty += r.qty;
                 totals.set(key, total);
             });
@@ -29590,7 +29613,7 @@ function exportInventoryCsv(includeLabeledItems) {
 
         lines.push('');
         Array.from(totals.values()).sort(rowSort).forEach(r => {
-            lines.push(['Total', r.device, r.label, r.qty].map(csvField).join(','));
+            lines.push(['Total', r.device, r.label, r.color, r.role, r.qty].map(csvField).join(','));
         });
     }
 
