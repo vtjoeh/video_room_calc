@@ -2,6 +2,9 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**0.1.659 Release Notes**
+- Added a Path Editor app to more easily edit custom Path Shapes. 
+
 **v0.1.658** 
 - Custom Display coverage based on AVIXA DISCAS BDM and ADM. This is only shown in the Video Room Calculator and not the Workspace Designer. 
 
