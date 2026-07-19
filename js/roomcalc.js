@@ -12674,11 +12674,14 @@ function buildRoomPartWallItems(part, offsetX, offsetY, t) {
     const rot = Number(part.rotation) || 0;
     const anchor = { x: part.x - offsetX, y: part.y - offsetY, rotation: rot };
 
+    /* Wall items are natively VERTICAL (width = thickness, height = run), so top/bottom
+     * walls ride as -90°-rotated vertical walls — same convention as
+     * pushRoomPartDefaultWalls, so window/glass walls keep their panes on render/export. */
     const localRects = {
-        videowall: { x: -t, y: -t, width: part.width + 2 * t, height: t },
-        backwall: { x: -t, y: part.height, width: part.width + 2 * t, height: t },
-        leftwall: { x: -t, y: 0, width: t, height: part.height },
-        rightwall: { x: part.width, y: 0, width: t, height: part.height },
+        videowall: { x: -t, y: 0, width: t, height: part.width + 2 * t, wallRot: -90 },
+        backwall: { x: -t, y: part.height + t, width: t, height: part.width + 2 * t, wallRot: -90 },
+        leftwall: { x: -t, y: 0, width: t, height: part.height, wallRot: 0 },
+        rightwall: { x: part.width, y: 0, width: t, height: part.height, wallRot: 0 },
     };
 
     return Object.keys(localRects).map(wallName => {
@@ -12692,7 +12695,7 @@ function buildRoomPartWallItems(part, offsetX, offsetY, t) {
             y: worldUL.y,
             width: geom.width,
             height: geom.height,
-            rotation: rot,
+            rotation: rot + geom.wallRot,
         };
         if (surface.acousticTreatment) {
             wall.data_labelField = JSON.stringify({ acousticTreatment: true });
@@ -32854,12 +32857,18 @@ function exportRoomObjToWorkspace() {
         const typeToDevice = { regular: 'wallStd', glass: 'wallGlass', window: 'wallWindow' };
         const rot = part.rotation || 0;
 
-        /* Local rects match the canvas preview: outside the part, top/bottom extended past the corners. */
+        /* Local rects match the canvas preview: outside the part, top/bottom extended past the
+         * corners. Wall items are natively VERTICAL (width = thickness, height = run — the
+         * convention menu walls use, which the WD push maps to width=run / length=thickness),
+         * so the top/bottom walls ride as -90°-rotated vertical walls rather than
+         * width/height-swapped horizontal rects. A swapped rect puts the run in WD `length`
+         * (the thickness slot), which drops the window/glass panes and — for glass, whose
+         * workspaceKey pins length to the 0.03 pane thickness — collapses the wall entirely. */
         const localRects = {
-            videowall: { x: -t, y: -t, width: part.width + 2 * t, height: t },
-            backwall: { x: -t, y: part.height, width: part.width + 2 * t, height: t },
-            leftwall: { x: -t, y: 0, width: t, height: part.height },
-            rightwall: { x: part.width, y: 0, width: t, height: part.height },
+            videowall: { x: -t, y: 0, width: t, height: part.width + 2 * t, wallRot: -90 },
+            backwall: { x: -t, y: part.height + t, width: t, height: part.width + 2 * t, wallRot: -90 },
+            leftwall: { x: -t, y: 0, width: t, height: part.height, wallRot: 0 },
+            rightwall: { x: part.width, y: 0, width: t, height: part.height, wallRot: 0 },
         };
 
         Object.keys(localRects).forEach(wallName => {
@@ -32874,7 +32883,7 @@ function exportRoomObjToWorkspace() {
                 y: worldUL.y,
                 width: geom.width,
                 height: geom.height,
-                rotation: rot,
+                rotation: rot + geom.wallRot,
                 data_zPosition: 0,
                 data_vHeight: wallHeight,
             };
