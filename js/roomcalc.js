@@ -14244,8 +14244,17 @@ function showNewRoomSection(sectionId) {
 
 }
 
+/* A text-selection drag that starts inside dialog content (e.g. selecting a value in a
+ * DISCAS input) can release outside it; the browser then fires the click on the <dialog>
+ * element itself, which reads as a backdrop click. Track where the pointer went DOWN and
+ * only treat the click as outside when the press itself started on the backdrop. */
+let dialogPointerDownOnBackdrop = false;
+document.addEventListener('pointerdown', (e) => {
+    dialogPointerDownOnBackdrop = e.target.tagName === 'DIALOG';
+}, true);
+
 function onDialogClick(e) {
-    const clickedOutside = e.target.tagName === 'DIALOG'
+    const clickedOutside = e.target.tagName === 'DIALOG' && dialogPointerDownOnBackdrop;
     if (clickedOutside) {
         e.target.close()
         closeAllDialogModals();
