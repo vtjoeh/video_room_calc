@@ -4802,6 +4802,15 @@ layerSelectionBox.add(measuringToolLabel);
 
 measuringToolLabel.hide();
 
+/* Measure / Select-2-Points overlays live inside the zoom-scaled stage; counter-scale
+ * the endpoint circles and the distance label so they keep a constant visual size. */
+function applyMeasureToolZoomScale() {
+    const inv = 1 / (zoomScaleX || 1);
+    circleStart.scale({ x: inv, y: inv });
+    circleEnd.scale({ x: inv, y: inv });
+    measuringToolLabel.scale({ x: inv, y: inv });
+}
+
 
 let lastWallBuilderRotation = 0; /* keep track of the last Wall Builder rotation */
 
@@ -6258,6 +6267,7 @@ wallWriterRect2.on('pointermove', function wallBuilderRectPointerDown(pointer) {
 select2PointsRect.on('pointerdown', function select2PointsRectOnMousedown(mouse) {
     circleEnd.radius(3);
     circleStart.radius(3);
+    applyMeasureToolZoomScale();
 
     /* RoomOS touch likes time for logMouseMovements() to update to canvasPixel.x/.y  */
     setTimeout(() => {
@@ -6302,9 +6312,9 @@ select2PointsRect.on('pointermove', function select2PointsRectOnMousemove(mouse)
         }
 
         if (mouseUnit.y > 0.1) {
-            measuringToolLabel.y(endY - 25);
+            measuringToolLabel.y(endY - 25 / zoomScaleX);
         } else {
-            measuringToolLabel.y(endY + 60);
+            measuringToolLabel.y(endY + 60 / zoomScaleX);
         }
 
 
@@ -6352,9 +6362,9 @@ select2PointsRect.on('pointerup', function select2PointsRectOnMouseup(event) {
     }
 
     if (mouseUnit.y > 0.1) {
-        measuringToolLabel.y(endY - 25);
+        measuringToolLabel.y(endY - 25 / zoomScaleX);
     } else {
-        measuringToolLabel.y(endY + 60);
+        measuringToolLabel.y(endY + 60 / zoomScaleX);
     }
 
     let lineDistance = Math.sqrt((circleStart.x() - endX) ** 2 + (circleStart.y() - endY) ** 2);
@@ -25916,6 +25926,8 @@ function zoomInOut(zoomChange) {
     zoomScaleX = zoomValue / 100;
     zoomScaleY = zoomValue / 100;
 
+    applyMeasureToolZoomScale();
+
     stage.scaleX(zoomScaleX);
     stage.scaleY(zoomScaleY);
     /* Batch width+height into one size() call (single _resizeDOM redraw) instead of separate sets + stage.draw() (three full redraws per zoom). */
@@ -29660,10 +29672,6 @@ function inventoryColorText(item, deviceType) {
     return inventoryOptionLabel(deviceType && deviceType.colors, item && item.data_color);
 }
 
-function inventoryRoleText(item, deviceType) {
-    return inventoryOptionLabel(deviceType && deviceType.roles, item && item.data_role);
-}
-
 function polygonAreaShoelace(points) {
     let area = 0;
     for (let i = 0; i < points.length; i++) {
@@ -29731,7 +29739,6 @@ function exportInventoryCsv(includeLabeledItems) {
         const deviceType = allDeviceTypes[deviceId];
         const device = item.name || (deviceType && deviceType.name) || deviceId;
         const color = inventoryColorText(item, deviceType);
-        const role = inventoryRoleText(item, deviceType);
 
         let partName = '';
         if (hasRoomParts) {
@@ -29747,8 +29754,8 @@ function exportInventoryCsv(includeLabeledItems) {
 
         if (!groups.has(partName)) groups.set(partName, new Map());
         const rows = groups.get(partName);
-        const key = device + SEP + label + SEP + color + SEP + role;
-        const row = rows.get(key) || { device: device, label: label, color: color, role: role, qty: 0 };
+        const key = device + SEP + label + SEP + color;
+        const row = rows.get(key) || { device: device, label: label, color: color, qty: 0 };
         row.qty++;
         rows.set(key, row);
         itemCount++;
@@ -29764,7 +29771,7 @@ function exportInventoryCsv(includeLabeledItems) {
 
     const csvField = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
     const rowSort = (a, b) => a.device.localeCompare(b.device) || a.label.localeCompare(b.label)
-        || a.color.localeCompare(b.color) || a.role.localeCompare(b.role);
+        || a.color.localeCompare(b.color);
 
     const tzoffset = (new Date()).getTimezoneOffset() * 60000;
     const localDate = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
@@ -29774,11 +29781,11 @@ function exportInventoryCsv(includeLabeledItems) {
     lines.push('');
 
     if (!hasRoomParts) {
-        lines.push(['Device', 'Item Label', 'Color', 'Role', 'Quantity'].map(csvField).join(','));
+        lines.push(['Device', 'Item Label', 'Color', 'Quantity'].map(csvField).join(','));
         const rows = Array.from((groups.get('') || new Map()).values()).sort(rowSort);
-        rows.forEach(r => lines.push([r.device, r.label, r.color, r.role, r.qty].map(csvField).join(',')));
+        rows.forEach(r => lines.push([r.device, r.label, r.color, r.qty].map(csvField).join(',')));
     } else {
-        lines.push(['Room Part Name', 'Device', 'Item Label', 'Color', 'Role', 'Quantity'].map(csvField).join(','));
+        lines.push(['Room Part Name', 'Device', 'Item Label', 'Color', 'Quantity'].map(csvField).join(','));
 
         if (groups.has('Unassigned')) groupOrder.push('Unassigned');
 
@@ -29787,9 +29794,9 @@ function exportInventoryCsv(includeLabeledItems) {
             const rows = groups.get(partName);
             if (!rows) return;
             Array.from(rows.values()).sort(rowSort).forEach(r => {
-                lines.push([partName, r.device, r.label, r.color, r.role, r.qty].map(csvField).join(','));
-                const key = r.device + SEP + r.label + SEP + r.color + SEP + r.role;
-                const total = totals.get(key) || { device: r.device, label: r.label, color: r.color, role: r.role, qty: 0 };
+                lines.push([partName, r.device, r.label, r.color, r.qty].map(csvField).join(','));
+                const key = r.device + SEP + r.label + SEP + r.color;
+                const total = totals.get(key) || { device: r.device, label: r.label, color: r.color, qty: 0 };
                 total.qty += r.qty;
                 totals.set(key, total);
             });
@@ -29797,7 +29804,7 @@ function exportInventoryCsv(includeLabeledItems) {
 
         lines.push('');
         Array.from(totals.values()).sort(rowSort).forEach(r => {
-            lines.push(['Total', r.device, r.label, r.color, r.role, r.qty].map(csvField).join(','));
+            lines.push(['Total', r.device, r.label, r.color, r.qty].map(csvField).join(','));
         });
     }
 
