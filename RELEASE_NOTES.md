@@ -2,6 +2,9 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**v01.660 Release Notes**
+- Bug fixes. 
+
 **0.1.659 Release Notes**
 - Added a Path Editor app to more easily edit custom Path Shapes. 
 
