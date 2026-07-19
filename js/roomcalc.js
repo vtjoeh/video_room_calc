@@ -12191,7 +12191,7 @@ function simplePathEditor(idOverride) {
 }
 
 /* Fresh-pathShape chooser (reuses the shared roleSelectionDialog, same pattern as
- * openCertifiedDisplayDialog): Draw Simple Path (poly builder) vs. the SVG Path
+ * openCertifiedDisplayDialog): Draw Simple Path (poly builder) vs. the Path
  * Editor (opened in Draw mode). Shown only on first insert. */
 function openPathShapeDrawChooser(uuid) {
     const dialogHeader = document.getElementById('headerRoleSelection');
@@ -12207,8 +12207,8 @@ function openPathShapeDrawChooser(uuid) {
     innerDiv.innerHTML = '';
 
     [
-        { label: 'SVG Path Editor', action: () => openSvgPathEditor(uuid, 'draw') },
-        { label: 'Draw Simple Path', action: () => simplePathEditor(uuid) },
+        { label: 'Open Path Editor', action: () => openSvgPathEditor(uuid, 'draw') },
+        { label: 'Draw Simple Path on Room Canvas', action: () => simplePathEditor(uuid) },
     ].forEach(opt => {
         const buttonDiv = document.createElement('div');
         const button = document.createElement('button');
@@ -12278,7 +12278,7 @@ function openSvgPathEditor(idOverride, startMode) {
     }
 
     loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR).then(() => {
-        window.VRC.pathEditor.open({
+        return window.VRC.pathEditor.open({
             path: lbl.path,
             startMode: startMode,
             scaleX: scaleX,
@@ -12312,8 +12312,18 @@ function openSvgPathEditor(idOverride, startMode) {
                 updateItem();
             },
         });
+    }).then(() => {
+        let mainHtml = `<li>Draw a path with lines or curved lines.</li>
+        <li>Set curve control points after drawing in Edit mode.</li>
+        <li>Lines cannot intersect. No holes are allowed.</li>
+        <li>Close the path when done.</li>
+        <li>Path shape units are always in meters.</li>
+        <li>Sub-paths are allowed, but might not export correctly to the Workspace Designer.</li>
+        <li>Click 'Close' when done.</li>`
+            ;
+        alertDialog('Path Editor', mainHtml);
     }).catch(() => {
-        alertDialog('SVG Path Editor', 'Could not load the path editor module. Please refresh the page and try again.');
+        alertDialog('Path Editor', 'Could not load the path editor module. Please refresh the page and try again.');
     });
 }
 
@@ -12352,7 +12362,7 @@ function polyBuilderOn(event, mode = 'polyRoom') {
         <li>X & Y coordinates are center of object.</li>
         <li>Close the path when done.</li>
         <li>Path units are always in meters</li>
-        <li>For more complex paths use a Path editor like <a href="https://yqnn.github.io/svg-path-editor/" target="_blank" rel="noopener noreferrer">SvgPathEditor</a>.
+        <li>For more complex paths edit with the Path Editor.
         `
                 ;
             alertDialog(headerHtml, mainHtml);

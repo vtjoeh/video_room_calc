@@ -217,7 +217,7 @@
     /* ---------------- geometry helpers ---------------- */
 
     /* Drawing works on the LAST subpath so a closed shape can be followed by another M
-     * (Draw Mode → "Add New Shape"). Open = the segment list doesn't end with Z. */
+     * (Draw Mode → "Add New Sub-Path"). Open = the segment list doesn't end with Z. */
     function lastSubpathOpen() {
         return segs.length > 0 && segs[segs.length - 1].c !== 'Z';
     }
@@ -299,7 +299,7 @@
         dlg.id = 'vrcPathEditorDialog';
         dlg.innerHTML = `
             <div class="vrcpe-toolbar">
-                <span class="vrcpe-title">SVG Path Editor</span>
+                <span class="vrcpe-title">Path Editor</span>
                 <button id="vrcpeDrawMode">Draw Mode</button>
                 <button id="vrcpeEditMode">Edit Mode</button>
                 <span class="vrcpe-sep"></span>
@@ -329,16 +329,28 @@
         drawChoice.className = 'vrcpe-choice';
         drawChoice.innerHTML = `
             <div class="vrcpe-choice-title">Draw Mode</div>
-            <button id="vrcpeDrawAddShape">Add New Shape</button>
+            <button id="vrcpeDrawAddShape">Add New Sub-Path</button>
             <button id="vrcpeDrawEraseAll">Erase &amp; Start Over</button>
             <button id="vrcpeDrawCancel">Cancel</button>`;
         document.body.appendChild(drawChoice);
+
+        /* Sub-path export caveat — shown once per "Add New Sub-Path" click, before it applies. */
+        const subpathWarn = document.createElement('dialog');
+        subpathWarn.id = 'vrcpeSubpathWarn';
+        subpathWarn.className = 'vrcpe-choice';
+        subpathWarn.innerHTML = `
+            <div class="vrcpe-choice-title">Add New Sub-Path</div>
+            <div class="vrcpe-choice-body">Sub-Paths may not export correctly to the Workspace Designer.</div>
+            <button id="vrcpeSubpathWarnOk">OK</button>`;
+        document.body.appendChild(subpathWarn);
 
         ui = {
             drawChoice: drawChoice,
             drawAddShape: drawChoice.querySelector('#vrcpeDrawAddShape'),
             drawEraseAll: drawChoice.querySelector('#vrcpeDrawEraseAll'),
             drawCancel: drawChoice.querySelector('#vrcpeDrawCancel'),
+            subpathWarn: subpathWarn,
+            subpathWarnOk: subpathWarn.querySelector('#vrcpeSubpathWarnOk'),
             drawModeBtn: dlg.querySelector('#vrcpeDrawMode'),
             editModeBtn: dlg.querySelector('#vrcpeEditMode'),
             modeLine: dlg.querySelector('#vrcpeModeLine'),
@@ -377,6 +389,10 @@
         };
         ui.drawAddShape.onclick = () => {
             ui.drawChoice.close();
+            ui.subpathWarn.showModal();
+        };
+        ui.subpathWarnOk.onclick = () => {
+            ui.subpathWarn.close();
             selIndex = -1;
             setEditorMode('draw'); /* path kept closed — the next click starts a new M */
             refreshAll();

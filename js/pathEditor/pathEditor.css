@@ -170,6 +170,13 @@ dialog.vrcpe-choice::backdrop {
     margin-bottom: 4px;
 }
 
+.vrcpe-choice-body {
+    font-size: 13px;
+    color: #444;
+    max-width: 280px;
+    margin-bottom: 6px;
+}
+
 dialog.vrcpe-choice button {
     background: #fff;
     color: #1a1a1a;

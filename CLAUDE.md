@@ -1468,6 +1468,10 @@ display.
 
 ## SVG Path Editor (`js/pathEditor/`)
 
+User-facing name is **"Path Editor"** (the underlying format is still
+SVG paths, and the folder/internal function names keep the `svg`/`Svg`
+spelling — only display strings say "Path Editor").
+
 A lazy-loaded, self-contained visual editor for `pathShape` items —
 the native replacement for pointing users at external SVG tools. All
 editor code lives in `js/pathEditor/` (`pathEditor.js` +
@@ -1483,16 +1487,25 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
 - **Fresh insert**: `insertItemFromMenu()`'s pathShape branch calls
   `openPathShapeDrawChooser(uuid)` (reuses the shared
   `roleSelectionDialog`, same pattern as certifiedDisplay), offering
-  **SVG Path Editor** (→ `openSvgPathEditor(uuid, 'draw')`) or **Draw
-  Simple Path** (→ `simplePathEditor(uuid)`, the polyBuilder). When
-  the SVG editor is chosen it opens in Draw mode with a BLANK canvas
-  (the placeholder path is ignored; closing without drawing returns
-  null from `finishAndApply()` so the item keeps its placeholder).
-- **Details → Items**: the `labelPathId` row carries only the SVG
-  Path Editor button (`openSvgPathEditor()`, no mode arg → **Edit
-  mode**). The Draw Simple Path BUTTON was removed but
-  `simplePathEditor()` / the polyBuilder plumbing is intentionally
-  left intact in case the button returns.
+  **"Open Path Editor"** (→ `openSvgPathEditor(uuid, 'draw')`) or
+  **"Draw Simple Path on Room Canvas"** (→ `simplePathEditor(uuid)`,
+  the polyBuilder). When the Path Editor is chosen it opens in Draw
+  mode with a BLANK canvas (the placeholder path is ignored; closing
+  without drawing returns null from `finishAndApply()` so the item
+  keeps its placeholder).
+- **Details → Items**: the `labelPathId` row carries only the Path
+  Editor button (`openSvgPathEditor()`, no mode arg → **Edit mode**).
+  The Draw Simple Path BUTTON was removed but `simplePathEditor()` /
+  the polyBuilder plumbing is intentionally left intact in case the
+  button returns.
+- **Instructions alert**: every successful open (Draw or Edit mode)
+  chains an `alertDialog('Path Editor', ...)` after
+  `window.VRC.pathEditor.open(...)` resolves — mirrors the
+  `polyBuilderOn(true, 'customPathEditor')` alert shown for Draw
+  Simple Path (same "shows every open" behavior, same bullet-list
+  style). Since `open()` is `async`, `.then()` waits for the stage to
+  finish building before the alert's `showModal()` stacks the two
+  native `<dialog>`s (alert renders on top because it's shown after).
 - **Draw mode** mirrors the Draw Simple Path builder: click to place
   points sequentially (the Line/Curve buttons pick the segment type —
   **keys L / C toggle them while drawing**), a dotted rubber band
@@ -1504,11 +1517,13 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   Mode toolbar button** with a non-empty path opens a small nested
   choice dialog (`#vrcpeDrawChoice`, appended to `document.body` so
   its keystrokes don't hit the editor's Esc-applies keydown handler):
-  **Add New Shape** keeps the path and the next click starts another
-  `M` subpath (drawing operates on the LAST subpath —
-  `lastSubpathOpen()` / `currentSubpathStart()`), or **Erase & Start
-  Over** clears everything. No dragging/selection/controls while
-  drawing.
+  **Add New Sub-Path** keeps the path and the next click starts
+  another `M` subpath (drawing operates on the LAST subpath —
+  `lastSubpathOpen()` / `currentSubpathStart()`) — clicking it first
+  shows a one-time caveat dialog (`#vrcpeSubpathWarn`: "Sub-Paths may
+  not export correctly to the Workspace Designer") before applying —
+  or **Erase & Start Over**, which clears everything with no caveat.
+  No dragging/selection/controls while drawing.
 - **Edit mode**: everything else below (drag, select, insert, convert,
   delete). **Hovering a point enlarges it slightly and fills it baby
   blue (`#89CFF0`)** so the user knows it's clickable.
