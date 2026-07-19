@@ -2001,7 +2001,7 @@ function confirmEditCustomItemFromDialog() {
     });
 }
 
-/* ---- Storage and Local Data dialog (Details -> Settings). Per-bucket counts + Clear Undo/Redo and Clear All actions. See notes/COMMENT_NOTES.md. ---- */
+/* ---- Storage and Local Data dialog (Room -> Settings). Per-bucket counts + Clear Undo/Redo and Clear All actions. See notes/COMMENT_NOTES.md. ---- */
 
 /* Format a byte count as a human-friendly string (KB/MB/GB). */
 function _formatStorageBytes(bytes) {
@@ -11084,7 +11084,7 @@ function drawOutsideWall(grOuterWall) {
 
                 grOuterWall.add(tempWall);
 
-                document.getElementById("tabItem").click();
+                document.getElementById("defaultOpenTab").click();
                 document.getElementById("subTabDefaultWalls").click();
                 //   document.getElementById("drpRoomSurfaces").value = e.target.name();
                 updateDefaultWallsMenu(e.target.name());
@@ -12094,6 +12094,10 @@ function wallBuilderRestart2() {
     isWallWriterWriting = false;
 }
 
+function btnWallBuilderClicked() {
+    wallBuilderOn(!isWallBuilderOn);
+}
+
 function wallBuilderOn(event) {
     let turnOn;
 
@@ -12123,6 +12127,7 @@ function wallBuilderOn(event) {
         wallBuilderRect.show();
         isWallBuilderOn = true;
         document.getElementById("canvasDiv").style.cursor = "crosshair";
+        document.getElementById('btnWallBuilder').classList.add('active');
 
         if (wallBuilderToolCheckBox) {
             wallBuilderToolCheckBox.checked = true;
@@ -12145,6 +12150,7 @@ function wallBuilderOn(event) {
         wallBuilderRect.hide();
         lastWallBuilderNode.x(-1000);
         document.getElementById("canvasDiv").style.cursor = "auto";
+        document.getElementById('btnWallBuilder').classList.remove('active');
 
         if (wallBuilderToolCheckBox) {
             wallBuilderToolCheckBox.checked = false;
@@ -14123,13 +14129,17 @@ function populateCustomItemsMenuContainer() {
 }
 
 function openSubTab2(evt, tabName) {
+    /* Scoped to the clicked bar's tabcontent so Room-tab switching can't hide
+     * #ItemDetails (which keeps .subtabcontent2 for styling and scroll hints
+     * but sits in #Item, where the sub-tab bar was removed). */
     let i, tabcontent, tablinks;
-    tabcontent = document.getElementsByClassName("subtabcontent2");
+    const scope = (evt && evt.currentTarget && evt.currentTarget.closest('.tabcontent')) || document;
+    tabcontent = scope.getElementsByClassName("subtabcontent2");
     for (i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
     }
 
-    tablinks = document.getElementsByClassName("subtablinks2");
+    tablinks = scope.getElementsByClassName("subtablinks2");
     for (i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
     }
@@ -23487,7 +23497,6 @@ function enableCopyDelBtn(opts) {
 
         if (!suppressTabSwitch) {
             document.getElementById("tabItem").click();
-            document.getElementById("subTabItemDetails").click();
         }
 
         setDefaultBlankElements();
@@ -24673,7 +24682,6 @@ function addListeners(stage) {
             /* For Konva.Label items (wdText) e.target is the inner Text/Tag (no data_deviceid); walk up to the labeled item (no-op for normal shapes). */
             e.target = resolveItemAncestor(e.target);
             document.getElementById("tabItem").click();
-            document.getElementById("subTabItemDetails").click();
 
             updateFormatDetails(e);
         }
@@ -26599,6 +26607,7 @@ function loadTemplate(x) {
     roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
     drawRoom(true, true);
     document.getElementById("defaultOpenTab").click();
+    document.getElementById("subTabRoomSetup").click();
     setTimeout(() => {
         zoomInOut('reset');
         drawRoom();
@@ -26815,7 +26824,7 @@ function setupDragAndDropImport() {
             const file = item.getAsFile();
             if (file.type && file.type.startsWith('image/')) { /* image drop → background image */
                 processBackgroundImageFile(file, file.name);
-                document.getElementById("tabItem").click();
+                document.getElementById("defaultOpenTab").click();
                 document.getElementById("subTabRoomFloorPlan").click();
                 alertDialog('', 'Image dropped as background image.');
                 return;
@@ -28623,7 +28632,7 @@ document.addEventListener('paste', function (e) {
                 const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
                 const pasteName = `pasted-image-${Date.now()}.${ext}`;
                 processBackgroundImageFile(blob, pasteName);
-                document.getElementById("tabItem").click();
+                document.getElementById("defaultOpenTab").click();
                 document.getElementById("subTabRoomFloorPlan").click();
                 alertDialog('', 'Image pasted from clipboard as background image.');
                 return;
@@ -28665,6 +28674,7 @@ function importJson(jsonFile) {
     document.getElementById('dialogLoadingTemplate').showModal();
 
     document.getElementById("defaultOpenTab").click();
+    document.getElementById("subTabRoomSetup").click();
 
     setTimeout(() => {
         closeAllDialogModals();
@@ -29243,6 +29253,7 @@ function importXConfigFile(text, fileName) {
     zoomInOut('reset');
     document.getElementById('dialogLoadingTemplate').showModal();
     document.getElementById("defaultOpenTab").click();
+    document.getElementById("subTabRoomSetup").click();
     setTimeout(() => { closeAllDialogModals(); }, 3000);
 
     setTimeout(() => {
@@ -31863,8 +31874,8 @@ function closeModalWorkspace() {
 
 function openDetailsRoomTab() {
     document.getElementById('modalWorkspace').close();
-    document.getElementById("tabItem").click();
-    document.getElementById("subTabRoomDetails").click();
+    document.getElementById("defaultOpenTab").click();
+    document.getElementById("subTabRoomSetup").click();
 
 }
 

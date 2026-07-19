@@ -835,6 +835,19 @@ are siblings of the body. The CSS uses a single primary colour
 variable (`--active: #0352a6`) and four responsive breakpoints
 (900 / 783 / 650 / 405 px).
 
+Sidebar tab structure (2026-07 redesign): the **Room** tab owns the
+room-level sub-tabs — Room Setup (`#RoomSetup`), Default Walls
+(`#DefaultWalls`), Floor Plan (`#BackgroundImage`), Settings
+(`#SettingDetails`) — via `openSubTab2()`, which is scoped to the
+clicked bar's `.tabcontent`. The **Details** tab (`#Item`) is a pure
+item inspector with no sub-tab bar (`subTabItemDetails` no longer
+exists; `tabItem.click()` alone surfaces the inspector, and
+`#ItemDetails` keeps `.subtabcontent2` for styling/scroll-hints while
+staying permanently visible). The `#controlButtons` toolbar carries a
+Wall Builder toggle (`#btnWallBuilder` → `btnWallBuilderClicked()`;
+active-state class synced inside `wallBuilderOn()` both branches so
+the Equipment tile and Esc-exit paths stay consistent).
+
 See `notes/UI_LAYOUT.md` for the full layout map, key ID/class
 tables, and breakpoint specifics. The actual source files
 (`RoomCalculator.html`, `style.css`) are always the source of truth —

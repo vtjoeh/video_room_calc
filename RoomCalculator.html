@@ -178,6 +178,17 @@
       </div>
       <div id="containerInputTabContent">
         <div id="Room" class="tabcontent" style="display: flex;">
+          <div class="tab">
+            <button class="subtablinks2 active" onclick="openSubTab2(event, 'RoomSetup')"
+              id="subTabRoomSetup">Room Setup</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'DefaultWalls')" id="subTabDefaultWalls">Default
+              Walls</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')" id="subTabRoomFloorPlan">Floor
+              Plan</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')" id="detailsSettings">Settings</button>
+          </div>
+
+          <div id="RoomSetup" class="subtabcontent2 subtabcontent2a" style="display: block;">
           <div class="inputField">
             <label id="roomNameLabel">Room name:</label>
             <input type="text" id="roomName" name="roomName" class="textInput">
@@ -281,6 +292,311 @@
           </div>
 
 
+          </div>
+
+          <div id="DefaultWalls" class="subtabcontent2 subtabcontent2a">
+            <!-- Shown only in Multi-Room Floor Plan overview (no room selected);
+                 hidden in normal/Room mode. Toggled by applyMultiRoomModeUi(). -->
+            <div id="defaultWallsMultiRoomMsg" style="display: none; font-size: 14px; padding: 8px 0;">
+              Not available in multi-room floor plan view. Select a rectangular individual room.
+            </div>
+            <div class="inputRow" id="removeDefaultWallsRow2">
+              <div class="inputField inputFieldRow">
+                <label>Remove Default Walls:</label>
+                <label class="switch">
+                  <input id="removeDefaultWallsCheckBox2" type="checkbox" onclick="removeDefaultWallsChange(event)">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+
+            <div id="defaultWallSettings">
+
+              <div class="inputRow">
+                <div class="inputField inputFieldMaxWdith">
+                  <label class="tooltipBottom">Choose Wall:
+                    <!-- <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span> --></label>
+                  <br>
+                  <div class="parentWallSelection">
+
+                    <div class="wallSelection">
+                      <button id="leftwall" class="wallButton wallButtonSelected" style="left: -70px; top: 15px;"
+                        onclick="btnWallSelected('leftwall')">Left Wall</button>
+                      <button id="videowall" class="wallButton" style="left: -14px; top: -24.5px;"
+                        onclick="btnWallSelected('videowall')">Video Wall</button>
+                      <button id="rightwall" class="wallButton" style="right: -78px; top: 15px;"
+                        onclick="btnWallSelected('rightwall')">Right Wall</button>
+                      <button id="backwall" class="wallButton" style="left: -11px; top: 53px;"
+                        onclick="btnWallSelected('backwall')">Back Wall</button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="inputRow">
+                <div class="inputField inputFieldRow">
+                  <label class="tooltipBottom">Material:
+                    <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptextBottom">Material or wall type: Wall Standard, Glass Wall or Wall with
+                      Windows.</span></label>
+                  <select id="drpWallType" class="drpDown" onchange="updateDefaultWallsMenuAndCanvas()">
+                    <option value="regular">Wall Standard</option>
+                    <option value="glass">Glass Wall</option>
+                    <option value="window">Wall with Windows</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="inputRow">
+                <div class="inputField inputFieldRow">
+                  <label class="tooltip">Acoustic Treatment: <i class="icon icon-info-circle-bold"></i>
+                    <span class="tooltiptext">Acoustic treatment only shows up on the Workspace Designer.</span>
+                  </label>
+                  <label class="switch">
+                    <input id="acousticTreatment" type="checkbox" onchange="updateDefaultWallsMenuAndCanvas()">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+
+
+              <div class="inputField inputFieldMaxWdith" id="pickDoorSelection"><label class="tooltip">Default Door
+                  Location: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptext">Door location for the default wall that renders in the Workspace Designer.
+                    Manual walls can also be dragged and dropped at any location.</span></label>
+                <div class="parentWallSelection">
+
+
+                  <div id="doorSelectionDiv" class="doorSelection">
+
+                    <button id="doorNone" class="doorButton" style="left: 48px; bottom: 60px; position:absolute;"
+                      onclick="doorSelected('none')">None</button>
+                    <img id="rightDoor" class="doors doorSelected" src="./assets/images/doorLeft-top.png"
+                      style="left: 5px; bottom: -6.5px;" onclick="doorSelected('right')">
+                    <img id="centerDoor" class="doors" src="./assets/images/doorLeft-top.png"
+                      style="left: 53px; bottom: -6.5px; " onclick="doorSelected('center')">
+                    <img id="leftDoor" class="doors" src="./assets/images/doorRight-top.png"
+                      style="left: 100px; bottom: -6.5px; " onclick="doorSelected('left')">
+                  </div>
+                </div>
+
+              </div>
+
+              <div id="noDoorSelectionDiv" class="inputRow"><span style="font-size: 14px;">Default Door Location:
+                  <br><span style="font-size: 12px;">Not supported with a wall with windows.</span></span></div>
+
+
+              <br>
+              <br>
+              <br>
+              <br>
+            </div>
+          </div>
+          <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
+
+            <div id="bgImageRoomModeMsg" style="display: none; text-align: left; font-size:12px;">
+              <i>To add or change the room floor plan background image, switch to the Multi-Room Floor Plan overview
+                (exit this room). Only opacity can be adjusted here.</i>
+            </div>
+
+            <div class="bgFloorOnlySetting" style="text-align: left; font-size:12px; ">
+              <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
+                saved to the Shareable Hyperlink Template.</i>
+
+            </div>
+            <br class="bgFloorOnlySetting">
+            <div class="inputField bgFloorOnlySetting">
+              <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
+                upload:
+                <!-- <i class="icon icon-info-circle-bold"></i>
+              <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
+              </label>
+              <span id="fileInputImageContainer">
+                <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
+              </span>
+            </div>
+            <div class="inputField bgFloorOnlySetting">
+              <input type="button" id="btnRecentFloorPlans" value="Recent Floor Plans"
+                onclick="openRecentFloorPlansPicker()" class="linkButton"
+                title="Up to 10 previously uploaded floor plan images are remembered in this browser. Click to pick one to re-apply without re-uploading. Oldest entries are removed when an 11th image is added.">
+            </div>
+
+            <div class="inputField bgFloorOnlySetting"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
+                distance between
+                them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
+              <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points"
+                class="button" disabled>
+            </div>
+
+            <div class="inputField bgFloorOnlySetting">
+              <label class="tooltipBottom">3) Distance between 2 points:</label>
+              <!-- <i class="icon icon-info-circle-bold"></i>
+                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
+              <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
+              <label class="unitFeetMeters">ft</label>
+            </div>
+            <div class="inputField bgFloorOnlySetting">
+              <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
+                onclick="updateBackgroundImageScale()" class="button" disabled>
+            </div>
+
+
+            <div class="inputField" style="padding: 0.2rem"><label>4) Opacity: <span
+                  id="transparencyOutput">50</span></label></div>
+            <div class="inputField">
+              <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
+                oninput="changeTransparency(this.value)" disabled>
+            </div>
+
+            <div class="inputField bgFloorOnlySetting">
+              <label class="tooltip">5) Move room floor plan:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
+                  moving of the room floor plan image.</span></label>
+              <label class="switch">
+                <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
+                  disabled>
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="inputField bgFloorOnlySetting">
+              <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()"
+                class="button" id="btnDeleteBackgroundImage" disabled>
+            </div>
+          </div>
+
+          <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
+            <div class="inputField" id="multiRoomFloorPlanModeDiv" style="display: none;">
+              <label class="tooltipBottom">Multi-Room Floor Plan Mode:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Lay out several rooms on one floor plan using Room Parts, and zoom
+                  into each room to design it. Turning this off returns the design to a single room; your Room Parts
+                  and their contents remain on the canvas.</span></label>
+              <label class="switch">
+                <input id="multiRoomFloorPlanModeCheckBox" type="checkbox" onclick="toggleMultiRoomFloorPlanMode(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField">
+              <label class="tooltipBottom">Load in original unit (m/f):
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
+                  will use the unit (meters/feet) that it was created in.</span></label>
+              <label class="switch">
+                <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+
+            <div class="inputField">
+              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items:*
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
+                  Items will
+                  have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
+                </span></label>
+              <label class="switch">
+                <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="showTiltSlantCheckBoxDiv">
+              <label class="tooltipBottom">Workspace Designer Tilt and Lean:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptextBottom">Show Tilt and Lean fields per an item, which are Workspace Designer
+                  settings & not reflected in the Video Room Calculator. Objects may appear in different locations when
+                  comparing the Video Room Calculator to the Workspace Designer.
+                </span></label>
+              <label class="switch">
+                <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="convertDefaultWallsDiv">
+              <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">By default, when Workspace Designer files are imported, the default walls seen
+                  in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable
+                  this feature.
+                </span></label>
+              <label class="switch">
+                <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="displayCoverage4xDiv" style="display: none;">
+              <label class="tooltip">Show 4x the diagonal display coverage
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">Show wider display coverage for 4x the diagonal distance of a 16:9 display.
+                </span></label>
+              <label class="switch">
+                <input id="showDisplayCoverage4x" type="checkbox" onclick="showDisplayCoverage4x(event)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="inputField" id="wdSiteDiv">
+
+              <label class="tooltip">Workspace Designer Site:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Pick which Workspace Designer site is launched. The
+                  <b>Custom:</b> points at any URL for testing.<br><br>
+                  Equivalent to the <code>?wd=&lt;url&gt;</code> query string parameter,
+                  but takes effect immediately without a page refresh. Note: /#/room/custom is appended to site on export.
+                </span>
+              </label>
+
+              <select id="drpWdSite" class="drpDown" onchange="wdSiteChange()" data-drpDownName="Workspace Designer Site:">
+                <option value="default">designer.webex.com (default)</option>
+                <option value="beta">designer.cisco.com (beta)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div class="inputField" id="wdSiteCustomDiv" style="display: none;">
+              <input type="text" id="wdSiteCustom" name="wdSiteCustom" class="textInput"
+                placeholder="https://example.com" autocomplete="off"
+                oninput="wdSiteCustomChange()" onblur="wdSiteCustomBlur()">
+            </div>
+
+            <div class="inputField" id="exportCustomItemsDiv">
+              <label class="tooltip">Custom Item Library:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Download every Custom Item template stored in your local Custom Item Library
+                  as a single <code>.vrcCustomItems.json</code> file. The same file can be re-imported
+                  later (or by another user) to restore the library — duplicates are ignored on import.
+                </span>
+              </label>
+              <button type="button" class="button dropDownBtnWhite" id="btnExportAllCustomItems"
+                onclick="exportAllCustomItemsFromLibrary()" disabled>
+                Export Custom Items
+              </button>
+            </div>
+
+            <div class="inputField" id="storageRowDiv">
+              <label class="tooltip">Storage and local data:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  View browser storage usage and clear undo/redo history or all local data
+                  (libraries + preferences). Useful for troubleshooting when the app feels
+                  sluggish after many sessions.
+                </span>
+              </label>
+              <button type="button" class="button dropDownBtnWhite" id="btnOpenStorageDialog"
+                onclick="openStorageDialog()">
+                Storage and Local Data&hellip;
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Equipment tab is below -->
@@ -486,15 +802,6 @@
         </div>
 
         <div id="Item" class="tabcontent">
-          <div class="tab">
-            <button class="subtablinks2 active" onclick="openSubTab2(event, 'ItemDetails')"
-              id="subTabItemDetails">Items</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'DefaultWalls')" id="subTabDefaultWalls">Default
-              Walls</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')" id="subTabRoomFloorPlan">Room Floor Plan</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')" id="detailsSettings" >Settings</button>
-          </div>
-
           <div id="ItemDetails" class="subtabcontent2 subtabcontent2a" style="display: block;">
             <div id="txtItemsDetailNote">
               <div class="menuDivider">
@@ -1113,309 +1420,6 @@
 
           </div>
 
-          <div id="DefaultWalls" class="subtabcontent2 subtabcontent2a">
-            <!-- Shown only in Multi-Room Floor Plan overview (no room selected);
-                 hidden in normal/Room mode. Toggled by applyMultiRoomModeUi(). -->
-            <div id="defaultWallsMultiRoomMsg" style="display: none; font-size: 14px; padding: 8px 0;">
-              Not available in multi-room floor plan view. Select a rectangular individual room.
-            </div>
-            <div class="inputRow" id="removeDefaultWallsRow2">
-              <div class="inputField inputFieldRow">
-                <label>Remove Default Walls:</label>
-                <label class="switch">
-                  <input id="removeDefaultWallsCheckBox2" type="checkbox" onclick="removeDefaultWallsChange(event)">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-            </div>
-
-            <div id="defaultWallSettings">
-
-              <div class="inputRow">
-                <div class="inputField inputFieldMaxWdith">
-                  <label class="tooltipBottom">Choose Wall:
-                    <!-- <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span> --></label>
-                  <br>
-                  <div class="parentWallSelection">
-
-                    <div class="wallSelection">
-                      <button id="leftwall" class="wallButton wallButtonSelected" style="left: -70px; top: 15px;"
-                        onclick="btnWallSelected('leftwall')">Left Wall</button>
-                      <button id="videowall" class="wallButton" style="left: -14px; top: -24.5px;"
-                        onclick="btnWallSelected('videowall')">Video Wall</button>
-                      <button id="rightwall" class="wallButton" style="right: -78px; top: 15px;"
-                        onclick="btnWallSelected('rightwall')">Right Wall</button>
-                      <button id="backwall" class="wallButton" style="left: -11px; top: 53px;"
-                        onclick="btnWallSelected('backwall')">Back Wall</button>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              <div class="inputRow">
-                <div class="inputField inputFieldRow">
-                  <label class="tooltipBottom">Material:
-                    <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Material or wall type: Wall Standard, Glass Wall or Wall with
-                      Windows.</span></label>
-                  <select id="drpWallType" class="drpDown" onchange="updateDefaultWallsMenuAndCanvas()">
-                    <option value="regular">Wall Standard</option>
-                    <option value="glass">Glass Wall</option>
-                    <option value="window">Wall with Windows</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="inputRow">
-                <div class="inputField inputFieldRow">
-                  <label class="tooltip">Acoustic Treatment: <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptext">Acoustic treatment only shows up on the Workspace Designer.</span>
-                  </label>
-                  <label class="switch">
-                    <input id="acousticTreatment" type="checkbox" onchange="updateDefaultWallsMenuAndCanvas()">
-                    <span class="slider round"></span>
-                  </label>
-                </div>
-              </div>
-
-
-              <div class="inputField inputFieldMaxWdith" id="pickDoorSelection"><label class="tooltip">Default Door
-                  Location: <i class="icon icon-info-circle-bold"></i>
-                  <span class="tooltiptext">Door location for the default wall that renders in the Workspace Designer.
-                    Manual walls can also be dragged and dropped at any location.</span></label>
-                <div class="parentWallSelection">
-
-
-                  <div id="doorSelectionDiv" class="doorSelection">
-
-                    <button id="doorNone" class="doorButton" style="left: 48px; bottom: 60px; position:absolute;"
-                      onclick="doorSelected('none')">None</button>
-                    <img id="rightDoor" class="doors doorSelected" src="./assets/images/doorLeft-top.png"
-                      style="left: 5px; bottom: -6.5px;" onclick="doorSelected('right')">
-                    <img id="centerDoor" class="doors" src="./assets/images/doorLeft-top.png"
-                      style="left: 53px; bottom: -6.5px; " onclick="doorSelected('center')">
-                    <img id="leftDoor" class="doors" src="./assets/images/doorRight-top.png"
-                      style="left: 100px; bottom: -6.5px; " onclick="doorSelected('left')">
-                  </div>
-                </div>
-
-              </div>
-
-              <div id="noDoorSelectionDiv" class="inputRow"><span style="font-size: 14px;">Default Door Location:
-                  <br><span style="font-size: 12px;">Not supported with a wall with windows.</span></span></div>
-
-
-              <br>
-              <br>
-              <br>
-              <br>
-            </div>
-          </div>
-          <div id="BackgroundImage" class="subtabcontent2 subtabcontent2a">
-
-            <div id="bgImageRoomModeMsg" style="display: none; text-align: left; font-size:12px;">
-              <i>To add or change the room floor plan background image, switch to the Multi-Room Floor Plan overview
-                (exit this room). Only opacity can be adjusted here.</i>
-            </div>
-
-            <div class="bgFloorOnlySetting" style="text-align: left; font-size:12px; ">
-              <i>Use a Room Floor Plan image as a background image to help recreate the room dimensions precisely. Not
-                saved to the Shareable Hyperlink Template.</i>
-
-            </div>
-            <br class="bgFloorOnlySetting">
-            <div class="inputField bgFloorOnlySetting">
-              <label class="tooltip">1) First set the room width and length, then choose the room floor plan file
-                upload:
-                <!-- <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptext">Background image formats: JPEG, GIF or PNG</span> -->
-              </label>
-              <span id="fileInputImageContainer">
-                <input type="file" id="fileInputImage" accept="image/*" style="padding: 0px">
-              </span>
-            </div>
-            <div class="inputField bgFloorOnlySetting">
-              <input type="button" id="btnRecentFloorPlans" value="Recent Floor Plans"
-                onclick="openRecentFloorPlansPicker()" class="linkButton"
-                title="Up to 10 previously uploaded floor plan images are remembered in this browser. Click to pick one to re-apply without re-uploading. Oldest entries are removed when an 11th image is added.">
-            </div>
-
-            <div class="inputField bgFloorOnlySetting"> <label class="tooltip">2) Create a scale by selecting 2 points that have a known
-                distance between
-                them. Mouse down is the 1st point, drag to draw line, mouse up is the 2nd point.</label>
-              <input type="button" value="Select 2 Points" onclick="select2Points()" id="btnSelect2Points"
-                class="button" disabled>
-            </div>
-
-            <div class="inputField bgFloorOnlySetting">
-              <label class="tooltipBottom">3) Distance between 2 points:</label>
-              <!-- <i class="icon icon-info-circle-bold"></i>
-                                <span class="tooltiptextBottom">Put the real world value here between the 2 points.</span></label> -->
-              <input type="text" id="backgroundImageMeasurement" maxlength="12" size="5" class="unitInput allowBlank">
-              <label class="unitFeetMeters">ft</label>
-            </div>
-            <div class="inputField bgFloorOnlySetting">
-              <input type="button" id="btnUpdateImageScale" value="Update Room Floor Plan Image Scale"
-                onclick="updateBackgroundImageScale()" class="button" disabled>
-            </div>
-
-
-            <div class="inputField" style="padding: 0.2rem"><label>4) Opacity: <span
-                  id="transparencyOutput">50</span></label></div>
-            <div class="inputField">
-              <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
-                oninput="changeTransparency(this.value)" disabled>
-            </div>
-
-            <div class="inputField bgFloorOnlySetting">
-              <label class="tooltip">5) Move room floor plan:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Brings the room floor plan image temporarily to the front which allows
-                  moving of the room floor plan image.</span></label>
-              <label class="switch">
-                <input id="resizeBackgroundImageCheckBox" type="checkbox" onclick="changeLayerBackgroundImageFl()"
-                  disabled>
-                <span class="slider round"></span>
-              </label>
-            </div>
-            <div class="inputField bgFloorOnlySetting">
-              <input type="submit" value="Delete Background Image" onclick="deleteBackgroundImageConfirmation()"
-                class="button" id="btnDeleteBackgroundImage" disabled>
-            </div>
-          </div>
-
-          <div id="SettingDetails" class="subtabcontent2 subtabcontent2a">
-            <div class="inputField" id="multiRoomFloorPlanModeDiv" style="display: none;">
-              <label class="tooltipBottom">Multi-Room Floor Plan Mode:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">Lay out several rooms on one floor plan using Room Parts, and zoom
-                  into each room to design it. Turning this off returns the design to a single room; your Room Parts
-                  and their contents remain on the canvas.</span></label>
-              <label class="switch">
-                <input id="multiRoomFloorPlanModeCheckBox" type="checkbox" onclick="toggleMultiRoomFloorPlanMode(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="inputField">
-              <label class="tooltipBottom">Load in original unit (m/f):
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">When a saved configuration or template is loaded, it
-                  will use the unit (meters/feet) that it was created in.</span></label>
-              <label class="switch">
-                <input id="useDefaultUnitCheckBox" type="checkbox" onclick="defaultUnitChange(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-
-            <div class="inputField">
-              <label class="tooltipBottom">Workspace Designer partially or<br> non-supported items:*
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">Show devices that are not fully supported in the Workspace Designer.
-                  Items will
-                  have an asterisk (*) in the equipment menu. Objects show up as a purple cube or a simulated object.
-                </span></label>
-              <label class="switch">
-                <input id="useNonWorkspaceItemsCheckBox" type="checkbox" onclick="showNonWorkspaceItems(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="inputField" id="showTiltSlantCheckBoxDiv">
-              <label class="tooltipBottom">Workspace Designer Tilt and Lean:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptextBottom">Show Tilt and Lean fields per an item, which are Workspace Designer
-                  settings & not reflected in the Video Room Calculator. Objects may appear in different locations when
-                  comparing the Video Room Calculator to the Workspace Designer.
-                </span></label>
-              <label class="switch">
-                <input id="showTiltSlantCheckBox" type="checkbox" onclick="showTiltSlant(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="inputField" id="convertDefaultWallsDiv">
-              <label class="tooltip">Turn off auto-conversion of Workspace Designer default walls:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">By default, when Workspace Designer files are imported, the default walls seen
-                  in the Workspace Designer are replaced with Video Room Calculator default walls. Toggle on to disable
-                  this feature.
-                </span></label>
-              <label class="switch">
-                <input id="convertDefaultWallsOffCheckBox" type="checkbox" onclick="convertDefaultWallsOff(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="inputField" id="displayCoverage4xDiv" style="display: none;">
-              <label class="tooltip">Show 4x the diagonal display coverage
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">Show wider display coverage for 4x the diagonal distance of a 16:9 display.
-                </span></label>
-              <label class="switch">
-                <input id="showDisplayCoverage4x" type="checkbox" onclick="showDisplayCoverage4x(event)">
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="inputField" id="wdSiteDiv">
-
-              <label class="tooltip">Workspace Designer Site:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">
-                  Pick which Workspace Designer site is launched. The
-                  <b>Custom:</b> points at any URL for testing.<br><br>
-                  Equivalent to the <code>?wd=&lt;url&gt;</code> query string parameter,
-                  but takes effect immediately without a page refresh. Note: /#/room/custom is appended to site on export.
-                </span>
-              </label>
-
-              <select id="drpWdSite" class="drpDown" onchange="wdSiteChange()" data-drpDownName="Workspace Designer Site:">
-                <option value="default">designer.webex.com (default)</option>
-                <option value="beta">designer.cisco.com (beta)</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-
-            <div class="inputField" id="wdSiteCustomDiv" style="display: none;">
-              <input type="text" id="wdSiteCustom" name="wdSiteCustom" class="textInput"
-                placeholder="https://example.com" autocomplete="off"
-                oninput="wdSiteCustomChange()" onblur="wdSiteCustomBlur()">
-            </div>
-
-            <div class="inputField" id="exportCustomItemsDiv">
-              <label class="tooltip">Custom Item Library:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">
-                  Download every Custom Item template stored in your local Custom Item Library
-                  as a single <code>.vrcCustomItems.json</code> file. The same file can be re-imported
-                  later (or by another user) to restore the library — duplicates are ignored on import.
-                </span>
-              </label>
-              <button type="button" class="button dropDownBtnWhite" id="btnExportAllCustomItems"
-                onclick="exportAllCustomItemsFromLibrary()" disabled>
-                Export Custom Items
-              </button>
-            </div>
-
-            <div class="inputField" id="storageRowDiv">
-              <label class="tooltip">Storage and local data:
-                <i class="icon icon-info-circle-bold"></i>
-                <span class="tooltiptext">
-                  View browser storage usage and clear undo/redo history or all local data
-                  (libraries + preferences). Useful for troubleshooting when the app feels
-                  sluggish after many sessions.
-                </span>
-              </label>
-              <button type="button" class="button dropDownBtnWhite" id="btnOpenStorageDialog"
-                onclick="openStorageDialog()">
-                Storage and Local Data&hellip;
-              </button>
-            </div>
-          </div>
         </div>
         <!-- Layers Tab -->
         <div id="Layers" class="tabcontent">
@@ -1507,6 +1511,11 @@
         <div class="button-group">
           <button class="btn" id="btnSelectPan" onclick="toggleSelectPan(this)" disabled title="Toggle Select/Pan">
             <i class="icon icon-raise-hand-bold"></i>
+          </button>
+        </div>
+        <div class="button-group">
+          <button class="btn" id="btnWallBuilder" onclick="btnWallBuilderClicked()" title="Wall Builder [Esc to exit]">
+            <i class="icon icon-pen-bold"></i>
           </button>
         </div>
         <div class="button-group">
@@ -2516,8 +2525,8 @@
           <b>Test settings:</b><br><br>
 
           Beta test settings has been moved to:
-          <a href="#"  onclick="closeAllDialogModals();document.getElementById('tabItem').click(); document.getElementById('detailsSettings').click(); ">
-            Details → Settings → Workspace Designer Site.
+          <a href="#"  onclick="closeAllDialogModals();document.getElementById('defaultOpenTab').click(); document.getElementById('detailsSettings').click(); ">
+            Room → Settings → Workspace Designer Site.
 
           </a>
 
@@ -2880,7 +2889,7 @@
   </dialog>
 
   <!--
-    Storage and Local Data — opened from Details → Settings → Storage row.
+    Storage and Local Data — opened from Room → Settings → Storage row.
     Shows per-bucket counts (undo, redo, custom items, background images)
     + Workspace Designer iframe open/closed status, plus a
     navigator.storage.estimate() total when available, and offers two

@@ -41,7 +41,31 @@ which are always the source of truth — this file is just a quick map.
 | `ContainerRoomSvg` | Canvas container |
 | `canvasDiv` | Konva stage mount point |
 | `scroll-container` | Scrollable canvas wrapper |
-| `controlButtons` | Toolbar above canvas |
+| `controlButtons` | Toolbar above canvas (incl. `btnWallBuilder` — Wall Builder toggle, `icon-pen-bold`) |
+
+## Sidebar Tabs (2026-07 redesign)
+
+Main tabs (`openTab()`): **Room** (`defaultOpenTab` → `#Room`),
+**Equipment** (`tabEquipment` → `#Insert`), **Layers** (`tabLayers` →
+`#Layers`), **Details** (`tabItem` → `#Item`).
+
+**Room** carries the room-level sub-tabs (`openSubTab2()`, scoped to the
+clicked bar's `.tabcontent`):
+
+| Button id | Panel id | Contents |
+|-----------|----------|----------|
+| `subTabRoomSetup` | `RoomSetup` | name / unit / W×L×H / software / rotate / version / `#quickSetup` |
+| `subTabDefaultWalls` | `DefaultWalls` | wall picker, material, acoustic, door location |
+| `subTabRoomFloorPlan` | `BackgroundImage` | floor-plan upload, 2-point scale, opacity, move/delete |
+| `detailsSettings` | `SettingDetails` | app settings, WD site, Custom Item export, storage |
+
+**Details** (`#Item`) is a pure item inspector — NO sub-tab bar.
+`#ItemDetails` keeps class `subtabcontent2` (styling + scroll hints)
+and stays permanently `display:block`; `openSubTab2()` is scoped via
+`closest('.tabcontent')` so Room sub-tab switching can never hide it.
+Programmatic navigation: `tabItem.click()` alone opens the inspector;
+room-level panels need `defaultOpenTab.click()` + the sub-tab button's
+`.click()`. (`subTabItemDetails` no longer exists — do not reference.)
 
 ## Dialog Modals
 
