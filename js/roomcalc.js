@@ -4903,6 +4903,7 @@ newCornerNode.hide();
 
 let snapToWallEnabled = true; /* Wall Builder: snap new walls to existing walls */
 let wallBuilderSnapPoint = null; /* {x,y,mode} canvas-pixel snap target while drawing, or null */
+let wallBuilderStartSnap = null; /* 'end'-mode snap captured when a chain's FIRST node lands on an existing wall end; drives the start miter while drawing that first segment */
 let lastInsertedWallId = null; /* id of the most recently drawn wall; excluded from snapping */
 let wallBuilderCreatedWallIds = [];
 let wallBuilderCreatedWallStates = [];
@@ -5052,11 +5053,13 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
             beforeX: beforeLastWallBuilderNode.x(),
             beforeY: beforeLastWallBuilderNode.y(),
             rotation: lastWallBuilderRotation,
+            startSnap: wallBuilderStartSnap,
         };
 
         let wallCountBeforeInsert = wallBuilderCreatedWallIds.length;
 
         wallBuilderWritingState = 'writing';
+        wallBuilderStartSnap = null; /* the mitered start is baked into the inserted wall; later segments miter mid-chain */
 
         let points = wallBuilderConnectorLine.points();
 
@@ -5089,6 +5092,7 @@ wallBuilderRect.on('pointerdown', function wallBuilderRectPointerDown(pointer) {
             canvasX = startSnap.x;
             canvasY = startSnap.y;
         }
+        wallBuilderStartSnap = (startSnap && startSnap.mode === 'end') ? startSnap : null;
 
         lastWallBuilderNode.x(canvasX);
         lastWallBuilderNode.y(canvasY);
@@ -5262,6 +5266,17 @@ wallBuilderRect.on('pointermove', function wallBuilderRectPointerDown(pointer) {
 
         adjLastX = lastX;
         adjLastY = lastY;
+
+        /* Mitered start: the chain's first node snap-clicked onto an existing wall
+         * end, so overlap into that wall exactly like a mid-chain start overlaps
+         * the prior segment (same helper as the end miter; the pointer is the tip). */
+        if (wallBuilderWritingState === 'firstNode' && wallBuilderStartSnap) {
+            const miterStart = computeWallBuilderEndMiter(wallBuilderStartSnap, pointerX, pointerY);
+            if (miterStart) {
+                adjLastX = miterStart.x;
+                adjLastY = miterStart.y;
+            }
+        }
     }
 
 
@@ -12006,6 +12021,7 @@ function wallBuilderRestart() {
     wallBuilderWritingState = 'none';
     wallBuilderLineArray.points([]);
     wallBuilderSnapPoint = null;
+    wallBuilderStartSnap = null;
     lastInsertedWallId = null;
     showWallBuilderSnapHighlight(null);
     document.getElementById("canvasDiv").style.cursor = "crosshair";
@@ -12032,8 +12048,10 @@ function undoLastWallBuilderWall() {
         beforeLastWallBuilderNode.x(snapshot.beforeX);
         beforeLastWallBuilderNode.y(snapshot.beforeY);
         lastWallBuilderRotation = snapshot.rotation;
+        wallBuilderStartSnap = snapshot.startSnap || null;
     } else {
         wallBuilderWritingState = 'none';
+        wallBuilderStartSnap = null;
     }
 
     lastInsertedWallId = wallBuilderCreatedWallIds.length
