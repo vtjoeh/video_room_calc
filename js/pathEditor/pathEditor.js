@@ -300,18 +300,18 @@
         dlg.innerHTML = `
             <div class="vrcpe-toolbar">
                 <span class="vrcpe-title">Path Editor</span>
-                <button id="vrcpeDrawMode">Draw Mode</button>
-                <button id="vrcpeEditMode">Edit Mode</button>
+                <button id="vrcpeDrawMode" title="Draw a new path or add points by clicking">Draw Mode</button>
+                <button id="vrcpeEditMode" title="Drag, select, and refine points">Edit Mode</button>
                 <span class="vrcpe-sep"></span>
-                <button id="vrcpeModeLine" class="vrcpe-mode-active">Line</button>
-                <button id="vrcpeModeCurve">Curve</button>
+                <button id="vrcpeModeLine" class="vrcpe-mode-active" title="Place straight line segments while drawing (shortcut: L)">Line</button>
+                <button id="vrcpeModeCurve" title="Place curved segments while drawing (shortcut: C)">Curve</button>
                 <span class="vrcpe-sep"></span>
-                <button id="vrcpeToCurve" disabled>Line &rarr; Curve</button>
-                <button id="vrcpeToLine" disabled>Curve &rarr; Line</button>
-                <button id="vrcpeDeletePt" disabled>Delete Point</button>
-                <button id="vrcpeRevert">Revert</button>
+                <button id="vrcpeToCurve" disabled title="Convert the selected segment to a curve">Line &rarr; Curve</button>
+                <button id="vrcpeToLine" disabled title="Convert the selected segment to a line">Curve &rarr; Line</button>
+                <button id="vrcpeDeletePt" disabled title="Delete the selected point (shortcut: Delete)">Delete Point</button>
+                <button id="vrcpeRevert" title="Restore the path as it was when the editor opened">Revert</button>
                 <span class="vrcpe-hint" id="vrcpeHint"></span>
-                <button id="vrcpeClose" class="vrcpe-close">Close</button>
+                <button id="vrcpeClose" class="vrcpe-close" title="Apply the path and close the editor (shortcut: Esc)">Close</button>
             </div>
             <div class="vrcpe-body">
                 <div class="vrcpe-sidepane">
@@ -384,6 +384,7 @@
             ui.drawChoice.showModal();
         };
         ui.editModeBtn.onclick = () => {
+            closeOpenSubpath();
             setEditorMode('edit');
             refreshAll();
         };
@@ -511,6 +512,9 @@
             height: ui.canvas.clientHeight,
             draggable: true,
         });
+        /* default dragDistance is 0 — any 1px jitter during a click starts a pan and
+         * Konva then suppresses the click (the intermittent "click does nothing" bug) */
+        konvaStage.dragDistance(4);
         gridLayer = new Konva.Layer({ listening: false });
         bgLayer = new Konva.Layer({ listening: false });
         pathLayer = new Konva.Layer();
@@ -577,6 +581,15 @@
         refreshAll();
     }
 
+    /* Leaving draw mode (Edit Mode button, Close, Esc) closes an in-progress subpath
+     * with Z so the drawn shape doesn't come back open. Needs 3+ anchors — a Z on
+     * fewer is a degenerate closed line. */
+    function closeOpenSubpath() {
+        if (editorMode === 'draw' && lastSubpathOpen() && currentSubpathAnchorCount() >= 3) {
+            segs.push({ c: 'Z' });
+        }
+    }
+
     function worldPointer() {
         const p = konvaStage.getPointerPosition();
         if (!p) return null;
@@ -638,15 +651,34 @@
             }
         }
 
-        /* room wall outline, translated into the item-local frame */
+        /* room walls, translated into the item-local frame — mirrors the main canvas
+         * (drawOutsideWall): 0.115 m grey band around the room, thin outer line, room outline */
         if (activeOpts && activeOpts.roomWM > 0 && activeOpts.roomLM > 0) {
+            const wx = -activeOpts.anchorXM, wy = -activeOpts.anchorYM;
+            const ww = activeOpts.roomWM, wh = activeOpts.roomLM;
+            const wt = 0.115;
+            const band = [
+                { x: wx - wt, y: wy, width: wt, height: wh },
+                { x: wx + ww, y: wy, width: wt, height: wh },
+                { x: wx - wt, y: wy - wt, width: ww + 2 * wt, height: wt },
+                { x: wx - wt, y: wy + wh, width: ww + 2 * wt, height: wt },
+            ];
+            band.forEach(b => gridLayer.add(new Konva.Rect({
+                x: b.x, y: b.y, width: b.width, height: b.height,
+                fill: '#cccccc', opacity: 0.6,
+            })));
             gridLayer.add(new Konva.Rect({
-                x: -activeOpts.anchorXM,
-                y: -activeOpts.anchorYM,
-                width: activeOpts.roomWM,
-                height: activeOpts.roomLM,
+                x: wx - wt, y: wy - wt,
+                width: ww + 2 * wt, height: wh + 2 * wt,
+                stroke: '#888888',
+                strokeWidth: 1,
+                strokeScaleEnabled: false,
+            }));
+            gridLayer.add(new Konva.Rect({
+                x: wx, y: wy,
+                width: ww, height: wh,
                 stroke: '#555',
-                strokeWidth: 3,
+                strokeWidth: 2,
                 strokeScaleEnabled: false,
             }));
         }
@@ -687,6 +719,9 @@
             strokeWidth: 1.5,
             strokeScaleEnabled: false,
             hitStrokeWidth: 14,
+            /* draw mode: the path must not eat clicks near itself (its 14px hit stroke
+             * made clicks "do nothing" wherever they crossed a drawn segment) */
+            listening: editorMode === 'edit',
         });
         previewPath.on('click tap', () => {
             if (editorMode !== 'edit') return;
@@ -733,6 +768,9 @@
             radius: handleRadius(),
             strokeWidth: 1.5 / konvaStage.scaleX(),
             draggable: editorMode === 'edit',
+            /* draw mode: only the closable first point may take clicks — other anchors
+             * eating them left dead zones where clicking placed nothing */
+            listening: editorMode === 'edit' || (lastSubpathOpen() && i === currentSubpathStart()),
         });
         const entry = { segIndex: i, node: a };
         anchorNodes.push(entry);
@@ -964,6 +1002,7 @@
     function finishAndApply() {
         const opts = activeOpts;
         activeOpts = null;
+        closeOpenSubpath();
         destroyStage();
         if (!opts || typeof opts.onClose !== 'function') return;
 

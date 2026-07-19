@@ -1523,7 +1523,11 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   shows a one-time caveat dialog (`#vrcpeSubpathWarn`: "Sub-Paths may
   not export correctly to the Workspace Designer") before applying —
   or **Erase & Start Over**, which clears everything with no caveat.
-  No dragging/selection/controls while drawing.
+  No dragging/selection/controls while drawing. **Leaving draw mode
+  with an open subpath auto-closes it with `Z`** (`closeOpenSubpath()`,
+  3+ anchors required — fewer would be a degenerate closed line):
+  fires from the Edit Mode button and from `finishAndApply()` (which
+  covers Close, Esc, and any dialog close).
 - **Edit mode**: everything else below (drag, select, insert, convert,
   delete). **Hovering a point enlarges it slightly and fills it baby
   blue (`#89CFF0`)** so the user knows it's clickable.
@@ -1578,9 +1582,13 @@ simple builder uses, so undo/URL/labelField-merge come free.
   cancel path; Revert-then-Close is the undo story inside the
   editor, and the standard VRC undo covers the rest.
 - 1 m grid with adaptive step/labels, wheel zoom to cursor, drag to
-  pan; **room wall outline** drawn from `roomWM/roomLM` in the local
-  frame; view fits the union of the path bbox and the walls so the
-  room context is visible on open.
+  pan; **room walls** drawn from `roomWM/roomLM` in the local frame,
+  styled to match the main canvas's `drawOutsideWall()` (0.115 m grey
+  band + thin `#888` outer line + `#555` room outline); view fits the
+  union of the path bbox and the walls so the room context is visible
+  on open.
+- Toolbar buttons carry `title` tooltips, including the shortcut keys
+  (L = Line, C = Curve, Delete = Delete Point, Esc = Close).
 
 ### Footguns (learned the hard way)
 
@@ -1601,6 +1609,17 @@ simple builder uses, so undo/URL/labelField-merge come free.
   VRC's document-level shortcuts (Delete = delete item, Space =
   Quick Add) can't fire while editing; Delete/Backspace inside the
   editor deletes the selected anchor instead.
+- **Draw-mode clicks must not be eaten by existing geometry.** The
+  stage `click` handler only fires when `e.target === konvaStage`, so
+  anything listening near the pointer swallows the click silently:
+  `previewPath`'s 14 px `hitStrokeWidth` made clicks "do nothing"
+  wherever they crossed a drawn segment, and existing anchors did the
+  same. Fix: in draw mode `previewPath` and all anchors are
+  `listening: false` EXCEPT the closable first point of the open
+  subpath. Related: the stage is draggable with Konva's default
+  `dragDistance` of 0, so 1 px of jitter during a click became a pan
+  and Konva suppressed the click entirely (the intermittent flavor of
+  the same bug) — `konvaStage.dragDistance(4)` fixes it.
 
 Both files are in `sw.js` `PRECACHE_ASSETS`; the script is loaded via
 `loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR)`.
