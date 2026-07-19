@@ -1481,10 +1481,13 @@ globals — the roomcalc.js glue passes everything in through `opts`.
 The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
 
 - **Fresh insert**: `insertItemFromMenu()`'s pathShape branch calls
-  `openSvgPathEditor(uuid, 'draw')` directly — **no chooser dialog**.
-  Draw mode starts with a BLANK canvas (the placeholder path is
-  ignored; closing without drawing returns null from
-  `finishAndApply()` so the item keeps its placeholder).
+  `openPathShapeDrawChooser(uuid)` (reuses the shared
+  `roleSelectionDialog`, same pattern as certifiedDisplay), offering
+  **SVG Path Editor** (→ `openSvgPathEditor(uuid, 'draw')`) or **Draw
+  Simple Path** (→ `simplePathEditor(uuid)`, the polyBuilder). When
+  the SVG editor is chosen it opens in Draw mode with a BLANK canvas
+  (the placeholder path is ignored; closing without drawing returns
+  null from `finishAndApply()` so the item keeps its placeholder).
 - **Details → Items**: the `labelPathId` row carries only the SVG
   Path Editor button (`openSvgPathEditor()`, no mode arg → **Edit
   mode**). The Draw Simple Path BUTTON was removed but

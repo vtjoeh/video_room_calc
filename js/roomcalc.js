@@ -12190,6 +12190,49 @@ function simplePathEditor(idOverride) {
     polyBuilderOn(true, 'customPathEditor');
 }
 
+/* Fresh-pathShape chooser (reuses the shared roleSelectionDialog, same pattern as
+ * openCertifiedDisplayDialog): Draw Simple Path (poly builder) vs. the SVG Path
+ * Editor (opened in Draw mode). Shown only on first insert. */
+function openPathShapeDrawChooser(uuid) {
+    const dialogHeader = document.getElementById('headerRoleSelection');
+    const chooserDialog = document.getElementById('roleSelectionDialog');
+    const innerDiv = document.getElementById('roleSelection');
+
+    if (!dialogHeader || !chooserDialog || !innerDiv) {
+        openSvgPathEditor(uuid, 'draw');
+        return;
+    }
+
+    dialogHeader.innerText = 'How do you want to draw the path?';
+    innerDiv.innerHTML = '';
+
+    [
+        { label: 'SVG Path Editor', action: () => openSvgPathEditor(uuid, 'draw') },
+        { label: 'Draw Simple Path', action: () => simplePathEditor(uuid) },
+    ].forEach(opt => {
+        const buttonDiv = document.createElement('div');
+        const button = document.createElement('button');
+        const buttonLabel = document.createElement('span');
+
+        buttonLabel.innerText = opt.label;
+        buttonLabel.classList.add('roleSelectButtonLabel');
+        buttonLabel.style.margin = 'auto';
+
+        button.classList.add('roleSelectButton');
+        button.appendChild(buttonLabel);
+
+        innerDiv.appendChild(buttonDiv);
+        buttonDiv.appendChild(button);
+
+        button.onclick = () => {
+            chooserDialog.close();
+            opt.action();
+        };
+    });
+
+    chooserDialog.showModal();
+}
+
 /* Open the lazy-loaded VRC SVG Path Editor (js/pathEditor/) for a pathShape.
  * The editor works in item-local meters; this glue converts room units on the way in
  * (item x/y/rotation, labelField JSON scale, background image rect) and writes the
@@ -25177,12 +25220,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         canvasToJson();
 
-        /* pathShape: open the SVG Path Editor in Draw mode so the user starts
-         * drawing immediately (no chooser dialog). The 300 ms defer is past the
-         * 250 ms tr.nodes()/updateFormatDetails() timer inside insertShapeItem()
-         * so #itemId is fully populated before the editor takes over. */
+        /* pathShape: offer SVG Path Editor (Draw mode) vs. Draw Simple Path on
+         * first insert. The 300 ms defer is past the 250 ms
+         * tr.nodes()/updateFormatDetails() timer inside insertShapeItem() so
+         * #itemId is fully populated before either editor takes over. */
         if (data_deviceid === 'pathShape') {
-            setTimeout(() => { openSvgPathEditor(uuid, 'draw'); }, 300);
+            setTimeout(() => { openPathShapeDrawChooser(uuid); }, 300);
         }
 
         showDeviceInsertMessage(data_deviceid)
