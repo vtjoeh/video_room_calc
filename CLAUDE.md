@@ -1545,8 +1545,11 @@ from `displayDblBlack-top.png` whose width tracks `data_diagonalInches`
 by `layoutRoomKitEqxChildren()` from: `insertShapeItem()` →
 `updateNodeAttributes()` tail (insert + diagonal update), and
 `updateShapesBasedOnNewScale()` (canvas rescale). Overlay depth placement:
-flush with the room-facing edge for the shallow wall mounts, `0.53 × h` for
-the deep floor-stand art. The overlay image element is shared/cached via
+the floor-stand art is deep enough that the display rides within it
+(`0.53 × h`, just in front of the frame bar); the wall variants' footprint
+is deepened by one `displayDepth` in `insertShapeItem()` (152 mm frame +
+90 mm display = 242 mm) so the base art paints at its natural device-def
+depth and the display sits fully in front of it. The overlay image element is shared/cached via
 `getEqxDisplayOverlayImage()` (first load back-fills existing overlays).
 Because the node is a Group, EQX joins the composite-highlight family
 (`isTextItem`/`isDimensionLine`/`isWallChairs`) in `updateTrNodesShading()`

@@ -21523,6 +21523,13 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     width = insertDevice.width / 1000 * scale;
     height = insertDevice.depth / 1000 * scale;
 
+    /* EQX wall variants: deepen the footprint by one display depth so the dual-display
+     * overlay sits fully IN FRONT of the frame art (the floor-stand art is already deep
+     * enough — its display rides within the stand footprint). */
+    if (isRoomKitEqx(deviceId) && deviceId !== 'roomKitEqxFS') {
+        height = (insertDevice.depth + displayDepth) / 1000 * scale;
+    }
+
     let addHighlight = false;
 
     /* add circular highlight to any device smaller than sizeToAddOutline. Added after image obj is created */
@@ -28212,9 +28219,18 @@ function layoutRoomKitEqxChildren(group) {
     const dispW = (displayWidth / diagonalInches) * diag / 1000 * scale * 2 * unitFactor;
     const dispH = displayDepth / 1000 * scale * unitFactor;
 
-    /* Overlay depth placement: flush with the front (room-facing) edge for the shallow
-     * wall mounts; just in front of the frame bar for the deep floor-stand art. */
-    const dispY = (deviceId === 'roomKitEqxFS') ? h * 0.53 : Math.max(0, h - dispH);
+    /* Overlay depth placement: the floor-stand art is deep enough that the display rides
+     * within it (just in front of the frame bar). The wall variants' footprint is deepened
+     * by one display depth in insertShapeItem(), so the base art paints at its natural
+     * device-def depth and the display sits fully in front of it. */
+    let baseH = h;
+    let dispY;
+    if (deviceId === 'roomKitEqxFS') {
+        dispY = h * 0.53;
+    } else {
+        baseH = (deviceDef.depth || 152) / 1000 * scale * unitFactor;
+        dispY = baseH;
+    }
 
     group.destroyChildren();
 
@@ -28226,7 +28242,7 @@ function layoutRoomKitEqxChildren(group) {
     }));
 
     group.add(new Konva.Image({
-        x: 0, y: 0, width: w, height: h,
+        x: 0, y: 0, width: w, height: baseH,
         image: group.data_eqxBaseImage || null,
         listening: true,
         perfectDrawEnabled: perfectDrawEnabled,
