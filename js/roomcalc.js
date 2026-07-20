@@ -8245,7 +8245,7 @@ let displays = [
 
     /* Coverage drawn per the AVIXA DISCAS standard (ANSI/AVIXA V201.01) — see the discas* helpers and the displayCustom branch of the dispDist~ coverage builder. */
     {
-        name: 'Custom Reach Display',
+        name: 'Custom Reach Display*',
         id: 'displayCustom',
         key: 'DL',
         frontImage: 'displaySngl-front.png',
@@ -31163,6 +31163,11 @@ function showToast(msg, durationMs) {
 
 function importWorkspaceDesignerFile(workspaceObj) {
 
+    /* WD JSON is meters-native; remember the unit the user was working in so the
+     * finished import can convert back to feet. Captured BEFORE resetRoomObj() and
+     * the meters bootstrap below overwrite roomObj.unit (and localStorage defaultUnit). */
+    const importPreviousUnit = (roomObj && roomObj.unit === 'feet') ? 'feet' : 'meters';
+
     resetRoomObj();
 
     let unknownObjects = [];
@@ -31772,6 +31777,15 @@ function importWorkspaceDesignerFile(workspaceObj) {
         roomObj = structuredClone(roomObj2);
 
         roomObj.trNodes = [];
+
+        /* Restore the user's working unit: the import pipeline is meters-native, so
+         * convert the installed roomObj to feet when that's what they were using.
+         * Uses the same convertMetersFeet path as the unit dropdown (items, groups,
+         * customItems, background image, defaultUnit persistence) with 'noDraw' —
+         * the drawRoom(true) below renders the converted room. */
+        if (importPreviousUnit === 'feet') {
+            convertMetersFeet('noDraw', 'feet');
+        }
 
         isBackgroundImageFloorFileLoad = true;
 
