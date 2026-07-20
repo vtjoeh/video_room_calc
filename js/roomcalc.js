@@ -193,9 +193,8 @@ function enterRoomFloorPlanModeOnFirstRoomPart() {
     if (showAlert) {
         alertDialog('Room Floor Plan Mode',
             'Adding a Room Part turns this design into a multi-room floor plan.<br><br>'
-            + 'Zoomed out, you lay out the whole floor. Double-click a Room Part to zoom into that '
-            + 'room and design it — the room name, walls, software, and notes are saved per room.<br><br>'
-            + 'Use the back arrow above the canvas to return to the full floor plan.');
+            + '<b>Double-click</b> a Room Part to zoom into the room and design it.<br><br>'
+            + 'Use the <b>back arrow</b> above the canvas to return to the full floor plan.');
     }
 }
 
@@ -5909,6 +5908,15 @@ function syncPolyRoomEditPoints() {
         return;
     }
 
+    /* A rotated polyRoom hides its vertex circles: they live in layerSelectionBox
+     * (not children of the node) so a Transformer rotation would leave them at the
+     * un-rotated positions. Editing points is offered at rotation 0 only. Mirrors
+     * the isActiveRoomPartRotated() >= 0.5 deg convention. */
+    if (Math.abs(Number(node.rotation()) || 0) >= 0.5) {
+        removePolyRoomEditPoints();
+        return;
+    }
+
     if (polyRoomEditNodeId === node.id()
         && layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).length > 0) {
         refreshPolyRoomEditPointPositions();
@@ -5941,7 +5949,7 @@ function syncPolyRoomEditPoints() {
 
         circle.on('pointerover', () => {
             circle.radius(POLYROOM_EDIT_RADIUS_HOVER);
-            document.getElementById('canvasDiv').style.cursor = 'move';
+            document.getElementById('canvasDiv').style.cursor = 'auto';
         });
         circle.on('pointerleave', () => {
             circle.radius(POLYROOM_EDIT_RADIUS);
@@ -25510,6 +25518,9 @@ function addListeners(stage) {
     tr.on('transformstart', function onTrNodeTransformStart(e) {
         trNodesLength = tr.nodes().length;
 
+        /* Clear polyRoom vertex circles the instant a rotation begins; syncPolyRoomEditPoints() on transformend restores them only if the room ended at ~0 deg. */
+        if (polyRoomEditNodeId) removePolyRoomEditPoints();
+
         if (trNodesLength > 100) {
             hideAllCoverageGroups(true);
 
@@ -25566,6 +25577,8 @@ function addListeners(stage) {
         allGuideLines.forEach(g => g.destroy());
         allGuideLines = [];
         endDriftCheck('tr.transformend');
+        /* Re-evaluate polyRoom vertex circles after a rotation: reappear only if the room settled near 0 deg (the syncPolyRoomEditPoints rotation guard keeps them absent otherwise). */
+        syncPolyRoomEditPoints();
         /* canvasToJson() intentionally NOT called here — see the Deferred canvasToJson sync model note above beginGroupDragFollow. */
     });
 

@@ -1550,6 +1550,14 @@ editing is naturally impossible there.
   `drawRoom()`. `applyPolyRoomEditZoomScale()` runs in `zoomInOut()`
   next to `applyMeasureToolZoomScale()` — circles counter-scale
   `1/zoomScaleX` so they keep constant visual size at any zoom.
+- **Rotation disables editing**: the circles live in `layerSelectionBox`,
+  not as children of the node, so a Transformer rotation would leave them
+  at the un-rotated positions. `syncPolyRoomEditPoints()` therefore removes
+  (and never recreates) the circles when `|node.rotation()| >= 0.5°`
+  (mirrors `isActiveRoomPartRotated()`). `tr.on('transformstart')` clears
+  them the instant a rotation begins; `tr.on('transformend')` re-syncs so
+  they reappear only if the room settled back near 0°. Point editing is a
+  rotation-0-only affordance.
 - **Coordinate model**: circles live in `layerSelectionBox`
   (logical un-zoomed layer pixels); positions map through
   `node.getAbsoluteTransform(stage)` (excludes stage pan/zoom), drags
