@@ -30380,7 +30380,7 @@ function exportXConfigFile() {
 }
 
 
-/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* family) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
+/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* and codec/switch families) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. Color falls back to the device's default (first colors: entry) when no explicit pick is stored. codec* rows carry a "Requires an external camera" note in the Notes column (per-room rows only, not the Total section). When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
 function openInventoryCsvDialog() {
     const dlg = document.getElementById('dialogInventoryCsv');
     if (!dlg) {
@@ -30417,7 +30417,16 @@ function inventoryOptionLabel(list, sel) {
 }
 
 function inventoryColorText(item, deviceType) {
-    return inventoryOptionLabel(deviceType && deviceType.colors, item && item.data_color);
+    const picked = inventoryOptionLabel(deviceType && deviceType.colors, item && item.data_color);
+    if (picked) return picked;
+    /* No stored pick (data_color is only written on an explicit Update Item): the device
+     * ships in its first colors: entry, so report that default instead of a blank. */
+    const list = deviceType && deviceType.colors;
+    if (Array.isArray(list) && list.length) {
+        const first = list[0];
+        return typeof first === 'string' ? first : (Object.values(first)[0] || '');
+    }
+    return '';
 }
 
 function polygonAreaShoelace(points) {
@@ -30504,10 +30513,13 @@ function exportInventoryCsv(includeLabeledItems) {
             }
         }
 
+        /* Codecs ship without a camera — flag it per room (the Total section stays note-free). */
+        const note = deviceId.startsWith('codec') ? 'Requires an external camera' : '';
+
         if (!groups.has(partName)) groups.set(partName, new Map());
         const rows = groups.get(partName);
         const key = device + SEP + label + SEP + color;
-        const row = rows.get(key) || { device: device, label: label, color: color, qty: 0 };
+        const row = rows.get(key) || { device: device, label: label, color: color, qty: 0, note: note };
         row.qty++;
         rows.set(key, row);
         itemCount++;
@@ -30533,11 +30545,11 @@ function exportInventoryCsv(includeLabeledItems) {
     lines.push('');
 
     if (!hasRoomParts) {
-        lines.push(['Device', 'Item Label', 'Color', 'Quantity'].map(csvField).join(','));
+        lines.push(['Device', 'Item Label', 'Color', 'Quantity', 'Notes'].map(csvField).join(','));
         const rows = Array.from((groups.get('') || new Map()).values()).sort(rowSort);
-        rows.forEach(r => lines.push([r.device, r.label, r.color, r.qty].map(csvField).join(',')));
+        rows.forEach(r => lines.push([r.device, r.label, r.color, r.qty, r.note].map(csvField).join(',')));
     } else {
-        lines.push(['Room Part Name', 'Device', 'Item Label', 'Color', 'Quantity'].map(csvField).join(','));
+        lines.push(['Room Part Name', 'Device', 'Item Label', 'Color', 'Quantity', 'Notes'].map(csvField).join(','));
 
         if (groups.has('Unassigned')) groupOrder.push('Unassigned');
 
@@ -30546,7 +30558,7 @@ function exportInventoryCsv(includeLabeledItems) {
             const rows = groups.get(partName);
             if (!rows) return;
             Array.from(rows.values()).sort(rowSort).forEach(r => {
-                lines.push([partName, r.device, r.label, r.color, r.qty].map(csvField).join(','));
+                lines.push([partName, r.device, r.label, r.color, r.qty, r.note].map(csvField).join(','));
                 const key = r.device + SEP + r.label + SEP + r.color;
                 const total = totals.get(key) || { device: r.device, label: r.label, color: r.color, qty: 0 };
                 total.qty += r.qty;
@@ -30556,7 +30568,7 @@ function exportInventoryCsv(includeLabeledItems) {
 
         lines.push('');
         Array.from(totals.values()).sort(rowSort).forEach(r => {
-            lines.push(['Total', r.device, r.label, r.color, r.qty].map(csvField).join(','));
+            lines.push(['Total', r.device, r.label, r.color, r.qty, ''].map(csvField).join(','));
         });
     }
 
