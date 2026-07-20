@@ -5864,6 +5864,194 @@ function convertPointsToPixel(points) {
     return newPoints;
 }
 
+/* ---- polyRoom point-edit mode (floor-overview only) ----
+ * Selecting exactly one polyRoom in the multi-room floor overview surfaces a white
+ * draggable circle on every vertex. Dragging a circle reshapes the room outline live;
+ * dragend renormalizes (origin back to the points bbox min, the creation convention)
+ * and commits to roomObj. Clicking outside #ContainerRoomSvg (sidebar/header/dialogs)
+ * hides the circles until the next canvas interaction; deselect/zoom-into-room exits. */
+let polyRoomEditNodeId = null;
+let _polyRoomEditSuppressed = false;
+let _polyRoomEditPreDragPoints = null;
+
+const POLYROOM_EDIT_CIRCLE_NAME = 'polyRoomEditCircle';
+const POLYROOM_EDIT_RADIUS = 4.5;
+const POLYROOM_EDIT_RADIUS_HOVER = 8;
+
+function getPolyRoomEditNode() {
+    return polyRoomEditNodeId ? stage.findOne('#' + polyRoomEditNodeId) : null;
+}
+
+function removePolyRoomEditPoints() {
+    const node = getPolyRoomEditNode();
+    if (node) node.off('.polyRoomEdit');
+    layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).forEach(c => c.destroy());
+    polyRoomEditNodeId = null;
+    layerSelectionBox.draw(); /* sync draw keeps the hit graph current even when rAF is throttled */
+}
+
+function syncPolyRoomEditPoints() {
+    const trNodes = tr.nodes();
+    const active = !_polyRoomEditSuppressed
+        && isMultiRoomOverviewMode()
+        && trNodes.length === 1
+        && trNodes[0].data_deviceid === 'polyRoom';
+
+    if (!active) {
+        if (polyRoomEditNodeId) removePolyRoomEditPoints();
+        return;
+    }
+
+    /* Re-resolve by id — a full drawRoom rebuild leaves stale node refs in tr.nodes(). */
+    const node = stage.findOne('#' + trNodes[0].id());
+    if (!node) {
+        removePolyRoomEditPoints();
+        return;
+    }
+
+    if (polyRoomEditNodeId === node.id()
+        && layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).length > 0) {
+        refreshPolyRoomEditPointPositions();
+        return;
+    }
+
+    removePolyRoomEditPoints();
+    polyRoomEditNodeId = node.id();
+
+    /* getAbsoluteTransform(stage) excludes the stage's own pan/zoom, landing in the same
+     * un-zoomed logical-pixel space layerSelectionBox children use. */
+    const t = node.getAbsoluteTransform(stage);
+    const pts = node.points();
+    const invZoom = 1 / (zoomScaleX || 1);
+
+    for (let i = 0; i < pts.length; i += 2) {
+        const pos = t.point({ x: pts[i], y: pts[i + 1] });
+        const circle = new Konva.Circle({
+            x: pos.x,
+            y: pos.y,
+            radius: POLYROOM_EDIT_RADIUS,
+            fill: 'white',
+            stroke: 'black',
+            strokeWidth: 1,
+            name: POLYROOM_EDIT_CIRCLE_NAME,
+            draggable: true,
+        });
+        circle.scale({ x: invZoom, y: invZoom });
+        circle.data_pointIndex = i;
+
+        circle.on('pointerover', () => {
+            circle.radius(POLYROOM_EDIT_RADIUS_HOVER);
+            document.getElementById('canvasDiv').style.cursor = 'move';
+        });
+        circle.on('pointerleave', () => {
+            circle.radius(POLYROOM_EDIT_RADIUS);
+            document.getElementById('canvasDiv').style.cursor = 'auto';
+        });
+
+        circle.on('dragstart', () => {
+            const n = getPolyRoomEditNode();
+            _polyRoomEditPreDragPoints = n ? n.points().slice() : null;
+        });
+        circle.on('dragmove', () => movePolyRoomEditPoint(circle));
+        circle.on('dragend', () => commitPolyRoomEditPoint());
+
+        layerSelectionBox.add(circle);
+    }
+
+    /* Body drag of the polyRoom carries the circles along. */
+    node.on('dragmove.polyRoomEdit', refreshPolyRoomEditPointPositions);
+
+    layerSelectionBox.draw(); /* sync draw keeps the hit graph current even when rAF is throttled */
+}
+
+function refreshPolyRoomEditPointPositions() {
+    const node = getPolyRoomEditNode();
+    if (!node) return;
+    const t = node.getAbsoluteTransform(stage);
+    const pts = node.points();
+    layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).forEach(circle => {
+        const i = circle.data_pointIndex;
+        circle.position(t.point({ x: pts[i], y: pts[i + 1] }));
+    });
+}
+
+function movePolyRoomEditPoint(circle) {
+    const node = getPolyRoomEditNode();
+    if (!node) return;
+    const inv = node.getAbsoluteTransform(stage).copy().invert();
+    const local = inv.point(circle.position());
+    const pts = node.points().slice();
+    pts[circle.data_pointIndex] = local.x;
+    pts[circle.data_pointIndex + 1] = local.y;
+    node.points(pts);
+}
+
+function commitPolyRoomEditPoint() {
+    const node = getPolyRoomEditNode();
+    if (!node) return;
+
+    if (polylineSelfIntersects(node.points(), { closed: true })) {
+        if (_polyRoomEditPreDragPoints) node.points(_polyRoomEditPreDragPoints);
+        _polyRoomEditPreDragPoints = null;
+        refreshPolyRoomEditPointPositions();
+        alertDialog('Polyline intersects itself', 'Room outlines cannot cross themselves. The point was moved back.');
+        return;
+    }
+    _polyRoomEditPreDragPoints = null;
+
+    const pts = node.points().slice();
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < pts.length; i += 2) {
+        minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]);
+        minY = Math.min(minY, pts[i + 1]); maxY = Math.max(maxY, pts[i + 1]);
+    }
+    if (minX !== 0 || minY !== 0) {
+        /* New origin = the local bbox-min point mapped through the node's transform, so
+         * rotated polyRooms renormalize without the shape moving on screen. */
+        const newOrigin = node.getTransform().point({ x: minX, y: minY });
+        for (let i = 0; i < pts.length; i += 2) {
+            pts[i] -= minX;
+            pts[i + 1] -= minY;
+        }
+        node.points(pts);
+        node.position(newOrigin);
+    }
+
+    /* Keep attrs.width/height in sync so updateRoomObjFromTrNode's rooms-branch read is real. */
+    node.width(maxX - minX);
+    node.height(maxY - minY);
+
+    const item = roomObjItemsMap.get(node.id());
+    if (item) {
+        item.x = round(((node.x() - pxOffset) / scale) + activeRoomX);
+        item.y = round(((node.y() - pyOffset) / scale) + activeRoomY);
+        item.points = pts.map(p => p / scale);
+        item.width = round((maxX - minX) / scale);
+        item.height = round((maxY - minY) / scale);
+    }
+
+    updateShading(node);
+    refreshPolyRoomEditPointPositions();
+    tr.nodes(tr.nodes()); /* re-fit the transformer box to the new outline */
+    updateFormatDetails(node.id());
+    canvasToJson();
+}
+
+function applyPolyRoomEditZoomScale() {
+    const invZoom = 1 / (zoomScaleX || 1);
+    layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).forEach(c => c.scale({ x: invZoom, y: invZoom }));
+}
+
+/* Clicks outside the canvas area (sidebar, header, dialogs) hide the edit circles.
+ * #ContainerRoomSvg (toolbar + canvas) counts as inside so zooming keeps the mode alive. */
+document.addEventListener('pointerdown', function polyRoomEditOutsideClick(ev) {
+    if (!polyRoomEditNodeId) return;
+    const container = document.getElementById('ContainerRoomSvg');
+    if (container && container.contains(ev.target)) return;
+    _polyRoomEditSuppressed = true;
+    removePolyRoomEditPoints();
+}, true);
+
 /* Polyline self-intersection test. opts: closed, ignoreEndpointTouches (default true). */
 function polylineSelfIntersects(points, opts = {}) {
     const {
@@ -7185,11 +7373,11 @@ let microphones = [
         speakerMount: 'ceiling',
     },
     {
-        name: "Front of Room Speaker (generic)*",
+        name: "Front of Room Speaker (generic)**",
         id: "frontSpeaker",
         key: "NC",
-        topImage: 'ceilingSpeaker-top.png',
-        frontImage: 'ceilingSpeaker-menu.png',
+        topImage: 'frontSpeaker-top.png',
+        frontImage: 'frontSpeaker-menu.png',
         width: 200,
         depth: 150,
         height: 300,
@@ -8152,15 +8340,18 @@ let boxes = [
 ]
 
 let rooms = [
-    {
-        name: 'Room Part Irregular Shape', 
-        id: 'polyRoom',
-        key: 'ZY',
-        frontImage: 'pathShape-menu.png',
-        strokeWidth: 1,
+
+       {
+        name: 'Room Part w/ No Walls',
+        id: 'boxRoomPartNoWalls', /* menu-only alias: insertItemFromMenu converts it to boxRoomPart with walls pre-disabled */
+        key: 'ZW',
+        frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'darkgrey',
+        strokeWidth: 3,
         fill: 'lightblue',
-        resizeable: []
-    },
+        resizeable: ['width', 'depth', 'vheight']
+    }, 
     {
         name: 'Room Part with Default Walls',
         id: 'boxRoomPart',
@@ -8172,16 +8363,15 @@ let rooms = [
         fill: 'lightblue',
         resizeable: ['width', 'depth', 'vheight']
     },
-    {
-        name: 'Room Part - No Walls',
-        id: 'boxRoomPartNoWalls', /* menu-only alias: insertItemFromMenu converts it to boxRoomPart with walls pre-disabled */
-        key: 'ZW',
-        frontImage: 'box-front.png',
-        family: 'wallBox',
-        stroke: 'darkgrey',
-        strokeWidth: 3,
+
+        {
+        name: 'Room Part Irregular Shape', 
+        id: 'polyRoom',
+        key: 'ZY',
+        frontImage: 'pathShape-menu.png',
+        strokeWidth: 1,
         fill: 'lightblue',
-        resizeable: ['width', 'depth', 'vheight']
+        resizeable: []
     }
 ]
 
@@ -12166,6 +12356,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
     postMessageToWorkspace();
 
     renderLayersList();
+
+    syncPolyRoomEditPoints();
 
     clearSelect2Points();
     setTimeout(() => {
@@ -18592,8 +18784,14 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
             if ('points' in attrs) {
                 let points = attrs.points;
 
+                /* Canvas items (polyRoom etc.) store NODE-LOCAL points — the x/y branches
+                 * already move the origin, so points only rescale by ratio. The offset form
+                 * is for layerSelectionBox overlays whose points are absolute layer coords. */
+                const isItemNode = 'data_deviceid' in node;
                 const newPoints = points.map(function (point, index) {
-                    if (index % 2 !== 0) {
+                    if (isItemNode) {
+                        point = (scale / oldScale) * point;
+                    } else if (index % 2 === 0) {
                         point = pxOffset + ((scale / oldScale) * (point - oldPxOffset));
                     } else {
                         point = pyOffset + ((scale / oldScale) * (point - oldPyOffset));
@@ -23806,6 +24004,8 @@ function getItemCenter(item) {
 /* Refreshes Duplicate/Delete + Details panel for the current tr.nodes(). Pass { suppressTabSwitch: true } for non-Items-tab actions (e.g. Layers Hide/Lock) so the user isn't yanked to the Items tab. */
 function enableCopyDelBtn(opts) {
 
+    syncPolyRoomEditPoints();
+
     const suppressTabSwitch = !!(opts && opts.suppressTabSwitch);
 
     let divItemDetailsVisible = document.getElementById('itemDetailsVisible');
@@ -24915,7 +25115,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             const psDiv = document.getElementById('itemPointerSizeDiv');
             if (psDiv) psDiv.style.display = 'none';
             if (lwpsRow) lwpsRow.style.display = 'none';
-            if (zDiv) zDiv.style.display = '';
+            /* Room Parts sit on the floor by definition — Z has no meaning. */
+            if (zDiv) zDiv.style.display = isRoomPartShape ? 'none' : '';
         }
     }
 
@@ -25083,7 +25284,15 @@ function addListeners(stage) {
         /* Move keyboard focus to the canvas on EVERY interaction so Space fires Quick Add (not a previously-clicked button). preventScroll keeps the container from jumping. */
         stage.container().focus({ preventScroll: true });
 
+        /* Canvas interaction re-arms polyRoom point-edit after an outside click hid it. */
+        _polyRoomEditSuppressed = false;
+
         if (panScrollableOn || isSelectingTwoPointsOn || movingBackgroundImage || selectingOuterWall || isWallBuilderOn || isWallWriterOn2 || isPolyBuilderOn) {
+            return;
+        }
+
+        /* polyRoom vertex circles handle their own drag; don't start a selection rectangle. */
+        if (typeof e.target.name === 'function' && e.target.name() === POLYROOM_EDIT_CIRCLE_NAME) {
             return;
         }
 
@@ -25220,6 +25429,9 @@ function addListeners(stage) {
     stage.on('click tap', function stageOnClickTap(e) {
 
         if (e.target.getParent() === tr) return;
+
+        /* polyRoom vertex circles are not selectable items. */
+        if (typeof e.target.name === 'function' && e.target.name() === POLYROOM_EDIT_CIRCLE_NAME) return;
 
         /* For Konva.Label items (wdText) the click lands on the inner Text/Tag (no id/data_deviceid/draggable); walk up to the labeled item. */
         e.target = resolveItemAncestor(e.target);
@@ -26289,6 +26501,7 @@ function zoomInOut(zoomChange) {
     zoomScaleY = zoomValue / 100;
 
     applyMeasureToolZoomScale();
+    applyPolyRoomEditZoomScale();
 
     stage.scaleX(zoomScaleX);
     stage.scaleY(zoomScaleY);

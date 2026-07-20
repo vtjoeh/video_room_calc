@@ -1531,6 +1531,63 @@ hardcoded specs, so existing rooms render identically.
 
 ---
 
+## polyRoom Point Editing (floor-overview only)
+
+Selecting exactly one `polyRoom` in the multi-room **floor overview**
+(`isMultiRoomOverviewMode()`) surfaces a white draggable `Konva.Circle`
+on every vertex; dragging a circle reshapes the room outline live.
+There is no explicit mode button — the selection IS the mode. Zoomed
+into a Room Part, all Room Part nodes are hidden/unlistening, so
+editing is naturally impossible there.
+
+- **Module**: the `polyRoomEdit` block in `js/roomcalc.js` right after
+  `convertPointsToPixel()`. State: `polyRoomEditNodeId` (re-resolved
+  via `stage.findOne` on every use — full redraws leave stale node refs
+  in `tr.nodes()`), `_polyRoomEditSuppressed`,
+  `_polyRoomEditPreDragPoints`.
+- **Hooks**: `syncPolyRoomEditPoints()` runs at the top of
+  `enableCopyDelBtn()` (every selection change) and at the tail of
+  `drawRoom()`. `applyPolyRoomEditZoomScale()` runs in `zoomInOut()`
+  next to `applyMeasureToolZoomScale()` — circles counter-scale
+  `1/zoomScaleX` so they keep constant visual size at any zoom.
+- **Coordinate model**: circles live in `layerSelectionBox`
+  (logical un-zoomed layer pixels); positions map through
+  `node.getAbsoluteTransform(stage)` (excludes stage pan/zoom), drags
+  map back through its inverse — rotation-safe. On **dragend** the
+  points are renormalized to the creation convention (origin =
+  points-bbox min, via `node.getTransform().point({minX,minY})` so
+  rotated polyRooms don't shift), `node.width/height` are set so
+  `updateRoomObjFromTrNode`'s rooms-branch `attrs.width` read is real,
+  the roomObj entry is patched directly (`updateRoomObjFromTrNode`'s
+  map-hit branch never writes `points` — dead `item.itemAttr` guard),
+  then `updateShading` + `updateFormatDetails` + `canvasToJson()`.
+- **Self-intersection**: dragend that produces a crossing outline
+  reverts to `_polyRoomEditPreDragPoints` + `alertDialog` (mirror of
+  the poly builder's rule).
+- **Exit rules**: deselect / zoom-into-room exits; a `pointerdown`
+  outside `#ContainerRoomSvg` (sidebar, header, dialogs) hides the
+  circles (`_polyRoomEditSuppressed`) until the next canvas
+  mousedown — the zoom toolbar counts as *inside* so zooming keeps the
+  mode alive.
+- **Stage-handler guards**: `stageOnMousedownTouchstart` and
+  `stageOnClickTap` early-return on `POLYROOM_EDIT_CIRCLE_NAME`
+  targets so a circle press never starts a selection rectangle or gets
+  captured into `tr.nodes()`.
+- **Related fix (resize)**: `updateShapesBasedOnNewScale()`'s `points`
+  branch used the absolute-coords offset formula for ALL nodes; canvas
+  items (polyRoom) store NODE-LOCAL points, so any window resize
+  visually shifted a polyRoom (roomObj stayed correct; the node drifted
+  until the next full redraw — and a point-edit commit would have
+  persisted the drift). Item nodes (`'data_deviceid' in node`) now
+  scale points by pure ratio; the offset form remains for
+  layerSelectionBox overlays. The even/odd `pxOffset`/`pyOffset` swap
+  in that map was also corrected.
+- **Z removed for Room Parts**: `updateFormatDetails()` hides
+  `#itemZpositionDiv` for `boxRoomPart`/`polyRoom` (they sit on the
+  floor by definition) via the existing `isRoomPartShape` flag.
+
+---
+
 ## SVG Path Editor (`js/pathEditor/`)
 
 User-facing name is **"Path Editor"** (the underlying format is still
