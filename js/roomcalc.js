@@ -3150,6 +3150,8 @@ function applyAllLayerStates() {
             applyLayerStateToNode(node, node.data_layerId);
         }
     });
+    /* Layer toggles re-show nodes; re-hide anything outside the active Room Part. */
+    applyRoomPartOutsideItemVisibility();
     updateModeStatusBadge();
 }
 
@@ -12347,6 +12349,8 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
         deleteNegativeShapes();
 
+        applyRoomPartOutsideItemVisibility();
+
     }, 250);
 
     tr.nodes(tr.nodes()); /* reset tr.nodes so the box is drawn again or in correct place */
@@ -20178,7 +20182,13 @@ function getMenuItems(itemArray, attributeType) {
 function getDevicesWithAttribute(attributeType) {
     let itemArray = [];
 
+    /* Zoomed into a Room Part: the coverage menus (and their all/none actions) only
+     * concern devices in THIS room — refresh the off-stage list and skip the rest. */
+    if (isActiveRoomPart) listItemsOffStage();
+
     roomObj.items.forEach(item => {
+        if (isActiveRoomPart && itemsOffStageId.includes(item.id)) return;
+
         if (attributeType === 'hasMic' && 'micRadius' in allDeviceTypes[item.data_deviceid]) {
             itemArray.push(item);
         }
@@ -20874,6 +20884,25 @@ function listItemsOffStage() {
         }
     });
 
+}
+
+/* Zoomed into a Room Part: hide every item outside the room plus its coverage/label
+ * nodes, so another room's camera/mic/speaker/display wedges don't bleed onto this
+ * room's canvas. Items themselves sit off-canvas, but their coverage cones can reach
+ * back into view. Full redraws recreate everything visible, so this re-runs from the
+ * drawRoom tail (after the deleteNegativeShapes image-load delay) and from
+ * applyAllLayerStates (layer toggles re-show nodes). */
+function applyRoomPartOutsideItemVisibility() {
+    if (!isActiveRoomPart) return;
+    listItemsOffStage();
+    itemsOffStageId.forEach(id => {
+        const node = stage.findOne('#' + id);
+        if (node) node.hide();
+        ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
+            const cov = stage.findOne('#' + prefix + id);
+            if (cov) cov.hide();
+        });
+    });
 }
 
 
