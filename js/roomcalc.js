@@ -30387,11 +30387,11 @@ function openInventoryCsvDialog() {
     dlg.showModal();
 }
 
-/* Also the always-label predicate in insertShapeItem() — laptop/keyboard ride the microphones bucket but are not Cisco devices. The shareCable* family (USB-C / HDMI / Multi-Head) rides the chairs bucket but IS Cisco hardware. */
+/* Also the always-label predicate in insertShapeItem() — laptop/keyboard ride the microphones bucket but are not Cisco devices. The shareCable* family (USB-C / HDMI / Multi-Head) plus the codec / switch devices (cable-map codecs, Catalyst switches) ride the chairs bucket but ARE Cisco hardware. */
 function isCiscoInventoryDevice(deviceId) {
     const deviceType = allDeviceTypes[deviceId];
     if (!deviceType || deviceId === 'laptop' || deviceId === 'keyboard') return false;
-    if (deviceId.startsWith('shareCable')) return true;
+    if (deviceId.startsWith('shareCable') || deviceId.startsWith('codec') || deviceId.startsWith('switch')) return true;
     return deviceType.parentGroup === 'videoDevices' || deviceType.parentGroup === 'microphones';
 }
 
@@ -30483,7 +30483,9 @@ function exportInventoryCsv(includeLabeledItems) {
         if (!isCiscoInventoryDevice(deviceId) && !(includeLabeledItems && label)) return;
 
         const deviceType = allDeviceTypes[deviceId];
-        const device = item.name || (deviceType && deviceType.name) || deviceId;
+        /* Menu-convention markers (leading _ = internal, trailing * = non-WD-supported) stay out of the inventory. */
+        const device = (item.name || (deviceType && deviceType.name) || deviceId)
+            .replace(/^_+/, '').replace(/\*+$/, '');
         const color = inventoryColorText(item, deviceType);
 
         let partName = '';
