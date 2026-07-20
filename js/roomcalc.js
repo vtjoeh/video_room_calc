@@ -8643,7 +8643,7 @@ function addOnNumberInputListener() {
             event.target.value = event.target.value.replace(/[~]/i, '\u301C'); /* tilde ~ is a control character in the URL and is replaced with a similar unicode character */
             if (event.target.id === 'roomName') {
                 const cleanedName = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
-                if (isZoomedIntoBoxRoomPart()) {
+                if (isRoomSubMode()) {
                     setActiveRoomPartLabel(cleanedName);
                 } else {
                     roomObj.name = cleanedName;
@@ -8667,7 +8667,7 @@ function addOnNumberInputListener() {
 
             if (event.target.id === 'roomName') {
                 const cleanedName = event.target.value.replace(/^[\s_]+|[\s_]+$/g, ''); /* trim spaces or _ before sending adding to the roomObj */
-                if (isZoomedIntoBoxRoomPart()) {
+                if (isRoomSubMode()) {
                     setActiveRoomPartLabel(cleanedName);
                 } else {
                     roomObj.name = cleanedName;
@@ -11109,6 +11109,13 @@ function populateRoomTabFromActiveRoomPart() {
                 heightEl.placeholder = roomObj.room.roomHeight ? String(round(roomObj.room.roomHeight)) : '';
             }
         }
+
+        /* Room name is editable PER ROOM for both part types; the size inputs stay disabled. */
+        const nameEl = document.getElementById('roomName');
+        if (nameEl) {
+            nameEl.value = activeRoomPartItem.data_labelField || '';
+            nameEl.disabled = false;
+        }
     }
 
     if (!isZoomedIntoBoxRoomPart()) {
@@ -11117,13 +11124,6 @@ function populateRoomTabFromActiveRoomPart() {
 
     const item = activeRoomPartItem;
 
-    /* Room name is editable PER ROOM while zoomed in; the other Room-tab inputs stay disabled. */
-    const nameEl = document.getElementById('roomName');
-    if (nameEl) {
-        nameEl.value = item.data_labelField || '';
-        nameEl.disabled = false;
-    }
-
     const widthEl = document.getElementById('roomWidth');
     if (widthEl && item.width) widthEl.value = round(item.width);
 
@@ -11131,9 +11131,9 @@ function populateRoomTabFromActiveRoomPart() {
     if (lengthEl && item.height) lengthEl.value = round(item.height);
 }
 
-/* Zoomed-in Room tab name edits write the Room Part's label, not the floor name. */
+/* Zoomed-in Room tab name edits write the Room Part's label (either part type), not the floor name. */
 function setActiveRoomPartLabel(text) {
-    if (!isZoomedIntoBoxRoomPart()) return;
+    if (!isRoomSubMode() || !activeRoomPartItem) return;
     activeRoomPartItem.data_labelField = text;
     const node = stage.findOne('#' + activeRoomPartItem.id);
     if (node) node.data_labelField = text;
@@ -20693,6 +20693,11 @@ function deleteNegativeShapes() {
         let theObjects = parentGroup.getChildren();
 
         theObjects.forEach(node => {
+
+            /* Zoomed into a Room Part: sibling parts legitimately sit up/left of the zoom
+             * origin (all-negative stage coords). Destroying them breaks click-to-switch
+             * and makes the parts vanish until the next full floor redraw. */
+            if (isActiveRoomPart && isRoomPart(node.data_deviceid)) return;
 
             let attrs = node.attrs;
             let height = 0;
@@ -30371,7 +30376,7 @@ function exportXConfigFile() {
 }
 
 
-/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (same predicate insertShapeItem() uses to always-label videoDevices/microphones, minus laptop) or Cisco devices + any item with a non-empty label. When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
+/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* family) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
 function openInventoryCsvDialog() {
     const dlg = document.getElementById('dialogInventoryCsv');
     if (!dlg) {
@@ -30382,10 +30387,11 @@ function openInventoryCsvDialog() {
     dlg.showModal();
 }
 
-/* Also the always-label predicate in insertShapeItem() — laptop/keyboard ride the microphones bucket but are not Cisco devices. */
+/* Also the always-label predicate in insertShapeItem() — laptop/keyboard ride the microphones bucket but are not Cisco devices. The shareCable* family (USB-C / HDMI / Multi-Head) rides the chairs bucket but IS Cisco hardware. */
 function isCiscoInventoryDevice(deviceId) {
     const deviceType = allDeviceTypes[deviceId];
     if (!deviceType || deviceId === 'laptop' || deviceId === 'keyboard') return false;
+    if (deviceId.startsWith('shareCable')) return true;
     return deviceType.parentGroup === 'videoDevices' || deviceType.parentGroup === 'microphones';
 }
 
@@ -30470,6 +30476,8 @@ function exportInventoryCsv(includeLabeledItems) {
     roomObj.items.forEach(item => {
         const deviceId = item && item.data_deviceid;
         if (!deviceId || isRoomPart(deviceId)) return;
+        /* wdText/vrcText labels are annotations, not equipment — never inventory them. */
+        if (isTextItem(deviceId)) return;
 
         const label = inventoryLabelText(item);
         if (!isCiscoInventoryDevice(deviceId) && !(includeLabeledItems && label)) return;
