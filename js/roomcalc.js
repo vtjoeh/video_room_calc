@@ -27655,6 +27655,10 @@ function onKeyDown(e) {
 
     {
         if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
+            /* Space default-scrolls the nearest scrollable ancestor (#scroll-container has
+             * overflow when zoomValue > 100), jumping the canvas as Quick Add opens.
+             * Focused buttons keep their native Space activation. */
+            if (target.tagName !== 'BUTTON') e.preventDefault();
             quickAddMouse.x = mouseUnit.x;
             quickAddMouse.y = mouseUnit.y;
             toggleQuickAdd(true);
