@@ -134,6 +134,7 @@ workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
 workspaceKey.loudspeaker = { objectType: 'loudspeaker' };
+workspaceKey.frontSpeaker = { objectType: 'loudspeaker' };
 
 workspaceKey.projector = { objectType: 'projector' };
 

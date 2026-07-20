@@ -959,7 +959,7 @@ function populateGroupDetails(rectNode) {
 
     /* Hide everything that doesn't apply to a Group (non-group branch of updateFormatDetails re-shows itemNameDiv). */
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -2879,7 +2879,7 @@ function populateCustomItemDetails(rectNode) {
     if (!customItem) return;
 
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -3805,6 +3805,236 @@ function finishDiscasInsert(attrs) {
     roomObj.items.push(attrs);
     roomObjItemsMap.set(attrs.id, attrs);
     setTimeout(() => { canvasToJson() }, 100);
+    canvasToJson();
+}
+
+/* ---- Speaker Reach (test-mode feature, mirror of the DISCAS pattern above) ----
+ * Per-item override of the hardcoded device speakerRadius/speakerDeg. Three calc methods,
+ * keyed by data_speakerCalc ('simple' default, never stored):
+ *   simple: data_speakerRadius (current unit) + data_speakerDeg override the device spec.
+ *   cone  : AVIXA/CTS ceiling-loudspeaker convention — coverage circle at ear height,
+ *           radius = (mount height − ear height) × tan(coverage angle / 2), always 360°.
+ *   spl   : inverse-square loudness — reach(m) = 10^((sensitivity + 10·log10(power) − target)/20).
+ * Only non-default inputs are stored on the item; drawn radius/deg are always derived
+ * (speakerComputeGeometry) and consumed by the speaker~ coverage builder. */
+
+const SPKR_DEFAULT_CONE_ANGLE = 90;    /* deg — typical conical ceiling speaker (-6 dB angle) */
+const SPKR_DEFAULT_SENSITIVITY = 86;   /* dB SPL at 1 W / 1 m */
+const SPKR_DEFAULT_POWER = 2;          /* W continuous — defaults chosen so the computed reach (~4.5 m) lands near the generic front speaker's 4 m spec */
+const SPKR_DEFAULT_TARGET_SPL = 76;    /* dB SPL at the farthest listener (speech + headroom) */
+
+/* Four-place-rule attr list (node mirror, updateRoomObjFromTrNode both branches, clipboard). */
+const SPEAKER_REACH_ATTRS = ['data_speakerCalc', 'data_speakerRadius', 'data_speakerDeg',
+    'data_speakerConeAngle', 'data_speakerEarLevel',
+    'data_speakerSensitivity', 'data_speakerPower', 'data_speakerTargetSpl'];
+
+function speakerMountOf(deviceDef) {
+    if (!deviceDef) return 'front';
+    if (deviceDef.speakerMount) return deviceDef.speakerMount;
+    return deviceDef.speakerDeg === 360 ? 'ceiling' : 'front';
+}
+
+/* Effective speaker inputs for an item/attrs object, defaults applied. Lengths in the current unit. */
+function speakerResolveSettings(src) {
+    const unitFactor = (roomObj.unit === 'feet') ? 3.28084 : 1;
+    const dev = allDeviceTypes[src.data_deviceid] || {};
+    const specRadius = (Number(dev.speakerRadius) || 1500) / 1000 * unitFactor;
+    const defaultZ = (('defaultVert' in dev) ? dev.defaultVert / 1000 : 2.5) * unitFactor;
+    return {
+        mount: speakerMountOf(dev),
+        specRadius: specRadius,
+        specDeg: Number(dev.speakerDeg) || 360,
+        calc: (src.data_speakerCalc === 'cone' || src.data_speakerCalc === 'spl') ? src.data_speakerCalc : 'simple',
+        radius: (src.data_speakerRadius != null && src.data_speakerRadius !== '') ? Number(src.data_speakerRadius) : specRadius,
+        deg: (src.data_speakerDeg != null && src.data_speakerDeg !== '') ? Number(src.data_speakerDeg) : (Number(dev.speakerDeg) || 360),
+        coneAngle: Number(src.data_speakerConeAngle) || SPKR_DEFAULT_CONE_ANGLE,
+        earLevel: (src.data_speakerEarLevel != null && src.data_speakerEarLevel !== '') ? Number(src.data_speakerEarLevel) : discasEyeLevelDefault(),
+        zPos: (src.data_zPosition != null && src.data_zPosition !== '') ? Number(src.data_zPosition) : defaultZ,
+        sens: Number(src.data_speakerSensitivity) || SPKR_DEFAULT_SENSITIVITY,
+        power: Number(src.data_speakerPower) || SPKR_DEFAULT_POWER,
+        target: Number(src.data_speakerTargetSpl) || SPKR_DEFAULT_TARGET_SPL,
+    };
+}
+
+/* Drawn coverage in the current unit: { radius, deg, ... }. */
+function speakerComputeGeometry(src) {
+    const s = speakerResolveSettings(src);
+    const unitFactor = (roomObj.unit === 'feet') ? 3.28084 : 1;
+    if (s.calc === 'cone') {
+        const r = Math.max(0, s.zPos - s.earLevel) * Math.tan(s.coneAngle / 2 * Math.PI / 180);
+        return { ...s, radius: r, deg: 360 };
+    }
+    if (s.calc === 'spl') {
+        const reachM = Math.pow(10, (s.sens + 10 * Math.log10(s.power) - s.target) / 20);
+        return { ...s, radius: reachM * unitFactor, deg: s.deg };
+    }
+    return s;
+}
+
+let _spkrEditItemId = null;
+
+/* Details-panel entry point: edit the currently selected speaker-capable item. */
+function openSpeakerReachDialogForSelected() {
+    const id = document.getElementById('itemId').innerText;
+    const item = roomObjItemsMap.get(id);
+    if (!item) return;
+    const dev = allDeviceTypes[item.data_deviceid];
+    if (!dev || !('speakerRadius' in dev)) return;
+    const dlg = document.getElementById('dialogSpeakerReach');
+    if (!dlg) return;
+    _spkrEditItemId = id;
+    populateSpeakerReachDialog(item);
+    dlg.showModal();
+}
+
+function populateSpeakerReachDialog(src) {
+    const s = speakerResolveSettings(src);
+    const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
+    const avixaOpt = document.getElementById('spkrMethodAvixaOpt');
+    if (s.mount === 'ceiling') {
+        avixaOpt.value = 'cone';
+        avixaOpt.innerText = 'AVIXA Coverage Cone (ceiling)';
+    } else {
+        avixaOpt.value = 'spl';
+        avixaOpt.innerText = 'AVIXA SPL (loudness)';
+    }
+    document.getElementById('spkrMethodSelect').value = (s.calc === 'simple') ? 'simple' : avixaOpt.value;
+
+    document.getElementById('spkrRadiusInput').value = round(s.radius);
+    document.getElementById('spkrDegInput').value = s.deg;
+    document.getElementById('spkrConeAngleInput').value = s.coneAngle;
+    document.getElementById('spkrMountHeightInput').value = round(s.zPos);
+    const earSel = document.getElementById('spkrEarLevelSelect');
+    if (Math.abs(s.earLevel - discasEyeLevelDefault()) < 0.005) earSel.value = 'seated';
+    else if (Math.abs(s.earLevel - discasEyeLevelStanding()) < 0.005) earSel.value = 'standing';
+    else earSel.value = 'custom';
+    document.getElementById('spkrEarLevelCustomInput').value = round(s.earLevel);
+    document.getElementById('spkrSensInput').value = s.sens;
+    document.getElementById('spkrPowerInput').value = s.power;
+    document.getElementById('spkrTargetInput').value = s.target;
+    document.querySelectorAll('.spkrUnitLbl').forEach(el => { el.innerText = abbr; });
+    spkrRecalcOutputs();
+}
+
+/* Read the dialog fields into a plain values object (lengths in current unit). */
+function spkrDialogValues() {
+    const item = roomObjItemsMap.get(_spkrEditItemId) || {};
+    const s = speakerResolveSettings(item);
+    const earSel = document.getElementById('spkrEarLevelSelect').value;
+    let earLevel;
+    if (earSel === 'seated') earLevel = discasEyeLevelDefault();
+    else if (earSel === 'standing') earLevel = discasEyeLevelStanding();
+    else earLevel = Number(document.getElementById('spkrEarLevelCustomInput').value) || discasEyeLevelDefault();
+    return {
+        mount: s.mount,
+        specRadius: s.specRadius,
+        specDeg: s.specDeg,
+        calc: document.getElementById('spkrMethodSelect').value,
+        radius: Number(document.getElementById('spkrRadiusInput').value) || s.specRadius,
+        deg: Number(document.getElementById('spkrDegInput').value) || s.specDeg,
+        coneAngle: Number(document.getElementById('spkrConeAngleInput').value) || SPKR_DEFAULT_CONE_ANGLE,
+        earLevel: earLevel,
+        zPos: Number(document.getElementById('spkrMountHeightInput').value) || 0,
+        sens: Number(document.getElementById('spkrSensInput').value) || SPKR_DEFAULT_SENSITIVITY,
+        power: Number(document.getElementById('spkrPowerInput').value) || SPKR_DEFAULT_POWER,
+        target: Number(document.getElementById('spkrTargetInput').value) || SPKR_DEFAULT_TARGET_SPL,
+    };
+}
+
+/* Live-recompute outputs and toggle the per-method sections. */
+function spkrRecalcOutputs() {
+    const v = spkrDialogValues();
+    const abbr = (roomObj.unit === 'feet') ? 'ft' : 'm';
+    const method = v.calc;
+
+    document.getElementById('spkrSimpleSection').style.display = (method === 'simple') ? '' : 'none';
+    document.getElementById('spkrConeSection').style.display = (method === 'cone') ? '' : 'none';
+    document.getElementById('spkrSplSection').style.display = (method === 'spl') ? '' : 'none';
+    /* ceiling speakers radiate a full circle — no dispersion-angle input for them */
+    document.getElementById('spkrDegRow').style.display = (v.mount === 'ceiling') ? 'none' : '';
+    document.getElementById('spkrEarLevelCustomWrap').style.display =
+        (document.getElementById('spkrEarLevelSelect').value === 'custom') ? 'flex' : 'none';
+
+    let radius, deg;
+    if (method === 'cone') {
+        radius = Math.max(0, v.zPos - v.earLevel) * Math.tan(v.coneAngle / 2 * Math.PI / 180);
+        deg = 360;
+    } else if (method === 'spl') {
+        const unitFactor = (roomObj.unit === 'feet') ? 3.28084 : 1;
+        radius = Math.pow(10, (v.sens + 10 * Math.log10(v.power) - v.target) / 20) * unitFactor;
+        deg = (v.mount === 'ceiling') ? 360 : v.deg;
+    } else {
+        radius = v.radius;
+        deg = (v.mount === 'ceiling') ? 360 : v.deg;
+    }
+
+    document.getElementById('spkrOutReach').innerText = round(radius) + ' ' + abbr
+        + ((deg === 360) ? ' radius (full circle)' : ' at ' + deg + '°');
+    const spacing = document.getElementById('spkrOutSpacing');
+    if (method === 'cone') {
+        spacing.style.display = '';
+        spacing.innerHTML = 'Ceiling spacing guides: edge-to-edge <b>' + round(radius * 2) + ' ' + abbr
+            + '</b> &middot; minimum overlap <b>' + round(radius * 1.414) + ' ' + abbr
+            + '</b> &middot; edge-to-center <b>' + round(radius) + ' ' + abbr + '</b>';
+    } else {
+        spacing.style.display = 'none';
+    }
+}
+
+/* Write dialog values onto the item. Defaults are DELETED, not stored (minimum-storage rule). */
+function applySpeakerValuesToTarget(target, v) {
+    if (v.calc === 'cone' || v.calc === 'spl') target.data_speakerCalc = v.calc;
+    else delete target.data_speakerCalc;
+
+    if (v.calc === 'simple' && Math.abs(v.radius - v.specRadius) > 0.005) target.data_speakerRadius = round(v.radius);
+    else delete target.data_speakerRadius;
+
+    if (v.mount !== 'ceiling' && Math.abs(v.deg - v.specDeg) > 0.05) target.data_speakerDeg = v.deg;
+    else delete target.data_speakerDeg;
+
+    if (v.calc === 'cone') {
+        if (Math.abs(v.coneAngle - SPKR_DEFAULT_CONE_ANGLE) > 0.05) target.data_speakerConeAngle = v.coneAngle;
+        else delete target.data_speakerConeAngle;
+        if (Math.abs(v.earLevel - discasEyeLevelDefault()) > 0.005) target.data_speakerEarLevel = round(v.earLevel);
+        else delete target.data_speakerEarLevel;
+        if (v.zPos > 0) target.data_zPosition = round(v.zPos);
+    } else {
+        delete target.data_speakerConeAngle;
+        delete target.data_speakerEarLevel;
+    }
+
+    if (v.calc === 'spl') {
+        if (Math.abs(v.sens - SPKR_DEFAULT_SENSITIVITY) > 0.05) target.data_speakerSensitivity = v.sens;
+        else delete target.data_speakerSensitivity;
+        if (Math.abs(v.power - SPKR_DEFAULT_POWER) > 0.05) target.data_speakerPower = v.power;
+        else delete target.data_speakerPower;
+        if (Math.abs(v.target - SPKR_DEFAULT_TARGET_SPL) > 0.05) target.data_speakerTargetSpl = v.target;
+        else delete target.data_speakerTargetSpl;
+    } else {
+        delete target.data_speakerSensitivity;
+        delete target.data_speakerPower;
+        delete target.data_speakerTargetSpl;
+    }
+}
+
+function confirmSpeakerReachDialog() {
+    const v = spkrDialogValues();
+    const item = roomObjItemsMap.get(_spkrEditItemId);
+    document.getElementById('dialogSpeakerReach').close();
+    if (!item) return;
+    applySpeakerValuesToTarget(item, v);
+    /* Destroy-and-reinsert (same pattern as confirmDiscasDialog) so the speaker~ coverage rebuilds from the new attrs. */
+    const id = item.id;
+    const node = stage.find('#' + id)[0];
+    if (node) {
+        tr.nodes([]);
+        ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
+            stage.find('#' + prefix + id).forEach(n => { n.destroy(); canvasNodesMap.delete(prefix + id); });
+        });
+        node.destroy();
+        canvasNodesMap.delete(id);
+    }
+    insertItem(item, id, true);
     canvasToJson();
 }
 
@@ -6926,6 +7156,7 @@ let microphones = [
         speakerRadius: 1500,
         innerSpeakerRadius: 0,
         speakerDeg: 360,
+        speakerMount: 'ceiling',
     },
     {
         name: "Desk Camera 1080p (webcam)",
@@ -6951,6 +7182,22 @@ let microphones = [
         speakerRadius: 1500,
         innerSpeakerRadius: 0,
         speakerDeg: 360,
+        speakerMount: 'ceiling',
+    },
+    {
+        name: "Front of Room Speaker (generic)*",
+        id: "frontSpeaker",
+        key: "NC",
+        topImage: 'ceilingSpeaker-top.png',
+        frontImage: 'ceilingSpeaker-menu.png',
+        width: 200,
+        depth: 150,
+        height: 300,
+        defaultVert: 1800,
+        speakerRadius: 4000,
+        innerSpeakerRadius: 0,
+        speakerDeg: 90,
+        speakerMount: 'front',
     },
     {
         name: "Security Camera (generic)",
@@ -8582,6 +8829,14 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_eyeLevel = round(item.data_eyeLevel * ratio);
     }
 
+    if ('data_speakerRadius' in item && !isNaN(item.data_speakerRadius)) {
+        item.data_speakerRadius = round(item.data_speakerRadius * ratio);
+    }
+
+    if ('data_speakerEarLevel' in item && !isNaN(item.data_speakerEarLevel)) {
+        item.data_speakerEarLevel = round(item.data_speakerEarLevel * ratio);
+    }
+
     if ('data_trapNarrowWidth' in item && !isNaN(item.data_trapNarrowWidth)) {
         item.data_trapNarrowWidth = round(item.data_trapNarrowWidth * ratio);
     }
@@ -9417,6 +9672,46 @@ function parseShortenedXYUrl(parameters) {
                 if ('el' in item) {
                     const elNum = Number(item.el) / 100;
                     if (isFinite(elNum) && elNum > 0) newItem.data_eyeLevel = elNum;
+                }
+            }
+
+            /* Speaker Reach inputs (see the encoder for the code table). */
+            {
+                const spkrDev = allDeviceTypes[newItem.data_deviceid];
+                if (spkrDev && ('speakerRadius' in spkrDev)) {
+                    if ('sm' in item) {
+                        const smNum = Number(item.sm);
+                        if (smNum === 1) newItem.data_speakerCalc = 'cone';
+                        else if (smNum === 2) newItem.data_speakerCalc = 'spl';
+                    }
+                    if ('sr' in item) {
+                        const n = Number(item.sr) / 100;
+                        if (isFinite(n) && n > 0) newItem.data_speakerRadius = n;
+                    }
+                    if ('sg' in item) {
+                        const n = Number(item.sg) / 10;
+                        if (isFinite(n) && n > 0) newItem.data_speakerDeg = n;
+                    }
+                    if ('sn' in item) {
+                        const n = Number(item.sn) / 10;
+                        if (isFinite(n) && n > 0) newItem.data_speakerConeAngle = n;
+                    }
+                    if ('sh' in item) {
+                        const n = Number(item.sh) / 100;
+                        if (isFinite(n) && n > 0) newItem.data_speakerEarLevel = n;
+                    }
+                    if ('sq' in item) {
+                        const n = Number(item.sq) / 10;
+                        if (isFinite(n) && n > 0) newItem.data_speakerSensitivity = n;
+                    }
+                    if ('sw' in item) {
+                        const n = Number(item.sw) / 10;
+                        if (isFinite(n) && n > 0) newItem.data_speakerPower = n;
+                    }
+                    if ('st' in item) {
+                        const n = Number(item.st) / 10;
+                        if (isFinite(n) && n > 0) newItem.data_speakerTargetSpl = n;
+                    }
                 }
             }
 
@@ -13221,6 +13516,39 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
+    /* Speaker Reach inputs — 2-char codes (parsed like `ll`/`cd`), only stored (non-default) values emitted.
+     * sm = calc method (1=cone, 2=spl), sr = radius x100 (current unit), sg = deg x10,
+     * sn = cone angle x10, sh = ear level x100 (current unit), sq = sensitivity x10,
+     * sw = power x10, st = target SPL x10. */
+    {
+        const spkrDev = allDeviceTypes[item.data_deviceid];
+        if (spkrDev && ('speakerRadius' in spkrDev)) {
+            if (item.data_speakerCalc === 'cone') add('sm', 'sm1');
+            else if (item.data_speakerCalc === 'spl') add('sm', 'sm2');
+            if (item.data_speakerRadius != null && item.data_speakerRadius !== '') {
+                add('sr', 'sr' + Math.round(item.data_speakerRadius * 100));
+            }
+            if (item.data_speakerDeg != null && item.data_speakerDeg !== '') {
+                add('sg', 'sg' + Math.round(item.data_speakerDeg * 10));
+            }
+            if (item.data_speakerConeAngle != null) {
+                add('sn', 'sn' + Math.round(item.data_speakerConeAngle * 10));
+            }
+            if (item.data_speakerEarLevel != null && item.data_speakerEarLevel !== '') {
+                add('sh', 'sh' + Math.round(item.data_speakerEarLevel * 100));
+            }
+            if (item.data_speakerSensitivity != null) {
+                add('sq', 'sq' + Math.round(item.data_speakerSensitivity * 10));
+            }
+            if (item.data_speakerPower != null) {
+                add('sw', 'sw' + Math.round(item.data_speakerPower * 10));
+            }
+            if (item.data_speakerTargetSpl != null) {
+                add('st', 'st' + Math.round(item.data_speakerTargetSpl * 10));
+            }
+        }
+    }
+
     if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
         add('h', 'h' + Math.round(round(item.tblRectRadius) * 100));
     }
@@ -14576,6 +14904,9 @@ function copyToCanvasClipBoard(nodes) {
         if (node.data_aspectRatio != null) newAttr.data_aspectRatio = node.data_aspectRatio;
         if (node.data_eyeLevel != null) newAttr.data_eyeLevel = node.data_eyeLevel;
 
+        /* Speaker Reach inputs. */
+        SPEAKER_REACH_ATTRS.forEach(k => { if (node[k] != null) newAttr[k] = node[k]; });
+
         if ('data_zPosition' in node) {
             newAttr.data_zPosition = node.data_zPosition;
         }
@@ -15784,6 +16115,9 @@ function updateRoomObjFromTrNode() {
         if (node.data_aspectRatio != null) itemAttr.data_aspectRatio = node.data_aspectRatio;
         if (node.data_eyeLevel != null) itemAttr.data_eyeLevel = node.data_eyeLevel;
 
+        /* Speaker Reach inputs. */
+        SPEAKER_REACH_ATTRS.forEach(k => { if (node[k] != null) itemAttr[k] = node[k]; });
+
         if ('data_zPosition' in node) {
             itemAttr.data_zPosition = node.data_zPosition;
         }
@@ -16047,6 +16381,12 @@ function updateRoomObjFromTrNode() {
             else delete item.data_aspectRatio;
             if (itemAttr.data_eyeLevel != null) item.data_eyeLevel = itemAttr.data_eyeLevel;
             else delete item.data_eyeLevel;
+
+            /* Speaker Reach inputs — explicit-delete-on-absent so a reset propagates. */
+            SPEAKER_REACH_ATTRS.forEach(k => {
+                if (itemAttr[k] != null) item[k] = itemAttr[k];
+                else delete item[k];
+            });
 
         } else {
             /* New item — trust map, no findIndex scan. */
@@ -21076,6 +21416,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_aspectRatio = (attrs.data_aspectRatio != null) ? attrs.data_aspectRatio : null;
         node.data_eyeLevel = (attrs.data_eyeLevel != null) ? attrs.data_eyeLevel : null;
 
+        /* Speaker Reach inputs (absent = device default). */
+        SPEAKER_REACH_ATTRS.forEach(k => { node[k] = (attrs[k] != null) ? attrs[k] : null; });
+
         if ('data_zPosition' in attrs && !(attrs.data_zPosition === '')) {
             node.data_zPosition = data_zPosition;
         }
@@ -21632,30 +21975,29 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             groupSpeakerCoverage.visible(true);
         }
 
-        let speakerRadius = insertDevice.speakerRadius / 1000 * scale;
-
-        let lblSpeakerRadius = insertDevice.speakerRadius / 1000;
-
+        /* Per-item Speaker Reach settings (test-mode feature) override the device spec;
+         * speakerComputeGeometry returns the drawn radius/deg in the CURRENT unit. */
+        const spkGeom = speakerComputeGeometry({ ...attrs, data_deviceid: deviceId });
+        let speakerRadius = spkGeom.radius * scale;
+        let speakerDeg = spkGeom.deg;
+        let lblSpeakerRadius = spkGeom.radius;
 
         let innerRadius = speakerRadius * 0.2;
 
         if ('innerSpeakerRadius' in insertDevice) {
             innerRadius = insertDevice.innerSpeakerRadius * scale;
-        }
-
-        if (unit === 'feet') {
-            innerRadius = innerRadius * 3.28084;
-            speakerRadius = speakerRadius * 3.28084;
-            lblSpeakerRadius = lblSpeakerRadius * 3.28084;
+            if (unit === 'feet') {
+                innerRadius = innerRadius * 3.28084;
+            }
         }
 
         let speakerShadingLine = new Konva.Arc({
             /* x and y should be tracked in the group only */
             innerRadius: innerRadius,
             outerRadius: speakerRadius,
-            angle: insertDevice.speakerDeg,
+            angle: speakerDeg,
             name: 'speaker-' + deviceId + '-' + groupName,
-            rotation: 90 - insertDevice.speakerDeg / 2,
+            rotation: 90 - speakerDeg / 2,
             opacity: 0.3,
             listening: false,
             perfectDrawEnabled: perfectDrawEnabled,
@@ -21669,10 +22011,10 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             /* x and y should be tracked in the group only */
             innerRadius: innerRadius,
             outerRadius: speakerRadius * 1.2,
-            angle: insertDevice.speakerDeg,
+            angle: speakerDeg,
             strokeWidth: 3,
             name: 'speaker-' + deviceId + '-' + groupName,
-            rotation: 90 - insertDevice.speakerDeg / 2,
+            rotation: 90 - speakerDeg / 2,
             opacity: 0.3,
             listening: false,
             perfectDrawEnabled: perfectDrawEnabled,
@@ -24187,6 +24529,14 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     const discasSettingsDiv = document.getElementById('discasSettingsDiv');
     if (discasSettingsDiv) {
         discasSettingsDiv.style.display = (shape.data_deviceid === 'displayCustom') ? '' : 'none';
+    }
+
+    /* Speaker-capable item: surface the Speaker Reach button (test-mode only, matching the coverage toolbar button). */
+    const speakerReachDiv = document.getElementById('speakerReachDiv');
+    if (speakerReachDiv) {
+        const spkrDev = allDeviceTypes[shape.data_deviceid];
+        speakerReachDiv.style.display =
+            (spkrDev && ('speakerRadius' in spkrDev) && localStorage.getItem('test') === 'true') ? '' : 'none';
     }
 
     /* displayCustom: Image Aspect Ratio dropdown, mirrors discasAspectSelect in the DISCAS dialog. */

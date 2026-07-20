@@ -833,6 +833,14 @@
                 <input type="button" value="DISCAS Settings..." class="button" onclick="openDiscasDialogForSelected()">
               </div>
 
+              <div class="inputField" id="speakerReachDiv" style="display: none;">
+                <label class="tooltipBottom">Speaker Reach: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptextBottom">Set how far this speaker's coverage overlay reaches &mdash; type a
+                    distance directly or derive it from the AVIXA ceiling coverage cone or SPL loudness
+                    formulas.</span></label>
+                <input type="button" value="Speaker Reach..." class="button" onclick="openSpeakerReachDialogForSelected()">
+              </div>
+
               <div class="inputField" id="labelFieldDiv">
                 <label class="tooltipBottom"><span id="itemLabeldiv">Item Label:</span><i
                     class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels the item. Should be
@@ -2745,6 +2753,126 @@
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" onclick="document.getElementById('dialogDiscas').close()">Cancel</button>
       <button class="button" id="discasApplyBtn" onclick="confirmDiscasDialog()">Insert Display</button>
+    </div>
+  </dialog>
+
+  <dialog id="dialogSpeakerReach" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
+    <header class="dialogWhiteBoxHeader">Speaker Reach</header>
+    <div class="closeDialogX" onclick="document.getElementById('dialogSpeakerReach').close()">&#x2715;</div>
+    <main class="dialogAlertMain">
+      <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
+        Sets how far this speaker's coverage overlay reaches on the room canvas.
+        <br><b>Speaker reach values are not sent to or shown in the Workspace Designer.</b>
+      </div>
+
+      <div class="inputField" style="max-width: none;">
+        <label class="tooltip">Calculation Method: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Simplified Reach: type the distance directly. AVIXA methods derive the
+            distance for you &mdash; the ceiling coverage cone from the mounting height and coverage angle, or
+            the SPL loudness model from the speaker's sensitivity, power, and a target listening level.</span></label>
+        <select id="spkrMethodSelect" class="drpDown" onchange="spkrRecalcOutputs()">
+          <option value="simple">Simplified Reach</option>
+          <option value="spl" id="spkrMethodAvixaOpt">AVIXA SPL (loudness)</option>
+        </select>
+      </div>
+
+      <div id="spkrSimpleSection">
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Reach (distance): <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">How far the coverage overlay extends from the speaker.</span></label>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="spkrRadiusInput" min="0" step="0.1" style="width: 90px;"
+              oninput="spkrRecalcOutputs()">
+            <span class="spkrUnitLbl"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="spkrConeSection" style="display: none;">
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Coverage Angle: <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">The speaker's conical coverage angle (typically the &minus;6 dB angle at
+              2 kHz from the datasheet). Common ceiling speakers are 90&deg;&ndash;110&deg;.</span></label>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="spkrConeAngleInput" min="10" max="180" step="5" style="width: 90px;"
+              oninput="spkrRecalcOutputs()">
+            <span>&deg;</span>
+          </div>
+        </div>
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Ear Level: <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">Listener ear height above the floor. Standard planning heights: 1200 mm
+              (48 in) seated, 1500 mm (62 in) standing. The coverage circle is measured at this plane.</span></label>
+          <select id="spkrEarLevelSelect" class="drpDown" style="width: auto;" onchange="spkrRecalcOutputs()">
+            <option value="seated">Seated &mdash; standard</option>
+            <option value="standing">Standing &mdash; standard</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div id="spkrEarLevelCustomWrap" style="display: none; align-items: center; gap: 6px;">
+            <input type="number" id="spkrEarLevelCustomInput" min="0" step="0.01" style="width: 80px;"
+              oninput="spkrRecalcOutputs()">
+            <span class="spkrUnitLbl"></span>
+          </div>
+        </div>
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Speaker Mounting Height: <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">Height of the speaker above the floor (the item's elevation). A higher
+              mounting height widens the coverage circle at ear level.</span></label>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="spkrMountHeightInput" min="0" step="0.01" style="width: 90px;"
+              oninput="spkrRecalcOutputs()">
+            <span class="spkrUnitLbl"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="spkrSplSection" style="display: none;">
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Sensitivity (dB, 1 W / 1 m): <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">From the speaker datasheet: the sound pressure level produced at 1 meter
+              with 1 watt of input. Typical small installed speakers are 84&ndash;90 dB.</span></label>
+          <input type="number" id="spkrSensInput" min="60" max="120" step="0.5" style="width: 90px;"
+            oninput="spkrRecalcOutputs()">
+        </div>
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Amplifier Power (W): <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">Continuous power driving the speaker. Doubling the power adds 3 dB.</span></label>
+          <input type="number" id="spkrPowerInput" min="0.1" step="1" style="width: 90px;"
+            oninput="spkrRecalcOutputs()">
+        </div>
+        <div class="inputField" style="max-width: none;">
+          <label class="tooltip">Target Level at Listener (dB SPL): <i class="icon icon-info-circle-bold"></i>
+            <span class="tooltiptext">The loudness you want at the farthest listener. Around 70 dB SPL is a
+              common target for clear speech; program audio is often planned a few dB higher. The reach is the
+              distance where the level falls to this value (&minus;6 dB per doubling of distance).</span></label>
+          <input type="number" id="spkrTargetInput" min="40" max="100" step="1" style="width: 90px;"
+            oninput="spkrRecalcOutputs()">
+        </div>
+      </div>
+
+      <div class="inputField" style="max-width: none;" id="spkrDegRow">
+        <label class="tooltip">Dispersion Angle: <i class="icon icon-info-circle-bold"></i>
+          <span class="tooltiptext">Horizontal coverage angle of the wedge drawn on the canvas.</span></label>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input type="number" id="spkrDegInput" min="10" max="360" step="5" style="width: 90px;"
+            oninput="spkrRecalcOutputs()">
+          <span>&deg;</span>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 13px;">
+        <div>Coverage reach: <b id="spkrOutReach"></b></div>
+        <div id="spkrOutSpacing" style="display: none; margin-top: 4px; font-size: 12px; color: #555;"></div>
+      </div>
+
+      <div style="font-size: 11px; color: #777; margin-top: 10px; font-style: italic;">
+        Ceiling coverage per the AVIXA/CTS ceiling-loudspeaker convention; SPL reach per the
+        inverse-square law. This tool is not affiliated with or endorsed by AVIXA.
+      </div>
+    </main>
+    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
+      <button class="button dropDownBtnWhite" onclick="document.getElementById('dialogSpeakerReach').close()">Cancel</button>
+      <button class="button" onclick="confirmSpeakerReachDialog()">Update Speaker</button>
     </div>
   </dialog>
 

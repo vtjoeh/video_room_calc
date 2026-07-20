@@ -1479,6 +1479,58 @@ display.
 
 ---
 
+## Speaker Reach (test-mode feature)
+
+Per-item override of the hardcoded device `speakerRadius` / `speakerDeg`
+speaker-coverage specs. **Everything user-facing is gated on the same
+`?test` flag as the speaker coverage toolbar button** (`localStorage
+test === 'true'`): the Details-panel `#speakerReachDiv` button (gated in
+`updateFormatDetails()`) opens `#dialogSpeakerReach`, a DISCAS-style
+dialog with a **Calculation Method dropdown** whose AVIXA option adapts
+to the device class:
+
+| `speakerMount` (device def; inferred `speakerDeg === 360 → 'ceiling'` when absent) | Methods |
+|---|---|
+| `ceiling` (`speaker`, `loudspeaker`) | Simplified Reach (radius) \| **AVIXA Coverage Cone** — radius = (mount height − ear height) × tan(coverage angle / 2), always drawn 360°; dialog shows CTS spacing guides (edge-to-edge 2r, min overlap r√2, edge-to-center r) |
+| `front` (`frontSpeaker` + Cisco bars/Desks) | Simplified Reach (distance + dispersion angle) \| **AVIXA SPL** — reach(m) = 10^((sensitivity + 10·log₁₀(power) − target SPL)/20), −6 dB per doubling |
+
+Cisco devices participate via the AVIXA front model for now (their own
+formula comes later); with no stored attrs they resolve to their
+hardcoded specs, so existing rooms render identically.
+
+- **New device**: `frontSpeaker` "Front of Room Speaker (generic)*",
+  key `NC`, `workspaceKey.frontSpeaker = { objectType: 'loudspeaker' }`,
+  reuses the ceilingSpeaker art, no menu tile (mirror of `loudspeaker`).
+- **Attrs** (store-only-non-default, defaults deleted): `data_speakerCalc`
+  ('cone'/'spl'; absent = simple), `data_speakerRadius` +
+  `data_speakerEarLevel` (current-unit lengths, converted by
+  `convertItemUnitBasedOnRatio`), `data_speakerDeg`,
+  `data_speakerConeAngle`, `data_speakerSensitivity`,
+  `data_speakerPower`, `data_speakerTargetSpl`. The shared list
+  `SPEAKER_REACH_ATTRS` drives the four-place rule (node mirror in
+  `updateNodeAttributes`, `updateRoomObjFromTrNode` push + map-hit
+  delete-on-absent, `copyToCanvasClipBoard`).
+- **Resolve/derive**: `speakerResolveSettings(src)` /
+  `speakerComputeGeometry(src)` (next to the DISCAS helpers; ear-level
+  presets reuse `discasEyeLevelDefault/Standing`). The `speaker~`
+  coverage builder in `insertShapeItem()` draws from
+  `speakerComputeGeometry({...attrs, data_deviceid})` — current-unit
+  radius × `scale`, per-item deg.
+- **Dialog commit**: `confirmSpeakerReachDialog()` applies attrs then
+  destroy-and-reinserts the node + coverage (same block as
+  `confirmDiscasDialog`). Cone mode's Mounting Height writes
+  `data_zPosition` (it IS the item's elevation).
+- **URL codes** (2-char, parsed like `ll`/`cd`, only stored values
+  emitted; gated on `'speakerRadius' in allDeviceTypes[id]`):
+  `sm` method (1=cone, 2=spl), `sr` radius ×100, `sg` deg ×10,
+  `sn` cone angle ×10, `sh` ear level ×100, `sq` sensitivity ×10,
+  `sw` power ×10, `st` target SPL ×10.
+- **Defaults**: cone angle 90°; SPL 86 dB / 2 W / 76 dB target — chosen
+  so the computed reach (~4.5 m) lands near the generic front speaker's
+  4 m spec. WD export: speaker reach never rides (VRC-only overlay).
+
+---
+
 ## SVG Path Editor (`js/pathEditor/`)
 
 User-facing name is **"Path Editor"** (the underlying format is still
