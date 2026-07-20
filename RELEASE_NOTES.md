@@ -2,6 +2,8 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**v0.1.663**
+- Edit irregular Room Part 
 
 **v0.1.661 Release Notes**
 - moved aroud menus and added button for Wall Builder 

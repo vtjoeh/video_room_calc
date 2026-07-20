@@ -6,4 +6,4 @@
  * service worker on the next check and refresh the PWA cache -- no separate
  * "remember to edit sw.js too" step. See notes/DEPENDENCIES_AND_ISSUES.md.
  * Format example "v0.1" or "v0.2.3" */
-const APP_VERSION = "v0.1.662";
+const APP_VERSION = "v0.1.663";
