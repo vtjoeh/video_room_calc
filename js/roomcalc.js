@@ -26268,7 +26268,12 @@ function createEquipmentMenu() {
 
     let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
 
-    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'displayCustom', 'projector', 'displayScreen_2'];
+    let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'projector', 'displayScreen_2'];
+
+    /* Custom Reach Display's AVIXA DISCAS coverage is VRC-only (exports as a plain screen), so it rides the same non-supported-items gate as the other asterisk devices. */
+    if (document.getElementById('useNonWorkspaceItemsCheckBox').checked === true) {
+        displaysMenu.splice(displaysMenu.indexOf('projector'), 0, 'displayCustom');
+    }
 
     let navigatorsMenu = ['navigatorTable', 'navigatorWall'];
 

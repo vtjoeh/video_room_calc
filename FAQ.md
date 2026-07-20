@@ -102,6 +102,17 @@ For minimum viewing distance, assuming a seated participant is front and center 
 
 The AVIXA DISCAS standard, when properly applied, provides for a wider range of scenarios and may be more appropriate for different use cases. However, it does not directly account for dual displays, the size of on-screen participants during video calls, content scaling when videoconference layouts change, or determining if a participant is in the camera FOV.
 
+### How do I use a custom display coverage based on the AVIXA DISCAS BDM standard?
+Use the **Custom Reach Display**, which draws its viewing-coverage area per the AVIXA DISCAS Basic Decision Making formulas (ANSI/AVIXA V201.01) instead of the standard Workspace Designer distance guidance.
+
+1. Go to the **Room** tab --> **Settings** and turn on **Workspace Designer partially or non-supported items**. Devices behind this setting carry an asterisk (*) in the equipment menus.
+2. Go to the **Equipment** tab --> **Displays** and add a **Custom Reach Display***. (It also appears in the Quick Add menu — press the space bar.)
+3. A settings dialog opens where you can set the display diagonal, aspect ratio, % element height, viewer eye level, and the bottom-of-image height. The closest and farthest viewer distances recompute live as you type, and you can reopen the dialog any time from the display's Details panel.
+
+The DISCAS coverage is only drawn in the Video Room Calculator. When exported, the Workspace Designer shows it as a standard display without the custom coverage. 
+
+The Video Room Calculator is an independent platform that references the [AVIXA DBM](https://www.avixa.org/resources/display-image-size-calculators/analytical-and-basic-decision-making-calculations) technical standard for calculation purposes. AVIXA is a registered trademark of the Audiovisual and Integrated Experience Association. The Video Room Calculator operates without any official affiliation, sponsorship, or partnership with AVIXA.
+
 ### Levels: How can I change the level or layer that an object is on?
 The Video Room Calculator has implicit levels (layers) and does not permit you to change the level of an object. The Video Room Calculator aims to simplify the objects so they are positioned on the correct level. Level rendering is unrelated to the Z (base elevation).
 
