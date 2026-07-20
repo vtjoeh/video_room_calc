@@ -404,12 +404,19 @@ function isWallChairs(deviceId) {
         || deviceId === 'wallChairsStool';
 }
 
-/* Returns the inner highlight child for composite items (Tag for text, .dim-rect for dimensionLine, .wallChairs-bg for wallChairs); null otherwise. */
+/* Room Kit EQX family (Wall Mount / Floor Stand / Wall Stand): renders as a Konva.Group
+ * with fixed-footprint base art + a dual-display overlay sized by data_diagonalInches. */
+function isRoomKitEqx(deviceId) {
+    return typeof deviceId === 'string' && deviceId.startsWith('roomKitEqx');
+}
+
+/* Returns the inner highlight child for composite items (Tag for text, .dim-rect for dimensionLine, .wallChairs-bg for wallChairs, .roomKitEqx-bg for EQX); null otherwise. */
 function getCompositeHighlightRect(node) {
     if (!node || !node.data_deviceid) return null;
     if (isTextItem(node.data_deviceid)) return node.findOne('Tag');
     if (isDimensionLine(node.data_deviceid)) return node.findOne('.dim-rect');
     if (isWallChairs(node.data_deviceid)) return node.findOne('.wallChairs-bg');
+    if (isRoomKitEqx(node.data_deviceid)) return node.findOne('.roomKitEqx-bg');
     return null;
 }
 
@@ -18880,6 +18887,11 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 layoutWallChairsChildren(node);
             }
 
+            /* Same reasoning: rebuild the EQX Group's base art + display overlay at the new scale. */
+            if (isRoomKitEqx(node.data_deviceid)) {
+                layoutRoomKitEqxChildren(node);
+            }
+
 
         }
     }
@@ -18906,8 +18918,8 @@ function removeShadingTrNodes() {
                 return;
             }
 
-            /* wdText/vrcText/dimensionLine are Groups without Shape stroke methods, so restore the multi-select highlight on the inner rect (Tag / .dim-rect) using the originals stashed by updateTrNodesShading(). The 'data_origFill' guard makes it a no-op if never painted. CRITICAL: never call strokeEnabled() on the top-level node (throws and aborts the restore). */
-            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
+            /* wdText/vrcText/dimensionLine/wallChairs/roomKitEqx are Groups without Shape stroke methods, so restore the multi-select highlight on the inner rect (Tag / .dim-rect / bg rect) using the originals stashed by updateTrNodesShading(). The 'data_origFill' guard makes it a no-op if never painted. CRITICAL: never call strokeEnabled() on the top-level node (throws and aborts the restore). */
+            if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid) || isRoomKitEqx(node.data_deviceid)) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner && 'data_origFill' in inner) {
                     inner.fill(inner.data_origFill);
@@ -19049,8 +19061,8 @@ function updateTrNodesShading() {
             return;
         }
 
-        /* wdText/vrcText/dimensionLine are Groups without Shape stroke methods. Single-select relies on the Transformer anchors, but multi-select collapses to one bbox, so paint the inner rect (Tag / .dim-rect) blue and stash its original fill/stroke/strokeWidth for removeShadingTrNodes(). CRITICAL: never call stroke methods on the top-level node — it throws and the tail tr.nodes(copyTrNodes) restore never runs, wiping the selection. */
-        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid)) {
+        /* wdText/vrcText/dimensionLine/wallChairs/roomKitEqx are Groups without Shape stroke methods. Single-select relies on the Transformer anchors, but multi-select collapses to one bbox, so paint the inner rect (Tag / .dim-rect / bg rect) blue and stash its original fill/stroke/strokeWidth for removeShadingTrNodes(). CRITICAL: never call stroke methods on the top-level node — it throws and the tail tr.nodes(copyTrNodes) restore never runs, wiping the selection. */
+        if (isTextItem(node.data_deviceid) || isDimensionLine(node.data_deviceid) || isWallChairs(node.data_deviceid) || isRoomKitEqx(node.data_deviceid)) {
             if (copyTrNodes.length > 1) {
                 const inner = getCompositeHighlightRect(node);
                 if (inner) {
@@ -21569,9 +21581,12 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     /*
         Calculate width of displays based on Diagonal inches.
+        roomKitEqx no longer enters this block: its footprint is the fixed device-def
+        width (the frame doesn't change between 65/75/85" displays); the diagonal-driven
+        dual-display overlay is drawn by layoutRoomKitEqxChildren() instead.
     */
     let displayNumber = 1;
-    if (groupName === 'displays' || deviceId.startsWith('roomKitEqx')) {
+    if (groupName === 'displays') {
 
         if (deviceId === 'displaySngl') {
             displayNumber = 1;
@@ -21734,25 +21749,46 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
             node.opacity(insertDevice.opacity);
         }
 
+        /* EQX composite: (re)build the Group children now that width/height/diagonal are set. */
+        if (isRoomKitEqx(deviceId) && typeof node.getChildren === 'function') {
+            layoutRoomKitEqxChildren(node);
+        }
+
     }
 
     let imageObj = new Image();
 
     imageObj.onload = function imageObjOnLoad() {
-        let imageItem = new Konva.Image({
-            x: cornerXY.x,
-            y: cornerXY.y,
-            image: imageObj,
-            width: width,
-            height: height,
-            id: uuid,
-            draggable: true,
-            rotation: rotation,
-            /* Match the global perf flag: Image defaults perfectDrawEnabled=true, but stroked images then buffer at zoomed size (multi-select redraw cost scales with zoom^2). */
-            perfectDrawEnabled: perfectDrawEnabled,
-        });
+        let imageItem;
+        if (isRoomKitEqx(deviceId)) {
+            /* EQX composite: Group with fixed-footprint base art + diagonal-driven dual-display
+             * overlay; children built by layoutRoomKitEqxChildren() from updateNodeAttributes(). */
+            imageItem = new Konva.Group({
+                x: cornerXY.x,
+                y: cornerXY.y,
+                width: width,
+                height: height,
+                id: uuid,
+                draggable: true,
+                rotation: rotation,
+            });
+            imageItem.data_eqxBaseImage = imageObj;
+        } else {
+            imageItem = new Konva.Image({
+                x: cornerXY.x,
+                y: cornerXY.y,
+                image: imageObj,
+                width: width,
+                height: height,
+                id: uuid,
+                draggable: true,
+                rotation: rotation,
+                /* Match the global perf flag: Image defaults perfectDrawEnabled=true, but stroked images then buffer at zoomed size (multi-select redraw cost scales with zoom^2). */
+                perfectDrawEnabled: perfectDrawEnabled,
+            });
 
-        imageItem.hitStrokeWidth(hitStrokeWidth); /* don't need to be close to the image to be selected */
+            imageItem.hitStrokeWidth(hitStrokeWidth); /* don't need to be close to the image to be selected */
+        }
 
         imageItem.data_deviceid = deviceId;
 
@@ -28145,6 +28181,70 @@ function loadWallChairsChairImage(deviceId, then) {
  * bbox + clicks in gaps still select the row) plus N Konva.Image chair slots at a CONSTANT DEFAULT_CHAIR_DEPTH ×
  * DEFAULT_CHAIR_SPACING footprint (spacing < footprint overlaps, > gaps; width/glyph never distort). Slot count matches
  * expandChairs() so canvas == export. Destroy-and-rebuild every call (cheap: small count, bitmap cached module-level). */
+/* ---- Room Kit EQX composite render ---- */
+let _eqxDisplayOverlayImage = null;
+
+/* Shared displayDblBlack-top.png element; on first load back-fills every EQX overlay already on canvas. */
+function getEqxDisplayOverlayImage() {
+    if (_eqxDisplayOverlayImage) return _eqxDisplayOverlayImage;
+    _eqxDisplayOverlayImage = new Image();
+    _eqxDisplayOverlayImage.onload = function eqxDisplayOverlayReady() {
+        stage.find('.roomKitEqx-display').forEach(n => n.image(_eqxDisplayOverlayImage));
+        layerTransform.batchDraw();
+    };
+    _eqxDisplayOverlayImage.src = './assets/images/displayDblBlack-top.png';
+    return _eqxDisplayOverlayImage;
+}
+
+/* EQX group children: transparent hit/highlight Rect + fixed-footprint base art + a
+ * dual-display overlay whose width tracks data_diagonalInches (same width formula the
+ * displayDbl item uses). Rebuilt on insert, diagonal update, and canvas rescale —
+ * mirrors layoutWallChairsChildren(). */
+function layoutRoomKitEqxChildren(group) {
+    if (!group || typeof group.getChildren !== 'function') return;
+    const deviceId = group.data_deviceid || 'roomKitEqx';
+    const w = group.width() || 0;
+    const h = group.height() || 0;
+    const unitFactor = (unit === 'feet') ? 3.28084 : 1;
+    const deviceDef = allDeviceTypes[deviceId] || {};
+    const diag = Number(group.data_diagonalInches) || deviceDef.diagonalInches || 75;
+
+    const dispW = (displayWidth / diagonalInches) * diag / 1000 * scale * 2 * unitFactor;
+    const dispH = displayDepth / 1000 * scale * unitFactor;
+
+    /* Overlay depth placement: flush with the front (room-facing) edge for the shallow
+     * wall mounts; just in front of the frame bar for the deep floor-stand art. */
+    const dispY = (deviceId === 'roomKitEqxFS') ? h * 0.53 : Math.max(0, h - dispH);
+
+    group.destroyChildren();
+
+    group.add(new Konva.Rect({
+        x: 0, y: 0, width: w, height: h,
+        fill: 'rgba(0,0,0,0)',
+        listening: true,
+        name: 'roomKitEqx-bg',
+    }));
+
+    group.add(new Konva.Image({
+        x: 0, y: 0, width: w, height: h,
+        image: group.data_eqxBaseImage || null,
+        listening: true,
+        perfectDrawEnabled: perfectDrawEnabled,
+        name: 'roomKitEqx-base',
+    }));
+
+    group.add(new Konva.Image({
+        x: (w - dispW) / 2,
+        y: dispY,
+        width: dispW,
+        height: dispH,
+        image: getEqxDisplayOverlayImage(),
+        listening: false,
+        perfectDrawEnabled: perfectDrawEnabled,
+        name: 'roomKitEqx-display',
+    }));
+}
+
 function layoutWallChairsChildren(group) {
     if (!group) return;
     const groupHeight = group.height() || 0;

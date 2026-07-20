@@ -1531,6 +1531,31 @@ hardcoded specs, so existing rooms render identically.
 
 ---
 
+## Room Kit EQX composite render (`isRoomKitEqx`)
+
+The three EQX variants (`roomKitEqx` / `roomKitEqxFS` / `roomKitEqxWS`) no
+longer stretch their top-view art with Display Diagonal Inches. Each renders
+as a **Konva.Group** (mirror of the wallChairs pattern): a transparent
+`.roomKitEqx-bg` hit/highlight Rect + the fixed-footprint base art
+(`.roomKitEqx-base`, device-def width 3362 mm — the physical frame doesn't
+change between 65/75/85″ displays) + a `.roomKitEqx-display` overlay drawn
+from `displayDblBlack-top.png` whose width tracks `data_diagonalInches`
+(same `displayWidth / diagonalInches` formula the displayDbl item uses; at
+85″ it extends past the frame, as on the real device). Children are rebuilt
+by `layoutRoomKitEqxChildren()` from: `insertShapeItem()` →
+`updateNodeAttributes()` tail (insert + diagonal update), and
+`updateShapesBasedOnNewScale()` (canvas rescale). Overlay depth placement:
+flush with the room-facing edge for the shallow wall mounts, `0.53 × h` for
+the deep floor-stand art. The overlay image element is shared/cached via
+`getEqxDisplayOverlayImage()` (first load back-fills existing overlays).
+Because the node is a Group, EQX joins the composite-highlight family
+(`isTextItem`/`isDimensionLine`/`isWallChairs`) in `updateTrNodesShading()`
+/ `removeShadingTrNodes()` / `getCompositeHighlightRect()` — never call
+stroke methods on the top-level node. Item data, URL encoding, and the WD
+export (codec + quad cam + two `display-KitEQX-L/R~` screens) are unchanged.
+
+---
+
 ## polyRoom Point Editing (floor-overview only)
 
 Selecting exactly one `polyRoom` in the multi-room **floor overview**
