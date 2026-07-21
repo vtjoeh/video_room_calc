@@ -11,19 +11,22 @@ window.VRC.insertMessages = [
     {
         idRegex: /^switchC\d+/,
         header: 'Inserted %device_name% ',
-        body: 'The inserted switch will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the switch to be in a specific location and have a <b>role</b> of <i>ceiling</i> or <i>floor</i>. Check the Detail-&gt;Item <b>role</b> and <b>z</b> values. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings.'
+        body: 'The inserted switch will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the switch to be in a specific location and have a <b>role</b> of <i>ceiling</i> or <i>floor</i>. Check the Detail-&gt;Item <b>role</b> and <b>z</b> values. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings.',
+        dontShowAgainKey: 'insertSwitch'
 
     },
     {
         idRegex: /^codecProG2RoomVision/,
         header: 'Inserted %device_name% ',
-        body: 'Use this codec if you only have dual Room Vision cameras. Dual Room Vision PTZ cameras are not fully supported in the Workspace Designer custom rooms API. Use Room Vision cameras with role <b>Cross-view</b> to emulate the experience in the Workspace Designer. <b>Make sure the camera matches the codec type.</b>'
+        body: 'Use this codec if you only have dual Room Vision cameras. Dual Room Vision PTZ cameras are not fully supported in the Workspace Designer custom rooms API. Use Room Vision cameras with role <b>Cross-view</b> to emulate the experience in the Workspace Designer. <b>Make sure the camera matches the codec type.</b>',
+        dontShowAgainKey: 'insertCodecRoomVision'
 
     },
     {
         idRegex: /^codec/,
         header: 'Inserted %device_name% ',
-        body: 'The inserted %device_name% will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the codec to be in a specific location, typically z=1.4 m behind the main camera. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings. <b>Make sure the camera matches the codec type.</b>'
+        body: 'The inserted %device_name% will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the codec to be in a specific location, typically z=1.4 m behind the main camera. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings. <b>Make sure the camera matches the codec type.</b>',
+        dontShowAgainKey: 'insertCodec'
     },
     {
         idRegex: /^ceilingGrid/,

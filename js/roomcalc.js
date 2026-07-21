@@ -71,6 +71,8 @@ let toolTipTextTimeout2; /* timer used for toolTipText2 on coverage buttons */
 
 let lastSelectedNodePosition; /* keep track of the last node selected, make a structured clone of it to keep track of position */
 let lastTrNodesWithShading = []; /* keep track of the TR Nodes that have shading */
+
+let _alertDialogDontShowKey = null; /* active alertDialog dontShowAgainKey; saved to localStorage on a checked close */
 let rightClickMenuDialogLastPosition = {}; /* last position of the rightClickMenuDialog when last opened. Used when updating the position. */
 
 
@@ -12747,7 +12749,7 @@ function openPathShapeDrawChooser(uuid) {
     innerDiv.innerHTML = '';
 
     [
-        { label: 'Open Path Editor', action: () => openSvgPathEditor(uuid, 'draw') },
+        { label: 'Open Path Editor Mode', action: () => openSvgPathEditor(uuid, 'draw') },
         { label: 'Draw Simple Path on Room Canvas', action: () => simplePathEditor(uuid) },
     ].forEach(opt => {
         const buttonDiv = document.createElement('div');
@@ -12858,10 +12860,11 @@ function openSvgPathEditor(idOverride, startMode) {
         <li>Lines cannot intersect. No holes are allowed.</li>
         <li>Close the path when done.</li>
         <li>Path shape units are always in meters.</li>
+        <li>The room walls and any floor plan background image are imported for reference.</li>
         <li>Sub-paths are allowed, but might not export correctly to the Workspace Designer.</li>
         <li>Click 'Close' when done.</li>`
             ;
-        alertDialog('Path Editor', mainHtml);
+        alertDialog('Path Editor', mainHtml, 'pathEditor');
     }).catch(() => {
         alertDialog('Path Editor', 'Could not load the path editor module. Please refresh the page and try again.');
     });
@@ -12905,7 +12908,7 @@ function polyBuilderOn(event, mode = 'polyRoom') {
         <li>For more complex paths edit with the Path Editor.
         `
                 ;
-            alertDialog(headerHtml, mainHtml);
+            alertDialog(headerHtml, mainHtml, 'simplePathEditor');
 
         } else if (polyBuilderMode === 'polyRoom') {
             let headerHtml = `<style="fontSize: large">Draw an Irregular Room</b>`;
@@ -25961,7 +25964,7 @@ function showDeviceInsertMessage(data_deviceid) {
                 bodyText = deviceMessage.body.replaceAll('%device_name%', allDeviceTypes[data_deviceid].name);
             }
 
-            alertDialog(headerText, bodyText);
+            alertDialog(headerText, bodyText, deviceMessage.dontShowAgainKey);
             break;
         }
     }
@@ -31100,11 +31103,35 @@ fileJsonUpload.addEventListener('change', async function (e) {
     }
 });
 
-function alertDialog(headerHtml, mainHtml) {
+/* Optional dontShowAgainKey: shows a "Don't show this again" checkbox; a checked
+ * close persists `dontShowAgain~<key>` to localStorage and future calls with the
+ * same key skip the dialog entirely. */
+function alertDialog(headerHtml, mainHtml, dontShowAgainKey) {
     let dialogAlertModal = document.getElementById('dialogAlertModal');
     let dialogAlertHeader = document.getElementById('dialogAlertHeader');
     let dialogAlertMain = document.getElementById('dialogAlertMain');
 
+    if (dontShowAgainKey && localStorage.getItem('dontShowAgain~' + dontShowAgainKey) === 'true') {
+        return;
+    }
+
+    _alertDialogDontShowKey = dontShowAgainKey || null;
+    const dontShowRow = document.getElementById('dialogAlertDontShowRow');
+    const dontShowCheck = document.getElementById('dialogAlertDontShowCheck');
+    if (dontShowRow && dontShowCheck) {
+        dontShowRow.style.display = dontShowAgainKey ? '' : 'none';
+        dontShowCheck.checked = false;
+        /* Persist on the change itself — the dialog 'close' event is delivered async and
+         * can race a follow-up alertDialog() overwriting the key/checkbox state. */
+        dontShowCheck.onchange = () => {
+            if (!_alertDialogDontShowKey) return;
+            if (dontShowCheck.checked) {
+                localStorage.setItem('dontShowAgain~' + _alertDialogDontShowKey, 'true');
+            } else {
+                localStorage.removeItem('dontShowAgain~' + _alertDialogDontShowKey);
+            }
+        };
+    }
 
     dialogAlertHeader.innerHTML = headerHtml;
     dialogAlertMain.innerHTML = mainHtml;

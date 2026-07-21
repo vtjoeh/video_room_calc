@@ -60,7 +60,6 @@
     let previewPath = null;
     let selectedOverlay = null;      /* purple Konva.Path over the selected segment */
     let segs = [];
-    let initialSegs = null;
     let selIndex = -1;
     let drawMode = 'L';              /* 'L' or 'C' — segment type placed while drawing */
     let editorMode = 'edit';         /* 'draw' or 'edit' */
@@ -69,6 +68,62 @@
     let activeOpts = null;
     let rafPending = false;
     let cssReady = null;
+
+    /* ---------------- undo / redo (model snapshots) ---------------- */
+
+    const UNDO_MAX = 100;
+    let undoStack = [];              /* JSON snapshots of segs, pre-mutation */
+    let redoStack = [];
+    let _lastTextUndoPush = 0;       /* coalesces per-keystroke textarea edits into one undo entry */
+    let _progSelRange = null;        /* textarea range set by highlightSelectedSegmentText — lets Delete still mean "delete point" */
+
+    function syncUndoButtons() {
+        if (!ui.undo) return;
+        ui.undo.disabled = !undoStack.length;
+        ui.redo.disabled = !redoStack.length;
+    }
+
+    /* Call BEFORE a mutation: captures the pre-change state. A new edit clears redo. */
+    function pushUndo() {
+        const snap = JSON.stringify(segs);
+        if (undoStack.length && undoStack[undoStack.length - 1] === snap) return;
+        undoStack.push(snap);
+        if (undoStack.length > UNDO_MAX) undoStack.shift();
+        redoStack = [];
+        syncUndoButtons();
+    }
+
+    function doUndo() {
+        if (!undoStack.length) return;
+        redoStack.push(JSON.stringify(segs));
+        segs = JSON.parse(undoStack.pop());
+        selIndex = -1;
+        hideRubberBand();
+        refreshAll();
+        syncUndoButtons();
+    }
+
+    function doRedo() {
+        if (!redoStack.length) return;
+        undoStack.push(JSON.stringify(segs));
+        segs = JSON.parse(redoStack.pop());
+        selIndex = -1;
+        hideRubberBand();
+        refreshAll();
+        syncUndoButtons();
+    }
+
+    /* Toolbar +/- zoom (mirrors the main VRC zoom buttons): step about the canvas center. */
+    function zoomBy(factor) {
+        if (!konvaStage) return;
+        const oldScale = konvaStage.scaleX();
+        const newScale = Math.max(MIN_PX_PER_M, Math.min(MAX_PX_PER_M, oldScale * factor));
+        const cx = konvaStage.width() / 2, cy = konvaStage.height() / 2;
+        const worldC = { x: (cx - konvaStage.x()) / oldScale, y: (cy - konvaStage.y()) / oldScale };
+        konvaStage.scale({ x: newScale, y: newScale });
+        konvaStage.position({ x: cx - worldC.x * newScale, y: cy - worldC.y * newScale });
+        scheduleRedraw(true);
+    }
 
     /* ---------------- path parsing / serializing ---------------- */
 
@@ -309,7 +364,12 @@
                 <button id="vrcpeToCurve" disabled title="Convert the selected segment to a curve">Line &rarr; Curve</button>
                 <button id="vrcpeToLine" disabled title="Convert the selected segment to a line">Curve &rarr; Line</button>
                 <button id="vrcpeDeletePt" disabled title="Delete the selected point (shortcut: Delete)">Delete Point</button>
-                <button id="vrcpeRevert" title="Restore the path as it was when the editor opened">Revert</button>
+                <span class="vrcpe-sep"></span>
+                <button id="vrcpeUndo" disabled title="Undo (Ctrl+Z)"><i class="icon icon-undo-regular"></i></button>
+                <button id="vrcpeRedo" disabled title="Redo (Shift+Ctrl+Z)"><i class="icon icon-redo-regular"></i></button>
+                <span class="vrcpe-sep"></span>
+                <button id="vrcpeZoomOut" class="vrcpe-zoom" title="Zoom out">&#8722;</button>
+                <button id="vrcpeZoomIn" class="vrcpe-zoom" title="Zoom in">+</button>
                 <span class="vrcpe-hint" id="vrcpeHint"></span>
                 <button id="vrcpeClose" class="vrcpe-close" title="Apply the path and close the editor (shortcut: Esc)">Close</button>
             </div>
@@ -358,7 +418,10 @@
             toCurve: dlg.querySelector('#vrcpeToCurve'),
             toLine: dlg.querySelector('#vrcpeToLine'),
             deletePt: dlg.querySelector('#vrcpeDeletePt'),
-            revert: dlg.querySelector('#vrcpeRevert'),
+            undo: dlg.querySelector('#vrcpeUndo'),
+            redo: dlg.querySelector('#vrcpeRedo'),
+            zoomIn: dlg.querySelector('#vrcpeZoomIn'),
+            zoomOut: dlg.querySelector('#vrcpeZoomOut'),
             close: dlg.querySelector('#vrcpeClose'),
             canvas: dlg.querySelector('#vrcpeCanvas'),
             pathText: dlg.querySelector('#vrcpePathText'),
@@ -366,12 +429,10 @@
         };
 
         ui.close.onclick = () => { finishAndApply(); dlg.close(); };
-        ui.revert.onclick = () => {
-            segs = structuredClone(initialSegs);
-            selIndex = -1;
-            setEditorMode(segs.length ? 'edit' : 'draw');
-            refreshAll();
-        };
+        ui.undo.onclick = () => doUndo();
+        ui.redo.onclick = () => doRedo();
+        ui.zoomIn.onclick = () => zoomBy(1.2);
+        ui.zoomOut.onclick = () => zoomBy(1 / 1.2);
         /* Draw Mode with an existing path: choose between adding another shape (new M
          * subpath) and erasing everything. Empty canvas skips straight to drawing. */
         ui.drawModeBtn.onclick = () => {
@@ -400,6 +461,7 @@
         };
         ui.drawEraseAll.onclick = () => {
             ui.drawChoice.close();
+            pushUndo();
             segs = [];
             selIndex = -1;
             setEditorMode('draw');
@@ -413,22 +475,50 @@
         ui.deletePt.onclick = () => deleteSelected();
 
         ui.pathText.addEventListener('input', () => {
+            _progSelRange = null; /* user is really typing now — Delete reverts to text editing */
             try {
                 const parsed = parsePathD(ui.pathText.value);
                 ui.pathText.classList.remove('vrcpe-invalid');
+                /* One undo entry per typing burst, not per keystroke. */
+                if (Date.now() - _lastTextUndoPush > 800) pushUndo();
+                _lastTextUndoPush = Date.now();
                 segs = parsed;
                 selIndex = -1;
                 refreshAll(true);
+                updateCaretHighlight(); /* keep the edited segment purple on canvas */
             } catch {
                 ui.pathText.classList.add('vrcpe-invalid');
             }
         });
+        /* Caret moves (click / arrows) inside the textarea select the matching segment. */
+        ui.pathText.addEventListener('click', updateCaretHighlight);
+        ui.pathText.addEventListener('keyup', updateCaretHighlight);
 
         /* Keep VRC's document-level shortcuts (Delete = delete item, space = Quick Add, ...) from firing while the editor is open. */
         dlg.addEventListener('keydown', (e) => {
             const typing = document.activeElement === ui.pathText;
+            /* Model undo/redo everywhere in the editor, including the textarea (the
+             * model is the source of truth; preventDefault suppresses native text undo,
+             * which would desync from the model anyway). */
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.shiftKey) doRedo(); else doUndo();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+                e.preventDefault();
+                e.stopPropagation();
+                doRedo();
+                return;
+            }
             if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (!typing && selIndex >= 0) {
+                /* The point-click highlight focuses the textarea; while that programmatic
+                 * selection is untouched, Delete still means "delete the selected point". */
+                const progSel = typing && _progSelRange
+                    && ui.pathText.selectionStart === _progSelRange.start
+                    && ui.pathText.selectionEnd === _progSelRange.end;
+                if ((!typing || progSel) && selIndex >= 0) {
                     deleteSelected();
                     e.preventDefault();
                 }
@@ -469,6 +559,10 @@
         editorMode = mode;
         ui.drawModeBtn.classList.toggle('vrcpe-mode-active', mode === 'draw');
         ui.editModeBtn.classList.toggle('vrcpe-mode-active', mode === 'edit');
+        /* Line/Curve pick the segment type placed while DRAWING — meaningless in Edit
+         * mode, where the Line→Curve / Curve→Line conversion buttons take over. */
+        ui.modeLine.disabled = (mode === 'edit');
+        ui.modeCurve.disabled = (mode === 'edit');
         ui.hint.innerHTML = (mode === 'draw')
             ? 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter'
             : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter';
@@ -573,8 +667,24 @@
         anchorNodes = [];
     }
 
-    /* Z + hand off to Edit mode — after closing, the natural next step is refining points. */
+    /* Z + hand off to Edit mode — after closing, the natural next step is refining points.
+     * Closing while the Curve tool is active adds an editable C segment back to the
+     * subpath start (collinear controls — straight until dragged) instead of relying on
+     * Z's implicit straight line, so the closing edge can be curved too. */
     function closeDrawnPath() {
+        pushUndo();
+        if (drawMode === 'C') {
+            const m0 = segs[currentSubpathStart()];
+            const last = segs[segs.length - 1];
+            if (m0 && last && 'x' in last && (last.x !== m0.x || last.y !== m0.y)) {
+                segs.push({
+                    c: 'C',
+                    x1: last.x + (m0.x - last.x) / 3, y1: last.y + (m0.y - last.y) / 3,
+                    x2: last.x + 2 * (m0.x - last.x) / 3, y2: last.y + 2 * (m0.y - last.y) / 3,
+                    x: m0.x, y: m0.y,
+                });
+            }
+        }
         segs.push({ c: 'Z' });
         selIndex = -1;
         setEditorMode('edit');
@@ -586,6 +696,7 @@
      * fewer is a degenerate closed line. */
     function closeOpenSubpath() {
         if (editorMode === 'draw' && lastSubpathOpen() && currentSubpathAnchorCount() >= 3) {
+            pushUndo();
             segs.push({ c: 'Z' });
         }
     }
@@ -777,10 +888,15 @@
         styleAnchor(entry);
 
         /* select WITHOUT rebuilding handles — a rebuild here destroys this node mid-mousedown and kills the drag */
-        a.on('mousedown touchstart', () => {
+        a.on('mousedown touchstart', (e) => {
             if (editorMode !== 'edit') return;
             selIndex = i;
             syncSelection();
+            /* highlight on press so it's already showing when a drag starts; skipped on
+             * touch — focusing the textarea would pop the on-screen keyboard */
+            if (!(e.evt && String(e.evt.type).startsWith('touch'))) {
+                highlightSelectedSegmentText();
+            }
         });
 
         /* click the enlarged first point while drawing → close the current subpath (mirrors the simple builder) */
@@ -801,6 +917,7 @@
         });
         a.on('mouseleave', () => styleAnchor(entry));
 
+        a.on('dragstart', () => pushUndo());
         a.on('dragmove', () => {
             const nx = a.x(), ny = a.y();
             const dx = nx - s.x, dy = ny - s.y;
@@ -830,6 +947,7 @@
             dash: [4 / konvaStage.scaleX(), 4 / konvaStage.scaleX()],
             listening: false,
         });
+        c.on('dragstart', () => pushUndo());
         c.on('dragmove', () => {
             s[keyX] = c.x(); s[keyY] = c.y();
             tether.points([anchorPt.x, anchorPt.y, c.x(), c.y()]);
@@ -859,11 +977,25 @@
         });
     }
 
+    /* Runs every dragmove frame. One serialization pass: the per-seg strings feed the
+     * Konva path, the textarea, AND the highlight offsets (the old code serialized the
+     * whole path twice per frame, so this is a net reduction). */
     function refreshPathOnly() {
-        previewPath.data(serializeSegs(segs));
+        const parts = segs.map(s => serializeSegs([s]));
+        const str = parts.join(' ');
+        previewPath.data(str);
         updateSelectedOverlay();
-        ui.pathText.value = serializeSegs(segs);
+        ui.pathText.value = str;
         ui.pathText.classList.remove('vrcpe-invalid');
+        /* Assigning .value collapses the textarea selection — re-apply the point-click
+         * highlight so it tracks the numbers while a point is dragged. */
+        if (_progSelRange && selIndex >= 0 && segs[selIndex] && document.activeElement === ui.pathText) {
+            let start = 0;
+            for (let k = 0; k < selIndex; k++) start += parts[k].length + 1;
+            const r = { start, end: start + parts[selIndex].length };
+            ui.pathText.setSelectionRange(r.start, r.end);
+            _progSelRange = r;
+        }
     }
 
     function refreshAll(skipText) {
@@ -874,6 +1006,56 @@
             ui.pathText.classList.remove('vrcpe-invalid');
         }
         syncSelection();
+    }
+
+    /* Character range of segs[index] inside the serialized textarea string (segments join with ' '). */
+    function segTextRange(index) {
+        let start = 0;
+        for (let k = 0; k < index; k++) start += serializeSegs([segs[k]]).length + 1;
+        return { start, end: start + serializeSegs([segs[index]]).length };
+    }
+
+    /* Clicking an anchor highlights its segment's numbers in the side-pane textarea.
+     * Selection is only visible in a FOCUSED textarea, and focusing during the native
+     * click dispatch gets undone by the canvas click's default focus handling — hence
+     * the deferred focus. The dlg keydown handler keeps Delete meaning "delete point"
+     * while this programmatic selection is intact (_progSelRange). */
+    function highlightSelectedSegmentText() {
+        if (selIndex < 0 || !segs[selIndex]) return;
+        if (ui.pathText.value !== serializeSegs(segs)) return;
+        const r = segTextRange(selIndex);
+        setTimeout(() => {
+            if (selIndex < 0) return;
+            ui.pathText.focus({ preventScroll: true });
+            ui.pathText.setSelectionRange(r.start, r.end);
+            _progSelRange = r;
+            const frac = r.start / Math.max(1, ui.pathText.value.length);
+            ui.pathText.scrollTop = Math.max(0, frac * ui.pathText.scrollHeight - ui.pathText.clientHeight / 2);
+        }, 0);
+    }
+
+    /* Editing in the textarea highlights the matching segment purple on canvas: the
+     * caret's segment = count of command letters up to the caret, mapped into segs
+     * (1:1 because this editor always serializes with explicit command letters). A
+     * caret sitting on the untouched point-click highlight is left alone. */
+    function updateCaretHighlight() {
+        if (document.activeElement !== ui.pathText) return;
+        if (_progSelRange
+            && ui.pathText.selectionStart === _progSelRange.start
+            && ui.pathText.selectionEnd === _progSelRange.end) return;
+        _progSelRange = null; /* the user took over the caret — Delete reverts to text editing */
+        const text = ui.pathText.value;
+        const pos = ui.pathText.selectionStart;
+        let count = 0;
+        for (let k = 0; k < pos && k < text.length; k++) {
+            if (/[MLHVCSQTAZ]/i.test(text[k])) count++;
+        }
+        const idx = count - 1;
+        const next = (idx >= 0 && idx < segs.length) ? idx : -1;
+        if (next !== selIndex) {
+            selIndex = next;
+            syncSelection();
+        }
     }
 
     /* selection changed: restyle anchors in place, redraw purple overlay, sync toolbar — NO handle rebuild */
@@ -893,6 +1075,7 @@
         if (!s) return;
         const p0 = segStartPoint(selIndex);
         if (!p0) return;
+        pushUndo();
         if (target === 'C' && s.c === 'L') {
             segs[selIndex] = {
                 c: 'C',
@@ -911,9 +1094,10 @@
         if (!s || s.c === 'Z') return;
         const anchorCount = segs.filter(g => g.c !== 'Z').length;
         if (anchorCount <= 3) return;
+        if (s.c === 'M' && (!segs[selIndex + 1] || segs[selIndex + 1].c === 'Z')) return;
+        pushUndo();
         if (s.c === 'M') {
             const next = segs[selIndex + 1];
-            if (!next || next.c === 'Z') return;
             segs[selIndex + 1] = { c: 'M', x: next.x, y: next.y };
         }
         segs.splice(selIndex, 1);
@@ -925,6 +1109,7 @@
         const s = segs[i];
         const p0 = segStartPoint(i);
         if (!s || !p0 || s.c === 'M' || s.c === 'Z') return;
+        pushUndo();
         const mid = pointOnSeg(s, p0, t);
         if (s.c === 'L' || s.c === 'A') {
             segs.splice(i, 0, { c: 'L', x: mid.x, y: mid.y });
@@ -950,6 +1135,7 @@
     function appendPointAtPointer() {
         const wp = worldPointer();
         if (!wp) return;
+        pushUndo();
         if (!lastSubpathOpen()) {
             /* first click of a fresh drawing (or after a closed shape) starts a subpath */
             segs.push({ c: 'M', x: wp.x, y: wp.y });
@@ -1041,8 +1227,11 @@
         bakeScaleRotation(segs,
             (Number(opts.scaleX) || 1), (Number(opts.scaleY) || 1),
             (Number(opts.rotationDeg) || 0));
-        initialSegs = structuredClone(segs);
         selIndex = -1;
+        undoStack = [];
+        redoStack = [];
+        _lastTextUndoPush = 0;
+        syncUndoButtons();
         setDrawMode('L');
 
         /* Fresh inserts open in Draw mode with a clean canvas (the placeholder shape is

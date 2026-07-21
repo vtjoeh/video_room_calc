@@ -67,6 +67,25 @@
     border-color: var(--active, #0352a6);
 }
 
+/* +/- glyphs read larger without growing the button: line-height pinned to what the
+ * 12px toolbar text produces, so the content box height is unchanged. */
+.vrcpe-toolbar button.vrcpe-zoom {
+    font-size: 17px;
+    line-height: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+}
+
+/* Momentum undo/redo icons — override the 20px box from style.css's base .icon rule
+ * (same fixed line-height trick as .vrcpe-zoom) so the button height is unchanged. */
+.vrcpe-toolbar button .icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+    vertical-align: top;
+}
+
 .vrcpe-sep {
     width: 1px;
     align-self: stretch;

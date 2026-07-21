@@ -1645,7 +1645,7 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
 - **Fresh insert**: `insertItemFromMenu()`'s pathShape branch calls
   `openPathShapeDrawChooser(uuid)` (reuses the shared
   `roleSelectionDialog`, same pattern as certifiedDisplay), offering
-  **"Open Path Editor"** (→ `openSvgPathEditor(uuid, 'draw')`) or
+  **"Open Path Editor Mode"** (→ `openSvgPathEditor(uuid, 'draw')`) or
   **"Draw Simple Path on Room Canvas"** (→ `simplePathEditor(uuid)`,
   the polyBuilder). When the Path Editor is chosen it opens in Draw
   mode with a BLANK canvas (the placeholder path is ignored; closing
@@ -1657,16 +1657,20 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   the polyBuilder plumbing is intentionally left intact in case the
   button returns.
 - **Instructions alert**: every successful open (Draw or Edit mode)
-  chains an `alertDialog('Path Editor', ...)` after
+  chains an `alertDialog('Path Editor', ..., 'pathEditor')` after
   `window.VRC.pathEditor.open(...)` resolves — mirrors the
   `polyBuilderOn(true, 'customPathEditor')` alert shown for Draw
-  Simple Path (same "shows every open" behavior, same bullet-list
-  style). Since `open()` is `async`, `.then()` waits for the stage to
-  finish building before the alert's `showModal()` stacks the two
-  native `<dialog>`s (alert renders on top because it's shown after).
+  Simple Path (key `'simplePathEditor'`; same bullet-list style; both
+  carry the shared "Don't show this again" checkbox — see the
+  alertDialog `dontShowAgainKey` note below). Since `open()` is
+  `async`, `.then()` waits for the stage to finish building before the
+  alert's `showModal()` stacks the two native `<dialog>`s (alert
+  renders on top because it's shown after).
 - **Draw mode** mirrors the Draw Simple Path builder: click to place
   points sequentially (the Line/Curve buttons pick the segment type —
-  **keys L / C toggle them while drawing**), a dotted rubber band
+  **keys L / C toggle them while drawing**; both buttons are disabled
+  in Edit mode, where the Line→Curve / Curve→Line conversion buttons
+  take over), a dotted rubber band
   follows the pointer from the last placed point (recreate it when its
   node is destroyed OR detached — `rebuildPreview()`'s
   `destroyChildren()` kills it while the module reference survives),
@@ -1732,10 +1736,49 @@ simple builder uses, so undo/URL/labelField-merge come free.
   mousedown handler**: destroying the node under the pointer kills
   the drag before it starts (the "points won't drag" bug).
 - Line ↔ Curve conversion and Delete Point for the selected anchor;
-  Revert restores the as-opened path; the **left side pane (≥200 px)**
-  holds the path textarea, synced both ways (invalid input = red
-  border, last good model kept). No snap, no fill toggle — stroke-only
-  preview.
+  the **left side pane (≥200 px)** holds the path textarea, synced
+  both ways (invalid input = red border, last good model kept). The
+  Revert button was removed once undo/redo landed. No snap, no fill
+  toggle — stroke-only preview.
+- **Closing while the Curve tool is active** appends an editable `C`
+  segment back to the subpath start (collinear controls — straight
+  until dragged) before the `Z`, so the closing edge can be curved.
+  Line-tool closes keep the plain `Z` (implicit straight edge).
+- **Pressing an anchor in Edit mode highlights its segment's numbers
+  in the textarea** (`highlightSelectedSegmentText()` /
+  `segTextRange()`) — on mousedown (touch skipped: focusing would pop
+  the on-screen keyboard), and the highlight TRACKS the numbers while
+  the point is dragged: `refreshPathOnly()` builds the per-seg strings
+  once per frame and reuses them for the Konva path, the textarea,
+  and the re-applied selection range (assigning `.value` collapses the
+  selection; the single pass is cheaper than the old double
+  serialize). Selection is only visible in a focused textarea, so the
+  textarea takes focus (deferred — focusing during the native
+  mousedown dispatch gets undone by the canvas click's default focus
+  handling). While that programmatic selection is untouched
+  (`_progSelRange`), the Delete key still means "delete the selected
+  point"; any real typing clears the flag and Delete reverts to text
+  editing.
+- **The reverse direction too**: a caret placed (click / arrows /
+  typing) in the textarea selects the matching segment on canvas —
+  purple overlay + purple anchor + convert/delete buttons enabled
+  (`updateCaretHighlight()`: caret's segment = count of command
+  letters up to the caret, 1:1 with segs because the editor always
+  serializes explicit command letters).
+- **Undo / Redo** (toolbar buttons with the VRC's Momentum
+  `icon-undo-regular` / `icon-redo-regular` icons + Ctrl/Cmd+Z,
+  Shift+Ctrl/Cmd+Z, Ctrl/Cmd+Y): snapshot stack of the segs model (`pushUndo()` captures
+  the PRE-mutation state; 100-entry cap; new edit clears redo). Every
+  mutation path is instrumented — draw clicks, path close, convert,
+  delete, split, anchor/control `dragstart`, Erase & Start Over, and
+  textarea edits (per-keystroke pushes coalesce via an 800 ms window). The shortcuts also fire while typing in the textarea
+  (`preventDefault` suppresses native text undo — the model is the
+  source of truth and the textarea is rewritten by `refreshAll()`
+  anyway). Stacks reset on every `open()`.
+- **Zoom + / − toolbar buttons** (mirror of the main VRC zoom
+  controls): `zoomBy(1.2 / (1/1.2))` steps about the canvas center,
+  clamped to the same `MIN_PX_PER_M`/`MAX_PX_PER_M` range the wheel
+  zoom uses. Wheel-zoom-to-cursor and drag-pan are unchanged.
 - Close button (and Esc) **applies the path back** — there is no
   cancel path; Revert-then-Close is the undo story inside the
   editor, and the standard VRC undo covers the rest.
@@ -1781,6 +1824,28 @@ simple builder uses, so undo/URL/labelField-merge come free.
 
 Both files are in `sw.js` `PRECACHE_ASSETS`; the script is loaded via
 `loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR)`.
+
+---
+
+## alertDialog "Don't show this again" (dontShowAgainKey)
+
+`alertDialog(headerHtml, mainHtml, dontShowAgainKey)` takes an optional
+third arg. When present, the modal shows a **"Don't show this again"**
+checkbox (`#dialogAlertDontShowRow` in `RoomCalculator.html`); checking
+it persists `localStorage['dontShowAgain~<key>'] = 'true'` and future
+calls with the same key return without showing. The save happens on the
+checkbox `change` event, NOT on dialog close — the `<dialog>` 'close'
+event is delivered async and can race a follow-up `alertDialog()` call
+that overwrites the shared key/checkbox state. Unchecking before close
+removes the localStorage entry. Keyless calls hide the row.
+
+Current keys: `pathEditor` (Path Editor instructions),
+`simplePathEditor` (Draw Simple Path instructions), and the
+`insertMessages` entries in `js/data/menuItemsAndMessages.js` via their
+optional `dontShowAgainKey` field (`insertSwitch`,
+`insertCodecRoomVision`, `insertCodec`; ceilingGrid intentionally has
+none). Gate only OK-only informational dialogs — never errors or
+dialogs that gather input.
 
 ---
 
