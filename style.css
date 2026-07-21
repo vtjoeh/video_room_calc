@@ -1220,7 +1220,12 @@ input:placeholder-shown {
   display: flex;
   gap: 10px;
   margin: 1em 0;
-  max-width: 800px;
+  /* Hug the content (buttons + the always-reserved 120px modeStatusBadge slot)
+   * instead of a hardcoded cap that clips the badge whenever a new button lands
+   * in the toolbar. On narrow windows max-width caps at the parent and the
+   * existing overflow-x scroll takes over. */
+  width: fit-content;
+  max-width: 100%;
   overflow-x: auto;
 }
 
