@@ -134,7 +134,8 @@ workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
 workspaceKey.loudspeaker = { objectType: 'loudspeaker' };
-workspaceKey.frontSpeaker = { objectType: 'loudspeaker' };
+/* frontSpeaker moved below workspaceKey.box — it exports as a fixed-size box, and scoring
+ * ties must keep resolving generic WD boxes to 'box' (first entry wins a tie). */
 
 workspaceKey.projector = { objectType: 'projector' };
 
@@ -212,6 +213,12 @@ workspaceKey.wheelchair = { objectType: 'person', model: 'woman-sitting-wheelcha
 workspaceKey.wheelchairTurnCycle = { objectType: 'person', model: 'woman-sitting-wheelchair' };
 
 workspaceKey.circulationSpace = { objectType: 'box', opacity: '0.5', color: '#8FDBCE', height: 0.02, length: 1.2, width: 1.2 };
+
+/* WD has no generic front-of-room speaker model: export as a 1ft x 1ft, 2ft tall box.
+ * vertOffset centers the box vertically (WD box position y = center) so the item's
+ * data_zPosition stays the base elevation on export AND import. idRegex maps the
+ * 'frontSpeaker~'-prefixed export id back to this device (300 beats box's 200). */
+workspaceKey.frontSpeaker = { objectType: 'box', width: 0.3048, length: 0.3048, height: 0.6096, vertOffset: 0.3048, idRegex: '^frontSpeaker~' };
 
 workspaceKey.navigatorTable = { objectType: 'navigator', role: 'navigator', yOffset: 0.0400 };
 

@@ -1536,8 +1536,21 @@ formula comes later); with no stored attrs they resolve to their
 hardcoded specs, so existing rooms render identically.
 
 - **New device**: `frontSpeaker` "Front of Room Speaker (generic)*",
-  key `NC`, `workspaceKey.frontSpeaker = { objectType: 'loudspeaker' }`,
-  reuses the ceilingSpeaker art, no menu tile (mirror of `loudspeaker`).
+  key `NC`, reuses the ceilingSpeaker art, no menu tile (mirror of
+  `loudspeaker`).
+- **WD export**: WD has no generic front-of-room speaker model, so
+  `workspaceKey.frontSpeaker` exports a fixed-size `objectType: 'box'`
+  (1 ft × 1 ft footprint, 2 ft tall = 0.3048 × 0.3048 × 0.6096 m) with
+  `vertOffset: 0.3048` (WD box position y is the box CENTER; the offset
+  keeps `data_zPosition` = base elevation on export AND the reverse on
+  import). Round-trip identity rides the stageFloor pattern: the export
+  id is prefixed `frontSpeaker~` in the microphones-bucket push, the
+  key's `idRegex: '^frontSpeaker~'` gives it +100 in import scoring
+  (300 beats plain box's 200), and `wdItemToRoomObjItem()` strips the
+  prefix so the original UUID survives. **The workspaceKey entry MUST
+  stay BELOW `workspaceKey.box`** — scoring ties keep the FIRST entry,
+  so a generic WD box (200 vs 200) must resolve to `box`, not
+  `frontSpeaker`.
 - **Attrs** (store-only-non-default, defaults deleted): `data_speakerCalc`
   ('cone'/'spl'; absent = simple), `data_speakerRadius` +
   `data_speakerEarLevel` (current-unit lengths, converted by

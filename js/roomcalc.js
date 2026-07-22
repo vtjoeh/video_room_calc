@@ -4472,16 +4472,7 @@ function renderLayersList() {
             delBtn.title = isReserved ? 'Reserved layer cannot be deleted' : 'Delete layer';
             delBtn.disabled = isReserved;
             delBtn.innerHTML = `<i class="icon icon-delete-bold"></i>`;
-            delBtn.onclick = () => {
-                let destName = 'Default';
-                if (currentAddLayerId !== '0' && currentAddLayerId !== layer.layerid) {
-                    const dest = getLayerById(currentAddLayerId);
-                    if (dest) destName = dest.name;
-                }
-                if (confirm(`Delete layer "${layer.name}"? Items will move to ${destName}.`)) {
-                    deleteLayer(layer.layerid);
-                }
-            };
+            delBtn.onclick = () => openDeleteLayerDialog(layer.layerid);
 
             row.appendChild(visBtn);
             row.appendChild(lockBtn);
@@ -14834,7 +14825,25 @@ function onDialogClick(e) {
     }
 }
 
+/* PWA + File System Access API → the main button saves in place, so label it "Save File".
+ * Re-evaluated every dialog open (not just boot): display-mode media queries can settle
+ * late on some PWA launches, which left the label stuck on "Download File". */
+function updateDownloadButtonLabelForPwa() {
+    const downloadButton = document.getElementById('downloadJSONButton');
+    const span = downloadButton ? downloadButton.querySelector('span') : null;
+    if (!span) return;
+    const isPWA = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay']
+        .some(mode => window.matchMedia('(display-mode: ' + mode + ')').matches)
+        || window.navigator.standalone === true;
+    if ('showSaveFilePicker' in window && isPWA) {
+        span.innerHTML = span.innerHTML.replace('Download File', 'Save File');
+    } else {
+        span.innerHTML = span.innerHTML.replace('Save File', 'Download File');
+    }
+}
+
 function openSaveDialog() {
+    updateDownloadButtonLabelForPwa();
     document.getElementById('dialogSave').showModal();
 
     let qrCodeDiv = document.getElementById('qrCode');
@@ -26837,6 +26846,7 @@ function updateCreateHighlightImage(minimumSize = 500) {
 
     arraySmallItems.forEach(item => {
         let node = stage.findOne('#' + item.id);
+        if (!node) return; /* zoomed into a Room Part — items in other rooms have no node */
         if (smallItemsHighlight) {
             let width = sizeToAddOultine / 1000 * scale;
             let height = sizeToAddOultine / 1000 * scale;
@@ -26845,8 +26855,9 @@ function updateCreateHighlightImage(minimumSize = 500) {
                 width = width * 3.28084;
                 height = height * 3.28084;
             }
-            let centerX = (item.x * scale) + pxOffset;
-            let centerY = (item.y * scale) + pxOffset;
+            /* item.x/y are floor coords; activeRoomX/Y re-anchor when zoomed into a Room Part (0 otherwise) — same convention as insertShapeItem's pixelX/Y */
+            let centerX = ((item.x - activeRoomX) * scale) + pxOffset;
+            let centerY = ((item.y - activeRoomY) * scale) + pyOffset;
 
             let cornerXY = findUpperLeftXY({ x: centerX, y: centerY, rotation: item.rotation, width: width, height: height });
 
@@ -26866,16 +26877,16 @@ function updateCreateHighlightImage(minimumSize = 500) {
                 height = height * 3.28084;
             }
 
-            let centerX = (item.x * scale) + pxOffset;
-            let centerY = (item.y * scale) + pxOffset;
+            let centerX = ((item.x - activeRoomX) * scale) + pxOffset;
+            let centerY = ((item.y - activeRoomY) * scale) + pyOffset;
 
             let cornerXY = findUpperLeftXY({ x: centerX, y: centerY, rotation: item.rotation, width: width, height: height });
 
             newImageObj.src = './assets/images/' + allDeviceTypes[item.data_deviceid].topImage;
             newImageObj.onload = function () {
                 node.image(newImageObj);
-                node.x(cornerXY.x + activeRoomX * scale);
-                node.y(cornerXY.y + activeRoomY * scale);
+                node.x(cornerXY.x);
+                node.y(cornerXY.y);
                 node.width(width);
                 node.height(height);
 
@@ -31989,6 +32000,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         item.id = item.id.slice('stageFloor~'.length);
     }
 
+    /* Same round-trip rule for the frontSpeaker box export (see workspaceKey.frontSpeaker). */
+    if (data_deviceid === 'frontSpeaker' && item.id.startsWith('frontSpeaker~')) {
+        item.id = item.id.slice('frontSpeaker~'.length);
+    }
+
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
@@ -33624,6 +33640,11 @@ function exportRoomObjToWorkspace() {
 
         if (item.data_deviceid === 'ceilingMic') {
             item.data_ceilingHeight = roomObj2.room.roomHeight;
+        }
+
+        /* frontSpeaker exports as a box (see workspaceKey.frontSpeaker); the id prefix is what its idRegex matches on import */
+        if (item.data_deviceid === 'frontSpeaker' && !String(item.id).startsWith('frontSpeaker~')) {
+            item.id = 'frontSpeaker~' + item.id;
         }
 
         workspaceObjItemPush(item);
@@ -36036,19 +36057,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const jsonMenu = document.getElementById("drpDownJSONContent");
     const jsonItems = jsonMenu.querySelectorAll(".dropDownMenuItem");
 
-    // Update Download to Save button in PWA with File System Access API
-    const isPWA = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay']
-        .some(mode => window.matchMedia('(display-mode: ' + mode + ')').matches)
-        || window.navigator.standalone === true;
-    if ('showSaveFilePicker' in window && isPWA) {
-        const downloadButton = document.getElementById("downloadJSONButton");
-        if (downloadButton) {
-            const span = downloadButton.querySelector('span');
-            if (span) {
-                span.innerHTML = span.innerHTML.replace('Download File', 'Save File');
-            }
-        }
-    }
+    updateDownloadButtonLabelForPwa();
+    /* Some PWA launches report display-mode:browser at DOMContentLoaded and flip to
+     * standalone shortly after — re-check on the transition. */
+    ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay'].forEach(mode => {
+        const mq = window.matchMedia('(display-mode: ' + mode + ')');
+        if (mq.addEventListener) mq.addEventListener('change', updateDownloadButtonLabelForPwa);
+    });
 
     //
     // PNG split-button
