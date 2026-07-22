@@ -1578,14 +1578,16 @@ editing is naturally impossible there.
   `drawRoom()`. `applyPolyRoomEditZoomScale()` runs in `zoomInOut()`
   next to `applyMeasureToolZoomScale()` — circles counter-scale
   `1/zoomScaleX` so they keep constant visual size at any zoom.
-- **Rotation disables editing**: the circles live in `layerSelectionBox`,
-  not as children of the node, so a Transformer rotation would leave them
-  at the un-rotated positions. `syncPolyRoomEditPoints()` therefore removes
-  (and never recreates) the circles when `|node.rotation()| >= 0.5°`
-  (mirrors `isActiveRoomPartRotated()`). `tr.on('transformstart')` clears
-  them the instant a rotation begins; `tr.on('transformend')` re-syncs so
-  they reappear only if the room settled back near 0°. Point editing is a
-  rotation-0-only affordance.
+- **Rotation-safe**: point editing works at any rotation. Circle
+  placement maps through `node.getAbsoluteTransform(stage)` (which
+  includes rotation), drags map back through its inverse, and the
+  dragend renormalization computes the new origin via
+  `node.getTransform().point({minX,minY})` so rotated polyRooms don't
+  shift on commit. During a live Transformer rotation the circles
+  track each frame — `tr.on('transform')` calls
+  `refreshPolyRoomEditPointPositions()` (one matrix point-map per
+  vertex, trivially cheap) and `tr.on('transformend')` settles them
+  via `syncPolyRoomEditPoints()`.
 - **Coordinate model**: circles live in `layerSelectionBox`
   (logical un-zoomed layer pixels); positions map through
   `node.getAbsoluteTransform(stage)` (excludes stage pan/zoom), drags

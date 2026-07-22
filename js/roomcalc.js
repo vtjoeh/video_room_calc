@@ -5919,15 +5919,6 @@ function syncPolyRoomEditPoints() {
         return;
     }
 
-    /* A rotated polyRoom hides its vertex circles: they live in layerSelectionBox
-     * (not children of the node) so a Transformer rotation would leave them at the
-     * un-rotated positions. Editing points is offered at rotation 0 only. Mirrors
-     * the isActiveRoomPartRotated() >= 0.5 deg convention. */
-    if (Math.abs(Number(node.rotation()) || 0) >= 0.5) {
-        removePolyRoomEditPoints();
-        return;
-    }
-
     if (polyRoomEditNodeId === node.id()
         && layerSelectionBox.find('.' + POLYROOM_EDIT_CIRCLE_NAME).length > 0) {
         refreshPolyRoomEditPointPositions();
@@ -11388,16 +11379,32 @@ function ensureRoomPartWallDefaults() {
     (roomObj.items || []).forEach(item => {
         if (item.data_deviceid !== 'boxRoomPart') return;
 
-        if (!item.data_roomSurfaces) item.data_roomSurfaces = structuredClone(defaultRoomSurfaces);
+        item.data_roomSurfaces = normalizeRoomPartSurfaces(item.data_roomSurfaces);
         if (!item.data_workspace) item.data_workspace = { removeDefaultWalls: false };
 
         /* Node mirror matters: updateRoomObjFromTrNode's delete-on-absent branch would wipe an item-only backfill on the next drag. */
         const node = stage.findOne('#' + item.id);
         if (node) {
-            if (!node.data_roomSurfaces) node.data_roomSurfaces = structuredClone(item.data_roomSurfaces);
+            node.data_roomSurfaces = normalizeRoomPartSurfaces(node.data_roomSurfaces || item.data_roomSurfaces);
             if (!node.data_workspace) node.data_workspace = structuredClone(item.data_workspace);
         }
     });
+}
+
+/* Guarantee all four wall keys (leftwall/videowall/rightwall/backwall) each with a
+ * `type`, merging any partial surfaces (e.g. a hand-edited or imported file that only
+ * specified the walls it changed) over the defaults. Downstream readers assume every
+ * wall is present — a missing key crashes updateDefaultWallsMenu / WD export. */
+function normalizeRoomPartSurfaces(surfaces) {
+    const out = structuredClone(defaultRoomSurfaces);
+    if (surfaces && typeof surfaces === 'object') {
+        ['leftwall', 'videowall', 'rightwall', 'backwall'].forEach(wall => {
+            if (surfaces[wall] && typeof surfaces[wall] === 'object') {
+                out[wall] = { ...out[wall], ...surfaces[wall] };
+            }
+        });
+    }
+    return out;
 }
 
 /* MultiRoom overview: rebuild the per-room default-walls + door preview for every walled boxRoomPart. Visual only (WD export builds real geometry); rebuilt each drawRoom / roomPart drop. */
@@ -11955,11 +11962,11 @@ function zoomRoomPart(roomPart) {
 
     activeRoomPartItem = roomObjItemsMap.get(id);
 
-    /* boxRoomPart: backfill per-room attrs for older designs before drawing. */
+    /* boxRoomPart: backfill per-room attrs for older designs before drawing. normalize
+     * fills any missing wall keys (partial surfaces from a hand-edited / imported file
+     * would otherwise crash the walls menu + WD export reading .type / .door). */
     if (activeRoomPartItem && roomPart.data_deviceid === 'boxRoomPart') {
-        if (!activeRoomPartItem.data_roomSurfaces) {
-            activeRoomPartItem.data_roomSurfaces = structuredClone(defaultRoomSurfaces);
-        }
+        activeRoomPartItem.data_roomSurfaces = normalizeRoomPartSurfaces(activeRoomPartItem.data_roomSurfaces);
         if (!activeRoomPartItem.data_workspace) {
             activeRoomPartItem.data_workspace = { removeDefaultWalls: false };
         }
@@ -25598,9 +25605,6 @@ function addListeners(stage) {
     tr.on('transformstart', function onTrNodeTransformStart(e) {
         trNodesLength = tr.nodes().length;
 
-        /* Clear polyRoom vertex circles the instant a rotation begins; syncPolyRoomEditPoints() on transformend restores them only if the room ended at ~0 deg. */
-        if (polyRoomEditNodeId) removePolyRoomEditPoints();
-
         if (trNodesLength > 100) {
             hideAllCoverageGroups(true);
 
@@ -25622,6 +25626,10 @@ function addListeners(stage) {
             refreshGroupDetailsFromCanvas();
             refreshCustomItemDetailsFromCanvas();
         }
+
+        /* polyRoom vertex circles track a live rotation: cheap (one matrix point-map per
+         * vertex) and getAbsoluteTransform includes the in-progress rotation. */
+        if (polyRoomEditNodeId) refreshPolyRoomEditPointPositions();
 
         if (trNodesLength !== 1) return;
 
@@ -25657,7 +25665,7 @@ function addListeners(stage) {
         allGuideLines.forEach(g => g.destroy());
         allGuideLines = [];
         endDriftCheck('tr.transformend');
-        /* Re-evaluate polyRoom vertex circles after a rotation: reappear only if the room settled near 0 deg (the syncPolyRoomEditPoints rotation guard keeps them absent otherwise). */
+        /* Settle polyRoom vertex circles on their final rotated positions. */
         syncPolyRoomEditPoints();
         /* canvasToJson() intentionally NOT called here — see the Deferred canvasToJson sync model note above beginGroupDragFollow. */
     });
