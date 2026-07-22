@@ -34,7 +34,7 @@ video_room_calculator/
 │   ├── KEYBOARD_SHORTCUTS.md       # Canonical keyboard shortcut list
 │   └── DEPENDENCIES_AND_ISSUES.md  # External CDN deps + common issues cheat sheet
 ├── js/
-│   ├── version.js           # APP_VERSION single source of truth (loaded first; also read by sw.js via importScripts)
+│   ├── version.js           # APP_VERSION + BUILD_VERSION single source of truth (loaded first; also read by sw.js via importScripts — bumping EITHER forces the PWA cache refresh; bump BUILD_VERSION alone for small pushes that keep the visible version)
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
 │   ├── data/

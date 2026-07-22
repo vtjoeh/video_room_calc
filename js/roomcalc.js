@@ -1,4 +1,5 @@
 const version = APP_VERSION;  /* single source of truth is js/version.js, loaded before this file -- also read by sw.js to auto-bump the PWA cache */
+console.info('[VRC] ' + APP_VERSION + ((typeof BUILD_VERSION !== 'undefined' && BUILD_VERSION) ? ' build ' + BUILD_VERSION : ''));
 
 /* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
