@@ -6872,7 +6872,8 @@ layerSelectionBox.add(panRectangle);
 layerSelectionBox.add(select2PointsRect);
 
 
-document.getElementById('lblVersion').innerText = version;
+document.getElementById('lblVersion').innerText = version +
+    ((typeof BUILD_VERSION !== 'undefined' && BUILD_VERSION) ? ' build ' + BUILD_VERSION : '');
 
 
 let dummyMenuItems = [
