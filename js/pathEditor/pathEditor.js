@@ -63,6 +63,7 @@
     let selIndex = -1;
     let drawMode = 'L';              /* 'L' or 'C' — segment type placed while drawing */
     let editorMode = 'edit';         /* 'draw' or 'edit' */
+    let drawingHole = false;         /* Draw Mode → "Add a Hole": the subpath being drawn is a cut-out */
     let rubberBand = null;           /* dashed preview line, draw mode only */
     let anchorNodes = [];            /* [{ segIndex, node }] for in-place restyle (no rebuild on select — a rebuild mid-mousedown destroys the node being dragged) */
     let activeOpts = null;
@@ -390,27 +391,43 @@
         drawChoice.innerHTML = `
             <div class="vrcpe-choice-title">Draw Mode</div>
             <button id="vrcpeDrawAddShape">Add New Sub-Path</button>
+            <button id="vrcpeDrawAddHole">Add a Hole</button>
             <button id="vrcpeDrawEraseAll">Erase &amp; Start Over</button>
             <button id="vrcpeDrawCancel">Cancel</button>`;
         document.body.appendChild(drawChoice);
 
-        /* Sub-path export caveat — shown once per "Add New Sub-Path" click, before it applies. */
-        const subpathWarn = document.createElement('dialog');
-        subpathWarn.id = 'vrcpeSubpathWarn';
-        subpathWarn.className = 'vrcpe-choice';
-        subpathWarn.innerHTML = `
-            <div class="vrcpe-choice-title">Add New Sub-Path</div>
-            <div class="vrcpe-choice-body">Sub-Paths may not export correctly to the Workspace Designer.</div>
-            <button id="vrcpeSubpathWarnOk">OK</button>`;
-        document.body.appendChild(subpathWarn);
+        /* Hole instructions — shown on every "Add a Hole" click, before drawing starts. */
+        const holeInfo = document.createElement('dialog');
+        holeInfo.id = 'vrcpeHoleInfo';
+        holeInfo.className = 'vrcpe-choice';
+        holeInfo.innerHTML = `
+            <div class="vrcpe-choice-title">Add a Hole</div>
+            <div class="vrcpe-choice-body">Draw the hole fully inside your existing shape. When you close the hole, that area is cut out of the shape.</div>
+            <button id="vrcpeHoleInfoStart">Start Drawing</button>
+            <button id="vrcpeHoleInfoCancel">Cancel</button>`;
+        document.body.appendChild(holeInfo);
+
+        /* Shown when a just-closed hole isn't fully inside another closed subpath. */
+        const holeFail = document.createElement('dialog');
+        holeFail.id = 'vrcpeHoleFail';
+        holeFail.className = 'vrcpe-choice';
+        holeFail.innerHTML = `
+            <div class="vrcpe-choice-title">Hole Outside the Shape</div>
+            <div class="vrcpe-choice-body">A hole has to stay fully inside the shape, so the one you drew was removed. To add a hole, draw it again keeping every point inside the shape.</div>
+            <button id="vrcpeHoleFailOk">OK</button>`;
+        document.body.appendChild(holeFail);
 
         ui = {
             drawChoice: drawChoice,
             drawAddShape: drawChoice.querySelector('#vrcpeDrawAddShape'),
+            drawAddHole: drawChoice.querySelector('#vrcpeDrawAddHole'),
             drawEraseAll: drawChoice.querySelector('#vrcpeDrawEraseAll'),
             drawCancel: drawChoice.querySelector('#vrcpeDrawCancel'),
-            subpathWarn: subpathWarn,
-            subpathWarnOk: subpathWarn.querySelector('#vrcpeSubpathWarnOk'),
+            holeInfo: holeInfo,
+            holeInfoStart: holeInfo.querySelector('#vrcpeHoleInfoStart'),
+            holeInfoCancel: holeInfo.querySelector('#vrcpeHoleInfoCancel'),
+            holeFail: holeFail,
+            holeFailOk: holeFail.querySelector('#vrcpeHoleFailOk'),
             drawModeBtn: dlg.querySelector('#vrcpeDrawMode'),
             editModeBtn: dlg.querySelector('#vrcpeEditMode'),
             modeLine: dlg.querySelector('#vrcpeModeLine'),
@@ -442,6 +459,8 @@
                 refreshAll();
                 return;
             }
+            /* a hole needs a closed subpath to live inside */
+            ui.drawAddHole.disabled = !segs.some(s => s.c === 'Z');
             ui.drawChoice.showModal();
         };
         ui.editModeBtn.onclick = () => {
@@ -451,18 +470,29 @@
         };
         ui.drawAddShape.onclick = () => {
             ui.drawChoice.close();
-            ui.subpathWarn.showModal();
-        };
-        ui.subpathWarnOk.onclick = () => {
-            ui.subpathWarn.close();
+            drawingHole = false;
             selIndex = -1;
             setEditorMode('draw'); /* path kept closed — the next click starts a new M */
             refreshAll();
         };
+        ui.drawAddHole.onclick = () => {
+            ui.drawChoice.close();
+            ui.holeInfo.showModal();
+        };
+        ui.holeInfoStart.onclick = () => {
+            ui.holeInfo.close();
+            drawingHole = true;
+            selIndex = -1;
+            setEditorMode('draw');
+            refreshAll();
+        };
+        ui.holeInfoCancel.onclick = () => ui.holeInfo.close();
+        ui.holeFailOk.onclick = () => ui.holeFail.close();
         ui.drawEraseAll.onclick = () => {
             ui.drawChoice.close();
             pushUndo();
             segs = [];
+            drawingHole = false;
             selIndex = -1;
             setEditorMode('draw');
             refreshAll();
@@ -564,7 +594,9 @@
         ui.modeLine.disabled = (mode === 'edit');
         ui.modeCurve.disabled = (mode === 'edit');
         ui.hint.innerHTML = (mode === 'draw')
-            ? 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter'
+            ? (drawingHole
+                ? '<b>Drawing a hole</b> &middot; keep every point inside the shape &middot; click the first point to close and cut it out &middot; 1 unit = 1 meter'
+                : 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter')
             : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter';
         if (mode === 'edit') hideRubberBand();
     }
@@ -686,6 +718,17 @@
             }
         }
         segs.push({ c: 'Z' });
+        if (drawingHole) {
+            if (!finalizeHoleSubpath()) {
+                /* invalid hole removed — stay in hole-drawing mode for another attempt */
+                selIndex = -1;
+                hideRubberBand();
+                refreshAll();
+                ui.holeFail.showModal();
+                return;
+            }
+            drawingHole = false;
+        }
         selIndex = -1;
         setEditorMode('edit');
         refreshAll();
@@ -698,7 +741,94 @@
         if (editorMode === 'draw' && lastSubpathOpen() && currentSubpathAnchorCount() >= 3) {
             pushUndo();
             segs.push({ c: 'Z' });
+            if (drawingHole && !finalizeHoleSubpath()) {
+                ui.holeFail.showModal();
+            }
         }
+        drawingHole = false;
+    }
+
+    /* ---------------- hole subpaths ---------------- */
+
+    function lastClosedSubpathRange() {
+        let z = -1;
+        for (let i = segs.length - 1; i >= 0; i--) if (segs[i].c === 'Z') { z = i; break; }
+        if (z < 0) return null;
+        for (let i = z - 1; i >= 0; i--) if (segs[i].c === 'M') return { m: i, z: z };
+        return null;
+    }
+
+    function subpathAnchorPts(m, z) {
+        const pts = [];
+        for (let i = m; i < z; i++) { const s = segs[i]; if ('x' in s) pts.push({ x: s.x, y: s.y }); }
+        return pts;
+    }
+
+    function polySignedArea(pts) {
+        let a = 0;
+        for (let i = 0; i < pts.length; i++) {
+            const p = pts[i], q = pts[(i + 1) % pts.length];
+            a += p.x * q.y - q.x * p.y;
+        }
+        return a / 2;
+    }
+
+    function pointInPoly(pt, poly) {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const a = poly[i], b = poly[j];
+            if ((a.y > pt.y) !== (b.y > pt.y) &&
+                pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+        }
+        return inside;
+    }
+
+    /* Reverse the point order of the subpath segs[m..z] in place (winding flip). Each
+     * reversed segment ends at its original START anchor; C controls swap, arcs flip
+     * their sweep flag. The Z close edge is direction-agnostic and carries over. */
+    function reverseSubpathInPlace(m, z) {
+        const body = segs.slice(m + 1, z);
+        const anchors = [{ x: segs[m].x, y: segs[m].y }].concat(body.map(s => ({ x: s.x, y: s.y })));
+        const out = [];
+        for (let k = body.length - 1; k >= 0; k--) {
+            const s = body[k];
+            const ns = { c: s.c, x: anchors[k].x, y: anchors[k].y };
+            if (s.c === 'C') { ns.x1 = s.x2; ns.y1 = s.y2; ns.x2 = s.x1; ns.y2 = s.y1; }
+            else if (s.c === 'Q') { ns.x1 = s.x1; ns.y1 = s.y1; }
+            else if (s.c === 'A') { ns.rx = s.rx; ns.ry = s.ry; ns.rot = s.rot; ns.laf = s.laf; ns.sf = s.sf ? 0 : 1; }
+            out.push(ns);
+        }
+        const last = anchors[anchors.length - 1];
+        segs.splice(m, z - m, { c: 'M', x: last.x, y: last.y }, ...out);
+    }
+
+    /* Just-closed hole subpath: must lie fully inside another closed subpath. Wind it
+     * OPPOSITE its container so the fill rule (and the WD's solid/hole triangulation)
+     * cuts it out. Returns false when invalid — the subpath is removed so the user can
+     * try again. Containment is tested on anchor points (curve bulges are approximated). */
+    function finalizeHoleSubpath() {
+        const range = lastClosedSubpathRange();
+        if (!range) return false;
+        const holePts = subpathAnchorPts(range.m, range.z);
+        let container = null;
+        let mm = -1;
+        for (let i = 0; i < range.m; i++) {
+            if (segs[i].c === 'M') mm = i;
+            if (segs[i].c === 'Z' && mm >= 0) {
+                const poly = subpathAnchorPts(mm, i);
+                if (poly.length >= 3 && holePts.length &&
+                    holePts.every(p => pointInPoly(p, poly))) { container = poly; break; }
+                mm = -1;
+            }
+        }
+        if (!container) {
+            segs.splice(range.m, range.z - range.m + 1);
+            return false;
+        }
+        if (Math.sign(polySignedArea(holePts)) === Math.sign(polySignedArea(container))) {
+            reverseSubpathInPlace(range.m, range.z);
+        }
+        return true;
     }
 
     function worldPointer() {
@@ -830,6 +960,12 @@
             strokeWidth: 1.5,
             strokeScaleEnabled: false,
             hitStrokeWidth: 14,
+            /* Edit mode gets a light fill so solids and holes read at a glance; evenodd
+             * shows any enclosed subpath as a cut-out, matching the WD's solid/hole
+             * triangulation after export winding normalization. No fill while drawing —
+             * an open subpath would paint as if closed. */
+            fill: editorMode === 'edit' ? '#D3D3D366' : undefined,
+            fillRule: 'evenodd',
             /* draw mode: the path must not eat clicks near itself (its 14px hit stroke
              * made clicks "do nothing" wherever they crossed a drawn segment) */
             listening: editorMode === 'edit',
@@ -1228,6 +1364,7 @@
             (Number(opts.scaleX) || 1), (Number(opts.scaleY) || 1),
             (Number(opts.rotationDeg) || 0));
         selIndex = -1;
+        drawingHole = false;
         undoStack = [];
         redoStack = [];
         _lastTextUndoPush = 0;

@@ -2256,7 +2256,8 @@ function onClearAllClicked() {
             'All undo and redo history',
             'Your Custom Item Library (' + customCount + ' template' + (customCount === 1 ? '' : 's') + ')',
             'Your Background Image Library (' + bgCount + ' image' + (bgCount === 1 ? '' : 's') + ')',
-            'All saved preferences (snap settings, default unit, Workspace Designer site, etc.)'
+            'All saved preferences (snap settings, default unit, Workspace Designer site, etc.)',
+            'Browser cookies and session data for this site'
         ];
         items.forEach(function (label) {
             const li = document.createElement('li');
@@ -2284,7 +2285,7 @@ function onClearAllClicked() {
     });
 }
 
-/* Confirm Clear All: wipe IDB + localStorage, close WD iframe, navigate to base URL (drops ?x=) for a fresh default room. Reload restarts all in-memory caches. */
+/* Confirm Clear All: wipe IDB + localStorage + sessionStorage + cookies, close WD iframe, navigate to base URL (drops ?x=) for a fresh default room. Reload restarts all in-memory caches. */
 function confirmClearAllStorage() {
     /* Disable the button so the user can't double-click during the async IDB clear. */
     const btn = document.getElementById('btnConfirmClearAllStorage');
@@ -2299,6 +2300,23 @@ function confirmClearAllStorage() {
             if (typeof localStorage !== 'undefined') localStorage.clear();
         } catch (e) {
             console.warn('[storageDialog] localStorage.clear failed:', e && e.message);
+        }
+        try {
+            if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+        } catch (e) {
+            console.warn('[storageDialog] sessionStorage.clear failed:', e && e.message);
+        }
+        /* HttpOnly cookies can't be touched from JS; anything this page (or scripts on it) set is expired here. Both path variants because JS-set cookies default to the current path. */
+        try {
+            document.cookie.split(';').forEach(function (c) {
+                const name = c.split('=')[0].trim();
+                if (!name) return;
+                const expire = '=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                document.cookie = name + expire + '; path=/';
+                document.cookie = name + expire;
+            });
+        } catch (e) {
+            console.warn('[storageDialog] cookie clear failed:', e && e.message);
         }
         /* Close any open WD iframe before reloading (symmetric with Clear Undo/Redo; navigation tears it down anyway). */
         try { _closeWorkspaceDesignerIframe(); } catch (e) { /* ignore */ }
@@ -12660,6 +12678,8 @@ function wallBuilderOn(event) {
 
     if (turnOn) {
 
+        if (isMeasuringToolOn || isSelectingTwoPointsOn) hideSelect2PointsShapes();
+
         document.getElementById('ContainerInputs').style.display = 'none';
         document.getElementById('wallBuilderDiv').style.display = '';
 
@@ -12985,6 +13005,8 @@ function wallBuilderOn2(event) {
     let wallBuilderToolCheckBox2 = document.getElementById('wallBuilderTool2')
 
     if (turnOn) {
+
+        if (isMeasuringToolOn || isSelectingTwoPointsOn) hideSelect2PointsShapes();
 
         wallWriterRect2.show();
         isWallWriterOn2 = true;
@@ -15978,9 +16000,20 @@ function deleteTrNodes(save = true) {
 
     /* Deleting a boxRoomPart must also clear its default-walls preview from
      * the overview canvas (the preview group isn't tied to the node). */
-    const deletedRoomPart = copyTrNodes.some(n => n.data_deviceid === 'boxRoomPart');
+    const deletedRoomPart = copyTrNodes.some(n => isRoomPart(n.data_deviceid));
     if (deletedRoomPart && typeof drawRoomPartDefaultWallsPreviews === 'function') {
         drawRoomPartDefaultWallsPreviews();
+    }
+
+    /* Deleting the LAST Room Part (boxRoomPart or polyRoom) exits Multi-Room Floor Plan
+     * Mode entirely, mirroring the Settings-tab "Turn off" toggle — otherwise the design
+     * is stuck in an empty MultiRoom overview with no way back to a normal single room
+     * short of re-adding a Room Part. Only reachable in overview: Room Part nodes are
+     * hidden/unlistening while zoomed into another Room Part, so this can't fire mid-zoom. */
+    if (deletedRoomPart && roomObj.multiRoomFloorPlanMode && !roomObjHasRoomPart()) {
+        roomObj.multiRoomFloorPlanMode = false;
+        applyMultiRoomModeUi();
+        syncMultiRoomFloorPlanModeToggle();
     }
 
     enableCopyDelBtn();
@@ -18125,7 +18158,10 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         }
     });
 
-    tblWallFlr.on('dblclick', function doubleClick(e) {
+    /* dbltap: Konva's touch equivalent of dblclick (separate event names — its
+     * touch event-name map fires "dbltap" for a double-tap, not "dblclick"). Without
+     * it, entering a Room Part had no touch-gesture path at all. */
+    tblWallFlr.on('dblclick dbltap', function doubleClick(e) {
         if ('data_deviceid' in tblWallFlr && (tblWallFlr.data_deviceid === 'boxRoomPart' || tblWallFlr.data_deviceid === 'polyRoom')) {
             zoomRoomPart(tblWallFlr);
         }
@@ -25459,12 +25495,15 @@ function addListeners(stage) {
 
         clearTimeout(rightClickTouchTimer);
 
-        /* update right-click menu if already exisiting to capture updated TR node options */
+        /* Refresh an open right-click menu only when the selection actually changed since it
+         * was built (menu creation now self-selects the item under the pointer, so this
+         * rarely fires — it replaces the old unconditional 500 ms rebuild). */
         setTimeout(() => {
-            if (document.getElementById(rightClickMenuDialogId)) {
+            const menuEl = document.getElementById(rightClickMenuDialogId);
+            if (menuEl && menuEl.dataset.trSnapshot !== tr.nodes().map(n => n.id()).join('|')) {
                 createRightClickMenu(true);
             }
-        }, 500)
+        }, 50)
 
         trNodesLength = tr.nodes().length;
 
@@ -34009,6 +34048,10 @@ function exportRoomObjToWorkspace() {
             workspaceItem = parseDataLabelFieldJson(item, workspaceItem);
         }
 
+        if (item.data_deviceid === 'pathShape' && typeof workspaceItem.path === 'string') {
+            workspaceItem.path = normalizeSvgPathWindingForWd(workspaceItem.path);
+        }
+
         /* Configurable fill / opacity round-trip into WD JSON for
          * furniture-path devices (currently only pathShape on this code
          * path). MUST run AFTER parseDataLabelFieldJson() so per-item
@@ -34966,6 +35009,137 @@ function parsePathShapeLabelFieldJson(item) {
 
 }
 
+/* The WD triangulates a pathShape's SVG path treating any subpath wound OPPOSITE to the
+ * first as a HOLE; a "hole" lying outside its solid collapses into degenerate geometry
+ * (the "subpaths sometimes render broken in the WD" bug — it depended purely on which
+ * rotational direction the user happened to draw each subpath). Normalize winding by
+ * CONTAINMENT before export: a subpath enclosed by another (odd containment depth) is a
+ * hole and gets the OPPOSITE winding; a free-standing subpath (even depth) is a solid
+ * and gets the SAME winding as the reference. This both fixes accidental opposite-wound
+ * disjoint solids AND preserves intentional holes (Path Editor "Add a Hole") no matter
+ * which direction the user drew them. Winding is the shoelace sum over anchor points;
+ * containment is anchors-inside-anchors (curve bulges approximated). Handles the
+ * absolute M/L/C/Q/Z set the Path Editor emits; anything else (arcs, relative commands,
+ * H/V/S/T) returns the original string untouched, as does any path where no subpath
+ * needs reversal. */
+function normalizeSvgPathWindingForWd(pathStr) {
+    if (typeof pathStr !== 'string' || pathStr.indexOf('M') === -1) return pathStr;
+    const src = pathStr.replace(/,/g, ' ');
+    if (/[^MLCQZ0-9+\-.\s]/.test(src)) return pathStr;
+
+    const tokens = src.match(/[MLCQZ]|[-+]?[0-9]*\.?[0-9]+/g);
+    if (!tokens) return pathStr;
+
+    const ptsPerCmd = { M: 1, L: 1, Q: 2, C: 3 };
+    const subpaths = [];
+    let current = null;
+    let i = 0;
+    while (i < tokens.length) {
+        const cmd = tokens[i++];
+        if (cmd === 'Z') {
+            if (!current) return pathStr;
+            current.closed = true;
+            continue;
+        }
+        const nPts = ptsPerCmd[cmd];
+        if (!nPts) return pathStr;
+        const pts = [];
+        for (let p = 0; p < nPts; p++) {
+            const x = parseFloat(tokens[i++]);
+            const y = parseFloat(tokens[i++]);
+            if (!isFinite(x) || !isFinite(y)) return pathStr;
+            pts.push([x, y]);
+        }
+        if (cmd === 'M') {
+            current = { start: pts[0], segs: [], closed: false };
+            subpaths.push(current);
+        } else {
+            if (!current) return pathStr;
+            current.segs.push({ cmd: cmd, pts: pts });
+        }
+    }
+
+    /* a single-subpath solid renders in the WD whichever way it's wound (see the
+     * fallback note below) — keep those byte-identical */
+    if (subpaths.length < 2) return pathStr;
+
+    const anchorsOf = (sp) => [sp.start].concat(sp.segs.map(s => s.pts[s.pts.length - 1]));
+
+    const signedArea = (anchors) => {
+        let a = 0;
+        for (let k = 0; k < anchors.length; k++) {
+            const p1 = anchors[k];
+            const p2 = anchors[(k + 1) % anchors.length];
+            a += p1[0] * p2[1] - p2[0] * p1[1];
+        }
+        return a / 2;
+    };
+
+    const pointInPoly = (pt, poly) => {
+        let inside = false;
+        for (let k = 0, j = poly.length - 1; k < poly.length; j = k++) {
+            const a = poly[k], b = poly[j];
+            if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+                pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+        }
+        return inside;
+    };
+
+    const polys = subpaths.map(anchorsOf);
+    const areas = polys.map(signedArea);
+    /* containment depth: how many OTHER real subpaths fully enclose this one.
+     * Even depth = solid, odd depth = hole (evenodd nesting). */
+    const depths = polys.map((poly, idx) => {
+        let d = 0;
+        polys.forEach((other, oIdx) => {
+            if (oIdx === idx || other.length < 3 || Math.abs(areas[oIdx]) < 1e-9) return;
+            if (poly.length && poly.every(pt => pointInPoly(pt, other))) d++;
+        });
+        return d;
+    });
+
+    /* The WD's solid/hole classification is ABSOLUTE, not relative to the first subpath:
+     * a subpath with POSITIVE shoelace sum (in the path's own y-down coords) is a solid,
+     * negative is a hole. (An all-negative path happens to render because the WD falls
+     * back to "no solids found -> treat everything as solid", which is why single-solid
+     * paths drawn either direction always worked — but a negative solid PLUS a positive
+     * hole classifies inverted: the hole renders as a raised solid and the solid becomes
+     * a ghost, the "hole got reversed" bug.) */
+    const refSign = 1;
+
+    let changed = false;
+    subpaths.forEach((sp, idx) => {
+        if (Math.abs(areas[idx]) < 1e-9) return;
+        const targetSign = (depths[idx] % 2 === 0) ? refSign : -refSign;
+        if (Math.sign(areas[idx]) === targetSign) return;
+        /* Reverse the subpath: walk segments back-to-front; each reversed segment ends at
+         * the original segment's START anchor, control points in flipped order. The Z close
+         * edge is direction-agnostic (same two anchors), so `closed` carries over as-is. */
+        const anchors = polys[idx];
+        const newSegs = [];
+        for (let k = sp.segs.length - 1; k >= 0; k--) {
+            const seg = sp.segs[k];
+            const ctrls = seg.pts.slice(0, -1).reverse();
+            newSegs.push({ cmd: seg.cmd, pts: ctrls.concat([anchors[k]]) });
+        }
+        sp.start = anchors[anchors.length - 1];
+        sp.segs = newSegs;
+        changed = true;
+    });
+
+    if (!changed) return pathStr;
+
+    const num = (v) => String(Math.round(v * 1e6) / 1e6);
+    return subpaths.map(sp => {
+        let out = 'M ' + num(sp.start[0]) + ' ' + num(sp.start[1]);
+        sp.segs.forEach(s => {
+            out += ' ' + s.cmd + ' ' + s.pts.map(p => num(p[0]) + ' ' + num(p[1])).join(' ');
+        });
+        if (sp.closed) out += ' Z';
+        return out;
+    }).join(' ');
+}
+
 function combinePathShapeLabel(label, path) {
     let newLabel = '';
 
@@ -35352,6 +35526,12 @@ function toggleItemActionsMenu(event, mode) {
      * specific bundle they want to dissolve. */
     const canUncustomItem = singleCustomItemBundleSelected;
 
+    /* Touch-friendly alternative to the dblclick/dbltap gesture for entering a Room
+     * Part — plain taps only (select item, tap "...", tap the action), no gesture
+     * timing involved at all. */
+    const singleRoomPart = trNodes.length === 1 &&
+        (trNodes[0].data_deviceid === 'boxRoomPart' || trNodes[0].data_deviceid === 'polyRoom');
+
     /* ---- Build menu DOM ---- */
     const menu = document.createElement('div');
     menu.id = ITEM_ACTIONS_MENU_ID;
@@ -35375,6 +35555,10 @@ function toggleItemActionsMenu(event, mode) {
         menu.appendChild(hr);
     };
 
+    if (singleRoomPart) {
+        addItem('Enter Room', false, () => zoomRoomPart(trNodes[0]));
+        addDivider();
+    }
     addItem('Create Group', !canGroup, () => createGroup());
     addItem('Ungroup', !canUngroup, () => ungroupSelectedItems());
     addDivider();
@@ -35517,7 +35701,31 @@ function createRightClickMenu(usePreviousPosition = false) {
     }
 
     const pos = stage.getPointerPosition();
-    const shape = layerTransform.getIntersection(pos);
+    const shape = pos ? layerTransform.getIntersection(pos) : null;
+
+    /* Select the item under the pointer up front (same rules as left-click select) so
+     * every entry's enable-state is computed against the item being right-clicked —
+     * this replaces the old fixed 500 ms full-menu rebuild that flashed entries from
+     * disabled to active. A right-click inside an existing selection leaves it alone
+     * so multi-select actions (Group, Rotate, ...) still target the whole set. */
+    const overNode = shape ? resolveItemAncestor(shape) : null;
+    if (overNode && overNode.attrs && overNode.attrs.id &&
+        typeof overNode.draggable === 'function' && overNode.draggable() &&
+        tr.nodes().indexOf(overNode) < 0) {
+        tr.nodes([overNode]);
+        expandSelectionForGroups();
+        if (!tr.nodes().some(n => n.data_deviceid === 'group') &&
+            (overNode.getParent() === groupTables || overNode.getParent() === groupStageFloors || overNode.getParent() === groupBoxes || overNode.getParent() === groupRooms)) {
+            resizeTableOrWall();
+        } else if (!tr.nodes().some(n => n.data_deviceid === 'group')) {
+            tr.resizeEnabled(false);
+        }
+        enableCopyDelBtn();
+        if (tr.nodes().length === 1) updateFormatDetails(overNode.id());
+    }
+
+    const enterRoomTarget = (overNode &&
+        (overNode.data_deviceid === 'boxRoomPart' || overNode.data_deviceid === 'polyRoom')) ? overNode : null;
 
     let hr = document.createElement('hr');
     hr.className = 'rightClickHorizontalLine';
@@ -35531,6 +35739,13 @@ function createRightClickMenu(usePreviousPosition = false) {
         createMenuItem('deleteMenuDiv', 'Delete', 'delete', tr.nodes().length < 1);
         createMenuItem('duplicateMenuDiv', 'Duplicate', 'ctrl+d', tr.nodes().length < 1);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        /* Enter Room renders only when the pointer is over a Room Part (touch-friendly
+         * alternative to the dblclick/dbltap gesture — the long-press-to-right-click
+         * path already works on touch via rightClickTouchTimer). */
+        if (enterRoomTarget) {
+            createMenuItem('enterRoomMenuDiv', 'Enter Room', 'dbl clk', false);
+            rightClickMenuDiv.appendChild(hr.cloneNode(true));
+        }
         createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
         /* Group / CustomItem enable-state.
@@ -35587,6 +35802,11 @@ function createRightClickMenu(usePreviousPosition = false) {
 
 
 
+
+    /* Selection snapshot at build time — the stage mouseup handler rebuilds the open menu
+     * only when tr.nodes() no longer matches this (touch long-press: the tap at finger-lift
+     * can still change the selection). */
+    rightClickMenuDialog.dataset.trSnapshot = tr.nodes().map(n => n.id()).join('|');
 
     rightClickMenuDialog.style.top = newY + 'px'; /* Distance from the top of the viewport, moved to center */
     rightClickMenuDialog.style.left = newX + 'px';
@@ -35676,7 +35896,7 @@ function createRightClickMenu(usePreviousPosition = false) {
                 });
 
                 if (tr.nodes().length === 1) {
-                    updateFormatDetails(shape.id());
+                    updateFormatDetails(tr.nodes()[0].id());
                 }
             }
             else if (e.target.id === 'groupMenuDiv') {
@@ -35684,6 +35904,9 @@ function createRightClickMenu(usePreviousPosition = false) {
             }
             else if (e.target.id === 'ungroupMenuDiv') {
                 ungroupSelectedItems();
+            }
+            else if (e.target.id === 'enterRoomMenuDiv') {
+                zoomRoomPart(enterRoomTarget);
             }
         });
 
@@ -35757,6 +35980,18 @@ document.addEventListener('pointerdown', event => {
     const rightClickMenu = document.getElementById(rightClickMenuDialogId);
     if (rightClickMenu && !rightClickMenu.contains(event.target) && event.target) {
         closeRightClickMenu();
+    }
+
+});
+
+/* Quick Add is a positioned div (not a <dialog> with a backdrop), so close it on any
+ * pointerdown outside its box. Openers can't self-close it: button/menu opens happen on
+ * `click` (after pointerup) and the Space-key path has no pointer event at all. */
+document.addEventListener('pointerdown', event => {
+
+    const quickDialog = document.getElementById('dialogQuickAdd');
+    if (quickDialog && quickDialog.style.display === 'flex' && !quickDialog.contains(event.target)) {
+        toggleQuickAdd(false);
     }
 
 });

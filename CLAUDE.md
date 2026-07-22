@@ -434,6 +434,43 @@ back to no `data_opacity` so a `VRC → WD JSON → VRC` round-trip
 preserves the "default" state. Real user overrides (`0.5`, `0.7`, …)
 are untouched.
 
+#### pathShape sub-path winding normalization (WD export)
+
+The WD triangulates a pathShape's SVG path treating any sub-path wound
+OPPOSITE to the first as a HOLE; a "hole" lying outside its solid
+collapses into degenerate geometry (a thin sliver) in the 3D render.
+Whether a multi-sub-path shape rendered correctly therefore depended
+purely on which rotational direction the user happened to draw each
+sub-path — "sometimes works great, sometimes fails."
+
+Fix: `normalizeSvgPathWindingForWd(pathStr)` (next to
+`parsePathShapeLabelFieldJson` in `js/roomcalc.js`) normalizes winding
+by CONTAINMENT, applied at the WD-export boundary only (in the
+furniture push, right after `parseDataLabelFieldJson()` puts `path` on
+the workspaceItem). Each sub-path's containment depth = how many other
+real sub-paths fully enclose it (anchors-inside-anchors test): even
+depth = solid, odd depth = hole. **The WD's solid direction is
+ABSOLUTE, not relative to the first sub-path**: solids must have a
+POSITIVE shoelace sum (in the path's own y-down coords), holes
+negative. (An all-negative path happens to render because the WD falls
+back to "no solids found → treat everything as solid" — which is why
+single solids drawn either direction always worked — but a negative
+solid plus a positive hole classifies INVERTED: the hole renders as a
+raised solid and the solid becomes a ghost, the "hole got reversed"
+bug.) Single-sub-path paths are returned byte-identical (winding is
+irrelevant for one solid). This fixes accidental opposite-wound
+disjoint solids (the sliver bug) AND renders intentional holes (Path
+Editor "Add a Hole") correctly no matter which direction the user drew
+either sub-path; islands (solid inside a hole, depth 2) also work.
+The stored `data_labelField` path is never modified, so the VRC canvas,
+`.vrc.json`, and shareable URLs are untouched. The helper handles the
+absolute M/L/C/Q/Z set the Path Editor emits and bails (returns the
+original string) on arcs, relative commands, or H/V/S/T; it also
+returns the original string byte-identical when no sub-path needs
+reversal. Reversal walks segments back-to-front with control points
+flipped (C c1 c2 end → C c2 c1 origStart); the Z close edge is
+direction-agnostic so it carries over.
+
 #### cone-only WD opacity sentinel (`0.999`)
 
 The `cone` device has the same pair of WD quirks as `pathShape`
@@ -1683,18 +1720,37 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   its keystrokes don't hit the editor's Esc-applies keydown handler):
   **Add New Sub-Path** keeps the path and the next click starts
   another `M` subpath (drawing operates on the LAST subpath —
-  `lastSubpathOpen()` / `currentSubpathStart()`) — clicking it first
-  shows a one-time caveat dialog (`#vrcpeSubpathWarn`: "Sub-Paths may
-  not export correctly to the Workspace Designer") before applying —
-  or **Erase & Start Over**, which clears everything with no caveat.
+  `lastSubpathOpen()` / `currentSubpathStart()`); **Add a Hole** (see
+  below; disabled until a closed subpath exists); or **Erase & Start
+  Over**, which clears everything. (The old one-time
+  `#vrcpeSubpathWarn` "Sub-Paths may not export correctly" caveat was
+  removed once WD-export winding normalization landed — sub-paths now
+  export correctly.)
   No dragging/selection/controls while drawing. **Leaving draw mode
   with an open subpath auto-closes it with `Z`** (`closeOpenSubpath()`,
   3+ anchors required — fewer would be a degenerate closed line):
   fires from the Edit Mode button and from `finishAndApply()` (which
   covers Close, Esc, and any dialog close).
+- **Add a Hole** (`drawingHole` flag): the choice dialog's hole option
+  shows an instruction dialog (`#vrcpeHoleInfo`: "Draw the hole fully
+  inside your existing shape…") and then enters draw mode with a
+  hole-specific hint. The subpath is drawn exactly like any other; on
+  close, `finalizeHoleSubpath()` validates that every anchor of the
+  new subpath lies inside another closed subpath (`pointInPoly` on
+  anchor polygons — curve bulges approximated). Valid → the subpath's
+  winding is flipped to OPPOSITE its container if needed
+  (`reverseSubpathInPlace()` — C controls swap, arc sweep flags flip)
+  so both the canvas fill and the WD cut it out. Invalid → the subpath
+  is removed, `#vrcpeHoleFail` explains, and hole-draw mode stays
+  active for another attempt. `closeOpenSubpath()` runs the same
+  finalize when the user leaves draw mode mid-hole; `drawingHole`
+  resets on `open()`, Erase & Start Over, and every draw-mode exit.
 - **Edit mode**: everything else below (drag, select, insert, convert,
   delete). **Hovering a point enlarges it slightly and fills it baby
-  blue (`#89CFF0`)** so the user knows it's clickable.
+  blue (`#89CFF0`)** so the user knows it's clickable. The preview
+  path gets a light `#D3D3D366` fill with `fillRule: 'evenodd'` in
+  Edit mode only (an open subpath would paint as if closed in Draw
+  mode), so solids and holes read at a glance.
 
 ### Coordinate model (the important part)
 
@@ -2497,6 +2553,61 @@ always agree about when Group / Create Custom Item is offered. The
 right-click click handler dispatches to `openCreateCustomItemDialog()`
 — same entrypoint as the ellipse menu — so the name-required dialog
 flow is identical no matter which surface the user invoked from.
+
+#### Entering a Room Part on touch devices
+
+Entering (zooming into) a `boxRoomPart` / `polyRoom` is normally a
+Konva `dblclick` on the item (wired in `insertTable()`; calls
+`zoomRoomPart(tblWallFlr)`). That handler is bound to `'dblclick
+dbltap'` — Konva fires a separate `dbltap` event name for a
+touch double-tap rather than `dblclick`, so both are needed for the
+gesture to work on a touchscreen.
+
+Two menu-based alternatives exist for touch devices where a
+timing-sensitive double-tap is awkward, mirroring the CustomItem
+pattern above:
+
+- **Right-click menu**: an `Enter Room` entry sits just below
+  `Duplicate`, rendered ONLY when the pointer is over a Room Part
+  (`enterRoomTarget` — the `resolveItemAncestor()` of the
+  `layerTransform.getIntersection()` hit — is a `boxRoomPart` /
+  `polyRoom`; the dispatch zooms that captured node, so it works even
+  when the Room Part is part of a multi-selection). The menu's
+  existing long-press-to-right-click path (`rightClickTouchTimer`,
+  armed whenever `mobileDevice !== 'false'` — covers
+  iOS/Android/RoomOS/Tesla) makes this reachable on touch without any
+  double-tap timing at all. Note: like a left-click, the hit test
+  returns the TOPMOST node — a table lying inside a Room Part's rect
+  can still be right-clicked wherever the table itself is the top hit.
+- **Ellipse menu** (`toggleItemActionsMenu()`): `Enter Room` leads the
+  menu (above Create Group), shown only for a single-Room-Part
+  selection (`tr.nodes().length === 1 && (data_deviceid ===
+  'boxRoomPart' || 'polyRoom')`). This is the most touch-robust path —
+  plain taps only (select the item, tap `...`, tap `Enter Room`).
+
+No "already zoomed in" guard is needed on either surface: Room Part
+nodes are hidden/unlistening while zoomed into another Room Part (see
+"polyRoom Point Editing" above), so `tr.nodes()` can never contain one
+in that state.
+
+#### Right-click select-under-pointer & rebuild dedup
+
+`createRightClickMenu()` selects the item under the pointer BEFORE
+building any entry (same rules as left-click select: `draggable()`
+gate, `expandSelectionForGroups()`, table-resize enable,
+`enableCopyDelBtn()` + `updateFormatDetails()`), so every entry's
+enable-state is computed against the item actually being
+right-clicked. A right-click inside an existing selection leaves the
+selection untouched so multi-select actions still target the whole
+set. This replaced the old unconditional `setTimeout(...500)` rebuild
+in the stage `mouseup` handler, which flashed every entry from
+disabled to active half a second after the menu opened. The rebuild
+survives as a fast (50 ms) CONDITIONAL refresh: the menu stamps
+`dataset.trSnapshot` (joined `tr.nodes()` ids) at build time, and the
+mouseup hook only re-creates an open menu when the current selection
+no longer matches — in practice only the touch long-press path, where
+the tap at finger-lift can still change `tr.nodes()` after the menu
+appeared.
 
 #### `Create Custom Item` name-required dialog
 
