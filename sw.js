@@ -6,7 +6,10 @@
  * cache under the new CACHE_NAME below -- no separate step required. */
 importScripts('./js/version.js');
 
-const CACHE_VERSION = APP_VERSION;
+/* typeof guard: survives a mid-rollout state where the browser fetched a new
+ * sw.js against a still-cached old version.js that lacks BUILD_VERSION. */
+const CACHE_VERSION = APP_VERSION +
+    ((typeof BUILD_VERSION !== 'undefined' && BUILD_VERSION) ? `-${BUILD_VERSION}` : '');
 const CACHE_NAME = `vrc-pwa-${CACHE_VERSION}`;
 
 const PRECACHE_ASSETS = [

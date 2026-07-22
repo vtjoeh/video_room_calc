@@ -30,13 +30,22 @@ The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
 `sw.js` is a **cache-first** service worker (checks `caches.match()`
 before ever touching the network) that precaches `RoomCalculator.html`,
 every eager `js/` file, and the core assets. Its cache name is
-`vrc-pwa-${CACHE_VERSION}`, where `CACHE_VERSION` is `APP_VERSION` read
-from `js/version.js` via `importScripts()` at the top of `sw.js`.
+`vrc-pwa-${CACHE_VERSION}`, where `CACHE_VERSION` is
+`APP_VERSION + '-' + BUILD_VERSION` (the `-` suffix omitted when
+`BUILD_VERSION` is empty), both read from `js/version.js` via
+`importScripts()` at the top of `sw.js`.
 
 **`js/version.js` is the single source of truth for the app version.**
-`roomcalc.js`'s `const version = APP_VERSION;` (line 1) reads it on the
-page side; `sw.js` reads the same file via `importScripts()`. Bumping
-the string in `js/version.js` is therefore the ONLY step required to
+It carries TWO constants: `APP_VERSION` (the user-visible version) and
+`BUILD_VERSION` (a free-form build tag — bump it INSTEAD of
+`APP_VERSION` for small pushes that shouldn't change the visible
+version number; empty string = no build). Changing EITHER one forces
+clients to update. `roomcalc.js`'s `const version = APP_VERSION;`
+(line 1) reads the version on the page side and logs
+`[VRC] <version> build <build>` to the console at boot so you can
+check which build a client is actually running; `sw.js` reads the same
+file via `importScripts()`. Bumping either string in `js/version.js`
+is therefore the ONLY step required to
 get users off a stale cached build — no separate "remember to also
 edit `sw.js`" step, because the browser's service-worker update check
 does a byte-for-byte comparison of the SW's main script **plus every
@@ -72,4 +81,4 @@ narrower: Application → Service Workers → Unregister, then Application
 | Images not loading | Verify paths in `assets/images/` |
 | URL too long | Room has too many objects (>500), use JSON file instead |
 | Workspace Designer export fails | Check `workspaceKey` mapping exists |
-| App shows stale JS after a deploy | Bump `js/version.js`'s `APP_VERSION`. If it's already current, see "PWA / Service Worker caching" above for the manual cache-clear fallback |
+| App shows stale JS after a deploy | Bump `js/version.js`'s `APP_VERSION` (or just `BUILD_VERSION` to keep the visible version number). If it's already current, see "PWA / Service Worker caching" above for the manual cache-clear fallback |
