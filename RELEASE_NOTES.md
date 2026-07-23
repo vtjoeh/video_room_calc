@@ -3,13 +3,11 @@
 https://collabexperience.com
 
 **0.1.664**
-- Front of Room Speaker exports to the Workspace Designer as a 1 ft x 1 ft x 2 ft tall box.
-- Fixed: Highlight Small Devices misplaced (hid) small items when toggled inside a Room Part.
-- Delete Layer now uses the standard confirmation dialog.
-- Save dialog re-checks PWA mode so the "Save File" button label shows reliably.
+- bug fixes. 
+- Updated tutorial videos. 
 
 **v0.1.663**
-- Edit irregular Room Part 
+- Edit irregular Room Part. 
 
 **v0.1.661 Release Notes**
 - moved aroud menus and added button for Wall Builder 
