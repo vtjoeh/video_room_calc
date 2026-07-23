@@ -12877,11 +12877,10 @@ function openSvgPathEditor(idOverride, startMode) {
     }).then(() => {
         let mainHtml = `<li>Draw a path with lines or curved lines.</li>
         <li>Set curve control points after drawing in Edit mode.</li>
-        <li>Lines cannot intersect. No holes are allowed.</li>
+        <li>Lines cannot intersect within a single shape. Use 'Add a Hole' from Draw Mode to cut a hole out of a closed shape.</li>
         <li>Close the path when done.</li>
         <li>Path shape units are always in meters.</li>
         <li>The room walls and any floor plan background image are imported for reference.</li>
-        <li>Sub-paths are allowed, but might not export correctly to the Workspace Designer.</li>
         <li>Click 'Close' when done.</li>`
             ;
         alertDialog('Path Editor', mainHtml, 'pathEditor');
