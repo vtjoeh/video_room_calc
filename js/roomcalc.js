@@ -7636,7 +7636,7 @@ let tables = [{
     opacity: 0.4,
     resizeable: [],
     configurableColor: true,
-    default_vHeight: 610,
+    default_vHeight: 914, /* 3 ft */
     defaultLayerId: "1",
 },
 {
@@ -17016,9 +17016,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 0.9 * scale;
         height = 2.2 * scale;
     }
-    else if (insertDevice.id === 'cylinder' || insertDevice.id === 'cylinderPole') {
+    else if (insertDevice.id === 'cylinder') {
         width = 0.45 * scale;
         height = 0.45 * scale;
+    }
+    else if (insertDevice.id === 'cylinderPole') {
+        /* Default diameter 0.5 ft ≈ 0.1524 m. */
+        width = 0.1524 * scale;
+        height = 0.1524 * scale;
     }
     else if (insertDevice.id === 'cone') {
         /* Default radius1 = 0.1 m → diameter (item.width) = 0.2 m. */
