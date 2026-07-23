@@ -3,6 +3,7 @@
 https://collabexperience.com
 
 **0.1.664**
+- Added a new Ceiling Pole. Put in the Z value (base elevation) and it will touch the ceiling. 
 - bug fixes. 
 - Updated tutorial videos. 
 

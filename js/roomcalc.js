@@ -7623,7 +7623,7 @@ let tables = [{
      * — data_vHeight is never stored. The id starts with 'cylinder' on purpose so the
      * startsWith('cylinder') Details-enable and resize-anchor branches apply without
      * extra wiring. Default z is seeded at insert: ceiling minus 3 ft. */
-    name: 'Ceiling Pole**',
+    name: 'Ceiling Pole',
     id: 'cylinderPole',
     key: 'WU',
     frontImage: 'cylinder-menu.png',
