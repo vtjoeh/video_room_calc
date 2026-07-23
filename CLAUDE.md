@@ -406,6 +406,7 @@ is NEVER stored — `updateItem()` and the WD import both delete it.
 | Details panel | Z input is **disabled** and shows `ceilingPoleZ(vHeight)` = `activeRoomHeight() \|\| defaultWallHeight` − vHeight (current unit), recomputed on every populate. `populateGroupDetails` / `populateCustomItemDetails` re-enable the shared input (`itemZposition.disabled = false`) so a prior pole selection can't leave it stuck read-only. |
 | URL key | `WU`. No `b` (z) is ever emitted; `j` carries vHeight as usual. |
 | WD export | Rides the cylinder branch in `workspaceObjWallPush()` with `position[1] = (roomObj2.room.roomHeight \|\| defaultWallHeight) − length/2` (WD cylinder position y is the CENTER). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix + deletes the computed `data_zPosition`. |
+| Group / CustomItem Z | A bundle Z change routes every member through `applyBundleDeltaZToMember(m, deltaZ)` (shared by `updateGroupItem` and `updateCustomItemItem`). Normal members get `data_zPosition += deltaZ`; a pole member instead gets `data_vHeight −= deltaZ` (clamped ≥ 0.01, NO rounding) so its BASE follows the bundle while the top stays pinned to the ceiling — raise a "Quad Cam + pole + box" CustomItem and the pole just gets shorter. Fully reversible; z stays unstored. |
 
 ### pathShape precedence
 

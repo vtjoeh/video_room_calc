@@ -1032,6 +1032,31 @@ function populateGroupDetails(rectNode) {
 }
 
 /* Apply a Group-level Details edit: X/Y/Z translate members + rect; rotation around the rect centre; label/layer cascade to members. */
+/* Bundle (Group/CustomItem) Z delta applied to one member node + its roomObj entry.
+ * Ceiling Pole exception: the pole's top always touches the ceiling and its z is derived,
+ * so a bundle Z change moves the pole's BASE by shrinking/growing data_vHeight instead of
+ * storing a z — raise the bundle 1 unit and the pole gets 1 unit shorter, still ceiling-hung. */
+function applyBundleDeltaZToMember(m, deltaZ) {
+    if (m.data_deviceid === 'cylinderPole') {
+        const defaultVh = (allDeviceTypes.cylinderPole.default_vHeight / 1000)
+            * (roomObj.unit === 'feet' ? 3.28084 : 1);
+        const newVh = Math.max(0.01, (Number(m.data_vHeight) || defaultVh) - deltaZ);
+        m.data_vHeight = newVh;
+        if (roomObj && Array.isArray(roomObj.items)) {
+            const entry = roomObj.items.find(it => it.id === m.id());
+            if (entry) { entry.data_vHeight = newVh; delete entry.data_zPosition; }
+        }
+        return;
+    }
+    const existingZ = Number(m.data_zPosition) || 0;
+    m.data_zPosition = existingZ + deltaZ;
+    /* Mirror to roomObj.items directly — canvasToJson() only writes data_zPosition already in the node. */
+    if (roomObj && Array.isArray(roomObj.items)) {
+        const entry = roomObj.items.find(it => it.id === m.id());
+        if (entry) entry.data_zPosition = m.data_zPosition;
+    }
+}
+
 function updateGroupItem(group) {
     if (!group || !groupGroupRects) return;
     const rectNode = groupGroupRects.find(n => n.data_groupId === group.groupid)[0];
@@ -1077,17 +1102,9 @@ function updateGroupItem(group) {
         customItemRects.forEach(r => rotateNodeAroundPoint(r, centre.x, centre.y, deltaR));
     }
 
-    /* 3) Z elevation: deltaZ adds to every member's data_zPosition (missing/NaN treated as 0); group holds the new baseline. */
+    /* 3) Z elevation: deltaZ adds to every member's data_zPosition (missing/NaN treated as 0); group holds the new baseline. Ceiling Poles instead shrink/grow their height so the top stays at the ceiling. */
     if (deltaZ !== 0) {
-        members.forEach(m => {
-            const existingZ = Number(m.data_zPosition) || 0;
-            m.data_zPosition = existingZ + deltaZ;
-            /* Mirror to roomObj.items directly — canvasToJson() only writes data_zPosition already in the node. */
-            if (roomObj && Array.isArray(roomObj.items)) {
-                const entry = roomObj.items.find(it => it.id === m.id());
-                if (entry) entry.data_zPosition = m.data_zPosition;
-            }
-        });
+        members.forEach(m => applyBundleDeltaZToMember(m, deltaZ));
     }
     group.data_zPosition = newZ;
     rectNode.data_zPosition = newZ;
@@ -3006,14 +3023,7 @@ function updateCustomItemItem(customItem) {
     }
 
     if (deltaZ !== 0) {
-        members.forEach(m => {
-            const existingZ = Number(m.data_zPosition) || 0;
-            m.data_zPosition = existingZ + deltaZ;
-            if (roomObj && Array.isArray(roomObj.items)) {
-                const entry = roomObj.items.find(it => it.id === m.id());
-                if (entry) entry.data_zPosition = m.data_zPosition;
-            }
-        });
+        members.forEach(m => applyBundleDeltaZToMember(m, deltaZ));
     }
     customItem.data_zPosition = newZ;
     rectNode.data_zPosition = newZ;
