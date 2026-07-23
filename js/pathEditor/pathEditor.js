@@ -18,6 +18,13 @@
  *   anchorXM, anchorYM: item anchor in floor meters (translates background/walls; returned center is floor coords)
  *   background:      null | { image: HTMLImageElement, xM, yM, wM, hM, rotationDeg, opacity }  (floor meters)
  *   roomWM, roomLM:  room size in meters (wall outline + view fallback)
+ *   roomOffsetXM, roomOffsetYM: floor-meter origin of the room rect (default 0,0 —
+ *                    non-zero when the editor opens zoomed into a Room Part)
+ *   wallStyle:       'walls' (default — grey band like drawOutsideWall) | 'line'
+ *                    (light blue wall-width outline: polyRooms / removed default walls)
+ *   roomPolyM:       optional [{x,y}] floor-meter outline of a polyRoom Room Part —
+ *                    drawn as a light blue closed line instead of the rect, and used
+ *                    for the view fit
  *   onClose(result): result = { path, centerXM, centerYM } — path re-centered on its anchor
  *                    bbox center, centerXM/YM in FLOOR meters (anchor + local center).
  *                    null when the path is empty/degenerate.
@@ -47,8 +54,9 @@
 
     window.VRC = window.VRC || {};
 
-    const MIN_PX_PER_M = 2;
-    const MAX_PX_PER_M = 2000;
+    const MIN_PX_PER_M = 8;       /* was 2 — capped so the view can't zoom out into a speck */
+    const MAX_PX_PER_M = 10000;   /* was 2000 — allow much tighter zoom-in */
+    const MAX_HANDLE_WORLD_M = 0.15; /* zoomed out, handles stop growing past this world size so they don't swallow the shape */
     const SELECT_COLOR = '#8000c8';   /* purple — selected segment + anchor */
     const PATH_COLOR = '#0352a6';
     const HOVER_COLOR = '#89CFF0';    /* baby blue — edit-mode point hover */
@@ -892,36 +900,58 @@
             }
         }
 
-        /* room walls, translated into the item-local frame — mirrors the main canvas
-         * (drawOutsideWall): 0.115 m grey band around the room, thin outer line, room outline */
-        if (activeOpts && activeOpts.roomWM > 0 && activeOpts.roomLM > 0) {
-            const wx = -activeOpts.anchorXM, wy = -activeOpts.anchorYM;
+        /* room walls, translated into the item-local frame. Three variants:
+         * - roomPolyM: polyRoom Room Part — light blue wall-width closed outline
+         * - wallStyle 'line': boxRoomPart with default walls removed — light blue
+         *   wall-width rect outline
+         * - default 'walls': mirrors the main canvas (drawOutsideWall): 0.115 m grey
+         *   band around the room, thin outer line, room outline.
+         * roomOffsetXM/YM anchor the rect at the Room Part's floor position (0,0 for
+         * the whole-floor / single-room case). */
+        const wt = 0.115;
+        if (activeOpts && Array.isArray(activeOpts.roomPolyM) && activeOpts.roomPolyM.length >= 3) {
+            const pts = [];
+            activeOpts.roomPolyM.forEach(p => pts.push(p.x - activeOpts.anchorXM, p.y - activeOpts.anchorYM));
+            gridLayer.add(new Konva.Line({
+                points: pts, closed: true,
+                stroke: '#ADD8E6', strokeWidth: wt, opacity: 0.9,
+            }));
+        }
+        else if (activeOpts && activeOpts.roomWM > 0 && activeOpts.roomLM > 0) {
+            const wx = (Number(activeOpts.roomOffsetXM) || 0) - activeOpts.anchorXM;
+            const wy = (Number(activeOpts.roomOffsetYM) || 0) - activeOpts.anchorYM;
             const ww = activeOpts.roomWM, wh = activeOpts.roomLM;
-            const wt = 0.115;
-            const band = [
-                { x: wx - wt, y: wy, width: wt, height: wh },
-                { x: wx + ww, y: wy, width: wt, height: wh },
-                { x: wx - wt, y: wy - wt, width: ww + 2 * wt, height: wt },
-                { x: wx - wt, y: wy + wh, width: ww + 2 * wt, height: wt },
-            ];
-            band.forEach(b => gridLayer.add(new Konva.Rect({
-                x: b.x, y: b.y, width: b.width, height: b.height,
-                fill: '#cccccc', opacity: 0.6,
-            })));
-            gridLayer.add(new Konva.Rect({
-                x: wx - wt, y: wy - wt,
-                width: ww + 2 * wt, height: wh + 2 * wt,
-                stroke: '#888888',
-                strokeWidth: 1,
-                strokeScaleEnabled: false,
-            }));
-            gridLayer.add(new Konva.Rect({
-                x: wx, y: wy,
-                width: ww, height: wh,
-                stroke: '#555',
-                strokeWidth: 2,
-                strokeScaleEnabled: false,
-            }));
+            if (activeOpts.wallStyle === 'line') {
+                gridLayer.add(new Konva.Rect({
+                    x: wx, y: wy, width: ww, height: wh,
+                    stroke: '#ADD8E6', strokeWidth: wt, opacity: 0.9,
+                }));
+            } else {
+                const band = [
+                    { x: wx - wt, y: wy, width: wt, height: wh },
+                    { x: wx + ww, y: wy, width: wt, height: wh },
+                    { x: wx - wt, y: wy - wt, width: ww + 2 * wt, height: wt },
+                    { x: wx - wt, y: wy + wh, width: ww + 2 * wt, height: wt },
+                ];
+                band.forEach(b => gridLayer.add(new Konva.Rect({
+                    x: b.x, y: b.y, width: b.width, height: b.height,
+                    fill: '#cccccc', opacity: 0.6,
+                })));
+                gridLayer.add(new Konva.Rect({
+                    x: wx - wt, y: wy - wt,
+                    width: ww + 2 * wt, height: wh + 2 * wt,
+                    stroke: '#888888',
+                    strokeWidth: 1,
+                    strokeScaleEnabled: false,
+                }));
+                gridLayer.add(new Konva.Rect({
+                    x: wx, y: wy,
+                    width: ww, height: wh,
+                    stroke: '#555',
+                    strokeWidth: 2,
+                    strokeScaleEnabled: false,
+                }));
+            }
         }
     }
 
@@ -999,7 +1029,9 @@
         selectedOverlay.data('M ' + fmt(p0.x) + ' ' + fmt(p0.y) + ' ' + serializeSegs([s]));
     }
 
-    function handleRadius() { return 6 / konvaStage.scaleX(); }
+    /* Constant 6px on screen, but capped in WORLD size so zoomed-out handles don't
+     * dwarf the shape (the "wall of circles" screenshot bug). */
+    function handleRadius() { return Math.min(6 / konvaStage.scaleX(), MAX_HANDLE_WORLD_M); }
 
     function styleAnchor(entry) {
         const isSel = entry.segIndex === selIndex;
@@ -1302,8 +1334,22 @@
 
     function fitView() {
         const cw = konvaStage.width(), ch = konvaStage.height();
-        /* fit the union of the path bbox and the room wall outline so the room context is visible on open */
-        const walls = { x: -activeOpts.anchorXM, y: -activeOpts.anchorYM, width: activeOpts.roomWM || 8, height: activeOpts.roomLM || 6 };
+        /* fit the union of the path bbox and the room wall outline so the room context is
+         * visible on open — for a Room Part that outline IS the part, so the view opens
+         * zoomed into it */
+        let walls;
+        if (Array.isArray(activeOpts.roomPolyM) && activeOpts.roomPolyM.length >= 3) {
+            const xs = activeOpts.roomPolyM.map(p => p.x - activeOpts.anchorXM);
+            const ys = activeOpts.roomPolyM.map(p => p.y - activeOpts.anchorYM);
+            const minX = Math.min(...xs), minY = Math.min(...ys);
+            walls = { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+        } else {
+            walls = {
+                x: (Number(activeOpts.roomOffsetXM) || 0) - activeOpts.anchorXM,
+                y: (Number(activeOpts.roomOffsetYM) || 0) - activeOpts.anchorYM,
+                width: activeOpts.roomWM || 8, height: activeOpts.roomLM || 6,
+            };
+        }
         let b = modelBBox();
         if (!b || !isFinite(b.width)) b = walls;
         else {

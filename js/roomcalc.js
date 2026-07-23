@@ -12839,6 +12839,27 @@ function openSvgPathEditor(idOverride, startMode) {
         };
     }
 
+    /* Zoomed into a Room Part: show THAT room's walls and open the view fitted to it.
+     * boxRoomPart with default walls gets the grey wall band; a polyRoom (its outline
+     * passed as floor-meter points) or a part with default walls removed gets a light
+     * blue wall-width line instead. */
+    let roomPartCtx = {};
+    if (isActiveRoomPart && activeRoomPartItem) {
+        roomPartCtx = {
+            roomWM: (Number(activeRoomWidth) || 0) * toM,
+            roomLM: (Number(activeRoomLength) || 0) * toM,
+            roomOffsetXM: (Number(activeRoomX) || 0) * toM,
+            roomOffsetYM: (Number(activeRoomY) || 0) * toM,
+            wallStyle: (activeRoomPartItem.data_deviceid === 'boxRoomPart'
+                && !(activeRoomPartItem.data_workspace && activeRoomPartItem.data_workspace.removeDefaultWalls))
+                ? 'walls' : 'line',
+        };
+        if (activeRoomPartItem.data_deviceid === 'polyRoom'
+            && Array.isArray(activeRoomAbsPoints) && activeRoomAbsPoints.length >= 3) {
+            roomPartCtx.roomPolyM = activeRoomAbsPoints.map(p => ({ x: p.x * toM, y: p.y * toM }));
+        }
+    }
+
     loadScriptOnce(VRC.constants.SCRIPT_PATH_EDITOR).then(() => {
         return window.VRC.pathEditor.open({
             path: lbl.path,
@@ -12851,6 +12872,7 @@ function openSvgPathEditor(idOverride, startMode) {
             background: background,
             roomWM: (Number(roomObj.room.roomWidth) || 8) * toM,
             roomLM: (Number(roomObj.room.roomLength) || 6) * toM,
+            ...roomPartCtx,
             onClose: (res) => {
                 if (!res) return;
                 document.getElementById('itemX').value = round(res.centerXM / toM - activeRoomX);

@@ -1860,7 +1860,20 @@ simple builder uses, so undo/URL/labelField-merge come free.
   styled to match the main canvas's `drawOutsideWall()` (0.115 m grey
   band + thin `#888` outer line + `#555` room outline); view fits the
   union of the path bbox and the walls so the room context is visible
-  on open.
+  on open. Zoom clamps: `MIN_PX_PER_M = 8` (zoom-out capped — the old
+  `2` let the shape shrink to a speck) / `MAX_PX_PER_M = 10000`.
+  **Handle sizing**: `handleRadius()` is 6 px on screen but capped at
+  `MAX_HANDLE_WORLD_M = 0.15` world meters, so zoomed-out handles stop
+  growing and can't bury the shape under overlapping circles.
+- **Room Part context**: when the editor opens while zoomed into a
+  Room Part (`isActiveRoomPart`), the roomcalc glue passes
+  `roomOffsetXM/YM` + `roomWM/LM` from `activeRoomX/Y/Width/Length`
+  plus a `wallStyle` — `'walls'` (boxRoomPart with default walls →
+  grey band) or `'line'` (light blue `#ADD8E6` wall-width 0.115 m
+  outline, used for default-walls-removed parts) — and, for a
+  `polyRoom`, `roomPolyM` (the `activeRoomAbsPoints` outline in floor
+  meters, drawn as a closed light blue line). `fitView()` fits to the
+  part's rect / poly bbox, so the editor opens zoomed into that room.
 - Toolbar buttons carry `title` tooltips, including the shortcut keys
   (L = Line, C = Curve, Delete = Delete Point, Esc = Close).
 
