@@ -395,19 +395,22 @@ re-routed to `cone` after the scoring loop in `wdItemToRoomObjItem()`.
 ### Ceiling Pole (`cylinderPole`)
 
 A cylinder that hangs DOWN from the ceiling. Identical to `cylinder`
-(render, resize handle, fill/opacity) except its elevation is always
-**derived**: base = ceiling height − `data_vHeight`. `data_zPosition`
-is NEVER stored — `updateItem()` and the WD import both delete it.
+(render, resize handle, fill/opacity) except the user enters the BASE
+elevation (`data_zPosition`, stored) and the height is always
+**derived**: height = ceiling height − z. `data_vHeight` is NEVER
+stored — `updateItem()` and the WD import both delete it. Because only
+z is stored, the top stays pinned to the ceiling with no special
+casing anywhere: bundle Z changes move z like any member, and room
+height changes just change the derived height.
 
 | Surface | Convention |
 |---------|------------|
-| Device id | `cylinderPole` — deliberately starts with `cylinder` so the `startsWith('cylinder')` branches (Details enable-states, bottom-right resize anchor) apply with no extra wiring. Every `=== 'cylinder'` branch got an explicit `\|\| 'cylinderPole'` (insert default size, `insertTable` render, `updateItem` height=width, vHeight default display, DXF circle, WD import size/z/radius branches). |
-| Defaults | `default_vHeight: 914` (mm → 0.9144 m = 3 ft; seeded by `insertItemFromMenu()`), diameter 0.1524 m = 0.5 ft (own default in `insertTable()` — NOT the 0.45 m cylinder default). In the walls menu after `cylinder`. |
-| Details panel | Z input is **disabled** and shows `ceilingPoleZ(vHeight)` = `activeRoomHeight() \|\| defaultWallHeight` − vHeight (current unit), recomputed on every populate. `populateGroupDetails` / `populateCustomItemDetails` re-enable the shared input (`itemZposition.disabled = false`) so a prior pole selection can't leave it stuck read-only. |
-| URL key | `WU`. No `b` (z) is ever emitted; `j` carries vHeight as usual. |
-| WD export | Rides the cylinder branch in `workspaceObjWallPush()` with `position[1] = (roomObj2.room.roomHeight \|\| defaultWallHeight) − length/2` (WD cylinder position y is the CENTER). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix + deletes the computed `data_zPosition`. |
-| Group / CustomItem Z | A bundle Z change routes every member through `applyBundleDeltaZToMember(m, deltaZ)` (shared by `updateGroupItem` and `updateCustomItemItem`). Normal members get `data_zPosition += deltaZ`; a pole member instead gets `data_vHeight −= deltaZ` (clamped ≥ 0.01, NO rounding) so its BASE follows the bundle while the top stays pinned to the ceiling — raise a "Quad Cam + pole + box" CustomItem and the pole just gets shorter. Fully reversible; z stays unstored. |
-| Room height change | Mirror rule: a STANDALONE pole keeps its length (base rides the ceiling), but a BUNDLED pole's base is anchored by the bundle, so `adjustBundledCeilingPolesForHeightChange(oldH, newH)` stretches/shrinks `data_vHeight` by the ceiling delta. Called from `updateRoomDetails()`, which captures `activeRoomHeight()` BEFORE its height writes (the redundant pre-write in `update()` was removed for exactly this reason — it hid the old value). Covers both the floor height and the zoomed-in per-room `data_roomHeight`; scoped to poles with a stage node (in-room only when zoomed); skips when either side is blank/0. |
+| Device id | `cylinderPole` — deliberately starts with `cylinder` so the `startsWith('cylinder')` branches (Details enable-states, bottom-right resize anchor) apply with no extra wiring. Every `=== 'cylinder'` branch got an explicit `\|\| 'cylinderPole'` (insert default size, `insertTable` render, `updateItem` height=width, DXF circle, WD import size/z/radius branches). |
+| Defaults | Insert seeds `data_zPosition = ceilingPoleDerivedHeight(3 ft)` = ceiling − 0.9144 m (the complement math is symmetric), so a fresh pole is 3 ft long under the current ceiling. Diameter 0.1524 m = 0.5 ft (own default in `insertTable()` — NOT the 0.45 m cylinder default). In the walls menu after `cylinder`. |
+| Details panel | Z input is EDITABLE (normal populate); the Height input is **disabled** and shows `ceilingPoleDerivedHeight(z)` = `activeRoomHeight() \|\| defaultWallHeight` − z (current unit, clamped ≥ 0.01), recomputed on every populate. The pole override sits right after the `startsWith('cylinder')` enable branch (which would otherwise re-enable it). |
+| URL key | `WU`. `b` carries z as usual; `j` (vHeight) is never emitted. |
+| WD export | Cylinder branch in `workspaceObjWallPush()`: `length = max(0.01, ceiling − z)`, `position[1] = z + length/2` (WD cylinder position y is the CENTER; ceiling = `roomObj2.room.roomHeight \|\| defaultWallHeight`, meters). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix, keeps the computed z (`position[1] − length/2`), and deletes `data_vHeight`. |
+| Group / CustomItem Z | No special case: `applyBundleDeltaZToMember(m, deltaZ)` (shared by `updateGroupItem` / `updateCustomItemItem`) moves the pole's stored z like any member; the derived height shrinks/grows automatically so the top stays at the ceiling. |
 
 ### pathShape precedence
 

@@ -9,4 +9,4 @@ const APP_VERSION = "v0.1.664";
  * change the user-visible version number. Any short string works ("a", "b2",
  * "0722"); empty string = no build. sw.js keys its cache on APP_VERSION +
  * BUILD_VERSION, so changing either one forces clients to update. */
-const BUILD_VERSION = "f";
+const BUILD_VERSION = "h";

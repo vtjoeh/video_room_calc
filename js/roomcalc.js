@@ -254,13 +254,13 @@ function activeRoomHeight() {
     return roomObj.room.roomHeight;
 }
 
-/* Ceiling Pole derived elevation (current unit): ceiling height minus the pole's vHeight.
- * Never stored on the item — the Details Z input shows it read-only, and the WD export
- * recomputes it in meters. */
-function ceilingPoleZ(vHeight) {
+/* Ceiling Pole derived height (current unit): ceiling height minus the pole's stored
+ * base elevation (data_zPosition). Never stored on the item — the Details Height input
+ * shows it read-only, and the WD export recomputes it in meters. */
+function ceilingPoleDerivedHeight(baseZ) {
     const ceilH = Number(activeRoomHeight())
         || (defaultWallHeight * (roomObj.unit === 'feet' ? 3.28084 : 1));
-    return round(ceilH - (Number(vHeight) || 0));
+    return Math.max(0.01, round(ceilH - (Number(baseZ) || 0)));
 }
 
 /* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
@@ -1013,7 +1013,6 @@ function populateGroupDetails(rectNode) {
     /* X/Y track the rect's top-left, same convention as tables/walls. */
     document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
     document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
-    document.getElementById('itemZposition').disabled = false; /* may still be read-only from a Ceiling Pole selection */
     document.getElementById('itemZposition').value = (group.data_zPosition != null) ? group.data_zPosition : 0;
 
     /* Width/Length are display-only — set by updateGroupBounds() / Transformer. */
@@ -1033,21 +1032,9 @@ function populateGroupDetails(rectNode) {
 
 /* Apply a Group-level Details edit: X/Y/Z translate members + rect; rotation around the rect centre; label/layer cascade to members. */
 /* Bundle (Group/CustomItem) Z delta applied to one member node + its roomObj entry.
- * Ceiling Pole exception: the pole's top always touches the ceiling and its z is derived,
- * so a bundle Z change moves the pole's BASE by shrinking/growing data_vHeight instead of
- * storing a z — raise the bundle 1 unit and the pole gets 1 unit shorter, still ceiling-hung. */
+ * A Ceiling Pole member needs no special case: its stored z moves like any member and
+ * its height re-derives from the ceiling, so the top stays pinned automatically. */
 function applyBundleDeltaZToMember(m, deltaZ) {
-    if (m.data_deviceid === 'cylinderPole') {
-        const defaultVh = (allDeviceTypes.cylinderPole.default_vHeight / 1000)
-            * (roomObj.unit === 'feet' ? 3.28084 : 1);
-        const newVh = Math.max(0.01, (Number(m.data_vHeight) || defaultVh) - deltaZ);
-        m.data_vHeight = newVh;
-        if (roomObj && Array.isArray(roomObj.items)) {
-            const entry = roomObj.items.find(it => it.id === m.id());
-            if (entry) { entry.data_vHeight = newVh; delete entry.data_zPosition; }
-        }
-        return;
-    }
     const existingZ = Number(m.data_zPosition) || 0;
     m.data_zPosition = existingZ + deltaZ;
     /* Mirror to roomObj.items directly — canvasToJson() only writes data_zPosition already in the node. */
@@ -1055,26 +1042,6 @@ function applyBundleDeltaZToMember(m, deltaZ) {
         const entry = roomObj.items.find(it => it.id === m.id());
         if (entry) entry.data_zPosition = m.data_zPosition;
     }
-}
-
-/* Room (or Room Part) height changed: a STANDALONE pole keeps its length and its base
- * rides the ceiling, but a pole in a Group/CustomItem is anchored by the bundle — its
- * base must stay put, so its length stretches/shrinks by the ceiling delta instead.
- * Scoped to poles with a stage node (zoomed into a Room Part = in-room items only).
- * Skips when either height is blank/0 — the defaultWallHeight fallback isn't a real edit. */
-function adjustBundledCeilingPolesForHeightChange(oldCeilH, newCeilH) {
-    const o = Number(oldCeilH), n = Number(newCeilH);
-    if (!isFinite(o) || !isFinite(n) || o <= 0 || n <= 0 || o === n) return;
-    const delta = n - o;
-    (roomObj.items || []).forEach(item => {
-        if (item.data_deviceid !== 'cylinderPole') return;
-        if (!item.data_groupId && !item.data_customItemId) return;
-        const node = stage.findOne('#' + item.id);
-        if (!node) return;
-        const newVh = Math.max(0.01, (Number(item.data_vHeight) || 0) + delta);
-        item.data_vHeight = newVh;
-        node.data_vHeight = newVh;
-    });
 }
 
 function updateGroupItem(group) {
@@ -2987,7 +2954,6 @@ function populateCustomItemDetails(rectNode) {
 
     document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
     document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
-    document.getElementById('itemZposition').disabled = false; /* may still be read-only from a Ceiling Pole selection */
     document.getElementById('itemZposition').value = (customItem.data_zPosition != null) ? customItem.data_zPosition : 0;
 
     document.getElementById('itemWidth').value = round(rectNode.width() / scale);
@@ -7652,11 +7618,12 @@ let tables = [{
     configurableColor: true,
 },
 {
-    /* Cylinder that hangs from the ceiling: elevation is always DERIVED (ceiling height
-     * minus data_vHeight) — data_zPosition is never stored. The id starts with 'cylinder'
-     * on purpose so the startsWith('cylinder') Details-enable and resize-anchor branches
-     * apply without extra wiring. */
-    name: 'Ceiling Pole',
+    /* Cylinder that hangs from the ceiling: the user enters the BASE elevation
+     * (data_zPosition, stored); the height is always DERIVED (ceiling height minus z)
+     * — data_vHeight is never stored. The id starts with 'cylinder' on purpose so the
+     * startsWith('cylinder') Details-enable and resize-anchor branches apply without
+     * extra wiring. Default z is seeded at insert: ceiling minus 3 ft. */
+    name: 'Ceiling Pole**',
     id: 'cylinderPole',
     key: 'WU',
     frontImage: 'cylinder-menu.png',
@@ -7666,7 +7633,6 @@ let tables = [{
     opacity: 0.4,
     resizeable: [],
     configurableColor: true,
-    default_vHeight: 914, /* 3 ft */
     defaultLayerId: "1",
 },
 {
@@ -10768,7 +10734,7 @@ function update() {
     if (!isActiveRoomPart) {
         roomObj.room.roomWidth = getNumberValue('roomWidth');
         roomObj.room.roomLength = getNumberValue('roomLength');
-        /* roomHeight is written inside updateRoomDetails() so it can see the OLD value first (bundled Ceiling Poles stretch by the ceiling delta). */
+        /* roomHeight is written inside updateRoomDetails() (single writer). */
     }
 
     updateRoomDetails();
@@ -19769,18 +19735,18 @@ function updateItem() {
             }
         }
 
-        if (data_deviceid === 'cylinderPole') {
-            /* Ceiling Pole elevation is always DERIVED (ceiling height - vHeight); the disabled Z input just displays it. */
-            delete item.data_zPosition;
-        }
-        else if (!(data_zPosition === '')) {
+        if (!(data_zPosition === '')) {
             item.data_zPosition = data_zPosition;
         }
         else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
             delete item.data_zPosition;
         }
 
-        if (data_vHeight) {
+        if (data_deviceid === 'cylinderPole') {
+            /* Ceiling Pole height is always DERIVED (ceiling height - z); the disabled Height input just displays it. */
+            delete item.data_vHeight;
+        }
+        else if (data_vHeight) {
             item.data_vHeight = data_vHeight;
         }
         else if ('data_vHeight' in item) {  /* if field is now blank remove the attribute.  HTML text box can be blank */
@@ -24378,9 +24344,6 @@ function updateRoomDetails() {
     let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value).trim();
     let drpSoftware = document.getElementById('drpSoftware').value;
 
-    /* Captured BEFORE the height writes below — bundled Ceiling Poles stretch/shrink by the ceiling delta so their base stays with the bundle. */
-    const oldCeilingH = Number(activeRoomHeight()) || 0;
-
     if (isActiveRoomPart && activeRoomPartItem) {
         /* Height is per-room while zoomed in; blank (or matching the floor default) inherits roomObj.room.roomHeight. */
         const partNodeH = stage.findOne('#' + activeRoomPartItem.id);
@@ -24396,8 +24359,6 @@ function updateRoomDetails() {
         roomObj.room.roomHeight = Number(roomHeight);
         defaultWallHeight = roomObj.room.roomHeight;
     }
-
-    adjustBundledCeilingPolesForHeightChange(oldCeilingH, Number(activeRoomHeight()) || 0);
 
     roomObj.authorVersion = authorVersion;
 
@@ -24857,6 +24818,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheight').disabled = false;
     }
 
+    /* Ceiling Pole: the user edits Z (base elevation); Height is derived (ceiling - z) and read-only. */
+    if (shape.data_deviceid === 'cylinderPole') {
+        document.getElementById('itemVheight').disabled = true;
+    }
+
     /* wdText/vrcText: width/length/vheight auto-sized by Konva.Label, so disable all (hidden below by the both-disabled collapse rule). */
     if (isTextItem(shape.data_deviceid)) {
         document.getElementById('itemWidth').disabled = true;
@@ -25062,7 +25028,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheightDiv').style.display = 'none';
     }
 
-    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder' || shape.data_deviceid === 'cylinderPole' || shape.data_deviceid === 'cone') && !shape.data_deviceid.startsWith('wallChairs')) {
+    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder' || shape.data_deviceid === 'cone') && !shape.data_deviceid.startsWith('wallChairs')) {
         let itemVheight = document.getElementById('itemVheight');
         let defaultHeight = defaultWallHeight;
 
@@ -25172,19 +25138,10 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemRotation').value = item.rotation;
     }
 
-    if (shape.data_deviceid === 'cylinderPole') {
-        /* Derived elevation, read-only: ceiling height minus the pole's height. */
-        const poleVh = Number(shape.data_vHeight)
-            || (allDeviceTypes.cylinderPole.default_vHeight / 1000) * (unit === 'feet' ? 3.28084 : 1);
-        document.getElementById('itemZposition').value = ceilingPoleZ(poleVh);
-        document.getElementById('itemZposition').disabled = true;
+    if ('data_zPosition' in shape) {
+        document.getElementById('itemZposition').value = shape.data_zPosition;
     } else {
-        document.getElementById('itemZposition').disabled = false;
-        if ('data_zPosition' in shape) {
-            document.getElementById('itemZposition').value = shape.data_zPosition;
-        } else {
-            document.getElementById('itemZposition').value = "";
-        }
+        document.getElementById('itemZposition').value = "";
     }
 
     /* Room Parts (boxRoomPart/polyRoom) never support tilt/lean — hide controls like videoDevices. */
@@ -25272,7 +25229,10 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemNumChairs.value = count;
     }
 
-    if ('data_vHeight' in item && item.data_vHeight) {
+    if (item.data_deviceid === 'cylinderPole') {
+        /* Derived height, read-only: ceiling height minus the stored base elevation. */
+        document.getElementById('itemVheight').value = ceilingPoleDerivedHeight(item.data_zPosition);
+    } else if ('data_vHeight' in item && item.data_vHeight) {
         document.getElementById('itemVheight').value = item.data_vHeight;
     } else {
         document.getElementById('itemVheight').value = "";
@@ -26041,6 +26001,12 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_radius2 = (roomObj.unit === 'feet') ? 0.98 : 0.3;
     }
 
+    /* Ceiling Pole: seed the stored base z so the pole starts 3 ft long under the current ceiling (height itself is derived, never stored). */
+    if (data_deviceid === 'cylinderPole' && attrs.data_zPosition == null) {
+        const poleLen = (roomObj.unit === 'feet') ? 3 : 0.9144;
+        attrs.data_zPosition = ceilingPoleDerivedHeight(poleLen); /* ceiling - length = base z (same complement math) */
+    }
+
     /* ceilingGrid tile default dimensions.  */
     if (data_deviceid === 'ceilingGrid') {
         if (attrs.data_gridWidth == null) {
@@ -26477,7 +26443,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cylinderPole', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -32319,8 +32285,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         if (item.data_deviceid === 'sphere') {
             item.data_vHeight = round(wdItem.radius * 2);
         }
-        else if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cylinderPole' || item.data_deviceid === 'cone') {
+        else if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cone') {
             item.data_vHeight = wdItem.length;
+        }
+        else if (item.data_deviceid === 'cylinderPole') {
+            /* height derived (ceiling - z) — never stored; length still feeds the z math below */
         }
         else if (family === 'wallBox') {
             item.data_vHeight = wdItem.height || roomObj.room.roomHeight;
@@ -32636,9 +32605,9 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.radius2;
     }
 
-    /* Ceiling Pole elevation is derived (ceiling height - vHeight) — never stored. */
+    /* Ceiling Pole height is derived (ceiling height - z) — never stored. */
     if (data_deviceid === 'cylinderPole') {
-        delete item.data_zPosition;
+        delete item.data_vHeight;
     }
 
 
@@ -34718,16 +34687,17 @@ function exportRoomObjToWorkspace() {
         if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cylinderPole') {
             workspaceItem.radius = item.width / 2;
 
-            if ('data_vHeight' in item && item.data_vHeight) {
+            if (item.data_deviceid === 'cylinderPole') {
+                /* Ceiling Pole: user-entered base z, length derived up to the ceiling (all meters here). */
+                const poleCeilH = Number(roomObj2.room.roomHeight) || defaultWallHeight;
+                const poleBaseZ = Number(item.data_zPosition) || 0;
+                workspaceItem.length = Math.max(0.01, poleCeilH - poleBaseZ);
+                workspaceItem.position[1] = poleBaseZ + workspaceItem.length / 2;
+            }
+            else if ('data_vHeight' in item && item.data_vHeight) {
                 workspaceItem.length = item.data_vHeight;
             } else {
                 workspaceItem.length = roomObj2.room.roomHeight || defaultWallHeight;
-            }
-
-            /* Ceiling Pole hangs from the ceiling: center = ceiling height - vHeight/2 (all meters here). */
-            if (item.data_deviceid === 'cylinderPole') {
-                const poleCeilH = Number(roomObj2.room.roomHeight) || defaultWallHeight;
-                workspaceItem.position[1] = poleCeilH - workspaceItem.length / 2;
             }
 
             workspaceItem.rotation[0] = ((item.data_tilt) * (Math.PI / 180)) || 0;
