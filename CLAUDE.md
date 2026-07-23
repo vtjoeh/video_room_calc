@@ -677,6 +677,18 @@ identity never matches and it degrades to the old "stay zoomed" behaviour.
 Redo does not re-zoom (out of scope) — redoing an in-room edit after the
 auto-unzoom applies it at the floor-plan view.
 
+The zoom-in is also its own undo STEP when no in-room edit followed it:
+`btnUndoClicked()` checks BEFORE popping — if still zoomed and the array
+top is (identity) the baseline entry, the click just calls
+`showEntireFloor(true)` and returns without popping a real edit (memory
+only; nothing is written to IDB for this pseudo-step).
+`enableBtnUndoRedo()` mirrors the same check so the Undo button is
+clickable in that state even when `undoArray.length <= 1`, and both
+`zoomRoomPart()` and `showEntireFloor()` re-run it so the button tracks
+zoom transitions. With in-room edits present the pre-pop check never
+fires — the unzoom rides the same click that reverses the last in-room
+edit, as before.
+
 #### Classifier — when the fast path runs
 
 `VRC.undoApply.requiresFullRedraw(prev, next)` returns **true** (→ legacy

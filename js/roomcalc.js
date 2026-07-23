@@ -319,6 +319,12 @@ function applyMultiRoomModeUi() {
         el.disabled = overview;
         /* belt-and-braces: coverage buttons can still fire on a disabled <button>, so also kill pointer-events + grey it. */
         el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
+        /* Hover tooltip explains WHY the button is greyed instead of naming the coverage. */
+        const tip = el.parentElement ? el.parentElement.querySelector('.tooltiptextTitle') : null;
+        if (tip) {
+            if (!tip.dataset.defaultHtml) tip.dataset.defaultHtml = tip.innerHTML;
+            tip.innerHTML = overview ? 'Not available in Multi-Room Floor Plan mode' : tip.dataset.defaultHtml;
+        }
     });
 
     /* Overview edits the design-level default each room inherits; zoomed in it's per-room. */
@@ -11954,7 +11960,8 @@ function showEntireFloor(dontSaveUndo = false) {
 
     drawRoom(true, false, dontSaveUndo);
 
-
+    /* Back at the floor plan the zoom-undo affordance is gone — re-sync the button. */
+    enableBtnUndoRedo();
 }
 
 
@@ -12010,6 +12017,8 @@ function zoomRoomPart(roomPart) {
     const roomDetailsTab = document.getElementById('defaultOpenTab');
     if (roomDetailsTab) roomDetailsTab.click();
 
+    /* Undo now means "back to floor plan" until the first in-room edit — reflect that on the button. */
+    enableBtnUndoRedo();
 }
 
 
@@ -13260,6 +13269,7 @@ function buildRoomPartWallItems(part, offsetX, offsetY, t) {
 function buildRoomModeLinkSource() {
     if (!isActiveRoomPart) {
         return {
+            name: roomObj.name,
             roomWidth: roomObj.room.roomWidth,
             roomLength: roomObj.room.roomLength,
             roomSurfaces: roomObj.roomSurfaces,
@@ -13306,6 +13316,8 @@ function buildRoomModeLinkSource() {
     }
 
     return {
+        /* Standalone room link carries the Room Part's name, falling back to the floor's. */
+        name: (activeRoomPartItem && activeRoomPartItem.data_labelField) || roomObj.name,
         roomWidth: activeRoomWidth,
         roomLength: activeRoomLength,
         roomSurfaces: roomSurfaces,
@@ -13349,7 +13361,8 @@ function createShareableLink() {
         strUrlQuery2 += 'f' + Math.round(linkRoomHeight * 100);
     }
 
-    strUrlQuery2 += `${roomObj.name == '' ? '' : '~' + encodeURIComponent(roomObj.name.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
+    const linkName = linkSrc.name || '';
+    strUrlQuery2 += `${linkName == '' ? '' : '~' + encodeURIComponent(linkName.replace(/^[\s_]+|[\s_]+$/g, '')).replaceAll('%20', '+') + '~'}`;
 
 
     strUrlQuery2 += createShareableLinkItemShading(linkSrc.removeDefaultWalls);
@@ -14943,6 +14956,16 @@ function btnUndoClicked() {
 
     clearTimeout(undoArrayTimer);
 
+    /* Zoomed into a Room Part with no in-room edits (undo top is still the entry captured
+     * at zoom-in): the zoom-in itself is the undo step — return to the full floor plan
+     * WITHOUT popping a real edit. Memory-only; nothing is written to IDB for this. */
+    if (isActiveRoomPart && activeRoomPartItem
+        && (undoArray.length ? undoArray[undoArray.length - 1] : null) === roomPartZoomUndoBaselineEntry) {
+        showEntireFloor(true);
+        enableBtnUndoRedo();
+        return;
+    }
+
     if (undoArray.length > 0) {
         const movedEntry = undoArray.pop();
         redoArray.push(movedEntry);
@@ -15010,7 +15033,10 @@ function btnRedoClicked() {
 }
 
 function enableBtnUndoRedo() {
-    if (undoArray.length > 1) {
+    /* Zoomed into a Room Part with no in-room edits: undo = "back to floor plan", so the button stays clickable even with nothing real to pop. */
+    const zoomUndoAvailable = isActiveRoomPart && activeRoomPartItem
+        && (undoArray.length ? undoArray[undoArray.length - 1] : null) === roomPartZoomUndoBaselineEntry;
+    if (undoArray.length > 1 || zoomUndoAvailable) {
         document.getElementById('btnUndo').disabled = false;
     } else {
         document.getElementById('btnUndo').disabled = true;
