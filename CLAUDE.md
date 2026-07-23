@@ -1760,7 +1760,9 @@ The editor has a **Draw Mode** and an **Edit Mode** (toolbar toggle):
   resets on `open()`, Erase & Start Over, and every draw-mode exit.
 - **Edit mode**: everything else below (drag, select, insert, convert,
   delete). **Hovering a point enlarges it slightly and fills it baby
-  blue (`#89CFF0`)** so the user knows it's clickable. The preview
+  blue (`#89CFF0`)**; the orange bezier control handles also enlarge
+  on hover (to ~the anchor hover size, color unchanged) so both kinds
+  of point read as clickable. The preview
   path gets a light `#D3D3D366` fill with `fillRule: 'evenodd'` in
   Edit mode only (an open subpath would paint as if closed in Draw
   mode), so solids and holes read at a glance.
@@ -1846,15 +1848,24 @@ simple builder uses, so undo/URL/labelField-merge come free.
   (`preventDefault` suppresses native text undo — the model is the
   source of truth and the textarea is rewritten by `refreshAll()`
   anyway). Stacks reset on every `open()`.
-- **Zoom + / − toolbar buttons** (mirror of the main VRC zoom
+- **Zoom + / − toolbar buttons ONLY** (mirror of the main VRC zoom
   controls): `zoomBy(1.2 / (1/1.2))` steps about the canvas center,
-  clamped to the same `MIN_PX_PER_M`/`MAX_PX_PER_M` range the wheel
-  zoom uses. Wheel-zoom-to-cursor and drag-pan are unchanged.
+  clamped to `MIN_PX_PER_M`/`MAX_PX_PER_M`. There is deliberately NO
+  wheel-zoom handler (room-canvas parity).
+- **Hand tool (pan toggle)** — toolbar button with the room canvas's
+  `icon-raise-hand-bold` icon, `setPanMode(on)`. The stage is
+  `draggable` ONLY while the hand tool is active (stage is created
+  `draggable: panModeOn`); while active, anchors / controls /
+  `previewPath` all stop listening so a drag anywhere pans (mirror of
+  the main canvas's panRectangle-over-everything model), stage clicks
+  early-return, and the cursor is grab/grabbing. Switching Draw/Edit
+  mode or reopening the editor auto-releases the hand tool
+  (`setEditorMode()` head + `open()` reset).
 - Close button (and Esc) **applies the path back** — there is no
   cancel path; Revert-then-Close is the undo story inside the
   editor, and the standard VRC undo covers the rest.
-- 1 m grid with adaptive step/labels, wheel zoom to cursor, drag to
-  pan; **room walls** drawn from `roomWM/roomLM` in the local frame,
+- 1 m grid with adaptive step/labels, hand tool to pan, +/− buttons
+  to zoom; **room walls** drawn from `roomWM/roomLM` in the local frame,
   styled to match the main canvas's `drawOutsideWall()` (0.115 m grey
   band + thin `#888` outer line + `#555` room outline); view fits the
   union of the path bbox and the walls so the room context is visible

@@ -34,7 +34,9 @@
  *   to select (point + its segment draw purple), click a segment to insert
  *   a point at that spot, Line↔Curve conversion / Delete Point on the
  *   selection.
- *   Both: drag empty space — pan;  scroll — zoom.
+ *   Both: pan with the hand tool (toolbar toggle, same icon as the room
+ *   canvas — the stage only drags while it's active); zoom with the +/−
+ *   toolbar buttons only (no wheel zoom, mirroring the room canvas).
  *
  * Supported path commands: M L H V C S Q T A Z, absolute and relative.
  * H/V normalize to L, S to C, T to Q on parse; output uses M L C Q A Z only.
@@ -64,6 +66,7 @@
     let drawMode = 'L';              /* 'L' or 'C' — segment type placed while drawing */
     let editorMode = 'edit';         /* 'draw' or 'edit' */
     let drawingHole = false;         /* Draw Mode → "Add a Hole": the subpath being drawn is a cut-out */
+    let panModeOn = false;           /* hand tool: stage drags only while active (mirrors the room canvas pan toggle) */
     let rubberBand = null;           /* dashed preview line, draw mode only */
     let anchorNodes = [];            /* [{ segIndex, node }] for in-place restyle (no rebuild on select — a rebuild mid-mousedown destroys the node being dragged) */
     let activeOpts = null;
@@ -369,6 +372,7 @@
                 <button id="vrcpeUndo" disabled title="Undo (Ctrl+Z)"><i class="icon icon-undo-regular"></i></button>
                 <button id="vrcpeRedo" disabled title="Redo (Shift+Ctrl+Z)"><i class="icon icon-redo-regular"></i></button>
                 <span class="vrcpe-sep"></span>
+                <button id="vrcpePan" title="Toggle Pan — drag to move the view"><i class="icon icon-raise-hand-bold"></i></button>
                 <button id="vrcpeZoomOut" class="vrcpe-zoom" title="Zoom out">&#8722;</button>
                 <button id="vrcpeZoomIn" class="vrcpe-zoom" title="Zoom in">+</button>
                 <span class="vrcpe-hint" id="vrcpeHint"></span>
@@ -437,6 +441,7 @@
             deletePt: dlg.querySelector('#vrcpeDeletePt'),
             undo: dlg.querySelector('#vrcpeUndo'),
             redo: dlg.querySelector('#vrcpeRedo'),
+            pan: dlg.querySelector('#vrcpePan'),
             zoomIn: dlg.querySelector('#vrcpeZoomIn'),
             zoomOut: dlg.querySelector('#vrcpeZoomOut'),
             close: dlg.querySelector('#vrcpeClose'),
@@ -448,6 +453,7 @@
         ui.close.onclick = () => { finishAndApply(); dlg.close(); };
         ui.undo.onclick = () => doUndo();
         ui.redo.onclick = () => doRedo();
+        ui.pan.onclick = () => setPanMode(!panModeOn);
         ui.zoomIn.onclick = () => zoomBy(1.2);
         ui.zoomOut.onclick = () => zoomBy(1 / 1.2);
         /* Draw Mode with an existing path: choose between adding another shape (new M
@@ -586,6 +592,7 @@
     }
 
     function setEditorMode(mode) {
+        if (panModeOn) setPanMode(false); /* picking a mode means the user wants to edit again */
         editorMode = mode;
         ui.drawModeBtn.classList.toggle('vrcpe-mode-active', mode === 'draw');
         ui.editModeBtn.classList.toggle('vrcpe-mode-active', mode === 'edit');
@@ -596,9 +603,23 @@
         ui.hint.innerHTML = (mode === 'draw')
             ? (drawingHole
                 ? '<b>Drawing a hole</b> &middot; keep every point inside the shape &middot; click the first point to close and cut it out &middot; 1 unit = 1 meter'
-                : 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter')
-            : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; drag to pan &middot; scroll to zoom &middot; 1 unit = 1 meter';
+                : 'Click to place points &middot; Line / Curve picks the segment type (keys L / C) &middot; click the first point to close &middot; hand tool to pan &middot; + / &#8722; to zoom &middot; 1 unit = 1 meter')
+            : 'Drag a point to move it &middot; click a point to select &middot; click a line to insert a point &middot; hand tool to pan &middot; + / &#8722; to zoom &middot; 1 unit = 1 meter';
         if (mode === 'edit') hideRubberBand();
+    }
+
+    /* Hand tool (mirrors the room canvas pan toggle): the stage only drags while it's
+     * active, and point handles stop listening so a drag anywhere pans the view. */
+    function setPanMode(on) {
+        panModeOn = on;
+        if (ui.pan) ui.pan.classList.toggle('vrcpe-mode-active', on);
+        if (konvaStage) {
+            konvaStage.draggable(on);
+            konvaStage.container().style.cursor = on ? 'grab' : 'default';
+        }
+        if (on) hideRubberBand();
+        if (previewPath) previewPath.listening(editorMode === 'edit' && !on);
+        rebuildHandles();
     }
 
     function hideRubberBand() {
@@ -636,7 +657,9 @@
             container: ui.canvas,
             width: ui.canvas.clientWidth,
             height: ui.canvas.clientHeight,
-            draggable: true,
+            /* the stage only drags while the hand tool is active (room-canvas parity;
+             * zoom is +/- buttons only — no wheel handler on purpose) */
+            draggable: panModeOn,
         });
         /* default dragDistance is 0 — any 1px jitter during a click starts a pan and
          * Konva then suppresses the click (the intermittent "click does nothing" bug) */
@@ -648,31 +671,16 @@
         konvaStage.add(gridLayer, bgLayer, pathLayer, handleLayer);
 
         konvaStage.on('dragmove', scheduleRedraw);
-
-        konvaStage.on('wheel', (e) => {
-            e.evt.preventDefault();
-            const oldScale = konvaStage.scaleX();
-            const pointer = konvaStage.getPointerPosition();
-            const factor = Math.pow(1.06, -e.evt.deltaY / 53);
-            const newScale = Math.max(MIN_PX_PER_M, Math.min(MAX_PX_PER_M, oldScale * factor));
-            const mousePointTo = {
-                x: (pointer.x - konvaStage.x()) / oldScale,
-                y: (pointer.y - konvaStage.y()) / oldScale,
-            };
-            konvaStage.scale({ x: newScale, y: newScale });
-            konvaStage.position({
-                x: pointer.x - mousePointTo.x * newScale,
-                y: pointer.y - mousePointTo.y * newScale,
-            });
-            scheduleRedraw(true);
-        });
+        konvaStage.on('dragstart', () => { if (panModeOn) konvaStage.container().style.cursor = 'grabbing'; });
+        konvaStage.on('dragend', () => { if (panModeOn) konvaStage.container().style.cursor = 'grab'; });
 
         /* DRAW mode: click on empty canvas places the next point (Konva suppresses click
          * after a drag, so pans don't add points); a click NEAR the first point closes the
          * path instead (covers near-misses of the small circle) and switches to Edit mode.
-         * EDIT mode: click on empty canvas just deselects. */
+         * EDIT mode: click on empty canvas just deselects. Hand tool: clicks do nothing. */
         konvaStage.on('click tap', (e) => {
             if (e.target !== konvaStage) return;
+            if (panModeOn) return;
             if (editorMode === 'draw') {
                 const wp = worldPointer();
                 if (lastSubpathOpen() && currentSubpathAnchorCount() >= 3) {
@@ -967,8 +975,9 @@
             fill: editorMode === 'edit' ? '#D3D3D366' : undefined,
             fillRule: 'evenodd',
             /* draw mode: the path must not eat clicks near itself (its 14px hit stroke
-             * made clicks "do nothing" wherever they crossed a drawn segment) */
-            listening: editorMode === 'edit',
+             * made clicks "do nothing" wherever they crossed a drawn segment).
+             * hand tool: same rule — the hit stroke would block pans over segments */
+            listening: editorMode === 'edit' && !panModeOn,
         });
         previewPath.on('click tap', () => {
             if (editorMode !== 'edit') return;
@@ -1014,10 +1023,11 @@
             x: s.x, y: s.y,
             radius: handleRadius(),
             strokeWidth: 1.5 / konvaStage.scaleX(),
-            draggable: editorMode === 'edit',
+            draggable: editorMode === 'edit' && !panModeOn,
             /* draw mode: only the closable first point may take clicks — other anchors
-             * eating them left dead zones where clicking placed nothing */
-            listening: editorMode === 'edit' || (lastSubpathOpen() && i === currentSubpathStart()),
+             * eating them left dead zones where clicking placed nothing.
+             * hand tool: nothing listens, so a drag anywhere pans the view */
+            listening: !panModeOn && (editorMode === 'edit' || (lastSubpathOpen() && i === currentSubpathStart())),
         });
         const entry = { segIndex: i, node: a };
         anchorNodes.push(entry);
@@ -1074,7 +1084,8 @@
             fill: '#f5a623',
             stroke: '#a06800',
             strokeWidth: 1 / konvaStage.scaleX(),
-            draggable: editorMode === 'edit',
+            draggable: editorMode === 'edit' && !panModeOn,
+            listening: !panModeOn,
         });
         const tether = new Konva.Line({
             points: [anchorPt.x, anchorPt.y, s[keyX], s[keyY]],
@@ -1083,6 +1094,9 @@
             dash: [4 / konvaStage.scaleX(), 4 / konvaStage.scaleX()],
             listening: false,
         });
+        /* hover affordance to match the anchors: grow to near the anchor hover size */
+        c.on('mouseover', () => c.radius(handleRadius() * 1.3));
+        c.on('mouseleave', () => c.radius(handleRadius() * 0.75));
         c.on('dragstart', () => pushUndo());
         c.on('dragmove', () => {
             s[keyX] = c.x(); s[keyY] = c.y();
@@ -1365,6 +1379,7 @@
             (Number(opts.rotationDeg) || 0));
         selIndex = -1;
         drawingHole = false;
+        setPanMode(false);
         undoStack = [];
         redoStack = [];
         _lastTextUndoPush = 0;
