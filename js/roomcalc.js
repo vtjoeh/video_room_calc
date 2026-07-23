@@ -1057,6 +1057,26 @@ function applyBundleDeltaZToMember(m, deltaZ) {
     }
 }
 
+/* Room (or Room Part) height changed: a STANDALONE pole keeps its length and its base
+ * rides the ceiling, but a pole in a Group/CustomItem is anchored by the bundle — its
+ * base must stay put, so its length stretches/shrinks by the ceiling delta instead.
+ * Scoped to poles with a stage node (zoomed into a Room Part = in-room items only).
+ * Skips when either height is blank/0 — the defaultWallHeight fallback isn't a real edit. */
+function adjustBundledCeilingPolesForHeightChange(oldCeilH, newCeilH) {
+    const o = Number(oldCeilH), n = Number(newCeilH);
+    if (!isFinite(o) || !isFinite(n) || o <= 0 || n <= 0 || o === n) return;
+    const delta = n - o;
+    (roomObj.items || []).forEach(item => {
+        if (item.data_deviceid !== 'cylinderPole') return;
+        if (!item.data_groupId && !item.data_customItemId) return;
+        const node = stage.findOne('#' + item.id);
+        if (!node) return;
+        const newVh = Math.max(0.01, (Number(item.data_vHeight) || 0) + delta);
+        item.data_vHeight = newVh;
+        node.data_vHeight = newVh;
+    });
+}
+
 function updateGroupItem(group) {
     if (!group || !groupGroupRects) return;
     const rectNode = groupGroupRects.find(n => n.data_groupId === group.groupid)[0];
@@ -10748,12 +10768,7 @@ function update() {
     if (!isActiveRoomPart) {
         roomObj.room.roomWidth = getNumberValue('roomWidth');
         roomObj.room.roomLength = getNumberValue('roomLength');
-
-        let roomHeight = document.getElementById('roomHeight').value;
-        if (roomHeight != 0 || roomHeight != '') {
-            roomObj.room.roomHeight = Number(roomHeight);
-            defaultWallHeight = roomObj.room.roomHeight;
-        }
+        /* roomHeight is written inside updateRoomDetails() so it can see the OLD value first (bundled Ceiling Poles stretch by the ceiling delta). */
     }
 
     updateRoomDetails();
@@ -24363,6 +24378,9 @@ function updateRoomDetails() {
     let authorVersion = DOMPurify.sanitize(document.getElementById('authorVersion').value).trim();
     let drpSoftware = document.getElementById('drpSoftware').value;
 
+    /* Captured BEFORE the height writes below — bundled Ceiling Poles stretch/shrink by the ceiling delta so their base stays with the bundle. */
+    const oldCeilingH = Number(activeRoomHeight()) || 0;
+
     if (isActiveRoomPart && activeRoomPartItem) {
         /* Height is per-room while zoomed in; blank (or matching the floor default) inherits roomObj.room.roomHeight. */
         const partNodeH = stage.findOne('#' + activeRoomPartItem.id);
@@ -24379,7 +24397,7 @@ function updateRoomDetails() {
         defaultWallHeight = roomObj.room.roomHeight;
     }
 
-
+    adjustBundledCeilingPolesForHeightChange(oldCeilingH, Number(activeRoomHeight()) || 0);
 
     roomObj.authorVersion = authorVersion;
 
