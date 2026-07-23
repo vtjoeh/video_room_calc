@@ -235,6 +235,10 @@ workspaceKey.credenza = { objectType: 'credenza' }
 
 workspaceKey.sphere = { objectType: 'sphere' };
 workspaceKey.cylinder = { objectType: 'cylinder' };
+/* Ceiling Pole: MUST stay below workspaceKey.cylinder — scoring ties keep the first
+ * entry, so a generic WD cylinder resolves to 'cylinder'; the 'cylinderPole~' export
+ * id prefix (+100 via idRegex) is what claims a pole back on import. */
+workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' };
 workspaceKey.cone = { objectType: 'cylinder' };
 
 

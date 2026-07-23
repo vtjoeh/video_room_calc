@@ -392,6 +392,21 @@ re-routed to `cone` after the scoring loop in `wdItemToRoomObjItem()`.
 | Menu absence | Cone is **not** in the `wallsMenu` array in `createItemsOnMenu` — the user cannot add a fresh cone from the Equipment menu. The device definition remains in `allDeviceTypes` so cones loaded from existing `.vrc.json` files, shareable URLs (`WQ` prefix), and WD imports (the `cylinder + radius2` post-scoring override in `wdItemToRoomObjItem()`) continue to render and round-trip cleanly. To re-enable the menu tile, add `'cone'` back to `wallsMenu` (around line 23942 of `js/roomcalc.js`). |
 | 0.999 opacity sentinel | Inherited from pathShape — see "cone-only WD opacity sentinel (`0.999`)" above. Same export clamp, same import-side snap-back. |
 
+### Ceiling Pole (`cylinderPole`)
+
+A cylinder that hangs DOWN from the ceiling. Identical to `cylinder`
+(render, resize handle, fill/opacity) except its elevation is always
+**derived**: base = ceiling height − `data_vHeight`. `data_zPosition`
+is NEVER stored — `updateItem()` and the WD import both delete it.
+
+| Surface | Convention |
+|---------|------------|
+| Device id | `cylinderPole` — deliberately starts with `cylinder` so the `startsWith('cylinder')` branches (Details enable-states, bottom-right resize anchor) apply with no extra wiring. Every `=== 'cylinder'` branch got an explicit `\|\| 'cylinderPole'` (insert default size, `insertTable` render, `updateItem` height=width, vHeight default display, DXF circle, WD import size/z/radius branches). |
+| Defaults | `default_vHeight: 610` (mm → 0.61 m ≈ 2 ft; seeded by `insertItemFromMenu()`), diameter 0.45 m (same as cylinder). In the walls menu after `cylinder`. |
+| Details panel | Z input is **disabled** and shows `ceilingPoleZ(vHeight)` = `activeRoomHeight() \|\| defaultWallHeight` − vHeight (current unit), recomputed on every populate. `populateGroupDetails` / `populateCustomItemDetails` re-enable the shared input (`itemZposition.disabled = false`) so a prior pole selection can't leave it stuck read-only. |
+| URL key | `WU`. No `b` (z) is ever emitted; `j` carries vHeight as usual. |
+| WD export | Rides the cylinder branch in `workspaceObjWallPush()` with `position[1] = (roomObj2.room.roomHeight \|\| defaultWallHeight) − length/2` (WD cylinder position y is the CENTER). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix + deletes the computed `data_zPosition`. |
+
 ### pathShape precedence
 
 `pathShape` is a first-class participant in the `configurableColor` /

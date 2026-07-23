@@ -254,6 +254,15 @@ function activeRoomHeight() {
     return roomObj.room.roomHeight;
 }
 
+/* Ceiling Pole derived elevation (current unit): ceiling height minus the pole's vHeight.
+ * Never stored on the item — the Details Z input shows it read-only, and the WD export
+ * recomputes it in meters. */
+function ceilingPoleZ(vHeight) {
+    const ceilH = Number(activeRoomHeight())
+        || (defaultWallHeight * (roomObj.unit === 'feet' ? 3.28084 : 1));
+    return round(ceilH - (Number(vHeight) || 0));
+}
+
 /* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
 function toggleMultiRoomFloorPlanMode(event) {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
@@ -1004,6 +1013,7 @@ function populateGroupDetails(rectNode) {
     /* X/Y track the rect's top-left, same convention as tables/walls. */
     document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
     document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
+    document.getElementById('itemZposition').disabled = false; /* may still be read-only from a Ceiling Pole selection */
     document.getElementById('itemZposition').value = (group.data_zPosition != null) ? group.data_zPosition : 0;
 
     /* Width/Length are display-only — set by updateGroupBounds() / Transformer. */
@@ -2940,6 +2950,7 @@ function populateCustomItemDetails(rectNode) {
 
     document.getElementById('itemX').value = round(((rectNode.x() - pxOffset) / scale) + activeRoomX);
     document.getElementById('itemY').value = round(((rectNode.y() - pyOffset) / scale) + activeRoomY);
+    document.getElementById('itemZposition').disabled = false; /* may still be read-only from a Ceiling Pole selection */
     document.getElementById('itemZposition').value = (customItem.data_zPosition != null) ? customItem.data_zPosition : 0;
 
     document.getElementById('itemWidth').value = round(rectNode.width() / scale);
@@ -7609,6 +7620,24 @@ let tables = [{
     opacity: 0.4,
     resizeable: [],
     configurableColor: true,
+},
+{
+    /* Cylinder that hangs from the ceiling: elevation is always DERIVED (ceiling height
+     * minus data_vHeight) — data_zPosition is never stored. The id starts with 'cylinder'
+     * on purpose so the startsWith('cylinder') Details-enable and resize-anchor branches
+     * apply without extra wiring. */
+    name: 'Ceiling Pole',
+    id: 'cylinderPole',
+    key: 'WU',
+    frontImage: 'cylinder-menu.png',
+    family: 'resizeItem',
+    stroke: 'black',
+    strokeWidth: 1,
+    opacity: 0.4,
+    resizeable: [],
+    configurableColor: true,
+    default_vHeight: 610,
+    defaultLayerId: "1",
 },
 {
     name: 'Cone',
@@ -16987,7 +17016,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         width = 0.9 * scale;
         height = 2.2 * scale;
     }
-    else if (insertDevice.id === 'cylinder') {
+    else if (insertDevice.id === 'cylinder' || insertDevice.id === 'cylinderPole') {
         width = 0.45 * scale;
         height = 0.45 * scale;
     }
@@ -17497,7 +17526,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         });
 
-    } else if (insertDevice.id === 'cylinder') {
+    } else if (insertDevice.id === 'cylinder' || insertDevice.id === 'cylinderPole') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -19544,7 +19573,7 @@ function updateItem() {
             item.height = height;
         }
 
-        if (data_deviceid === 'sphere' || data_deviceid === 'cylinder' || data_deviceid === 'cone') {
+        if (data_deviceid === 'sphere' || data_deviceid === 'cylinder' || data_deviceid === 'cylinderPole' || data_deviceid === 'cone') {
             item.height = width;
         }
 
@@ -19710,7 +19739,11 @@ function updateItem() {
             }
         }
 
-        if (!(data_zPosition === '')) {
+        if (data_deviceid === 'cylinderPole') {
+            /* Ceiling Pole elevation is always DERIVED (ceiling height - vHeight); the disabled Z input just displays it. */
+            delete item.data_zPosition;
+        }
+        else if (!(data_zPosition === '')) {
             item.data_zPosition = data_zPosition;
         }
         else if ('data_zPosition' in item) { /* if field is now blank remove the attribute.  HTML text box can be blank */
@@ -24996,7 +25029,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheightDiv').style.display = 'none';
     }
 
-    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder' || shape.data_deviceid === 'cone') && !shape.data_deviceid.startsWith('wallChairs')) {
+    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || shape.data_deviceid === 'cylinder' || shape.data_deviceid === 'cylinderPole' || shape.data_deviceid === 'cone') && !shape.data_deviceid.startsWith('wallChairs')) {
         let itemVheight = document.getElementById('itemVheight');
         let defaultHeight = defaultWallHeight;
 
@@ -25106,10 +25139,19 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemRotation').value = item.rotation;
     }
 
-    if ('data_zPosition' in shape) {
-        document.getElementById('itemZposition').value = shape.data_zPosition;
+    if (shape.data_deviceid === 'cylinderPole') {
+        /* Derived elevation, read-only: ceiling height minus the pole's height. */
+        const poleVh = Number(shape.data_vHeight)
+            || (allDeviceTypes.cylinderPole.default_vHeight / 1000) * (unit === 'feet' ? 3.28084 : 1);
+        document.getElementById('itemZposition').value = ceilingPoleZ(poleVh);
+        document.getElementById('itemZposition').disabled = true;
     } else {
-        document.getElementById('itemZposition').value = "";
+        document.getElementById('itemZposition').disabled = false;
+        if ('data_zPosition' in shape) {
+            document.getElementById('itemZposition').value = shape.data_zPosition;
+        } else {
+            document.getElementById('itemZposition').value = "";
+        }
     }
 
     /* Room Parts (boxRoomPart/polyRoom) never support tilt/lean — hide controls like videoDevices. */
@@ -26402,7 +26444,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cylinderPole', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -30949,7 +30991,7 @@ async function exportDxfFile() {
             exportedCount++;
             return;
         }
-        if (id === 'cylinder') {
+        if (id === 'cylinder' || id === 'cylinderPole') {
             dxf.circle(cxCad, cyCad, Math.max(widthM, heightM) / 2, { layer: layerName });
             maybeLabel(item, group, cxCad, cyCad, rotCad);
             exportedCount++;
@@ -32052,6 +32094,11 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         item.id = item.id.slice('frontSpeaker~'.length);
     }
 
+    /* Same round-trip rule for the Ceiling Pole cylinder export (see workspaceKey.cylinderPole). */
+    if (data_deviceid === 'cylinderPole' && item.id.startsWith('cylinderPole~')) {
+        item.id = item.id.slice('cylinderPole~'.length);
+    }
+
     item.name = allDeviceTypes[data_deviceid].name;
     item.data_deviceid = data_deviceid;
 
@@ -32209,7 +32256,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
             /* do nothing with length if unknownObj */
         }
-        else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder') {
+        else if (item.data_deviceid === 'sphere' || item.data_deviceid === 'cylinder' || item.data_deviceid === 'cylinderPole') {
             item.height = wdItem.radius * 2;
             item.width = wdItem.radius * 2;
 
@@ -32239,7 +32286,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         if (item.data_deviceid === 'sphere') {
             item.data_vHeight = round(wdItem.radius * 2);
         }
-        else if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cone') {
+        else if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cylinderPole' || item.data_deviceid === 'cone') {
             item.data_vHeight = wdItem.length;
         }
         else if (family === 'wallBox') {
@@ -32260,7 +32307,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
 
         delete wdItem.height;
 
-        if (!(data_deviceid === 'unknownObj' || data_deviceid === 'cylinder' || data_deviceid === 'cone')) {
+        if (!(data_deviceid === 'unknownObj' || data_deviceid === 'cylinder' || data_deviceid === 'cylinderPole' || data_deviceid === 'cone')) {
             delete wdItem.length;
         }
 
@@ -32297,7 +32344,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         if (data_deviceid === 'sphere') {
             z = position[1] - wdItem.radius;
         }
-        else if (data_deviceid === 'cylinder' || data_deviceid === 'cone') {
+        else if (data_deviceid === 'cylinder' || data_deviceid === 'cylinderPole' || data_deviceid === 'cone') {
             z = position[1] - wdItem.length / 2;
             delete wdItem.length;
         }
@@ -32547,13 +32594,18 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.model;
     }
 
-    if (data_deviceid === 'cylinder' || data_deviceid === 'sphere') {
+    if (data_deviceid === 'cylinder' || data_deviceid === 'cylinderPole' || data_deviceid === 'sphere') {
         delete wdItem.radius;
     }
 
     if (data_deviceid === 'cone') {
         delete wdItem.radius;
         delete wdItem.radius2;
+    }
+
+    /* Ceiling Pole elevation is derived (ceiling height - vHeight) — never stored. */
+    if (data_deviceid === 'cylinderPole') {
+        delete item.data_zPosition;
     }
 
 
@@ -33717,6 +33769,13 @@ function exportRoomObjToWorkspace() {
 
                 workspaceObjWallPush(item);
             }
+            else if (item.data_deviceid === 'cylinderPole') {
+                /* id prefix is what workspaceKey.cylinderPole's idRegex matches on import (frontSpeaker pattern) */
+                if (!String(item.id).startsWith('cylinderPole~')) {
+                    item.id = 'cylinderPole~' + item.id;
+                }
+                workspaceObjWallPush(item);
+            }
             else if (item.data_deviceid === 'pathShape') {
                 workspaceObjItemPush(item);
             }
@@ -34623,13 +34682,19 @@ function exportRoomObjToWorkspace() {
             delete workspaceItem.rotation;
         }
 
-        if (item.data_deviceid === 'cylinder') {
+        if (item.data_deviceid === 'cylinder' || item.data_deviceid === 'cylinderPole') {
             workspaceItem.radius = item.width / 2;
 
             if ('data_vHeight' in item && item.data_vHeight) {
                 workspaceItem.length = item.data_vHeight;
             } else {
                 workspaceItem.length = roomObj2.room.roomHeight || defaultWallHeight;
+            }
+
+            /* Ceiling Pole hangs from the ceiling: center = ceiling height - vHeight/2 (all meters here). */
+            if (item.data_deviceid === 'cylinderPole') {
+                const poleCeilH = Number(roomObj2.room.roomHeight) || defaultWallHeight;
+                workspaceItem.position[1] = poleCeilH - workspaceItem.length / 2;
             }
 
             workspaceItem.rotation[0] = ((item.data_tilt) * (Math.PI / 180)) || 0;
