@@ -841,6 +841,14 @@
                 <input type="button" value="Speaker Reach..." class="button" onclick="openSpeakerReachDialogForSelected()">
               </div>
 
+              <div class="inputField" id="editWindowsDiv" style="display: none;">
+                <label class="tooltipBottom">Windows: <i class="icon icon-info-circle-bold"></i>
+                  <span class="tooltiptextBottom">Add and edit windows, window frames, and door frames along this
+                    wall with the Window Editor.</span></label>
+                <input type="button" value="Edit Windows..." class="button" onclick="openWindowEditor()">
+                <input type="hidden" id="customWindowsData" value="[]">
+              </div>
+
               <div class="inputField" id="labelFieldDiv">
                 <label class="tooltipBottom"><span id="itemLabeldiv">Item Label:</span><i
                     class="icon icon-info-circle-bold"></i><span class="tooltiptextBottom">Labels the item. Should be

@@ -242,7 +242,16 @@
             fillEl.value = currentHex();
         }
         if (opEl && cfg.showOpacity) {
-            opEl.value = state.alpha >= 1 ? '' : String(Math.round(state.alpha * 100) / 100);
+            /* App-wide convention: opacity 1.0 (100%) means "no override, use the device
+             * default" and is stored as '' so it round-trips through updateItem()'s
+             * delete-on-default rule (see CLAUDE.md "Configurable Fill & Opacity"). That
+             * assumes the device's own default IS full opacity, which is true for most
+             * configurableColor/wdOpacity devices but NOT for every caller (e.g. the
+             * Window Editor's glass window, whose default is 0.15) — cfg.omitOpacityAtFull
+             * (default true, preserving this behavior for every existing caller) lets a
+             * caller opt out so 100% is written and read back as a real, explicit '1'. */
+            const omitAtFull = cfg.omitOpacityAtFull !== false;
+            opEl.value = (omitAtFull && state.alpha >= 1) ? '' : String(Math.round(state.alpha * 100) / 100);
         }
 
         if (typeof window.updateFillSwatch === 'function') {
@@ -346,8 +355,16 @@
         });
 
         dom.reset.addEventListener('click', () => {
-            state.h = 0; state.s = 0; state.v = 1;
-            state.alpha = 1;
+            /* Resets to the caller's own "no override" default (cfg.resetHex/resetAlpha),
+             * not unconditionally white/100% — the main Details panel's #FFFFFF/'' sentinel
+             * IS that default for most devices (so the two happen to coincide there), but a
+             * caller whose default isn't white/opaque (e.g. the Window Editor's glass
+             * window, default #2FA6C0/0.15) needs Reset to land on ITS default instead. */
+            const resetHex = normalizeHex(state.cfg.resetHex) || '#FFFFFF';
+            const resetRgb = hexToRgb(resetHex);
+            const resetHsv = rgbToHsv(resetRgb.r, resetRgb.g, resetRgb.b);
+            state.h = resetHsv.h; state.s = resetHsv.s; state.v = resetHsv.v;
+            state.alpha = (state.cfg.resetAlpha != null) ? clamp(Number(state.cfg.resetAlpha), 0, 1) : 1;
             render();
             commit();
         });
@@ -371,6 +388,16 @@
 
     window.VRC_openColorPicker = function (cfg) {
         if (!dom) buildDom();
+
+        /* Reparent the (singleton, lazily-built) popover into cfg.container when given —
+         * needed because a native <dialog> shown via showModal() renders in the browser's
+         * top layer, which always wins over z-index for anything outside that dialog's own
+         * subtree. Without this, opening the picker from inside a modal (e.g. the Window
+         * Editor) draws the popover BEHIND the modal regardless of .colorPickerPopover's
+         * z-index. Defaults to document.body, matching the original always-body behavior
+         * for every non-modal caller (the main Details panel). */
+        const targetParent = cfg.container || document.body;
+        if (dom.root.parentNode !== targetParent) targetParent.appendChild(dom.root);
 
         currentSwatch = document.getElementById(cfg.swatchId) || null;
         const fillEl = document.getElementById(cfg.fillId);
@@ -398,6 +425,9 @@
                 showColor,
                 showOpacity,
                 onApply: cfg.onApply,
+                omitOpacityAtFull: cfg.omitOpacityAtFull,
+                resetHex: cfg.resetHex,
+                resetAlpha: cfg.resetAlpha,
             },
         };
 

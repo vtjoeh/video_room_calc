@@ -452,6 +452,53 @@ Each grid-line box in `customObjects[]`:
 
 ---
 
+## Custom Window Wall Round-Trip (`wallCustomWindow`)
+
+Same hybrid pattern as Ceiling Grid: the VRC item (including its full
+`data_customWindows` array) round-trips verbatim via
+`workspaceObj.data.vrc.customWindowWalls[]`, while the wall's derived
+solid/window/gap segments are *also* emitted as individual wall objects
+under `customObjects[]` so Workspace Designer can render it. The
+segment objects are derived geometry only — dropped on import so the
+verbatim record is the single source of truth.
+
+### Wire shape
+
+`workspaceObj.data.vrc.customWindowWalls[]` — the full `roomObj.items[]`
+record, in **meters** (×`1/3.28084` if the source room is in feet;
+`data_customWindows`' four numeric fields per record converted the same
+way), VRC top-left coords, `data_layerId` swapped for `layerName`
+(Default `'0'` omitted).
+
+Each segment in `customObjects[]`:
+
+| Field | Value |
+|-------|-------|
+| `id` | `customWindow~<row>~<itemId>` — `row` increments per pushed child, shared across solid/window/gap kinds |
+| `objectType` | `wall` (emitted via `workspaceObjWallPush` with a synthetic `wallStd` item, so it round-trips the same wall coordinate/rotation math every other wall uses) |
+| geometry | horizontal span = the segment's `[start, end)` along the parent's run; vertical span = `[zBase, zBase + zHeight)` — up to 3 children per window/frame band (solid-below, solid-above, and for `type: 'window'` only, the glass itself), exactly 1 for a solid gap spanning the full wall height |
+| `color` / `opacity` | glass band only: `data_fill \|\| '#2FA6C0'` / `data_opacity ?? 0.15`. Solid pieces inherit the parent's own `data_fill` / `data_opacity` (or WD's default grey wall look when unset) |
+| inherited | `data_layerId` / `data_groupId` / `data_customItemId` / `data_hiddenInDesigner` from the parent |
+
+**Door Frame's "no bottom wall" rule** falls out of the same segment
+builder with zero special-casing: its `baseZ` is forced to `0` before
+computing pieces, so the `if (baseZ > 0)` guard that would normally
+push a solid-below piece simply never fires.
+
+### Implementation cross-reference
+
+| Concern | Location |
+|---------|----------|
+| Device def | `tables` array in `js/roomcalc.js` (`id:'wallCustomWindow'`, `key:'WY'`, `family:'wallBox'`, `configurableColor:true`, `wdOpacity:true`) |
+| Segment derivation (shared scene/export) | `computeCustomWindowSegments(runUnit, windows)`, top of `js/roomcalc.js` near `ceilingPoleDerivedHeight` |
+| Export — dispatch | `wdBuckets.tables` loop in `exportRoomObjToWorkspace()` — `wallCustomWindow` branch calls `pushCustomWindowWallChildren(item)`. MUST be checked before the generic `data_deviceid.startsWith('wall')` branch, which `wallCustomWindow` would otherwise also match |
+| Export — children | `pushCustomWindowWallChildren(parent)` (nested in `exportRoomObjToWorkspace()`, beside `pushCeilingGridChildren`) |
+| Export — verbatim record | `data.vrc.customWindowWalls[]` emit block, right after the `data.vrc.ceilingGrids` emit |
+| Import — drop segments | `importWorkspaceDesignerFile()` scoring loop — `if (wdItem.id.startsWith('customWindow~')) { delete; continue; }` next to the `gridLines~` drop |
+| Import — restore | block after the `data.vrc.ceilingGrids` restore and BEFORE the groups / customItems restore |
+
+---
+
 ## ConfigurableColor & Opacity Round-Trip
 
 Items whose device definition has `configurableColor: true` and / or

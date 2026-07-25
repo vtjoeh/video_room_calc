@@ -171,6 +171,14 @@ window.VRC.util = window.VRC.util || {};
                 item.data_gridLength = item.data_gridLength * ratio;
             }
 
+            if (Array.isArray(item.data_customWindows)) {
+                item.data_customWindows.forEach(w => {
+                    ['distFromLeft', 'width', 'height', 'baseZ'].forEach(f => {
+                        if (f in w && !isNaN(w[f])) w[f] = w[f] * ratio;
+                    });
+                });
+            }
+
             if ('tblRectRadius' in item) {
                 item.tblRectRadius = round(item.tblRectRadius * ratio);
             }

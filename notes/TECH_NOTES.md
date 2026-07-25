@@ -109,8 +109,12 @@ Shipped to `next`:
 
 - `js/constants.js` — global constants + `window.VRC` namespace bootstrap
 - `js/data/workspaceKey.js` — Workspace Designer device map (~270 lines)
-- `js/util/uuid.js` — `createUuid()`
 - `js/util/units.js` — `convertToUnit`, `convertToMeters`, `convertMetersFeet`
+
+(`js/util/uuid.js` / `createUuid()` were reverted at some point after this
+snapshot — the codebase-wide convention is `crypto.randomUUID()` called
+directly. See the "Latent bug fixed in passing" note in
+`notes/MULTI_ROOM_FLOOR_PLAN.md`.)
 
 Net ~244 lines came out of `roomcalc.js`. Pattern (IIFE + `window.VRC.<ns>`,
 plus a thin alias block at the top of `roomcalc.js`) is documented in

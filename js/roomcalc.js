@@ -269,6 +269,49 @@ function ceilingPoleDerivedHeight(baseZ) {
     return Math.max(0.01, round(ceilH - (Number(baseZ) || 0)));
 }
 
+/* wallCustomWindow: derive the ordered list of segments along the wall's run (current unit,
+ * same unit as `windows` records) — solid wall fills every gap between window/frame spans.
+ * Shared by the canvas sceneFunc and the WD export child builder, so both always agree. */
+function computeCustomWindowSegments(runUnit, windows) {
+    const list = Array.isArray(windows)
+        ? windows.slice().sort((a, b) => (Number(a.distFromLeft) || 0) - (Number(b.distFromLeft) || 0))
+        : [];
+    const segments = [];
+    let cursor = 0;
+    list.forEach(w => {
+        const start = Math.max(0, Math.min(runUnit, Number(w.distFromLeft) || 0));
+        const end = Math.max(start, Math.min(runUnit, start + (Number(w.width) || 0)));
+        if (start > cursor) segments.push({ start: cursor, end: start, kind: 'solid' });
+        if (end > start) segments.push({ start: start, end: end, kind: w.type || 'window', record: w });
+        cursor = Math.max(cursor, end);
+    });
+    if (cursor < runUnit) segments.push({ start: cursor, end: runUnit, kind: 'solid' });
+    return segments;
+}
+
+/* wallCustomWindow: drop data_customWindows records that start at or beyond the wall's current
+ * run length (item.height) — the same "invisible" test computeCustomWindowSegments already applies
+ * per-record, made explicit so export paths (shareable link, .vrc.json download) don't carry stale
+ * window/frame records left behind after the wall was shortened. Non-destructive: returns the same
+ * array reference when nothing needed pruning, otherwise a new array with shallow-cloned wallCustomWindow
+ * items so callers holding a live roomObj.items reference (e.g. createShareableLink's non-room-part
+ * path) are never mutated in place. */
+function pruneOrphanedCustomWindowsForExport(items) {
+    if (!Array.isArray(items)) return items;
+    let changed = false;
+    const out = items.map(item => {
+        if (item.data_deviceid !== 'wallCustomWindow' || !Array.isArray(item.data_customWindows) || item.data_customWindows.length === 0) {
+            return item;
+        }
+        const runUnit = Number(item.height) || 0;
+        const pruned = item.data_customWindows.filter(w => (Number(w.distFromLeft) || 0) < runUnit);
+        if (pruned.length === item.data_customWindows.length) return item;
+        changed = true;
+        return { ...item, data_customWindows: pruned };
+    });
+    return changed ? out : items;
+}
+
 /* Settings-tab toggle for the sticky multiRoomFloorPlanMode flag; both directions are confirm-guarded and cancel reverts the checkbox. */
 function toggleMultiRoomFloorPlanMode(event) {
     let checkbox = document.getElementById('multiRoomFloorPlanModeCheckBox');
@@ -989,7 +1032,7 @@ function populateGroupDetails(rectNode) {
 
     /* Hide everything that doesn't apply to a Group (non-group branch of updateFormatDetails re-shows itemNameDiv). */
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'editWindowsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -2932,7 +2975,7 @@ function populateCustomItemDetails(rectNode) {
     if (!customItem) return;
 
     const hideIds = [
-        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
+        'itemNameDiv', 'certifiedDisplayDiv', 'discasSettingsDiv', 'speakerReachDiv', 'editWindowsDiv', 'itemDiscasAspectDiv', 'labelPathId', 'itemTopElevationDiv', 'itemDiagonalTvDiv',
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
@@ -7543,6 +7586,19 @@ let tables = [{
     family: 'wallBox',
     resizeable: ['depth'],
 },
+{
+    /* Wall with an editable list of windows/door frames (data_customWindows). Solid segments,
+     * window glass, and open frames are all DERIVED from the sorted array at render/export time.
+     * See CLAUDE.md "Custom Window Wall". */
+    name: 'Custom Window Wall',
+    id: 'wallCustomWindow',
+    key: 'WY',
+    frontImage: 'wallStd-front.png',
+    family: 'wallBox',
+    resizeable: ['depth', 'vheight'],
+    configurableColor: true,
+    wdOpacity: true,
+},
 
 {
     name: 'Column',
@@ -9138,6 +9194,14 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_gridLength = round(item.data_gridLength * ratio);
     }
 
+    if (Array.isArray(item.data_customWindows)) {
+        item.data_customWindows.forEach(w => {
+            ['distFromLeft', 'width', 'height', 'baseZ'].forEach(f => {
+                if (f in w && !isNaN(w[f])) w[f] = round(w[f] * ratio);
+            });
+        });
+    }
+
     if ('tblRectRadiusRight' in item) {
         item.tblRectRadiusRight = round(item.tblRectRadiusRight * ratio);
     }
@@ -9449,7 +9513,7 @@ function parseShortenedXYUrl(parameters) {
 
     while (i < parameters.length) {
         let char = parameters[i];
-        if (char === '_' && (lastCharType != charType.BetweenTilde)) {  /* represents a repeat of the last Capital Letter used. */
+        if (char === '_' && (lastCharType != charType.BetweenTilde) && (lastCharType != charType.BetweenLowLetterTilde)) {  /* represents a repeat of the last Capital Letter used. Must also exclude BetweenLowLetterTilde (the cw~<JSON>~ blob's state) — a literal underscore inside the blob (e.g. "data_fill", "data_opacity") would otherwise be misread as the shorthand and clone/split the item mid-blob, corrupting the parse into multiple bogus items (confirmed live: 1 wallCustomWindow -> 2 duplicates + a phantom stageFloor). */
             deleteBlankDotKeys(output[objCount]);
             repeateStringItem = true;
             output.push(structuredClone(output[objCount]));
@@ -10175,6 +10239,12 @@ function parseShortenedXYUrl(parameters) {
                 && allDeviceTypes[newItem.data_deviceid].lineTypeOption
                 && Number(item.lt) === 1) {
                 newItem.data_lineType = 'solid';
+            }
+
+            /* cw = wallCustomWindow's data_customWindows array — compact token format, with
+             * legacy-JSON-blob fallback for pre-existing links (see decodeCustomWindowsToken). */
+            if ('cw' in item && newItem.data_deviceid === 'wallCustomWindow') {
+                newItem.data_customWindows = decodeCustomWindowsToken(item.cw);
             }
 
             /* rs = boxRoomPart per-room default walls (mirror of encodeRoomPartWallsDigits). */
@@ -12990,6 +13060,75 @@ function openSvgPathEditor(idOverride, startMode) {
     });
 }
 
+/* Open the lazy-loaded VRC Window Editor (js/windowEditor/) for a wallCustomWindow.
+ * The editor works in meters, like the Path Editor; this glue converts room units on
+ * the way in/out and writes the result back through the Details-field + updateItem()
+ * pipeline (Wall Height into the existing #itemVheight field, the window list into the
+ * hidden #customWindowsData JSON mirror updateItem() reads). */
+function openWindowEditor(idOverride) {
+    const id = (typeof idOverride === 'string' && idOverride)
+        ? idOverride
+        : document.getElementById('itemId').innerText;
+
+    const node = stage.findOne('#' + id);
+    const item = roomObjItemsMap.get(id) || roomObj.items.find(i => i.id === id);
+    if (!node || !item || item.data_deviceid !== 'wallCustomWindow') return;
+
+    document.getElementById('itemId').innerText = id;
+    tr.nodes([node]);
+    enableCopyDelBtn();
+    updateFormatDetails(id);
+
+    const toM = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+    const wallLengthM = (Number(item.height) || 0) * toM;
+    const ceilingFallback = Number(activeRoomHeight())
+        || (defaultWallHeight * (roomObj.unit === 'feet' ? 3.28084 : 1));
+    const wallHeightM = (Number(item.data_vHeight) || ceilingFallback) * toM;
+
+    const windowsM = (item.data_customWindows || []).map(w => ({
+        id: w.id,
+        type: w.type,
+        distFromLeft: (Number(w.distFromLeft) || 0) * toM,
+        width: (Number(w.width) || 0) * toM,
+        height: (Number(w.height) || 0) * toM,
+        baseZ: (Number(w.baseZ) || 0) * toM,
+        data_fill: w.data_fill,
+        data_opacity: w.data_opacity,
+    }));
+
+    loadScriptOnce(VRC.constants.SCRIPT_WINDOW_EDITOR).then(() => {
+        return window.VRC.windowEditor.open({
+            wallLengthM: wallLengthM,
+            wallHeightM: wallHeightM,
+            windows: windowsM,
+            unit: roomObj.unit,
+            onClose: (res) => {
+                if (!res) return;
+                document.getElementById('itemVheight').value = round(res.wallHeightM / toM);
+                const outWindows = res.windows.map(w => {
+                    const out = {
+                        id: w.id,
+                        type: w.type,
+                        distFromLeft: round(w.distFromLeft / toM),
+                        width: round(w.width / toM),
+                        height: round(w.height / toM),
+                        baseZ: round(w.baseZ / toM),
+                    };
+                    if (w.type === 'window') {
+                        out.data_fill = w.data_fill;
+                        out.data_opacity = w.data_opacity;
+                    }
+                    return out;
+                });
+                document.getElementById('customWindowsData').value = JSON.stringify(outWindows);
+                updateItem();
+            },
+        });
+    }).catch(() => {
+        alertDialog('Window Editor', 'Could not load the window editor module. Please refresh the page and try again.');
+    });
+}
+
 function polyBuilderOn(event, mode = 'polyRoom') {
     let turnOn;
 
@@ -13410,6 +13549,7 @@ function createShareableLink() {
 
     listItemsOffStage();
     const linkSrc = buildRoomModeLinkSource();
+    linkSrc.items = pruneOrphanedCustomWindowsForExport(linkSrc.items);
     let strUrlQuery2;
     strUrlQuery2 = `A${roomObj.unit == 'feet' ? '1' : '0'}`;
     strUrlQuery2 += `b${expand(linkSrc.roomWidth)}c${expand(linkSrc.roomLength)}`;
@@ -13744,6 +13884,123 @@ function urlRgbToHex(rgb9) {
         + b.toString(16).padStart(2, '0').toUpperCase();
 }
 
+/* Compact per-window/frame token format for the wallCustomWindow `cw~...~` URL blob. Replaces
+ * the original JSON.stringify + encodeURIComponent blob, which cost ~150-250+ chars PER RECORD
+ * (full UUID, JSON punctuation, spelled-out type/field names) — the dominant contributor to
+ * long Custom Window Wall shareable links. Mimics the outer x= link's own conventions so the
+ * style stays familiar: each record is a self-delimiting uppercase TYPE letter (W=window,
+ * F=windowFrame/"Open Window", D=doorFrame/"Open Doorway") followed by the IMPLICIT first
+ * number (distFromLeft x100, matching the outer per-item x-position convention — bare digits,
+ * no letter), then lettered fields reusing the SAME letters the outer format already uses for
+ * the same concepts: c=width x100, e=height x100, b=baseZ x100 (omitted for doorFrame — always
+ * 0), u=fill as the outer format's 9-digit zero-padded RGB triple, v=opacity x100 (u/v only
+ * emitted when they differ from the device default, same "only non-default" rule the outer
+ * format uses everywhere). No id, and no JSON punctuation at all: an id is a pure client-side
+ * UI tracking key (used only for selection within a single Window Editor session — nothing else
+ * references it, not even the WD-export child piece ids, which key off the PARENT wall's id) and
+ * is freely regenerated with crypto.randomUUID() on decode. Records concatenate with NO
+ * separator — a fresh uppercase W/F/D unambiguously starts the next record, the same way the
+ * outer tokenizer already treats an uppercase letter as an item boundary. The whole compact
+ * string is pure alphanumeric (no punctuation), so unlike the old JSON blob it needs no
+ * encodeURIComponent/'+' escaping at all going into or out of the URL. */
+const CUSTOM_WINDOW_DEFAULT_FILL = '#2FA6C0';
+const CUSTOM_WINDOW_DEFAULT_OPACITY = 0.15;
+
+function encodeCustomWindowsCompact(windows) {
+    if (!Array.isArray(windows)) return '';
+    return windows.map(w => {
+        const isDoor = (w.type === 'doorFrame');
+        const typeChar = isDoor ? 'D' : (w.type === 'windowFrame' ? 'F' : 'W');
+        let s = typeChar + Math.round((Number(w.distFromLeft) || 0) * 100);
+        s += 'c' + Math.round((Number(w.width) || 0) * 100);
+        s += 'e' + Math.round((Number(w.height) || 0) * 100);
+        if (!isDoor) {
+            s += 'b' + Math.round((Number(w.baseZ) || 0) * 100);
+        }
+        if (w.type === 'window') {
+            const fillHex = (w.data_fill || CUSTOM_WINDOW_DEFAULT_FILL).toUpperCase();
+            if (fillHex !== CUSTOM_WINDOW_DEFAULT_FILL.toUpperCase()) {
+                s += 'u' + hexToUrlRgb(fillHex);
+            }
+            const op = (w.data_opacity != null) ? Number(w.data_opacity) : CUSTOM_WINDOW_DEFAULT_OPACITY;
+            if (Math.abs(op - CUSTOM_WINDOW_DEFAULT_OPACITY) > 0.001) {
+                s += 'v' + Math.round(op * 100);
+            }
+        }
+        return s;
+    }).join('');
+}
+
+/* Decodes a cw token, auto-detecting the compact format above vs. the legacy JSON-blob format
+ * (`[{"id":...,...}]`, produced by builds before this compact scheme existed) so links saved
+ * before this change keep loading correctly — this format is not yet in production, but
+ * existing test links must not break. Detection: the legacy format always decodes to a string
+ * starting with `[`; the compact format always starts with an uppercase W/F/D (and decoding it
+ * through decodeURIComponent is a harmless no-op, since it's pure alphanumeric). */
+function decodeCustomWindowsToken(raw) {
+    let decoded;
+    try {
+        decoded = decodeURIComponent(String(raw).replaceAll('+', ' '));
+    } catch (e) {
+        return [];
+    }
+    if (decoded.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(decoded);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            console.error('Failed to parse legacy wallCustomWindow cw token:', e);
+            return [];
+        }
+    }
+    return decodeCustomWindowsCompact(decoded);
+}
+
+function decodeCustomWindowsCompact(str) {
+    const records = [];
+    let i = 0;
+    while (i < str.length) {
+        const typeChar = str[i];
+        let type;
+        if (typeChar === 'D') type = 'doorFrame';
+        else if (typeChar === 'F') type = 'windowFrame';
+        else if (typeChar === 'W') type = 'window';
+        else break; /* unrecognized — stop rather than risk misparsing the remainder */
+        i++;
+
+        let numStr = '';
+        while (i < str.length && /[0-9]/.test(str[i])) { numStr += str[i]; i++; }
+        const rec = {
+            id: crypto.randomUUID(),
+            type: type,
+            distFromLeft: (Number(numStr) || 0) / 100,
+            width: 0, height: 0, baseZ: 0,
+        };
+
+        while (i < str.length && /[a-z]/.test(str[i])) {
+            const letter = str[i]; i++;
+            let vs = '';
+            while (i < str.length && /[0-9]/.test(str[i])) { vs += str[i]; i++; }
+            const val = Number(vs) || 0;
+            if (letter === 'c') rec.width = val / 100;
+            else if (letter === 'e') rec.height = val / 100;
+            else if (letter === 'b') rec.baseZ = val / 100;
+            else if (letter === 'u') rec.data_fill = urlRgbToHex(vs.padStart(9, '0'));
+            else if (letter === 'v') rec.data_opacity = val / 100;
+        }
+
+        if (type === 'doorFrame') {
+            rec.baseZ = 0;
+        }
+        if (type === 'window') {
+            if (rec.data_fill == null) rec.data_fill = CUSTOM_WINDOW_DEFAULT_FILL;
+            if (rec.data_opacity == null) rec.data_opacity = CUSTOM_WINDOW_DEFAULT_OPACITY;
+        }
+        records.push(rec);
+    }
+    return records;
+}
+
 /* WD color → #RRGGBB (hex or CSS name via getComputedStyle); cached. */
 let _namedColorToHexCache = new Map();
 function normalizeColorToHex(input) {
@@ -14060,6 +14317,15 @@ function createShareableLinkItem(item, prevTokens) {
     /* lt = VRC Line Type (1 = solid); dotted is the default and stays implicit. */
     if (item.data_lineType === 'solid') {
         add('lt', 'lt1');
+    }
+
+    /* cw = wallCustomWindow's data_customWindows array, tilde-wrapped (same free-form mechanism
+     * the label/text field uses, keyed under 'cw' instead of the bare reserved tilde so it never
+     * collides with the label — whole array travels as one token rather than per-field codes,
+     * since its length is variable). Contents are the compact per-record token format —
+     * see encodeCustomWindowsCompact() near hexToUrlRgb() for the format and why. */
+    if (item.data_deviceid === 'wallCustomWindow' && Array.isArray(item.data_customWindows) && item.data_customWindows.length > 0) {
+        add('cw', 'cw~' + encodeCustomWindowsCompact(item.data_customWindows) + '~');
     }
 
     /* rs = boxRoomPart per-room default walls; persists wall types through URL round-trips. */
@@ -15385,6 +15651,10 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_lineType = node.data_lineType;
         }
 
+        if (node.data_customWindows != null) {
+            newAttr.data_customWindows = structuredClone(node.data_customWindows).map(w => ({ ...w, id: crypto.randomUUID() }));
+        }
+
         if (node.data_gridWidth != null) {
             newAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16634,6 +16904,10 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_lineType = node.data_lineType;
         }
 
+        if (node.data_customWindows != null) {
+            itemAttr.data_customWindows = structuredClone(node.data_customWindows);
+        }
+
         if (node.data_gridWidth != null) {
             itemAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16743,6 +17017,12 @@ function updateRoomObjFromTrNode() {
                 item.data_lineType = itemAttr.data_lineType;
             } else {
                 delete item.data_lineType;
+            }
+
+            if (itemAttr.data_customWindows != null) {
+                item.data_customWindows = itemAttr.data_customWindows;
+            } else {
+                delete item.data_customWindows;
             }
 
             if (itemAttr.data_gridWidth != null) {
@@ -17956,6 +18236,52 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
+    } else if (insertDevice.id === 'wallCustomWindow') {
+        tblWallFlr = new Konva.Shape({
+            x: pixelX,
+            y: pixelY,
+            rotation: rotation,
+            width: wallWidth,
+            height: height,
+            stroke: strokeColor,
+            strokeWidth: 1,
+            id: uuid,
+            draggable: true,
+            opacity: (attrs.data_opacity == null ? 0.8 : Number(attrs.data_opacity)),
+            sceneFunc: (ctx, shape) => {
+                /* 2D top-view indicator only: grey segments are solid wall (derived gaps), black
+                 * segments are any window/frame span. The real per-segment editing (glass vs open
+                 * frame vs door) happens in the Window Editor mini-app. */
+                const w = shape.width();
+                const h = shape.height();
+                const runUnit = h / scale;
+                const segments = computeCustomWindowSegments(runUnit, shape.data_customWindows);
+                const solidFill = shape.data_fill || 'gray';
+                segments.forEach(seg => {
+                    const y0 = seg.start * scale;
+                    const y1 = seg.end * scale;
+                    if (y1 <= y0) return;
+                    ctx.beginPath();
+                    ctx.rect(0, y0, w, y1 - y0);
+                    ctx.closePath();
+                    ctx.fillStyle = (seg.kind === 'solid') ? solidFill : 'black';
+                    ctx.fill();
+                    ctx.strokeStyle = shape.stroke();
+                    ctx.lineWidth = shape.strokeWidth();
+                    ctx.stroke();
+                });
+            },
+            /* Raw ctx.fillStyle/fill() calls above paint the scene canvas only — they don't
+             * register a hit region the way fillStrokeShape() does, so drag/click/dblclick would
+             * silently fail without this. Whole-footprint hit region, same fix as ceilingGrid. */
+            hitFunc: (ctx, shape) => {
+                ctx.beginPath();
+                ctx.rect(0, 0, shape.getAttr('width'), shape.getAttr('height'));
+                ctx.closePath();
+                ctx.fillStrokeShape(shape);
+            }
+        });
+        tblWallFlr.data_customWindows = attrs.data_customWindows ? structuredClone(attrs.data_customWindows) : [];
     } else if (insertDevice.id === 'wallWindow') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
@@ -19580,6 +19906,21 @@ function updateItem() {
         if (__gwIn) data_gridWidth = Number(__gwIn.value);
         if (__glIn) data_gridLength = Number(__glIn.value);
     }
+
+    /* wallCustomWindow: Window Editor writes its result into the hidden #customWindowsData
+     * field (current unit already) before calling updateItem(); written to item.data_customWindows below. */
+    let data_customWindows = null;
+    if (document.getElementById('itemName').value === 'wallCustomWindow') {
+        const __cwIn = document.getElementById('customWindowsData');
+        if (__cwIn) {
+            try {
+                const parsed = JSON.parse(__cwIn.value || '[]');
+                if (Array.isArray(parsed)) data_customWindows = parsed;
+            } catch (e) {
+                console.error('Failed to parse customWindowsData:', e);
+            }
+        }
+    }
     let data_diagonalInches = document.getElementById('itemDiagonalTv').value;
     let x = Number(document.getElementById('itemX').value);
     let y = Number(document.getElementById('itemY').value);
@@ -19669,6 +20010,10 @@ function updateItem() {
             if (typeof data_gridLength === 'number' && isFinite(data_gridLength) && data_gridLength > 0) {
                 item.data_gridLength = data_gridLength;
             }
+        }
+
+        if (data_deviceid === 'wallCustomWindow' && data_customWindows != null) {
+            item.data_customWindows = data_customWindows;
         }
 
         if (allDeviceTypes[data_deviceid] && allDeviceTypes[data_deviceid].lineTypeOption) {
@@ -21968,6 +22313,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_radius2 = (attrs.data_radius2 == null) ? null : Number(attrs.data_radius2);
 
         node.data_lineType = attrs.data_lineType || null;
+
+        node.data_customWindows = attrs.data_customWindows ? structuredClone(attrs.data_customWindows) : null;
 
         node.data_gridWidth = (attrs.data_gridWidth == null) ? null : Number(attrs.data_gridWidth);
         node.data_gridLength = (attrs.data_gridLength == null) ? null : Number(attrs.data_gridLength);
@@ -25053,6 +25400,18 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             (spkrDev && ('speakerRadius' in spkrDev) && isAudioTestMode()) ? '' : 'none';
     }
 
+    /* wallCustomWindow: surface the Edit Windows button; keep the hidden JSON mirror in sync
+     * so an Update-Item click without opening the editor doesn't wipe the array. */
+    const editWindowsDiv = document.getElementById('editWindowsDiv');
+    if (editWindowsDiv) {
+        const isCustomWindowWall = (shape.data_deviceid === 'wallCustomWindow');
+        editWindowsDiv.style.display = isCustomWindowWall ? '' : 'none';
+        if (isCustomWindowWall) {
+            const cwIn = document.getElementById('customWindowsData');
+            if (cwIn) cwIn.value = JSON.stringify(shape.data_customWindows || []);
+        }
+    }
+
     /* displayCustom: Image Aspect Ratio dropdown, mirrors discasAspectSelect in the DISCAS dialog. */
     const itemDiscasAspectDiv = document.getElementById('itemDiscasAspectDiv');
     if (itemDiscasAspectDiv) {
@@ -25432,8 +25791,11 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             const psDiv = document.getElementById('itemPointerSizeDiv');
             if (psDiv) psDiv.style.display = 'none';
             if (lwpsRow) lwpsRow.style.display = 'none';
-            /* Room Parts sit on the floor by definition — Z has no meaning. */
-            if (zDiv) zDiv.style.display = isRoomPartShape ? 'none' : '';
+            /* Room Parts sit on the floor by definition — Z has no meaning. Same for
+             * Custom Window Wall: the wall itself always sits at floor level, and each
+             * window/frame's own elevation is edited per-record in the Window Editor's
+             * Base Elevation field, not via the item-level Z. */
+            if (zDiv) zDiv.style.display = (isRoomPartShape || shape.data_deviceid === 'wallCustomWindow') ? 'none' : '';
         }
     }
 
@@ -25490,7 +25852,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[3] = ['box', 'stageFloor', 'columnRect'];
 
-    deviceGroups[4] = ['wallGlass', 'wallWindow', 'wallStd'];
+    deviceGroups[4] = ['wallGlass', 'wallWindow', 'wallStd', 'wallCustomWindow'];
 
     deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
@@ -26123,6 +26485,10 @@ function insertItemFromMenu(data_deviceid, attrs) {
         }
     }
 
+    if (data_deviceid === 'wallCustomWindow' && attrs.data_customWindows == null) {
+        attrs.data_customWindows = [];
+    }
+
     /* boxRoomPart: seed per-room default-walls config (kept default-walls on). */
     if (data_deviceid === 'boxRoomPart') {
         if (attrs.data_roomSurfaces == null) {
@@ -26549,7 +26915,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cylinderPole','ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'wallCustomWindow', 'columnRect', 'cylinder', 'cylinderPole','ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -31692,6 +32058,11 @@ function importWorkspaceDesignerFile(workspaceObj) {
                 continue;
             }
 
+            if (typeof wdItem.id === 'string' && wdItem.id.startsWith('customWindow~')) {
+                delete wdItems[i];
+                continue;
+            }
+
             /* A person presenter imported as a custom URL gets replaced with the proper API */
             if (wdItem.id === 'presenter' && wdItem.objectType === 'custom' && wdItem.role === 'presenter' && wdItem.customUrl) {
                 wdItem.id = 'presenterCustomModified';
@@ -31980,6 +32351,21 @@ function importWorkspaceDesignerFile(workspaceObj) {
             const item = structuredClone(cg);
             item.data_layerId = cg.layerName
                 ? resolveImportLayerName(cg.layerName, roomObj2)
+                : '0';
+            delete item.layerName;
+            roomObj2.items.push(item);
+        });
+    }
+
+    /* Restore wallCustomWindow items from data.vrc.customWindowWalls — mirror of the ceilingGrids
+     * block above (matching customWindow~* segments were already dropped in the scoring loop). */
+    if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.customWindowWalls)) {
+        if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
+        workspaceObj.data.vrc.customWindowWalls.forEach(cw => {
+            if (!cw || cw.data_deviceid !== 'wallCustomWindow') return;
+            const item = structuredClone(cw);
+            item.data_layerId = cw.layerName
+                ? resolveImportLayerName(cw.layerName, roomObj2)
                 : '0';
             delete item.layerName;
             roomObj2.items.push(item);
@@ -33681,6 +34067,41 @@ function exportRoomObjToWorkspace() {
         }
     }
 
+    /* wallCustomWindow parent records round-trip verbatim via data.vrc.customWindowWalls[]
+     * (the wall is also emitted as solid/window/gap segments, dropped on import via the
+     * customWindow~ id prefix). Mirror of the ceilingGrids block above. */
+    if (Array.isArray(roomObj.items)) {
+        const cwRatio = (roomObj.unit === 'feet') ? (1 / 3.28084) : 1;
+        const exportedCustomWindowWalls = [];
+        roomObj.items.forEach(it => {
+            if (!it || it.data_deviceid !== 'wallCustomWindow') return;
+
+            const exported = structuredClone(it);
+            ['x', 'y', 'width', 'height', 'data_zPosition', 'data_vHeight'].forEach(f => {
+                if (typeof exported[f] === 'number') {
+                    exported[f] = round(exported[f] * cwRatio);
+                }
+            });
+            if (Array.isArray(exported.data_customWindows)) {
+                exported.data_customWindows.forEach(w => {
+                    ['distFromLeft', 'width', 'height', 'baseZ'].forEach(f => {
+                        if (typeof w[f] === 'number') w[f] = round(w[f] * cwRatio);
+                    });
+                });
+            }
+            const cwLayerId = exported.data_layerId;
+            if (cwLayerId && cwLayerId !== '0' && roomObj.layers) {
+                const cwLayer = roomObj.layers.find(l => l.layerid === cwLayerId);
+                if (cwLayer && cwLayer.name) exported.layerName = cwLayer.name;
+            }
+            delete exported.data_layerId;
+            exportedCustomWindowWalls.push(exported);
+        });
+        if (exportedCustomWindowWalls.length > 0) {
+            workspaceObj.data.vrc.customWindowWalls = exportedCustomWindowWalls;
+        }
+    }
+
 
     if (altDefaultWall && !exportRemoveDefaultWalls) {
         delete workspaceObj.roomShape;
@@ -33896,6 +34317,10 @@ function exportRoomObjToWorkspace() {
             }
             else if (item.data_deviceid === 'pathShape') {
                 workspaceObjItemPush(item);
+            }
+            else if (item.data_deviceid === 'wallCustomWindow') {
+
+                pushCustomWindowWallChildren(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
                 /* Ceiling-hung ids get the round-trip prefix their workspaceKey idRegex matches on import (cylinderPole pattern). */
@@ -35185,6 +35610,110 @@ function exportRoomObjToWorkspace() {
         pushLine(0, H - t / 2, W, t, `gridLines~h~${hRow}~${parent.id}`);
     }
 
+    /* wallCustomWindow → derived solid/window/gap segments along the wall's run, each pushed as
+     * its own WD wall object via workspaceObjWallPush. The parent record round-trips verbatim via
+     * data.vrc.customWindowWalls[]; these segments are the WD-visible representation and are
+     * DROPPED on import (every customObjects[] entry whose id starts with `customWindow~`).
+     * Children are always colinear with the parent's own run axis (local thickness offset is
+     * always 0 — the wall's thickness never varies), so this is the UL/pivot-only case of the
+     * parentItem rotation formula (see pushParentItemChildren / pushCeilingGridChildren's pushLine). */
+    function pushCustomWindowWallChildren(parent) {
+
+        const runTotal = Number(parent.height) || 0;
+        if (runTotal <= 0) return;
+
+        const wallThickness = Number(parent.width) || 0.10;
+        const wallVHeight = Number(parent.data_vHeight) || roomObj2.room.roomHeight || defaultWallHeight;
+
+        const pivotX = Number(parent.x) || 0;
+        const pivotY = Number(parent.y) || 0;
+        const rad = (parent.rotation || 0) * Math.PI / 180;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        /* localX = offset across the wall's thickness (0 = flush with the parent's own
+         * thickness anchor, i.e. spans the full wallThickness); localY = offset along the
+         * wall's run. Matches the general parentItem rotation formula (see "Parent anchor
+         * heuristic" above): worldX = pivotX + localX*cos - localY*sin, worldY = pivotY +
+         * localX*sin + localY*cos. worldFromLocalY is the localX=0 case every other caller
+         * here uses (flush, full-thickness pieces). */
+        const worldFromLocal = (localY, localX) => ({
+            x: pivotX + (localX || 0) * cos - localY * sin,
+            y: pivotY + (localX || 0) * sin + localY * cos,
+        });
+        const worldFromLocalY = (localY) => worldFromLocal(localY, 0);
+
+        /* Window glass rides thinner than the wall and centered in its thickness (0.03 m
+         * gap on the inside and outside face for the default 0.10 m wall), instead of
+         * spanning the full wallThickness like solid segments and door/window-frame jambs. */
+        const WINDOW_GLASS_WIDTH_M = 0.04;
+
+        let idx = 0;
+        const pushPiece = (startY, spanH, zBase, zHeight, fill, opacity, boxWidth, localXOffset) => {
+            if (spanH <= 1e-6 || zHeight <= 1e-6) return;
+            const bw = (boxWidth != null) ? boxWidth : wallThickness;
+            const world = worldFromLocal(startY, localXOffset);
+            const synth = {
+                id: `customWindow~${idx}~${parent.id}`,
+                data_deviceid: 'wallStd',
+                x: world.x,
+                y: world.y,
+                width: bw,
+                height: spanH,
+                rotation: (parent.rotation || 0),
+                data_zPosition: zBase,
+                data_vHeight: zHeight,
+                data_layerId: parent.data_layerId,
+                data_groupId: parent.data_groupId,
+                data_customItemId: parent.data_customItemId,
+                data_hiddenInDesigner: parent.data_hiddenInDesigner,
+            };
+            if (fill) synth.data_fill = fill;
+            if (opacity != null) synth.data_opacity = opacity;
+            idx += 1;
+            workspaceObjWallPush(synth);
+        };
+
+        const segments = computeCustomWindowSegments(runTotal, parent.data_customWindows);
+        segments.forEach(seg => {
+            const spanH = seg.end - seg.start;
+            if (seg.kind === 'solid') {
+                pushPiece(seg.start, spanH, 0, wallVHeight, parent.data_fill, parent.data_opacity);
+                return;
+            }
+
+            const w = seg.record || {};
+            const isDoor = (w.type === 'doorFrame');
+            const baseZ = isDoor ? 0 : (Number(w.baseZ) || 0);
+            const openHeight = Number(w.height) || 0;
+            const top = baseZ + openHeight;
+
+            if (baseZ > 0) pushPiece(seg.start, spanH, 0, baseZ, parent.data_fill, parent.data_opacity);
+            if (top < wallVHeight) pushPiece(seg.start, spanH, top, wallVHeight - top, parent.data_fill, parent.data_opacity);
+
+            if (w.type === 'window') {
+                const glassWidth = Math.min(WINDOW_GLASS_WIDTH_M, wallThickness);
+                const glassOffset = (wallThickness - glassWidth) / 2;
+                pushPiece(seg.start, spanH, baseZ, openHeight,
+                    w.data_fill || '#2FA6C0',
+                    (w.data_opacity != null) ? w.data_opacity : 0.15,
+                    glassWidth, glassOffset);
+            }
+            /* windowFrame / doorFrame: the band itself is a literal gap — no WD object pushed. */
+        });
+
+        /* A doorFrame/windowFrame band that is BOTH full wall width (no solid gap segment
+         * left over) AND tall enough to reach the ceiling (no lintel above it either — e.g. a
+         * doorway resized/dragged floor-to-ceiling) leaves NOTHING pushed above: idx stays 0
+         * and the whole wallCustomWindow item silently vanishes from the WD 3D view (confirmed
+         * live — 0 customObjects entries), even though the room-level data.vrc.customWindowWalls
+         * parent record still round-trips fine. A single degenerate opening should never make
+         * the item fully disappear/unselectable in 3D, so fall back to a thin header sentinel
+         * spanning the full run at the very top of the wall. */
+        if (idx === 0) {
+            const sentinelHeight = Math.min(0.05, wallVHeight);
+            pushPiece(0, runTotal, wallVHeight - sentinelHeight, sentinelHeight, parent.data_fill, parent.data_opacity);
+        }
+    }
+
     return workspaceObj;
 
 }
@@ -35519,6 +36048,7 @@ function buildRoomObjJsonPayload() {
     let roomObj2 = structuredClone(roomObj);
     delete roomObj2.room;
     delete roomObj2.trNodes;
+    roomObj2.items = pruneOrphanedCustomWindowsForExport(roomObj2.items);
     let roomItems = {};
     roomItems.room = {};
     roomItems.name = roomObj.name;

@@ -191,6 +191,7 @@ Each device/furniture type has a 2-character uppercase key:
 | `WV` | Door Header Wall (`wallStdHeader`; ceiling-hung like `WU`) |
 | `WW` | Door Header Glass (`wallGlassHeader`; ceiling-hung like `WU`) |
 | `WX` | Ceiling Drop Box (`boxdrop`; ceiling-hung like `WU`, supports `lt`) |
+| `WY` | Custom Window Wall (`wallCustomWindow`; whole `data_customWindows` array carried by 2-char `cw`) |
 
 **Chairs (S_):**
 
@@ -246,7 +247,67 @@ After an item type prefix, lowercase letters encode attributes:
 | `gw` | ceilingGrid tile width (×100) | Number | `data_gridWidth` for `ceilingGrid` items only. 2-char code (accumulated by the tokenizer like `cd` / `ll`). `gw{N}` where N = width × 100 in current unit. Both encoder and decoder gate on `data_deviceid === 'ceilingGrid'` |
 | `gl` | ceilingGrid tile length (×100) | Number | `data_gridLength` for `ceilingGrid` items only. 2-char code. `gl{N}` where N = length × 100 in current unit. Same deviceid gate as `gw` |
 | `lt` | VRC Line Type | Number | `data_lineType` for `lineTypeOption` devices (`box`, `stageFloor`, `boxdrop`). 2-char code. `lt1` = solid outline; dotted is the default and stays implicit. Decoder gates on the device-def flag |
+| `cw` | Custom Window Wall windows/frames | Tilde-compact | `data_customWindows` for `wallCustomWindow` only. 2-char code, but unlike every other letter its value is a whole `~<compact tokens>~` blob (same free-form tilde mechanism the bare `~text~` label uses, just keyed under `cw`) rather than a single number. Omitted when the array is empty. See "Custom Window Wall (`cw`) compact encoding" below |
 | `~text~` | label | String | data_labelField (URL encoded) |
+
+### Custom Window Wall (`cw`) compact encoding
+
+The `cw~...~` blob's CONTENTS are a purpose-built compact format, not
+JSON — the original `encodeURIComponent(JSON.stringify(array))` blob
+cost ~150–250+ chars per window/frame record (full UUID, JSON
+punctuation, spelled-out field/type names), by far the largest
+contributor to a Custom Window Wall's shareable-link length. The
+compact format mimics the outer `x=` link's own conventions:
+
+Each record is a self-delimiting UPPERCASE type letter — `W` (window),
+`F` (windowFrame / "Open Window" in the GUI), `D` (doorFrame / "Open
+Doorway") — followed by the IMPLICIT first number (`distFromLeft ×
+100`, bare digits, no letter prefix, matching the outer per-item
+x-position convention), then lowercase-lettered fields reusing the
+SAME letters the outer format already uses for the same concepts:
+`c`=width×100, `e`=height×100, `b`=baseZ×100 (omitted for `D` — always
+0), `u`=fill as the outer format's 9-digit zero-padded RGB triple
+(`hexToUrlRgb()`/`urlRgbToHex()`, shared with the item-level `u`
+code), `v`=opacity×100. `u`/`v` are only emitted when they differ from
+the window default (`#2FA6C0` / `0.15`), same "only non-default"
+convention every other letter in this doc follows. There is
+deliberately **no id** in the wire format — a record's `id` is a pure
+client-side UI tracking key (used only for selection inside a single
+Window Editor session; nothing else references it, not even the WD
+JSON export's per-child ids, which key off the PARENT wall's id) and
+is freely regenerated with `crypto.randomUUID()` on decode.
+
+Records concatenate with **no separator** — a fresh uppercase
+`W`/`F`/`D` unambiguously starts the next record, the same way the
+outer tokenizer already treats an uppercase letter as an item
+boundary. Example — one window (distFromLeft 1 m, 3.28×4.92 m,
+baseZ 2 m, default fill/opacity so `u`/`v` are omitted) followed by a
+door (distFromLeft 5 m, 0.9×1.98 m):
+
+```
+cw~W100c328e492b200D500c90e198~
+```
+
+vs. the old JSON-blob form of just the first record alone:
+
+```
+cw~%5B%7B%22id%22%3A%22c8c89f87-f581-4014-80d5-2180a9baab5f%22%2C%22type%22%3A%22window%22%2C%22distFromLeft%22%3A1%2C%22width%22%3A3.28%2C%22height%22%3A4.92%2C%22baseZ%22%3A2%2C%22data_fill%22%3A%22%232FA6C0%22%2C%22data_opacity%22%3A0.15%7D%5D~
+```
+
+Because the compact string is pure alphanumeric (no punctuation), it
+needs no `encodeURIComponent`/`+`-escaping at all — a further
+simplification over the old blob, which had to round-trip through
+`replaceAll('%20', '+')` on encode and the reverse on decode.
+
+**Backward compatibility**: `decodeCustomWindowsToken()` (js/roomcalc.js,
+near `hexToUrlRgb()`) auto-detects which format a `cw` value is in —
+the legacy JSON blob always decodes to a string starting with `[`; the
+compact format always starts with an uppercase `W`/`F`/`D`. Links
+saved before this change keep loading correctly through the legacy
+`JSON.parse` branch; the encoder (`encodeCustomWindowsCompact()`)
+always emits the new compact format going forward. This was necessary
+even though the feature isn't in production yet, since test links
+already existed.
 
 **AVAILABLE for future ITEM use:** `y`, `z`. (`u` is fill color, `v`
 is opacity — both added in the 2026 configurableColor work. `w` was

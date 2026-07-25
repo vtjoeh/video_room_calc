@@ -1,0 +1,234 @@
+/* VRC Window Editor — all styles for the js/windowEditor/ module.
+ * Kept in this folder so the editor stays separable from core VRC.
+ * Class prefix: vrcwe- */
+
+#vrcWindowEditorDialog {
+    position: fixed;
+    inset: 0;
+    width: 96vw;
+    height: 94vh;
+    max-width: 96vw;
+    max-height: 94vh;
+    margin: auto;
+    padding: 0;
+    border: 1px solid #bbb;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    display: none; /* the [open] rule below flips to flex — a bare display:flex here would override the UA's display:none for CLOSED dialogs */
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Inter', Helvetica, sans-serif;
+}
+
+#vrcWindowEditorDialog[open] {
+    display: flex;
+}
+
+.vrcwe-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: #1a1a1a;
+    color: #fff;
+    flex: 0 0 auto;
+}
+
+.vrcwe-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-right: 6px;
+}
+
+.vrcwe-toolbar button {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #888;
+    border-radius: 14px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.vrcwe-toolbar button:hover:not(:disabled) {
+    background: #dceafc;
+    border-color: var(--active, #0352a6);
+}
+
+.vrcwe-toolbar button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.vrcwe-toolbar button.vrcwe-zoom {
+    font-size: 17px;
+    line-height: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+}
+
+.vrcwe-toolbar button .icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+    vertical-align: top;
+}
+
+.vrcwe-sep {
+    width: 1px;
+    align-self: stretch;
+    background: #555;
+    margin: 2px 2px;
+}
+
+.vrcwe-hint {
+    font-size: 11px;
+    color: #bbb;
+    margin-left: auto;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+button.vrcwe-close {
+    background: var(--active, #0352a6);
+    color: #fff;
+    border-color: var(--active, #0352a6);
+    font-weight: 600;
+    padding: 5px 18px;
+}
+
+button.vrcwe-close:hover {
+    background: #0466cc !important;
+    color: #fff;
+}
+
+.vrcwe-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+}
+
+.vrcwe-sidepane {
+    flex: 0 0 240px;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: #f0f0f0;
+    border-right: 1px solid #ccc;
+    overflow-y: auto;
+}
+
+.vrcwe-sidepane label {
+    font-size: 12px;
+    color: #333;
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+.vrcwe-sidepane label.vrcwe-sublabel {
+    font-weight: 500;
+    color: #444;
+    margin-top: 10px;
+}
+
+.vrcwe-sidepane hr {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 10px 0 2px;
+}
+
+.vrcwe-field-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vrcwe-num {
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.vrcwe-unit {
+    font-size: 12px;
+    color: #666;
+}
+
+.vrcwe-selection-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vrcwe-canvas {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #fafafa;
+    position: relative;
+    overflow: hidden;
+}
+
+.vrcwe-snap-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #ddd;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.vrcwe-snap-toggle input {
+    cursor: pointer;
+}
+
+/* Nested Cancel/Continue confirm modal (appended to document.body, a sibling of the
+ * main editor dialog — see the comment on buildConfirmDialog() in windowEditor.js). */
+.vrcwe-confirm-dialog {
+    max-width: 360px;
+    padding: 18px 20px;
+    border: 1px solid #bbb;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    font-family: 'Inter', Helvetica, sans-serif;
+}
+
+.vrcwe-confirm-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.vrcwe-confirm-msg {
+    font-size: 13px;
+    color: #222;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.vrcwe-confirm-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.vrcwe-confirm-btns button {
+    border: 1px solid #888;
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-size: 12px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.vrcwe-confirm-btns button.vrcwe-confirm-primary {
+    background: var(--active, #0352a6);
+    color: #fff;
+    border-color: var(--active, #0352a6);
+    font-weight: 600;
+}

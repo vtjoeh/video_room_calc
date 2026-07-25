@@ -41,7 +41,6 @@ video_room_calculator/
 │   │   ├── workspaceKey.js  # Workspace Designer object map (Phase 2 extract; window.VRC.workspaceKey)
 │   │   └── certifiedDisplays.js # Certified-display catalogue (window.VRC.certifiedDisplays; APPEND-ONLY — see "Certified Display item" below)
 │   ├── util/
-│   │   ├── uuid.js          # createUuid() (Phase 2 extract; window.VRC.util)
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
 │   ├── undoApply.js         # VRC.undoApply diff helpers for incremental undo/redo restore (Konva-free; see "Incremental undo/redo restore" below)
 │   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
@@ -162,7 +161,7 @@ roomObj = {
   layers: [                   // VRC Layer system for organizing items (distinct from Konva layers)
     { name: 'Default',  visible: true, locked: false, layerid: '0' },   // reserved - cannot be deleted
     { name: 'Ceiling',  visible: true, locked: false, layerid: '1' },   // reserved - cannot be deleted
-    { name: 'Furniture', visible: true, locked: false, layerid: 'uuid' } // custom layers use createUuid()
+    { name: 'Furniture', visible: true, locked: false, layerid: 'uuid' } // custom layers use crypto.randomUUID()
   ],
   // items carry an optional data_layerId = layerid string; omitted for Default layer ('0')
   groups: [                   // VRC Group system (PowerPoint-style grouping)
@@ -1469,6 +1468,604 @@ No special handling — `data_certifiedDisplayIndex` is a plain field on
 
 ---
 
+## Custom Window Wall (`wallCustomWindow`) + Window Editor
+
+A `wallBox`-family wall (key `WY`, fixed 0.10 m thickness like `wallStd`,
+`configurableColor` + `wdOpacity` for the solid portions) that carries an
+editable list of windows and door/window frames along its run:
+`item.data_customWindows = [{ id, type, distFromLeft, width, height,
+baseZ, data_fill?, data_opacity? }]`, all in current unit. `type` is
+`'window' | 'windowFrame' | 'doorFrame'`. No rotation field — frames
+never rotate independently of the wall.
+
+**Item-Type dropdown**: `wallCustomWindow` shares `deviceGroups[4]`
+with `wallGlass` / `wallWindow` / `wallStd` in `updateDevicesDropDown()`
+— switching a plain wall to Custom Window Wall (or back) via the
+Details panel's Item-Type dropdown just swaps `data_deviceid` in
+place, same as any other group swap; `data_customWindows` rides along
+harmlessly on the other three (unread, ignored) if the user switches
+away and back.
+
+**Solid wall segments are DERIVED, never stored.** `computeCustomWindowSegments(runUnit,
+windows)` (near `ceilingPoleDerivedHeight`, top of `js/roomcalc.js`) sorts
+the array by `distFromLeft` and returns the ordered list of spans —
+solid gaps plus each window/frame span — shared by the canvas
+`sceneFunc` and the WD export child builder so both always agree.
+
+### Door Frame vs Window Frame
+
+Both are literal holes (no WD wall object) in their `[baseZ, baseZ +
+height]` band. The only difference: **Door Frame locks `baseZ = 0`**
+(no solid segment below it, open to the floor) — "same as a Window
+Frame except no bottom wall." Window Frame keeps solid wall above
+*and* below its opening, same as Window; only `type: 'window'` gets a
+translucent WD wall object in that band, default `data_fill =
+'#2FA6C0'` / `data_opacity = 0.15`. The Window Editor UI (below)
+labels `type: 'doorFrame'` as **"Open Doorway"** — display text only,
+the wire-format `type` value is unchanged for compatibility.
+
+**Window glass thickness**: the WD glass piece is always **0.04 m**
+thick regardless of the wall's own thickness, centered on the wall's
+mid-thickness plane (`pushCustomWindowWallChildren()`'s
+`WINDOW_GLASS_WIDTH_M` constant + a `localXOffset = (wallThickness -
+0.04) / 2` passed into `pushPiece()`/`worldFromLocal()`). Solid
+segments and window/door jambs stay flush with the wall's full
+thickness (`localXOffset = 0`, the default). Because
+`workspaceObjWallPush()` positions boxes by CENTER
+(`getItemCenter()`), a symmetric offset-and-narrow like this produces
+the *same* `position[0]`/center as a full-thickness piece at the same
+run-offset — don't mistake matching center coordinates for "the
+offset did nothing"; the thinner `length` field (in
+`workspaceObjWallPush()`, `workspaceItem.length = item.width` —
+WD's `length` is the thickness axis, WD's `width` is the run-length
+axis; the two are swapped relative to what the names suggest) is what
+actually carries the gap. For the default 0.10 m
+wall this yields exactly the requested 0.03 m gap on each face; for a
+resized wall (`wallCustomWindow` has `resizeable: ['depth', ...]`,
+so thickness is user-adjustable) the gap stays symmetric rather than
+assuming a fixed 0.10 m.
+
+### Canvas rendering (2D top-view indicator only)
+
+`insertTable()`'s `wallCustomWindow` branch draws the derived segments
+as sequential filled rects along the local Y axis (the wall's run):
+solid gaps in the device's normal wall color (`data_fill || 'gray'`),
+any window/frame span in solid black — an undifferentiated quick
+visual (the real editing surfaces the type). **Footgun**: the
+sceneFunc paints per-segment colors with raw `ctx.fillStyle` / `fill()`
+calls, which draw on the scene canvas only — unlike
+`ctx.fillStrokeShape(shape)`, they do **not** register a hit region.
+Without an explicit `hitFunc` (a full-footprint rect via
+`fillStrokeShape`, same fix `ceilingGrid` needed), the item cannot be
+clicked, dragged, or double-clicked at all. Always pair a multi-color
+custom `sceneFunc` with an explicit `hitFunc`.
+
+### Four-place rule + unit conversion
+
+Same `structuredClone()` pattern as `data_roomSurfaces` at all four
+sites (`insertTable()` writer, `updateNodeAttributes()` mirror,
+`updateRoomObjFromTrNode()` push + map-hit delete-on-absent,
+`copyToCanvasClipBoard()` — the clipboard copy also mints fresh
+`crypto.randomUUID()`s for every sub-record so pasted/duplicated walls
+don't share array references). The array's four numeric fields
+(`distFromLeft`, `width`, `height`, `baseZ`) are also walked in BOTH
+unit-conversion loops: `convertItemUnitBasedOnRatio()` (roomcalc.js,
+feet/meters toggle) and `convertToMeters()` (`js/util/units.js`, WD
+export path) — a new per-item array field needs both, not just one.
+
+### Orphaned records after shortening the wall (export-time pruning only)
+
+Resizing a `wallCustomWindow` shorter than a `distFromLeft` already on
+it does NOT delete that record — `data_customWindows` is edited
+exclusively through the Window Editor, and the main canvas resize
+handle has no view into per-record geometry to reconcile against. The
+stale record is harmless on the canvas itself:
+`computeCustomWindowSegments()` already clamps `start`/`end` to
+`[0, runUnit]`, so a record with `distFromLeft >= runUnit` (the item's
+current `height`) contributes a zero-length segment and is invisible
+in both the 2D sceneFunc and the WD child-segment export. But it still
+rides along as dead data forever once the wall is shortened again
+after being lengthened, or if the room is inspected via `.vrc.json` /
+the Window Editor's own record list.
+
+`pruneOrphanedCustomWindowsForExport(items)` (next to
+`computeCustomWindowSegments`, top of `js/roomcalc.js`) drops any
+`data_customWindows` record whose `distFromLeft >= item.height` —
+the same "invisible" test the segment builder already applies,
+made explicit and run once at read time instead of live-editing the
+canvas. It's non-destructive: returns the same array reference
+untouched when nothing needs pruning, otherwise a new array with only
+the affected `wallCustomWindow` items shallow-cloned (`{ ...item,
+data_customWindows: pruned }`) so a caller holding a live reference to
+`roomObj.items` is never mutated as a side effect of a read-only
+export. Called from two places, both read paths, neither of which
+touches the live canvas or `roomObj`:
+
+- `createShareableLink()`, on `linkSrc.items` right after
+  `buildRoomModeLinkSource()` — this matters because the non-room-part
+  branch of that function returns `items: roomObj.items` by reference,
+  not a clone, so mutating in place there would have silently edited
+  the live room.
+- `buildRoomObjJsonPayload()` (the `.vrc.json` download / save path),
+  on `roomObj2.items` right after the `structuredClone(roomObj)` —
+  already a clone by that point, so this call is just for consistency
+  with the shareable-link call site rather than a mutation-safety
+  requirement.
+
+Deliberately NOT pruned inside the Window Editor or on a live canvas
+resize: the record is only "orphaned," not lost, while the wall is
+short, and lengthening the wall back out restores it exactly where it
+was. Pruning is a read-time cleanup for the two artifacts that leave
+the app (a shared link, a saved file), not a live-editing behavior.
+
+### URL encoding — `cw`, a tilde-wrapped compact blob
+
+Unlike every other per-item field, the whole array travels as **one
+token**: `cw~<compact tokens>~`, gated on `data_deviceid ===
+'wallCustomWindow'`. This reuses the same free-form tilde mechanism
+`data_labelField`'s bare `~text~` uses (the `parseShortenedXYUrl`
+tokenizer's `OpenLowLetterTilde` state accumulates ANY lowercase-letter
+key immediately followed by `~...~` into `newItem[thatKey]` as a raw
+string — not `text`-specific), just keyed under `cw` instead of the
+reserved bare tilde slot. This was the right call over inventing
+per-sub-field letters (`r`'s space-separated-number scheme can't carry
+JSON's `{`, `"`, `:`, `,`) or a room-level `H{n}`-style array (that
+pattern fits Groups/CustomItems' 1-record-to-many-items membership
+model; a `data_customWindows` array is owned 1:1 by a single item, so
+keeping it directly on the item is simpler and avoids inventing
+`_urlNum` bookkeeping for a list that's never shared).
+
+**The blob's CONTENTS are a compact per-record token format, not
+JSON** (a follow-up: the original `JSON.stringify` + `encodeURIComponent`
+blob cost ~150–250+ chars PER RECORD — full UUID, JSON punctuation,
+spelled-out field/type names — the dominant contributor to a Custom
+Window Wall shareable link's length). `encodeCustomWindowsCompact()` /
+`decodeCustomWindowsToken()` / `decodeCustomWindowsCompact()` (js/
+roomcalc.js, next to `hexToUrlRgb()`/`urlRgbToHex()`) implement it.
+Mimics the outer `x=` link's own conventions: each record is a
+self-delimiting UPPERCASE type letter (`W`=window, `F`=windowFrame/
+"Open Window", `D`=doorFrame/"Open Doorway") followed by the IMPLICIT
+first number (`distFromLeft × 100`, bare digits, matching the outer
+per-item x-position convention), then lowercase-lettered fields reusing
+the SAME letters the outer format already uses for the same concepts:
+`c`=width×100, `e`=height×100, `b`=baseZ×100 (omitted for `D` — always
+0), `u`=fill as the outer format's 9-digit zero-padded RGB triple
+(shares `hexToUrlRgb()`/`urlRgbToHex()` with the item-level `u` code),
+`v`=opacity×100 (`u`/`v` only emitted when non-default, same rule every
+other letter follows). **No id** — a record's `id` is a pure
+client-side UI tracking key (used only for selection inside a single
+Window Editor session; nothing else references it, not even the WD
+JSON export's child piece ids, which key off the PARENT wall's id) and
+is freely regenerated with `crypto.randomUUID()` on decode. Records
+concatenate with NO separator — a fresh uppercase `W`/`F`/`D`
+unambiguously starts the next record, same as the outer tokenizer
+already treating an uppercase letter as an item boundary. Pure
+alphanumeric, so unlike the JSON blob it needs no
+`encodeURIComponent`/`+`-escaping at all. Confirmed live: the user's
+own worked example (one window, default fill/opacity) shrank from a
+~215-char `cw~...~` token to `cw~W100c328e492b200~` (21 chars).
+
+**Backward compatibility**: `decodeCustomWindowsToken()` auto-detects
+which format a `cw` value is in — the legacy JSON blob always decodes
+(via `decodeURIComponent`) to a string starting with `[`; the compact
+format always starts with an uppercase `W`/`F`/`D`. Links saved before
+this change (the feature isn't in production yet, but test links
+already existed) keep loading correctly through the legacy `JSON.parse`
+branch; the encoder always emits the new compact format going forward.
+Confirmed live in both directions: a legacy link still restores its
+records correctly (through the normal unit-conversion pipeline, same as
+any other item — no special-casing needed there), and a link containing
+the SAME data encoded either way produces byte-identical
+`data_customWindows` after decode (modulo the regenerated `id` and the
+±1 cm/±1% rounding the ×100 integer encoding already applies to every
+other item's dimensions in this app).
+
+See `notes/URL_ENCODING.md` → "Custom Window Wall (`cw`) compact
+encoding" for the full format table and worked examples.
+
+### Workspace Designer round-trip (hybrid, mirrors Ceiling Grid)
+
+- **Parent record**: `data.vrc.customWindowWalls[]` — the item
+  round-trips verbatim (meters, `layerName` for non-Default layer,
+  including the full `data_customWindows` array converted to meters).
+  Source of truth for lossless round-trip.
+- **Children**: `pushCustomWindowWallChildren(parent)` (next to
+  `pushCeilingGridChildren`, nested in `exportRoomObjToWorkspace()`)
+  walks `computeCustomWindowSegments()` and pushes each span via the
+  shared `workspaceObjWallPush()` with a synthetic `wallStd`-typed
+  item. A window/frame band can yield up to 3 children: solid-below
+  (skipped when `baseZ === 0` — this is what makes Door Frame's "no
+  bottom wall" rule work with zero special-casing beyond forcing
+  `baseZ`), solid-above, and — window only — the tinted glass piece
+  itself. A solid gap segment yields exactly 1 full-height child. Every
+  child id is prefixed `customWindow~<row>~<itemId>`, dropped on
+  import in the scoring loop (same pattern as `gridLines~`).
+- **Dispatch**: the `wallCustomWindow` check in the `wdBuckets.tables`
+  loop MUST come before the generic `data_deviceid.startsWith('wall')`
+  branch — `wallCustomWindow` also starts with `'wall'`, so without
+  this ordering it would fall through to a single plain wall export
+  and lose the whole window list.
+- **Import restore**: `data.vrc.customWindowWalls[]` restored into
+  `roomObj2.items` before the groups/customItems restore blocks (same
+  ordering rule as every other `data.vrc.*` metadata block).
+
+### Window Editor (`js/windowEditor/`)
+
+Lazy-loaded mini-app for editing `data_customWindows`, architecturally
+identical to the Path Editor (`js/pathEditor/`): a `<dialog>`-based
+modal with its own Konva stage, `window.VRC.windowEditor = { open(opts)
+}`, loaded via `loadScriptOnce(VRC.constants.SCRIPT_WINDOW_EDITOR)`
+from `openWindowEditor()` in `js/roomcalc.js` (mirrors
+`openSvgPathEditor()`: resolves the item, converts to meters going in,
+writes the result back through the Details-field + `updateItem()`
+pipeline — Wall Height into the existing `#itemVheight` field, the
+window list into a hidden `#customWindowsData` JSON mirror that
+`updateItem()` reads into `item.data_customWindows`). Opened from the
+Details panel's `Edit Windows...` button (`#editWindowsDiv`, gated on
+`data_deviceid === 'wallCustomWindow'`).
+
+**Coordinate model**: an ELEVATION view, internally always in meters
+regardless of the room's display unit — X = distance along the wall's
+run, Y = Z-elevation measured DOWN FROM THE CEILING (`canvasY =
+wallHeightM - elevationZ`) so the floor sits at the bottom edge of the
+wall outline and the ceiling at the top, matching Konva's y-down
+convention. Each record keeps the wire field names
+(`distFromLeft`/`width`/`height`/`baseZ`); only the Konva rect's `y` /
+`height` are the ceiling-relative flip, computed at render time by
+`zToCanvasY()` / `canvasYToZ()`.
+
+**Unit-aware display (`opts.unit`)**: `openWindowEditor()` passes
+`unit: roomObj.unit` alongside the meters geometry. The Konva model,
+`neighborBounds`, drag/resize clamps, and defaults all stay in meters
+exactly as before — only the five sidebar text fields (Wall Height,
+Width, Height, Base Elevation, Distance to Left) and their unit-suffix
+spans convert on populate (`roundDisplay()`/`mToDisplay()`) and parse
+on apply (`displayToM()`), via `toMeters = unit==='feet' ? 1/3.28084 :
+1`. This keeps every geometry function unit-agnostic while showing
+feet when the room is in feet mode. (Path Editor, by contrast, is
+deliberately always-meters with no unit-aware display — that
+precedent does not apply here; the Window Editor's numbers are
+real-world wall dimensions the user types directly, so this editor
+got the unit-aware treatment on explicit request.)
+
+**Exclusive horizontal slices, no vertical constraint**: every record
+occupies an exclusive `[distFromLeft, distFromLeft + width)` span
+(`neighborBounds(id)` finds the immediate left/right neighbor edges
+from the sorted list). Dragging is clamped via Konva's `dragBoundFunc`
+(converts the prospective ABSOLUTE — i.e. stage-zoom/pan-inclusive —
+position back to meters via the inverse stage transform, clamps, then
+re-projects to absolute pixels so the clamp stays correct at any zoom
+level); resizing via the Transformer's `boundBoxFunc`. Vertical
+position/size is unconstrained apart from staying within `[0,
+wallHeightM]` — EXCEPT an Open Doorway (`type: 'doorFrame'`), whose
+bottom is permanently pinned to the floor: see "Open Doorway floor
+pin" below. No rotation (`rotateEnabled: false`, `Transformer` has no
+rotate anchor).
+
+**Open Doorway floor pin.** Earlier builds only enforced `baseZ = 0`
+in the text-field path (`applyFieldsToSelection()`); the DRAG path
+recomputed `baseZ` from the rect's live Y position with no type check,
+so a doorway could be dragged up off the floor. Fixed two ways, both
+in `windowEditor.js`: (1) `makeDragBoundFunc()` hard-codes `clampedY =
+wallHeightM - rec.height` for `type === 'doorFrame'`, skipping the
+normal `[0, wallHeightM - height]` clamp entirely — the doorway can
+only slide horizontally. (2) `selectWindow()` sets
+`tr.enabledAnchors([...])` to a doorway-specific list with no
+`bottom-*` entries, so there is no resize handle that could pull the
+bottom edge up either (Konva keeps the anchor nodes in the tree with
+`visible(false)` rather than removing them — confirmed live, not a
+guess). Because only top/middle anchors remain, a height resize always
+moves the TOP edge and leaves the already-floor-pinned bottom
+untouched, so `transformend`'s generic `baseZ =
+canvasYToZ(rect.y()+rect.height())` recompute naturally lands back on
+0 with no extra type branch needed. `open()` also defensively snaps
+any doorway record's `baseZ` back to 0 on load, in case a room saved
+before this fix carries a stale non-zero value.
+
+**Snap to Objects** (toolbar checkbox, `#vrcweSnapToggle`, ON by
+default, `snapEnabled` persists for the page session). Mirrors the
+main VRC's snap-to-objects concept but scoped to this 2D elevation
+view: `collectSnapCandidatesX/Y(excludeId)` gather the wall ends plus
+every OTHER record's edges (left/right in X; ceiling-relative top/
+bottom in Y), and `nearestSnap(value, candidates, thresholdM)` picks
+the closest one within `SNAP_PX / stage.scaleX()` meters. Wired into
+both `makeDragBoundFunc()` (snap-then-reclamp against the neighbor
+bounds, so a snap can never violate the exclusive-slice rule) and
+`transformerBoundBoxFunc()` (snaps only the edges that actually moved
+vs. `oldBox`, so a doorway's disabled bottom edge is never snap-
+eligible — no extra type check needed, same "structurally impossible"
+pattern as the floor pin). A magenta dashed guide line is drawn on a
+dedicated top-most `snapLayer` while a snap is active
+(`drawSnapGuides(x, y)`), cleared on `dragend`/`transformend`.
+
+**Toolbar**: Insert Window / Insert Open Window / Insert Open Doorway,
+Copy / Paste / Duplicate / Delete (also Ctrl+C / Ctrl+V / Ctrl+D /
+Delete keys), Undo / Redo (local snapshot stack, same 100-entry-cap
+model as Path Editor's, forgotten on close), zoom +/− buttons, the
+Snap to Objects checkbox, drag to pan, scroll to zoom.
+
+**Auto-narrow + Cancel/Continue confirm** (`fitAndPlace()` /
+`placeWithNarrowConfirm()`, shared by Insert, Paste, and Duplicate).
+Earlier builds failed outright ("no room" hint) whenever nothing was
+wide enough for the new item's natural size. Now: `firstAvailableGap()`
+still wins when something fits at full size; otherwise
+`largestAvailableGap()` narrows the request to the widest open gap
+instead of refusing. If that narrowed width drops under
+`NARROW_CONFIRM_THRESHOLD_M` (0.5 m, a fixed physical threshold
+regardless of display unit), a small Cancel/Continue `<dialog>`
+(`showConfirmDialog()`) gates the placement, its message formatted in
+the room's current unit via `formatLenForMsg()` (e.g. "Only 0.17 ft of
+space is available here…"). The confirm dialog is appended to
+`document.body` — a SIBLING of the main editor `dlg`, never a child —
+mirroring Path Editor's `#vrcpeDrawChoice` precedent: the main dialog's
+own keydown handler treats Escape as "apply and close the whole
+editor" and fires on bubble regardless of which `<dialog>` is
+top-of-modal-stack, so nesting the confirm inside `dlg` would let an
+Escape meant only to cancel the confirm also close the editor.
+
+**Duplicate** (`duplicateSelected()`, toolbar button + Ctrl+D). Places
+the copy so the gap BEFORE it repeats the gap the original already has
+to ITS left (`gapLeft = rec.distFromLeft - neighborBounds(rec.id
+).leftEdge`; the wall's own left end counts as "the wall" when there's
+no left neighbor, since `neighborBounds` already returns `leftEdge=0`
+in that case) — the fastest way to lay out an evenly-spaced row of
+windows: duplicate once, then duplicate the duplicate, etc. A bounded
+while-loop first pushes the naive repeat-gap start past any record it
+would otherwise land inside (only possible when a wider neighbor
+further down the wall overlaps the naive position), then the same
+tightest-bounding-gap scan `fitAndPlace()` uses computes how much room
+is actually available there; narrows and/or confirms exactly like
+Insert/Paste via the shared `placeWithNarrowConfirm()`.
+
+**Footgun (found and fixed) — a native modal `<dialog>` does not
+reliably trap focus inside itself, and a bubble-phase keydown listener
+on the dialog element only ever sees events whose TARGET is one of its
+own descendants.** The editor's keydown handling used to be a plain
+`dlg.addEventListener('keydown', ...)`. A click on the Konva `<canvas>`
+(not natively focusable) could leave `document.activeElement` as
+`document.body` — NOT a descendant of `dlg` — and a keydown dispatched
+there bubbles straight from `body` to `document`, completely bypassing
+that listener. The MAIN APP's own document-level keydown handler
+(`onKeyDown` in roomcalc.js) was still listening at that point, and —
+since `tr.nodes()` on the MAIN canvas still holds the wall the entire
+time this editor is open (by design, for easy re-selection on close) —
+a bare Delete/Backspace press deleted the WALL ITSELF from the main
+canvas, silently, mid-edit. Confirmed live and exactly matches a bug
+report: insert 2 windows, click the 2nd to select it (focus lands on
+`body`), press Delete — the wall vanishes from the main canvas
+immediately, well before Close is even clicked; the Window Editor's
+own display looked completely normal throughout, so the loss was only
+noticed after closing. (One existing branch — Delete/Backspace — also
+independently forgot to call `stopPropagation()`, which would have let
+the event keep bubbling past `dlg` even in the cases where the old
+listener DID fire; both problems are fixed by the same change.)
+
+Fixed by switching to a **capture-phase listener on `document`**
+(`document.addEventListener('keydown', handleEditorKeydown, true)`,
+registered once in `buildDialog()`, gated on `dlg.open` so it's inert
+whenever the editor isn't showing): a capture-phase listener on
+`document` sees every keydown everywhere, before any bubble-phase
+listener anywhere (including `onKeyDown`) gets a chance, and calling
+`stopPropagation()` there halts the event's propagation entirely —
+nothing downstream ever sees it, regardless of where focus happens to
+be. The nested Cancel/Continue confirm `<dialog>` needed its own
+carve-out: while it's open, `handleEditorKeydown` no longer tries to
+lean on the confirm's native cancel-on-Escape default action either —
+an earlier version of this fix did exactly that (leaving Escape
+untouched so the browser's own dialog-close default action would
+fire), but that turned out to be similarly unreliable in this
+embedding: leaving Escape unstopped let it ALSO reach `onKeyDown`,
+whose own Escape branch calls `e.preventDefault()` (among other
+disruptive things — `closeAllDialogModals()`, clearing `tr.nodes()`)
+— and that `preventDefault()` silently cancels the confirm dialog's
+native close-on-Escape default action too, so the confirm was
+observed staying stuck open with Escape doing nothing (confirmed
+live). Both Escape cases (the confirm dialog and the main editor
+dialog itself) are now handled with an explicit, unconditional
+`e.preventDefault(); e.stopPropagation();` plus a direct `.close()`
+call, matching the pattern the Close button already used, rather than
+depending on the browser's native default action firing at any
+particular point in an event's propagation — a lesson worth reusing
+anywhere else in this codebase that currently leaves a key "unstopped"
+hoping a browser default handles it.
+
+**Footgun — `dlg.showModal()` does not guarantee a synchronous layout
+pass in every embedding.** `ui.canvas.clientWidth/Height` (and
+therefore the just-built Konva stage's size) can still read 0
+immediately after `buildStage()` in some environments, which silently
+clamps the initial `fitView()` to `MIN_PX_PER_M` and parks the view off
+in a corner. Fixed by `fitViewWhenReady()`: retries via
+`requestAnimationFrame` until `ui.canvas.clientWidth/Height` are
+actually nonzero, re-sizing the stage on the successful attempt before
+calling `fitView()`. (Path Editor calls `fitView()` synchronously right
+after `buildStage()` and has not hit this in practice, but the same
+risk exists there — if it ever does, this is the fix to port over.)
+
+**Footgun (historical) — Konva layer add-order controls z-order, and
+it was backwards.** The wall outline's `Konva.Layer` has an OPAQUE
+fill (`#f2f2f2`) covering the whole wall footprint. `konvaStage.add(
+...)` was originally called `gridLayer, wallLayer, itemLayer` —
+later-added layers paint on top, so the opaque wall layer silently
+covered the grid AND the dotted segment-boundary guide lines
+underneath it; both existed in code and were completely invisible on
+screen (this is what a bug report showing a plain flat wall with no
+grid turned out to be). Fixed by reordering to `wallLayer, gridLayer,
+itemLayer, snapLayer`. The uniform background grid was then removed
+outright on a follow-up request (see below) — `gridLayer` now carries
+only the dotted segment-boundary guides — but the layer ORDER fix and
+`gridLayer`'s existence (for those guides) both remain.
+
+**No background grid.** `drawGrid()` no longer draws the uniform 1 m
+tick-mark grid — only the wall outline (`wallLayer`) and the dotted
+segment-boundary guides at every item's left/right edge (`gridLayer`)
+remain. Removed on explicit request; the dotted guides were judged
+sufficient for alignment and the plain grid was visual noise.
+
+**Color/opacity for the selected window uses the exact same shared
+popover the rest of VRC uses** (`js/colorPicker.js` /
+`window.VRC_openColorPicker`), not a separate native `<input
+type="color">`. The color row is a `fillSwatchBtn` + `fillSwatchColor`
+span (same markup/CSS classes as the Details panel's
+`#itemFillSwatch`) plus two HIDDEN inputs (`#vrcweColorFill` /
+`#vrcweColorOpacity`) that `VRC_openColorPicker` reads/writes by id —
+this works because the picker module is entirely DOM-id-driven and
+was already reusable for any `fillId`/`opacityId`/`swatchId` triple,
+not actually coupled to the main Details panel the way an earlier
+version of this doc assumed. The editor lazy-loads `js/colorPicker.js`
+itself on first use (`ensureColorPickerLoaded()`, a small inline
+loader — NOT `loadScriptOnce`/`VRC.constants`, since this module
+intentionally reads no VRC globals) rather than depending on the main
+app having already opened a picker elsewhere. Same default (`#2FA6C0`
+/ `0.15`) as the WD export.
+
+**Footgun — a native `<dialog>` shown via `showModal()` renders in the
+browser's top layer, which always wins over z-index for anything
+outside that dialog's own subtree.** `colorPickerPopover`
+(`js/colorPicker.js`) is a normal `<div>` singleton, lazily built and
+appended to `document.body` the first time ANY caller opens it —
+fine for the main app (no competing modal), but opening it from
+inside the Window Editor's modal `<dialog>` drew the popover BEHIND
+the editor regardless of its `z-index: 100000` (confirmed live via a
+bug report screenshot). Fixed generically in the shared module:
+`VRC_openColorPicker(cfg)` now accepts an optional `cfg.container` and
+reparents the popover singleton into it (`targetParent.appendChild(
+dom.root)`) before opening, defaulting to `document.body` when omitted
+so every other caller (the Details panel's `openFillPicker()`) is
+unaffected. The Window Editor passes `container: dlg` — its own
+`<dialog>` element — so the popover becomes part of the SAME top-layer
+entry and renders above the editor's own content. `position: fixed`
+positioning (`positionPopover()`, viewport-relative) is unaffected by
+which DOM subtree the popover lives in, confirmed live.
+
+`js/windowEditor/windowEditor.js` and `.css` are both in `sw.js`
+`PRECACHE_ASSETS` (mirrors the Path Editor entries).
+
+**Insert leaves a 1 ft gap to the left, if available.** `fitAndPlace()`
+takes an optional `marginM`; `insertNewWindow()` (backing all three
+Insert toolbar buttons) passes `INSERT_LEFT_GAP_M = 0.3048` (1 ft).
+It first tries a gap wide enough for `margin + desiredWidth` and
+places the item `margin` in from that gap's start; if nothing is wide
+enough for both, it falls back to the pre-existing no-margin logic
+(flush placement, then narrow-to-fit) — the gap is best-effort, never
+a hard requirement that blocks the insert. Paste and Duplicate call
+`fitAndPlace()` with no margin (`marginM` defaults to 0), unchanged —
+the 1 ft gap is an Insert-only nicety, not a placement invariant.
+
+**Wall vanishing in the WD 3D view when an opening spans BOTH the
+full wall width and the full wall height.** `pushCustomWindowWallChildren()`
+pushes a solid-below piece only when `baseZ > 0` and a solid-above
+piece only when `top < wallVHeight`; a doorFrame/windowFrame band that
+is simultaneously full-width (no leftover solid GAP segment elsewhere
+on the wall) and floor-to-ceiling (baseZ=0, height=wallVHeight — e.g.
+a doorway dragged/resized to fill the entire wall) satisfies neither
+condition, so ZERO `customObjects` children get pushed for that
+`wallCustomWindow` item — confirmed live (0 pieces), even though the
+room-level `data.vrc.customWindowWalls[]` parent record still
+round-trips fine (so no data is lost, only the 3D visual). A single
+degenerate opening should never make the whole item unselectable/
+invisible in 3D, so after the segments loop, if `idx` (the running
+push counter) is still 0, a thin sentinel header strip (`Math.min(0.05,
+wallVHeight)` tall, full run width, at the very top of the wall,
+using the item's own fill/opacity) is pushed as a fallback. Purely a
+3D-visibility fallback — it carries no `data_*` payload the import
+path reads, since `customWindow~`-prefixed children are always
+dropped on import regardless of content and the parent is restored
+from `data.vrc.customWindowWalls[]` verbatim.
+
+**Defaults**: Open Doorway height defaults to **6.5 ft** (`6.5 *
+0.3048` m, `DOOR_DEFAULT_HEIGHT_M`); Window / Open Window base
+elevation defaults to **2 ft** (`2 * 0.3048` m,
+`WINDOW_DEFAULT_BASE_Z_M`). Both constants live next to
+`defaultSizeFor()` in `windowEditor.js` and are always expressed in
+meters — the internal model is meters regardless of display unit, so
+these are physical constants, not something that gets reconverted per
+room unit.
+
+**"Window Frame" → "Open Window" (display only).** `typeLabel()` and
+the toolbar's `#vrcweInsertFrame` button/tooltip now say "Open
+Window"; the wire-format `type: 'windowFrame'` value, and every
+internal reference to it (`computeCustomWindowSegments`,
+`pushCustomWindowWallChildren`, CLAUDE.md's own "Door Frame vs Window
+Frame" section above), are unchanged. Mirrors the earlier Door →
+"Open Doorway" rename (same pattern: GUI label only).
+
+**Z hidden in the main Details panel.** `updateFormatDetails()`'s
+generic (non-text, non-dimensionLine) branch hides `#itemZpositionDiv`
+for `wallCustomWindow` the same way it already does for Room Parts
+(`isRoomPartShape`) — the wall itself always sits at floor level, and
+each window/frame's own elevation is edited per-record via the Window
+Editor's Base Elevation field, so the item-level Z has no meaning
+here.
+
+**Color picker Reset + the 100% opacity bug.** Both trace back to one
+assumption baked into the shared `js/colorPicker.js` popover: opacity
+`1.0` (100%) is the app-wide "no override" sentinel, stored as `''`
+(empty string) so it round-trips through `updateItem()`'s
+delete-on-default rule (see "Reset semantics" above) — correct for
+every device whose OWN default opacity happens to be 1.0, which is
+most `configurableColor`/`wdOpacity` devices, but NOT the Window
+Editor's glass window (default `0.15`). Two separate consequences,
+both confirmed live and both fixed in the shared module (so every
+other caller's behavior is untouched):
+- **Reset** unconditionally hard-coded white/100% (`h=0,s=0,v=1,
+  alpha=1`) — correct for the main Details panel, where white/100% IS
+  the "no override" sentinel, but wrong for the Window Editor, whose
+  "no override" is `#2FA6C0`/`0.15`. Fixed with `cfg.resetHex` /
+  `cfg.resetAlpha` (both optional, default white/1 so every existing
+  caller is unaffected); the Reset handler now converts
+  `state.cfg.resetHex` to HSV instead of hard-coding white.
+- **100% opacity silently became 0% (window/wall invisible)**: with
+  the picker writing `''` for 100%, `windowEditor.js`'s
+  `applyFieldsToSelection()` read it via `Number(ui.colorOpacity.value)`
+  — but `Number('') === 0`, NOT `NaN`, so the `!isFinite(op)` guard
+  never caught it and the window's `data_opacity` silently became `0`
+  (glass fully transparent in the WD 3D view; visually reads as "the
+  window disappeared," and if the window dominates the wall's visible
+  area, "the whole wall disappeared"). Fixed two ways: (1)
+  `VRC_openColorPicker` now takes `cfg.omitOpacityAtFull` (default
+  `true`, preserving the app-wide sentinel for every other caller);
+  the Window Editor passes `false` so 100% is written and read back as
+  a real `'1'`. (2) Defense in depth in `applyFieldsToSelection()`
+  itself — an empty opacity value is now explicitly treated as "no
+  valid override" (falls back to `DEFAULT_WINDOW_OPACITY`) rather than
+  being trusted as a literal `0` via `Number('')`.
+
+**Footgun (found and fixed) — the shareable-link `_` (repeat-item)
+shorthand didn't exclude the `cw~<JSON>~` blob's own parsing state,
+so the JSON's own field names corrupted the parse.** In
+`parseShortenedXYUrl()`, `char === '_'` is special-cased to mean
+"clone the previous item" (the shorthand that lets `B100100000_` etc.
+repeat a device without retyping its whole prefix) and was guarded
+against firing on `!= charType.BetweenTilde` (the bare `~text~` label
+state) — but NOT against `charType.BetweenLowLetterTilde` (the
+`cw~<JSON>~` blob's own state, which any lowercase-key-plus-tilde
+token uses, added for `cw`). `data_customWindows`'s field names
+`data_fill` and `data_opacity` both contain a literal underscore,
+which `encodeURIComponent` does NOT escape (it's in the unreserved
+set along with `-`/`.`/`~`/`!`/`*`/`'`/`(`/`)`), so every underscore
+inside the encoded blob reached the tokenizer as a literal `_` and
+triggered "clone the previous item" MID-BLOB — confirmed live: a room
+with one `wallCustomWindow` (two window records, each carrying
+`data_fill`/`data_opacity`) round-tripped through
+`createShareableLink()` and back as 2 duplicate `wallCustomWindow`
+items plus a phantom `stageFloor` item, with the JSON blob shredded
+across ~27 bogus parsed objects. Fixed with a one-line guard addition
+(`&& lastCharType != charType.BetweenLowLetterTilde`) — confirmed live
+post-fix: the same link now restores exactly 1 item with both window
+records fully intact. This was a latent bug in the shared tokenizer,
+not something specific to `cw`'s encoding scheme — any future
+lowercase-key `~...~` blob whose content can contain a literal
+underscore would have hit the same corruption. (The `H{n}`-style
+room-level array encoding VRC Groups use was considered as an
+alternative for `cw` while investigating this, but the actual bug
+turned out to be a one-line tokenizer defect, not a shape problem with
+the tilde-blob approach — see "URL encoding — `cw`, a tilde-wrapped
+JSON blob" above for why the tilde-blob shape itself was still the
+right call over a `H{n}`-style array for a field that's owned 1:1 by a
+single item.)
+
+---
+
 ## Custom Reach Display (`displayCustom`) — AVIXA DISCAS coverage
 
 `displayCustom` is a `displays`-class device (key `DL`) whose coverage
@@ -2494,7 +3091,7 @@ Hook points:
  `{ isGroupRect, oldGroupId, groupAttrs }` entry alongside the regular
  member entries (which carry `data_groupId` in `newAttr`). On paste,
  every Group rect in the clipboard mints a fresh `groupid` via
- `createUuid()`; member items get their `data_groupId` remapped to the
+ `crypto.randomUUID()`; member items get their `data_groupId` remapped to the
  new id, a fresh `roomObj.groups` entry is pushed (with the offset
  top-left and `groupMembers` rebuilt from the new uuids), and
  `insertGroupRect()` materializes the rect on canvas. Members of
@@ -2866,7 +3463,7 @@ ensure `customItemBaseId` is present.
 
 | Location | Function | Behaviour |
 |----------|----------|-----------|
-| Manual create | `createCustomItem()` | Stamps a fresh `createUuid()` — this is the new template's family id |
+| Manual create | `createCustomItem()` | Stamps a fresh `crypto.randomUUID()` — this is the new template's family id |
 | Copy / paste | `copyToCanvasClipBoard()` / `pasteItems()` | **PRESERVES** the original `customItemBaseId` from the source bundle. Two pasted copies of the same source bundle share one `customItemBaseId` (strict family model). Only `customitemid` (the instance id) is regenerated on paste |
 | Workspace Designer round-trip | WD export (`exportedCustomItem.customItemBaseId`) / WD import (read into `roomObj.customItems[].customItemBaseId`) | Round-trips through `workspaceObj.data.vrc.customItems[]` so a customItem created in VRC, exported to WD JSON, and re-imported retains its library identity |
 | Boot / load backfill | `ensureCustomItemBaseIds(obj)` | Defensive: stamps a fresh id on any customItem that lacks one. Called from `canvasToJson()`, the WD import post-processing step, the VRC `.vrc.json` import path, and the shortened-URL `parseShortenedXYUrl()` |
@@ -3182,7 +3779,7 @@ roomObj.layers = [
 
 - `layerid: '0'` = Default (implicit, items without `data_layerId` belong here)
 - `layerid: '1'` = Ceiling (reserved for ceiling microphones etc.)
-- Custom layers use `createUuid()` for their `layerid`
+- Custom layers use `crypto.randomUUID()` for their `layerid`
 - An internal `_urlNum` (20, 21, …) is assigned during URL encoding to map UUIDs ↔ URL numbers
 
 Items carry an optional `data_layerId` attribute:
