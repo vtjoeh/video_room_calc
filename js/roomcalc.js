@@ -505,18 +505,6 @@ function firstItemOfParentGroup(parentGroup, obj) {
     );
 }
 
-function countItemsByParentGroup(parentGroup, obj) {
-    const room = obj || roomObj;
-    if (!room || !Array.isArray(room.items)) return 0;
-    let n = 0;
-    for (let i = 0; i < room.items.length; i++) {
-        const it = room.items[i];
-        const dt = allDeviceTypes[it.data_deviceid];
-        if (dt && dt.parentGroup === parentGroup) n++;
-    }
-    return n;
-}
-
 function bucketItemsByParentGroup(obj) {
     const room = obj || roomObj;
     const buckets = Object.create(null);
@@ -3664,21 +3652,7 @@ function finishCertifiedDisplayInsert(attrs) {
     canvasToJson();
 }
 
-/* ---- displayCustom (Custom Reach Display) — coverage per AVIXA DISCAS Basic Decision Making
- * (BDM) (ANSI/AVIXA V201.01) ----
- *
- *   Farthest Viewer  FV = IH x %EH x 2          (element >= 1/200th of the viewing distance)
- *   Closest Viewer   CV = max(0, IH + IO) x 1.732  (sight line to the TOP of the image <= 30 deg above eye level)
- *   IO = (bottom-of-image height) - (eye level)
- * Plan view: 60-degree lines drawn from each image edge, measured from the display
- * perpendicular, toward the opposite side of the image; the conformance area is bounded by
- * those lines, the closest-viewer line, and the farthest-viewer arc.
- * Only non-default inputs are stored on the item (data_percentElementHeight, data_aspectRatio,
- * data_eyeLevel); IH/IW/CV/FV are always derived.
- * ADM (Analytic Decision Making) was deliberately left out: its acuity-based farthest-viewer
- * formula (FV = 3438 x IH / vertical resolution) demands an impractically large display for
- * typical content resolutions -- e.g. viewing an 8K image from 6' recommends a 184" diagonal --
- * which is not a useful planning number for the conference-room displays this device models. */
+/* displayCustom AVIXA DISCAS BDM coverage: FV = IH x %EH x 2, CV = max(0, IH + IO) x 1.732; only non-default inputs stored, geometry always derived — formulas and the deliberate ADM omission are documented in CLAUDE.md "Custom Reach Display". */
 
 const DISCAS_DEFAULT_PERCENT_EL = 3;
 const DISCAS_DEFAULT_ASPECT = 1.78;      /* 16:9 */
@@ -3898,15 +3872,7 @@ function finishDiscasInsert(attrs) {
     canvasToJson();
 }
 
-/* ---- Speaker Reach (test-mode feature, mirror of the DISCAS pattern above) ----
- * Per-item override of the hardcoded device speakerRadius/speakerDeg. Three calc methods,
- * keyed by data_speakerCalc ('simple' default, never stored):
- *   simple: data_speakerRadius (current unit) + data_speakerDeg override the device spec.
- *   cone  : AVIXA/CTS ceiling-loudspeaker convention — coverage circle at ear height,
- *           radius = (mount height − ear height) × tan(coverage angle / 2), always 360°.
- *   spl   : inverse-square loudness — reach(m) = 10^((sensitivity + 10·log10(power) − target)/20).
- * Only non-default inputs are stored on the item; drawn radius/deg are always derived
- * (speakerComputeGeometry) and consumed by the speaker~ coverage builder. */
+/* Speaker Reach (test-mode): per-item simple/cone/spl coverage overrides, geometry always derived — see CLAUDE.md "Speaker Reach". */
 
 const SPKR_DEFAULT_CONE_ANGLE = 90;    /* deg — typical conical ceiling speaker (-6 dB angle) */
 const SPKR_DEFAULT_SENSITIVITY = 86;   /* dB SPL at 1 W / 1 m */
@@ -4339,14 +4305,6 @@ function resetFillToDefault() {
     if (!multiUpdateMode) {
         updateItem();
     }
-}
-
-function resetFillToDefault2() {
-    const fillEl = document.getElementById('itemFill2');
-    const opEl = document.getElementById('itemOpacity2');
-    if (fillEl) fillEl.value = '#ffffff';
-    if (opEl) opEl.value = '';
-    updateFillSwatch('itemFill2', 'itemOpacity2', 'itemFillSwatch2');
 }
 
 /* Paint an inline fill swatch from its hidden inputs. See notes/COLOR_PICKER.md */
@@ -5945,12 +5903,7 @@ function convertPointsToPixel(points) {
     return newPoints;
 }
 
-/* ---- polyRoom point-edit mode (floor-overview only) ----
- * Selecting exactly one polyRoom in the multi-room floor overview surfaces a white
- * draggable circle on every vertex. Dragging a circle reshapes the room outline live;
- * dragend renormalizes (origin back to the points bbox min, the creation convention)
- * and commits to roomObj. Clicking outside #ContainerRoomSvg (sidebar/header/dialogs)
- * hides the circles until the next canvas interaction; deselect/zoom-into-room exits. */
+/* polyRoom vertex-edit mode (floor overview only) — see CLAUDE.md "polyRoom Point Editing". */
 let polyRoomEditNodeId = null;
 let _polyRoomEditSuppressed = false;
 let _polyRoomEditPreDragPoints = null;
@@ -6252,72 +6205,6 @@ function polylineSelfIntersects(points, opts = {}) {
     return false;
 }
 
-
-function addConnectedWall(wall1, width, point2) {
-
-    let firstX = wall1[0];
-    let firstY = wall1[1];
-    let lastX = wall1[2];
-    let lastY = wall1[3];
-
-    let pointerX = point2.x;
-    let pointerY = point2.y;
-
-    width = width / 2;
-
-    let newDegreePoint = pointAtDistanceFromP2TowardP1(firstX, firstY, lastX, lastY, width)
-
-    let deg = getVectorAngleDegrees({ x: firstX, y: firstY }, { x: newDegreePoint.x, y: newDegreePoint.y }, { x: pointerX, y: pointerY })
-
-    let factor = 1;
-    if (deg > 89.9) {
-        factor = 1;
-    }
-    else if (deg < -89.9) {
-        factor = -1;
-    }
-    else if (deg >= 0) {
-        factor = -1;
-    }
-    else if (deg < 0) {
-        factor = 1;
-    }
-
-    let XY = findEndPointCoordinates(lastX, lastY, factor * width, lastWallBuilderRotation);
-
-    let endCorners = rightTriangleThirdPointFromHypotenuse(XY.x, XY.y, pointerX, pointerY, width);
-
-    let endCornerXY;
-    if (endCorners.length < 1) {
-        console.error('endCorners.length less than 1')
-        return;
-    }
-    else if (endCorners.length === 1) {
-        endCornerXY = endCorners[0];
-    }
-    else if (deg < 0) {
-        endCornerXY = endCorners[0];
-    } else {
-        endCornerXY = endCorners[1];
-    }
-
-    let newXYpoints = rightAnglePoint(XY.x, XY.y, endCornerXY.x, endCornerXY.y, width)
-
-    let newXY1 = newXYpoints[0];
-
-    let newXY2 = newXYpoints[1];
-
-
-    if (deg < 0) {
-        adjLastX = newXY2.x;
-        adjLastY = newXY2.y;
-    } else {
-        adjLastX = newXY1.x;
-        adjLastY = newXY1.y;
-    }
-
-    return [adjLastX, adjLastY, point2.x, point2.y];
-}
 
 let wallCounter = 0;
 
@@ -8577,10 +8464,6 @@ function createRoomId() {
     return roomId;
 }
 
-function isTouchEnabled() {
-    return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
-}
-
 function addOnBlurUnitInputListener() {
 
 
@@ -8960,28 +8843,6 @@ function windowResizeEventName() {
 }
 
 
-function positionCloseArrow() {
-    let element = document.getElementById('ContainerRoomSvg');
-    let closeOpenMenu = document.getElementById('closeOpenMenu');
-
-    const rect = element.getBoundingClientRect();
-
-    let position = {
-        x: rect.left + window.pageXOffset,
-        y: rect.top + window.pageYOffset
-    };
-
-
-    if (position.x < 120) {
-        closeOpenMenu.style.transform = 'translate(0px,0px)';
-    } else {
-        closeOpenMenu.style.transform = 'translate(25px,140px)';
-    }
-
-
-}
-
-
 function blurRoom() {
     let blurryDiv = document.getElementById('scroll-container');
     blurryDiv.classList.add('my-blurred-div');
@@ -8990,14 +8851,6 @@ function blurRoom() {
         blurryDiv.classList.remove('my-blurred-div');
     }, 500);
 }
-
-
-function hasScrollbar(element) {
-
-    return element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth;
-}
-
-
 
 
 function windowResizeEvent() {
@@ -10441,54 +10294,6 @@ function resetRoomObj() {
 }
 
 
-/* converts lowerCase letters (base26) to discrete binary number */
-function base26ToBinaryString(characters) {
-    let letterArray = characters.split('');
-    letterArray.reverse();
-    let decimalNumber = 0;
-    let base = 26;
-    letterArray.forEach((char, index) => {
-        decimalNumber = ((char.charCodeAt(0) - 97) * base ** index) + decimalNumber;
-    })
-    let binary = decimalNumber.toString(2);
-    let binaryString = binary.toString();
-
-    while (binaryString.length < 8) {
-        binaryString = '0' + binaryString;
-    }
-    return binaryString;
-}
-
-function binaryToBase26(binary) {
-    let array = createTable();
-
-    let letters;
-    array.forEach(entry => {
-        if (Number(entry[1]) == Number(binary)) {
-            letters = entry[0];
-        }
-    });
-
-    return letters;
-
-    function createTable() {
-
-        alphabet = 'abcdefghijklmnopqrstuvwxyz';
-        let alphaArray = alphabet.split('');
-        let array = [];
-        let i = 0;
-
-        alphaArray.forEach(outerLetter => {
-            alphaArray.forEach((letter) => {
-                let fullLetter = outerLetter + letter;
-                let txtBinary = base26ToBinaryString(fullLetter);
-                array[i] = [fullLetter, txtBinary];
-                i++;
-            })
-        });
-        return array;
-    }
-};
 
 
 
@@ -10869,125 +10674,6 @@ function redirectToCollabExpereince() {
         window.location.href = redirectUrl.replace(/^https:\/\/www\.collabexperience\.com/, 'https://collabexperience.com');
     }
 }
-
-/* Disable inputs briefly after drawRoom(true) to avoid canvasToJson race. */
-function disableDrawUpdateButtons(isDisabled) {
-
-    let unitInputs = document.querySelectorAll(".unitInput");
-    let numberInputs = document.querySelectorAll(".numberInput");
-
-    for (var i = 0; i < unitInputs.length; i++) {
-        unitInputs[i].disabled = isDisabled;
-    }
-
-    for (var i = 0; i < numberInputs.length; i++) {
-        numberInputs[i].disabled = isDisabled;
-    }
-
-}
-
-function isQuickSetupEnabled() {
-    let quickSetup = document.getElementById('quickSetup');
-    let quickSetupItems = document.getElementById('quickSetupItems');
-    /* Quick Setup: enabled when sole primary table/video/display are axis-aligned. */
-    const buckets = bucketItemsByParentGroup();
-    const videoDevicesArr = buckets.videoDevices || [];
-    const displaysArr = buckets.displays || [];
-    const tablesArr = buckets.tables || [];
-    let videoDevicesNum = videoDevicesArr.length;
-    let displaysNum = displaysArr.length;
-    let tablesNum = tablesArr.length;
-    let chairsNum = (buckets.chairs || []).length;
-    let boxesNum = (buckets.boxes || []).length;
-    let touchPanlesNum = (buckets.touchPanels || []).length;
-    let microphones = (buckets.microphones || []).length;
-    let otherDevices = chairsNum + boxesNum + touchPanlesNum + microphones;
-
-    quickSetupState = 'disabled';
-
-    if (videoDevicesNum === 0 && displaysNum === 0 && tablesNum === 0) {
-        quickSetupState = 'insert';
-    }
-    else if (videoDevicesNum === 1 && displays != 1) {
-        quickSetupState = 'disabled';
-    }
-    else if (videoDevicesNum > 1 || displaysNum > 1 || tablesNum > 1) {
-        quickSetupState = 'disabled';
-    }
-
-    if ((videoDevicesNum === 1 && tablesNum === 1) && (primaryDeviceIsAllInOne || displaysNum === 1)) {
-        if (isPrimaryXequal()) {
-            quickSetupState = 'update';
-        } else {
-            quickSetupState = 'disabled';
-        }
-    }
-
-    if (primaryDeviceIsAllInOne && touchPanlesNum > 0) {
-        quickSetupState = 'disabled';
-    }
-
-    if (otherDevices > 0) {
-        quickSetupState = 'disabled';
-    }
-
-    let quickSetupIconTooltip = `<span class="tooltipIcon"><span class="material-symbols-outlined" style="font-size: medium">info</span><span
-                                class="tooltiptextIcon">Quick Setup will add displays, a video device, and a table centered in the room, along with updating the length and width of the room. The Quick Setup menu will disappear if there are additional items or if an item is moved. To reset the Quick Setup menu when disabled, try resetting the room under Save -> Reset Room.</span>
-                             </span>`
-
-    let quickSetupEnabledText = 'Quick Setup (optional) ' + quickSetupIconTooltip;
-    if (quickSetupState === 'insert') {
-        quickSetup.innerHTML = quickSetupEnabledText;  /* This should be innerHTML, no data is passed from QR String */
-        quickSetupItems.style.display = 'initial';
-    }
-    else if (quickSetupState === 'update') {
-        quickSetup.innerHTML = quickSetupEnabledText; /* This should be innerHTML, no data is passed from QR String */
-        quickSetupItems.style.display = 'initial';
-
-    }
-    else if (quickSetupState === 'disabled') {
-        quickSetup.innerHTML = `Quick Setup is disabled ` + quickSetupIconTooltip; /* This should be innerHTML, no data is passed from QR String */
-        quickSetupItems.style.display = 'none';
-    }
-
-    createShareableLink();
-
-    function isPrimaryXequal() {
-        if (tablesArr.length > 0) {
-
-            let tableX = tablesArr[0].x;
-            let videoDeviceX = Math.round(videoDevicesArr[0].x * 100); /* check to the hundredths place */
-            let tableWidth = tablesArr[0].width;
-            let tableCenterX = Math.round((tableX + (tableWidth / 2)) * 100);
-
-            if (primaryDeviceIsAllInOne) {
-                if (videoDeviceX === tableCenterX) {
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                if (displaysArr.length == 1) {
-
-                    let displayX = Math.round(displaysArr[0].x * 100);
-                    let displayY = Math.round(displaysArr[0].y * 100);
-                    let videoDeviceY = Math.round(videoDevicesArr[0].y * 100);
-                    if (videoDeviceX === tableCenterX && videoDeviceX == displayX && displayY == videoDeviceY) {
-                        return true;
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-
-
-        }
-    }
-
-}
-
 
 function quickSetupUpdate() {
     roomObj.items = [];
@@ -11421,12 +11107,6 @@ function getDistanceA(degreeB, distanceB) {
 
     return distanceB / (Math.tan((degreeB * Math.PI) / 180));
 }
-
-function getDistanceB(degreeB, distanceA) {
-    return (Math.tan((degreeB * Math.PI) / 180)) * distanceA;
-}
-
-
 
 /* Preview fill per wall type (mirrors updateDefaultWallTypeOnCanvas). */
 function defaultWallTypeFill(type) {
@@ -11973,24 +11653,6 @@ function updatePersonCropUnit() {
 
 }
 
-function updateDefaultsPersonCropUnit() {
-
-    if (unit == 'feet') {
-        onePersonCrop = Math.round(defaultOnePersonCrop * 3.2808 * 100) / 100;
-        twoPersonCrop = Math.round(defaultTwoPersonCrop * 3.2808 * 100) / 100;
-
-    } else {
-        /* meters */
-        onePersonCrop = defaultOnePersonCrop;
-        twoPersonCrop = defaultTwoPersonCrop;
-
-    };
-
-    document.getElementById('onePersonCrop').value = onePersonCrop.toFixed(2);
-    document.getElementById('twoPersonCrop').value = twoPersonCrop.toFixed(2);
-
-}
-
 /* remove individual nodes from the stage EXCEPT for the 'tr' transformer node and layerSelectionBox */
 function clearShapeNodesFromStage(closeDetailsTab) {
 
@@ -12009,20 +11671,6 @@ function clearShapeNodesFromStage(closeDetailsTab) {
     if (!closeDetailsTab) {
         enableCopyDelBtn();
     }
-}
-
-function updateTitleGroup() {
-    let nodes = layerGrid.find('#txtPrimaryDevice');
-    let text = '';
-    const firstVideoDevice = firstItemOfParentGroup('videoDevices');
-    if (firstVideoDevice) {
-        text = 'Primary Device: ' + firstVideoDevice.name;
-    }
-
-    if (nodes.length > 0) {
-        nodes[0].text(text);
-    }
-
 }
 
 /* Adds the title and unit measurement for the layer grid */
@@ -12987,10 +12635,7 @@ function openSvgPathEditor(idOverride, startMode) {
         };
     }
 
-    /* Zoomed into a Room Part: show THAT room's walls and open the view fitted to it.
-     * boxRoomPart with default walls gets the grey wall band; a polyRoom (its outline
-     * passed as floor-meter points) or a part with default walls removed gets a light
-     * blue wall-width line instead. */
+    /* Zoomed into a Room Part: fit the view to it; grey band for default walls, light blue outline for polyRoom / walls-removed parts. */
     let roomPartCtx = {};
     if (isActiveRoomPart && activeRoomPartItem) {
         roomPartCtx = {
@@ -13883,25 +13528,7 @@ function urlRgbToHex(rgb9) {
         + b.toString(16).padStart(2, '0').toUpperCase();
 }
 
-/* Compact per-window/frame token format for the wallCustomWindow `cw~...~` URL blob. Replaces
- * the original JSON.stringify + encodeURIComponent blob, which cost ~150-250+ chars PER RECORD
- * (full UUID, JSON punctuation, spelled-out type/field names) — the dominant contributor to
- * long Custom Window Wall shareable links. Mimics the outer x= link's own conventions so the
- * style stays familiar: each record is a self-delimiting uppercase TYPE letter (W=window,
- * F=windowFrame/"Open Window", D=doorFrame/"Open Doorway") followed by the IMPLICIT first
- * number (distFromLeft x100, matching the outer per-item x-position convention — bare digits,
- * no letter), then lettered fields reusing the SAME letters the outer format already uses for
- * the same concepts: c=width x100, e=height x100, b=baseZ x100 (omitted for doorFrame — always
- * 0), u=fill as the outer format's 9-digit zero-padded RGB triple, v=opacity x100 (u/v only
- * emitted when they differ from the device default, same "only non-default" rule the outer
- * format uses everywhere). No id, and no JSON punctuation at all: an id is a pure client-side
- * UI tracking key (used only for selection within a single Window Editor session — nothing else
- * references it, not even the WD-export child piece ids, which key off the PARENT wall's id) and
- * is freely regenerated with crypto.randomUUID() on decode. Records concatenate with NO
- * separator — a fresh uppercase W/F/D unambiguously starts the next record, the same way the
- * outer tokenizer already treats an uppercase letter as an item boundary. The whole compact
- * string is pure alphanumeric (no punctuation), so unlike the old JSON blob it needs no
- * encodeURIComponent/'+' escaping at all going into or out of the URL. */
+/* Compact cw~...~ token codec for wallCustomWindow records — full format spec in notes/URL_ENCODING.md "Custom Window Wall (cw) compact encoding". */
 const CUSTOM_WINDOW_DEFAULT_FILL = '#2FA6C0';
 const CUSTOM_WINDOW_DEFAULT_OPACITY = 0.15;
 
@@ -14318,11 +13945,7 @@ function createShareableLinkItem(item, prevTokens) {
         add('lt', 'lt1');
     }
 
-    /* cw = wallCustomWindow's data_customWindows array, tilde-wrapped (same free-form mechanism
-     * the label/text field uses, keyed under 'cw' instead of the bare reserved tilde so it never
-     * collides with the label — whole array travels as one token rather than per-field codes,
-     * since its length is variable). Contents are the compact per-record token format —
-     * see encodeCustomWindowsCompact() near hexToUrlRgb() for the format and why. */
+    /* cw = whole data_customWindows array as one tilde-wrapped compact token — see encodeCustomWindowsCompact(). */
     if (item.data_deviceid === 'wallCustomWindow' && Array.isArray(item.data_customWindows) && item.data_customWindows.length > 0) {
         add('cw', 'cw~' + encodeCustomWindowsCompact(item.data_customWindows) + '~');
     }
@@ -14499,11 +14122,6 @@ downloadPNG.addEventListener('click', downloadCanvasPNG);
 const downloadTransPNG = document.querySelector('#downloadTransPNG');
 
 downloadTransPNG.addEventListener('click', downloadCanvasTransPNG);
-
-function shareableLinkClicked() {
-    lastAction = "shareable link";
-    postHeartbeat();
-}
 
 async function postHeartbeat() {
     if (location.hostname === 'localhost') return
@@ -15143,15 +14761,6 @@ function openTabBottom(evt, tabName) {
     evt.currentTarget.className += " active";
 }
 
-/* Get the element with id="defaultOpen" and click on it */
-function toggleButton(button) {
-    if (button.style['color'] === 'black') {
-        button.style["color"] = 'grey'
-    } else {
-        button.style["color"] = 'black'
-    };
-}
-
 /* shows an undo dialog and adds a delay on undo / redo on RoomOS devices */
 function showUndoRedoRoomOs() {
 
@@ -15253,10 +14862,6 @@ function closeNewRoomDialog() {
 
 function openQuestionDialog() {
     document.getElementById('dialogQuestions').showModal();
-}
-
-function closeDialogQuestions() {
-    document.getElementById('dialogQuestions').close();
 }
 
 /* Undo/redo restore: incremental patch when safe, else full drawRoom(). */
@@ -16441,14 +16046,6 @@ function deleteTrNodes(save = true) {
 
         canvasToJson();
     }
-}
-
-
-function initializeMap() {
-    mapItems.clear();
-    roomObj.items.forEach(item => {
-        mapItems.set(item.id, item);
-    });
 }
 
 
@@ -18306,14 +17903,11 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             }
         });
 
-        const windowBackgroundObj = new Image();
-
-        windowBackgroundObj.onload = function windowBackgroundObjOnload() {
+        getCachedImage('./assets/images/wallWindowBackground.png', (windowBackgroundObj) => {
             tblWallFlr.fillPatternImage(windowBackgroundObj);
             tblWallFlr.fillPatternRepeat('repeat');
             tblWallFlr.fillPatternOffset({ x: 8, y: 0 });
-        };
-        windowBackgroundObj.src = './assets/images/wallWindowBackground.png';
+        });
 
 
     } else if (isWallChairs(insertDevice.id)) {
@@ -18589,23 +18183,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
         if (isAllCoverageGroupHidden) return;
 
-        /* Dimension Line live-resize: the global `tr.on('transform')`
-         * handler (registered near addListeners, around line ~22420)
-         * is what absorbs scaleX/scaleY into the Group's width/height
-         * and resets the scales — same path every other resizable item
-         * uses. Critically, Konva fires `target.fire('transform')` BEFORE
-         * `tr.fire('transform')`, so by the time we get here, scaleX is
-         * still non-1 and group.width() is still the pre-resize value.
-         *
-         * We bake the impending width change ourselves (group.width *
-         * scaleX), reset scaleX/scaleY to 1, set the new width, and
-         * repaint the children. The global tr.on('transform') handler
-         * then runs, sees scaleX === 1 (its `!(scaleX === 1)` guard
-         * short-circuits), and does nothing — clean hand-off. The
-         * Konva.Group's children (rect / arrow / label) would otherwise
-         * visually pop back to the old width on the next frame because
-         * Konva.Group children don't inherit width changes the way they
-         * inherit scale. */
+        /* Bake scaleX into Group width and reset scales here, BEFORE the global tr.on('transform') runs (its scaleX===1 guard then no-ops) — Group children inherit scale but not width. */
         if (e && e.target && e.target.data_deviceid === 'dimensionLine' && tr.nodes().length === 1) {
             const sx = tblWallFlr.scaleX();
             const sy = tblWallFlr.scaleY();
@@ -18619,15 +18197,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             updateFormatDetails(e);
         }
 
-        /* wallChairs live-resize: only `bottom-center` is enabled on
-         * the Transformer (set by resizeTableOrWall() →
-         * changeWallAnchors('wallChairs')), so only scaleY changes.
-         * Bake scaleY into the Group's height and re-lay out the chair
-         * children every frame so the user sees the chair count change
-         * smoothly during the drag instead of waiting for transformend.
-         * Mirrors the dimensionLine pattern above — target.fire fires
-         * before tr.fire, so the global tr.on('transform') handler sees
-         * scaleY === 1 by the time it runs and short-circuits. */
+        /* Bake scaleY into Group height + relayout chairs per frame (dimensionLine pattern: runs before the global tr transform handler, whose scaleY===1 guard then no-ops). */
         if (e && e.target && isWallChairs(e.target.data_deviceid) && tr.nodes().length === 1) {
             const sy = tblWallFlr.scaleY();
             if (sy !== 1) {
@@ -19239,10 +18809,6 @@ function updateKonvaBackgroundImageFloor() {
     konvaBackgroundImageFloor.width(scale / oldScale * konvaBackgroundImageFloor.width());
 }
 
-function updateLayerSelectionOnNewScale() {
-    layerSelectionBox
-}
-
 /* Rescale layerTransform nodes when canvas scale changes. */
 function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
     let oldScale, oldPxOffset, oldPyOffset;
@@ -19293,15 +18859,7 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
 
             let attrs = node.attrs;
 
-            /* wallChairs is now a Konva.Group with one Konva.Image per
-             * chair (see layoutWallChairsChildren()). The standard
-             * width/height branches further below rescale the Group's
-             * own attrs to the new scale; we then call the dedicated
-             * `isWallChairs` branch (mirror of the dimensionLine
-             * pattern below) to rebuild the chair children at the new
-             * pixel size. The legacy `fillPatternScaleX/Y` calls that
-             * used to live here would now throw — those are Konva.Shape
-             * methods, not available on Konva.Group. */
+            /* wallChairs is a Konva.Group (no fillPattern* — those are Shape methods); children are rebuilt at the new scale by the isWallChairs branch below. */
 
             if (node.data_deviceid === 'pathShape') {
                 let newScaleX = scale / oldScale * node.scaleX();
@@ -19310,13 +18868,7 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
                 node.scaleY(newScaleY);
             }
 
-            /* wdText/vrcText render as a Konva.Label whose Konva.Text
-             * child uses an explicit fontSize derived from
-             * `data_fontSize` and the current canvas `scale` (see
-             * computeWdTextKonvaFontSize). After a zoom the global
-             * `scale` has already updated, so we just recompute the
-             * child's fontSize. The standard `if ('x' in attrs)` branch
-             * below handles the x/y reposition. */
+            /* Text items: recompute the Konva.Text child's fontSize for the new scale (computeWdTextKonvaFontSize); x/y reposition rides the standard branch below. */
             if (isTextItem(node.data_deviceid)) {
                 const inner = node.findOne('Text');
                 if (inner) {
@@ -19402,15 +18954,6 @@ function updateShapesBasedOnNewScale(layerSelectionBoxOnly = false) {
             }
 
 
-            // if('data_deviceid' in node && node.data_deviceid.startsWith('tbl') && node.getClassName() === 'Shape'){;
-            //     let tempNode = node.clone();
-            //     node.sceneFunc(()=>{});
-
-            //     node.scaleX(1);
-            //     node.scaleY(1);
-            //     layerTransform.batchDraw();
-            //     node.draw()
-            //     // node.sceneFunc(tempNode.sceneFunc());
             //     layerTransform.batchDraw();
             // }
 
@@ -20053,15 +19596,7 @@ function updateItem() {
             }
         }
 
-        /* certifiedDisplay: the size is locked to the picked model, so the
-         * diagonal-inches field is hidden. Resolve the index from the
-         * Details dropdown when it's the active control, else fall back to
-         * the item's existing index (e.g. when the Item Type dropdown was
-         * just switched TO certifiedDisplay), else the first catalogue
-         * entry. applyCertifiedDisplayIndexToAttrs overrides
-         * data_diagonalInches with the locked size. data_role is left as-is
-         * so switching an existing display to certifiedDisplay keeps the
-         * previously-picked screen role. */
+        /* certifiedDisplay: resolve index from dropdown, else item, else first entry; size locks to the model, data_role preserved — see CLAUDE.md "Certified Display item". */
         if (data_deviceid === 'certifiedDisplay') {
             const __cdSel = document.getElementById('certifiedDisplaySelect');
             const __cdDiv = document.getElementById('certifiedDisplayDiv');
@@ -20697,27 +20232,6 @@ function createDeviceMenu(parentButton, attributeType) {
     firstRow.appendChild(dragButton);
 
 
-
-
-
-
-
-    // const applyButton = document.createElement('div');
-    // applyButton.id = `applyButton-${attributeType}`;
-    // applyButton.textContent = 'Apply';
-    // applyButton.style = "padding: 8px 12px; cursor: pointer; text-align: center; margin-top: 5px; background-color: #28a745; color: #fff;";
-    // if(devices.length < 1) {
-    //     applyButton.style.color = unavailableTextColor;
-    //     applyButton.style.backgroundColor = 'rgb(14, 110, 36);'
-
-    // }
-
-    // applyButton.addEventListener('click', () => {
-    //     closeAllMenus(); /* applyButton doesn't really do anything except close the menu */
-    //     saveToUndoArray();
-    // });
-
-    // menuReach.appendChild(applyButton);
     document.body.appendChild(menuReach);
 
     dragElement(menuReach);
@@ -20905,120 +20419,6 @@ function hightlightOverlayForDevice(opt, attributeType, highlight, checkbox) {
 
 }
 
-function toggleMicShadingSingleItem() {
-    let id = document.getElementById('itemId').innerText;
-
-    /* this function should note be called if microphoneCoverage === false, but in case it is, give the user feedback */
-    if (roomObj.overlaysVisible.microphoneCoverage === false) {
-        document.getElementById('dialogSingleItemToggles').showModal();
-        return;
-    }
-
-    /* PERF RULE: roomObjItemsMap.get(id) is O(1) vs the old O(b) array scan + DOM read. */
-    const item = roomObjItemsMap.get(id);
-    if (item) {
-        let node = stage.find('#' + id)[0];
-        const layerHidden = isItemInHiddenLayer(node);
-        if ('data_audioHidden' in item && item.data_audioHidden === true) {
-            /* Per-item flag clears, but actual node visibility still depends on layer */
-            stage.find('#audio~' + id)[0].visible(!layerHidden);
-            delete node.data_audioHidden;
-            delete item.data_audioHidden;
-        } else {
-            stage.find('#audio~' + id)[0].visible(false);
-            node.data_audioHidden = true;
-            item.data_audioHidden = true;
-        }
-    }
-    canvasToJson();
-
-}
-
-function toggleSpeakerShadingSingleItem() {
-    let id = document.getElementById('itemId').innerText;
-
-    /* this function should not be called if speakerCoverage === false, but in case it is, give the user feedback */
-    if (roomObj.overlaysVisible.speakerCoverage === false) {
-        document.getElementById('dialogSingleItemToggles').showModal();
-        return;
-    }
-
-    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
-    const item = roomObjItemsMap.get(id);
-    if (item) {
-        let node = stage.find('#' + id)[0];
-        const layerHidden = isItemInHiddenLayer(node);
-        if ('data_speakerHidden' in item && item.data_speakerHidden === true) {
-            stage.find('#speaker~' + id)[0].visible(!layerHidden);
-            delete node.data_speakerHidden;
-            delete item.data_speakerHidden;
-        } else {
-            stage.find('#speaker~' + id)[0].visible(false);
-            node.data_speakerHidden = true;
-            item.data_speakerHidden = true;
-        }
-    }
-    canvasToJson();
-
-}
-
-function toggleCamShadeSingleItem() {
-    let id = document.getElementById('itemId').innerText;
-
-    if (roomObj.overlaysVisible.cameraCoverage === false) {
-        alert('To toggle this button, first toggle on the parent mics, cameras or display button found above the canvas drawing.');
-        // document.getElementById('dialogSingleItemToggles').showModal();
-        return;
-    }
-
-    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
-    const item = roomObjItemsMap.get(id);
-    if (item) {
-        let node = stage.find('#' + id)[0];
-        const layerHidden = isItemInHiddenLayer(node);
-        if ('data_fovHidden' in item && item.data_fovHidden === true) {
-            stage.find('#fov~' + id)[0].visible(!layerHidden);
-            delete node.data_fovHidden; /* delete .data_fovHidden value direct in the Konva canvas */
-            delete item.data_fovHidden; /* delete .data_fovHidden direct to roomObj */
-        } else {
-            stage.find('#fov~' + id)[0].visible(false);
-            node.data_fovHidden = true;
-            item.data_fovHidden = true;
-        }
-    }
-
-    canvasToJson();
-}
-//
-function toggleDisplayDistanceSingleItem() {
-    let id = document.getElementById('itemId').innerText;
-
-    if (roomObj.overlaysVisible.displayDistanceCoverage === false) {
-        document.getElementById('dialogSingleItemToggles').showModal();
-        return;
-    }
-
-
-    /* PERF RULE: O(1) map lookup — see toggleMicShadingSingleItem. */
-    const item = roomObjItemsMap.get(id);
-    if (item) {
-        let node = stage.find('#' + id)[0];
-        const layerHidden = isItemInHiddenLayer(node);
-        if ('data_dispDistHidden' in item && item.data_dispDistHidden === true) {
-            stage.find('#dispDist~' + id)[0].visible(!layerHidden);
-            delete item.data_dispDistHidden;
-            delete node.data_dispDistHidden;
-        } else {
-            stage.find('#dispDist~' + id)[0].visible(false);
-            item.data_dispDistHidden = true;
-            node.data_dispDistHidden = true;
-        }
-    }
-
-    canvasToJson();
-
-}
-
 dragElement(document.getElementById('floatingWorkspace'));
 
 /* Makes an html element draggable. If the element has an ID of {element.id}-dragger, use the that -dragger element as the part to drag, otherwise make the whole element draggable. Works on touch devices too. */
@@ -21109,19 +20509,7 @@ function dragElement(element) {
 }
 
 
-/*
-   Moves an object from one part of the array to another.
-   Code from https://stackoverflow.com/questions/5306680/move-an-array-element-from-one-array-position-to-another
-*/
-function arrayMove(arr, old_index, new_index) {
-    if (new_index >= arr.length) {
-        let k = new_index - arr.length + 1;
-        while (k--) {
-            arr.push(undefined);
-        }
-    }
-    arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
-};
+;
 
 
 
@@ -22073,10 +21461,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
     insertDevice = allDeviceTypes[deviceId];
     groupName = group.name();
 
-    /*
-        Check if deviceId is in group tables or stageFloors - which includes the wall, column, box or stageFloors
-        if in tables/stageFloors break out of this and go to insertTable.
-    */
+    /* tables/stageFloors class devices (walls, columns, boxes) route to insertTable instead. */
     if (groupName === 'tables' || groupName === 'stageFloors' || groupName === 'boxes' || groupName === 'rooms') {
         insertTable(insertDevice, groupName, attrs, uuid, selectTrNode)
         return;
@@ -22159,12 +21544,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         data_slant = "";
     }
 
-    /*
-        Calculate width of displays based on Diagonal inches.
-        roomKitEqx no longer enters this block: its footprint is the fixed device-def
-        width (the frame doesn't change between 65/75/85" displays); the diagonal-driven
-        dual-display overlay is drawn by layoutRoomKitEqxChildren() instead.
-    */
+    /* Diagonal-driven display width; roomKitEqx excluded (fixed frame footprint, overlay drawn by layoutRoomKitEqxChildren). */
     let displayNumber = 1;
     if (groupName === 'displays') {
 
@@ -22340,9 +21720,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     }
 
-    let imageObj = new Image();
-
-    imageObj.onload = function imageObjOnLoad() {
+    const imageObjOnLoad = function (imageObj) {
         let imageItem;
         if (isRoomKitEqx(deviceId)) {
             /* EQX composite: Group with fixed-footprint base art + diagonal-driven dual-display
@@ -22537,9 +21915,9 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
     if (addHighlight) {
-        createHighlightImage(deviceId, imageObj);
+        createHighlightImage(deviceId, imageObjOnLoad);
     } else {
-        imageObj.src = './assets/images/' + insertDevice.topImage;
+        getCachedImage('./assets/images/' + insertDevice.topImage, imageObjOnLoad);
     }
 
     /* add coverage for cameras */
@@ -22903,10 +22281,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
 
 
-    /* displayCustom: DISCAS plan-view coverage (see the discas* helpers for the standard's formulas).
-     * Local coords: display image centered at the group origin along x, viewers in +y.
-     * Drawn as two Konva.Shapes in the standard dispDist~ group so drag-follow (updateShading),
-     * the D-key toggle, VRC-layer hiding, and the per-item hide flag all apply unchanged. */
+    /* DISCAS coverage rides the standard dispDist~ group (image centered on origin, viewers +y) so drag-follow, toggles, and layer hiding apply unchanged. */
     if (deviceId === 'displayCustom') {
 
         const dg = discasComputeGeometry(attrs);
@@ -22918,13 +22293,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         const apexY = halfPx * TAN30; /* depth where the two 60-deg edge lines cross */
         const nearY = Math.max(cvPx, apexY);
 
-        /* Far boundary per the standard's plan-view figures: TWO arcs of radius FV, each swept from an
-         * image EDGE, crossing at the centerline (the slightly pointed far edge in AVIXA's BDM/ADM
-         * drawings). This keeps every conforming viewer within FV of BOTH edges -- i.e., of every part
-         * of the image -- which a single image-center arc does not (an on-axis viewer at FV from the
-         * center is sqrt(FV^2 + half^2) from each edge). The right half of the region is governed
-         * entirely by the LEFT edge (its 60-deg line AND its FV arc), so the far corner falls exactly
-         * at distance FV along that edge's 60-deg line. */
+        /* Far boundary = TWO FV arcs centered on the image EDGES (not one center arc), so every conforming viewer is within FV of both edges — see CLAUDE.md "Custom Reach Display". */
         const xFar = -halfPx + SIN60 * fvPx;  /* right-far corner x (left-far is the mirror) */
         const yFar = 0.5 * fvPx;
         const yCross = Math.sqrt(Math.max(0, fvPx * fvPx - halfPx * halfPx)); /* two-arc crease on the centerline */
@@ -23112,10 +22481,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
 
     }
 
-    /* Coverage groups (fov~, audio~, speaker~, dispDist~) and label~ are created
-     * after applyLayerStateToNode() runs at the top of this function. Re-apply the
-     * layer state to those nodes now that they exist, so items in hidden layers
-     * also have their coverage hidden. */
+    /* Coverage/label nodes are created after the first applyLayerStateToNode — re-apply so hidden layers also hide them. */
     const insertedNode = stage.findOne('#' + uuid);
     if (insertedNode) {
         const _layer = getLayerById(insertedNode.data_layerId || '0');
@@ -23419,78 +22785,6 @@ function getLineGuideStops(skipShape, resize = false, excludeBundle = null) {
         horizontal: horizontal.flat(),
     };
 }
-
-/* were can we snap our objects? If resize = true, ignore center */
-function getLineGuideStops2(skipShape, resize = false) {
-    /* we can snap to stage borders and the center of the stage */
-
-    let outerWall = stage.find("#cOuterWall")[0];
-    let outerBox = outerWall.getClientRect();
-    let outsideBox;
-    let vertical = [outerBox.x, outerBox.x + outerBox.width / 2, outerBox.x + outerBox.width];
-    let horizontal = [outerBox.y, outerBox.y + outerBox.height / 2, outerBox.y + outerBox.height];
-
-    /* remove center items*/
-    if (resize) {
-        vertical.splice(1, 1);
-        horizontal.splice(1, 1);
-    }
-
-
-    let outsideWall = stage.find("#outsideWall")[0];
-    if (outsideWall) {
-        outsideBox = outsideWall.getClientRect();
-        if (resize) {
-            vertical.push([outsideBox.x, outsideBox.x + outsideBox.width]);
-            horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height])
-        } else {
-            vertical.push([outsideBox.x, outsideBox.x + outsideBox.width / 2, outsideBox.x + outsideBox.width]);
-            horizontal.push([outsideBox.y, outsideBox.y + outsideBox.height / 2, outsideBox.y + outsideBox.height]);
-        }
-    }
-
-
-
-    /* Go through objects on the primary layer.  Only return draggable() items.  and we snap over edges and center of each object on the canvas */
-    layerTransform.find(node => {
-        let groupName = node.getParent().name();
-        /* ignore the shading and the temporary groups */
-        if (!(groupName === 'theTransformer' || groupName === 'microphoneCoverage' || groupName === 'cameraCoverage' || groupName === 'displayDistanceCoverage' || groupName === 'speakerCoverage')) {
-            /* only snap to objects inside the current room part */
-            if (node.draggable() && Konva.Util.haveIntersection(outerBox, node.getClientRect())) {
-                return true;
-            } else {
-                return false;
-            }
-
-
-
-        }
-
-    }
-    ).forEach((guideItem) => {
-        if (guideItem === skipShape) {
-            return;
-        }
-        let box = guideItem.getClientRect();
-        /* and we can snap to all edges of shapes. If resize equals true, don't grab center values */
-        if (resize) {
-            vertical.push([box.x, box.x + box.width]);
-            horizontal.push([box.y, box.y + box.height]);
-        } else {
-            vertical.push([box.x, box.x + box.width / 2, box.x + box.width]);
-            horizontal.push([box.y, box.y + box.height / 2, box.y + box.height]);
-        }
-
-    });
-
-
-    return {
-        vertical: vertical.flat(),
-        horizontal: horizontal.flat(),
-    };
-}
-
 
 /* what points of the object will trigger to snapping?
  If it is resize, igonore center of objects.  */
@@ -24388,8 +23682,7 @@ function insertDefaultDoorsOnCanvas() {
             }
 
 
-            let imageObj = new Image();
-            imageObj.onload = function () {
+            getCachedImage(`./assets/images/${img}`, (imageObj) => {
                 const doorShape = new Konva.Image({
                     x: x,
                     y: y,
@@ -24404,9 +23697,7 @@ function insertDefaultDoorsOnCanvas() {
                 });
 
                 groupOuterWall.add(doorShape);
-            };
-
-            imageObj.src = `./assets/images/${img}`;
+            });
 
 
         }
@@ -24506,12 +23797,6 @@ function moveLabel(imageItem, labelTip) {
 
     labelTip.x(centerX);
     labelTip.y(bottomY);
-}
-
-function trNodesListening(listening = true) {
-    tr.nodes().forEach(node => {
-        node.listening(listening);
-    });
 }
 
 /* used to hide temporarily hide all coverage groups and labels on large moves */
@@ -24822,76 +24107,6 @@ function updateRoomDetails() {
     canvasToJson();
 }
 
-function updateQuickSetupItems() {
-    /* PERF: bucket once for the 3 parentGroups we care about. */
-    const buckets = bucketItemsByParentGroup();
-    let primaryVideoDevice = (buckets.videoDevices || [])[0];
-    let primaryTable = (buckets.tables || [])[0];
-    let primaryDisplay = (buckets.displays || [])[0];
-
-    if (primaryTable) {
-        document.getElementById('tableWidth').value = round(primaryTable.width);
-        document.getElementById('tableLength').value = round(primaryTable.height);
-    }
-
-    if (primaryVideoDevice && primaryTable) {
-
-        document.getElementById('drpVideoDevice').value = primaryVideoDevice.data_deviceid;
-        videoDevices.forEach((item) => {
-            if (primaryVideoDevice.data_deviceid == item.id) {
-                let displayId;
-                let frntWallToTv = document.getElementById('frntWallToTv');
-                let distDisplayToTable = document.getElementById('distDisplayToTable');
-                let offset = (item.depth / 1000) / 2;
-
-                if ('displayOffSetY' in item) {
-                    offset = offset - (item.displayOffSetY / 1000);
-                }
-
-                if (unit === 'feet') {
-                    offset = offset * 3.2808;
-                }
-
-                frntWallToTv.value = round(primaryVideoDevice.y + offset);
-
-                distDisplayToTable.value = round(primaryTable.y - (primaryVideoDevice.y + offset));
-
-                if ('diagonalInches' in item) {
-                    primaryDeviceIsAllInOne = true;
-                    document.getElementById('tvDiag').value = item.diagonalInches;
-                    document.getElementById('drpTvNum').value = '1';
-                    /* Room Kit EQX always has 2 displays */
-                    if (primaryVideoDevice.data_deviceid.startsWith('roomKitEqx')) {
-                        document.getElementById('drpTvNum').value = '2';
-                    }
-                } else {
-                    primaryDeviceIsAllInOne = false;
-
-                    if (primaryDisplay) {
-
-
-                        document.getElementById('tvDiag').value = primaryDisplay.data_diagonalInches;
-
-                        if (primaryDisplay.data_deviceid.startsWith('displaySngl')) {
-                            document.getElementById('drpTvNum').value = '1';
-                        }
-                        else if (primaryDisplay.data_deviceid.startsWith('displayDbl')) {
-                            document.getElementById('drpTvNum').value = '2';
-
-                        }
-                        else if (primaryDisplay.data_deviceid.startsWith('displayDbl')) {
-                            document.getElementById('drpTvNum').value = '3';
-                        }
-                    }
-
-                }
-            }
-        });
-
-    }
-}
-
-
 function parseShadingDecimalToBinary(newItem, decimalInput) {
     let binaryValue = Number(decimalInput).toString(2).split("").reverse();
 
@@ -25166,10 +24381,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     }
 
     if (shape.data_deviceid === 'group') {
-        /* Re-show itemNameDiv before populateGroupDetails hides it again, so
-         * that any subsequent click on a non-group item finds the div in its
-         * default visible state (the rest of updateFormatDetails never
-         * touches itemNameDiv). */
+        /* Re-show itemNameDiv so a later non-group click finds it in its default visible state. */
         const itemNameDiv = document.getElementById('itemNameDiv');
         if (itemNameDiv) itemNameDiv.style.display = '';
         populateGroupDetails(shape);
@@ -25790,10 +25002,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             const psDiv = document.getElementById('itemPointerSizeDiv');
             if (psDiv) psDiv.style.display = 'none';
             if (lwpsRow) lwpsRow.style.display = 'none';
-            /* Room Parts sit on the floor by definition — Z has no meaning. Same for
-             * Custom Window Wall: the wall itself always sits at floor level, and each
-             * window/frame's own elevation is edited per-record in the Window Editor's
-             * Base Elevation field, not via the item-level Z. */
+            /* Room Parts and Custom Window Walls sit at floor level — per-window elevation lives in the Window Editor, not item-level Z. */
             if (zDiv) zDiv.style.display = (isRoomPartShape || shape.data_deviceid === 'wallCustomWindow') ? 'none' : '';
         }
     }
@@ -26548,10 +25757,7 @@ function insertItemFromMenu(data_deviceid, attrs) {
 
         canvasToJson();
 
-        /* pathShape: offer SVG Path Editor (Draw mode) vs. Draw Simple Path on
-         * first insert. The 300 ms defer is past the 250 ms
-         * tr.nodes()/updateFormatDetails() timer inside insertShapeItem() so
-         * #itemId is fully populated before either editor takes over. */
+        /* 300 ms defer clears insertShapeItem's 250 ms selection timer so #itemId is populated before the editor chooser opens. */
         if (data_deviceid === 'pathShape') {
             setTimeout(() => { openPathShapeDrawChooser(uuid); }, 300);
         }
@@ -27424,8 +26630,6 @@ function updateCreateHighlightImage(minimumSize = 500) {
 
 
         } else {
-            let newImageObj = new Image();
-
             let width = allDeviceTypes[item.data_deviceid].width / 1000 * scale;
             let height = allDeviceTypes[item.data_deviceid].depth / 1000 * scale;
 
@@ -27439,8 +26643,7 @@ function updateCreateHighlightImage(minimumSize = 500) {
 
             let cornerXY = findUpperLeftXY({ x: centerX, y: centerY, rotation: item.rotation, width: width, height: height });
 
-            newImageObj.src = './assets/images/' + allDeviceTypes[item.data_deviceid].topImage;
-            newImageObj.onload = function () {
+            getCachedImage('./assets/images/' + allDeviceTypes[item.data_deviceid].topImage, (newImageObj) => {
                 node.image(newImageObj);
                 node.x(cornerXY.x);
                 node.y(cornerXY.y);
@@ -27452,87 +26655,90 @@ function updateCreateHighlightImage(minimumSize = 500) {
                 if (textLabel) {
                     moveLabel(node, textLabel);
                 }
-
-            }
+            });
         }
     });
 }
 
-let hightlightImageItems = {};
+/* Shared per-URL HTMLImageElement cache: many canvas items reuse the same device art, so each
+ * source is decoded once instead of one Image element per node. Callbacks always fire async
+ * (microtask when already loaded) so caller ordering matches the old per-item onload timing. */
+const _imageElementCache = new Map();
 
-function updateSingleHighlightImage(node, item, newItemAttr) {
-    let imageSize = 200; /* pixels */
-    let picScale = imageSize / sizeToAddOultine;
+function getCachedImage(src, onReady) {
+    let img = _imageElementCache.get(src);
+    if (!img) {
+        img = new Image();
+        _imageElementCache.set(src, img);
+        img.src = src;
+    }
+    if (img.complete && img.naturalWidth > 0) {
+        queueMicrotask(() => onReady(img));
+    } else {
+        img.addEventListener('load', () => onReady(img), { once: true });
+    }
+}
 
-    let itemType = allDeviceTypes[item.data_deviceid];
+const _highlightImageDataUrlCache = new Map();
 
-    /* create a temporary div for the stage, remove if it already exits */
-    let divContainerId = 'containerImageCreate';
-    let checkDiv = document.getElementById(divContainerId);
-    if (checkDiv) {
-        checkDiv.remove();
+/* Render the orange-outline composite for a small device once per deviceId, cache the data URL,
+ * and destroy the temp stage. Konva registers every Stage in Konva.stages until destroy() is
+ * called, so the old build-per-insert version leaked one hidden stage per call. */
+function getHighlightImageDataUrl(deviceId, onReady) {
+    const cached = _highlightImageDataUrlCache.get(deviceId);
+    if (cached) {
+        onReady(cached);
+        return;
     }
 
-    let divContainer = document.createElement('div');
-    divContainer.id = divContainerId;
+    const imageSize = 200; /* pixels */
+    const picScale = imageSize / sizeToAddOultine;
+    const itemType = allDeviceTypes[deviceId];
+
+    const divContainer = document.createElement('div');
     divContainer.style.display = 'none';
     document.body.appendChild(divContainer);
 
-
-    const stageForImageCreation = new Konva.Stage({
-        container: divContainerId,
+    const tempStage = new Konva.Stage({
+        container: divContainer,
         width: imageSize,
         height: imageSize,
     });
-
     const layer = new Konva.Layer();
-    stageForImageCreation.add(layer);
+    tempStage.add(layer);
+    layer.add(createHighlightRect());
 
-    let imageObj = new Image();
-
-
-    imageObj.onload = function imageObjOnLoad() {
-        let imageItem = new Konva.Image({
+    getCachedImage('./assets/images/' + itemType.topImage, (imageObj) => {
+        layer.add(new Konva.Image({
             x: (imageSize - (picScale * itemType.width)) / 2,
             y: (imageSize - (picScale * itemType.depth)) / 2,
             image: imageObj,
             width: picScale * itemType.width,
             height: picScale * itemType.depth,
+        }));
+        const dataUrl = tempStage.toDataURL();
+        tempStage.destroy();
+        divContainer.remove();
+        _highlightImageDataUrlCache.set(deviceId, dataUrl);
+        onReady(dataUrl);
+    });
+}
 
-        });
-        layer.add(imageItem);
-
-        let cardImage = new Image();
-        cardImage.src = stageForImageCreation.toDataURL();
-
-
-        if (!(item.data_deviceid in hightlightImageItems)) {
-            hightlightImageItems[item.data_deviceid] = {};
-            hightlightImageItems[item.data_deviceid].image = cardImage;
-        }
-
-        cardImage.onload = function () {
+function updateSingleHighlightImage(node, item, newItemAttr) {
+    getHighlightImageDataUrl(item.data_deviceid, (dataUrl) => {
+        getCachedImage(dataUrl, (cardImage) => {
             node.image(cardImage);
-
             node.width(newItemAttr.width);
             node.height(newItemAttr.height);
             node.x(newItemAttr.x);
             node.y(newItemAttr.y);
 
             let textLabel = stage.findOne('#label~' + node.id());
-
             if (textLabel) {
                 moveLabel(node, textLabel);
             }
-        };
-
-    }
-
-    imageObj.src = './assets/images/' + itemType.topImage;
-
-
-
-    layer.add(createHighlightRect());
+        });
+    });
 }
 
 
@@ -27550,105 +26756,19 @@ function createHighlightRect() {
     return rect;
 }
 
-function createHighlightImage(deviceId, imageObj2, minimumSize = 500) {
-
-    let imageSize = 200; /* pixels */
-    let picScale = imageSize / minimumSize;
-
-    let itemType = allDeviceTypes[deviceId];
-
-
-    if (itemType.width < minimumSize && itemType.depth < minimumSize) {
-
-
-        let divContainerId = 'containerImageCreate';
-        let checkDiv = document.getElementById(divContainerId);
-        if (checkDiv) {
-            checkDiv.remove();
-        }
-
-        let divContainer = document.createElement('div');
-        divContainer.id = divContainerId;
-        divContainer.style.display = 'none';
-        document.body.appendChild(divContainer);
-
-
-        const stageForImageCreation = new Konva.Stage({
-            container: divContainerId,
-            width: imageSize,
-            height: imageSize,
-        });
-
-        const layer = new Konva.Layer();
-        stageForImageCreation.add(layer);
-
-        let imageObj = new Image();
-
-        imageObj.onload = function imageObjOnLoad() {
-            let imageItem = new Konva.Image({
-                x: (imageSize - (picScale * itemType.width)) / 2,
-                y: (imageSize - (picScale * itemType.depth)) / 2,
-                image: imageObj,
-                width: picScale * itemType.width,
-                height: picScale * itemType.depth,
-
-
-            });
-            layer.add(imageItem);
-            stageForImageCreation.toDataURL();
-
-            imageObj2.src = stageForImageCreation.toDataURL();
-
-        }
-
-        imageObj.src = './assets/images/' + itemType.topImage;
-
-
-        layer.add(createHighlightRect());
-
-    }
+function createHighlightImage(deviceId, onReady, minimumSize = 500) {
+    const itemType = allDeviceTypes[deviceId];
+    if (itemType.width >= minimumSize || itemType.depth >= minimumSize) return;
+    getHighlightImageDataUrl(deviceId, (dataUrl) => getCachedImage(dataUrl, onReady));
 }
 
 
 /* Cache top images so canvas inserts still work if the internet drops. */
 function preLoadTopImages() {
-    let preLoadTypes = [videoDevices, microphones, displays, chairs];
-    let totalDevices = 0;
-    let counter = 0;
-
-    /* count up total devices */
-    preLoadTypes.forEach(typeGroup => {
-        totalDevices = totalDevices + typeGroup.length;
-    });
-
-
-    preLoadTypes.forEach(list => {
-
+    [videoDevices, microphones, displays, chairs].forEach(list => {
         list.forEach((item) => {
             if ('topImage' in item) {
-                let imageLocation = './assets/images/' + item.topImage;
-
-                groupBackground.add();
-
-                let imageObj = new Image();
-
-                imageObj.src = imageLocation;
-
-                imageObj.onload = function imageObjOnloadPreLoad() {
-                    let img = new Konva.Image({
-                        x: 1,
-                        y: 1,
-                        image: imageObj,
-                        width: 1,
-                        height: 1,
-                        visible: false,
-
-                    });
-
-                    counter++;
-
-                };
-
+                getCachedImage('./assets/images/' + item.topImage, () => { });
             }
         });
     });
@@ -27854,10 +26974,7 @@ function createQrCode() {
 
     document.getElementById('qrCode').innerHTML = qr.createImgTag(); /* This should be innerHTML, no raw qurey string or raw input data is passed*/
 
-    /*
-        QR code library creates an img tag with width & height that changes with QR code.
-        Remove that height and width and have it fit in its parent div.
-    */
+    /* Strip the QR library's fixed img width/height so it fits its parent div. */
 
     let qrImage = document.getElementById('qrCode').firstChild;
     qrImage.removeAttribute("width");
@@ -27868,13 +26985,6 @@ function createQrCode() {
 
 }
 
-
-/* shorten the visible url */
-
-function clearUrlQueryString() {
-    const baseUrl = location.origin + location.pathname
-    history.replaceState(null, null, baseUrl);
-}
 
 /* keep the unit as the last selected value of the end user */
 function keepDefaultUnit() {
@@ -28422,11 +27532,6 @@ function onKeyDown(e) {
             ungroupSelectedItems();
             isShortCutKeyUsed = true;
         }
-        // else if (key === 'f'){
-        //     e.preventDefault();
-        //     flipItems();
-        //     isShortCutKeyUsed = true;
-        // }
     }
 
     /* make a copy of the tr node for speed. After changes, restore tr.nodes([]) */
@@ -28497,16 +27602,6 @@ function onKeyDown(e) {
 
     hideAllCoverageGroups(false);
     tr.nodes(trNodesCopy);
-}
-
-
-
-function quickAddFromButton() {
-
-    quickAddMouse.x = -1000;
-    quickAddMouse.y = -1000;
-    toggleQuickAdd(true);
-
 }
 
 
@@ -28853,10 +27948,7 @@ function layoutRoomKitEqxChildren(group) {
     const dispW = (displayWidth / diagonalInches) * diag / 1000 * scale * 2 * unitFactor;
     const dispH = displayDepth / 1000 * scale * unitFactor;
 
-    /* Overlay depth placement: the floor-stand art is deep enough that the display rides
-     * within it (just in front of the frame bar). The wall variants' footprint is deepened
-     * by one display depth in insertShapeItem(), so the base art paints at its natural
-     * device-def depth and the display sits fully in front of it. */
+    /* Floor-stand art carries the display within it; wall variants get one displayDepth of extra footprint in insertShapeItem() so the display sits in front. */
     let baseH = h;
     let dispY;
     if (deviceId === 'roomKitEqxFS') {
@@ -29089,48 +28181,6 @@ function rotatePointAroundOrigin(pointX, pointY, originX, originY, angleInDegree
     return { x: finalX, y: finalY };
 }
 
-/*
-comeback to flipItems
-*/
-function flipItems() {
-    let rotationAmount = 90;
-
-    let trCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
-
-    tr.nodes().forEach(node => {
-
-        let nodeCenter = getNodeCenter(node);
-
-        let rotation = normalizeDegree(node.rotation())
-        let rotationAmount;
-        if (rotation > 0) {
-            rotationAmount = -(rotation * 2);
-        } else {
-            rotationAmount = rotation * 2;
-        }
-
-
-        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, node.x(), node.y(), rotationAmount);
-
-
-        let nodeCornerXY = findUpperLeftXY({ x: newNodeXY.x, y: newNodeXY.y, rotation: rotationAmount, width: node.width(), height: node.height() })
-        node.x(newNodeXY.x);
-        node.y(newNodeXY.y);
-
-
-
-        node.offsetX(node.width() / 2);
-        node.offsetY(node.height() / 2);
-
-        node.rotation(-node.rotation());
-
-        node.offsetX(0); /* reset the offsetX and offsetY back to zero */
-        node.offsetY(0);
-
-    })
-}
-
-
 function selectAllTrNodes() {
     tr.nodes(selectAllNodes());
 };
@@ -29338,42 +28388,6 @@ function rotateRoom(rotationAmount) {
 
 }
 
-function rotateTrNodeItemsOriginal(rotationAmount = 90, rotationCenter) {
-
-
-
-    if (!rotationCenter) {
-        rotationCenter = getNodeCenter(tr); /* get the center of the tr Transformer node to perform the transform */
-    }
-
-
-    tr.nodes().forEach(node => {
-
-        let nodeCenter = getNodeCenter(node);
-        let newNodeXY = rotatePointAroundOrigin(nodeCenter.x, nodeCenter.y, rotationCenter.x, rotationCenter.y, rotationAmount);
-
-        let totalRotation = normalizeDegree(node.rotation() + rotationAmount);
-
-        let nodeCornerXY = findUpperLeftXY({ x: newNodeXY.x, y: newNodeXY.y, rotation: totalRotation, width: node.width(), height: node.height() })
-        node.x(nodeCornerXY.x);
-        node.y(nodeCornerXY.y);
-
-        node.offsetX(nodeCenter.x - node.x());
-        node.offsetY(nodeCenter.y - node.y());
-
-        node.rotation(totalRotation);
-
-        node.offsetX(0); /* reset the offsetX and offsetY back to zero */
-        node.offsetY(0);
-
-        updateShading(node);
-
-    })
-
-}
-
-
-
 function rotateTrNodeItems(rotationAmount = 90, rotationCenter) {
 
 
@@ -29471,17 +28485,6 @@ function rotateAroundCenter2(node, rotation) {
     node.rotation(rotation);
     node.x(node.x() + dx);
     node.y(node.y() + dy);
-}
-
-function rotateAroundCenter(node, deg) {
-
-    const w = node.width();
-    const h = node.height();
-
-    node.offset({ x: w / 2, y: h / 2 });
-    node.rotate(deg);
-
-
 }
 
 function rotateNodeAroundCenter(node, rotationAmount) {
@@ -33280,25 +32283,6 @@ function downloadFileWorkspace() {
 
 
 
-function workspaceView(isNewTab = 'false') {
-    let urlWorkspaceView = './assets/workspacedesignerview.html';
-    let workspaceObj = exportRoomObjToWorkspace(roomObj);
-    let localStorageObj = {};
-    localStorageObj.sessionId = sessionId;
-    localStorageObj.workspace = workspaceObj;
-    setItemForLocalStorage('workspace', JSON.stringify(localStorageObj, null, 5));
-
-    urlWorkspaceView += '?session=' + sessionId;
-
-    if (isNewTab === 'newTab') {
-        urlWorkspaceView += '&tab';
-        window.open(urlWorkspaceView);
-    } else {
-        window.open(urlWorkspaceView, "_self");
-    }
-}
-
-
 function openWorkspaceWindow2() {
     if (mobileDevice === 'RoomOS' && testiFrame === true) {
         testiFrameToggle();
@@ -33366,14 +32350,6 @@ function openModalWorkspace() {
 function closeModalWorkspace() {
     document.getElementById('modalWorkspace').close();
 }
-
-function openDetailsRoomTab() {
-    document.getElementById('modalWorkspace').close();
-    document.getElementById("defaultOpenTab").click();
-    document.getElementById("subTabRoomSetup").click();
-
-}
-
 
 function postMessageToWorkspace() {
 
@@ -34382,13 +33358,7 @@ function exportRoomObjToWorkspace() {
         const typeToDevice = { regular: 'wallStd', glass: 'wallGlass', window: 'wallWindow' };
         const rot = part.rotation || 0;
 
-        /* Local rects match the canvas preview: outside the part, top/bottom extended past the
-         * corners. Wall items are natively VERTICAL (width = thickness, height = run — the
-         * convention menu walls use, which the WD push maps to width=run / length=thickness),
-         * so the top/bottom walls ride as -90°-rotated vertical walls rather than
-         * width/height-swapped horizontal rects. A swapped rect puts the run in WD `length`
-         * (the thickness slot), which drops the window/glass panes and — for glass, whose
-         * workspaceKey pins length to the 0.03 pane thickness — collapses the wall entirely. */
+        /* Top/bottom walls ride as -90-degree-rotated VERTICAL walls (width=thickness, height=run); a width/height-swapped rect would put the run in WD length and collapse glass walls. */
         const localRects = {
             videowall: { x: -t, y: 0, width: t, height: part.width + 2 * t, wallRot: -90 },
             backwall: { x: -t, y: part.height + t, width: t, height: part.width + 2 * t, wallRot: -90 },
@@ -34728,16 +33698,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.path = normalizeSvgPathWindingForWd(workspaceItem.path);
         }
 
-        /* Configurable fill / opacity round-trip into WD JSON for
-         * furniture-path devices (currently only pathShape on this code
-         * path). MUST run AFTER parseDataLabelFieldJson() so per-item
-         * data_fill / data_opacity (from the Details inputs) win over
-         * legacy label-JSON "color" / "opacity" keys — mirrors the
-         * in-canvas render precedence in insertTable()'s pathShape
-         * branch. Gated on device-def flags so dropdown-style data_color
-         * (roomBar etc.) is unaffected. opacity is emitted as a STRING
-         * to match the wallGlass / circulationSpace convention the WD
-         * parser already accepts. */
+        /* Fill/opacity push MUST run after parseDataLabelFieldJson() so Details-picker values beat legacy label-JSON keys; opacity emitted as a STRING per WD convention. */
         const __deviceDefFurnRT = allDeviceTypes[item.data_deviceid];
         if (__deviceDefFurnRT && __deviceDefFurnRT.configurableColor && item.data_fill) {
             workspaceItem.color = item.data_fill;
@@ -34746,34 +33707,13 @@ function exportRoomObjToWorkspace() {
             workspaceItem.opacity = String(item.data_opacity);
         }
 
-        /* WD quirk (pathShape and similar furniture-path items with
-         * configurableColor): if `color` is sent without an `opacity`,
-         * the Workspace Designer drops the color tint silently. The
-         * workaround the user identified is: whenever `color` is set,
-         * always also send `opacity`. Default to "1" when no picker
-         * override has run. This block runs LAST so it sees the final
-         * color/opacity state after both parseDataLabelFieldJson and
-         * the data_fill / data_opacity pushes above. */
+        /* WD drops color sent without opacity — whenever color is set, always emit opacity (default "1"); runs last so it sees the final state. */
         if (__deviceDefFurnRT && __deviceDefFurnRT.configurableColor
             && workspaceItem.color && !('opacity' in workspaceItem)) {
             workspaceItem.opacity = "1";
         }
 
-        /* Second pathShape-specific WD quirk: an emitted opacity of
-         * EXACTLY 1 prevents the WD from applying `color` at all. Clamp
-         * to "0.999" (visually indistinguishable) whenever the final
-         * opacity equals 1 / "1" for a pathShape. Covers all sources
-         * of opacity on the workspaceItem:
-         *   - the "1" auto-default above
-         *   - parseDataLabelFieldJson() injecting a label-JSON
-         *     {"opacity": 1} as the number 1
-         *   - (defensive) any future code path that emits 1 directly
-         * The "0.999" sentinel is mirrored by the WD-import path
-         * (deviceType.wdOpacity branch in the WD importer), which snaps
-         * pathShape opacity >= 0.999 back to the implicit default so a
-         * VRC → WD JSON → VRC round-trip preserves the "no override"
-         * state. Other configurableColor devices on this push (none
-         * today, but future-proof) still get the literal "1". */
+        /* WD drops pathShape color at opacity exactly 1 — clamp to the "0.999" sentinel, mirrored by the import-side snap-back (see CLAUDE.md "pathShape-only WD opacity sentinel"). */
         if (item.data_deviceid === 'pathShape'
             && 'opacity' in workspaceItem
             && Number(workspaceItem.opacity) === 1) {
@@ -35096,14 +34036,7 @@ function exportRoomObjToWorkspace() {
 
         let text = (item.data_labelField || '').replace(/{.*?}/g, '').trim();
 
-        /* Round-trip preservation for wdText: pull `comment` + any
-         * unknown attrs out of the {...} blob in data_labelField (mirror
-         * of the unused-keys merger on the import side) and spread them
-         * onto workspaceItem FIRST so VRC's known fields (text /
-         * position / rotation / size / color / opacity / hidden / layer
-         * / group) remain authoritative on export. The JSON blob is
-         * how forward-compat WD attributes survive a VRC round-trip
-         * without VRC needing to understand them. */
+        /* Spread the labelField {...} blob (comment + unknown WD attrs) FIRST so VRC's known fields stay authoritative — see notes/WORKSPACE_DESIGNER.md "Comment & unknown-attribute preservation". */
         let extras = {};
         const jsonMatch = /{.*}/.exec(item.data_labelField || '');
         if (jsonMatch) {
@@ -35305,14 +34238,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.mount = item.data_mount.value;
         }
 
-        /* Configurable fill / opacity round-trip into WD JSON.
-         * Gated on the device-def flags so the existing roomBar-style
-         * dropdown `data_color` system (which writes a named-color
-         * string via its own data_color.value) is unaffected. The two
-         * systems never coexist on a single device — see CLAUDE.md
-         * "Configurable Fill & Opacity" section. workspaceItem.opacity
-         * is emitted as a STRING to match the existing wallGlass /
-         * circulationSpace convention so the WD parser accepts it. */
+        /* Fill/opacity WD export, gated on device-def flags (never coexists with dropdown data_color); opacity emitted as a STRING — see CLAUDE.md "Configurable Fill & Opacity". */
         const __deviceDefWdRT = allDeviceTypes[item.data_deviceid];
         if (__deviceDefWdRT && __deviceDefWdRT.configurableColor && item.data_fill) {
             workspaceItem.color = item.data_fill;
@@ -35387,25 +34313,7 @@ function exportRoomObjToWorkspace() {
     }
 
     function pushParentItemChildren(parent, wsKey) {
-        /* Resolve the parent's effective upper-left anchor in WORLD METERS.
-         * childItemParts coordinates are documented as offsets from the
-         * parent's UL corner in its local (un-rotated) frame, so the world
-         * position math below needs the parent's UL — but VRC stores some
-         * device classes with (parent.x, parent.y) at the visual CENTER.
-         *
-         * CRITICAL: the UL-vs-center decision MUST key off the device
-         * CLASS (parentGroup), NOT off whether the instance currently
-         * carries width/height. A center-anchored parent (videoDevice /
-         * microphone / chair / display — e.g. room55) has NO width/height
-         * when freshly inserted, but GAINS them after a canvas round-trip
-         * (page reload, undo/redo, any drawRoom → canvasToJson cycle reads
-         * the Konva node's width/height back into roomObj.items). The old
-         * `hasW ? UL : center` heuristic therefore silently flipped the
-         * anchor on reload, shifting every child by half the extent on the
-         * next export (the "refresh breaks alignment" bug). Mirror the
-         * canonical convention used by partAnchorIsUL() in
-         * createCustomItemMenuImage(): UL classes are tables / stageFloors
-         * / boxes / rooms; everything else is center-anchored. */
+        /* UL-vs-center anchor keys off the device CLASS (parentGroup), never off instance width/height (reload backfills them and would flip the anchor) — see CLAUDE.md "Parent anchor heuristic". */
         const dev = (typeof allDeviceTypes !== 'undefined'
             ? allDeviceTypes[parent.data_deviceid] : null) || {};
         const pg = dev.parentGroup;
@@ -35415,20 +34323,7 @@ function exportRoomObjToWorkspace() {
         const hasH = (parent.height != null && parent.height !== '');
         const parentEffW = hasW ? Number(parent.width) : ((dev.width || 0) / 1000);
         const parentEffH = hasH ? Number(parent.height) : ((dev.depth || 0) / 1000);
-        /* Pivot + anchor-offset model:
-         *   - pivotX/pivotY is the point the parent rotates about.
-         *   - anchorOffX/anchorOffY shifts the childItemParts local origin
-         *     (UL=0,0) to that pivot, expressed in the parent's LOCAL
-         *     (un-rotated) frame.
-         * For UL-anchored parents (walls / shapes / boxes / rooms) the
-         * pivot IS the stored (x, y) UL and the anchor offset is zero. For
-         * center-anchored parents (videoDevice / microphone / chair /
-         * display) the pivot is the stored (x, y) center and the local
-         * origin sits at (-w/2, -h/2) from it. The anchor offset MUST be
-         * rotated together with the part offset (it is part of the local
-         * vector), otherwise non-zero parent rotations misplace every
-         * child — the bug where rot 90/180/-90 parents drifted ~half-extent
-         * off. */
+        /* Pivot + anchor-offset model: the anchor offset is part of the LOCAL vector and must rotate with it, or rotated parents misplace every child — see CLAUDE.md "Parent anchor heuristic". */
         const pivotX = Number(parent.x) || 0;
         const pivotY = Number(parent.y) || 0;
         const anchorOffX = parentIsUL ? 0 : -parentEffW / 2;
@@ -35446,12 +34341,7 @@ function exportRoomObjToWorkspace() {
             const worldY = pivotY + localX * sin + localY * cos;
 
             const synth = {
-                /* Deterministic child id: <parentDeviceId>~<parentInstanceUuid>~<childIndex>.
-                 * Stable across re-exports of the same room (no random
-                 * UUID), so WD diffs / re-imports of an unchanged parent
-                 * keep identical child ids. The parent instance uuid keeps
-                 * children of two instances of the same device distinct;
-                 * the array index keeps siblings within one parent unique. */
+                /* Deterministic child id <parentDeviceId>~<parentUuid>~<index> keeps re-exports diff-stable. */
                 id: `${parent.data_deviceid}~${parent.id}~${idx}`,
                 data_deviceid: part.data_deviceid,
                 x: worldX,
@@ -35504,13 +34394,7 @@ function exportRoomObjToWorkspace() {
                 console.warn('[VRC] parentItem child type not yet routed:', synth.data_deviceid);
                 return;
             }
-            /* Tag the just-pushed customObject with the parent ref. Done
-             * OUTSIDE the push functions so they stay agnostic to
-             * parentItem. Both attributes are vrc-prefixed because they
-             * are VRC-specific additions to a WD top-level customObjects[]
-             * entry — namespacing protects against collisions with future
-             * native WD attributes. The WD-team contract today only
-             * formally agrees on `group`. */
+            /* Parent back-refs tagged outside the push helpers (keeps them parentItem-agnostic); vrc-prefixed to avoid future WD attribute collisions. */
             const pushed = workspaceObj.customObjects[lenBefore];
             if (pushed) {
                 pushed.vrcParent = parent.id;
@@ -35626,12 +34510,7 @@ function exportRoomObjToWorkspace() {
         const pivotY = Number(parent.y) || 0;
         const rad = (parent.rotation || 0) * Math.PI / 180;
         const cos = Math.cos(rad), sin = Math.sin(rad);
-        /* localX = offset across the wall's thickness (0 = flush with the parent's own
-         * thickness anchor, i.e. spans the full wallThickness); localY = offset along the
-         * wall's run. Matches the general parentItem rotation formula (see "Parent anchor
-         * heuristic" above): worldX = pivotX + localX*cos - localY*sin, worldY = pivotY +
-         * localX*sin + localY*cos. worldFromLocalY is the localX=0 case every other caller
-         * here uses (flush, full-thickness pieces). */
+        /* localX = across-thickness offset, localY = along-run offset, rotated together about the pivot (parentItem formula); worldFromLocalY is the flush localX=0 shorthand. */
         const worldFromLocal = (localY, localX) => ({
             x: pivotX + (localX || 0) * cos - localY * sin,
             y: pivotY + (localX || 0) * sin + localY * cos,
@@ -35697,14 +34576,7 @@ function exportRoomObjToWorkspace() {
             /* windowFrame / doorFrame: the band itself is a literal gap — no WD object pushed. */
         });
 
-        /* A doorFrame/windowFrame band that is BOTH full wall width (no solid gap segment
-         * left over) AND tall enough to reach the ceiling (no lintel above it either — e.g. a
-         * doorway resized/dragged floor-to-ceiling) leaves NOTHING pushed above: idx stays 0
-         * and the whole wallCustomWindow item silently vanishes from the WD 3D view (confirmed
-         * live — 0 customObjects entries), even though the room-level data.vrc.customWindowWalls
-         * parent record still round-trips fine. A single degenerate opening should never make
-         * the item fully disappear/unselectable in 3D, so fall back to a thin header sentinel
-         * spanning the full run at the very top of the wall. */
+        /* Full-width + floor-to-ceiling opening pushes 0 pieces (wall vanishes in 3D) — fall back to a thin top sentinel strip; see CLAUDE.md "Wall vanishing in the WD 3D view". */
         if (idx === 0) {
             const sentinelHeight = Math.min(0.05, wallVHeight);
             pushPiece(0, runTotal, wallVHeight - sentinelHeight, sentinelHeight, parent.data_fill, parent.data_opacity);
@@ -35897,13 +34769,7 @@ function normalizeSvgPathWindingForWd(pathStr) {
         return d;
     });
 
-    /* The WD's solid/hole classification is ABSOLUTE, not relative to the first subpath:
-     * a subpath with POSITIVE shoelace sum (in the path's own y-down coords) is a solid,
-     * negative is a hole. (An all-negative path happens to render because the WD falls
-     * back to "no solids found -> treat everything as solid", which is why single-solid
-     * paths drawn either direction always worked — but a negative solid PLUS a positive
-     * hole classifies inverted: the hole renders as a raised solid and the solid becomes
-     * a ghost, the "hole got reversed" bug.) */
+    /* WD winding is ABSOLUTE: positive shoelace = solid, negative = hole — see CLAUDE.md "pathShape sub-path winding normalization". */
     const refSign = 1;
 
     let changed = false;
@@ -36274,56 +35140,17 @@ function toggleItemActionsMenu(event, mode) {
     const activeCustomItemSel = getActiveCustomItemSelection(trNodes);
     const singleCustomItemBundleSelected = !!activeCustomItemSel;
 
-    /* Group creation is disabled when:
-     *   - fewer than 2 real items are selected, OR
-     *   - all items already share the same Group (no-op — would just
-     *     dissolve and recreate the existing Group), OR
-     *   - the selection is *exactly* one CustomItem bundle and nothing
-     *     else. The bundle is already a logical grouping; wrapping it
-     *     in a Group around just itself would produce a redundant
-     *     1-CustomItem Group with no other members. Mixed selections
-     *     (CustomItem bundle + an outside item) still allow Group
-     *     creation, per the architectural rule "a Group can have
-     *     CustomItems, but a CustomItem cannot have Groups". The
-     *     CustomItem rect tags along on Group drags via
-     *     `getCustomItemRectsAllInGroup()`. */
+    /* Group disabled for: <2 real items, all already one Group, or exactly one lone CustomItem bundle — see CLAUDE.md "Create-action enable matrix". */
     const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup && !singleCustomItemBundleSelected;
     const canUngroup = trNodes.some(n => n.data_deviceid === 'group' || n.data_groupId);
 
-    /* CustomItem creation rules: 2+ items selected, not already all in
-     * the same single CustomItem (would just dissolve and recreate the
-     * existing CustomItem). Existing `data_groupId` on the members does
-     * NOT block creation — `createCustomItem()` enforces "a CustomItem
-     * cannot have Groups" by dissolving every touched Group as part of
-     * the create, so any nested Group state is stripped from the new
-     * bundle.
-     *
-     * Single-item exception: a single `pathShape` is also allowed to
-     * become a CustomItem on its own. Custom Path Shapes are
-     * user-authored geometry that the user often wants to bundle (and
-     * save to the library) as a standalone reusable template — the
-     * "2+ items" rule that prevents redundant 1-item bundles for normal
-     * devices doesn't make sense for these. The same
-     * `!allSameExistingCustomItem` check still gates re-bundling an
-     * already-bundled pathShape. */
+    /* CustomItem rules: 2+ items (or a single pathShape) not already all one CustomItem; Groups never block creation because createCustomItem() dissolves them. */
     const isSinglePathShape =
         itemsOnly.length === 1 && itemsOnly[0].data_deviceid === 'pathShape';
     const canCustomItem =
         (itemsOnly.length >= 2 || isSinglePathShape) && !allSameExistingCustomItem;
 
-    /* "Unjoin Custom Item" is offered only when the selection is *exactly*
-     * one CustomItem bundle and nothing else — i.e. the same condition
-     * that drives the "Custom Item Name:" Details panel via
-     * `getActiveCustomItemSelection()`. That helper already enforces:
-     *   - no Group rect in the selection (Group bundle wins),
-     *   - exactly one CustomItem rect,
-     *   - every other selected node is a member of that CustomItem.
-     * Tying the menu state to the same predicate keeps the surface
-     * coherent: if you can see "Custom Item Name:" you can remove it,
-     * and vice versa. Multi-CustomItem selections, mixed selections,
-     * and bare CustomItem-member selections (no rect) all fail this
-     * test — by design, the user is expected to first click into the
-     * specific bundle they want to dissolve. */
+    /* Unjoin only for exactly one CustomItem bundle — same getActiveCustomItemSelection() predicate that gates the Details panel's Custom Item Name field. */
     const canUncustomItem = singleCustomItemBundleSelected;
 
     /* Touch-friendly alternative to the dblclick/dbltap gesture for entering a Room
@@ -36365,26 +35192,7 @@ function toggleItemActionsMenu(event, mode) {
     addItem('Create Custom Item', !canCustomItem, () => openCreateCustomItemDialog());
     addItem('Unjoin Custom Item', !canUncustomItem, () => ungroupSelectedCustomItems());
 
-    /* ---- Single-CustomItem-bundle actions ----
-     * The Export / library actions ONLY appear when the selection is
-     * exactly one CustomItem bundle (rect + all its members). We
-     * reuse getActiveCustomItemSelection's strict predicate — same
-     * one that gates the Details panel's "Custom Item Name:" field —
-     * so the three surfaces (right-click menu, Details panel, this
-     * popover) stay in lock-step about what counts as "the currently
-     * focused Custom Item".
-     *
-     * Library membership is read synchronously from the in-memory
-     * customItemLibraryIds Set (hydrated from IDB on page load).
-     * Showing "Add to Custom Library" or "Remove from Library" is
-     * mutually exclusive based on isCustomItemInLibrary; the third
-     * action (Export) is always shown when a single CustomItem is
-     * selected — its own pre-check (must have a name) is enforced
-     * inside exportCustomItem() with an alertDialog if missing.
-     *
-     * Re-uses `activeCustomItemSel` hoisted above the canGroup
-     * computation (single source of truth for "is the selection
-     * exactly one CustomItem bundle?"). */
+    /* Export/library actions only for exactly one CustomItem bundle (getActiveCustomItemSelection); Add/Remove From Library are mutually exclusive via the in-memory customItemLibraryIds cache. */
     if (activeCustomItemSel && activeCustomItemSel.customItem) {
         const sel = activeCustomItemSel.customItem;
         const baseId = sel.customItemBaseId;
@@ -36548,32 +35356,7 @@ function createRightClickMenu(usePreviousPosition = false) {
         }
         createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        /* Group / CustomItem enable-state.
-         *
-         * `itemsOnly` excludes both Group rects AND CustomItem rects —
-         * neither becomes a Group/CustomItem member (`createGroup()` /
-         * `createCustomItem()` filter them both out of `finalNodes`);
-         * counting them here would mis-enable the menu when only one
-         * real item is selected alongside a CustomItem rect.
-         *
-         * Group: enabled when 2+ real items selected AND they are not
-         * already all members of the same single Group. CustomItem
-         * state intentionally does NOT block Group creation: a Group
-         * can wrap one or more CustomItems (the items keep their
-         * `data_customItemId` and additionally get the new
-         * `data_groupId`).
-         *
-         * CustomItem: enabled when (2+ real items selected, OR a
-         * single `pathShape` selected) AND not already all in the same
-         * single CustomItem AND the selection is NOT exactly one
-         * CustomItem bundle. Matches the ellipse-menu equivalent in
-         * `toggleItemActionsMenu()` — single source of truth for the
-         * predicate so the two surfaces stay in lock-step.
-         *
-         * The right-click `Create Custom Item` entry replaces the old
-         * `Zoom 100%` entry (zoom reset is still reachable via the
-         * toolbar zoom controls and the existing zoom keyboard
-         * shortcuts). */
+        /* Group/CustomItem enable rules (itemsOnly excludes bundle rects) — must match toggleItemActionsMenu(); see CLAUDE.md "Create-action enable matrix". */
         const trNodesRC = tr.nodes();
         const itemsOnly = trNodesRC.filter(n =>
             n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');

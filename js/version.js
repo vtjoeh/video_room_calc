@@ -2,7 +2,7 @@
  * byte-for-byte comparison of the SW's main script PLUS every importScripts(). Change either for updates. 
 * See notes/DEPENDENCIES_AND_ISSUES.md.
  * Format example "v0.1" or "v0.2.3" */
-const APP_VERSION = "v0.1.665";
+const APP_VERSION = "v0.1.670";
 
 /* Build tag: bump this INSTEAD of APP_VERSION for small pushes that shouldn't */ 
-const BUILD_VERSION = "w";
+const BUILD_VERSION = "x";

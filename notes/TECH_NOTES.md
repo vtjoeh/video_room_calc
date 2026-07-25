@@ -85,7 +85,7 @@ fix is the only justification for a behavior change.
 
 ### Current state
 
-`roomcalc.js` is one ~26,000-line file containing every concern:
+`roomcalc.js` is one ~36,000-line file containing every concern:
 state, rendering, input handling, URL encoding, file I/O, exporters,
 importers, layer system, etc.
 
@@ -123,7 +123,7 @@ the top-level `const` collision that bit the first `workspaceKey`
 attempt.
 
 **Paused after `util/units.js`.** The remaining Phase 2 leaves
-(`js/util/geometry.js` for `round` / `getDistanceA` / `getDistanceB` /
+(`js/util/geometry.js` for `round` / `getDistanceA` /
 the `pointAtDistanceFromP2TowardP1` cluster / `polylineSelfIntersects`,
 and a possible `js/data/devices.js` for the ~1,300-line device-spec
 arrays) are **deferred** because they don't unblock the next planned
@@ -271,7 +271,33 @@ These are NOT bugs and should not be "fixed":
 
 ---
 
-## 7. Wall Builder snap-to-wall
+## 7. Image caches & temp-stage hygiene (July 2026 refactor)
+
+Konva registers every `new Konva.Stage(...)` in the global
+`Konva.stages` array and only `stage.destroy()` removes it (verified
+against the shipped konva.min.js 9.3.12 and the official
+Avoid_Memory_Leaks guidance). Two temp-stage builders used to leak one
+hidden stage per call; both now route through a cached builder that
+destroys its stage after `toDataURL()`:
+
+- `getCachedImage(src, onReady)` — per-URL `HTMLImageElement` cache.
+  Every device art consumer (item inserts, default doors, wallWindow
+  fill pattern, un-highlight restore) shares one decoded element per
+  source. Callbacks always fire async (microtask when already loaded)
+  so caller ordering matches the old per-item `onload` timing.
+  `preLoadTopImages()` seeds this cache at boot.
+- `getHighlightImageDataUrl(deviceId, onReady)` — per-device cache of
+  the orange small-item highlight composite. Builds the temp stage at
+  most once per device per session, then `tempStage.destroy()` +
+  container removal.
+
+Rules for future temp stages: always `stage.destroy()` when done
+(removing the container div is NOT enough), and destroy any
+`Konva.Tween` after use (none in the codebase today).
+
+---
+
+## 8. Wall Builder snap-to-wall
 
 `findWallBuilderSnap(px, py)` finds the nearest wall to snap a new wall's
 start/end onto, in canvas-pixel space (`convertMouseToCanvasPixel`). It is

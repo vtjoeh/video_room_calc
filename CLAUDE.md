@@ -44,7 +44,7 @@ video_room_calculator/
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
 │   ├── undoApply.js         # VRC.undoApply diff helpers for incremental undo/redo restore (Konva-free; see "Incremental undo/redo restore" below)
 │   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
-│   ├── roomcalc.js          # Core application logic (~26,000 lines)
+│   ├── roomcalc.js          # Core application logic (~36,000 lines)
 │   ├── templates.js         # Pre-built room templates             (eager-loaded so the New Room dialog opens with tiles populated)
 │   ├── qrcode.js            # QR code generation                   (lazy-loaded — first QR render)
 │   ├── drpDownOverride.js   # Dropdown UI for RoomOS               (lazy-loaded — RoomOS only)
@@ -110,7 +110,7 @@ before doing structural changes. `notes/GIT_WORKFLOW.md` describes the
 
 ### Core Data Structure: `roomObj`
 
-The entire room state is stored in a single object (`roomObj`) defined in `roomcalc.js:77-108`:
+The entire room state is stored in a single object (`roomObj`) defined near the top of `js/roomcalc.js`:
 
 ```javascript
 roomObj = {
@@ -221,7 +221,6 @@ Helpers for working with the flat shape:
 - `getItemsByParentGroup('videoDevices')` — filter (O(n)).
 - `firstItemOfParentGroup('videoDevices')` — first match (O(n) until
   hit).
-- `countItemsByParentGroup('videoDevices')` — count (O(n)).
 - `bucketItemsByParentGroup(obj?)` — one O(n) pass that returns
   `{ videoDevices: [], chairs: [], ... }` for callers that need
   multiple buckets at once (WD export, xConfig export, etc.).
@@ -236,13 +235,13 @@ Helpers for working with the flat shape:
    The function uses `roomObjItemsMap.get(node.id())` at the top; if
    the map says "not found", it just pushes to `roomObj.items` and
    registers the new entry in the map — no `findIndex` scan.
-3. **Single-item shading toggles MUST use the map directly.**
-   `toggleMicShadingSingleItem`, `toggleSpeakerShadingSingleItem`,
-   `toggleCamShadeSingleItem`, `toggleDisplayDistanceSingleItem` all
-   call `roomObjItemsMap.get(id)` — O(1) instead of O(b) plus a sync
-   DOM read of the (now removed) `#itemGroup` textbox.
+3. **Single-item lookups MUST use `roomObjItemsMap.get(id)`** — O(1)
+   instead of an O(n) array scan. (The four legacy
+   `toggle*SingleItem` functions that motivated this rule were removed
+   in July 2026 as dead code — the Reach coverage menus are the live
+   per-item toggle surface.)
 
-The canvas uses multiple Konva layers for rendering (defined around line 57-500):
+The canvas uses multiple Konva layers for rendering (defined near the top of `js/roomcalc.js`):
 
 | Layer | Purpose |
 |-------|---------|
@@ -290,8 +289,8 @@ The next five live inside `layerTransform` as `Konva.Group`s, not as their own `
 
 | Location | Function | Purpose |
 |----------|----------|---------|
-| `insertShapeItem()` ~line 9831 | `imageItem.data_xxx = attrs.data_xxx` | Set on Konva node for non-table items |
-| `insertTable()` ~line 7793 | `tblWallFlr.data_xxx = attrs.data_xxx` | Set on Konva node for tables/walls |
+| `insertShapeItem()` | `imageItem.data_xxx = attrs.data_xxx` | Set on Konva node for non-table items |
+| `insertTable()` | `tblWallFlr.data_xxx = attrs.data_xxx` | Set on Konva node for tables/walls |
 | `canvasToJson()` → `updateRoomObjFromTrNode()` | `itemAttr.data_xxx = node.data_xxx`, then `roomObj.items.push(itemAttr)` (new item) or patch on the existing `roomObjItemsMap.get(id)` entry | Read from node, write to the flat `roomObj.items` array. The legacy nested `getNodesJson()` was removed in May 2026 when `roomObj.items` was flattened — see the short pointer comment in `canvasToJson()`. |
 | `copyToCanvasClipBoard()` | `newAttr.data_xxx = node.data_xxx` | Preserve during copy/paste |
 
@@ -388,7 +387,7 @@ re-routed to `cone` after the scoring loop in `wdItemToRoomObjItem()`.
 | WD export | `workspaceObjWallPush()` cone branch: `objectType: 'cylinder'`, `radius`, `radius2`, `length` (from `data_vHeight` or room height), and the standard tilt/rotation/slant rotation triple. `width`/`height` are deleted before push. WD JSON is meters-only, so `convertToMeters()` (in [js/util/units.js](js/util/units.js)) MUST scale `data_radius2` by `ratio = 1/3.28084` in feet mode — same as it does for `width`/`height`/`data_vHeight`. The companion `convertItemUnitBasedOnRatio()` (used by the in-app feet↔meters toggle) already includes `data_radius2`; the two paths must stay in sync. |
 | WD import | Post-scoring override at the end of the WD import loop converts `wdItem.objectType === 'cylinder' && 'radius2' in wdItem` to `candidateKeyName = 'cone'`. The width/height/data_vHeight/position branches all extend the existing cylinder cases to cover cone, and a final block deletes both `wdItem.radius` and `wdItem.radius2` so they don't survive into `roomObj.items`. |
 | Defaults | Radius = 0.1 m (0.33 ft), Radius2 = 0.3 m (0.98 ft), Height (data_vHeight) = 0.8 m (2.63 ft). Defaults are applied in three places: (1) `insertTable()` width default (`width = 0.2 × scale` → diameter 0.2 m → radius1 0.1 m); (2) the cone `else if` branch in `insertTable()` (sets `tblWallFlr.data_radius2` when `attrs.data_radius2 == null`); (3) the cone device-def has `default_vHeight: 800` (mm), which `insertItemFromMenu()` reads and writes to `attrs.data_vHeight` BEFORE the `roomObj.items.push(attrs)` so the value survives the first canvasToJson cycle. **Why no insertTable() default for `data_vHeight`?** Because `updateRoomObjFromTrNode()`'s patch branch (the map-hit code that runs when an item is already in `roomObjItemsMap`) does NOT mirror `data_vHeight` from the Konva node back into the roomObj item — only the push branch carries `data_vHeight` forward via the initial `attrs`. A Konva-node-only `data_vHeight` default in `insertTable()` would be lost on the very next canvasToJson, leaving the Details panel showing a blank Height field with the room-height placeholder. The Equipment menu does NOT expose a cone tile (see "Menu absence" below); these defaults fire on Quick Add insertion and on `.vrc.json` / URL / WD import paths. |
-| Menu absence | Cone is **not** in the `wallsMenu` array in `createItemsOnMenu` — the user cannot add a fresh cone from the Equipment menu. The device definition remains in `allDeviceTypes` so cones loaded from existing `.vrc.json` files, shareable URLs (`WQ` prefix), and WD imports (the `cylinder + radius2` post-scoring override in `wdItemToRoomObjItem()`) continue to render and round-trip cleanly. To re-enable the menu tile, add `'cone'` back to `wallsMenu` (around line 23942 of `js/roomcalc.js`). |
+| Menu absence | Cone is **not** in the `wallsMenu` array in `createItemsOnMenu` — the user cannot add a fresh cone from the Equipment menu. The device definition remains in `allDeviceTypes` so cones loaded from existing `.vrc.json` files, shareable URLs (`WQ` prefix), and WD imports (the `cylinder + radius2` post-scoring override in `wdItemToRoomObjItem()`) continue to render and round-trip cleanly. To re-enable the menu tile, add `'cone'` back to `wallsMenu` in `js/roomcalc.js`. |
 | 0.999 opacity sentinel | Inherited from pathShape — see "cone-only WD opacity sentinel (`0.999`)" above. Same export clamp, same import-side snap-back. |
 
 ### Ceiling Pole (`cylinderPole`)
@@ -486,7 +485,7 @@ fallback. The same precedence applies on the WD export side (see
 Two pathShape-specific WD quirks the round-trip works around:
 
 1. If `color` is sent without an `opacity`, the WD silently drops the
-   color tint. Mitigated by `workspaceObjFurniturePush()` always emitting
+   color tint. Mitigated by `workspaceObjItemPush()` always emitting
    an `opacity` whenever `workspaceItem.color` is set (defaults to `"1"`
    when no picker override).
 2. For pathShape specifically, an emitted opacity of EXACTLY `1`
@@ -600,7 +599,7 @@ but each unique hex only converts once per session.
   data_fill` (hex), `workspaceItem.opacity = String(data_opacity)`
   (string to match the existing `wallGlass` / `circulationSpace`
   convention).
-- `workspaceObjFurniturePush()` (currently `pathShape` only on the
+- `workspaceObjItemPush()` (currently `pathShape` only on the
   `configurableColor` path): the `data_fill` / `data_opacity` push runs
   **after** `parseDataLabelFieldJson()` so the Details picker wins over
   a legacy label-JSON `"color"` / `"opacity"`. After that, two
@@ -667,37 +666,37 @@ white" is satisfied by simply clearing the override.
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `onLoad()` | 3346 | Main entry point, parses URL, initializes canvas |
-| `getQueryString()` | 2522 | Parses URL parameters into roomObj |
-| `parseShortenedXYUrl()` | 2734 | Decodes compressed URL format |
+| `onLoad()` | — | Main entry point, parses URL, initializes canvas |
+| `getQueryString()` | — | Parses URL parameters into roomObj |
+| `parseShortenedXYUrl()` | — | Decodes compressed URL format |
 | `loadTemplate()` | - | Loads a template by URL string |
 
 ### Drawing & Rendering
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `drawRoom()` | 4484 | Main redraw function |
-| `kDrawGrid()` | 4162 | Draws grid lines |
-| `drawOutsideWall()` | 3975 | Renders room walls |
-| `clearShapeNodesFromStage()` | 4333 | Clears canvas for redraw |
+| `drawRoom()` | — | Main redraw function |
+| `kDrawGrid()` | — | Draws grid lines |
+| `drawOutsideWall()` | — | Renders room walls |
+| `clearShapeNodesFromStage()` | — | Clears canvas for redraw |
 
 ### Item Management
 
 | Function | Line | Description |
 |----------|------|-------------|
 | `updateItem()` | - | Updates selected item properties |
-| `duplicateItems()` | 5878 | Duplicates selected items |
+| `duplicateItems()` | — | Duplicates selected items |
 | `deleteTrNodes()` | - | Deletes selected items |
-| `copyItems()` | 5780 | Copies to clipboard |
-| `pasteItems()` | 5804 | Pastes from clipboard |
+| `copyItems()` | — | Copies to clipboard |
+| `pasteItems()` | — | Pastes from clipboard |
 
 ### Undo/Redo
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `btnUndoClicked()` | 5598 | Handles undo |
-| `btnRedoClicked()` | 5617 | Handles redo |
-| `enableBtnUndoRedo()` | 5632 | Updates button states |
+| `btnUndoClicked()` | — | Handles undo |
+| `btnRedoClicked()` | — | Handles redo |
+| `enableBtnUndoRedo()` | — | Updates button states |
 | `restoreSnapshotToCanvas(prev, next)` | — | Routes a snapshot restore through the incremental fast path or the full-redraw fallback. Called from `btnUndoClicked()` / `btnRedoClicked()` after the popped/pushed entry is selected. Installs `next` on the global `roomObj` and `unit`, then either calls `applyRoomObjDelta(prev, next)` or `zoomInOut('reset')` + `drawRoom(true, true, true)` based on `VRC.undoApply.requiresFullRedraw(prev, next)` |
 | `applyRoomObjDelta(prev, next)` | — | Incremental restore orchestrator: diffs items / groups / customItems / layers / overlays via `VRC.undoApply`, destroys + re-inserts only the changed Konva nodes, and reattaches selection via `trNodesFromUuids(next.trNodes, false)`. Sits next to `roomObjToCanvas()`. MUST NOT call `saveToUndoArray()` or `canvasToJson()` (would corrupt the timeline). Detaches `tr.nodes([])` up front per the documented bulk-mutate pattern in `notes/TECH_NOTES_KONVA.md` |
 
@@ -893,34 +892,34 @@ All ids are sets; orchestrator iteration order is `removedIds` →
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `createGroup(nodesToGroup?)` | 13933 | Groups current selection (or supplied nodes) into a new VRC Group. Filter excludes both `data_deviceid==='group'` AND `data_deviceid==='customItem'` rects — only real items become Group members. A CustomItem rect in the selection is dropped from `finalNodes`; its member items (already pulled in by `expandSelectionForGroups()`) are added to the new Group individually with shared `data_groupId`, and the CustomItem rect remains its own bundle. **`data_customItemId` on the members is left untouched** — a Group can contain CustomItems (see "Group / CustomItem nesting model"). Calls `expandSelectionForGroups()` after setting `tr.nodes()` so an immediate Ctrl+C captures the CustomItem rect too. |
-| `ungroupItems(groupId, keepItems)` | 13884 | Dissolves Group; `keepItems=false` also destroys members. **`data_customItemId` on members is left untouched** — ungrouping a Group never destroys a nested CustomItem (see "Group / CustomItem nesting model"). |
-| `ungroupSelectedItems()` | 14031 | Calls `ungroupItems(..., true)` for all groups in selection |
-| `insertGroupRect(groupObj)` | 14048 | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0` by default; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()`). Selection visual is opacity-only — `updateTrNodesShading()` raises opacity to 0.2 on select, `removeShadingTrNodes()` drops it back to 0 on deselect |
-| `updateGroupBounds(groupId)` | 264 | Recalculates group rect bounds from member `getMemberBoundingRect()` (matches the Transformer's tight blue box exactly) |
-| `getMemberBoundingRect(node)` | 244 | `node.getClientRect({ skipShadow: true, relativeTo: layerTransform })` — same call the Transformer uses internally; correctly handles rotation, stroke, image offsets, and the `smallItemsHighlight` outline trick |
-| `getGroupById(groupId)` | 226 | Finds a group object in `roomObj.groups` |
-| `getGroupMemberNodes(groupId)` | 252 | Returns member Konva nodes across all item groups |
-| `ensureGroups(obj?)` | 231 | Ensures `roomObj.groups` array exists |
-| `expandSelectionForGroups()` | 11939 | Expands `tr.nodes()` to `[rect, ...members]` whenever any group-related node is selected |
-| `getActiveGroupSelection(nodes?)` | 312 | Returns `{ rectNode, group, groupId }` when the selection is exactly one Group rect plus only members of that same group; `null` otherwise. Used by `enableCopyDelBtn()` to recognise a "single conceptual item" Group selection and route to the single-item Details panel |
-| `getRotatedRectCenter(rectNode)` | 334 | Visual centre of a (possibly rotated) Konva.Rect in `layerTransform`-local coords. Used as the rotation pivot for `updateGroupItem()` |
-| `rotateNodeAroundPoint(node, cx, cy, deltaR)` | 353 | Rigid rotation of a Konva node around an arbitrary parent-space point (rotates origin around the point AND increments the node's own rotation by deltaR) |
-| `populateGroupDetails(rectNode)` | 394 | Renders the Details panel for a Group: shows Label/Layer/X/Y/Z/Rotation, hides irrelevant divs, disables Width/Length |
-| `refreshGroupDetailsFromCanvas()` | 372 | Lightweight live-refresh of the Group's X / Y / Rotation / Width / Length form inputs from the rect's current canvas state. Hooked into `tr.on('dragmove')`, `tr.on('transform')`, `tr.on('dragend')`, `tr.on('transformend')` and `followGroupDragFromMember()` so the panel tracks the canvas while the user drags or rotates the group. No-op when the active selection isn't a single Group bundle |
-| `updateGroupItem(group)` | 455 | Group fast-path inside `updateItem()`: applies X/Y/Z deltas to all members + rect, rotates members rigidly around the rect centre, and cascades label/layer changes. Z delta uses `Number(m.data_zPosition) \|\| 0` per member so missing/NaN values are treated as 0. Also calls `updateShading()` per-member so FOV/audio/display-distance/labels follow |
-| `beginGroupDragFollow(node)` | 184 | Captures the pre-drag snapshot of every sibling + Group rect + every CustomItem rect "fully contained" in the dragged Group (see `getCustomItemRectsAllInGroup()`). **MUST be called from `dragstart`**, not `dragmove` — by the first dragmove `target.x()` has already advanced past its pre-drag value, baking that offset into the snapshot and causing the rect/siblings to drift behind by the first-frame jump |
-| `getCustomItemRectsAllInGroup(groupId)` | 184 | Returns every CustomItem rect whose members ALL belong to `groupId`. Used by `beginGroupDragFollow()` and `updateGroupItem()` so a Group drag/rotate also carries its fully-contained CustomItem rects. Excludes split-membership CustomItems (members in multiple Groups) — shifting their rect with one Group's drag would visually detach it from the un-moved members. The Transformer-drag path doesn't need this (`expandSelectionForGroups()` already adds every overlapping CustomItem rect to `tr.nodes()`). |
-| `followGroupDragFromMember(node)` | 219 | Member-direct drag follower; shifts siblings + Group rect + every snapshotted CustomItem rect by absolute delta from snapshot. Calls `updateShading(sibling)` for every moved item-member (skipping the Group rect AND CustomItem rects, neither of which has coverage) so each member's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Falls back to `beginGroupDragFollow()` if no snapshot exists |
-| `endGroupDragFollow()` | 257 | Clears the drag-follow snapshot (called from all `dragend` paths) |
+| `createGroup(nodesToGroup?)` | — | Groups current selection (or supplied nodes) into a new VRC Group. Filter excludes both `data_deviceid==='group'` AND `data_deviceid==='customItem'` rects — only real items become Group members. A CustomItem rect in the selection is dropped from `finalNodes`; its member items (already pulled in by `expandSelectionForGroups()`) are added to the new Group individually with shared `data_groupId`, and the CustomItem rect remains its own bundle. **`data_customItemId` on the members is left untouched** — a Group can contain CustomItems (see "Group / CustomItem nesting model"). Calls `expandSelectionForGroups()` after setting `tr.nodes()` so an immediate Ctrl+C captures the CustomItem rect too. |
+| `ungroupItems(groupId, keepItems)` | — | Dissolves Group; `keepItems=false` also destroys members. **`data_customItemId` on members is left untouched** — ungrouping a Group never destroys a nested CustomItem (see "Group / CustomItem nesting model"). |
+| `ungroupSelectedItems()` | — | Calls `ungroupItems(..., true)` for all groups in selection |
+| `insertGroupRect(groupObj)` | — | Creates the Konva Rect (`fill:'#8FD9FB'`, `stroke:'blue'`, `opacity:0` by default; `listening:false`, `draggable:true`; no per-rect drag handlers; rides in `tr.nodes()`). Selection visual is opacity-only — `updateTrNodesShading()` raises opacity to 0.2 on select, `removeShadingTrNodes()` drops it back to 0 on deselect |
+| `updateGroupBounds(groupId)` | — | Recalculates group rect bounds from member `getMemberBoundingRect()` (matches the Transformer's tight blue box exactly) |
+| `getMemberBoundingRect(node)` | — | `node.getClientRect({ skipShadow: true, relativeTo: layerTransform })` — same call the Transformer uses internally; correctly handles rotation, stroke, image offsets, and the `smallItemsHighlight` outline trick |
+| `getGroupById(groupId)` | — | Finds a group object in `roomObj.groups` |
+| `getGroupMemberNodes(groupId)` | — | Returns member Konva nodes across all item groups |
+| `ensureGroups(obj?)` | — | Ensures `roomObj.groups` array exists |
+| `expandSelectionForGroups()` | — | Expands `tr.nodes()` to `[rect, ...members]` whenever any group-related node is selected |
+| `getActiveGroupSelection(nodes?)` | — | Returns `{ rectNode, group, groupId }` when the selection is exactly one Group rect plus only members of that same group; `null` otherwise. Used by `enableCopyDelBtn()` to recognise a "single conceptual item" Group selection and route to the single-item Details panel |
+| `getRotatedRectCenter(rectNode)` | — | Visual centre of a (possibly rotated) Konva.Rect in `layerTransform`-local coords. Used as the rotation pivot for `updateGroupItem()` |
+| `rotateNodeAroundPoint(node, cx, cy, deltaR)` | — | Rigid rotation of a Konva node around an arbitrary parent-space point (rotates origin around the point AND increments the node's own rotation by deltaR) |
+| `populateGroupDetails(rectNode)` | — | Renders the Details panel for a Group: shows Label/Layer/X/Y/Z/Rotation, hides irrelevant divs, disables Width/Length |
+| `refreshGroupDetailsFromCanvas()` | — | Lightweight live-refresh of the Group's X / Y / Rotation / Width / Length form inputs from the rect's current canvas state. Hooked into `tr.on('dragmove')`, `tr.on('transform')`, `tr.on('dragend')`, `tr.on('transformend')` and `followGroupDragFromMember()` so the panel tracks the canvas while the user drags or rotates the group. No-op when the active selection isn't a single Group bundle |
+| `updateGroupItem(group)` | — | Group fast-path inside `updateItem()`: applies X/Y/Z deltas to all members + rect, rotates members rigidly around the rect centre, and cascades label/layer changes. Z delta uses `Number(m.data_zPosition) \|\| 0` per member so missing/NaN values are treated as 0. Also calls `updateShading()` per-member so FOV/audio/display-distance/labels follow |
+| `beginGroupDragFollow(node)` | — | Captures the pre-drag snapshot of every sibling + Group rect + every CustomItem rect "fully contained" in the dragged Group (see `getCustomItemRectsAllInGroup()`). **MUST be called from `dragstart`**, not `dragmove` — by the first dragmove `target.x()` has already advanced past its pre-drag value, baking that offset into the snapshot and causing the rect/siblings to drift behind by the first-frame jump |
+| `getCustomItemRectsAllInGroup(groupId)` | — | Returns every CustomItem rect whose members ALL belong to `groupId`. Used by `beginGroupDragFollow()` and `updateGroupItem()` so a Group drag/rotate also carries its fully-contained CustomItem rects. Excludes split-membership CustomItems (members in multiple Groups) — shifting their rect with one Group's drag would visually detach it from the un-moved members. The Transformer-drag path doesn't need this (`expandSelectionForGroups()` already adds every overlapping CustomItem rect to `tr.nodes()`). |
+| `followGroupDragFromMember(node)` | — | Member-direct drag follower; shifts siblings + Group rect + every snapshotted CustomItem rect by absolute delta from snapshot. Calls `updateShading(sibling)` for every moved item-member (skipping the Group rect AND CustomItem rects, neither of which has coverage) so each member's `#fov~` / `#audio~` / `#dispDist~` / `#speaker~` / `#label~` coverage tracks the move. Falls back to `beginGroupDragFollow()` if no snapshot exists |
+| `endGroupDragFollow()` | — | Clears the drag-follow snapshot (called from all `dragend` paths) |
 
 ### URL & Sharing
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `createShareableLink()` | 4961 | Generates shareable URL |
-| `copyLinkToClipboard()` | 2225 | Copies link to clipboard |
-| `createShareableLinkItem()` | 5135 | Encodes single item |
+| `createShareableLink()` | — | Generates shareable URL |
+| `copyLinkToClipboard()` | — | Copies link to clipboard |
+| `createShareableLinkItem()` | — | Encodes single item |
 
 ### File Operations
 
@@ -928,7 +927,7 @@ All ids are sets; orchestrator iteration order is `removedIds` →
 |----------|------|-------------|
 | `downloadRoomObj()` | - | Downloads VRC JSON |
 | `downloadFileWorkspace()` | - | Exports to Workspace Designer format |
-| `downloadCanvasPNG()` | 5330 | Downloads PNG image |
+| `downloadCanvasPNG()` | — | Downloads PNG image |
 | `routeUploadedFileText()` | - | Detects file format (VRC JSON / WD JSON / xConfig .txt) and routes to correct importer. Used by both file picker and drag-and-drop. |
 | `parseXConfigText()` | - | Parses Cisco xConfiguration .txt content into `{cameras, microphones}` arrays |
 | `importXConfigFile()` | - | Builds a fresh roomObj from a parsed xConfiguration dump |
@@ -938,9 +937,9 @@ All ids are sets; orchestrator iteration order is `removedIds` →
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `convertMetersFeet()` | 2401 | Converts between units. Walks `roomObj.items` AND `roomObj.groups` (group rect geometry is also stored in unit-space and would otherwise drift away from its members on the next `drawRoom()`). Lives in `js/util/units.js`. |
-| `convertToMeters()` | 2278 | Normalizes to meters |
-| `convertToUnit()` | 1868 | Converts value to current unit |
+| `convertMetersFeet()` | — | Converts between units. Walks `roomObj.items` AND `roomObj.groups` (group rect geometry is also stored in unit-space and would otherwise drift away from its members on the next `drawRoom()`). Lives in `js/util/units.js`. |
+| `convertToMeters()` | — | Normalizes to meters |
+| `convertToUnit()` | — | Converts value to current unit |
 
 ---
 
@@ -2116,7 +2115,7 @@ validated against AVIXA's published example: 75″ 16:9 → IH 36.8″, FV
 
 | Attr | Default (absent) | Notes |
 |------|-------------------|-------|
-| `data_diagonalInches` | 55 | existing attr, URL letter `g` |
+| `data_diagonalInches` | — | existing attr, URL letter `g` |
 | `data_percentElementHeight` | 3 | |
 | `data_aspectRatio` | 1.78 (16:9) | 2.33 = 21:9, 1.33 = 4:3 |
 | `data_eyeLevel` | 1.2 m / 3.94 ft (AVIXA seated) | current-unit value; standing = 1.5 m; converted by `convertItemUnitBasedOnRatio()` |
@@ -2997,18 +2996,17 @@ In practice the co-tenant side effect is rare because `expandSelectionForGroups(
 **`updateRoomObjFromTrNode()`** — must skip group rects (Konva nodes
 with `data_deviceid === 'group'` carry no `allDeviceTypes` mapping, so
 the `parentGroup` lookup at the top of the loop short-circuits with a
-`console.error` — but defensive guards in any new walker code should
-mirror the `getNodesJson()` pattern below):
+`console.error` — defensive guards in any new walker code should do the
+same):
 ```javascript
 if (node.data_deviceid === 'group') return;
 ```
 
-> **Note:** the `getNodesJson()` function nested inside `canvasToJson()`
-> is **dead code** (never called). It is annotated in the source as
-> such; do NOT mirror new `data_*` propagation there. The active writer
-> is `updateRoomObjFromTrNode()`, called from the top of
-> `canvasToJson()`. See the "Where `data_groupId` Must Be Updated"
-> table below.
+> The active canvas → `roomObj.items` writer is
+> `updateRoomObjFromTrNode()`, called from the top of `canvasToJson()`.
+> See the "Where `data_groupId` Must Be Updated" table below. (The
+> legacy nested `getNodesJson()` was removed when `roomObj.items` was
+> flattened in May 2026.)
 
 **`updateTrNodesShading()`** — members excluded from blue outline:
 ```javascript
@@ -3857,7 +3855,7 @@ When a VRC layer is **hidden** (`visible=false`):
 
 3. **Workspace Designer export**: `exportRoomObjToWorkspace()` calls `removeHiddenLayerItemsForExport(roomObj2)` immediately after `convertToMeters()`. This **drops** every cloned item whose layer is hidden, so it is never sent to the Workspace Designer (the workspace `customObjects` array does not include them at all). Items with the per-item `data_hiddenInDesigner` flag are still emitted as `{ "hidden": true }` by the existing `workspaceObj*Push()` helpers — that path is unchanged.
 
-The per-item single-item toggles (`toggleMicShadingSingleItem`, `toggleSpeakerShadingSingleItem`, `toggleCamShadeSingleItem`, `toggleDisplayDistanceSingleItem`) still flip the `data_*Hidden` flag, but the actual coverage node visibility they apply is `layerVisible && !perItemHidden` — so toggling a single item back on while its layer is hidden keeps it visually hidden until the layer is shown again.
+The per-item coverage toggles (the Reach menu checkboxes) flip the `data_*Hidden` flag, but the actual coverage node visibility applied is `layerVisible && !perItemHidden` — so toggling a single item back on while its layer is hidden keeps it visually hidden until the layer is shown again.
 
 `addLabel()` also checks `isItemInHiddenLayer(node)` so newly-created labels for items in hidden layers start out hidden.
 
@@ -4041,8 +4039,8 @@ in `notes/GIT_WORKFLOW.md`.
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Stable. Always something the author would be willing to deploy. Bug fixes and small safe additions go here. |
-| `next` | Work-in-progress. Big refactors and risky features live here until they're ready to merge into `main`. |
+| `main` | Stable. Always something the author would be willing to deploy. Day-to-day work (bug fixes, features, refactors) goes here. |
+| `next` | Optional parallel work-in-progress the author wants kept off the live site until ready. |
 
 Tags (e.g. `v0.1.645`) mark deployed/stable snapshots and are pushed to
 `origin` alongside the branch.
@@ -4065,17 +4063,13 @@ When the user is ready to commit, the assistant should provide:
 1. The exact CLI commands to run (copy-paste-ready, with proper
    quoting and HEREDOC for multi-line commit messages).
 2. A drafted commit message in the repo's style.
-3. A note about which branch the commit should land on (`main` for
-   small safe additions and bug fixes; `next` for risky refactors and
-   large features — see the table above).
+3. Commands that assume `main` (the default for all day-to-day work);
+   only mention `next` if the user asks for a parallel branch.
 
 Other guidance:
 
 - Before suggesting commits, the assistant may run read-only
   `git status` / `git branch` to see the lay of the land.
-- For risky refactors or large new features, suggest `next` rather
-  than `main` (or ask which branch the user wants).
-- For small bug fixes the user wants live soon, `main` is appropriate.
 - Never suggest destructive git operations (`reset --hard`,
   `push --force`, branch deletion) without flagging the risk
   prominently first.

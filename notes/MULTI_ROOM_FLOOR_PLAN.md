@@ -25,7 +25,7 @@ Add a sticky, design-level "Multi-Room Floor Plan Mode" with two sub-modes (Mult
 ### What is built so far (anchors)
 - Flag default + reset: `roomObj.multiRoomFloorPlanMode = false` (`js/roomcalc.js:160`), reset in `resetRoomObj()` (`js/roomcalc.js:8974`).
 - Predicates: `isMultiRoomFloorPlanMode()` / `isMultiRoomOverviewMode()` / `isRoomSubMode()` (`js/roomcalc.js:177-189`). All three are now actively used (overview/Room sub-modes drive gating, draw, accessors, and the Room-tab display).
-- Menu allow-list: `MULTI_ROOM_OVERVIEW_MENU_ITEMS` + `isAllowedInMultiRoomOverview()` (`js/roomcalc.js:192-202`); `_lastMultiRoomOverviewMenuState` rebuild guard (`js/roomcalc.js:204`).
+- Menu gating: the original overview allow-list (`MULTI_ROOM_OVERVIEW_MENU_ITEMS` + `isAllowedInMultiRoomOverview()`) was later deleted (see the update further below) — only the Room sub-mode filter (no Room Parts inside a room) remains, with the `_lastMultiRoomOverviewMenuState` rebuild-on-flip guard.
 - Mode-aware Default-Walls accessors: `activeDefaultWallsSurfaces()` / `activeDefaultWallsWorkspace()` (`js/roomcalc.js:207-219`).
 - Persistence: WD export mirror `data.vrc.multiRoomFloorPlanMode` (`js/roomcalc.js:30340`), WD import restore (`js/roomcalc.js:29028`), `.vrc.json` backfill in `importJson()` (`js/roomcalc.js:27095`).
 - Reusable confirm modal: `dialogVrcConfirm` (`RoomCalculator.html`) + `vrcConfirm(headerHtml, mainHtml, okLabel, onConfirm, onCancel)` (`js/roomcalc.js:28508`). onCancel fires on Cancel/X/Escape/closeAllDialogModals; onConfirm only on OK.

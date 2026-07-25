@@ -1,7 +1,8 @@
 # Git Workflow
 
-This project uses a two-branch model so that risky refactoring and big features
-can be developed in parallel without disturbing the live site.
+This project uses a two-branch model. Day-to-day work (including refactors)
+lands on `main`; `next` is available for anything the author wants to develop
+in parallel without disturbing the live site.
 
 ---
 
@@ -9,8 +10,8 @@ can be developed in parallel without disturbing the live site.
 
 | Branch | Purpose | What can land here |
 |--------|---------|--------------------|
-| `main` | Stable. Always something I'd be willing to deploy. | Bug fixes, small safe additions, documentation, finished features merged from `next`. |
-| `next` | Work-in-progress. Big refactors and risky features. | Anything I want to develop without exposing it to live users. Treated as throwaway-able if needed. |
+| `main` | Stable. Always something I'd be willing to deploy. | Day-to-day work: bug fixes, features, refactors, documentation. |
+| `next` | Optional parallel work-in-progress. | Anything I want to develop without exposing it to live users. Treated as throwaway-able if needed. |
 
 The live site is deployed manually from `main`.
 
@@ -41,7 +42,7 @@ git switch main           # back to normal
 
 ## Day-to-day cheat sheet
 
-### Refactoring or building a big feature
+### Building on a parallel branch (optional)
 ```bash
 git switch next
 # edit files
@@ -67,7 +68,7 @@ git merge main
 git push
 ```
 
-### Shipping `next` (refactor is done and tested)
+### Shipping `next` (parallel work is done and tested)
 ```bash
 git switch main
 git merge next             # bring all the refactor work into main
