@@ -1548,15 +1548,25 @@ display.
 
 ---
 
-## Speaker Reach (test-mode feature)
+## Speaker Reach (audio/test-mode feature)
 
 Per-item override of the hardcoded device `speakerRadius` / `speakerDeg`
-speaker-coverage specs. **Everything user-facing is gated on the same
-`?test` flag as the speaker coverage toolbar button** (`localStorage
-test === 'true'`): the Details-panel `#speakerReachDiv` button (gated in
-`updateFormatDetails()`) opens `#dialogSpeakerReach`, a DISCAS-style
-dialog with a **Calculation Method dropdown** whose AVIXA option adapts
-to the device class:
+speaker-coverage specs. **Everything user-facing is gated on
+`isAudioTestMode()`**, which is true when `localStorage.audio === 'true'`
+OR `localStorage.test === 'true'`. `?audio` (also `?audio=1` / `on`)
+persists the audio flag and shows an `alertDialog` explaining that
+speaker reach is a testing mode with dummy video-device values;
+`?audio=0` / `off` clears it. `?test` continues to enable everything
+including speakers. The gate covers the speaker coverage toolbar button
+(the `#test` span reveal at boot), the Details-panel `#speakerReachDiv`
+button (gated in `updateFormatDetails()`), AND display:
+`speakerCoverageVisible()` force-hides and clears
+`roomObj.overlaysVisible.speakerCoverage` when the mode is off, so a
+shared URL `B` flag or imported JSON with speaker coverage on stays
+hidden for users who never activated the mode. `#speakerReachDiv`
+opens `#dialogSpeakerReach`, a DISCAS-style dialog with a
+**Calculation Method dropdown** whose AVIXA option adapts to the
+device class:
 
 | `speakerMount` (device def; inferred `speakerDeg === 360 → 'ceiling'` when absent) | Methods |
 |---|---|
@@ -3294,8 +3304,14 @@ edit being made, or restate what is already in `CLAUDE.md` /
 `notes/*.md`. Only write a comment when the code itself cannot convey
 non-obvious intent, a trade-off, a workaround for a documented bug, or
 a footgun (e.g. the Konva quirks in `notes/TECH_NOTES_KONVA.md`). When
-in doubt, leave it out — this codebase prefers readable code and
-out-of-band reference docs over inline commentary.
+in doubt, leave it out. This codebase prefers readable code and
+out-of-band reference docs over inline commentary. Comments longer
+than one line belong only at the start of a function, and only when
+needed; one-line comments are permitted but rare.
+
+**Never use em dashes or hyphens to break up sentences** in any text
+written for this project: user-facing strings (dialogs, tooltips,
+alerts), comments, and docs. Use separate sentences or commas instead.
 
 ### To Make Changes:
 

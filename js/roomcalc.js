@@ -7618,15 +7618,11 @@ let tables = [{
     configurableColor: true,
 },
 {
-    /* Cylinder that hangs from the ceiling: the user enters the BASE elevation
-     * (data_zPosition, stored); the height is always DERIVED (ceiling height minus z)
-     * — data_vHeight is never stored. The id starts with 'cylinder' on purpose so the
-     * startsWith('cylinder') Details-enable and resize-anchor branches apply without
-     * extra wiring. Default z is seeded at insert: ceiling minus 3 ft. */
+    /* Cylinder that hangs from the ceiling. vHeight always derived from room height - z value.  */
     name: 'Ceiling Pole',
     id: 'cylinderPole',
     key: 'WU',
-    frontImage: 'cylinder-menu.png',
+    frontImage: 'cylinderPole-menu.png',
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 1,
@@ -9174,23 +9170,27 @@ function getQueryString() {
         let testValue = urlParams.get('test');
         if (testValue === '' || testValue == 1 || testValue == 'on') {
             console.info('test in querystring. Test fields shown.  Test fields are highly experimental and unstable.');
-            if (document.getElementById('test')) {
-                document.getElementById('test').setAttribute('style', 'visibility: visible;');
-            }
-
             setItemForLocalStorage('test', 'true');
         }
         else if (testValue == '0' || testValue === 'off') {
             console.info('"test" fields are turned off and the setting is removed from local storage');
             localStorage.removeItem('test');
         }
+    }
 
-    } else if (localStorage.getItem('test') === 'true') {
-
-        if (document.getElementById('test')) {
-            document.getElementById('test').setAttribute('style', 'visibility: visible;');
+    if (urlParams.has('audio')) {
+        const audioValue = urlParams.get('audio');
+        if (audioValue === '' || audioValue == 1 || audioValue == 'on') {
+            setItemForLocalStorage('audio', 'true');
+            alertDialog('Speaker Coverage Test Mode',
+                'This is a testing mode for audio speaker reach. Current values may not be correct. Speaker coverage for video devices uses dummy values for development.');
+        } else if (audioValue == '0' || audioValue === 'off') {
+            localStorage.removeItem('audio');
         }
+    }
 
+    if (isAudioTestMode() && document.getElementById('test')) {
+        document.getElementById('test').setAttribute('style', 'visibility: visible;');
     }
 
     /* ?debug=1: fps/item/node overlay; persisted in localStorage. */
@@ -15887,10 +15887,23 @@ function microphoneCoverageVisible(state = 'buttonPress') {
     if (saveToUndo) saveToUndoArray();
 }
 
+/* Speaker coverage is experimental: shown only in ?audio or ?test mode (both persisted in localStorage). */
+function isAudioTestMode() {
+    return localStorage.getItem('audio') === 'true' || localStorage.getItem('test') === 'true';
+}
+
 function speakerCoverageVisible(state = 'buttonPress') {
     closeTooltipTitleText();
 
     let button = document.getElementById('btnSpeakerShadeToggle');
+
+    if (!isAudioTestMode()) {
+        speakerCoverage.visible(false);
+        button.classList.toggle('active', false);
+        roomObj.overlaysVisible.speakerCoverage = false;
+        return;
+    }
+
     let saveToUndo = false;
     if (state === 'buttonPress') {
         saveToUndo = true;
@@ -20937,15 +20950,23 @@ function doPolygonsIntersect(a, b) {
 }
 
 /* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
-/* Items within 0.10 m outside a Room Part still count as intersecting (drop margin, matches the wall-truncation margin; unit-adjusted). */
+/* Wall-truncation margin: walls within 0.10 m outside a Room Part outline are still cut against it (unit-adjusted). */
 function roomPartBoundsMarginUnits() {
     return 0.10 * (roomObj.unit === 'feet' ? 3.28084 : 1);
 }
 
-/* Miter-offset a polygon outward by margin; winding detected via the shoelace sign, miter clamped for spike vertices. */
+/* Item-membership margin: an item belongs to a Room Part only if it reaches past the inner wall face + 0.07 m
+ * (walls are 0.10 thick, so 0.03 INSIDE the outline) — keeps neighbor-room items that touch the shared wall out.
+ * Wall Navigators mount in the hallway outside the room, so they get 0.13 OUTSIDE the outline instead. */
+function roomPartItemMarginUnits(deviceId) {
+    const m = deviceId === 'navigatorWall' ? 0.13 : -0.03;
+    return m * (roomObj.unit === 'feet' ? 3.28084 : 1);
+}
+
+/* Miter-offset a polygon outward by margin (inward for negative margin); winding detected via the shoelace sign, miter clamped for spike vertices. */
 function expandPolygonByMargin(points, margin) {
     const n = Array.isArray(points) ? points.length : 0;
-    if (n < 3 || !(margin > 0)) return points;
+    if (n < 3 || !margin) return points;
 
     let area = 0;
     for (let i = 0; i < n; i++) {
@@ -20976,6 +20997,7 @@ function listItemsOffStage() {
     let xBoundMin, xBoundMax, yBoundMin, yBoundMax;
 
     let border = [];
+    let navBorder;
 
     /* get the bounds in scale (feet/meters) */
 
@@ -20991,34 +21013,23 @@ function listItemsOffStage() {
 
     } else if (activeRoomPartItem) {
 
-        const margin = roomPartBoundsMarginUnits();
-
-        xBoundMin = activeRoomX - margin;
-        yBoundMin = activeRoomY - margin;
-        xBoundMax = activeRoomX + activeRoomWidth + margin;
-        yBoundMax = activeRoomY + activeRoomLength + margin;
-
-
-        border = expandPolygonByMargin(activeRoomAbsPoints, margin);
-
+        border = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits());
+        navBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits('navigatorWall'));
 
     } else {
 
-        const margin = roomPartBoundsMarginUnits();
-
-        xBoundMin = activeRoomX - margin;
-        yBoundMin = activeRoomY - margin;
-        xBoundMax = activeRoomX + activeRoomWidth + margin;
-        yBoundMax = activeRoomY + activeRoomLength + margin;
-
-
-        border[0] = { x: xBoundMin, y: yBoundMin };
-        border[1] = { x: xBoundMax, y: yBoundMin };
-        border[2] = { x: xBoundMax, y: yBoundMax };
-        border[3] = { x: xBoundMin, y: yBoundMax };
+        const rectBorder = (margin) => [
+            { x: activeRoomX - margin, y: activeRoomY - margin },
+            { x: activeRoomX + activeRoomWidth + margin, y: activeRoomY - margin },
+            { x: activeRoomX + activeRoomWidth + margin, y: activeRoomY + activeRoomLength + margin },
+            { x: activeRoomX - margin, y: activeRoomY + activeRoomLength + margin },
+        ];
+        border = rectBorder(roomPartItemMarginUnits());
+        navBorder = rectBorder(roomPartItemMarginUnits('navigatorWall'));
 
     }
 
+    if (!navBorder) navBorder = border;
 
     roomObj.items.forEach(rawItem => {
         let item = structuredClone(rawItem);
@@ -21027,7 +21038,8 @@ function listItemsOffStage() {
 
             let fourCorners = findFourCorners(item);
 
-            if (!doPolygonsIntersect2(border, fourCorners)) {
+            const b = item.data_deviceid === 'navigatorWall' ? navBorder : border;
+            if (!doPolygonsIntersect2(b, fourCorners)) {
                 itemsOffStageId.push(item.id);
             }
 
@@ -24952,12 +24964,12 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         discasSettingsDiv.style.display = (shape.data_deviceid === 'displayCustom') ? '' : 'none';
     }
 
-    /* Speaker-capable item: surface the Speaker Reach button (test-mode only, matching the coverage toolbar button). */
+    /* Speaker-capable item: surface the Speaker Reach button, same gate as the coverage toolbar button. */
     const speakerReachDiv = document.getElementById('speakerReachDiv');
     if (speakerReachDiv) {
         const spkrDev = allDeviceTypes[shape.data_deviceid];
         speakerReachDiv.style.display =
-            (spkrDev && ('speakerRadius' in spkrDev) && localStorage.getItem('test') === 'true') ? '' : 'none';
+            (spkrDev && ('speakerRadius' in spkrDev) && isAudioTestMode()) ? '' : 'none';
     }
 
     /* displayCustom: Image Aspect Ratio dropdown, mirrors discasAspectSelect in the DISCAS dialog. */
@@ -26443,7 +26455,7 @@ function createEquipmentMenu() {
 
     let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
-    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
+    let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'columnRect', 'cylinder', 'cylinderPole','ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
     let chairsMenu = ['chair', 'wallChairs', 'pouf', 'personStanding', 'plant', 'doorRight2', 'doorLeft2', 'doorDouble2', 'couch'];
 
@@ -30531,7 +30543,7 @@ function exportXConfigFile() {
 }
 
 
-/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* and codec/switch families) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. Color falls back to the device's default (first colors: entry) when no explicit pick is stored. codec* rows carry a "Requires an external camera" note in the Notes column (per-room rows and the Total section). When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + 0.10 m expandPolygonByMargin containment the Room Part bounds check uses), with an Unassigned group and a Total section. */
+/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* and codec/switch families) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. Color falls back to the device's default (first colors: entry) when no explicit pick is stored. codec* rows carry a "Requires an external camera" note in the Notes column (per-room rows and the Total section). When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + roomPartItemMarginUnits containment the Room Part off-stage check uses — 0.03 m inside the outline, Wall Navigators 0.13 m outside), with an Unassigned group and a Total section. */
 function openInventoryCsvDialog() {
     const dlg = document.getElementById('dialogInventoryCsv');
     if (!dlg) {
@@ -30589,9 +30601,10 @@ function polygonAreaShoelace(points) {
     return Math.abs(area) / 2;
 }
 
-/* Room Part polygons (room units) with the 0.10 m drop margin pre-applied, sorted smallest area first so a device in a nested part lands in the inner room. */
+/* Room Part polygons (room units) with the item-membership margins pre-applied (polygon for normal items, navPolygon for Wall Navigators), sorted smallest area first so a device in a nested part lands in the inner room. */
 function getInventoryRoomParts() {
-    const margin = roomPartBoundsMarginUnits();
+    const margin = roomPartItemMarginUnits();
+    const navMargin = roomPartItemMarginUnits('navigatorWall');
     const parts = [];
     let unnamedCount = 0;
 
@@ -30617,7 +30630,8 @@ function getInventoryRoomParts() {
         parts.push({
             name: inventoryLabelText(item) || ('Unnamed Rm ' + (++unnamedCount)),
             area: area,
-            polygon: expandPolygonByMargin(polygon, margin)
+            polygon: expandPolygonByMargin(polygon, margin),
+            navPolygon: expandPolygonByMargin(polygon, navMargin)
         });
     });
 
@@ -30656,8 +30670,9 @@ function exportInventoryCsv(includeLabeledItems) {
         if (hasRoomParts) {
             partName = 'Unassigned';
             const corners = findFourCorners(item);
+            const isNavWall = deviceId === 'navigatorWall';
             for (const part of roomParts) {
-                if (doPolygonsIntersect2(part.polygon, corners)) {
+                if (doPolygonsIntersect2(isNavWall ? part.navPolygon : part.polygon, corners)) {
                     partName = part.name;
                     break;
                 }
