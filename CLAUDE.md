@@ -3370,6 +3370,12 @@ alerts), comments, and docs. Use separate sentences or commas instead.
 2. **Modify style.css** for styling changes
 3. **Modify RoomCalculator.html** for layout changes
 4. Refresh browser to see changes (no build step needed)
+5. **Bump `BUILD_VERSION` in `js/version.js`** for every modification to
+   this project, no matter how small. It is a single lowercase letter;
+   go to the next letter in the alphabet (`k` → `l` → `m` … `z` → `aa`
+   → `ab` …). This forces the PWA service worker to refresh its cache
+   on the next load (see the `js/version.js` entry in Project
+   Structure above).
 
 ### Key Areas for Common Modifications:
 
