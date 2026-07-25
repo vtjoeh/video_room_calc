@@ -186,6 +186,11 @@ Each device/furniture type has a 2-character uppercase key:
 | `WQ` | Cone (cylinder variant with `data_radius2`) |
 | `WR` | Workspace Designer Text (`wdText`) |
 | `WS` | Ceiling Grid (`ceilingGrid`; 2-char `gw` / `gl` tile dimensions) |
+| `WT` | Bar Table (`tblBar`) |
+| `WU` | Ceiling Pole (`cylinderPole`; ceiling-hung, `b` carries z, no `j`) |
+| `WV` | Door Header Wall (`wallStdHeader`; ceiling-hung like `WU`) |
+| `WW` | Door Header Glass (`wallGlassHeader`; ceiling-hung like `WU`) |
+| `WX` | Ceiling Drop Box (`boxdrop`; ceiling-hung like `WU`, supports `lt`) |
 
 **Chairs (S_):**
 
@@ -240,6 +245,7 @@ After an item type prefix, lowercase letters encode attributes:
 | `ll` | layer number | Number | VRC layer reference: `ll1`=Ceiling, `ll20`+ = custom layers. Omitted for Default (0) and on items that carry `s` or `t` |
 | `gw` | ceilingGrid tile width (×100) | Number | `data_gridWidth` for `ceilingGrid` items only. 2-char code (accumulated by the tokenizer like `cd` / `ll`). `gw{N}` where N = width × 100 in current unit. Both encoder and decoder gate on `data_deviceid === 'ceilingGrid'` |
 | `gl` | ceilingGrid tile length (×100) | Number | `data_gridLength` for `ceilingGrid` items only. 2-char code. `gl{N}` where N = length × 100 in current unit. Same deviceid gate as `gw` |
+| `lt` | VRC Line Type | Number | `data_lineType` for `lineTypeOption` devices (`box`, `stageFloor`, `boxdrop`). 2-char code. `lt1` = solid outline; dotted is the default and stays implicit. Decoder gates on the device-def flag |
 | `~text~` | label | String | data_labelField (URL encoded) |
 
 **AVAILABLE for future ITEM use:** `y`, `z`. (`u` is fill color, `v`

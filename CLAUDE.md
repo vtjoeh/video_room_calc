@@ -412,6 +412,57 @@ height changes just change the derived height.
 | WD export | Cylinder branch in `workspaceObjWallPush()`: `length = max(0.01, ceiling − z)`, `position[1] = z + length/2` (WD cylinder position y is the CENTER; ceiling = `roomObj2.room.roomHeight \|\| defaultWallHeight`, meters). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix, keeps the computed z (`position[1] − length/2`), and deletes `data_vHeight`. |
 | Group / CustomItem Z | No special case: `applyBundleDeltaZToMember(m, deltaZ)` (shared by `updateGroupItem` / `updateCustomItemItem`) moves the pole's stored z like any member; the derived height shrinks/grows automatically so the top stays at the ceiling. |
 
+### Ceiling-hung family (`isCeilingHungItem`)
+
+The Ceiling Pole semantics (stored base z, derived height = ceiling − z,
+`data_vHeight` never stored) are shared by four devices through the
+`isCeilingHungItem(deviceId)` helper: `cylinderPole`, `wallStdHeader`
+(Door Header Wall, key `WV`), `wallGlassHeader` (Door Header Glass, key
+`WW`), and `boxdrop` (Ceiling Drop Box, key `WX`). The helper gates the
+insert z seed (3 ft drop), the Details Height disable + derived populate,
+the `updateItem()` vHeight delete, the WD export override (walls/boxes:
+`height = max(0.01, ceiling − z)`, `position[1] = z + height/2`; the pole
+keeps its own cylinder `length` branch), the WD export id prefix
+(`<deviceid>~`, generic in both the tables-bucket wall branch and the
+boxes-bucket push), and the WD import prefix strip + late
+`data_vHeight` delete.
+
+The three new devices are NOT in any Equipment menu (cone pattern);
+they arrive via import, URL, or programmatic insert. Their
+`workspaceKey` entries sit BELOW their generic counterparts
+(`wallStd` / `wallGlass` / `box`, tie rule) with `idRegex` claims.
+`wallStdHeader` renders and exports as a standard 0.10 m thick wall;
+`wallGlassHeader` mirrors `wallGlass` (glass model, WD pane length
+0.03, forced 0.10 width on import). Both share Item-Type
+`deviceGroups[23]` so they can be swapped into each other. `boxdrop`
+renders as a `box` and supports `lineTypeOption` (see below). Resize
+anchors come free from the `startsWith('wall')` / `startsWith('box')`
+branches in `resizeTableOrWall()`.
+
+### VRC Line Type (`data_lineType`)
+
+Devices whose def carries `lineTypeOption: true` (`box`, `stageFloor`,
+`boxdrop`) expose a **VRC Line Type** dropdown (`#itemLineTypeDiv` /
+`#drpLineType`) directly above the Color row in the Details panel:
+Dotted Line (default) or Solid Line. A dropdown (not a checkbox) so
+more dash patterns can be added later. Stored as
+`item.data_lineType = 'solid'` only when non-default; absent = the
+device-def `dash`. Render reads
+`dash: (attrs.data_lineType === 'solid') ? [] : deviceDef.dash` in the
+box/boxdrop and stageFloor `insertTable()` branches. Canvas-only —
+the WD 3D view ignores it, but it round-trips through WD JSON as the
+vrc-prefixed `vrcLineType` attr (consumed + stripped on import so it
+never leaks into `data_labelField`). URL: 2-char `lt` code (`lt1` =
+solid), decoder gated on the device-def flag. Standard four-place rule
+wiring (`insertTable` writer, `updateNodeAttributes` mirror,
+`updateRoomObjFromTrNode` push + map-hit delete-on-absent,
+`copyToCanvasClipBoard`). `#itemLineTypeDiv` is in both group-details
+`hideIds` lists. Footgun: the deselect restore in
+`removeShadingTrNodes()` re-applies the device-def `dash` to the live
+node; it must stay line-type aware (`node.data_lineType === 'solid' ?
+[] : deviceDef.dash`) or every deselect silently reverts a solid item
+to dotted.
+
 ### pathShape precedence
 
 `pathShape` is a first-class participant in the `configurableColor` /

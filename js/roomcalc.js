@@ -254,7 +254,13 @@ function activeRoomHeight() {
     return roomObj.room.roomHeight;
 }
 
-/* Ceiling Pole derived height (current unit): ceiling height minus the pole's stored
+/* Ceiling-hung items store base Z; height is always derived (ceiling minus z) and never stored. */
+function isCeilingHungItem(deviceId) {
+    return deviceId === 'cylinderPole' || deviceId === 'wallStdHeader'
+        || deviceId === 'wallGlassHeader' || deviceId === 'boxdrop';
+}
+
+/* Derived height (current unit) for ceiling-hung items: ceiling height minus the stored
  * base elevation (data_zPosition). Never stored on the item — the Details Height input
  * shows it read-only, and the WD export recomputes it in meters. */
 function ceilingPoleDerivedHeight(baseZ) {
@@ -987,7 +993,7 @@ function populateGroupDetails(rectNode) {
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
-        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv', 'itemLineTypeDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
         'itemGridWidthDiv', 'itemGridLengthDiv',
     ];
@@ -2930,7 +2936,7 @@ function populateCustomItemDetails(rectNode) {
         'itemVheightDiv', 'trapNarrowWidthDiv', 'chairSpacingDiv', 'numChairsDiv',
         'tblRectRadiusRow', 'tblRectRadiusDiv', 'tblRectRadiusRightDiv',
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
-        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv',
+        'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv', 'itemLineTypeDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
         'itemGridWidthDiv', 'itemGridLengthDiv',
     ];
@@ -7517,6 +7523,26 @@ let tables = [{
     family: 'wallBox',
     resizeable: ['depth', 'vheight'],
 },
+{
+    /* Ceiling-hung wall (door header): stored base z, height derived (ceiling - z). Not in the Equipment menu. */
+    name: 'Door Header Wall',
+    id: 'wallStdHeader',
+    key: 'WV',
+    frontImage: 'wallStd-front.png',
+    family: 'wallBox',
+    resizeable: ['depth'],
+    configurableColor: true,
+    wdOpacity: true,
+},
+{
+    /* Ceiling-hung glass wall (door header): stored base z, height derived (ceiling - z). Not in the Equipment menu. */
+    name: 'Door Header Glass',
+    id: 'wallGlassHeader',
+    key: 'WW',
+    frontImage: 'wallGlass-front.png',
+    family: 'wallBox',
+    resizeable: ['depth'],
+},
 
 {
     name: 'Column',
@@ -8307,6 +8333,7 @@ let stageFloors = [
         default_vHeight: 500,
         configurableColor: true,
         wdOpacity: true,
+        lineTypeOption: true,
     },
     {
         name: 'Carpet',
@@ -8341,6 +8368,22 @@ let boxes = [
         default_vHeight: 1000,
         configurableColor: true,
         wdOpacity: true,
+        lineTypeOption: true,
+    },
+    {
+        /* Ceiling-hung box: stored base z, height derived (ceiling - z). Not in the Equipment menu. */
+        name: 'Ceiling Drop Box',
+        id: 'boxdrop',
+        key: 'WX',
+        frontImage: 'box-front.png',
+        family: 'wallBox',
+        stroke: 'black',
+        strokeWidth: 2,
+        dash: [7, 5],
+        resizeable: ['width', 'depth'],
+        configurableColor: true,
+        wdOpacity: true,
+        lineTypeOption: true,
     },
     {
         name: 'Wall Builder - Multiple walls',
@@ -10125,6 +10168,13 @@ function parseShortenedXYUrl(parameters) {
                 if (isFinite(glNum) && glNum >= 0) {
                     newItem.data_gridLength = glNum;
                 }
+            }
+
+            /* lt = VRC Line Type (1 = solid), gated on device support. */
+            if ('lt' in item && allDeviceTypes[newItem.data_deviceid]
+                && allDeviceTypes[newItem.data_deviceid].lineTypeOption
+                && Number(item.lt) === 1) {
+                newItem.data_lineType = 'solid';
             }
 
             /* rs = boxRoomPart per-room default walls (mirror of encodeRoomPartWallsDigits). */
@@ -14007,6 +14057,11 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
+    /* lt = VRC Line Type (1 = solid); dotted is the default and stays implicit. */
+    if (item.data_lineType === 'solid') {
+        add('lt', 'lt1');
+    }
+
     /* rs = boxRoomPart per-room default walls; persists wall types through URL round-trips. */
     if (item.data_deviceid === 'boxRoomPart') {
         const rsDigits = encodeRoomPartWallsDigits(item);
@@ -15326,6 +15381,10 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_radius2 = Number(node.data_radius2);
         }
 
+        if (node.data_lineType) {
+            newAttr.data_lineType = node.data_lineType;
+        }
+
         if (node.data_gridWidth != null) {
             newAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16571,6 +16630,10 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_radius2 = Number(node.data_radius2);
         }
 
+        if (node.data_lineType) {
+            itemAttr.data_lineType = node.data_lineType;
+        }
+
         if (node.data_gridWidth != null) {
             itemAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16674,6 +16737,12 @@ function updateRoomObjFromTrNode() {
                 item.data_radius2 = itemAttr.data_radius2;
             } else {
                 delete item.data_radius2;
+            }
+
+            if (itemAttr.data_lineType) {
+                item.data_lineType = itemAttr.data_lineType;
+            } else {
+                delete item.data_lineType;
             }
 
             if (itemAttr.data_gridWidth != null) {
@@ -17788,7 +17857,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    } else if (insertDevice.id === 'box') {
+    } else if (insertDevice.id === 'box' || insertDevice.id === 'boxdrop') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -17799,7 +17868,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             id: uuid,
             cornerRadius: radius,
             draggable: true,
-            dash: allDeviceTypes[insertDevice.id].dash,
+            dash: (attrs.data_lineType === 'solid') ? [] : allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke || 'black',
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth || '1',
             opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
@@ -17831,12 +17900,12 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             id: uuid,
             cornerRadius: radius,
             draggable: true,
-            dash: allDeviceTypes[insertDevice.id].dash,
+            dash: (attrs.data_lineType === 'solid') ? [] : allDeviceTypes[insertDevice.id].dash,
             stroke: allDeviceTypes[insertDevice.id].stroke,
             strokeWidth: allDeviceTypes[insertDevice.id].strokeWidth,
             opacity: (attrs.data_opacity == null ? 1 : Number(attrs.data_opacity)),
         });
-    } else if (insertDevice.id === 'wallStd') {
+    } else if (insertDevice.id === 'wallStd' || insertDevice.id === 'wallStdHeader') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -17862,7 +17931,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 ctx.fillStrokeShape(shape);
             }
         });
-    } else if (insertDevice.id === 'wallGlass') {
+    } else if (insertDevice.id === 'wallGlass' || insertDevice.id === 'wallGlassHeader') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
             y: pixelY,
@@ -18136,6 +18205,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
 
     tblWallFlr.data_fill = attrs.data_fill || null;
     tblWallFlr.data_opacity = (attrs.data_opacity == null) ? null : Number(attrs.data_opacity);
+    tblWallFlr.data_lineType = attrs.data_lineType || null;
 
     /* wdText font size (Number; absent ⇒ null). */
     tblWallFlr.data_fontSize = (attrs.data_fontSize == null) ? null : Number(attrs.data_fontSize);
@@ -19100,7 +19170,7 @@ function removeShadingTrNodes() {
                 }
 
                 if ('dash' in allDeviceTypes[node.data_deviceid]) {
-                    node.dash(allDeviceTypes[node.data_deviceid].dash);
+                    node.dash(node.data_lineType === 'solid' ? [] : allDeviceTypes[node.data_deviceid].dash);
                 }
 
             }
@@ -19601,6 +19671,15 @@ function updateItem() {
             }
         }
 
+        if (allDeviceTypes[data_deviceid] && allDeviceTypes[data_deviceid].lineTypeOption) {
+            const lineTypeSel = document.getElementById('drpLineType');
+            if (lineTypeSel && lineTypeSel.value === 'solid') {
+                item.data_lineType = 'solid';
+            } else {
+                delete item.data_lineType;
+            }
+        }
+
         if (data_deviceid === 'sphere') {
             item.data_vHeight = width;
             data_vHeight = width;
@@ -19755,8 +19834,8 @@ function updateItem() {
             delete item.data_zPosition;
         }
 
-        if (data_deviceid === 'cylinderPole') {
-            /* Ceiling Pole height is always DERIVED (ceiling height - z); the disabled Height input just displays it. */
+        if (isCeilingHungItem(data_deviceid)) {
+            /* Ceiling-hung height is always DERIVED (ceiling height - z); the disabled Height input just displays it. */
             delete item.data_vHeight;
         }
         else if (data_vHeight) {
@@ -21887,6 +21966,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_chairSpacing = (attrs.data_chairSpacing == null) ? null : Number(attrs.data_chairSpacing);
 
         node.data_radius2 = (attrs.data_radius2 == null) ? null : Number(attrs.data_radius2);
+
+        node.data_lineType = attrs.data_lineType || null;
 
         node.data_gridWidth = (attrs.data_gridWidth == null) ? null : Number(attrs.data_gridWidth);
         node.data_gridLength = (attrs.data_gridLength == null) ? null : Number(attrs.data_gridLength);
@@ -24830,8 +24911,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemVheight').disabled = false;
     }
 
-    /* Ceiling Pole: the user edits Z (base elevation); Height is derived (ceiling - z) and read-only. */
-    if (shape.data_deviceid === 'cylinderPole') {
+    /* Ceiling-hung items: the user edits Z (base elevation); Height is derived (ceiling - z) and read-only. */
+    if (isCeilingHungItem(shape.data_deviceid)) {
         document.getElementById('itemVheight').disabled = true;
     }
 
@@ -25241,7 +25322,7 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         itemNumChairs.value = count;
     }
 
-    if (item.data_deviceid === 'cylinderPole') {
+    if (isCeilingHungItem(item.data_deviceid)) {
         /* Derived height, read-only: ceiling height minus the stored base elevation. */
         document.getElementById('itemVheight').value = ceilingPoleDerivedHeight(item.data_zPosition);
     } else if ('data_vHeight' in item && item.data_vHeight) {
@@ -25356,6 +25437,17 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         }
     }
 
+    const lineTypeDiv = document.getElementById('itemLineTypeDiv');
+    if (lineTypeDiv) {
+        const lineTypeDef = allDeviceTypes[shape.data_deviceid];
+        if (lineTypeDef && lineTypeDef.lineTypeOption) {
+            lineTypeDiv.style.display = '';
+            document.getElementById('drpLineType').value = (shape.data_lineType === 'solid') ? 'solid' : 'dotted';
+        } else {
+            lineTypeDiv.style.display = 'none';
+        }
+    }
+
     /* Configurable fill/opacity: populate hidden inputs + swatch. See notes/COLOR_PICKER.md */
     const fillDiv = document.getElementById('fillDiv');
     if (fillDiv) {
@@ -25435,6 +25527,8 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[21] = dummyMenuKey.dummyMenuCodec;
 
     deviceGroups[22] = dummyMenuKey.dummyMenuSwitch;
+
+    deviceGroups[23] = ['wallStdHeader', 'wallGlassHeader'];
 
 
     deviceGroups.forEach((devices, index) => {
@@ -26013,8 +26107,8 @@ function insertItemFromMenu(data_deviceid, attrs) {
         attrs.data_radius2 = (roomObj.unit === 'feet') ? 0.98 : 0.3;
     }
 
-    /* Ceiling Pole: seed the stored base z so the pole starts 3 ft long under the current ceiling (height itself is derived, never stored). */
-    if (data_deviceid === 'cylinderPole' && attrs.data_zPosition == null) {
+    /* Ceiling-hung items: seed the stored base z so the item starts 3 ft long under the current ceiling (height itself is derived, never stored). */
+    if (isCeilingHungItem(data_deviceid) && attrs.data_zPosition == null) {
         const poleLen = (roomObj.unit === 'feet') ? 3 : 0.9144;
         attrs.data_zPosition = ceilingPoleDerivedHeight(poleLen); /* ceiling - length = base z (same complement math) */
     }
@@ -32108,9 +32202,9 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         item.id = item.id.slice('frontSpeaker~'.length);
     }
 
-    /* Same round-trip rule for the Ceiling Pole cylinder export (see workspaceKey.cylinderPole). */
-    if (data_deviceid === 'cylinderPole' && item.id.startsWith('cylinderPole~')) {
-        item.id = item.id.slice('cylinderPole~'.length);
+    /* Same round-trip rule for every ceiling-hung export (see workspaceKey.cylinderPole etc.). */
+    if (isCeilingHungItem(data_deviceid) && item.id.startsWith(data_deviceid + '~')) {
+        item.id = item.id.slice((data_deviceid + '~').length);
     }
 
     item.name = allDeviceTypes[data_deviceid].name;
@@ -32285,7 +32379,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
             item.height = wdItem.width || 0.10;
             item.width = wdItem.length || 0.10;
 
-            if (data_deviceid === 'wallGlass') {
+            if (data_deviceid === 'wallGlass' || data_deviceid === 'wallGlassHeader') {
                 item.width = 0.10;
             }
 
@@ -32620,9 +32714,16 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.radius2;
     }
 
-    /* Ceiling Pole height is derived (ceiling height - z) — never stored. */
-    if (data_deviceid === 'cylinderPole') {
+    /* Ceiling-hung height is derived (ceiling height - z) and never stored. */
+    if (isCeilingHungItem(data_deviceid)) {
         delete item.data_vHeight;
+    }
+
+    if ('vrcLineType' in wdItem) {
+        if (deviceType.lineTypeOption && wdItem.vrcLineType === 'solid') {
+            item.data_lineType = 'solid';
+        }
+        delete wdItem.vrcLineType;
     }
 
 
@@ -33797,6 +33898,10 @@ function exportRoomObjToWorkspace() {
                 workspaceObjItemPush(item);
             }
             else if (item.data_deviceid.startsWith('wall') || item.data_deviceid.startsWith('column') || item.data_deviceid.startsWith('floor') || item.data_deviceid.startsWith('box')) {
+                /* Ceiling-hung ids get the round-trip prefix their workspaceKey idRegex matches on import (cylinderPole pattern). */
+                if (isCeilingHungItem(item.data_deviceid) && !String(item.id).startsWith(item.data_deviceid + '~')) {
+                    item.id = item.data_deviceid + '~' + item.id;
+                }
                 workspaceObjWallPush(item);
             } else if (item.data_deviceid === 'ceilingGrid') {
 
@@ -33834,6 +33939,9 @@ function exportRoomObjToWorkspace() {
         } else if (item.data_deviceid === 'dimensionLine') {
             /* dimensionLine is VRC-only too: same skip + round-trip as vrcText (data.vrc.dimensionLines). */
         } else {
+            if (isCeilingHungItem(item.data_deviceid) && !String(item.id).startsWith(item.data_deviceid + '~')) {
+                item.id = item.data_deviceid + '~' + item.id;
+            }
             workspaceObjWallPush(item);
         }
     });
@@ -34692,6 +34800,14 @@ function exportRoomObjToWorkspace() {
             "width": item.height,
         }
 
+        if (isCeilingHungItem(item.data_deviceid) && item.data_deviceid !== 'cylinderPole') {
+            /* Ceiling-hung wall/box: user-entered base z, height derived up to the ceiling (all meters here). */
+            const hungCeilH = Number(roomObj2.room.roomHeight) || defaultWallHeight;
+            const hungBaseZ = Number(item.data_zPosition) || 0;
+            workspaceItem.height = Math.max(0.01, hungCeilH - hungBaseZ);
+            workspaceItem.position[1] = hungBaseZ + workspaceItem.height / 2;
+        }
+
         if (item.data_deviceid === 'sphere') {
             workspaceItem.radius = item.width / 2;
             delete workspaceItem.width;
@@ -34781,6 +34897,10 @@ function exportRoomObjToWorkspace() {
         }
         if (__deviceDefWdRT && __deviceDefWdRT.wdOpacity && item.data_opacity != null) {
             workspaceItem.opacity = String(item.data_opacity);
+        }
+        /* VRC-only canvas line style; vrc-prefixed per the WD attr naming contract. */
+        if (__deviceDefWdRT && __deviceDefWdRT.lineTypeOption && item.data_lineType) {
+            workspaceItem.vrcLineType = item.data_lineType;
         }
 
         if (item.data_deviceid === 'cone'

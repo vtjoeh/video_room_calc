@@ -269,6 +269,13 @@ workspaceKey.quadCam = { objectType: 'camera', model: 'quad', role: 'crossview',
 workspaceKey.quadCamExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.quadPtz4kExt = { objectType: 'camera', model: 'quad', role: 'crossview', yOffset: 0.076 };
 workspaceKey.wallGlass = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3' };
+/* Ceiling-hung door headers + drop box: MUST stay below their generic counterparts
+ * (wallStd / wallGlass / box) — scoring ties keep the first entry, so a generic WD
+ * wall/box resolves to the generic device; the '<deviceid>~' export id prefix
+ * (+100 via idRegex) is what claims these back on import (cylinderPole pattern). */
+workspaceKey.wallStdHeader = { objectType: 'wall', idRegex: '^wallStdHeader~' };
+workspaceKey.wallGlassHeader = { objectType: 'wall', model: 'glass', length: 0.03, opacity: '0.3', idRegex: '^wallGlassHeader~' };
+workspaceKey.boxdrop = { objectType: 'box', idRegex: '^boxdrop~' };
 workspaceKey.tblCurved = { objectType: 'tableCurved', yOffset: 0.263 };
 
 workspaceKey.headset980 = { objectType: 'headset', model: '980' };
