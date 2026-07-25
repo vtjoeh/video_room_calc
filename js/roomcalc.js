@@ -1,5 +1,4 @@
 const version = APP_VERSION;  /* single source of truth is js/version.js, loaded before this file -- also read by sw.js to auto-bump the PWA cache */
-console.info('[VRC] ' + APP_VERSION + ((typeof BUILD_VERSION !== 'undefined' && BUILD_VERSION) ? ' build ' + BUILD_VERSION : ''));
 
 /* Module-split aliases. window.convertMetersFeet is exposed for the inline onChange handler in RoomCalculator.html. */
 const convertToUnit = window.VRC.util.convertToUnit;
@@ -7568,7 +7567,7 @@ let tables = [{
 },
 {
     /* Ceiling-hung wall (door header): stored base z, height derived (ceiling - z). Not in the Equipment menu. */
-    name: 'Door Header Wall',
+    name: '_Door Header Wall',
     id: 'wallStdHeader',
     key: 'WV',
     frontImage: 'wallStd-front.png',
@@ -7579,7 +7578,7 @@ let tables = [{
 },
 {
     /* Ceiling-hung glass wall (door header): stored base z, height derived (ceiling - z). Not in the Equipment menu. */
-    name: 'Door Header Glass',
+    name: '_Door Header Glass',
     id: 'wallGlassHeader',
     key: 'WW',
     frontImage: 'wallGlass-front.png',
@@ -25889,8 +25888,6 @@ function updateDevicesDropDown(selectElement, item) {
     deviceGroups[21] = dummyMenuKey.dummyMenuCodec;
 
     deviceGroups[22] = dummyMenuKey.dummyMenuSwitch;
-
-    deviceGroups[23] = ['wallStdHeader', 'wallGlassHeader'];
 
 
     deviceGroups.forEach((devices, index) => {

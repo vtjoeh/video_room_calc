@@ -2,6 +2,9 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+**0.1.665**
+- Added Custom Window Wall with Window Editor. Draw windows, open window space or open doorway space onto a wall. 
+
 **0.1.664**
 - Added a new Ceiling Pole. Put in the Z value (base elevation) and it will touch the ceiling. 
 - bug fixes. 
