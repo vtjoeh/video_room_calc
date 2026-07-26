@@ -1025,7 +1025,7 @@ function populateGroupDetails(rectNode) {
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv', 'itemLineTypeDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
-        'itemGridWidthDiv', 'itemGridLengthDiv',
+        'itemGridWidthDiv', 'itemGridLengthDiv', 'itemFirstGridWidthDiv', 'itemFirstGridLengthDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2968,7 +2968,7 @@ function populateCustomItemDetails(rectNode) {
         'itemTiltSlantDiv', 'itemTiltDiv', 'itemSlantDiv',
         'itemOffsetDiv', 'roleDiv', 'mountDiv', 'colorDiv', 'fillDiv', 'itemLineTypeDiv',
         'itemFontSizeDiv', 'itemLineWidthPointerSizeRow',
-        'itemGridWidthDiv', 'itemGridLengthDiv',
+        'itemGridWidthDiv', 'itemGridLengthDiv', 'itemFirstGridWidthDiv', 'itemFirstGridLengthDiv',
     ];
     hideIds.forEach(id => {
         const el = document.getElementById(id);
@@ -9038,6 +9038,12 @@ function convertItemUnitBasedOnRatio(item, ratio) {
         item.data_radius2 = round(item.data_radius2 * ratio);
     }
 
+    if ('data_firstGridWidth' in item && !isNaN(item.data_firstGridWidth)) {
+        item.data_firstGridWidth = round(item.data_firstGridWidth * ratio);
+    }
+    if ('data_firstGridLength' in item && !isNaN(item.data_firstGridLength)) {
+        item.data_firstGridLength = round(item.data_firstGridLength * ratio);
+    }
     if ('data_gridWidth' in item && !isNaN(item.data_gridWidth)) {
         item.data_gridWidth = round(item.data_gridWidth * ratio);
     }
@@ -10083,6 +10089,18 @@ function parseShortenedXYUrl(parameters) {
                 const glNum = Number(item.gl) / 100;
                 if (isFinite(glNum) && glNum >= 0) {
                     newItem.data_gridLength = glNum;
+                }
+            }
+            if ('fw' in item && newItem.data_deviceid === 'ceilingGrid') {
+                const fgwNum = Number(item.fw) / 100;
+                if (isFinite(fgwNum) && fgwNum > 0) {
+                    newItem.data_firstGridWidth = fgwNum;
+                }
+            }
+            if ('fl' in item && newItem.data_deviceid === 'ceilingGrid') {
+                const fglNum = Number(item.fl) / 100;
+                if (isFinite(fglNum) && fglNum > 0) {
+                    newItem.data_firstGridLength = fglNum;
                 }
             }
 
@@ -13924,8 +13942,20 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    /* ceilingGrid tile dimensions — 2-char codes gw / gl (×100), gated on deviceid. */
+    /* ceilingGrid tile dimensions — 2-char codes gw / gl (×100) plus first-tile fw / fl, gated on deviceid. */
     if (item.data_deviceid === 'ceilingGrid') {
+        if (item.data_firstGridWidth != null) {
+            const __fgwNum = Number(item.data_firstGridWidth);
+            if (isFinite(__fgwNum) && __fgwNum > 0) {
+                add('fw', 'fw' + Math.round(round(__fgwNum) * 100));
+            }
+        }
+        if (item.data_firstGridLength != null) {
+            const __fglNum = Number(item.data_firstGridLength);
+            if (isFinite(__fglNum) && __fglNum > 0) {
+                add('fl', 'fl' + Math.round(round(__fglNum) * 100));
+            }
+        }
         if (item.data_gridWidth != null) {
             const __gwNum = Number(item.data_gridWidth);
             if (isFinite(__gwNum) && __gwNum >= 0) {
@@ -15259,6 +15289,12 @@ function copyToCanvasClipBoard(nodes) {
             newAttr.data_customWindows = structuredClone(node.data_customWindows).map(w => ({ ...w, id: crypto.randomUUID() }));
         }
 
+        if (node.data_firstGridWidth != null) {
+            newAttr.data_firstGridWidth = Number(node.data_firstGridWidth);
+        }
+        if (node.data_firstGridLength != null) {
+            newAttr.data_firstGridLength = Number(node.data_firstGridLength);
+        }
         if (node.data_gridWidth != null) {
             newAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16504,6 +16540,12 @@ function updateRoomObjFromTrNode() {
             itemAttr.data_customWindows = structuredClone(node.data_customWindows);
         }
 
+        if (node.data_firstGridWidth != null) {
+            itemAttr.data_firstGridWidth = Number(node.data_firstGridWidth);
+        }
+        if (node.data_firstGridLength != null) {
+            itemAttr.data_firstGridLength = Number(node.data_firstGridLength);
+        }
         if (node.data_gridWidth != null) {
             itemAttr.data_gridWidth = Number(node.data_gridWidth);
         }
@@ -16621,6 +16663,16 @@ function updateRoomObjFromTrNode() {
                 delete item.data_customWindows;
             }
 
+            if (itemAttr.data_firstGridWidth != null) {
+                item.data_firstGridWidth = itemAttr.data_firstGridWidth;
+            } else {
+                delete item.data_firstGridWidth;
+            }
+            if (itemAttr.data_firstGridLength != null) {
+                item.data_firstGridLength = itemAttr.data_firstGridLength;
+            } else {
+                delete item.data_firstGridLength;
+            }
             if (itemAttr.data_gridWidth != null) {
                 item.data_gridWidth = itemAttr.data_gridWidth;
             } else {
@@ -17565,9 +17617,14 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 const h = shape.getAttr('height');
                 const sx = (Number(shape.data_gridWidth) || 0) * scale;
                 const sy = (Number(shape.data_gridLength) || 0) * scale;
+                /* First tile can differ (data_firstGridWidth/Length); 0/blank means regular spacing from the edge. */
+                const fx = (Number(shape.data_firstGridWidth) || 0) * scale;
+                const fy = (Number(shape.data_firstGridLength) || 0) * scale;
                 context.beginPath();
                 if (sx > 0) {
-                    for (let x = 0; x < w; x += sx) {
+                    context.moveTo(0, 0);
+                    context.lineTo(0, h);
+                    for (let x = (fx > 0 ? fx : sx); x < w; x += sx) {
                         context.moveTo(x, 0);
                         context.lineTo(x, h);
                     }
@@ -17575,7 +17632,9 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
                 context.moveTo(w, 0);
                 context.lineTo(w, h);
                 if (sy > 0) {
-                    for (let y = 0; y < h; y += sy) {
+                    context.moveTo(0, 0);
+                    context.lineTo(w, 0);
+                    for (let y = (fy > 0 ? fy : sy); y < h; y += sy) {
                         context.moveTo(0, y);
                         context.lineTo(w, y);
                     }
@@ -17594,6 +17653,8 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         });
         tblWallFlr.data_gridWidth = cgGwUnit;
         tblWallFlr.data_gridLength = cgGlUnit;
+        tblWallFlr.data_firstGridWidth = (attrs.data_firstGridWidth == null) ? null : Number(attrs.data_firstGridWidth);
+        tblWallFlr.data_firstGridLength = (attrs.data_firstGridLength == null) ? null : Number(attrs.data_firstGridLength);
     } else if (insertDevice.id === 'tblPodium') {
         tblWallFlr = new Konva.Shape({
             x: pixelX,
@@ -19442,11 +19503,17 @@ function updateItem() {
     /* ceilingGrid tile dimensions (current unit); written to item.data_gridWidth/Length below. */
     let data_gridWidth = '';
     let data_gridLength = '';
+    let data_firstGridWidth = '';
+    let data_firstGridLength = '';
     if (document.getElementById('itemName').value === 'ceilingGrid') {
         const __gwIn = document.getElementById('itemGridWidth');
         const __glIn = document.getElementById('itemGridLength');
+        const __fgwIn = document.getElementById('itemFirstGridWidth');
+        const __fglIn = document.getElementById('itemFirstGridLength');
         if (__gwIn) data_gridWidth = Number(__gwIn.value);
         if (__glIn) data_gridLength = Number(__glIn.value);
+        if (__fgwIn) data_firstGridWidth = Number(__fgwIn.value);
+        if (__fglIn) data_firstGridLength = Number(__fglIn.value);
     }
 
     /* wallCustomWindow: Window Editor writes its result into the hidden #customWindowsData
@@ -19551,6 +19618,16 @@ function updateItem() {
             }
             if (typeof data_gridLength === 'number' && isFinite(data_gridLength) && data_gridLength > 0) {
                 item.data_gridLength = data_gridLength;
+            }
+            if (typeof data_firstGridWidth === 'number' && isFinite(data_firstGridWidth) && data_firstGridWidth > 0) {
+                item.data_firstGridWidth = data_firstGridWidth;
+            } else {
+                delete item.data_firstGridWidth;
+            }
+            if (typeof data_firstGridLength === 'number' && isFinite(data_firstGridLength) && data_firstGridLength > 0) {
+                item.data_firstGridLength = data_firstGridLength;
+            } else {
+                delete item.data_firstGridLength;
             }
         }
 
@@ -21696,6 +21773,8 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         node.data_customWindows = attrs.data_customWindows ? structuredClone(attrs.data_customWindows) : null;
 
         node.data_gridWidth = (attrs.data_gridWidth == null) ? null : Number(attrs.data_gridWidth);
+        node.data_firstGridWidth = (attrs.data_firstGridWidth == null) ? null : Number(attrs.data_firstGridWidth);
+        node.data_firstGridLength = (attrs.data_firstGridLength == null) ? null : Number(attrs.data_firstGridLength);
         node.data_gridLength = (attrs.data_gridLength == null) ? null : Number(attrs.data_gridLength);
 
         /* boxRoomPart per-room default-walls config — defensive mirror. */
@@ -24524,6 +24603,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     /* ceilingGrid: show Grid Width/Length tile-size inputs (Width/Length stay visible). */
     const __gridWidthDiv = document.getElementById('itemGridWidthDiv');
     const __gridLengthDiv = document.getElementById('itemGridLengthDiv');
+    const __firstGridWidthDiv = document.getElementById('itemFirstGridWidthDiv');
+    const __firstGridLengthDiv = document.getElementById('itemFirstGridLengthDiv');
     if (shape.data_deviceid === 'ceilingGrid') {
         if (__gridWidthDiv) {
             __gridWidthDiv.style.display = '';
@@ -24533,9 +24614,21 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
             __gridLengthDiv.style.display = '';
             document.getElementById('itemGridLength').value = round((Number(shape.data_gridLength) || 0));
         }
+        if (__firstGridWidthDiv) {
+            __firstGridWidthDiv.style.display = '';
+            const __fgw = Number(shape.data_firstGridWidth) || 0;
+            document.getElementById('itemFirstGridWidth').value = (__fgw > 0) ? round(__fgw) : '';
+        }
+        if (__firstGridLengthDiv) {
+            __firstGridLengthDiv.style.display = '';
+            const __fgl = Number(shape.data_firstGridLength) || 0;
+            document.getElementById('itemFirstGridLength').value = (__fgl > 0) ? round(__fgl) : '';
+        }
     } else {
         if (__gridWidthDiv) __gridWidthDiv.style.display = 'none';
         if (__gridLengthDiv) __gridLengthDiv.style.display = 'none';
+        if (__firstGridWidthDiv) __firstGridWidthDiv.style.display = 'none';
+        if (__firstGridLengthDiv) __firstGridLengthDiv.style.display = 'none';
     }
 
     if (document.getElementById('itemWidth').disabled === true && document.getElementById('itemLength').disabled === true && !(shape.data_deviceid === 'polyRoom')) {
@@ -25689,6 +25782,15 @@ function insertItemFromMenu(data_deviceid, attrs) {
         if (attrs.data_gridLength == null) {
             attrs.data_gridLength = (roomObj.unit === 'feet') ? 4 : 1.2;
         }
+
+        /* Every menu-inserted grid lands on a shared "Ceiling Grid" layer; created (unlocked) on first use with a one-time explainer. */
+        let cgLayer = roomObj.layers.find(l => l.name === 'Ceiling Grid');
+        if (!cgLayer) {
+            cgLayer = addLayer('Ceiling Grid');
+            alertDialog('Ceiling Grid Layer',
+                'This Ceiling Grid was added to a new layer named <b>Ceiling Grid</b>. All Ceiling Grids are placed on this layer automatically. Use the Layers tab to lock the layer once your grid is in place.');
+        }
+        attrs.data_layerId = cgLayer.layerid;
     }
 
     if (data_deviceid === 'wallCustomWindow' && attrs.data_customWindows == null) {
@@ -33021,7 +33123,7 @@ function exportRoomObjToWorkspace() {
             if (!it || it.data_deviceid !== 'ceilingGrid') return;
 
             const exported = structuredClone(it);
-            ['x', 'y', 'width', 'height', 'data_zPosition', 'data_gridWidth', 'data_gridLength', 'data_vHeight'].forEach(f => {
+            ['x', 'y', 'width', 'height', 'data_zPosition', 'data_gridWidth', 'data_gridLength', 'data_firstGridWidth', 'data_firstGridLength', 'data_vHeight'].forEach(f => {
                 if (typeof exported[f] === 'number') {
                     exported[f] = round(exported[f] * cgRatio);
                 }
@@ -34471,9 +34573,13 @@ function exportRoomObjToWorkspace() {
         /* Vertical lines (run along Y): footprint t (X) × H (Y), centered
          * on each grid x. Interior lines step by gw; the right edge is
          * always drawn so the grid closes (mirrors the canvas sceneFunc). */
+        const fgw = Number(parent.data_firstGridWidth) || 0;
+        const fgl = Number(parent.data_firstGridLength) || 0;
         let vRow = 0;
         if (gw > 0) {
-            for (let x = 0; x < W - 1e-6; x += gw) {
+            pushLine(0 - t / 2, 0, t, H, `gridLines~v~${vRow}~${parent.id}`);
+            vRow += 1;
+            for (let x = (fgw > 0 ? fgw : gw); x < W - 1e-6; x += gw) {
                 pushLine(x - t / 2, 0, t, H, `gridLines~v~${vRow}~${parent.id}`);
                 vRow += 1;
             }
@@ -34483,7 +34589,9 @@ function exportRoomObjToWorkspace() {
         /* Horizontal lines (run along X): footprint W (X) × t (Y). */
         let hRow = 0;
         if (gl > 0) {
-            for (let y = 0; y < H - 1e-6; y += gl) {
+            pushLine(0, 0 - t / 2, W, t, `gridLines~h~${hRow}~${parent.id}`);
+            hRow += 1;
+            for (let y = (fgl > 0 ? fgl : gl); y < H - 1e-6; y += gl) {
                 pushLine(0, y - t / 2, W, t, `gridLines~h~${hRow}~${parent.id}`);
                 hRow += 1;
             }

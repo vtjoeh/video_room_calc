@@ -1278,6 +1278,13 @@ the wire-shape table and additional context on the coordinate model.
   lines spaced every `gridWidth` along X.
 - `data_gridLength` (tile Y spacing, default **4'** / `1.2 m`) →
   horizontal lines spaced every `gridLength` along Y.
+- `data_firstGridWidth` / `data_firstGridLength` (optional, current
+  unit): size of the FIRST tile along each axis — the classic "cut
+  tile at the wall" layout. When set (> 0), the first interior line
+  lands at that offset and the rest continue at the regular spacing;
+  blank or 0 means no override (regular spacing from the edge, exactly
+  as before). Stored only when > 0; blanking the Details input deletes
+  the attr.
 - Both grid fields are stored in the **current unit** (like cone's
   `data_radius2`); `convertMetersFeet()` / `convertItemUnitBasedOnRatio()`
   / `convertToMeters()` toggle them. Defaults are unit-aware (feet → 2/4,
@@ -1300,6 +1307,14 @@ the wire-shape table and additional context on the coordinate model.
 - `insertItemFromMenu()` seeds the unit-aware grid defaults; `insertTable()`
   has the `Konva.Shape` `sceneFunc` branch; `enableCopyDelBtn()` enables
   all 8 resize anchors.
+- **Auto layer**: every menu-inserted grid is assigned to a shared VRC
+  layer named **Ceiling Grid** (found by exact name, created unlocked
+  via `addLayer()` on first use — replaces the old insertMessages
+  recommendation alert, which was removed from
+  `js/data/menuItemsAndMessages.js`). A one-time `alertDialog` fires
+  only when the layer is created, telling the user the grid was placed
+  on the new layer and to lock it via the Layers tab. Paste / URL / WD
+  / `.vrc.json` imports keep their own stored layer.
 
 ### Details panel
 - `#itemGridWidthDiv` / `#itemGridLengthDiv` inputs sit just below
@@ -1309,18 +1324,30 @@ the wire-shape table and additional context on the coordinate model.
   `updateItem()` reads the two inputs into `item.data_gridWidth` /
   `item.data_gridLength`.
 
-### Four-place rule (`data_gridWidth`, `data_gridLength`)
+### Details panel — First Grid Width / First Grid Length
+`#itemFirstGridWidthDiv` / `#itemFirstGridLengthDiv` sit in their own
+row directly under the Grid Width / Length row (both in the two
+group-details `hideIds` reset lists). Populate shows blank when the
+attr is absent; `updateItem()` stores `> 0` values and DELETES the
+attrs on blank / 0 (unlike gridWidth/Length, which only overwrite).
+
+### Four-place rule (`data_gridWidth`, `data_gridLength`, `data_firstGridWidth`, `data_firstGridLength`)
 Same four-place rule as `data_radius2` / `data_fill`: `insertTable()`
 writer + `insertShapeItem()` → `updateNodeAttributes()` mirror;
 `updateRoomObjFromTrNode()` push branch AND map-hit branch
-(explicit-delete-on-absent); `copyToCanvasClipBoard()`.
+(explicit-delete-on-absent); `copyToCanvasClipBoard()`. All four fields
+are walked by both unit-conversion loops
+(`convertItemUnitBasedOnRatio()` + `convertToMeters()`) and by the
+`data.vrc.ceilingGrids[]` meters whitelist on WD export.
 
 ### URL encoding
 New item prefix `WS`. Two 2-char per-item codes gated on
 `data_deviceid === 'ceilingGrid'` (accumulated by the parser state
 machine like `cd` / `ll`): `gw` = `data_gridWidth × 100`, `gl` =
-`data_gridLength × 100` (current unit). `data_fill` / `data_opacity` ride
-the existing `u` / `v` letters; `width` / `height` ride `c` / `e`.
+`data_gridLength × 100` (current unit), plus `fw` / `fl` =
+`data_firstGridWidth` / `data_firstGridLength × 100` (emitted only when
+stored). `data_fill` / `data_opacity` ride the existing `u` / `v`
+letters; `width` / `height` ride `c` / `e`.
 
 ### Workspace Designer round-trip (hybrid)
 - **Export** — the `wdBuckets.boxes` dispatch routes `ceilingGrid` to
@@ -2618,9 +2645,11 @@ Current keys: `pathEditor` (Path Editor instructions),
 `simplePathEditor` (Draw Simple Path instructions), and the
 `insertMessages` entries in `js/data/menuItemsAndMessages.js` via their
 optional `dontShowAgainKey` field (`insertSwitch`,
-`insertCodecRoomVision`, `insertCodec`; ceilingGrid intentionally has
-none). Gate only OK-only informational dialogs — never errors or
-dialogs that gather input.
+`insertCodecRoomVision`, `insertCodec`). The old ceilingGrid
+insertMessages entry was removed — the Ceiling Grid auto-layer flow
+shows its own keyless one-time dialog instead (fires only when the
+"Ceiling Grid" layer is created). Gate only OK-only informational
+dialogs — never errors or dialogs that gather input.
 
 ---
 

@@ -28,12 +28,6 @@ window.VRC.insertMessages = [
         body: 'The inserted %device_name% will be used to create the cable map in the Workspace Designer. The Workspace Designer expects the codec to be in a specific location, typically z=1.4 m behind the main camera. The Workspace Designer cable map is for general guidance of cable lengths and not for architectural drawings. <b>Make sure the camera matches the codec type.</b>',
         dontShowAgainKey: 'insertCodec'
     },
-    {
-        idRegex: /^ceilingGrid/,
-        header: 'Inserted %device_name%',
-        body: 'The ceiling grid is best used by placing it on its own layer and locking that layer. It is recommended to create a layer called <b>Ceiling Grid</b> and lock it.'
-    }
-
 ];
 
 

@@ -163,6 +163,12 @@ window.VRC.util = window.VRC.util || {};
                 item.data_radius2 = item.data_radius2 * ratio;
             }
 
+            if ('data_firstGridWidth' in item && !isNaN(item.data_firstGridWidth)) {
+                item.data_firstGridWidth = item.data_firstGridWidth * ratio;
+            }
+            if ('data_firstGridLength' in item && !isNaN(item.data_firstGridLength)) {
+                item.data_firstGridLength = item.data_firstGridLength * ratio;
+            }
             if ('data_gridWidth' in item && !isNaN(item.data_gridWidth)) {
                 item.data_gridWidth = item.data_gridWidth * ratio;
             }
