@@ -48,7 +48,7 @@ The Shareable Template Hyperlink saves the full x, y, and z coordinates, as well
 ### What about privacy and security? What information is tracked?
 The configuration and data are client-side only. The Video Room Calculator does not save the room configuration or personally identifiable information in the cloud. The number of visitors and buttons clicked (seen as 'heartbeat') is stored by the Video Room Calculator cloud.
 
-**Third-party JavaScript:** DOMPurify by Cure53, distributed via the Cloudflare CDN, is used to help protect against XSS attacks.
+**Third-party JavaScript:** DOMPurify by Cure53 is used to help protect against XSS attacks, including sanitizing uploaded SVG floor plans. It is served from the Video Room Calculator itself rather than a third-party CDN, so no external script is loaded.
 
 **Browser Storage:** Browser `localStorage` and `IndexedDB` are used to save settings, undo/redo history, background images, and your Custom Item library between browser sessions. No cookie trackers are used.
 

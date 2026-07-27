@@ -32,7 +32,7 @@ video_room_calculator/
 │   ├── UI_LAYOUT.md                # HTML structure + CSS organization quick map
 │   ├── TEMPLATES.md                # Templates system blurb
 │   ├── KEYBOARD_SHORTCUTS.md       # Canonical keyboard shortcut list
-│   └── DEPENDENCIES_AND_ISSUES.md  # External CDN deps + common issues cheat sheet
+│   └── DEPENDENCIES_AND_ISSUES.md  # Vendored third-party deps + common issues cheat sheet
 ├── js/
 │   ├── version.js           # APP_VERSION + BUILD_VERSION single source of truth (loaded first; also read by sw.js via importScripts — bumping EITHER forces the PWA cache refresh; bump BUILD_VERSION alone for small pushes that keep the visible version)
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
@@ -100,7 +100,7 @@ before doing structural changes. `notes/GIT_WORKFLOW.md` describes the
 |------------|---------|
 | **Vanilla JavaScript** | Core application logic |
 | **Konva.js** | HTML5 Canvas rendering, drag-and-drop, transformations |
-| **DOMPurify** | HTML sanitization (loaded via CDN) |
+| **DOMPurify** | HTML/SVG sanitization (vendored at `js/purify.min.js`, not a CDN) |
 | **CSS3** | Styling, responsive design, animations |
 | **SVG** | Some icons and graphics |
 
@@ -1036,6 +1036,19 @@ uses. `rotation`, `data_zPosition`, `data_vHeight`, `data_tilt`,
 `data_fill`, `data_opacity`, `data_radius2`, `data_labelField` pass
 through verbatim when present.
 
+**A `cylinderPole` child part ignores its template `data_vHeight`.**
+`isCeilingHungItem()` devices (`cylinderPole`, `wallStdHeader`,
+`wallGlassHeader`, `boxdrop`) always derive their length as the
+room's actual ceiling height minus their base z, the same rule that
+applies to a standalone canvas instance (see "Ceiling Pole" below).
+Inside a parentItem template this means the pole's length is NOT the
+part's `data_vHeight`; it dynamically stretches to reach whatever
+ceiling height the room actually has, so omit `data_vHeight` from a
+`cylinderPole` part entirely (`workspaceKey.ceilingFan`'s pole is the
+worked example). `pushParentItemChildren()`'s `supported` dispatch
+list must include `'cylinderPole'` or the child is silently dropped
+with a `console.warn` instead of exported.
+
 ### Round-trip flow
 
 ```mermaid
@@ -1249,7 +1262,7 @@ Two numeric normalizations run before serialization:
 |---------|----------|
 | `workspaceKey` definition (new schema fields) | `parentItem: true` + `childItemParts: [...]` in `js/data/workspaceKey.js` |
 | Export — pre-pass | `exportRoomObjToWorkspace()` in `js/roomcalc.js`, immediately after `const wdBuckets = bucketItemsByParentGroup(roomObj2)`. Walks every bucket; pulls flagged items out via `bucket.splice(i, 1)` BEFORE the per-bucket push runs |
-| Export — children dispatcher | `pushParentItemChildren(parent, wsKey)` (function declaration nested in `exportRoomObjToWorkspace()` so it hoists above the call site). Builds a synthetic VRC item per template part, then dispatches by class: **display-class children** (`allDeviceTypes[childId].parentGroup === 'displays'`) → `workspaceObjDisplayPush()` (panel sized from `data_diagonalInches`, defaulted to the device-def `diagonalInches`, width/height ignored; carries `data_role` / `data_color` / `data_mount`); **wall-class children** (cylinder / sphere / cone / box / wall / columnRect / floor / carpet / stageFloor) → `workspaceObjWallPush()`. Tags the just-pushed `customObjects[]` entry with `vrcParent` / `vrcParentDeviceId` after the push (outside the push helper so it stays parentItem-agnostic). Resolves the parent's effective UL anchor at the top — see "Parent anchor heuristic" above |
+| Export — children dispatcher | `pushParentItemChildren(parent, wsKey)` (function declaration nested in `exportRoomObjToWorkspace()` so it hoists above the call site). Builds a synthetic VRC item per template part, then dispatches by class: **display-class children** (`allDeviceTypes[childId].parentGroup === 'displays'`) → `workspaceObjDisplayPush()` (panel sized from `data_diagonalInches`, defaulted to the device-def `diagonalInches`, width/height ignored; carries `data_role` / `data_color` / `data_mount`); **wall-class children** (cylinder / cylinderPole / sphere / cone / box / wall / columnRect / floor / carpet / stageFloor) → `workspaceObjWallPush()`. Tags the just-pushed `customObjects[]` entry with `vrcParent` / `vrcParentDeviceId` after the push (outside the push helper so it stays parentItem-agnostic). Resolves the parent's effective UL anchor at the top — see "Parent anchor heuristic" above |
 | Export — parent metadata builder | `buildParentItemExportRecord(item)` (also nested in `exportRoomObjToWorkspace()`). Mirrors the `data.vrc.customItems[]` builder pattern; emits meters, VRC top-left, `layerName` for non-Default layer, optional pass-through fields (`data_tilt`, `data_slant`, `data_vHeight`, `data_fill`, `data_opacity`, `data_color`, `data_role`, `data_mount`, `data_hiddenInDesigner`, `data_labelField`) when present |
 | Import — drop children | `importWorkspaceDesignerFile()` scoring loop, immediately inside `if (wdItem) { ... }` at the top: `if (wdItem.vrcParent) { delete wdItems[i]; continue; }`. Runs BEFORE every other scoring guard so children never produce a `cylinder` / `sphere` VRC item |
 | Import — restore parents | `importWorkspaceDesignerFile()`, block immediately after the `data.vrc.dimensionLines` restore and BEFORE the `data.vrc.groups` / `data.vrc.customItems` restore (so the bundle-membership rebuild passes pick up the restored parent items). Resolves `layerName` via `resolveImportLayerName()`, maps `group` → `data_groupId`, `customItem` → `data_customItemId` |
@@ -1297,13 +1310,18 @@ the wire-shape table and additional context on the coordinate model.
   `shape.data_radius2`) and draws interior lines plus the closing right /
   bottom edges. A `hitFunc` fills the whole bounding rect so the user can
   click/drag anywhere inside the grid, not just on the thin lines.
-- `default_vHeight: 2500` (mm → **2.5 m** resting height of the grid
-  plane). Each exported grid-line box has WD Y height = **0.05 m**.
+- `defaultVert: 2500` (mm → **2.5 m**): new grids seed
+  `data_zPosition = 2.5 m`, and **Z alone is the grid plane height** —
+  the Details Height field is hidden for `ceilingGrid` (and `vheight`
+  removed from `resizeable`). Legacy items that stored a
+  `data_vHeight` still export at `z + vHeight`; `updateItem()` folds
+  it into z and deletes it on the next edit. Each exported grid-line
+  box has WD Y height = **0.05 m**.
 
 ### Insert / render / resize
 - Device def lives in the `boxes` array (`id:'ceilingGrid'`, `key:'WS'`,
   `family:'resizeItem'`, `configurableColor:true`, `wdOpacity:true`,
-  `default_vHeight:2500`) and IS in `wallsMenu` (unlike cone).
+  `defaultVert:2500`) and IS in `wallsMenu` (unlike cone).
 - `insertItemFromMenu()` seeds the unit-aware grid defaults; `insertTable()`
   has the `Konva.Shape` `sceneFunc` branch; `enableCopyDelBtn()` enables
   all 8 resize anchors.
@@ -3906,6 +3924,70 @@ xConfig line formats, the coordinate model + Quad Camera handling,
 the xConfig XYZ tracking columns, room-sizing rules, and the export
 contract (label format checks, summary dialog, etc.).
 
+### SVG floor plans are sanitized at ingest
+
+The Floor Plan background image accepts SVG (`accept="image/*"` matches
+`image/svg+xml`; the drag-drop handler tests
+`file.type.startsWith('image/')`; clipboard paste too). An SVG can
+carry `<script>`, `on*` handlers, `<foreignObject>`, and external
+references.
+
+**Those can never execute inside VRC**, because every render path
+routes the image through an `HTMLImageElement` (`backgroundImageFloor.src
+= <data URL>`) or a CSS `background-image` — the browser's *secure
+static mode*, which disables scripting, event handlers, and external
+resource loads. Nothing in the codebase renders a user SVG inline (no
+`innerHTML` of file content, no `DOMParser`, no `iframe` / `object` /
+`embed`, no `window.open` of a blob/data URL). Verified live with a
+hostile SVG carrying all four vectors: zero script execution, zero
+network callbacks, and the canvas stays untainted so PNG export still
+works.
+
+VRC sanitizes anyway, for two reasons that survive that guarantee:
+
+1. **VRC would otherwise be a carrier.** The bytes are persisted
+   verbatim into `roomObj.backgroundImageFile` (and therefore into
+   `.vrc.json` downloads and the WD export's
+   `data.vrc.backgroundImageFile`) and as a Blob in the IDB
+   "Recent Floor Plans" library. A shared room file would hand a live
+   payload to whatever opens it next.
+2. **The safety is incidental, not enforced.** It holds only while
+   nothing inlines the SVG. A future "import SVG as a pathShape"
+   feature would silently void it; sanitizing at ingest makes the
+   property structural.
+
+| Helper (`js/roomcalc.js`, just above `processBackgroundImageFile()`) | Role |
+|---|---|
+| `sanitizeSvgMarkup(svgText)` | The single policy point. `DOMPurify.sanitize` with `USE_PROFILES: { svg: true, svgFilters: true }` plus `ADD_TAGS: ['use']`. The SVG profile already forbids `<script>` and `<foreignObject>` and allows no `on*` attributes. Returns `''` (⇒ reject) when DOMPurify is missing or the result contains no `<svg` — **fails closed**. Logs a count to the console whenever anything was stripped. |
+| `svgSelfContainedUriHook(node, data)` | `uponSanitizeAttribute` hook, added and removed around each sanitize call. Drops `href` / `xlink:href` / `src` unless the value is a `#fragment` or a `data:image/…` URI, so an embedded raster survives but an external reference cannot become a tracking pixel / IP leak in any consumer that renders the file outside secure static mode. |
+| `isSvgUpload(file)` | `file.type` starts with `image/svg`, or the name ends `.svg`. |
+| `sanitizeSvgFile(file, displayName)` | `Promise<File\|null>` for the File/Blob path. |
+| `sanitizeSvgDataUrl(dataUrl)` | Synchronous counterpart for the import paths, which carry a data URL. Non-SVG data URLs pass through **byte-identical**; SVG is decoded (base64 or percent-encoded), sanitized, and re-emitted as base64. |
+
+Three ingest points, all covered:
+
+| Path | Where | Behaviour |
+|---|---|---|
+| Upload / drag-drop / paste / IDB replay | Guard at the top of `processBackgroundImageFile()` | Re-enters itself with the cleaned `File` under `options.svgSanitized`, so the IDB blob, the `roomObj` data URL, and every downstream export are all clean. A rejected SVG surfaces an `alertDialog` suggesting PNG/JPEG. |
+| `.vrc.json` import | `importJson()`, immediately before the `backgroundImageFile` branch | Sanitizes `roomObj.backgroundImageFile` in place. An empty result falls through to the pre-existing invalid-image branch (strip + IDB rehydration fallback). |
+| Workspace Designer import | `data.vrc.backgroundImageFile` block in `importWorkspaceDesignerFile()` | Same, and deletes the key outright when the SVG sanitizes to nothing. |
+
+**Why `use` is re-allowed:** DOMPurify's default SVG profile strips
+`<use>`, but CAD-exported floor plans rely on it for symbol reuse, so
+a strict sanitize would visibly break legitimate files. External
+`use` references are already inert under secure static mode.
+
+**Footgun — `ALLOWED_URI_REGEXP` is not a URI-attribute filter.**
+Restricting external references by tightening that option looks
+right and is badly wrong: DOMPurify tests it against **every**
+attribute value, not just URI-bearing ones. The permissive default
+(`…|[^a-z]|[a-z+\.\-]+…`) is what lets ordinary geometry values pass,
+so narrowing it to something like `/^#/` silently deletes `viewBox`,
+`width`, `height`, and `r`, leaving a valid-but-blank SVG (confirmed
+live). Filter URIs with an `uponSanitizeAttribute` hook keyed on the
+specific attribute names instead — which is what
+`svgSelfContainedUriHook` does.
+
 ---
 
 ## CAD DXF Export
@@ -4041,10 +4123,11 @@ Konva methods used in VRC, and the VRC-specific Konva patterns.
 
 ## External Dependencies & Common Issues
 
-The only CDN dependency is **DOMPurify** (HTML sanitization). Every
-other JS file lives in `js/`. There is no build step. See
-`notes/DEPENDENCIES_AND_ISSUES.md` for the script-load order and a
-short troubleshooting cheat sheet.
+There are **no CDN dependencies** — every third-party library is
+vendored into `js/` and served same-origin (**DOMPurify** at
+`js/purify.min.js`, **Konva** at `js/konva.min.js`). There is no build
+step. See `notes/DEPENDENCIES_AND_ISSUES.md` for the script-load order
+and a short troubleshooting cheat sheet.
 
 ---
 

@@ -367,14 +367,14 @@ workspaceKey.ceilingFan = {
             "data_slant": 0
         },
         {
-            "data_deviceid": "cylinder",
+            /* cylinderPole hangs from the room's actual ceiling down to this z (see CLAUDE.md "Ceiling Pole") — no data_vHeight here, its length is always derived, never stored. */
+            "data_deviceid": "cylinderPole",
             "x": 0.5018,
             "y": 0.4572,
             "width": 0.030479999024640034,
             "height": 0.030479999024640034,
             "rotation": 0,
             "data_zPosition": 0,
-            "data_vHeight": 0.4571999853696005,
             "data_tilt": 0,
             "data_slant": 0
         }

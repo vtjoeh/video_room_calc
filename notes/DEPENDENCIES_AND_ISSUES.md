@@ -4,18 +4,29 @@ A short reference for runtime third-party dependencies and a quick
 troubleshooting cheat sheet.
 
 This file is a **lazy-loaded reference** — it is intentionally NOT in
-the always-applied workspace rules. Open it on demand when wiring up
-a new CDN dependency or diagnosing a reported runtime issue.
+the always-applied workspace rules. Open it on demand when adding a
+new dependency or diagnosing a reported runtime issue.
 
 ---
 
-## External Dependencies (CDN)
+## Third-party Dependencies
 
-```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-```
+**There are no CDN dependencies.** Every third-party library is
+vendored into `js/` and served from the same origin:
 
-All other dependencies are local in the `js/` folder. There is **no**
+| File | Library | Loaded |
+|------|---------|--------|
+| `js/konva.min.js` | Konva.js | eager, `<script>` in `RoomCalculator.html` |
+| `js/purify.min.js` | DOMPurify 3.0.6 | eager, `<script>` in `RoomCalculator.html` (first script in `<head>`) |
+
+DOMPurify was previously pulled from
+`cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js`. It is
+now local, so it works offline, is covered by the service worker
+precache (`js/purify.min.js` is in `PRECACHE_ASSETS`), and cannot be
+affected by a third-party CDN outage or compromise. Upgrading it means
+replacing the file, not editing a URL.
+
+There is **no**
 build step — every JS file under `js/` is loaded directly from disk.
 The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
 `constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →

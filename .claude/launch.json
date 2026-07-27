@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vrc-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-c", "import functools; from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler; h = functools.partial(SimpleHTTPRequestHandler, directory='/Users/joehughes/Documents/VideoRoomCalc/static'); ThreadingHTTPServer(('127.0.0.1', 8777), h).serve_forever()"],
+      "port": 8777
+    },
+    {
+      "name": "collabapp",
+      "runtimeExecutable": "/Users/joehughes/Documents/VideoRoomCalc/venv/bin/python",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-joehughes-Documents-VideoRoomCalc-static/ffa2ca30-29e3-4038-b09b-09b1b96e7e7a/scratchpad/devserver.py"],
+      "port": 5011
+    }
+  ]
+}

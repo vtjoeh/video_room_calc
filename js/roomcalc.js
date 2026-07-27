@@ -7654,7 +7654,7 @@ let tables = [{
     family: 'resizeItem',
     stroke: 'black',
     strokeWidth: 1,
-    resizeable: ['width', 'depth', 'vheight'],
+    resizeable: ['width', 'depth'],
     defaultVert: 2500,
 },
 {
@@ -19794,6 +19794,13 @@ function updateItem() {
             /* Ceiling-hung height is always DERIVED (ceiling height - z); the disabled Height input just displays it. */
             delete item.data_vHeight;
         }
+        else if (data_deviceid === 'ceilingGrid') {
+            /* Z alone is the plane height. Legacy items that stored a vHeight get it folded into z so the WD-export plane (z + vHeight) stays put. */
+            if ('data_vHeight' in item) {
+                item.data_zPosition = round((Number(item.data_zPosition) || 0) + (Number(item.data_vHeight) || 0));
+                delete item.data_vHeight;
+            }
+        }
         else if (data_vHeight) {
             item.data_vHeight = data_vHeight;
         }
@@ -24778,7 +24785,8 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
         document.getElementById('itemWidthLengthDiv').style.display = 'none';
     }
 
-    if (shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') {
+    /* ceilingGrid excluded: Z alone is the grid plane height (a stored data_vHeight would silently raise the plane by z + vHeight on WD export). */
+    if ((shape.data_deviceid.startsWith('wall') || shape.data_deviceid.startsWith('column') || parentGroup === 'tables' || parentGroup === 'stageFloors' || parentGroup === 'boxes' || parentGroup === 'rooms') && shape.data_deviceid !== 'ceilingGrid') {
         document.getElementById('itemVheightDiv').style.display = '';
     } else {
         document.getElementById('itemVheightDiv').style.display = 'none';
@@ -28638,10 +28646,99 @@ function turnOffBackgroundImageButtons() {
 
 }
 
+/* SVG ingest hardening. Every VRC render path puts SVG through an <img> or a CSS background, i.e. the browser's secure static mode, so scripts cannot execute here today. The bytes are still persisted verbatim into .vrc.json, the IDB floor-plan library, and the WD export, which would make VRC a carrier for whatever opens those next, so active content is stripped at ingest. `use` is re-allowed on top of DOMPurify's SVG profile because CAD floor-plan exports rely on it for symbol reuse. Returns '' when the input is unusable, which every caller treats as "reject the image". */
+function sanitizeSvgMarkup(svgText) {
+    if (typeof svgText !== 'string' || !svgText) return '';
+    if (typeof DOMPurify === 'undefined') {
+        console.warn('[VRC] DOMPurify unavailable; rejecting SVG rather than trusting it.');
+        return '';
+    }
+    /* Hook rather than ALLOWED_URI_REGEXP: that option is tested against EVERY attribute value, not just URI ones, so tightening it silently eats viewBox / width / r. */
+    DOMPurify.addHook('uponSanitizeAttribute', svgSelfContainedUriHook);
+    let clean;
+    try {
+        clean = DOMPurify.sanitize(svgText, {
+            USE_PROFILES: { svg: true, svgFilters: true },
+            ADD_TAGS: ['use'],
+        });
+    } finally {
+        DOMPurify.removeHook('uponSanitizeAttribute');
+    }
+    if (DOMPurify.removed && DOMPurify.removed.length) {
+        console.info('[VRC] Stripped', DOMPurify.removed.length, 'active SVG node(s)/attribute(s) from the uploaded floor plan.');
+    }
+    return /<svg[\s>]/i.test(clean) ? clean : '';
+}
+
+/* A floor plan must be self-contained: only same-document fragment refs and embedded data: images survive. Strips tracking-pixel / IP-leak references that would fire if the SVG were ever rendered outside secure static mode. */
+function svgSelfContainedUriHook(node, data) {
+    if (data.attrName !== 'href' && data.attrName !== 'xlink:href' && data.attrName !== 'src') return;
+    const val = String(data.attrValue || '');
+    if (val.startsWith('#') || /^data:image\//i.test(val)) return;
+    data.keepAttr = false;
+}
+
+function isSvgUpload(file) {
+    if (!file) return false;
+    if (String(file.type || '').toLowerCase().indexOf('image/svg') === 0) return true;
+    return /\.svg$/i.test(String(file.name || ''));
+}
+
+/* Promise<File|null>; null when unreadable or the SVG sanitizes to nothing. */
+function sanitizeSvgFile(file, displayName) {
+    return new Promise(function (resolve) {
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+            const clean = sanitizeSvgMarkup(String(ev.target.result || ''));
+            if (!clean) { resolve(null); return; }
+            resolve(new File([clean], file.name || displayName || 'floor-plan.svg', { type: 'image/svg+xml' }));
+        };
+        reader.onerror = function () { resolve(null); };
+        reader.readAsText(file);
+    });
+}
+
+/* Synchronous counterpart for the import paths, which carry the image as a data URL rather than a File. Non-SVG data URLs pass through untouched. */
+function sanitizeSvgDataUrl(dataUrl) {
+    if (typeof dataUrl !== 'string' || !/^data:image\/svg\+xml[;,]/i.test(dataUrl)) return dataUrl;
+    try {
+        const commaIdx = dataUrl.indexOf(',');
+        if (commaIdx < 0) return '';
+        const meta = dataUrl.substring(5, commaIdx);
+        const payload = dataUrl.substring(commaIdx + 1);
+        const raw = /;base64$/i.test(meta)
+            ? new TextDecoder().decode(Uint8Array.from(atob(payload), (c) => c.charCodeAt(0)))
+            : decodeURIComponent(payload);
+        const clean = sanitizeSvgMarkup(raw);
+        if (!clean) return '';
+        const bytes = new TextEncoder().encode(clean);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+            bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        }
+        return 'data:image/svg+xml;base64,' + btoa(bin);
+    } catch (e) {
+        console.warn('[VRC] SVG data URL sanitize failed; dropping image:', e && e.message);
+        return '';
+    }
+}
+
 /* Shared loader for the Room Floor Plan background image (File/Blob + optional displayName); used by the file picker and clipboard paste. options: skipBgImagesAdd, existingBgImageId, scaledWidthMeters, scaledHeightMeters. */
 function processBackgroundImageFile(file, displayName, options) {
     if (!file) return;
     options = options || {};
+
+    /* Re-enter with sanitized bytes so the IDB blob, roomObj data URL, and every export downstream are all clean. */
+    if (!options.svgSanitized && isSvgUpload(file)) {
+        sanitizeSvgFile(file, displayName).then(function (cleanFile) {
+            if (!cleanFile) {
+                alertDialog('Floor Plan Image', 'This SVG could not be read as a safe image and was not loaded. Try exporting it as a PNG or JPEG instead.');
+                return;
+            }
+            processBackgroundImageFile(cleanFile, displayName, Object.assign({}, options, { svgSanitized: true }));
+        });
+        return;
+    }
 
     const reader = new FileReader();
 
@@ -29200,8 +29297,13 @@ function importJson(jsonFile) {
 
             roomObj.multiRoomFloorPlanMode = !!roomObj.multiRoomFloorPlanMode;
 
-            if ('backgroundImageFile' in jsonFile && isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
-                backgroundImageFloor.src = jsonFile.backgroundImageFile;
+            /* An imported room can carry a hostile SVG data URL; strip it before it reaches roomObj / IDB / re-export. '' falls through to the invalid-image branch below. */
+            if ('backgroundImageFile' in jsonFile) {
+                roomObj.backgroundImageFile = sanitizeSvgDataUrl(roomObj.backgroundImageFile);
+            }
+
+            if ('backgroundImageFile' in jsonFile && isValidBackgroundImageDataUrl(roomObj.backgroundImageFile)) {
+                backgroundImageFloor.src = roomObj.backgroundImageFile;
                 insertKonvaBackgroundImageFloor();
                 turnOnBackgroundImageButtons();
                 /* Persist to the IDB "Recent Floor Plans" library so reloads / "Reload last design" can rehydrate without the data URL riding in undo snapshots (no-op if already present). */
@@ -29212,8 +29314,8 @@ function importJson(jsonFile) {
                     isBackgroundImageFloorFileLoad = false;
 
                 }, 1000);
-            } else if ('backgroundImageFile' in jsonFile && !isValidBackgroundImageDataUrl(jsonFile.backgroundImageFile)) {
-                /* Invalid image value (e.g. blob: URL from an old buggy export). Strip it, then try IDB rehydration as a fallback. */
+            } else if ('backgroundImageFile' in jsonFile && !isValidBackgroundImageDataUrl(roomObj.backgroundImageFile)) {
+                /* Invalid image value (e.g. blob: URL from an old buggy export, or an SVG that sanitized to nothing). Strip it, then try IDB rehydration as a fallback. */
                 console.warn('[VRC] Imported file has invalid backgroundImageFile — stripping:', String(jsonFile.backgroundImageFile).slice(0, 80));
                 delete roomObj.backgroundImageFile;
                 if (roomObj.backgroundImage && roomObj.backgroundImage.bgImageId
@@ -31404,7 +31506,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
     if ('data' in workspaceObj && 'vrc' in workspaceObj.data && 'backgroundImageFile' in workspaceObj.data.vrc) {
         if (isValidBackgroundImageDataUrl(workspaceObj.data.vrc.backgroundImageFile)) {
-            roomObj2.backgroundImageFile = workspaceObj.data.vrc.backgroundImageFile;
+            /* Same SVG strip as the .vrc.json path; an SVG that sanitizes to nothing is dropped entirely. */
+            roomObj2.backgroundImageFile = sanitizeSvgDataUrl(workspaceObj.data.vrc.backgroundImageFile);
+            if (!roomObj2.backgroundImageFile) delete roomObj2.backgroundImageFile;
             roomObj2.backgroundImage = workspaceObj.data.vrc.backgroundImage;
         } else {
             console.warn('[VRC] WD import has invalid backgroundImageFile — skipping:', String(workspaceObj.data.vrc.backgroundImageFile).slice(0, 80));
@@ -34475,7 +34579,7 @@ function exportRoomObjToWorkspace() {
             const lenBefore = workspaceObj.customObjects.length;
             const childDev = (typeof allDeviceTypes !== 'undefined'
                 ? allDeviceTypes[synth.data_deviceid] : null) || {};
-            const supported = ['sphere', 'cylinder', 'cone', 'box', 'wallStd', 'wallGlass',
+            const supported = ['sphere', 'cylinder', 'cylinderPole', 'cone', 'box', 'wallStd', 'wallGlass',
                 'wallWindow', 'columnRect', 'floor', 'carpet', 'stageFloor'];
             if (childDev.parentGroup === 'displays') {
                 /* Display-class children (screen/projector) size themselves
@@ -34523,11 +34627,7 @@ function exportRoomObjToWorkspace() {
         const lineZThickness = 0.05;  /* WD Y height (vertical thickness) of each grid-line box (m) */
         if (W <= 0 || H <= 0) return;
 
-        /* The parent's data_vHeight is the RESTING HEIGHT of the grid
-         * plane (2.5 m default — see CLAUDE.md "Ceiling Grid item"), not a
-         * per-box thickness. Each grid-line box therefore sits at
-         * data_zPosition = parent.data_zPosition + parent.data_vHeight and
-         * carries its own thin 0.05 m vertical extent. */
+        /* Plane height = data_zPosition (defaultVert 2.5 m). data_vHeight is legacy only (older items stored the plane height there; the sum keeps them correct — updateItem folds it into z on edit). */
         const restingZ = (Number(parent.data_zPosition) || 0) + (Number(parent.data_vHeight) || 0);
 
         const pivotX = Number(parent.x) || 0;
