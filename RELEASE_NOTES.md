@@ -2,6 +2,13 @@
 **Video Room Calculator for Cisco video devices by Joe Hughes** (beta)
 https://collabexperience.com
 
+
+**0.1.670** 
+- Ceiling Grid is automatically added to the Ceiling Grid layer. If it does not exist, it is created. 
+- Ceiiing Grid has an optional first grid width and length value. 
+- Refracatoring of code 
+
+
 **0.1.665**
 - Added Custom Window Wall with Window Editor. Draw windows, open window space or open doorway space onto a wall. 
 

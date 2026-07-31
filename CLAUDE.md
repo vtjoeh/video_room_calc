@@ -1526,9 +1526,32 @@ never rotate independently of the wall.
 with `wallGlass` / `wallWindow` / `wallStd` in `updateDevicesDropDown()`
 — switching a plain wall to Custom Window Wall (or back) via the
 Details panel's Item-Type dropdown just swaps `data_deviceid` in
-place, same as any other group swap; `data_customWindows` rides along
-harmlessly on the other three (unread, ignored) if the user switches
-away and back.
+place, same as any other group swap.
+
+**Converting AWAY from `wallCustomWindow` discards
+`data_customWindows`, and converting back gives an empty wall.** Only
+the `wallCustomWindow` branch of `insertTable()` puts
+`data_customWindows` on the Konva node, so a rebuilt `wallStd` node
+carries none, and `updateRoomObjFromTrNode()`'s delete-on-absent
+map-hit branch then drops it from the item. Undo recovers it. (An
+earlier version of this doc claimed the array "rides along harmlessly
+... if the user switches away and back" — it does not. That impression
+came from the `#customWindowsData` bug below, which happened to hand
+the same list back in that one sequence.)
+
+**Footgun — the hidden `#customWindowsData` mirror must be synced for
+EVERY selected item, not just custom window walls.** `updateItem()`
+reads that field whenever the Item-Type dropdown currently reads
+`wallCustomWindow`, so any list left sitting in it gets adopted.
+`updateFormatDetails()` originally wrote the mirror only inside its
+`isCustomWindowWall` branch, which meant selecting a plain wall left
+the *previous* custom window wall's JSON in the field — and converting
+that plain wall via the Item-Type dropdown silently gave it a copy of
+the other wall's windows and doorways (confirmed live, then fixed).
+The sync now runs unconditionally from `shape.data_customWindows || []`,
+so a fresh wall reads `[]`. Any future control that mirrors per-item
+state into a shared hidden field needs the same treatment: **clear it
+on every selection change, not only when the field is relevant.**
 
 **Solid wall segments are DERIVED, never stored.** `computeCustomWindowSegments(runUnit,
 windows)` (near `ceilingPoleDerivedHeight`, top of `js/roomcalc.js`) sorts

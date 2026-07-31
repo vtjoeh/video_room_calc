@@ -24712,16 +24712,16 @@ function updateFormatDetails(eventOrShapeId, updateAutoZvalue = false) {
     }
 
     /* wallCustomWindow: surface the Edit Windows button; keep the hidden JSON mirror in sync
-     * so an Update-Item click without opening the editor doesn't wipe the array. */
+     * so an Update-Item click without opening the editor doesn't wipe the array. The mirror
+     * tracks EVERY selected item, not just custom window walls: syncing it only for
+     * wallCustomWindow left the previous wall's list sitting in the field, and converting a
+     * plain wall via the Item-Type dropdown then adopted those windows. */
     const editWindowsDiv = document.getElementById('editWindowsDiv');
     if (editWindowsDiv) {
-        const isCustomWindowWall = (shape.data_deviceid === 'wallCustomWindow');
-        editWindowsDiv.style.display = isCustomWindowWall ? '' : 'none';
-        if (isCustomWindowWall) {
-            const cwIn = document.getElementById('customWindowsData');
-            if (cwIn) cwIn.value = JSON.stringify(shape.data_customWindows || []);
-        }
+        editWindowsDiv.style.display = (shape.data_deviceid === 'wallCustomWindow') ? '' : 'none';
     }
+    const cwIn = document.getElementById('customWindowsData');
+    if (cwIn) cwIn.value = JSON.stringify(shape.data_customWindows || []);
 
     /* displayCustom: Image Aspect Ratio dropdown, mirrors discasAspectSelect in the DISCAS dialog. */
     const itemDiscasAspectDiv = document.getElementById('itemDiscasAspectDiv');
