@@ -2486,6 +2486,19 @@ empty at the floor view, which is why adding it to `allNodeShapeGroups`
 and `selectAllNodes()` changes nothing there. Off via the `wallsOnTop`
 toggle.
 
+**Footgun: a node's parent group is no longer its device class.** Four
+selection paths decided resizability by comparing `getParent()` against
+`groupTables` / `groupStageFloors` / `groupBoxes` / `groupRooms`, so
+every wall and column silently lost its resize handles the moment a
+Room Part was entered. `isResizableParentGroup(node)` is now the one
+test all four use and it includes `groupRoomModeWalls`. Two other
+places asked the same question about anchoring rather than resizing
+(the upper-left vs centre branch in `copyToCanvasClipBoard()`, and the
+table height default in the overlap check); both read
+`allDeviceTypes[id].parentGroup` instead, which is what the node's
+parent was standing in for all along. **Anything else keyed on a
+node's parent group needs the same treatment.**
+
 ### The tolerance panel (Room → Settings)
 
 Every number above was a hardcoded constant; **Room Part wall

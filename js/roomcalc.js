@@ -15157,7 +15157,11 @@ function copyToCanvasClipBoard(nodes) {
         let rotation = attrs.rotation;
         let center = {};
 
-        if (node.getParent().name() === 'tables' || node.getParent().name() === 'stageFloors' || node.getParent().name() === 'boxes' || node.getParent().name() === 'rooms') {
+        /* Read the class off the device definition, not the node's current parent: a zoomed-in Room Part
+         * re-parents walls and doors into groupRoomModeWalls, which a parent name test never matches. */
+        const anchorGroup = allDeviceTypes[node.data_deviceid]?.parentGroup;
+
+        if (anchorGroup === 'tables' || anchorGroup === 'stageFloors' || anchorGroup === 'boxes' || anchorGroup === 'rooms') {
             center.x = node.x();
             center.y = node.y();
         } else {
@@ -18332,7 +18336,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             } else {
                 tr.nodes([e.target]);
                 /* tables and other objects maybe resizable. */
-                if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
+                if (isResizableParentGroup(e.target)) {
                     resizeTableOrWall();
                 } else {
                     tr.resizeEnabled(false);
@@ -20674,7 +20678,7 @@ function changeZheightOfItem(dragItem, dragNode) {
 
 
 
-                        if (node.getParent().name() === 'tables' && !node.data_vHeight) {
+                        if (allDeviceTypes[node.data_deviceid]?.parentGroup === 'tables' && !node.data_vHeight) {
                             height = height + 0.71 * ((roomObj.unit === 'feet') ? 3.8084 : 1);
 
                         }
@@ -22355,7 +22359,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
                 } else {
                     tr.nodes([e.target]);
                     /* tables and other objects maybe resizable. */
-                    if (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms) {
+                    if (isResizableParentGroup(e.target)) {
                         resizeTableOrWall();
                     } else {
                         tr.resizeEnabled(false);
@@ -25877,7 +25881,7 @@ function addListeners(stage) {
         tr.nodes(selected);
         expandSelectionForGroups();
 
-        if (selected.length === 1 && (selected[0].getParent().name() === 'tables' || selected[0].getParent().name() === 'stageFloors' || selected[0].getParent().name() === 'boxes' || selected[0].getParent().name() === 'rooms')) {
+        if (selected.length === 1 && isResizableParentGroup(selected[0])) {
             /* if there is a single table, make it resizable */
             resizeTableOrWall();
         }
@@ -25937,7 +25941,7 @@ function addListeners(stage) {
 
             /* tables and other objects maybe resizable (only when no group rect in selection). */
             if (!tr.nodes().some(n => n.data_deviceid === 'group') &&
-                (e.target.getParent() === groupTables || e.target.getParent() === groupStageFloors || e.target.getParent() === groupBoxes || e.target.getParent() === groupRooms)) {
+                (isResizableParentGroup(e.target))) {
                 resizeTableOrWall();
             } else if (!tr.nodes().some(n => n.data_deviceid === 'group')) {
                 tr.resizeEnabled(false);
@@ -27633,6 +27637,16 @@ function loadTemplate(x) {
 
 
 const fileInputImage = document.getElementById('fileInputImage');
+
+/* Which parent groups hold items the Transformer offers resize anchors for. groupRoomModeWalls has to
+ * be one of them: zoomed into a Room Part every wall, column and door is re-parented into it, and a
+ * parent test that does not know about it silently takes the resize handles off all of them. */
+function isResizableParentGroup(node) {
+    if (!node || typeof node.getParent !== 'function') return false;
+    const parent = node.getParent();
+    return parent === groupTables || parent === groupStageFloors || parent === groupBoxes
+        || parent === groupRooms || parent === groupRoomModeWalls;
+}
 
 /* change the anchors / handles depending on the selected node. Tables are resizable. Walls are resizable in 2 directions */
 function resizeTableOrWall() {
@@ -35996,7 +36010,7 @@ function createRightClickMenu(usePreviousPosition = false) {
         tr.nodes([overNode]);
         expandSelectionForGroups();
         if (!tr.nodes().some(n => n.data_deviceid === 'group') &&
-            (overNode.getParent() === groupTables || overNode.getParent() === groupStageFloors || overNode.getParent() === groupBoxes || overNode.getParent() === groupRooms)) {
+            (isResizableParentGroup(overNode))) {
             resizeTableOrWall();
         } else if (!tr.nodes().some(n => n.data_deviceid === 'group')) {
             tr.resizeEnabled(false);
