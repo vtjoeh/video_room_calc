@@ -2446,7 +2446,7 @@ screen, but that structure must not be exported twice.
 | Array | Means | Read by |
 |-------|-------|---------|
 | `itemsOffStageId` | not this room's item | the shareable link, the WD export (`convertToMeters` drops them), the Inventory CSV, the coverage menus |
-| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, dimmed | `applyRoomPartOutsideItemVisibility()` only |
+| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, dimmed and fully editable | `applyRoomPartOutsideItemVisibility()` and `refreshRoomPartGhostState()` only |
 
 Three margins, each offsetting the part outline:
 
@@ -2464,8 +2464,11 @@ themselves, none of which may reach outward on the EXPORT rule.
 
 | Concern | Where |
 |---------|-------|
-| A canvas-only item is never interactive | `node.listening(false)` in the visibility pass. It belongs to the room next door, and a drag or a Delete here would silently edit a room the user is not in |
-| A canvas-only item is dimmed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35), so the canvas/export disagreement is visible rather than silent. Off via the `dimCanvasOnly` toggle |
+| A canvas-only item IS interactive | It can be selected, moved, resized and deleted from inside the room, the same as anything the room owns. A wall on a shared boundary is one object serving two rooms, and the room the user is standing in is the only place they can see what a nudge to it does. The alternative was leaving the room, hunting for that wall on the whole floor plan, and adjusting it blind. Only a locked VRC layer takes that away (`node.listening(!isItemInLockedLayer(node))`) |
+| Which items get that treatment | `isRoomPartStructureDevice()`: walls, columns, doors, wall Navigators, boxes, ceiling drop boxes, stage floors and carpets. **Anything carrying camera, mic, speaker or display coverage is deliberately NOT in it** and is still hidden outright when it belongs to another room, so a neighbour's wedges cannot bleed into this room's canvas or its coverage menus |
+| A canvas-only item is dimmed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35). Now that these items are editable the dim is what says "the neighbour owns this and exports it", not "you may not touch this". Off via the `dimCanvasOnly` toggle |
+| The dim follows the item across the boundary | `refreshRoomPartGhostState()` runs from the debounced tail of `canvasToJson()`, so dragging a shared wall into the room brings it back to full opacity and dragging it out dims it. It touches ONLY the dim: hiding an ordinary item the moment it left the room would read as a delete, so that still waits for the next redraw |
+| Why the ghost list is kept | `roomPartGhostedIds` is what the last pass actually dimmed. `clearStaleRoomPartGhosts()` un-dims anything that has stopped being canvas-only, including an item on its way to being hidden. Without it the dim is one-way: an item would come back at 0.28 the next time it was shown |
 | Two dimming reasons compose | `applyNodeDimming(node, flag, on)` recomputes opacity as a product of ONE captured `data_baseOpacity`. Letting the locked-layer dim and the ghost dim each capture their own "original" made whichever ran second bake the first one's dimmed value in, and the node never came back to full |
 | A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false |
 | Wall truncation is a different number | `roomPartBoundsMarginUnits()` / `roomPartBoundsMarginM()` — how much wall is KEPT and trimmed to on export, not who owns it. It is what makes the outward reach safe: a captured neighbour wall is cut back to this room's own extent before it reaches the WD JSON. An irregular part uses its own value on BOTH cuts (the bbox pre-cut and the polyline cut), via `roomPartWallCaptureKey()`, so one setting decides what an irregular room keeps |

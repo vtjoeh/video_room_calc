@@ -3109,6 +3109,12 @@ function isItemInHiddenLayer(itemOrNode) {
     return !!(layer && layer.visible === false);
 }
 
+function isItemInLockedLayer(itemOrNode) {
+    if (!itemOrNode) return false;
+    const layer = getLayerById(itemOrNode.data_layerId || '0');
+    return !!(layer && layer.locked);
+}
+
 /* Drop hidden-layer items from a WD export clone (mutates roomObj2). */
 function removeHiddenLayerItemsForExport(roomObj2) {
     if (!roomObj2 || !Array.isArray(roomObj2.items) || !roomObj.layers) return;
@@ -4589,6 +4595,10 @@ let itemsOffStageId; /* represents the ID of devices that are not on the stage a
 /* Subset of itemsOffStageId that a zoomed Room Part still DRAWS (dimmed): neighbouring walls, doors,
  * boxes and floor coverings within the canvasStructure tolerance. Canvas only, never exported. */
 let roomPartCanvasOnlyIds = [];
+
+/* What the last pass actually dimmed, so an item that stops being canvas-only can be brought back to
+ * full opacity. Without it the dim would be one-way and would stop meaning "the neighbour's". */
+let roomPartGhostedIds = [];
 
 let maxUndoArrayLength = 100; /* Undo amount in active memory.  Local storage will be less. */
 
@@ -16353,6 +16363,7 @@ function canvasToJson() {
         undoArrayTimer = setTimeout(function timerSaveToUndoArrayCreateShareableLink() {
             saveToUndoArray();
             createShareableLink();
+            refreshRoomPartGhostState();
 
             document.title = roomObj.name ? `VRC: ${roomObj.name}` : 'Video Room Calculator by Joe Hughes';
 
@@ -20939,7 +20950,7 @@ const ROOM_PART_TOLERANCE_FIELDS = [
     {
         key: 'canvasStructure',
         label: 'VRC Room Canvas Wall &amp; Door tolerance',
-        help: 'How far outside the room the Room Canvas still draws a neighbouring wall, door, column, box or stage floor. Those items are dimmed, cannot be clicked, and never reach the Workspace Designer. Raise it to see more of the surrounding structure while you work.',
+        help: 'How far outside the room the Room Canvas still draws a neighbouring wall, door, column, box or stage floor. Those items can be selected and moved from in here, since a shared wall belongs to both rooms, but they are dimmed and are exported from the room that owns them rather than from this one. Raise it to reach more of the surrounding structure while you work.',
     },
     {
         key: 'wdEdgeCapture',
@@ -20962,7 +20973,7 @@ const ROOM_PART_TOLERANCE_TOGGLES = [
     {
         key: 'dimCanvasOnly',
         label: 'Dim canvas-only items',
-        help: 'Show the neighbouring structure at reduced opacity, so it is obvious at a glance which items are context and which ones will actually be exported.',
+        help: 'Show the neighbouring structure at reduced opacity, so it is obvious at a glance which items this room exports and which ones it only borrows. The dim updates as you move something across the boundary.',
     },
 ];
 
@@ -21387,16 +21398,21 @@ function applyRoomPartOutsideItemVisibility() {
     const canvasOnly = new Set(roomPartCanvasOnlyIds);
     const ghost = roomPartTolerance.dimCanvasOnly !== false;
 
+    clearStaleRoomPartGhosts(canvasOnly, ghost);
+
     itemsOffStageId.forEach(id => {
         const node = stage.findOne('#' + id);
 
-        /* Canvas-only structure stays on screen but is never interactive: it belongs to the room next
-         * door, and a drag or a Delete here would silently edit a room the user is not in. */
+        /* Canvas-only structure stays on screen AND stays editable. A wall, column, door or box on a
+         * shared boundary is ONE object serving two rooms, and the room the user is standing in is
+         * where they can see what a nudge to it does. The dim says it is the neighbour's and will not
+         * be exported from here, not that it may not be touched. A locked layer still wins. */
         if (node && canvasOnly.has(id)) {
             if (!isItemInHiddenLayer(node)) {
                 node.show();
-                node.listening(false);
+                node.listening(!isItemInLockedLayer(node));
                 applyRoomGhostOpacity(node, ghost);
+                if (ghost) roomPartGhostedIds.push(id);
                 return;
             }
         }
@@ -21409,6 +21425,39 @@ function applyRoomPartOutsideItemVisibility() {
     });
 
     applyRoomModeWallStacking();
+}
+
+/* Un-dim anything the previous pass ghosted that the next one will not, and start the list again.
+ * Both passes below share it, so a node can never be left carrying a dim nothing accounts for. */
+function clearStaleRoomPartGhosts(canvasOnly, ghost) {
+    roomPartGhostedIds.forEach(id => {
+        if (ghost && canvasOnly.has(id)) return;
+        const node = stage.findOne('#' + id);
+        if (node) applyRoomGhostOpacity(node, false);
+    });
+    roomPartGhostedIds = [];
+}
+
+/* Live ownership feedback while shared structure is being moved: a wall dragged into the room comes
+ * back to full opacity, one dragged out of it dims, and the tolerance panel's numbers become something
+ * the user can watch rather than guess at. Only the dim is touched, deliberately: hiding an ordinary
+ * item the moment it leaves the room would read as a delete, so that still waits for the next redraw. */
+function refreshRoomPartGhostState() {
+    if (!isActiveRoomPart) return;
+    listItemsOffStage();
+
+    const canvasOnly = new Set(roomPartCanvasOnlyIds);
+    const ghost = roomPartTolerance.dimCanvasOnly !== false;
+
+    clearStaleRoomPartGhosts(canvasOnly, ghost);
+    if (!ghost) return;
+
+    roomPartCanvasOnlyIds.forEach(id => {
+        const node = stage.findOne('#' + id);
+        if (!node || isItemInHiddenLayer(node)) return;
+        applyRoomGhostOpacity(node, true);
+        roomPartGhostedIds.push(id);
+    });
 }
 
 /* Zoomed into a Room Part, move every wall, column and door into groupRoomModeWalls so the structure
