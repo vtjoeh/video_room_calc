@@ -2433,6 +2433,82 @@ editing is naturally impossible there.
 
 ---
 
+## Which items a Room Part captures
+
+Entering a Room Part hides everything the part does not own.
+**What the canvas DRAWS and what the WD export SENDS are two separate
+questions**, and the canvas is deliberately the more generous of the
+two: a room reads as enclosed when the neighbouring structure is on
+screen, but that structure must not be exported twice.
+
+`listItemsOffStage()` answers both in one pass and fills two arrays:
+
+| Array | Means | Read by |
+|-------|-------|---------|
+| `itemsOffStageId` | not this room's item | the shareable link, the WD export (`convertToMeters` drops them), the Inventory CSV, the coverage menus |
+| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, dimmed | `applyRoomPartOutsideItemVisibility()` only |
+
+Three margins, each offsetting the part outline:
+
+| Class | Tolerance | Default | Why |
+|-------|-----------|---------|-----|
+| Ordinary items (chairs, tables, video devices, …) | `wdItemCapture` | **-0.03 m**, INSIDE | Walls are 0.10 thick, so this sits just past the inner face and an item pushed against the shared wall from the NEXT room stays out |
+| Edge devices (`isRoomPartEdgeDevice`) | `wdEdgeCapture` | **+0.13 m**, OUTSIDE | The full wall thickness plus that same 0.03, so a wall drawn flush against the outer face still counts as this room's wall |
+| Structure devices (`isRoomPartStructureDevice`), canvas only | `canvasStructure` | **+0.30 m**, OUTSIDE | Edge devices plus `box` / `boxdrop` / `stageFloor` / `carpet` — the things built against a shared wall that a room needs to SEE without owning |
+
+`isRoomPartEdgeDevice(deviceId)` is `ROOM_PART_EDGE_DEVICES` (every
+wall variant, `columnRect`, `navigatorWall`) plus any id starting
+`door`. It is deliberately not `family === 'wallBox'`, which also
+holds `box`, `boxdrop`, `carpet`, `stageFloor` and the room parts
+themselves, none of which may reach outward on the EXPORT rule.
+
+| Concern | Where |
+|---------|-------|
+| A canvas-only item is never interactive | `node.listening(false)` in the visibility pass. It belongs to the room next door, and a drag or a Delete here would silently edit a room the user is not in |
+| A canvas-only item is dimmed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35), so the canvas/export disagreement is visible rather than silent. Off via the `dimCanvasOnly` toggle |
+| Two dimming reasons compose | `applyNodeDimming(node, flag, on)` recomputes opacity as a product of ONE captured `data_baseOpacity`. Letting the locked-layer dim and the ghost dim each capture their own "original" made whichever ran second bake the first one's dimmed value in, and the node never came back to full |
+| A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false |
+| Wall truncation is a different number | `roomPartBoundsMarginUnits()` / `roomPartBoundsMarginM()` — how much wall is KEPT and trimmed to on export, not who owns it. It is what makes the outward reach safe: a captured neighbour wall is cut back to this room's own extent before it reaches the WD JSON. An irregular part uses its own value on BOTH cuts (the bbox pre-cut and the polyline cut), via `roomPartWallCaptureKey()`, so one setting decides what an irregular room keeps |
+
+### Walls and doors draw above room contents
+
+Zoomed into a Room Part, `applyRoomModeWallStacking()` re-parents every
+wall, column and door into `groupRoomModeWalls`, a Konva group added
+last in `layerTransform`, so structure draws over the room's contents
+instead of under whatever sits against it. Re-parenting rather than
+re-ordering because **Konva z-order is per parent**: walls live in
+`groupTables`, three groups below the devices, so raising one inside
+its own group could never clear `groupChairs` and everything above it.
+
+Leaving a Room Part triggers a full redraw, which re-inserts every node
+into its real `parentGroup`, so there is nothing to undo. The group is
+empty at the floor view, which is why adding it to `allNodeShapeGroups`
+and `selectAllNodes()` changes nothing there. Off via the `wallsOnTop`
+toggle.
+
+### The tolerance panel (Room → Settings)
+
+Every number above was a hardcoded constant; **Room Part wall
+tolerance** opens a `.menuReach` popover (same floating-div and
+`dragElement()` handle as `deviceMenu-hasCamera`) that edits them live.
+
+| Concern | Where |
+|---------|-------|
+| Stored in meters, shown in the room's unit | `ROOM_PART_TOLERANCE_DEFAULTS` is meters, `roomPartToleranceUnits()` converts on read, the boxes are 3 decimals. A feet/meters switch therefore never changes what a saved value MEANS; `updateFeetMetersToggleBtn()` calls `refreshRoomPartToleranceMenu()` so an open popover restates itself |
+| Persistence | `localStorage.roomPartTolerance`, one JSON blob. Never in the room file, the shareable link or the WD export, so a tolerance is this browser's testing state and cannot travel to someone else's room |
+| Commit | `commitRoomPartToleranceMenu()` reads EVERY box back, so a blur, the Update button and an outside-click dismissal are one code path. An unreadable or out-of-range value (`ROOM_PART_TOLERANCE_LIMIT`, 50 m) keeps its stored value and is rewritten on screen |
+| Redraw | `applyRoomPartToleranceChange()` re-runs `listItemsOffStage()` then `drawRoom(true, true, true, true)` with `dontSaveUndo` set: a tolerance changes what is drawn and exported, never the room, so it must not spend an undo step |
+| It is draggable, like the coverage menus | The id `<menuId>-dragger` is on the whole HEAD, so the title and the space around it drag as well as the gripper icon; the `✕` stops propagation on mousedown so pressing it cannot drag. Its shadow is the CSS default here rather than something drag paints on, so the panel reads as moveable before it is moved |
+| Placed by measurement, not by anchor | The button sits at the bottom of a scrolling Settings tab, so anchoring under it put most of the panel below the fold. `positionRoomPartToleranceMenu()` measures after append, flips above the button when it will not fit below, then clamps to the viewport either way |
+| An outside click does NOT close it | Tuning a tolerance means clicking into a Room Part on the canvas and watching what changes, so the panel has to survive that click. Close, the `✕` and the Settings button are the three ways out, and all of them commit first. A value typed and then abandoned still lands, because the input's own blur commits |
+| Per-setting help | `roomPartToleranceHelpIcon()` builds the `i` and its bubble. `tooltip2Hover()` binds the sidebar's tooltips ONCE at load and cannot see a panel built later, so each icon gets its own pointerenter/pointerleave pair with the same 1 second delay; hiding rides the shared `closeTooltipTitleText2()`, which queries every `.tooltiptext` on the page |
+
+Full table, rationale and the bug this fixed:
+[notes/MULTI_ROOM_FLOOR_PLAN.md](notes/MULTI_ROOM_FLOOR_PLAN.md) →
+"Which items a Room Part captures".
+
+---
+
 ## SVG Path Editor (`js/pathEditor/`)
 
 User-facing name is **"Path Editor"** (the underlying format is still

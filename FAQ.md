@@ -57,6 +57,15 @@ The configuration and data are client-side only. The Video Room Calculator does 
 ### I see a discrepancy between the Video Room Calculator and the Workspace Designer; what should I do?
 The Workspace Designer is the official tool from Cisco and should take precedence over the Video Room Calculator. If you notice any differences, please inform me. The Video Room Calculator only provides a top-down flat view, whereas the Workspace Designer allows for a 3D side view. For instance, the Video Room Calculator uses 11.5 feet as the reach of the Cisco Ceiling Microphone Pro. The Workspace Designer uses a slightly larger value, but it also allows the height to be seen from the side in 3D. The Video Room Calculator offers a lot of flexibility, but it also means that you can create designs that may not work for the devices or require extensive integration.
 
+### I see phantom or duplicate walls in my Workspace Designer export; how do I fix it?
+Phantom walls are usually stale state rather than a problem with the design itself. Work through these in order:
+
+1. **Clear storage and local data.** Go to **Room** --> **Settings** --> **Storage and Local Data** and clear it. This drops the undo/redo history and the saved preferences that can hold an older version of the room. Save your design to a file first, since clearing also removes anything you have not saved.
+2. **Restart the browser.** A full quit and reopen, not just a new tab. This clears the in-memory state and forces the app and its service worker to reload from scratch.
+3. Reopen your saved design and export again.
+
+If the walls are still there, check whether the extra walls belong to a neighbouring **Room Part**. A wall drawn on a shared boundary can legitimately belong to both rooms, and how far outside a room a wall still counts is adjustable under **Room** --> **Settings** --> **Room Part wall tolerance**. Please send me the design file if none of the above helps.
+
 ### How do I use a custom Path Shape object to make a table or curved wall?
 From the Workspace Designer page:
 >"It is possible to create custom shapes by defining a shape and then controlling the thickness of it, similar to how you would form a flat gingerbread cake and then grow it in the oven. This can be useful to create custom table shapes or other objects that are not represented by the standard objects... To use custom shapes, you need a basic understanding of SVG path shapes. This is a 2-dimensional shape format that supports lines, curves, circles and ellipsis."

@@ -2612,6 +2612,160 @@ hr.rightClickHorizontalLine {
   margin-right: 8px;
 }
 
+.menuTolerance {
+  width: 400px;
+  max-width: 94vw;
+  padding: 6px 12px 12px;
+  /* Matches what dragElement() paints on drag, so this panel reads as moveable before it is moved. */
+  box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.8);
+}
+
+/* The whole head is the drag handle, so it wears the cursor rather than the gripper icon alone. */
+.menuToleranceHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 5px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+  cursor: all-scroll;
+}
+
+.menuToleranceTitle {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.menuToleranceGrip {
+  flex: 0 0 auto;
+}
+
+.menuToleranceClose {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: #444;
+  cursor: pointer; /* overrides the head's drag cursor: this one is a button, not a grip */
+}
+
+.menuToleranceClose:hover {
+  color: #000;
+}
+
+/* The 'i' beside a setting. The bubble is wider than the shared 200px so a full explanation fits, and
+   it is nudged left of centre so a row near the panel edge does not push it off the window. */
+.menuToleranceHelp {
+  margin-left: 5px;
+  color: #0352a6;
+  cursor: help;
+}
+
+.menuToleranceHelp .icon {
+  font-size: 12px;
+  vertical-align: baseline;
+}
+
+.menuToleranceTip {
+  width: 250px;
+  left: 0;
+  margin-left: -190px;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: normal;
+  z-index: 1001;
+}
+
+.menuToleranceTip::after {
+  left: auto;
+  right: 52px;
+}
+
+.menuToleranceNotice {
+  background-color: #fff4d6;
+  border: 1px solid #e0c169;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.menuToleranceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.menuToleranceRow label {
+  flex: 1 1 auto;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: default;
+}
+
+.menuToleranceInputWrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menuToleranceInput {
+  width: 68px;
+  padding: 3px 5px;
+  font-size: 12px;
+  text-align: right;
+  border: 1px solid #999;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #000;
+}
+
+.menuToleranceUnit {
+  font-size: 11px;
+  color: #555;
+  width: 16px;
+}
+
+.menuToleranceCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.menuToleranceCheckRow input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.menuToleranceButtons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.menuToleranceButtons .button {
+  flex: 1 1 0;
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+/* Close dismisses rather than acting on a value, so it sits apart from Update and Reset. */
+.menuToleranceCloseBtn {
+  margin-left: 14px;
+}
+
 .menuReachClearButton {
   padding: 8px 12px;
   cursor: pointer;

@@ -556,7 +556,6 @@
 
               <select id="drpWdSite" class="drpDown" onchange="wdSiteChange()" data-drpDownName="Workspace Designer Site:">
                 <option value="default">designer.webex.com (default)</option>
-                <option value="beta">designer.cisco.com (beta)</option>
                 <option value="custom">Custom</option>
               </select>
             </div>
@@ -593,7 +592,22 @@
               </label>
               <button type="button" class="button dropDownBtnWhite" id="btnOpenStorageDialog"
                 onclick="openStorageDialog()">
-                Storage and Local Data&hellip;
+                Storage and Local Data
+              </button>
+            </div>
+
+            <div class="inputField" id="roomPartToleranceDiv">
+              <label class="tooltip">Room Part wall tolerance:
+                <i class="icon icon-info-circle-bold"></i>
+                <span class="tooltiptext">
+                  Testing controls for how far outside a Room Part outline a wall, door or box still
+                  counts as belonging to that room. Separate values for what the Room Canvas draws and
+                  what reaches the Workspace Designer export. Saved in this browser.
+                </span>
+              </label>
+              <button type="button" class="button dropDownBtnWhite" id="btnRoomPartTolerance"
+                onclick="toggleRoomPartToleranceMenu(event)">
+                Room Part wall tolerance
               </button>
             </div>
           </div>
@@ -2558,16 +2572,6 @@
             </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
                 src="assets/images/pop-out-bold.svg" width="14px"> Webex
               Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
-
-          <hr>
-          <b>Test settings:</b><br><br>
-
-          Beta test settings has been moved to:
-          <a href="#"  onclick="closeAllDialogModals();document.getElementById('defaultOpenTab').click(); document.getElementById('detailsSettings').click(); ">
-            Room → Settings → Workspace Designer Site.
-
-          </a>
-
 
           <hr>
 

@@ -56,7 +56,6 @@ let canvasNodesMap = new Map();  /* keep track of all Nodes with a corresponding
 let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
-const betaWorkspaceTab = "https://designer.cisco.com/#/room/custom"; /* Cisco's beta Workspace Designer site, surfaced as the "designer.cisco.com (beta)" choice in the Workspace Designer Site dropdown */
 let newWorkspaceTab = defaultWorkspaceTab;
 let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
@@ -3156,24 +3155,33 @@ function applyLayerStateToNode(node, layerId) {
 }
 
 /* Dim locked-layer nodes to 0.7× original opacity (idempotent via data_lockOpacityApplied). */
-function applyLayerLockOpacity(node, locked) {
+const LAYER_LOCK_OPACITY = 0.7;
+const ROOM_PART_GHOST_OPACITY = 0.35;
+
+/* A node can be dimmed for more than one reason at once (locked layer, canvas-only structure in a zoomed
+ * Room Part), so each reason is a flag and the opacity is recomputed as a product of ONE captured base.
+ * Letting each reason capture and restore its own "original" made whichever ran second bake the first
+ * one's dimmed value in as the original, and the node never came back to full. */
+function applyNodeDimming(node, flag, on) {
     if (!node || typeof node.opacity !== 'function') return;
-    if (locked) {
-        if (node.data_lockOpacityApplied !== true) {
-            node.data_originalOpacity = node.opacity();
-            node.opacity(node.data_originalOpacity * 0.7);
-            node.data_lockOpacityApplied = true;
-        }
-    } else {
-        if (node.data_lockOpacityApplied === true) {
-            const original = (typeof node.data_originalOpacity === 'number')
-                ? node.data_originalOpacity
-                : 1;
-            node.opacity(original);
-            node.data_lockOpacityApplied = false;
-            delete node.data_originalOpacity;
-        }
-    }
+    if (!!node[flag] === !!on) return;
+    if (typeof node.data_baseOpacity !== 'number') node.data_baseOpacity = node.opacity();
+    node[flag] = !!on;
+
+    let value = node.data_baseOpacity;
+    if (node.data_lockOpacityApplied) value *= LAYER_LOCK_OPACITY;
+    if (node.data_roomGhostApplied) value *= ROOM_PART_GHOST_OPACITY;
+    node.opacity(value);
+
+    if (!node.data_lockOpacityApplied && !node.data_roomGhostApplied) delete node.data_baseOpacity;
+}
+
+function applyLayerLockOpacity(node, locked) {
+    applyNodeDimming(node, 'data_lockOpacityApplied', locked);
+}
+
+function applyRoomGhostOpacity(node, ghost) {
+    applyNodeDimming(node, 'data_roomGhostApplied', ghost);
 }
 
 /* Coverage/label visibility = layer visible AND per-item hidden flags. */
@@ -4578,6 +4586,10 @@ let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `
 
 let itemsOffStageId; /* represents the ID of devices that are not on the stage and not visible to the user. They will not show up in the URL and will be hidden:true in the Workspace Designer.  They are kept during a session in case a room is being resized */
 
+/* Subset of itemsOffStageId that a zoomed Room Part still DRAWS (dimmed): neighbouring walls, doors,
+ * boxes and floor coverings within the canvasStructure tolerance. Canvas only, never exported. */
+let roomPartCanvasOnlyIds = [];
+
 let maxUndoArrayLength = 100; /* Undo amount in active memory.  Local storage will be less. */
 
 let undoArrayTimer; /* timer pepare for saving to the undoArray so that undoArray entries are limited */
@@ -4797,9 +4809,17 @@ let groupRoomPartWallsPreview = new Konva.Group({
     listening: false,
 })
 
+/* Zoomed into a Room Part, walls and doors are re-parented here so structure draws above the room's
+ * contents. Empty at the floor view, which is why adding it to the lists below changes nothing there.
+ * Konva z-order is per parent, so raising a wall inside groupTables could never clear groupChairs and
+ * the higher device groups; a group of its own added last is the only way over all of them. */
+let groupRoomModeWalls = new Konva.Group({
+    name: 'roomModeWalls',
+})
+
 let windowPatternImage = null; /* cached wallWindowBackground image for window-wall preview fill */
 
-let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices];
+let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices, groupRoomModeWalls];
 
 /* Group rects live in their own Konva group, rendered behind all items */
 let groupGroupRects = new Konva.Group({
@@ -8953,6 +8973,8 @@ function toggleFeetMeters() {
 }
 
 function updateFeetMetersToggleBtn() {
+    refreshRoomPartToleranceMenu(); /* tolerances are stored in meters; an open popover has to restate them in the new unit */
+
     let unitPartsFeet = document.querySelectorAll('.btnPartFoot');
     let unitPartsMeters = document.querySelectorAll('.btnPartMeters');
 
@@ -9273,8 +9295,6 @@ function getQueryString() {
             const mode = detectWdSiteMode(base);
             if (mode === 'default') {
                 applyWdSiteSelection('default');
-            } else if (mode === 'beta') {
-                applyWdSiteSelection('beta');
             } else {
                 applyWdSiteSelection('custom', base);
             }
@@ -9284,9 +9304,7 @@ function getQueryString() {
     } else {
         const stored = localStorage.getItem('wd');
         const mode = detectWdSiteMode(stored);
-        if (mode === 'beta') {
-            applyWdSiteSelection('beta');
-        } else if (mode === 'custom') {
+        if (mode === 'custom') {
             const display = String(stored).replace(/\/?#\/room\/custom$/, '');
             applyWdSiteSelection('custom', display);
         } else {
@@ -15648,6 +15666,8 @@ function stageAddLayers() {
 
     layerTransform.add(groupRoomPartWallsPreview);
 
+    layerTransform.add(groupRoomModeWalls);
+
     layerTransform.add(overlayLabels);
 
     stage.add(layerTransform);
@@ -16782,10 +16802,11 @@ function ensureRoomCustomPath(url) {
     return trimmed + '/#/room/custom';
 }
 
+/* designer.cisco.com was the retired "(beta)" choice; a stored one falls back to the default site rather than resolving to a dropdown option that no longer exists. */
 function detectWdSiteMode(url) {
     if (!url) return 'default';
     if (/^https?:\/\/designer\.webex\.com\b/i.test(url)) return 'default';
-    if (/^https?:\/\/designer\.cisco\.com\b/i.test(url)) return 'beta';
+    if (/^https?:\/\/designer\.cisco\.com\b/i.test(url)) return 'default';
     return 'custom';
 }
 
@@ -16794,14 +16815,7 @@ function applyWdSiteSelection(mode, customUrl) {
     const customDiv = document.getElementById('wdSiteCustomDiv');
     const customInput = document.getElementById('wdSiteCustom');
 
-    if (mode === 'beta') {
-        workspaceDesignerTestUrl = betaWorkspaceTab;
-        setItemForLocalStorage('wd', workspaceDesignerTestUrl);
-        testiFrame = true;
-        if (drp) drp.value = 'beta';
-        if (customDiv) customDiv.style.display = 'none';
-        /* Keep customInput/wdCustom for instant flip back to Custom. */
-    } else if (mode === 'custom') {
+    if (mode === 'custom') {
         const urlIn = (customUrl == null ? '' : String(customUrl)).trim();
         const finalUrl = urlIn ? ensureRoomCustomPath(urlIn) : '';
         if (finalUrl) {
@@ -20844,18 +20858,419 @@ function doPolygonsIntersect(a, b) {
     return true;
 }
 
-/* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
-/* Wall-truncation margin: walls within 0.10 m outside a Room Part outline are still cut against it (unit-adjusted). */
-function roomPartBoundsMarginUnits() {
-    return 0.10 * (roomObj.unit === 'feet' ? 3.28084 : 1);
+/* Room Part tolerances, all held in METERS so a feet/meters switch never changes what a saved value means.
+ * Every one of these was a hardcoded constant; the Settings panel's "Room Part wall tolerance" popover
+ * edits them live for testing. See CLAUDE.md "Which items a Room Part captures". */
+const ROOM_PART_TOLERANCE_KEY = 'roomPartTolerance';
+
+const ROOM_PART_TOLERANCE_DEFAULTS = Object.freeze({
+    wdWallCapture: 0.10,
+    wdPolyWallCapture: 0.10,
+    canvasStructure: 0.30,
+    wdEdgeCapture: 0.13,
+    wdItemCapture: -0.03,
+    wallsOnTop: true,
+    dimCanvasOnly: true,
+});
+
+const ROOM_PART_TOLERANCE_LIMIT = 50; /* meters, so a stray keystroke cannot swallow the whole floor plan */
+
+let roomPartTolerance = Object.assign({}, ROOM_PART_TOLERANCE_DEFAULTS);
+
+function loadRoomPartTolerance() {
+    roomPartTolerance = Object.assign({}, ROOM_PART_TOLERANCE_DEFAULTS);
+    let stored;
+    try {
+        stored = JSON.parse(localStorage.getItem(ROOM_PART_TOLERANCE_KEY) || 'null');
+    } catch (e) {
+        stored = null;
+    }
+    if (!stored || typeof stored !== 'object') return;
+    Object.keys(ROOM_PART_TOLERANCE_DEFAULTS).forEach(key => {
+        const fallback = ROOM_PART_TOLERANCE_DEFAULTS[key];
+        if (typeof fallback === 'boolean') {
+            if (typeof stored[key] === 'boolean') roomPartTolerance[key] = stored[key];
+            return;
+        }
+        const n = Number(stored[key]);
+        if (Number.isFinite(n) && Math.abs(n) <= ROOM_PART_TOLERANCE_LIMIT) roomPartTolerance[key] = n;
+    });
 }
 
-/* Item-membership margin: an item belongs to a Room Part only if it reaches past the inner wall face + 0.07 m
- * (walls are 0.10 thick, so 0.03 INSIDE the outline) — keeps neighbor-room items that touch the shared wall out.
- * Wall Navigators mount in the hallway outside the room, so they get 0.13 OUTSIDE the outline instead. */
+function saveRoomPartTolerance() {
+    setItemForLocalStorage(ROOM_PART_TOLERANCE_KEY, JSON.stringify(roomPartTolerance));
+}
+
+function resetRoomPartTolerance() {
+    roomPartTolerance = Object.assign({}, ROOM_PART_TOLERANCE_DEFAULTS);
+    try {
+        localStorage.removeItem(ROOM_PART_TOLERANCE_KEY);
+    } catch (e) { /* private mode */ }
+}
+
+function roomPartToleranceM(key) {
+    const n = Number(roomPartTolerance[key]);
+    return Number.isFinite(n) ? n : ROOM_PART_TOLERANCE_DEFAULTS[key];
+}
+
+function roomPartToleranceUnits(key) {
+    return roomPartToleranceM(key) * (roomObj.unit === 'feet' ? 3.28084 : 1);
+}
+
+loadRoomPartTolerance();
+
+const ROOM_PART_TOLERANCE_MENU_ID = 'deviceMenu-roomPartTolerance';
+
+const ROOM_PART_TOLERANCE_FIELDS = [
+    {
+        key: 'wdWallCapture',
+        label: 'WD export Room Part wall capture',
+        help: 'How far outside a rectangular Room Part a wall is kept and trimmed to when the room is sent to the Workspace Designer. A wall running past the room is cut back to the room plus this much. At 0 a wall whose centre line sits outside the room is left at full length instead of being cut.',
+    },
+    {
+        key: 'wdPolyWallCapture',
+        label: 'WD Irregular Room Part wall capture',
+        help: 'The same measurement for an irregular Room Part. An irregular room uses this value for both cuts, the bounding box and the outline itself, so this one number decides everything it keeps.',
+    },
+    {
+        key: 'canvasStructure',
+        label: 'VRC Room Canvas Wall &amp; Door tolerance',
+        help: 'How far outside the room the Room Canvas still draws a neighbouring wall, door, column, box or stage floor. Those items are dimmed, cannot be clicked, and never reach the Workspace Designer. Raise it to see more of the surrounding structure while you work.',
+    },
+    {
+        key: 'wdEdgeCapture',
+        label: 'WD export wall &amp; door capture',
+        help: 'How far outside the outline a wall, column or door still counts as this room’s own, for the shareable link and the Workspace Designer export. Walls are 0.10 m thick, so the default lets a wall drawn flush against the outer face still belong to the room.',
+    },
+    {
+        key: 'wdItemCapture',
+        label: 'WD export item capture',
+        help: 'The same test for ordinary items such as chairs, tables and video devices. A negative value measures inside the outline, which is what keeps the next room’s furniture pushed up against a shared wall out of this one.',
+    },
+];
+
+const ROOM_PART_TOLERANCE_TOGGLES = [
+    {
+        key: 'wallsOnTop',
+        label: 'Draw walls and doors above room contents',
+        help: 'While zoomed into a Room Part, draw every wall, column and door over the tables, chairs and devices rather than under whatever happens to sit against them.',
+    },
+    {
+        key: 'dimCanvasOnly',
+        label: 'Dim canvas-only items',
+        help: 'Show the neighbouring structure at reduced opacity, so it is obvious at a glance which items are context and which ones will actually be exported.',
+    },
+];
+
+/* The sidebar's tooltips are bound once at load by tooltip2Hover(), which cannot see a panel built
+ * later, so each icon here gets the same pair of listeners and the same 1 second delay. Hiding rides
+ * the shared closeTooltipTitleText2(), which queries every .tooltiptext on the page. */
+function roomPartToleranceHelpIcon(help) {
+    const host = document.createElement('span');
+    host.className = 'tooltip menuToleranceHelp';
+
+    const icon = document.createElement('i');
+    icon.className = 'icon icon-info-circle-bold';
+    host.appendChild(icon);
+
+    const tip = document.createElement('span');
+    tip.className = 'tooltiptext menuToleranceTip';
+    tip.textContent = help;
+    host.appendChild(tip);
+
+    host.addEventListener('pointerenter', () => {
+        toolTipTextTimeout2 = setTimeout(() => {
+            tip.style.visibility = 'visible';
+            tip.style.opacity = 1;
+        }, 1000);
+    });
+    host.addEventListener('pointerleave', closeTooltipTitleText2);
+
+    return host;
+}
+
+function toggleRoomPartToleranceMenu(event) {
+    if (event) event.stopPropagation();
+    if (document.getElementById(ROOM_PART_TOLERANCE_MENU_ID)) {
+        closeRoomPartToleranceMenu();
+        return;
+    }
+    createRoomPartToleranceMenu();
+}
+
+/* Deliberately NOT closed by an outside click: tuning a tolerance means clicking into a Room Part on
+ * the canvas and watching what changes, and a panel that vanished on the first of those clicks would
+ * have to be reopened for every comparison. Close, ✕ and the Settings button are the ways out. */
+function closeRoomPartToleranceMenu() {
+    const menu = document.getElementById(ROOM_PART_TOLERANCE_MENU_ID);
+    if (menu) menu.remove();
+}
+
+function createRoomPartToleranceMenu() {
+    const button = document.getElementById('btnRoomPartTolerance');
+    if (!button) return;
+
+    const abbr = roomObj.unit === 'feet' ? 'ft' : 'm';
+
+    const menu = document.createElement('div');
+    menu.id = ROOM_PART_TOLERANCE_MENU_ID;
+    menu.classList.add('menuReach', 'menuTolerance');
+
+    /* The WHOLE head is the drag handle (dragElement binds to <menuId>-dragger), so the title and the
+     * empty space either side of it drag too. The gripper icon stays purely as the visual cue. */
+    const head = document.createElement('div');
+    head.className = 'menuToleranceHead';
+    head.id = menu.id + '-dragger';
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'menuToleranceClose';
+    close.setAttribute('aria-label', 'Close');
+    close.title = 'Close';
+    close.textContent = '✕';
+    close.addEventListener('click', () => {
+        commitRoomPartToleranceMenu(false);
+        closeRoomPartToleranceMenu();
+    });
+    /* Keep the press off the head, or pressing Close and moving would drag the panel instead. */
+    close.addEventListener('mousedown', e => e.stopPropagation());
+    close.addEventListener('touchstart', e => e.stopPropagation());
+    head.appendChild(close);
+
+    const title = document.createElement('div');
+    title.className = 'menuToleranceTitle';
+    title.textContent = 'Room Part wall tolerance';
+    head.appendChild(title);
+
+    const dragger = document.createElement('i');
+    dragger.classList.add('icon', 'icon-dragger-vertical-bold', 'menuToleranceGrip');
+    head.appendChild(dragger);
+
+    menu.appendChild(head);
+
+    const notice = document.createElement('div');
+    notice.className = 'menuToleranceNotice';
+    const noticeLead = document.createElement('b');
+    noticeLead.textContent = 'These values are for testing.';
+    notice.appendChild(noticeLead);
+    notice.appendChild(document.createTextNode(' They change how far outside a Room Part an object still belongs to it. Saved in this browser only, never in the room file or a shared link.'));
+    menu.appendChild(notice);
+
+    ROOM_PART_TOLERANCE_FIELDS.forEach(field => {
+        const row = document.createElement('div');
+        row.className = 'menuToleranceRow';
+
+        const label = document.createElement('label');
+        label.innerHTML = field.label;
+        label.setAttribute('for', 'tol-' + field.key);
+        label.appendChild(roomPartToleranceHelpIcon(field.help));
+        row.appendChild(label);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'menuToleranceInputWrap';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'decimal';
+        input.id = 'tol-' + field.key;
+        input.className = 'menuToleranceInput';
+        input.dataset.tolKey = field.key;
+        input.value = roomPartToleranceDisplay(field.key);
+        input.addEventListener('blur', () => commitRoomPartToleranceMenu(true));
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        });
+        wrap.appendChild(input);
+
+        const unit = document.createElement('span');
+        unit.className = 'menuToleranceUnit';
+        unit.textContent = abbr;
+        wrap.appendChild(unit);
+
+        row.appendChild(wrap);
+        menu.appendChild(row);
+    });
+
+    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
+        const row = document.createElement('label');
+        row.className = 'menuToleranceCheckRow';
+
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = 'tol-' + toggle.key;
+        box.dataset.tolKey = toggle.key;
+        box.checked = roomPartTolerance[toggle.key] !== false;
+        box.addEventListener('change', () => commitRoomPartToleranceMenu(true));
+        row.appendChild(box);
+
+        const text = document.createElement('span');
+        text.textContent = toggle.label;
+        row.appendChild(text);
+        row.appendChild(roomPartToleranceHelpIcon(toggle.help));
+
+        menu.appendChild(row);
+    });
+
+    const buttons = document.createElement('div');
+    buttons.className = 'menuToleranceButtons';
+
+    const update = document.createElement('button');
+    update.type = 'button';
+    update.className = 'button dropDownBtnWhite';
+    update.textContent = 'Update';
+    update.addEventListener('click', () => commitRoomPartToleranceMenu(true));
+    buttons.appendChild(update);
+
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'button dropDownBtnWhite';
+    reset.textContent = 'Reset';
+    reset.addEventListener('click', () => {
+        resetRoomPartTolerance();
+        refreshRoomPartToleranceMenu();
+        applyRoomPartToleranceChange();
+    });
+    buttons.appendChild(reset);
+
+    /* Grouped apart from Update / Reset by a margin, since it dismisses rather than acting on a value. */
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'button dropDownBtnWhite menuToleranceCloseBtn';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', () => {
+        commitRoomPartToleranceMenu(false);
+        closeRoomPartToleranceMenu();
+    });
+    buttons.appendChild(closeBtn);
+
+    menu.appendChild(buttons);
+    document.body.appendChild(menu);
+    positionRoomPartToleranceMenu(menu, button);
+    dragElement(menu);
+}
+
+/* The button sits at the bottom of a scrolling Settings tab, so anchoring the panel under it put most
+ * of it below the fold with no way to reach the fields. Measure once it is in the DOM, flip above the
+ * button when it will not fit below, then clamp to the viewport either way. */
+function positionRoomPartToleranceMenu(menu, button) {
+    const gap = 8;
+    const rect = button.getBoundingClientRect();
+    const h = menu.offsetHeight;
+    const w = menu.offsetWidth;
+
+    let top = rect.bottom;
+    if (top + h > window.innerHeight - gap) top = rect.top - h;
+    top = Math.max(gap, Math.min(top, Math.max(gap, window.innerHeight - h - gap)));
+
+    const left = Math.max(gap, Math.min(rect.left, window.innerWidth - w - gap));
+
+    menu.style.top = (top + window.scrollY) + 'px';
+    menu.style.left = (left + window.scrollX) + 'px';
+}
+
+/* Stored meters -> the room's current unit, at the 3 decimals the boxes are edited in. */
+function roomPartToleranceDisplay(key) {
+    return roomPartToleranceUnits(key).toFixed(3);
+}
+
+function refreshRoomPartToleranceMenu() {
+    const menu = document.getElementById(ROOM_PART_TOLERANCE_MENU_ID);
+    if (!menu) return;
+
+    const abbr = roomObj.unit === 'feet' ? 'ft' : 'm';
+    menu.querySelectorAll('.menuToleranceUnit').forEach(span => { span.textContent = abbr; });
+
+    ROOM_PART_TOLERANCE_FIELDS.forEach(field => {
+        const input = document.getElementById('tol-' + field.key);
+        if (input) input.value = roomPartToleranceDisplay(field.key);
+    });
+    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
+        const box = document.getElementById('tol-' + toggle.key);
+        if (box) box.checked = roomPartTolerance[toggle.key] !== false;
+    });
+}
+
+/* Reads every box back rather than only the one that changed, so the Update button and a blur are the
+ * same code path. An unreadable or out-of-range box keeps its stored value and is rewritten on screen. */
+function commitRoomPartToleranceMenu(redraw) {
+    if (!document.getElementById(ROOM_PART_TOLERANCE_MENU_ID)) return;
+    const ratio = roomObj.unit === 'feet' ? 3.28084 : 1;
+
+    ROOM_PART_TOLERANCE_FIELDS.forEach(field => {
+        const input = document.getElementById('tol-' + field.key);
+        if (!input) return;
+        const typed = Number(String(input.value).trim());
+        if (Number.isFinite(typed) && Math.abs(typed / ratio) <= ROOM_PART_TOLERANCE_LIMIT) {
+            roomPartTolerance[field.key] = typed / ratio;
+        }
+        input.value = roomPartToleranceDisplay(field.key);
+    });
+
+    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
+        const box = document.getElementById('tol-' + toggle.key);
+        if (box) roomPartTolerance[toggle.key] = !!box.checked;
+    });
+
+    saveRoomPartTolerance();
+    if (redraw) applyRoomPartToleranceChange();
+}
+
+/* A tolerance only changes what is drawn and exported, never the room itself, so this redraws without
+ * writing an undo entry. */
+function applyRoomPartToleranceChange() {
+    listItemsOffStage();
+    drawRoom(true, true, true, true);
+    createShareableLink();
+}
+
+/* populates the arrary itemsOffStageId.  These are devices not on the stage and not passed to the Shareable Link or the Workspace Designer */
+/* Wall-truncation margin: walls this far outside a Room Part outline are still cut against it (unit-adjusted). */
+function roomPartBoundsMarginUnits() {
+    return roomPartToleranceUnits(roomPartWallCaptureKey());
+}
+
+/* Meters twin, for the WD export path, where roomObj2 has already been through convertToMeters(). */
+function roomPartBoundsMarginM() {
+    return roomPartToleranceM(roomPartWallCaptureKey());
+}
+
+/* An irregular part is governed by its own setting on BOTH cuts (the bbox pre-cut and the polyline cut),
+ * so the Irregular value alone decides what an irregular room keeps. */
+function roomPartWallCaptureKey() {
+    return (activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom')
+        ? 'wdPolyWallCapture'
+        : 'wdWallCapture';
+}
+
+/* Devices that are drawn ON the room outline rather than inside it, so membership has to reach outward
+ * instead of inward: walls and columns of every flavour, plus doors, whose swing can put the whole
+ * footprint on the far side of the wall they hang in. Wall Navigators mount in the hallway and share
+ * the same reach. Boxes, carpets and stage floors are deliberately NOT here even though they are the
+ * same wallBox family, since those sit inside a room and must not be pulled in from the neighbour. */
+const ROOM_PART_EDGE_DEVICES = ['wallStd', 'wallGlass', 'wallWindow', 'wallCustomWindow',
+    'wallStdHeader', 'wallGlassHeader', 'columnRect', 'navigatorWall'];
+
+function isRoomPartEdgeDevice(deviceId) {
+    const id = String(deviceId || '');
+    return ROOM_PART_EDGE_DEVICES.includes(id) || id.startsWith('door');
+}
+
+/* Structure a room wants to SEE even when it belongs to the room next door: the edge devices plus the
+ * boxes and floor coverings that get built against a shared wall. Canvas only — the WD export set is
+ * still decided by roomPartItemMarginUnits(). */
+const ROOM_PART_STRUCTURE_EXTRA = ['box', 'boxdrop', 'stageFloor', 'carpet'];
+
+function isRoomPartStructureDevice(deviceId) {
+    return isRoomPartEdgeDevice(deviceId) || ROOM_PART_STRUCTURE_EXTRA.includes(String(deviceId || ''));
+}
+
+/* Item-membership margin: an ordinary item belongs to a Room Part only if it reaches past the inner wall
+ * face + 0.07 m (walls are 0.10 thick, so 0.03 INSIDE the outline) — keeps neighbor-room items that touch
+ * the shared wall out. Edge devices get 0.13 OUTSIDE instead: the full wall thickness plus that same 0.03,
+ * so a wall drawn flush against the outer face of the outline still counts as this room's wall. Over-long
+ * walls are no risk, the WD export truncates them to the room's own extent. */
 function roomPartItemMarginUnits(deviceId) {
-    const m = deviceId === 'navigatorWall' ? 0.13 : -0.03;
-    return m * (roomObj.unit === 'feet' ? 3.28084 : 1);
+    return roomPartToleranceUnits(isRoomPartEdgeDevice(deviceId) ? 'wdEdgeCapture' : 'wdItemCapture');
 }
 
 /* Miter-offset a polygon outward by margin (inward for negative margin); winding detected via the shoelace sign, miter clamped for spike vertices. */
@@ -20891,8 +21306,11 @@ function listItemsOffStage() {
 
     let xBoundMin, xBoundMax, yBoundMin, yBoundMax;
 
+    roomPartCanvasOnlyIds = [];
+
     let border = [];
-    let navBorder;
+    let edgeBorder;
+    let structureBorder;
 
     /* get the bounds in scale (feet/meters) */
 
@@ -20909,7 +21327,8 @@ function listItemsOffStage() {
     } else if (activeRoomPartItem) {
 
         border = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits());
-        navBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits('navigatorWall'));
+        edgeBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits('wallStd'));
+        structureBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartToleranceUnits('canvasStructure'));
 
     } else {
 
@@ -20920,11 +21339,12 @@ function listItemsOffStage() {
             { x: activeRoomX - margin, y: activeRoomY + activeRoomLength + margin },
         ];
         border = rectBorder(roomPartItemMarginUnits());
-        navBorder = rectBorder(roomPartItemMarginUnits('navigatorWall'));
+        edgeBorder = rectBorder(roomPartItemMarginUnits('wallStd'));
+        structureBorder = rectBorder(roomPartToleranceUnits('canvasStructure'));
 
     }
 
-    if (!navBorder) navBorder = border;
+    if (!edgeBorder) edgeBorder = border;
 
     roomObj.items.forEach(rawItem => {
         let item = structuredClone(rawItem);
@@ -20933,9 +21353,16 @@ function listItemsOffStage() {
 
             let fourCorners = findFourCorners(item);
 
-            const b = item.data_deviceid === 'navigatorWall' ? navBorder : border;
+            const b = isRoomPartEdgeDevice(item.data_deviceid) ? edgeBorder : border;
             if (!doPolygonsIntersect2(b, fourCorners)) {
                 itemsOffStageId.push(item.id);
+
+                /* Canvas-only: structure the neighbouring room owns still draws here (dimmed) so the room
+                 * reads as enclosed, while the export set above stays exactly as strict as it was. */
+                if (isActiveRoomPart && structureBorder && isRoomPartStructureDevice(item.data_deviceid)
+                    && doPolygonsIntersect2(structureBorder, fourCorners)) {
+                    roomPartCanvasOnlyIds.push(item.id);
+                }
             }
 
         }
@@ -20952,12 +21379,47 @@ function listItemsOffStage() {
 function applyRoomPartOutsideItemVisibility() {
     if (!isActiveRoomPart) return;
     listItemsOffStage();
+
+    const canvasOnly = new Set(roomPartCanvasOnlyIds);
+    const ghost = roomPartTolerance.dimCanvasOnly !== false;
+
     itemsOffStageId.forEach(id => {
         const node = stage.findOne('#' + id);
+
+        /* Canvas-only structure stays on screen but is never interactive: it belongs to the room next
+         * door, and a drag or a Delete here would silently edit a room the user is not in. */
+        if (node && canvasOnly.has(id)) {
+            if (!isItemInHiddenLayer(node)) {
+                node.show();
+                node.listening(false);
+                applyRoomGhostOpacity(node, ghost);
+                return;
+            }
+        }
+
         if (node) node.hide();
         ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
             const cov = stage.findOne('#' + prefix + id);
             if (cov) cov.hide();
+        });
+    });
+
+    applyRoomModeWallStacking();
+}
+
+/* Zoomed into a Room Part, move every wall, column and door into groupRoomModeWalls so the structure
+ * draws over the room's contents instead of under whatever happens to sit against it — including the
+ * neighbouring walls the canvasStructure tolerance just made visible. Re-parenting rather than
+ * re-ordering because Konva z-order is per parent and walls live in groupTables, three groups below
+ * the devices. Leaving a Room Part triggers a full redraw, which re-inserts every node into its real
+ * parentGroup, so there is nothing to undo. */
+function applyRoomModeWallStacking() {
+    if (!isActiveRoomPart || roomPartTolerance.wallsOnTop === false) return;
+
+    allNodeShapeGroups.forEach(shapeGroup => {
+        if (shapeGroup === groupRoomModeWalls) return;
+        shapeGroup.getChildren().slice().forEach(node => {
+            if (isRoomPartEdgeDevice(node.data_deviceid)) node.moveTo(groupRoomModeWalls);
         });
     });
 }
@@ -28316,6 +28778,9 @@ function selectAllNodes() {
 
     shapes = shapes.concat(groupChairs.getChildren());
 
+    /* Holds this room's walls and doors while zoomed into a Room Part; empty otherwise. */
+    shapes = shapes.concat(groupRoomModeWalls.getChildren());
+
     /* Include Group rects so drag-select can capture them */
     if (groupGroupRects) {
         shapes = shapes.concat(groupGroupRects.getChildren());
@@ -30207,7 +30672,7 @@ function exportXConfigFile() {
 }
 
 
-/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* and codec/switch families) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. Color falls back to the device's default (first colors: entry) when no explicit pick is stored. codec* rows carry a "Requires an external camera" note in the Notes column (per-room rows and the Total section). When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + roomPartItemMarginUnits containment the Room Part off-stage check uses — 0.03 m inside the outline, Wall Navigators 0.13 m outside), with an Unassigned group and a Total section. */
+/* Inventory CSV export: Save dialog → Download File dropdown → "Export Inventory CSV". Two modes chosen in #dialogInventoryCsv: Cisco devices only (videoDevices/microphones minus laptop/keyboard, plus the shareCable* and codec/switch families) or Cisco devices + any item with a non-empty label. wdText/vrcText are never inventoried (annotations, not equipment) even when labeled. Color falls back to the device's default (first colors: entry) when no explicit pick is stored. codec* rows carry a "Requires an external camera" note in the Notes column (per-room rows and the Total section). When Room Parts exist, devices are assigned to the smallest-area part they overlap (same doPolygonsIntersect2 + roomPartItemMarginUnits containment the Room Part off-stage check uses — 0.03 m inside the outline, isRoomPartEdgeDevice devices 0.13 m outside), with an Unassigned group and a Total section. */
 function openInventoryCsvDialog() {
     const dlg = document.getElementById('dialogInventoryCsv');
     if (!dlg) {
@@ -30265,10 +30730,10 @@ function polygonAreaShoelace(points) {
     return Math.abs(area) / 2;
 }
 
-/* Room Part polygons (room units) with the item-membership margins pre-applied (polygon for normal items, navPolygon for Wall Navigators), sorted smallest area first so a device in a nested part lands in the inner room. */
+/* Room Part polygons (room units) with the item-membership margins pre-applied (polygon for normal items, edgePolygon for the outline-hugging devices in isRoomPartEdgeDevice), sorted smallest area first so a device in a nested part lands in the inner room. */
 function getInventoryRoomParts() {
     const margin = roomPartItemMarginUnits();
-    const navMargin = roomPartItemMarginUnits('navigatorWall');
+    const edgeMargin = roomPartItemMarginUnits('wallStd');
     const parts = [];
     let unnamedCount = 0;
 
@@ -30295,7 +30760,7 @@ function getInventoryRoomParts() {
             name: inventoryLabelText(item) || ('Unnamed Rm ' + (++unnamedCount)),
             area: area,
             polygon: expandPolygonByMargin(polygon, margin),
-            navPolygon: expandPolygonByMargin(polygon, navMargin)
+            edgePolygon: expandPolygonByMargin(polygon, edgeMargin)
         });
     });
 
@@ -30334,9 +30799,9 @@ function exportInventoryCsv(includeLabeledItems) {
         if (hasRoomParts) {
             partName = 'Unassigned';
             const corners = findFourCorners(item);
-            const isNavWall = deviceId === 'navigatorWall';
+            const isEdgeDevice = isRoomPartEdgeDevice(deviceId);
             for (const part of roomParts) {
-                if (doPolygonsIntersect2(isNavWall ? part.navPolygon : part.polygon, corners)) {
+                if (doPolygonsIntersect2(isEdgeDevice ? part.edgePolygon : part.polygon, corners)) {
                     partName = part.name;
                     break;
                 }
@@ -32830,7 +33295,7 @@ function truncateWallItemsToPolygon(items, polygonPoints, margin) {
 }
 
 function truncateWallsToActiveRoomRect(roomObj2) {
-    truncateWallItemsToRect(roomObj2.items, roomObj2.room.roomWidth, roomObj2.room.roomLength, 0.10);
+    truncateWallItemsToRect(roomObj2.items, roomObj2.room.roomWidth, roomObj2.room.roomLength, roomPartBoundsMarginM());
 }
 
 
@@ -32919,7 +33384,7 @@ function exportRoomObjToWorkspace() {
                 x: p.x * rpRatio - (roomObj2.activeRoomX + frameShiftX),
                 y: p.y * rpRatio - (roomObj2.activeRoomY + frameShiftY),
             }));
-            truncateWallItemsToPolygon(roomObj2.items, polyLocal, 0.10);
+            truncateWallItemsToPolygon(roomObj2.items, polyLocal, roomPartBoundsMarginM());
         }
     }
 

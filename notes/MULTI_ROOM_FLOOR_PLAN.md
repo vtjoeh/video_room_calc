@@ -123,7 +123,7 @@ Add helper `isMultiRoomFloorPlanMode()` reading `roomObj.multiRoomFloorPlanMode`
 - **Known limits** — `data.vrc.groups`/`customItems` geometry still exports in floor coordinates (Room-mode WD JSON is a preview/push surface, not a round-trip surface); room height/software remain global (no per-room attrs yet); non-wall items straddling the boundary are not clipped (only walls truncate).
 
 #### Room-mode round 2 (done)
-- **0.10 m drop margin** — `listItemsOffStage()` Room-mode branches expand the intersection bounds by `roomPartBoundsMarginUnits()` (0.10 m, unit-adjusted) on every side, matching the wall-truncation margin. The rect branch inflates min/max; the polygon branch (`activeRoomAbsPoints` — used for BOTH boxRoomPart corners and polyRoom outlines) goes through `expandPolygonByMargin()`, a miter offset with shoelace winding detection and a clamped miter denominator for spike vertices. Items hugging the outside of the part (e.g. its own perimeter walls, centerline ~0.06 m outside) now stay in the export instead of being edge-dropped.
+- **The drop margin** — `listItemsOffStage()` Room-mode branches expand the intersection bounds before testing each item. The rect branch inflates min/max; the polygon branch (`activeRoomAbsPoints` — used for BOTH boxRoomPart corners and polyRoom outlines) goes through `expandPolygonByMargin()`, a miter offset with shoelace winding detection and a clamped miter denominator for spike vertices. It started as one uniform 0.10 m outward margin; it is now the two-way split in `roomPartItemMarginUnits()` described under "Which items a Room Part captures" below. `roomPartBoundsMarginUnits()` (0.10 m) survives as the separate WALL-TRUNCATION margin only.
 - **Wall preview moved OUTSIDE the part** — `drawRoomPartDefaultWallsPreviews()` wall rects now sit outside the boxRoomPart bbox (videowall/backwall at `y = -t` / `y = h`, extended past the corners; left/right at `x = -t` / `x = w`), mirroring `drawOutsideWall()`'s default-wall placement. Doors follow their wall geometry.
 - **Zoomed-out export emits real walls** — nested `pushRoomPartDefaultWalls(part)` in `exportRoomObjToWorkspace()`: when `!isActiveRoomPart`, every `boxRoomPart` in `wdBuckets.rooms` with per-room walls ON emits 4 wall customObjects via `workspaceObjWallPush()`. Types map `regular/glass/window → wallStd/wallGlass/wallWindow`; thickness 0.10 m; geometry matches the canvas preview (outside the part, rotation-composed via `findNewTransformationCoordinate`); `data_vHeight` = room height; acousticTreatment rides the label JSON; the part's `data_layerId` is inherited. Ids use the `secondary-roomPartWall-…` prefix so the WD importer drops them (no round-trip duplication).
 - **Mode-dependent wall representation** — zoomed OUT: room-part walls are real WD wall objects (above). Zoomed IN: the active room's walls export as native WD `roomShape.roomSurfaces` default walls (round 1); per-room walls OFF ⇒ `roomShape` is deleted (floor-only export), so no default walls are sent for wall-less rooms. The Details → Default Walls panel therefore configures per-room walls whose export form depends on the zoom state.
@@ -503,3 +503,95 @@ double-click: A/B in one session showed the scale-only build resolving
 `activeRoomY ≈ -58.8` with the chair off-stage (empty room) and the
 full build resolving `activeRoomY = 70` with the chair on-stage across
 scroll fractions 0 / 0.5 / 1.0.
+
+---
+
+## Which items a Room Part captures (`roomPartItemMarginUnits`)
+
+Entering a Room Part hides everything the part does not own. **What the
+canvas DRAWS and what the WD export SENDS are two separate questions**,
+and the canvas is deliberately the more generous of the two: a room
+reads as enclosed when the neighbouring structure is on screen, but
+that structure must not be exported twice.
+
+`listItemsOffStage()` answers both in one pass — one polygon
+intersection per item (`doPolygonsIntersect2`) against the part outline
+offset by a margin — and fills two arrays:
+
+| Array | Means | Read by |
+|-------|-------|---------|
+| `itemsOffStageId` | not this room's item | the shareable link, the WD export (`convertToMeters` drops them), the Inventory CSV, the coverage menus |
+| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, dimmed and non-interactive | `applyRoomPartOutsideItemVisibility()` only |
+
+| Class | Tolerance | Default | Why |
+|-------|-----------|---------|-----|
+| Ordinary items (chairs, tables, video devices, …) | `wdItemCapture` | **-0.03 m**, i.e. 0.03 INSIDE the outline | Walls are 0.10 thick, so this sits just past the inner wall face. An item in the NEXT room that is pushed up against the shared wall must not be pulled into this one. |
+| Edge devices: every wall (`wallStd`, `wallGlass`, `wallWindow`, `wallCustomWindow`, `wallStdHeader`, `wallGlassHeader`), `columnRect`, any `door*`, and `navigatorWall` | `wdEdgeCapture` | **+0.13 m** OUTSIDE | These are drawn ON the outline rather than inside it. 0.13 is the full wall thickness plus the same 0.03, so a wall drawn flush against the OUTER face of the outline still counts as this room's wall. A door's swing can put its whole footprint on the far side of the wall it hangs in, and a Wall Navigator mounts in the hallway. |
+| Structure devices: the edge devices plus `box`, `boxdrop`, `stageFloor`, `carpet`. **Canvas only** | `canvasStructure` | **+0.30 m** OUTSIDE | The things built against a shared wall that a room needs to SEE without owning. Reaching this far on the export rule would hand the neighbour's boxes to the Workspace Designer twice. |
+
+`isRoomPartEdgeDevice(deviceId)` is the export membership test
+(`ROOM_PART_EDGE_DEVICES` plus a `door` prefix match);
+`isRoomPartStructureDevice(deviceId)` adds `ROOM_PART_STRUCTURE_EXTRA`
+for the canvas one. Neither is `family === 'wallBox'`: that family also
+holds `box`, `boxdrop`, `carpet`, `stageFloor` and the room parts
+themselves, and only the first four of those may reach outward, and
+only on the canvas.
+
+| Concern | Where |
+|---------|-------|
+| Three polygons | `listItemsOffStage()` builds `border` (inner), `edgeBorder` (outer) and `structureBorder` (canvas) once, then picks per item. `getInventoryRoomParts()` mirrors the first two with `polygon` / `edgePolygon`. Wall Navigators used to be the only outer case, so the old names were `navBorder` / `navPolygon`. |
+| A canvas-only item is never interactive | `node.listening(false)`. It belongs to the room next door, and a drag or a Delete here would silently edit a room the user is not in. Clicks pass through to whatever is underneath. |
+| A canvas-only item is dimmed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35), so the canvas/export disagreement is visible rather than silent. |
+| **Two dimming reasons have to compose** | `applyNodeDimming(node, flag, on)` recomputes opacity as a product of ONE captured `data_baseOpacity`. The locked-layer dim and the ghost dim each used to capture and restore their own "original", so whichever ran second baked the first one's dimmed value in as the original and the node never came back to full. Verified: lock 0.7, lock+ghost 0.245, unlock 0.35, unghost exactly 1.0 with the base field deleted. |
+| A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false, or a layer toggle would be overridden by the ghosting. |
+| Why the outward reach is safe for export | A wall long enough to run past the room is cut back by `truncateWallItemsToRect()` / `truncateWallItemsToPolygon()` at `roomPartBoundsMarginUnits()` / `roomPartBoundsMarginM()`, so a captured neighbour wall arrives in the WD JSON trimmed to this room's own extent rather than overshooting it. |
+| An irregular part uses its own capture on BOTH cuts | `roomPartWallCaptureKey()` returns `wdPolyWallCapture` for a `polyRoom`, and the bbox pre-cut reads the same key as the polyline cut, so one setting decides what an irregular room keeps. Otherwise the poly value could never widen past the rect value. |
+| The `0.00` capture reads as "no truncation" | `truncateWallItemsTo*` leaves a wall untouched when its CENTERLINE never falls inside the expanded outline. A wall hugging the outside has its centreline ~0.066 m out, so at 0.00 nothing is cut and the full run is exported. Measured: 0.02 and 0.05 keep 6.72 m, 0.08 trims to 6.66, 0.10 to 6.70, 0.11 to 6.716 — i.e. `room + 2 × margin`, capped at the wall's own length. |
+| Shared walls belong to both rooms | Two adjacent parts both capture the wall between them, which is what each room needs to look right on its own. |
+| The bug this fixed | Walls hand-drawn snug against the OUTSIDE of a part sit 0.007 to 0.017 m clear of the outline, so at -0.03 every one of them failed the test: entering the room showed no walls at all and the WD export carried none. Measured on the reporter's file, all five perimeter walls were dropped; all five are now kept, and the export trims 6.72 m runs to 6.70 m. |
+
+### Walls and doors draw above room contents
+
+Zoomed into a Room Part, `applyRoomModeWallStacking()` re-parents every
+wall, column and door into `groupRoomModeWalls`, a `Konva.Group` added
+last in `layerTransform` (after `groupRoomPartWallsPreview`, before
+`overlayLabels`), so structure draws over the room's contents instead
+of under whatever sits against it — including the neighbouring walls
+the `canvasStructure` tolerance just made visible.
+
+**Re-parenting rather than re-ordering, because Konva z-order is per
+parent.** Walls live in `groupTables` (`parentGroup` of every wall
+variant and `columnRect`) and doors in `groupChairs`, three and two
+groups below the device groups, so `moveToTop()` inside their own group
+could never clear `groupChairs`, `groupBoxes`, `groupDisplays`,
+`groupVideoDevices` and `groupMicrophones`.
+
+| Concern | Where |
+|---------|-------|
+| Nothing to undo | Leaving a Room Part triggers a full redraw, and `insertShapeItem()` places every node by its real `parentGroup`. Confirmed live: after `showEntireFloor()` every wall is back under `tables` and `groupRoomModeWalls` is empty. |
+| It runs from the visibility pass | The tail of `applyRoomPartOutsideItemVisibility()`, which already re-runs from the `drawRoom()` tail and from `applyAllLayerStates()`. Note the drawRoom tail fires after an image-load `setTimeout`, so a test that reads parents synchronously after `zoomRoomPart()` sees the pre-move state. |
+| The two list registrations | `allNodeShapeGroups` (so `getGroupMemberNodes` / `getCustomItemMemberNodes` still find a re-parented wall) and `selectAllNodes()` (so drag-select and Select-layer-items still reach it). The group is empty at the floor view, so both are no-ops there. |
+| Off switch | The `wallsOnTop` toggle; the redraw that follows a tolerance change puts the walls back under `tables`. |
+
+### The tolerance panel (Room → Settings → Room Part wall tolerance)
+
+Every number above was a hardcoded constant. The panel is a
+`.menuReach` popover built by `createRoomPartToleranceMenu()`, using
+the same floating-div placement and outside-click handle as
+`deviceMenu-hasCamera`, with a testing notice at the top, the five
+numeric fields, the two toggles, and Update / Reset.
+
+| Concern | Where |
+|---------|-------|
+| Stored in meters, shown in the room's unit | `ROOM_PART_TOLERANCE_DEFAULTS` is meters; `roomPartToleranceUnits()` converts on read and the boxes are 3 decimals. A feet/meters switch therefore never changes what a saved value MEANS. `updateFeetMetersToggleBtn()` calls `refreshRoomPartToleranceMenu()`, which restates both the numbers and the unit suffixes, so an open popover cannot go stale. |
+| Persistence | `localStorage.roomPartTolerance`, one JSON blob, loaded once at script evaluation. Never in the room file, the shareable link or the WD export, so a tolerance is this browser's testing state and can never travel to someone else's room. |
+| One commit path | `commitRoomPartToleranceMenu()` reads EVERY box back rather than only the one that changed, so a blur, the Update button and an outside-click dismissal are the same code. An unreadable or out-of-range value (`ROOM_PART_TOLERANCE_LIMIT`, 50 m) keeps its stored value and is rewritten on screen rather than refused. |
+| Redraw | `applyRoomPartToleranceChange()` re-runs `listItemsOffStage()`, then `drawRoom(true, true, true, true)` with `dontSaveUndo` set, then `createShareableLink()`. A tolerance changes what is drawn and exported, never the room, so it must not spend an undo step. |
+| **An outside click deliberately does NOT close it** | It did at first, copying `createDeviceMenu()`. That is wrong for this panel: tuning a tolerance means clicking into a Room Part on the canvas and watching what changes, and the very first of those clicks dismissed the panel, so every comparison meant reopening it. There is no document-level listener at all now. Three ways out: the **Close** button, the `✕`, and the Settings button (which toggles). All three run `commitRoomPartToleranceMenu(false)` first, and a value typed then abandoned still lands anyway, because the input's own blur commits. |
+| Per-setting help | `roomPartToleranceHelpIcon(help)` builds the `i` plus its `.tooltiptext` bubble and returns it for the row to append. **It cannot rely on `tooltip2Hover()`**: that runs once at module load over `document.querySelectorAll('.tooltip, …')`, so a panel built later is invisible to it. Each icon therefore gets its own pointerenter (1 second delay, matching the sidebar) and pointerleave; the leave calls the shared `closeTooltipTitleText2()`, which already queries every `.tooltiptext` on the page, so nothing extra was needed for hiding. The bubble is 250px against the shared 200px and offset left of centre (`margin-left: -190px`, arrow repositioned) so a row this close to the panel's left edge does not push it off the window — verified on all seven. |
+| The head | `✕` on the left, the centred title **Room Part wall tolerance**, gripper on the right, over a hairline rule. The `✕` and the gripper are `flex: 0 0 auto` with the title `flex: 1 1 auto`, so the title stays centred no matter what the other two measure. |
+| The footer | Update / Reset / Close, each `flex: 1 1 0` so they share the width evenly, with a 14px left margin on Close to group it apart from the two that act on values. 400px of panel leaves each button comfortably wide. |
+| Draggable by the whole head, not just the grip | `dragElement(menu)` binds to whatever carries the id `<menuId>-dragger`, so that id is on the **head** rather than on the gripper icon: the title, the icon and the empty space either side all drag. The `icon-dragger-vertical-bold` stays as the visual cue only and the head wears `cursor: all-scroll`. The `✕` sits inside the head, so it stops propagation on `mousedown` and `touchstart` or pressing it and moving would drag the panel instead of closing it; it also restates `cursor: pointer`, since it is a button rather than a grip. Verified: title, grip and bare head all drag, the `✕` and the panel body do not, and the `✕` still closes. |
+| Its shadow is the default, not a drag artefact | `dragElement()` paints `10px 10px 20px rgba(0,0,0,0.8)` inline once a drag starts; `.menuTolerance` carries the same value in CSS from the outset, so this panel reads as moveable before it is moved and the inline write on drag changes nothing visually. |
+| **Placed by measurement, not by anchor** | The Settings tab scrolls, and its button is the LAST row, so `top: rect.bottom` put the panel almost entirely below the fold with the fields unreachable (reported). `positionRoomPartToleranceMenu()` runs after the append (offsetHeight needs it in the DOM), flips the panel ABOVE the button when it will not fit below, then clamps top and left into the viewport with an 8 px gutter either way. Clamping alone was not enough: a tall panel anchored low still needs the flip to land somewhere sensible. |
+| Two ways to close | The `✕` in the head (upper left, opposite the drag handle) and a click anywhere outside. Both run `commitRoomPartToleranceMenu(false)` first, so neither loses a value typed but not blurred. |
