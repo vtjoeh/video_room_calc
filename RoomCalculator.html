@@ -183,8 +183,7 @@
               id="subTabRoomSetup">Room Setup</button>
             <button class="subtablinks2" onclick="openSubTab2(event, 'DefaultWalls')" id="subTabDefaultWalls">Default
               Walls</button>
-            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')" id="subTabRoomFloorPlan">Floor
-              Plan</button>
+            <button class="subtablinks2" onclick="openSubTab2(event, 'BackgroundImage')" id="subTabRoomFloorPlan">Background</button>
             <button class="subtablinks2" onclick="openSubTab2(event, 'SettingDetails')" id="detailsSettings">Settings</button>
           </div>
 
@@ -443,8 +442,8 @@
             </div>
 
 
-            <div class="inputField" style="padding: 0.2rem"><label>4) Opacity: <span
-                  id="transparencyOutput">50</span></label></div>
+            <div class="inputField" style="padding: 0.2rem"><label><span class="bgFloorOnlySetting bgStepNum">4)&nbsp;</span>Opacity:
+                <span id="transparencyOutput">50</span></label></div>
             <div class="inputField">
               <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
                 oninput="changeTransparency(this.value)" disabled>

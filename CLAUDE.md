@@ -955,7 +955,7 @@ variable (`--active: #0352a6`) and four responsive breakpoints
 
 Sidebar tab structure (2026-07 redesign): the **Room** tab owns the
 room-level sub-tabs — Room Setup (`#RoomSetup`), Default Walls
-(`#DefaultWalls`), Floor Plan (`#BackgroundImage`), Settings
+(`#DefaultWalls`), Background (`#BackgroundImage`), Settings
 (`#SettingDetails`) — via `openSubTab2()`, which is scoped to the
 clicked bar's `.tabcontent`. The **Details** tab (`#Item`) is a pure
 item inspector with no sub-tab bar (`subTabItemDetails` no longer
@@ -965,6 +965,35 @@ staying permanently visible). The `#controlButtons` toolbar carries a
 Wall Builder toggle (`#btnWallBuilder` → `btnWallBuilderClicked()`;
 active-state class synced inside `wallBuilderOn()` both branches so
 the Equipment tile and Esc-exit paths stay consistent).
+
+Two labels in there follow the mode, both from `applyMultiRoomModeUi()`
+and both keyed on `overview` (multi-room floor plan mode with no Room
+Part entered), which is the same switch behind `Floor name:` and
+`Rotate Floor:`. It runs from the tail of `drawRoom()`, so entering and
+leaving a Room Part both carry it.
+
+| Element | Overview | Otherwise |
+|---------|----------|-----------|
+| `#subTabRoomSetup` | `Floor Setup` | `Room Setup` |
+| The `4) ` on the Opacity row | shown | hidden |
+
+The Opacity step number is a `<span class="bgFloorOnlySetting">`, the
+same hook that hides steps 1, 2, 3 and 5 inside a Room Part. Opacity is
+the one setting a Room Part may still change, so on its own the `4)`
+numbered a list with no other numbers in it. **The row's `<label>` is a
+flex container**, so that span computes to `display: block` and still
+lays out on the line: do not read that as a wrapping bug.
+
+The sub-tab bar is a fixed **336px at every viewport width** (measured at
+1280, 760 and 400 — the sidebar does not scale), so the four labels have
+to total under that or the bar goes to two rows and pushes the whole
+panel down 28px on a tab that already scrolls. The current set is 304px.
+`Background Image` reads better still but is 343px and wraps; it only
+fits if `Default Walls` shortens to `Walls` (299px), which was the
+reason not to, since the Equipment tab already has a Wall Builder and a
+tab called `Walls` beside it reads as where walls are added. There is
+about 32px of headroom, so a FIFTH sub-tab does not fit at any label
+length and would need a different format rather than a second row.
 
 See `notes/UI_LAYOUT.md` for the full layout map, key ID/class
 tables, and breakpoint specifics. The actual source files

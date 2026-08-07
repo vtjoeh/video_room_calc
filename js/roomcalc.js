@@ -405,6 +405,8 @@ function applyMultiRoomModeUi() {
     /* Floor vs Room label swaps: the tab reads "Floor" for the whole floor-plan mode; the name label is "Room name:" only when zoomed into a room. */
     const tab = document.getElementById('defaultOpenTab');
     if (tab) tab.textContent = isMultiRoomFloorPlanMode() ? 'Floor' : 'Room';
+    const roomSetupTab = document.getElementById('subTabRoomSetup');
+    if (roomSetupTab) roomSetupTab.textContent = overview ? 'Floor Setup' : 'Room Setup';
     const roomNameLabel = document.getElementById('roomNameLabel');
     if (roomNameLabel) roomNameLabel.textContent = overview ? 'Floor name:' : 'Room name:';
     const rotateLabel = document.getElementById('rotateRoomLabel');
