@@ -2482,7 +2482,7 @@ Two margins decide OWNERSHIP, each offsetting the part outline:
 | Class | Tolerance | Default | Why |
 |-------|-----------|---------|-----|
 | Ordinary items (chairs, tables, video devices, …) | `wdItemCapture` | **-0.03 m**, INSIDE | Walls are 0.10 thick, so this sits just past the inner face and an item pushed against the shared wall from the NEXT room stays out |
-| Edge devices (`isRoomPartEdgeDevice`) | `wdEdgeCapture` | **+0.13 m**, OUTSIDE | The full wall thickness plus that same 0.03, so a wall drawn flush against the outer face still counts as this room's wall |
+| Edge devices (`isRoomPartEdgeDevice`) | `wdEdgeCapture` | **+0.145 m**, OUTSIDE | The 0.115 the canvas actually draws the outside wall face at, plus that same 0.03, so a wall drawn flush against the outer LINE still counts as this room's wall. It was 0.13 (a nominal 0.10 wall plus the 0.03), which fell 0.015 short of the line the user is aiming at |
 
 VISIBILITY is not a tolerance at all: `roomPartCanvasBorder()` is the
 Room Canvas rectangle, the active part plus the same margin

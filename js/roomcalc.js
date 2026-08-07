@@ -20911,7 +20911,7 @@ const ROOM_PART_TOLERANCE_KEY = 'roomPartTolerance';
 const ROOM_PART_TOLERANCE_DEFAULTS = Object.freeze({
     wdWallCapture: 0.10,
     wdPolyWallCapture: 0.10,
-    wdEdgeCapture: 0.13,
+    wdEdgeCapture: 0.145,
     wdItemCapture: -0.03,
 });
 
@@ -20969,7 +20969,7 @@ const ROOM_PART_TOLERANCE_FIELDS = [
     {
         key: 'wdEdgeCapture',
         label: 'Walls and doors belong to this room',
-        help: 'Walls, columns, doorways and wall Navigators sit between the two faces, so this one reaches outward from the inside wall face. The default 0.13 m / 0.427 ft clears the outside wall face, so a wall drawn anywhere between the two still counts as this room’s.',
+        help: 'Walls, columns, doorways and wall Navigators sit between the two faces, so this one reaches outward from the inside wall face. The default 0.145 m / 0.476 ft clears the outside wall face, so a wall drawn anywhere between the two still counts as this room\'s.',
     },
     {
         key: 'wdWallCapture',

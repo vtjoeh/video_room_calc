@@ -528,7 +528,7 @@ Two margins decide OWNERSHIP:
 | Class | Tolerance | Default | Why |
 |-------|-----------|---------|-----|
 | Ordinary items (chairs, tables, video devices, …) | `wdItemCapture` | **-0.03 m**, i.e. 0.03 INSIDE the outline | Walls are 0.10 thick, so this sits just past the inner wall face. An item in the NEXT room that is pushed up against the shared wall must not be pulled into this one. |
-| Edge devices: every wall (`wallStd`, `wallGlass`, `wallWindow`, `wallCustomWindow`, `wallStdHeader`, `wallGlassHeader`), `columnRect`, any `door*`, and `navigatorWall` | `wdEdgeCapture` | **+0.13 m** OUTSIDE | These are drawn ON the outline rather than inside it. 0.13 is the full wall thickness plus the same 0.03, so a wall drawn flush against the OUTER face of the outline still counts as this room's wall. A door's swing can put its whole footprint on the far side of the wall it hangs in, and a Wall Navigator mounts in the hallway. |
+| Edge devices: every wall (`wallStd`, `wallGlass`, `wallWindow`, `wallCustomWindow`, `wallStdHeader`, `wallGlassHeader`), `columnRect`, any `door*`, and `navigatorWall` | `wdEdgeCapture` | **+0.145 m** OUTSIDE | These are drawn ON the outline rather than inside it. 0.145 is the 0.115 the canvas draws the outside wall face at, plus the same 0.03, so a wall drawn flush against the OUTER face of the outline still counts as this room's wall. A door's swing can put its whole footprint on the far side of the wall it hangs in, and a Wall Navigator mounts in the hallway. |
 
 VISIBILITY is not a tolerance. `roomPartCanvasBorder()` returns the
 **Room Canvas rectangle**: the active part's bbox plus `pxOffset` /
