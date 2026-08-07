@@ -2395,6 +2395,37 @@ export (codec + quad cam + two `display-KitEQX-L/R~` screens) are unchanged.
 
 ---
 
+## Row of Chairs: the count is derived, never stored
+
+`roomObj.items` holds a wallChairs row's LENGTH, not how many chairs are in
+it. Every reader recomputes
+`Math.floor(height / spacing + WALL_CHAIRS_COUNT_EPSILON)` — the canvas
+(`layoutWallChairsChildren()`), the WD / DXF / xConfig export
+(`expandChairs()`), the Details panel's Number of Chairs box, and the
+transformend snap. The whole design rests on one invariant: **`height` is
+exactly `count × spacing`**, which `updateItem()` (`item.height =
+round(numChairs * spacing)`) and the snap both write.
+
+Anything that changes `height` and `spacing` by different amounts breaks
+that invariant, and the row silently renders one chair fewer. It reads as a
+canvas glitch, but the loss is real and permanent: the roomObj height is
+what it is, so the missing chair is gone from the WD export and the
+Inventory too, and switching back does not bring it back.
+
+| Concern | Where |
+|---------|-------|
+| Why the count is not just stored | Historical, and changing it now means the four-place rule, a URL letter, the WD/DXF export and every old `.vrc.json`. Preserving the invariant at each writer is the cheap version of the same guarantee |
+| The bug this section exists for | `convertItemUnitBasedOnRatio()` rounds `data_chairSpacing` to 2dp (`round()` defaults to `place = -2`) but converts `height` at FULL precision. In meters that turns 2.35 ft into 0.72 rather than 0.716280, and 6 × 0.716280 / 0.72 = 5.969 — under 6 by more than the epsilon, so **6 chairs became 5 on a single feet-to-meters switch**. Confirmed live, including that switching back left it at 5 |
+| The fix | The count is captured at the top of `convertItemUnitBasedOnRatio()` (using the OLD unit's spacing — `convertMetersFeet()` sets `roomObj.unit` to the new one BEFORE calling this, so the old unit is the other one) and `height` is rebuilt as `round(count × newSpacing)` after the spacing converts. The count is preserved by construction, and the row stays flush with its last chair |
+| Which rows were at risk | Only ones carrying an explicit `data_chairSpacing`, which is any row whose Distance between Center of Chairs box has ever been typed in — **including typing the default 2.35, which stores it**. A row left alone stores no spacing, so `getChairSpacing()` returns the full-precision default and nothing rounds. That is why this went unnoticed |
+| Which way round | Feet to meters is the bad direction (8% of spacings lose a chair at 6, 17% at 10); meters to feet is nearly clean, because a metre-scale spacing loses relatively less to 2dp than a foot-scale one |
+| What is NOT affected | Save / load, shareable links, undo/redo, Room Part zoom, and window resize were all measured clean before the fix: they quantise `height` to 2dp but never touch `spacing`, and `WALL_CHAIRS_COUNT_EPSILON` (0.02) already covers that. Do not read this as the epsilon being too small |
+| The epsilon is not the lever | It was already raised once (0.0001 to 0.02) for a related drop. Raising it further to paper over a broken invariant is how a phantom chair appears mid-drag instead. Fix the writer |
+| Regression cover | A sweep of every 2dp spacing in range × counts 1 to 24 × ten alternating unit switches, each with a save/URL quantisation in between: 267,600 conversions, zero losses |
+| The spacing itself still drifts | 1.50 ft round-trips to 1.51, because 2dp is the stored precision. The row length follows it (9.00 to 9.06) so the row stays flush. Only the COUNT is guaranteed |
+
+---
+
 ## polyRoom Point Editing (floor-overview only)
 
 Selecting exactly one `polyRoom` in the multi-room **floor overview**

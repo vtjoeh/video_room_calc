@@ -9031,6 +9031,10 @@ function updateFeetMetersToggleBtn() {
 
 function convertItemUnitBasedOnRatio(item, ratio) {
 
+    /* Row of chairs: the count is derived, so capture it before anything moves. See the height rebuild below. */
+    const chairRowCount = (isWallChairs(item.data_deviceid) && Number(item.height) > 0)
+        ? Math.max(1, Math.floor(Number(item.height) / getChairSpacing(item, roomObj.unit === 'feet' ? 'meters' : 'feet') + WALL_CHAIRS_COUNT_EPSILON))
+        : 0;
 
     if ('x' in item) {
         item.x = item.x * ratio;
@@ -9082,6 +9086,11 @@ function convertItemUnitBasedOnRatio(item, ratio) {
 
     if ('data_chairSpacing' in item && !isNaN(item.data_chairSpacing)) {
         item.data_chairSpacing = round(item.data_chairSpacing * ratio);
+    }
+
+    /* Spacing rounds to 2dp above but height converted at full precision, so the derived count could fall a whole chair short (6 rendered as 5, and switching back never restored it). Rebuilding height from the captured count keeps the row flush and the count fixed. */
+    if (chairRowCount) {
+        item.height = round(chairRowCount * getChairSpacing(item, roomObj.unit));
     }
 
     if ('data_radius2' in item && !isNaN(item.data_radius2)) {
