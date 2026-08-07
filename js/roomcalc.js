@@ -20950,22 +20950,22 @@ const ROOM_PART_TOLERANCE_FIELDS = [
     {
         key: 'wdItemCapture',
         label: 'Items belong to this room',
-        help: 'Chairs, tables, displays and video devices measure INWARD from the outline, which is why the default is negative. At -0.03 m / -0.098 ft an item has to reach just past the inside wall face to be counted, so furniture in the next room pushed up against the shared wall is not pulled into this one. A positive value reaches outside the room instead.',
+        help: 'Chairs, tables, displays and video devices are measured from the inside wall face, and the default reaches inward from it, which is why it is negative. At -0.03 m / -0.098 ft an item has to sit at least that far inside the room before it counts, so furniture in the next room pushed up against the shared wall is not pulled into this one. A positive value reaches out past the inside wall face instead.',
     },
     {
         key: 'wdEdgeCapture',
         label: 'Walls and doors belong to this room',
-        help: 'Walls, columns, doorways and wall Navigators are drawn ON the outline rather than inside it, so this one measures OUTWARD. The default 0.13 m / 0.427 ft is the wall thickness (0.10 m / 0.328 ft) plus a little slack, so a wall drawn anywhere between the inside and outside faces still counts as this room’s.',
+        help: 'Walls, columns, doorways and wall Navigators sit between the two faces, so this one reaches outward from the inside wall face. The default 0.13 m / 0.427 ft clears the outside wall face, so a wall drawn anywhere between the two still counts as this room’s.',
     },
     {
         key: 'wdWallCapture',
         label: 'How much of a long wall is kept',
-        help: 'A wall running past the room is cut back to the room plus this much before it is sent. The default 0.10 m / 0.328 ft is one wall thickness, which is what lets a wall reach the outside corner of the room instead of stopping short at the inside one. At 0 a wall whose centre line sits outside the room is left at full length instead of being cut.',
+        help: 'A wall running past the room is cut back to the room plus this much before it is sent. The default 0.10 m / 0.328 ft is one wall thickness, which is what lets a wall reach the corner of the outside wall face rather than stopping at the corner of the inside wall face. At 0 a wall whose centre line sits outside the room is left at full length instead of being cut.',
     },
     {
         key: 'wdPolyWallCapture',
         label: 'The same, for an irregular room',
-        help: 'An irregular Room Part uses this one value for both of its cuts, the bounding box and the outline itself, so this number alone decides what it keeps. Default 0.10 m / 0.328 ft, the same wall thickness as above.',
+        help: 'An irregular Room Part uses this one value for both of its cuts, the bounding box and the outline itself, so this number alone decides what it keeps. Default 0.10 m / 0.328 ft, one wall thickness, the same as above.',
     },
 ];
 
@@ -21055,18 +21055,22 @@ function createRoomPartToleranceMenu() {
 
     menu.appendChild(head);
 
-    /* The inside vs outside face is what every field below is measured from, so it is said once here
+    /* The two outlines are what every field below is measured against, so they are named once here
      * rather than four times in the help bubbles. */
     const notice = document.createElement('div');
     notice.className = 'menuToleranceNotice';
     const noticeLead = document.createElement('b');
     noticeLead.textContent = 'These values are for testing.';
     notice.appendChild(noticeLead);
-    notice.appendChild(document.createTextNode(' They decide which objects a Room Part sends to the Workspace Designer, and how much of a long wall it keeps. A Room Part outline is the '));
+    notice.appendChild(document.createTextNode(' They decide which objects a Room Part sends to the Workspace Designer, and how much of a long wall it keeps. The Room Canvas draws a Room Part as two outlines, the '));
     const noticeInside = document.createElement('b');
-    noticeInside.textContent = 'inside';
+    noticeInside.textContent = 'inside wall face';
     notice.appendChild(noticeInside);
-    notice.appendChild(document.createTextNode(' face of its walls, and a wall is 0.10 m / 0.328 ft thick, so the outside face sits that far beyond the outline. Saved in this browser only, never in the room file or a shared link.'));
+    notice.appendChild(document.createTextNode(' and the '));
+    const noticeOutside = document.createElement('b');
+    noticeOutside.textContent = 'outside wall face';
+    notice.appendChild(noticeOutside);
+    notice.appendChild(document.createTextNode(', 0.10 m / 0.328 ft apart, which is the thickness of a wall. Everything below is measured from the inside wall face. Saved in this browser only, never in the room file or a shared link.'));
     menu.appendChild(notice);
 
     ROOM_PART_TOLERANCE_FIELDS.forEach(field => {
