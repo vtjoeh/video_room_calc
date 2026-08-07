@@ -2479,14 +2479,26 @@ themselves, none of which may reach outward on the EXPORT rule.
 | A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false |
 | Wall truncation is a different number | `roomPartBoundsMarginUnits()` / `roomPartBoundsMarginM()` — how much wall is KEPT and trimmed to on export, not who owns it. It is what makes the outward reach safe: a captured neighbour wall is cut back to this room's own extent before it reaches the WD JSON. An irregular part uses its own value on BOTH cuts (the bbox pre-cut and the polyline cut), via `roomPartWallCaptureKey()`, so one setting decides what an irregular room keeps |
 
-### Room Parts draw below everything else
+### Room Parts swap ends of the stack with the zoom
 
-Zoomed into a Room Part, `applyRoomPartStacking()` drops `groupRooms`
-to `zIndex(0)` in `layerTransform`, so a neighbouring part is the
-backdrop rather than a pale rectangle painted over this room's
-furniture. Only the floor plan image, which lives in `layerGrid`,
-sits below it. It runs from the tail of `stageAddLayers()`, which
-re-adds every group in its floor-view order on each redraw.
+`applyRoomPartStacking()`, called from the tail of `stageAddLayers()`,
+puts `groupRooms` at one end of `layerTransform` or the other:
+
+| Where | groupRooms | Why |
+|-------|------------|-----|
+| Floor plan | ABOVE every item group, just under `groupRoomPartWallsPreview` | A part has to read as a room over its own contents. This is the original order and the one `stageAddLayers()` adds in |
+| Zoomed into a part | `zIndex(0)`, the bottom | A neighbouring part is a backdrop, not a pale rectangle painted over this room's furniture. Only the floor plan image, which lives in `layerGrid`, is lower |
+
+**It must put them BACK, not just lower them.** Konva's `add()` leaves
+a child that is already in the container exactly where it is, so
+`stageAddLayers()` re-adding the groups does NOT rebuild the order:
+`layerTransform`'s order is set once at first load and nothing else
+touches it. A one-way `zIndex(0)` therefore left the floor plan wearing
+the zoomed-in stacking for the rest of the session, with every room
+part underneath the furniture (confirmed live). The floor branch calls
+`moveToTop()` on `groupRooms`, `groupRoomPartWallsPreview`,
+`overlayLabels` and `tr` in that order, which is the tail
+`stageAddLayers()` builds.
 
 Walls and doors need nothing of their own: with the room parts at the
 bottom, every item already draws above them, so structure keeps its

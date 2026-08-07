@@ -21405,13 +21405,26 @@ function refreshRoomPartGhostState() {
     });
 }
 
-/* Zoomed into a Room Part the neighbouring parts are the backdrop, so groupRooms drops to the bottom of
- * layerTransform and an adjacent part can no longer paint over this room's furniture. Only the floor
- * plan image, which lives in layerGrid, sits below it. Walls and doors need nothing: every item now
- * draws above the room parts, so they keep their ordinary place among the item groups. */
+/* The room parts swap ends of layerTransform with the zoom. On the floor plan they sit ABOVE every item
+ * group, which is what makes a part readable as a room over its own contents. Zoomed into one they drop
+ * to the bottom, where a neighbouring part is a backdrop instead of a pale rectangle painted over this
+ * room's furniture; only the floor plan image, which lives in layerGrid, is lower.
+ *
+ * It has to put them BACK, not just lower them: Konva's add() leaves a child that is already in the
+ * container where it is, so stageAddLayers() re-adding the groups does not restore the order and a room
+ * lowered once would stay low for the rest of the session. */
 function applyRoomPartStacking() {
-    if (!isActiveRoomPart || typeof groupRooms === 'undefined') return;
-    groupRooms.zIndex(0);
+    if (typeof groupRooms === 'undefined' || !groupRooms.getParent()) return;
+
+    if (isActiveRoomPart) {
+        groupRooms.zIndex(0);
+        return;
+    }
+
+    groupRooms.moveToTop();
+    groupRoomPartWallsPreview.moveToTop();
+    overlayLabels.moveToTop();
+    tr.moveToTop();
 }
 
 

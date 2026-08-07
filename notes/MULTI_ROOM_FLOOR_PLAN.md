@@ -561,18 +561,22 @@ reach outward on the export rule.
 | Shared walls belong to both rooms | Two adjacent parts both capture the wall between them, which is what each room needs to look right on its own. |
 | The bug this fixed | Walls hand-drawn snug against the OUTSIDE of a part sit 0.007 to 0.017 m clear of the outline, so at -0.03 every one of them failed the test: entering the room showed no walls at all and the WD export carried none. Measured on the reporter's file, all five perimeter walls were dropped; all five are now kept, and the export trims 6.72 m runs to 6.70 m. |
 
-### Room Parts draw below everything else
+### Room Parts swap ends of the stack with the zoom
 
-Zoomed into a Room Part, `applyRoomPartStacking()` sets
-`groupRooms.zIndex(0)` so the room parts are the FIRST child of
-`layerTransform` and therefore the first thing painted. An adjacent
-part is then a backdrop rather than a pale rectangle lying over this
-room's furniture, which is what it was before: `groupRooms` is added
-second from the top, above every item group.
+`applyRoomPartStacking()` puts `groupRooms` at one end of
+`layerTransform` or the other, and the two ends are deliberately
+different behaviour rather than one rule:
+
+| Where | groupRooms | Why |
+|-------|------------|-----|
+| Floor plan | ABOVE every item group, just under `groupRoomPartWallsPreview` | A part has to read as a room drawn over its own contents. This is the original order, the one `stageAddLayers()` adds in. Its fill is `#ADD8E655`, so the furniture still shows through |
+| Zoomed into a part | `zIndex(0)`, the first child and the first thing painted | An adjacent part is a backdrop rather than a pale rectangle lying over this room's furniture |
 
 | Concern | Where |
 |---------|-------|
-| Where it runs | The tail of `stageAddLayers()`, which `drawRoom()` calls on every rebuild and which re-adds the groups in their floor-view order. Doing it there rather than in the later visibility pass avoids a frame of the old order. |
+| **It has to put them back, not just lower them** | Konva's `add()` returns early for a child already in the container, so `stageAddLayers()` re-adding every group does NOT rebuild the order: `layerTransform`'s order is established at first load and nothing else touches it. A one-way `zIndex(0)` left the floor plan wearing the zoomed-in stacking for the rest of the session, every room part under the furniture, from the first time a room was entered. Confirmed live before the fix and after: floor 15, in room 0, back out 15, into another room 0, back out 15, with the tail reading `rooms / roomPartWallsPreview / overlayLabels / theTransformer` every time. |
+| How the floor branch restores it | `moveToTop()` on `groupRooms`, `groupRoomPartWallsPreview`, `overlayLabels` and `tr`, in that order, which is exactly the tail `stageAddLayers()` builds. Cheaper and harder to get wrong than computing an insert index, since `zIndex(n)` removes before it inserts and the target shifts under you. |
+| Where it runs | The tail of `stageAddLayers()`, which `drawRoom()` calls on every rebuild. Doing it there rather than in the later visibility pass (which fires after an image-load `setTimeout`) avoids a frame of the wrong order. |
 | Only the floor plan image is lower | That lives in `layerBackgroundImageFloor` inside `layerGrid`, a different Konva layer entirely, so it is unaffected. |
 | The Transformer stays on top | `tr.zIndex(children.length - 1)` runs just before; moving another child to 0 shifts the ones below it up by one and leaves the last index alone. |
 | Walls need nothing of their own | Every item now draws above the room parts, so structure keeps its ordinary place among the item groups. The previous cut re-parented walls, columns and doors into a `groupRoomModeWalls` added last, because **Konva z-order is per parent** and `moveToTop()` inside `groupTables` could never clear `groupChairs` and the device groups above it. That group, its `allNodeShapeGroups` and `selectAllNodes()` registrations, and the `wallsOnTop` toggle are all gone. |
