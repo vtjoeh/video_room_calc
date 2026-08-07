@@ -155,9 +155,8 @@ A **Custom Window Wall** is a wall carrying its own list of windows and openings
 - **Create:** Select two or more items (or a single **Custom Path Shape**), then choose **Create Custom Item** from the right-click menu or the ellipse (`...`) button next to **Update Item**. A dialog asks for a **Name** (required) and optional **Author** and **Description**.
 - **Move and rotate as a unit:** Once created, a Custom Item behaves like a single object. Drag, rotate, or change the layer of the whole bundle at once.
 - **Quick Add library:** Saved Custom Items appear as tiles in the **Quick Add** menu (press the space bar). Click a tile to drop a copy at the center of the room. Click the ellipse (`...`) on a tile to rename, edit Author/Description, export, or remove the entry.
-- **Auto-save:** Edits to a Custom Item on the canvas (move, rotate, layer changes, etc.) automatically update the saved library copy. All canvas instances of the same Custom Item share one library template.
 - **Unjoin:** To dissolve a Custom Item back into its individual items, select it and click **Unjoin Custom Item** from the ellipse (`...`) menu. This does not remove the template from your library.
-- **Storage:** Custom Items are stored in your browser's `IndexedDB` (up to 200 templates). They are NOT uploaded to any cloud, and the library is not included in shareable links or room JSON files.
+- **Storage:** Custom Items are stored in your browser's `IndexedDB` (up to 1,000 Custom Items). They are NOT uploaded to any cloud, and the library is not included in shareable links or room JSON files.
 
 **Sharing Custom Item files:**
 - **Export:** With a Custom Item selected on the canvas, click the ellipse (`...`) next to **Update Item** and choose **Export Custom Item** to download a `.vrcCustomItems.json` file. You can also export an entry directly from a Quick Add library tile.

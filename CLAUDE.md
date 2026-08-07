@@ -3717,7 +3717,7 @@ they expect edits to flow back to the template, not branch silently.
 
 Constants:
 - `STORE_CUSTOMITEMS = 'customItems'`
-- `MAX_CUSTOM_ITEMS = 200` — FIFO eviction by `addedAt` only on insert of a **new** record (updates of existing baseIds preserve `addedAt` and never evict)
+- `MAX_CUSTOM_ITEMS = 1000` — FIFO eviction by `addedAt` only on insert of a **new** record (updates of existing baseIds preserve `addedAt` and never evict). Raised from 200 after measuring 1000 synthetic records with real thumbnails: 2.4 MB stored, `customItemGetAll` 21 ms, 1000 tiles built in 12 ms and laid out in 24 ms, every thumbnail decoded, 8 MB heap. The cost scales with the tile grid, and both surfaces that render it (`populateCustomItemsMenuContainer()` and the Quick Add palette) build every named record at once, so a much larger cap would want virtualized tiles first
 - DB schema bump: v1 → v2 added the `customItems` store. The `onupgradeneeded` handler uses `if (!db.objectStoreNames.contains(...))` per store, so existing v1 data (undo/redo, bgImages) is untouched on upgrade
 
 ### In-memory cache: `customItemLibraryIds`

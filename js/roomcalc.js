@@ -2152,7 +2152,7 @@ function _refreshStorageDialogCounts() {
     }
 
     /* Per-bucket caps from idbStore._constants when exposed, else fallbacks matching js/idbStorage.js. */
-    let caps = { undo: 100, redo: 100, customItems: 200, bgImages: 10 };
+    let caps = { undo: 100, redo: 100, customItems: 1000, bgImages: 10 };
     if (window.idbStore && window.idbStore._constants) {
         const c = window.idbStore._constants;
         caps.undo = c.MAX_UNDO_ENTRIES || caps.undo;
