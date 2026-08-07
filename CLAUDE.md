@@ -4112,6 +4112,25 @@ but opens with no floor plan is what happens when they do not.
 | Why a `blob:` URL is never persisted | Rehydration leaves `backgroundImageFloor.src` as a session-scoped `blob:`, which is dead on reload or in someone else's browser. `isValidBackgroundImageDataUrl()` is the gate, and it is why the rasterizing fallback exists at all: a `blob:`-backed `<img>` plus an evicted library entry used to save a room carrying `backgroundImage` geometry and no picture |
 | Reproducing the loss | Upload a floor plan, force the rehydrate path (reload, or clear `backgroundImageFile` and call `rehydrateBackgroundImageFromIdb()`), delete that entry from the IDB library, then make one edit and undo it. Before the fix the save wrote 1.9 KB with no image while the canvas still showed it; after, it writes the same bytes the original did |
 
+### One picture, one Recent Floor Plans entry
+
+`bgImagesAdd()` (`js/idbStorage.js`) is the only writer of the library and
+it deduplicates on a **SHA-256 of the blob's bytes**, resolving to the id of
+the entry already holding them instead of storing a second copy. Both
+callers stamp whatever it returns onto `roomObj.backgroundImage.bgImageId`,
+so a repeat ingest quietly rebinds the room to the entry that is already
+there.
+
+| Concern | Where |
+|---------|-------|
+| Why duplicates piled up | Two paths add. The upload in `processBackgroundImageFile()` minted a fresh id every time the same file was picked. Worse, `persistImportedBackgroundImageToIdb()` only skipped when the room's stored `bgImageId` still resolved to a record, and it stamps the new id **in memory only** — so opening the same saved `.vrc.json` five times, or opening one made in another browser, added a copy per open. With `MAX_BG_IMAGES` at 10 a handful of reopens flushed every other plan out of the library |
+| Why bytes and not name plus size | Identical bytes mean identical pixels AND identical dimensions, which is what the user actually means by "the same image", and nothing else can collide. A name is renameable and a byte count is a weak key, and a false match would silently refuse to store a genuinely different plan. The data URL an import rebuilds through `dataUrlToBlob()` is byte-identical to the uploaded file, which is what makes the reopen case dedup at all |
+| Records from before this | They carry no `hash`, so `bgImagesFindDuplicate()` hashes them on the spot and writes the hash back. That backfill is the point: without it the fix would only prevent NEW duplicates and would leave the ones already in the library sitting there forever, since nothing evicts them once adds stop |
+| `addedAt` is not bumped on a hit | A hit is the same picture with the same history. Bumping it would reshuffle the picker's newest-first order and change what the FIFO evicts, and `bgImagesUpdate()`'s allow-list deliberately protects that key. The name is left alone for the same reason |
+| Cost | One pass over at most `MAX_BG_IMAGES` records, and every hash after the first backfill is already stored. Measured at 8 ms for four 40 KB blobs, all of it off the critical path (the caller only awaits it to learn the id) |
+| When it is skipped | `crypto.subtle` needs a secure context. https and `file://` both qualify, plain http on a LAN address does not, so `hashBlob()` answers null there and the old add-every-time behaviour returns rather than failing |
+| Not a dedup path | `loadPickedFloorPlan()` passes `skipBgImagesAdd`, so applying a plan from the picker never re-enters this |
+
 ### SVG floor plans are sanitized at ingest
 
 The Floor Plan background image accepts SVG (`accept="image/*"` matches

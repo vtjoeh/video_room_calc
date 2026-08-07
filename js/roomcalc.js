@@ -29359,7 +29359,7 @@ fileInputImage.addEventListener('change', function (e) {
 });
 
 
-/* "Recent Floor Plans" library (IDB-backed): up to 5 prior floor plans as Blobs, shown via a thumbnail dialog. A button (not <select>, which wouldn't re-fire `change`) opens it; object URLs are revoked on close. */
+/* "Recent Floor Plans" library (IDB-backed): prior floor plans as Blobs, shown via a thumbnail dialog. A button (not <select>, which wouldn't re-fire `change`) opens it; object URLs are revoked on close. */
 let _recentFloorPlansActiveObjectUrls = [];
 
 /* Refresh button enabled/disabled state from library size. */

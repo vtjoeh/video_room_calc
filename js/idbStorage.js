@@ -6,8 +6,9 @@
  *
  *   1. undoEntries  — one record per undo snapshot (was localStorage 'undoArray')
  *   2. redoEntries  — one record per redo snapshot (was in-memory only)
- *   3. bgImages     — up to 5 background floor-plan images, stored as Blobs
- *                     (FIFO eviction by addedAt timestamp)
+ *   3. bgImages     — background floor-plan images, stored as Blobs, capped at
+ *                     MAX_BG_IMAGES (FIFO eviction by addedAt timestamp) and
+ *                     deduplicated on a hash of the bytes
  *
  * Why IndexedDB instead of localStorage?
  *   - Quota: ~5–10 MB hard cap in localStorage vs effectively GB-scale in IDB,
@@ -318,24 +319,98 @@
         return 'bg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     }
 
+    /* SHA-256 of a blob's bytes, hex, or null when it cannot be computed.
+     * SubtleCrypto needs a secure context, which https and file:// both are but
+     * plain http on a LAN address is not, so a null hash has to be an ordinary
+     * outcome: it simply turns the dedup below back into the old behaviour. */
+    function hashBlob(blob) {
+        if (!blob || typeof crypto === 'undefined' || !crypto.subtle) return Promise.resolve(null);
+        const bytes = (typeof blob.arrayBuffer === 'function')
+            ? blob.arrayBuffer()
+            : new Promise(function (resolve, reject) {
+                const fr = new FileReader();
+                fr.onload = function () { resolve(fr.result); };
+                fr.onerror = function () { reject(fr.error); };
+                fr.readAsArrayBuffer(blob);
+            });
+        return bytes.then(function (buf) {
+            return crypto.subtle.digest('SHA-256', buf);
+        }).then(function (digest) {
+            const view = new Uint8Array(digest);
+            let hex = '';
+            for (let i = 0; i < view.length; i++) hex += view[i].toString(16).padStart(2, '0');
+            return hex;
+        }).catch(function (e) {
+            console.warn('[idbStorage] hashBlob failed:', e && e.message);
+            return null;
+        });
+    }
+
+    /* The id of the library entry already holding these exact bytes, or null.
+     * A byte hash is the strongest key available here and the cheapest: identical
+     * bytes mean identical pixels and identical dimensions, and nothing else can
+     * collide. Records written before this existed carry no hash, so they are
+     * hashed on the spot and written back, which is what makes the dedup clear
+     * duplicates ALREADY in the library rather than only preventing new ones. */
+    function bgImagesFindDuplicate(hash) {
+        return bgImagesGetAll().then(function (records) {
+            return Promise.all(records.map(function (rec) {
+                return rec.hash || hashBlob(rec.blob);
+            })).then(function (hashes) {
+                const backfill = [];
+                let matchId = null;
+                records.forEach(function (rec, i) {
+                    if (!hashes[i]) return;
+                    if (!rec.hash) {
+                        rec.hash = hashes[i];
+                        backfill.push(rec);
+                    }
+                    if (!matchId && rec.hash === hash) matchId = rec.id;
+                });
+                if (!backfill.length) return matchId;
+                return tx(STORE_BG, 'readwrite', function (store) {
+                    backfill.forEach(function (rec) { store.put(rec); });
+                }).then(function () { return matchId; }, function () { return matchId; });
+            });
+        }).catch(function (e) {
+            console.warn('[idbStorage] bgImagesFindDuplicate failed:', e && e.message);
+            return null;
+        });
+    }
+
+    /* Resolves to the library id the caller should reference, which is an
+     * existing entry when the same picture is already there. addedAt is
+     * deliberately left alone on a hit: the entry is the same picture with the
+     * same history, and bumping it would reshuffle the picker and change what
+     * the FIFO evicts. */
     function bgImagesAdd(record) {
         if (!idbAvailable) return Promise.resolve(null);
         if (!record || !record.blob) return Promise.resolve(null);
-        const id = record.id || generateImageId();
-        const entry = {
-            id: id,
-            name: String(record.name || 'untitled'),
-            mimeType: String(record.mimeType || (record.blob.type) || 'application/octet-stream'),
-            blob: record.blob,
-            sizeBytes: (record.blob.size != null) ? record.blob.size : 0,
-            addedAt: Date.now()
-        };
-        return tx(STORE_BG, 'readwrite', function (store) {
-            store.put(entry);
-        }).then(function () {
-            return bgImagesEvictExcess();
-        }).then(function () {
-            return id;
+
+        return hashBlob(record.blob).then(function (hash) {
+            if (!hash) return { hash: null, existingId: null };
+            return bgImagesFindDuplicate(hash).then(function (existingId) {
+                return { hash: hash, existingId: existingId };
+            });
+        }).then(function (dedup) {
+            if (dedup.existingId) return dedup.existingId;
+            const id = record.id || generateImageId();
+            const entry = {
+                id: id,
+                name: String(record.name || 'untitled'),
+                mimeType: String(record.mimeType || (record.blob.type) || 'application/octet-stream'),
+                blob: record.blob,
+                sizeBytes: (record.blob.size != null) ? record.blob.size : 0,
+                hash: dedup.hash,
+                addedAt: Date.now()
+            };
+            return tx(STORE_BG, 'readwrite', function (store) {
+                store.put(entry);
+            }).then(function () {
+                return bgImagesEvictExcess();
+            }).then(function () {
+                return id;
+            });
         }).catch(function (e) {
             console.warn('[idbStorage] bgImagesAdd failed:', e && e.message);
             return null;
