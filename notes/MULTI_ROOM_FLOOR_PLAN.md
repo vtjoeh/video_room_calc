@@ -508,11 +508,11 @@ scroll fractions 0 / 0.5 / 1.0.
 
 ## Which items a Room Part captures (`roomPartItemMarginUnits`)
 
-Entering a Room Part hides everything the part does not own. **What the
-canvas DRAWS and what the WD export SENDS are two separate questions**,
-and the canvas is deliberately the more generous of the two: a room
-reads as enclosed when the neighbouring structure is on screen, but
-that structure must not be exported twice.
+Entering a Room Part hides only what is off the Room Canvas entirely.
+**What the canvas DRAWS and what the WD export SENDS are two separate
+questions**, and the canvas is deliberately the more generous of the
+two: everything on screen stays on screen, and only this room's own
+items are exported from here.
 
 `listItemsOffStage()` answers both in one pass — one polygon
 intersection per item (`doPolygonsIntersect2`) against the part outline
@@ -521,69 +521,80 @@ offset by a margin — and fills two arrays:
 | Array | Means | Read by |
 |-------|-------|---------|
 | `itemsOffStageId` | not this room's item | the shareable link, the WD export (`convertToMeters` drops them), the Inventory CSV, the coverage menus |
-| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, dimmed and fully editable | `applyRoomPartOutsideItemVisibility()` and `refreshRoomPartGhostState()` only |
+| `roomPartCanvasOnlyIds` | a subset of the above that the canvas still draws, greyed and fully editable | `applyRoomPartOutsideItemVisibility()` and `refreshRoomPartGhostState()` only |
+
+Two margins decide OWNERSHIP:
 
 | Class | Tolerance | Default | Why |
 |-------|-----------|---------|-----|
 | Ordinary items (chairs, tables, video devices, …) | `wdItemCapture` | **-0.03 m**, i.e. 0.03 INSIDE the outline | Walls are 0.10 thick, so this sits just past the inner wall face. An item in the NEXT room that is pushed up against the shared wall must not be pulled into this one. |
 | Edge devices: every wall (`wallStd`, `wallGlass`, `wallWindow`, `wallCustomWindow`, `wallStdHeader`, `wallGlassHeader`), `columnRect`, any `door*`, and `navigatorWall` | `wdEdgeCapture` | **+0.13 m** OUTSIDE | These are drawn ON the outline rather than inside it. 0.13 is the full wall thickness plus the same 0.03, so a wall drawn flush against the OUTER face of the outline still counts as this room's wall. A door's swing can put its whole footprint on the far side of the wall it hangs in, and a Wall Navigator mounts in the hallway. |
-| Structure devices: the edge devices plus `box`, `boxdrop`, `stageFloor`, `carpet`. **Canvas only** | `canvasStructure` | **+0.30 m** OUTSIDE | The things built against a shared wall that a room needs to SEE without owning. Reaching this far on the export rule would hand the neighbour's boxes to the Workspace Designer twice. |
+
+VISIBILITY is not a tolerance. `roomPartCanvasBorder()` returns the
+**Room Canvas rectangle**: the active part's bbox plus `pxOffset` /
+`pyOffset` converted to units, the same margin the floor view leaves
+around the whole room and the same area `drawRoom()` sizes the stage
+to. Any off-stage item touching it is canvas-only, whatever device it
+is.
 
 `isRoomPartEdgeDevice(deviceId)` is the export membership test
-(`ROOM_PART_EDGE_DEVICES` plus a `door` prefix match);
-`isRoomPartStructureDevice(deviceId)` adds `ROOM_PART_STRUCTURE_EXTRA`
-for the canvas one. Neither is `family === 'wallBox'`: that family also
-holds `box`, `boxdrop`, `carpet`, `stageFloor` and the room parts
-themselves, and only the first four of those may reach outward, and
-only on the canvas.
+(`ROOM_PART_EDGE_DEVICES` plus a `door` prefix match). It is not
+`family === 'wallBox'`: that family also holds `box`, `boxdrop`,
+`carpet`, `stageFloor` and the room parts themselves, none of which may
+reach outward on the export rule.
 
 | Concern | Where |
 |---------|-------|
-| Three polygons | `listItemsOffStage()` builds `border` (inner), `edgeBorder` (outer) and `structureBorder` (canvas) once, then picks per item. `getInventoryRoomParts()` mirrors the first two with `polygon` / `edgePolygon`. Wall Navigators used to be the only outer case, so the old names were `navBorder` / `navPolygon`. |
+| Three polygons | `listItemsOffStage()` builds `border` (inner), `edgeBorder` (outer) and `canvasBorder` (the Room Canvas rectangle) once, then picks per item. `getInventoryRoomParts()` mirrors the first two with `polygon` / `edgePolygon`. Wall Navigators used to be the only outer case, so the old names were `navBorder` / `navPolygon`. |
+| Why the canvas rectangle replaced a device list | An item dragged out of the room but still plainly on screen VANISHED, which reads as a delete and was the most confusing thing the zoomed view did. The rule is now simply "if it can be drawn, draw it", so the only items that disappear are ones that were already off screen. |
+| Every device class, not just structure | An earlier cut drew neighbouring walls, doors, columns, boxes, stage floors and carpets only (`isRoomPartStructureDevice`, since removed), deliberately excluding anything carrying camera, mic, speaker or display coverage so a neighbour's wedges could not bleed in. The vanishing act above outweighed that, and the coverage groups are clipped to the room rect (`clipShadingBorder`) anyway, so the bleed is bounded. |
 | A canvas-only item IS interactive | It can be selected, moved, resized and deleted from inside the room, exactly like an item the room owns, and the edit lands on the one shared object. Only a locked VRC layer takes that away: `node.listening(!isItemInLockedLayer(node))`. |
 | Why it is editable, having started out passive | A wall, column, box or door on a boundary is ONE object serving two rooms, and the room the user is standing in is the only place they can see what a nudge to it does. Passive meant leaving the room, finding that wall among everything on the floor plan, adjusting it blind, and coming back to check. Owning it and editing it are separate questions, and only the first one decides the export. |
-| What is deliberately still hidden | Anything with camera, mic, speaker or display coverage. Those items are not in `isRoomPartStructureDevice()` at all, so a neighbour's wedges reach neither this room's canvas nor its coverage menus. Touch panels carry no coverage, so they behave as before. |
-| A canvas-only item is dimmed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35). Now that these items are editable the dim says "the neighbour owns this and exports it", not "you may not touch this". |
-| The dim follows the item across the boundary | `refreshRoomPartGhostState()` runs from the debounced tail of `canvasToJson()`, so a shared wall dragged into the room returns to full opacity and one dragged out dims. Measured live: a wall at y 0.94 dragged to y 1.44 went from off-stage and 0.28 to owned and 0.8, with the canvas-only count dropping 5 to 4. It touches ONLY the dim, because hiding an ordinary item the moment it left the room would read as a delete. |
-| Why the ghost list is kept | `roomPartGhostedIds` is what the last pass actually dimmed, and `clearStaleRoomPartGhosts()` un-dims whatever has stopped being canvas-only, including an item on its way to being hidden. Without it the dim is one-way and the item reappears at 0.28 later. |
+| A canvas-only item is greyed | `applyRoomGhostOpacity()` at `ROOM_PART_GHOST_OPACITY` (0.35), applied to the item AND its `audio~` / `speaker~` / `fov~` / `dispDist~` / `label~` nodes, or a neighbour's camera would paint a full strength wedge over a greyed icon. The grey means "this room will not export it", not "you may not touch it", and it is the only thing on screen that says so, which is why there is no toggle for it. |
+| The grey follows the item across the boundary | `refreshRoomPartGhostState()` runs from the debounced tail of `canvasToJson()`. It greys **everything still visible that is off-stage**, not only the canvas-only subset, so an item pushed past the canvas edge is grey for as long as it is on screen rather than snapping back to full. Measured live on a chair: owned at 0.7, dragged just outside 0.24, dragged well outside 0.24, dragged back in 0.7. It touches ONLY the grey, because hiding an item the moment it left would read as a delete. |
+| Why the ghost list is kept | `roomPartGhostedIds` is what the last pass actually greyed, and `clearStaleRoomPartGhosts(keep)` un-greys whatever the next pass will not, including an item on its way to being hidden. Without it the grey is one-way and the item reappears at 0.35 later. |
 | **Two dimming reasons have to compose** | `applyNodeDimming(node, flag, on)` recomputes opacity as a product of ONE captured `data_baseOpacity`. The locked-layer dim and the ghost dim each used to capture and restore their own "original", so whichever ran second baked the first one's dimmed value in as the original and the node never came back to full. Verified: lock 0.7, lock+ghost 0.245, unlock 0.35, unghost exactly 1.0 with the base field deleted. |
-| A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false, or a layer toggle would be overridden by the ghosting. |
+| A hidden VRC layer still wins | The pass only calls `show()` when `isItemInHiddenLayer(node)` is false, or a layer toggle would be overridden by the ghosting. Coverage is restored through `applyLayerStateToCoverageNodes(node, true)`, which already honours the per-item `data_*Hidden` flags. |
 | Why the outward reach is safe for export | A wall long enough to run past the room is cut back by `truncateWallItemsToRect()` / `truncateWallItemsToPolygon()` at `roomPartBoundsMarginUnits()` / `roomPartBoundsMarginM()`, so a captured neighbour wall arrives in the WD JSON trimmed to this room's own extent rather than overshooting it. |
 | An irregular part uses its own capture on BOTH cuts | `roomPartWallCaptureKey()` returns `wdPolyWallCapture` for a `polyRoom`, and the bbox pre-cut reads the same key as the polyline cut, so one setting decides what an irregular room keeps. Otherwise the poly value could never widen past the rect value. |
 | The `0.00` capture reads as "no truncation" | `truncateWallItemsTo*` leaves a wall untouched when its CENTERLINE never falls inside the expanded outline. A wall hugging the outside has its centreline ~0.066 m out, so at 0.00 nothing is cut and the full run is exported. Measured: 0.02 and 0.05 keep 6.72 m, 0.08 trims to 6.66, 0.10 to 6.70, 0.11 to 6.716 — i.e. `room + 2 × margin`, capped at the wall's own length. |
 | Shared walls belong to both rooms | Two adjacent parts both capture the wall between them, which is what each room needs to look right on its own. |
 | The bug this fixed | Walls hand-drawn snug against the OUTSIDE of a part sit 0.007 to 0.017 m clear of the outline, so at -0.03 every one of them failed the test: entering the room showed no walls at all and the WD export carried none. Measured on the reporter's file, all five perimeter walls were dropped; all five are now kept, and the export trims 6.72 m runs to 6.70 m. |
 
-### Walls and doors draw above room contents
+### Room Parts draw below everything else
 
-Zoomed into a Room Part, `applyRoomModeWallStacking()` re-parents every
-wall, column and door into `groupRoomModeWalls`, a `Konva.Group` added
-last in `layerTransform` (after `groupRoomPartWallsPreview`, before
-`overlayLabels`), so structure draws over the room's contents instead
-of under whatever sits against it — including the neighbouring walls
-the `canvasStructure` tolerance just made visible.
-
-**Re-parenting rather than re-ordering, because Konva z-order is per
-parent.** Walls live in `groupTables` (`parentGroup` of every wall
-variant and `columnRect`) and doors in `groupChairs`, three and two
-groups below the device groups, so `moveToTop()` inside their own group
-could never clear `groupChairs`, `groupBoxes`, `groupDisplays`,
-`groupVideoDevices` and `groupMicrophones`.
+Zoomed into a Room Part, `applyRoomPartStacking()` sets
+`groupRooms.zIndex(0)` so the room parts are the FIRST child of
+`layerTransform` and therefore the first thing painted. An adjacent
+part is then a backdrop rather than a pale rectangle lying over this
+room's furniture, which is what it was before: `groupRooms` is added
+second from the top, above every item group.
 
 | Concern | Where |
 |---------|-------|
-| Nothing to undo | Leaving a Room Part triggers a full redraw, and `insertShapeItem()` places every node by its real `parentGroup`. Confirmed live: after `showEntireFloor()` every wall is back under `tables` and `groupRoomModeWalls` is empty. |
-| It runs from the visibility pass | The tail of `applyRoomPartOutsideItemVisibility()`, which already re-runs from the `drawRoom()` tail and from `applyAllLayerStates()`. Note the drawRoom tail fires after an image-load `setTimeout`, so a test that reads parents synchronously after `zoomRoomPart()` sees the pre-move state. |
-| The two list registrations | `allNodeShapeGroups` (so `getGroupMemberNodes` / `getCustomItemMemberNodes` still find a re-parented wall) and `selectAllNodes()` (so drag-select and Select-layer-items still reach it). The group is empty at the floor view, so both are no-ops there. |
-| Off switch | The `wallsOnTop` toggle; the redraw that follows a tolerance change puts the walls back under `tables`. |
+| Where it runs | The tail of `stageAddLayers()`, which `drawRoom()` calls on every rebuild and which re-adds the groups in their floor-view order. Doing it there rather than in the later visibility pass avoids a frame of the old order. |
+| Only the floor plan image is lower | That lives in `layerBackgroundImageFloor` inside `layerGrid`, a different Konva layer entirely, so it is unaffected. |
+| The Transformer stays on top | `tr.zIndex(children.length - 1)` runs just before; moving another child to 0 shifts the ones below it up by one and leaves the last index alone. |
+| Walls need nothing of their own | Every item now draws above the room parts, so structure keeps its ordinary place among the item groups. The previous cut re-parented walls, columns and doors into a `groupRoomModeWalls` added last, because **Konva z-order is per parent** and `moveToTop()` inside `groupTables` could never clear `groupChairs` and the device groups above it. That group, its `allNodeShapeGroups` and `selectAllNodes()` registrations, and the `wallsOnTop` toggle are all gone. |
+| The footgun it left | Four selection paths decided resizability by comparing `getParent()` against `groupTables` / `groupStageFloors` / `groupBoxes` / `groupRooms`, so every wall silently lost its resize handles while the re-parenting was in place. `isResizableParentGroup(node)` is the one test all four use now. Two other places asked the same question about anchoring rather than resizing (`copyToCanvasClipBoard()`'s upper-left vs centre branch, and the table height default in the overlap check); both read `allDeviceTypes[id].parentGroup`, which is what the node's parent was standing in for all along. |
 
 ### The tolerance panel (Room → Settings → Room Part wall tolerance)
 
 Every number above was a hardcoded constant. The panel is a
 `.menuReach` popover built by `createRoomPartToleranceMenu()`, using
 the same floating-div placement and outside-click handle as
-`deviceMenu-hasCamera`, with a testing notice at the top, the five
-numeric fields, the two toggles, and Update / Reset.
+`deviceMenu-hasCamera`, with a testing notice at the top, four numeric
+fields, and Update / Reset / Close.
+
+It held five fields and two checkboxes when the canvas drew a
+tolerance-picked subset of the neighbours: `canvasStructure` (how far
+out to reach for structure), `wallsOnTop` and `dimCanvasOnly`. The Room
+Canvas rectangle took the first job over, the room parts dropping to
+the bottom removed the need for the second, and the grey is now the
+only thing distinguishing an item this room will not export, so it is
+not optional. Everything left is about the Workspace Designer export. A
+stored blob still carrying the old keys is harmless: `loadRoomPartTolerance()`
+only reads the keys `ROOM_PART_TOLERANCE_DEFAULTS` names.
 
 | Concern | Where |
 |---------|-------|

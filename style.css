@@ -2735,20 +2735,6 @@ hr.rightClickHorizontalLine {
   width: 16px;
 }
 
-.menuToleranceCheckRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.menuToleranceCheckRow input[type="checkbox"] {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
 .menuToleranceButtons {
   display: flex;
   gap: 8px;

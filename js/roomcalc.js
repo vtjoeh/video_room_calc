@@ -3164,7 +3164,7 @@ function applyLayerStateToNode(node, layerId) {
 const LAYER_LOCK_OPACITY = 0.7;
 const ROOM_PART_GHOST_OPACITY = 0.35;
 
-/* A node can be dimmed for more than one reason at once (locked layer, canvas-only structure in a zoomed
+/* A node can be dimmed for more than one reason at once (locked layer, outside the room in a zoomed
  * Room Part), so each reason is a flag and the opacity is recomputed as a product of ONE captured base.
  * Letting each reason capture and restore its own "original" made whichever ran second bake the first
  * one's dimmed value in as the original, and the node never came back to full. */
@@ -3186,8 +3186,15 @@ function applyLayerLockOpacity(node, locked) {
     applyNodeDimming(node, 'data_lockOpacityApplied', locked);
 }
 
+/* The item AND its coverage, so a camera that is not this room's does not keep painting a full strength
+ * wedge over a greyed icon. */
 function applyRoomGhostOpacity(node, ghost) {
     applyNodeDimming(node, 'data_roomGhostApplied', ghost);
+    const id = node && node.id();
+    if (!id) return;
+    ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
+        applyNodeDimming(stage.findOne('#' + prefix + id), 'data_roomGhostApplied', ghost);
+    });
 }
 
 /* Coverage/label visibility = layer visible AND per-item hidden flags. */
@@ -4592,13 +4599,14 @@ let roomLoadedFromXQuery = false;  /* set true when the room was loaded from a `
 
 let itemsOffStageId; /* represents the ID of devices that are not on the stage and not visible to the user. They will not show up in the URL and will be hidden:true in the Workspace Designer.  They are kept during a session in case a room is being resized */
 
-/* Subset of itemsOffStageId that a zoomed Room Part still DRAWS (dimmed): neighbouring walls, doors,
- * boxes and floor coverings within the canvasStructure tolerance. Canvas only, never exported. */
+/* Subset of itemsOffStageId that a zoomed Room Part still DRAWS: anything outside the room but still on
+ * the Room Canvas. Drawn greyed and editable here, exported by the room that owns it. */
 let roomPartCanvasOnlyIds = [];
 
-/* What the last pass actually dimmed, so an item that stops being canvas-only can be brought back to
- * full opacity. Without it the dim would be one-way and would stop meaning "the neighbour's". */
+/* What the last pass actually greyed, so an item that stops being canvas-only can be brought back to
+ * full opacity. Without it the grey would be one-way and would stop meaning "not exported from here". */
 let roomPartGhostedIds = [];
+
 
 let maxUndoArrayLength = 100; /* Undo amount in active memory.  Local storage will be less. */
 
@@ -4819,17 +4827,9 @@ let groupRoomPartWallsPreview = new Konva.Group({
     listening: false,
 })
 
-/* Zoomed into a Room Part, walls and doors are re-parented here so structure draws above the room's
- * contents. Empty at the floor view, which is why adding it to the lists below changes nothing there.
- * Konva z-order is per parent, so raising a wall inside groupTables could never clear groupChairs and
- * the higher device groups; a group of its own added last is the only way over all of them. */
-let groupRoomModeWalls = new Konva.Group({
-    name: 'roomModeWalls',
-})
-
 let windowPatternImage = null; /* cached wallWindowBackground image for window-wall preview fill */
 
-let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices, groupRoomModeWalls];
+let allNodeShapeGroups = [groupRooms, groupBoxes, groupTouchPanels, groupSpeakers, groupDisplays, groupStageFloors, groupTables, groupChairs, groupMicrophones, groupVideoDevices];
 
 /* Group rects live in their own Konva group, rendered behind all items */
 let groupGroupRects = new Konva.Group({
@@ -15167,8 +15167,8 @@ function copyToCanvasClipBoard(nodes) {
         let rotation = attrs.rotation;
         let center = {};
 
-        /* Read the class off the device definition, not the node's current parent: a zoomed-in Room Part
-         * re-parents walls and doors into groupRoomModeWalls, which a parent name test never matches. */
+        /* Read the class off the device definition rather than the node's current parent, which is only
+         * ever standing in for it. */
         const anchorGroup = allDeviceTypes[node.data_deviceid]?.parentGroup;
 
         if (anchorGroup === 'tables' || anchorGroup === 'stageFloors' || anchorGroup === 'boxes' || anchorGroup === 'rooms') {
@@ -15680,8 +15680,6 @@ function stageAddLayers() {
 
     layerTransform.add(groupRoomPartWallsPreview);
 
-    layerTransform.add(groupRoomModeWalls);
-
     layerTransform.add(overlayLabels);
 
     stage.add(layerTransform);
@@ -15689,6 +15687,8 @@ function stageAddLayers() {
     stage.add(layerSelectionBox);
 
     tr.zIndex(layerTransform.getChildren().length - 1);   // make the TR node the highest node in layerTransform
+
+    applyRoomPartStacking();
 
 }
 
@@ -20881,11 +20881,8 @@ const ROOM_PART_TOLERANCE_KEY = 'roomPartTolerance';
 const ROOM_PART_TOLERANCE_DEFAULTS = Object.freeze({
     wdWallCapture: 0.10,
     wdPolyWallCapture: 0.10,
-    canvasStructure: 0.30,
     wdEdgeCapture: 0.13,
     wdItemCapture: -0.03,
-    wallsOnTop: true,
-    dimCanvasOnly: true,
 });
 
 const ROOM_PART_TOLERANCE_LIMIT = 50; /* meters, so a stray keystroke cannot swallow the whole floor plan */
@@ -20902,11 +20899,6 @@ function loadRoomPartTolerance() {
     }
     if (!stored || typeof stored !== 'object') return;
     Object.keys(ROOM_PART_TOLERANCE_DEFAULTS).forEach(key => {
-        const fallback = ROOM_PART_TOLERANCE_DEFAULTS[key];
-        if (typeof fallback === 'boolean') {
-            if (typeof stored[key] === 'boolean') roomPartTolerance[key] = stored[key];
-            return;
-        }
         const n = Number(stored[key]);
         if (Number.isFinite(n) && Math.abs(n) <= ROOM_PART_TOLERANCE_LIMIT) roomPartTolerance[key] = n;
     });
@@ -20948,11 +20940,6 @@ const ROOM_PART_TOLERANCE_FIELDS = [
         help: 'The same measurement for an irregular Room Part. An irregular room uses this value for both cuts, the bounding box and the outline itself, so this one number decides everything it keeps.',
     },
     {
-        key: 'canvasStructure',
-        label: 'VRC Room Canvas Wall &amp; Door tolerance',
-        help: 'How far outside the room the Room Canvas still draws a neighbouring wall, door, column, box or stage floor. Those items can be selected and moved from in here, since a shared wall belongs to both rooms, but they are dimmed and are exported from the room that owns them rather than from this one. Raise it to reach more of the surrounding structure while you work.',
-    },
-    {
         key: 'wdEdgeCapture',
         label: 'WD export wall &amp; door capture',
         help: 'How far outside the outline a wall, column or door still counts as this room’s own, for the shareable link and the Workspace Designer export. Walls are 0.10 m thick, so the default lets a wall drawn flush against the outer face still belong to the room.',
@@ -20961,19 +20948,6 @@ const ROOM_PART_TOLERANCE_FIELDS = [
         key: 'wdItemCapture',
         label: 'WD export item capture',
         help: 'The same test for ordinary items such as chairs, tables and video devices. A negative value measures inside the outline, which is what keeps the next room’s furniture pushed up against a shared wall out of this one.',
-    },
-];
-
-const ROOM_PART_TOLERANCE_TOGGLES = [
-    {
-        key: 'wallsOnTop',
-        label: 'Draw walls and doors above room contents',
-        help: 'While zoomed into a Room Part, draw every wall, column and door over the tables, chairs and devices rather than under whatever happens to sit against them.',
-    },
-    {
-        key: 'dimCanvasOnly',
-        label: 'Dim canvas-only items',
-        help: 'Show the neighbouring structure at reduced opacity, so it is obvious at a glance which items this room exports and which ones it only borrows. The dim updates as you move something across the boundary.',
     },
 ];
 
@@ -21106,26 +21080,6 @@ function createRoomPartToleranceMenu() {
         menu.appendChild(row);
     });
 
-    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
-        const row = document.createElement('label');
-        row.className = 'menuToleranceCheckRow';
-
-        const box = document.createElement('input');
-        box.type = 'checkbox';
-        box.id = 'tol-' + toggle.key;
-        box.dataset.tolKey = toggle.key;
-        box.checked = roomPartTolerance[toggle.key] !== false;
-        box.addEventListener('change', () => commitRoomPartToleranceMenu(true));
-        row.appendChild(box);
-
-        const text = document.createElement('span');
-        text.textContent = toggle.label;
-        row.appendChild(text);
-        row.appendChild(roomPartToleranceHelpIcon(toggle.help));
-
-        menu.appendChild(row);
-    });
-
     const buttons = document.createElement('div');
     buttons.className = 'menuToleranceButtons';
 
@@ -21199,10 +21153,6 @@ function refreshRoomPartToleranceMenu() {
         const input = document.getElementById('tol-' + field.key);
         if (input) input.value = roomPartToleranceDisplay(field.key);
     });
-    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
-        const box = document.getElementById('tol-' + toggle.key);
-        if (box) box.checked = roomPartTolerance[toggle.key] !== false;
-    });
 }
 
 /* Reads every box back rather than only the one that changed, so the Update button and a blur are the
@@ -21219,11 +21169,6 @@ function commitRoomPartToleranceMenu(redraw) {
             roomPartTolerance[field.key] = typed / ratio;
         }
         input.value = roomPartToleranceDisplay(field.key);
-    });
-
-    ROOM_PART_TOLERANCE_TOGGLES.forEach(toggle => {
-        const box = document.getElementById('tol-' + toggle.key);
-        if (box) roomPartTolerance[toggle.key] = !!box.checked;
     });
 
     saveRoomPartTolerance();
@@ -21270,13 +21215,20 @@ function isRoomPartEdgeDevice(deviceId) {
     return ROOM_PART_EDGE_DEVICES.includes(id) || id.startsWith('door');
 }
 
-/* Structure a room wants to SEE even when it belongs to the room next door: the edge devices plus the
- * boxes and floor coverings that get built against a shared wall. Canvas only — the WD export set is
- * still decided by roomPartItemMarginUnits(). */
-const ROOM_PART_STRUCTURE_EXTRA = ['box', 'boxdrop', 'stageFloor', 'carpet'];
-
-function isRoomPartStructureDevice(deviceId) {
-    return isRoomPartEdgeDevice(deviceId) || ROOM_PART_STRUCTURE_EXTRA.includes(String(deviceId || ''));
+/* The Room Canvas rectangle in floor units: the active part plus the same margin the floor view leaves
+ * around the whole room. Everything inside it is drawn, whoever owns it, so an item dragged just past
+ * the room does not vanish under the user's pointer. Ownership is a separate question, decided by
+ * roomPartItemMarginUnits() above. */
+function roomPartCanvasBorder() {
+    const mx = pxOffset / scale;
+    const myTop = pyOffset / scale;
+    const myBottom = (pyOffset + 30) / scale;
+    return [
+        { x: activeRoomX - mx, y: activeRoomY - myTop },
+        { x: activeRoomX + activeRoomWidth + mx, y: activeRoomY - myTop },
+        { x: activeRoomX + activeRoomWidth + mx, y: activeRoomY + activeRoomLength + myBottom },
+        { x: activeRoomX - mx, y: activeRoomY + activeRoomLength + myBottom },
+    ];
 }
 
 /* Item-membership margin: an ordinary item belongs to a Room Part only if it reaches past the inner wall
@@ -21325,7 +21277,7 @@ function listItemsOffStage() {
 
     let border = [];
     let edgeBorder;
-    let structureBorder;
+    let canvasBorder;
 
     /* get the bounds in scale (feet/meters) */
 
@@ -21343,7 +21295,6 @@ function listItemsOffStage() {
 
         border = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits());
         edgeBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartItemMarginUnits('wallStd'));
-        structureBorder = expandPolygonByMargin(activeRoomAbsPoints, roomPartToleranceUnits('canvasStructure'));
 
     } else {
 
@@ -21355,11 +21306,11 @@ function listItemsOffStage() {
         ];
         border = rectBorder(roomPartItemMarginUnits());
         edgeBorder = rectBorder(roomPartItemMarginUnits('wallStd'));
-        structureBorder = rectBorder(roomPartToleranceUnits('canvasStructure'));
 
     }
 
     if (!edgeBorder) edgeBorder = border;
+    if (isActiveRoomPart) canvasBorder = roomPartCanvasBorder();
 
     roomObj.items.forEach(rawItem => {
         let item = structuredClone(rawItem);
@@ -21372,10 +21323,9 @@ function listItemsOffStage() {
             if (!doPolygonsIntersect2(b, fourCorners)) {
                 itemsOffStageId.push(item.id);
 
-                /* Canvas-only: structure the neighbouring room owns still draws here (dimmed) so the room
-                 * reads as enclosed, while the export set above stays exactly as strict as it was. */
-                if (isActiveRoomPart && structureBorder && isRoomPartStructureDevice(item.data_deviceid)
-                    && doPolygonsIntersect2(structureBorder, fourCorners)) {
+                /* Canvas-only: outside the room but still on the Room Canvas, so it is drawn and edited
+                 * here while the room that owns it is the one that exports it. */
+                if (canvasBorder && doPolygonsIntersect2(canvasBorder, fourCorners)) {
                     roomPartCanvasOnlyIds.push(item.id);
                 }
             }
@@ -21385,36 +21335,33 @@ function listItemsOffStage() {
 
 }
 
-/* Zoomed into a Room Part: hide every item outside the room plus its coverage/label
- * nodes, so another room's camera/mic/speaker/display wedges don't bleed onto this
- * room's canvas. Items themselves sit off-canvas, but their coverage cones can reach
- * back into view. Full redraws recreate everything visible, so this re-runs from the
- * drawRoom tail (after the deleteNegativeShapes image-load delay) and from
+/* Zoomed into a Room Part: hide every item that is off the Room Canvas entirely, plus its coverage/label
+ * nodes, so another room's camera/mic/speaker/display wedges don't reach back into view from off screen.
+ * Anything still on the canvas is shown and stays editable. Full redraws recreate everything visible, so
+ * this re-runs from the drawRoom tail (after the deleteNegativeShapes image-load delay) and from
  * applyAllLayerStates (layer toggles re-show nodes). */
 function applyRoomPartOutsideItemVisibility() {
     if (!isActiveRoomPart) return;
     listItemsOffStage();
 
     const canvasOnly = new Set(roomPartCanvasOnlyIds);
-    const ghost = roomPartTolerance.dimCanvasOnly !== false;
 
-    clearStaleRoomPartGhosts(canvasOnly, ghost);
+    clearStaleRoomPartGhosts(canvasOnly);
 
     itemsOffStageId.forEach(id => {
         const node = stage.findOne('#' + id);
 
-        /* Canvas-only structure stays on screen AND stays editable. A wall, column, door or box on a
-         * shared boundary is ONE object serving two rooms, and the room the user is standing in is
-         * where they can see what a nudge to it does. The dim says it is the neighbour's and will not
-         * be exported from here, not that it may not be touched. A locked layer still wins. */
-        if (node && canvasOnly.has(id)) {
-            if (!isItemInHiddenLayer(node)) {
-                node.show();
-                node.listening(!isItemInLockedLayer(node));
-                applyRoomGhostOpacity(node, ghost);
-                if (ghost) roomPartGhostedIds.push(id);
-                return;
-            }
+        /* Outside the room but on the canvas: shown and fully editable. An item the user has just
+         * dragged past the room wall, and a wall shared with the room next door, are both things they
+         * are looking at and expect to keep seeing. The grey says this room will not export it, not
+         * that it may not be touched. A locked or hidden layer still wins. */
+        if (node && canvasOnly.has(id) && !isItemInHiddenLayer(node)) {
+            node.show();
+            node.listening(!isItemInLockedLayer(node));
+            applyLayerStateToCoverageNodes(node, true);
+            applyRoomGhostOpacity(node, true);
+            roomPartGhostedIds.push(id);
+            return;
         }
 
         if (node) node.hide();
@@ -21423,58 +21370,48 @@ function applyRoomPartOutsideItemVisibility() {
             if (cov) cov.hide();
         });
     });
-
-    applyRoomModeWallStacking();
 }
 
-/* Un-dim anything the previous pass ghosted that the next one will not, and start the list again.
- * Both passes below share it, so a node can never be left carrying a dim nothing accounts for. */
-function clearStaleRoomPartGhosts(canvasOnly, ghost) {
+/* Un-dim anything the previous pass greyed that this one will not, and start the list again. Both
+ * passes below share it, so a node can never be left carrying a grey nothing accounts for. */
+function clearStaleRoomPartGhosts(keep) {
     roomPartGhostedIds.forEach(id => {
-        if (ghost && canvasOnly.has(id)) return;
+        if (keep.has(id)) return;
         const node = stage.findOne('#' + id);
         if (node) applyRoomGhostOpacity(node, false);
     });
     roomPartGhostedIds = [];
 }
 
-/* Live ownership feedback while shared structure is being moved: a wall dragged into the room comes
- * back to full opacity, one dragged out of it dims, and the tolerance panel's numbers become something
- * the user can watch rather than guess at. Only the dim is touched, deliberately: hiding an ordinary
- * item the moment it leaves the room would read as a delete, so that still waits for the next redraw. */
+/* Live ownership feedback while an item is being moved: one dragged out of the room greys as soon as it
+ * leaves, one dragged back in comes back to full. Every item still on screen that this room will not
+ * export is greyed, whether it is a neighbour's wall or something the user has just pushed out past the
+ * canvas. Only the grey is touched, deliberately: hiding an item the moment it left would read as a
+ * delete, so that still waits for the next redraw. */
 function refreshRoomPartGhostState() {
     if (!isActiveRoomPart) return;
     listItemsOffStage();
 
-    const canvasOnly = new Set(roomPartCanvasOnlyIds);
-    const ghost = roomPartTolerance.dimCanvasOnly !== false;
-
-    clearStaleRoomPartGhosts(canvasOnly, ghost);
-    if (!ghost) return;
-
-    roomPartCanvasOnlyIds.forEach(id => {
+    const shown = itemsOffStageId.filter(id => {
         const node = stage.findOne('#' + id);
-        if (!node || isItemInHiddenLayer(node)) return;
-        applyRoomGhostOpacity(node, true);
+        return node && node.isVisible() && !isItemInHiddenLayer(node);
+    });
+
+    clearStaleRoomPartGhosts(new Set(shown));
+
+    shown.forEach(id => {
+        applyRoomGhostOpacity(stage.findOne('#' + id), true);
         roomPartGhostedIds.push(id);
     });
 }
 
-/* Zoomed into a Room Part, move every wall, column and door into groupRoomModeWalls so the structure
- * draws over the room's contents instead of under whatever happens to sit against it — including the
- * neighbouring walls the canvasStructure tolerance just made visible. Re-parenting rather than
- * re-ordering because Konva z-order is per parent and walls live in groupTables, three groups below
- * the devices. Leaving a Room Part triggers a full redraw, which re-inserts every node into its real
- * parentGroup, so there is nothing to undo. */
-function applyRoomModeWallStacking() {
-    if (!isActiveRoomPart || roomPartTolerance.wallsOnTop === false) return;
-
-    allNodeShapeGroups.forEach(shapeGroup => {
-        if (shapeGroup === groupRoomModeWalls) return;
-        shapeGroup.getChildren().slice().forEach(node => {
-            if (isRoomPartEdgeDevice(node.data_deviceid)) node.moveTo(groupRoomModeWalls);
-        });
-    });
+/* Zoomed into a Room Part the neighbouring parts are the backdrop, so groupRooms drops to the bottom of
+ * layerTransform and an adjacent part can no longer paint over this room's furniture. Only the floor
+ * plan image, which lives in layerGrid, sits below it. Walls and doors need nothing: every item now
+ * draws above the room parts, so they keep their ordinary place among the item groups. */
+function applyRoomPartStacking() {
+    if (!isActiveRoomPart || typeof groupRooms === 'undefined') return;
+    groupRooms.zIndex(0);
 }
 
 
@@ -27687,14 +27624,13 @@ function loadTemplate(x) {
 
 const fileInputImage = document.getElementById('fileInputImage');
 
-/* Which parent groups hold items the Transformer offers resize anchors for. groupRoomModeWalls has to
- * be one of them: zoomed into a Room Part every wall, column and door is re-parented into it, and a
- * parent test that does not know about it silently takes the resize handles off all of them. */
+/* Which parent groups hold items the Transformer offers resize anchors for. One test, so the four
+ * selection paths that ask the question can never drift apart. */
 function isResizableParentGroup(node) {
     if (!node || typeof node.getParent !== 'function') return false;
     const parent = node.getParent();
     return parent === groupTables || parent === groupStageFloors || parent === groupBoxes
-        || parent === groupRooms || parent === groupRoomModeWalls;
+        || parent === groupRooms;
 }
 
 /* change the anchors / handles depending on the selected node. Tables are resizable. Walls are resizable in 2 directions */
@@ -28840,9 +28776,6 @@ function selectAllNodes() {
     shapes = shapes.concat(groupTouchPanels.getChildren());
 
     shapes = shapes.concat(groupChairs.getChildren());
-
-    /* Holds this room's walls and doors while zoomed into a Room Part; empty otherwise. */
-    shapes = shapes.concat(groupRoomModeWalls.getChildren());
 
     /* Include Group rects so drag-select can capture them */
     if (groupGroupRects) {
