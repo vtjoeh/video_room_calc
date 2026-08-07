@@ -735,6 +735,13 @@ button.colorPickerReset:hover {
   align-items: center;
 }
 
+/* The Opacity step number is its own element so it can be hidden inside a Room Part, where Opacity is the
+   only step of the five left. That makes it a flex item, so cancel the row's gap and let its own nbsp be the
+   space, the way the plain-text "1)" and "2)" above it read. */
+.bgStepNum {
+  margin-right: -10px;
+}
+
 input,
 textarea,
 select {

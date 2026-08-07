@@ -46,7 +46,7 @@ If you see any issue with any of the above please post in the [Video Room Calcul
 The Shareable Template Hyperlink saves the full x, y, and z coordinates, as well as the sizes of every object in the query string parameter of the hyperlink. The size of the URL can be up to 8190 characters, which accommodates approximately 500 simple objects. The use of text fields, such as the Name or Label fields, contributes to the URL size. There is no enforced limit for downloading or uploading files. Use a row of chairs instead of many individual chairs to keep the URL short.
 
 ### Why is my background image missing from a shareable link?
-Background images are not part of the link. A shareable link carries the design in its address, and a floor plan image is far too large for that. Send the design as a file instead, using **Save** --> **Download File**, which does include the image. Your most recent floor plan images are also kept in this browser under **Room** --> **Floor Plan** --> **Recent Floor Plans**, so you can reapply one to a design that arrived by link.
+Background images are not part of the link. A shareable link carries the design in its address, and a floor plan image is far too large for that. Send the design as a file instead, using **Save** --> **Download File**, which does include the image. Your most recent floor plan images are also kept in this browser under **Room** --> **Background** --> **Recent Floor Plans**, so you can reapply one to a design that arrived by link.
 
 ### What about privacy and security? What information is tracked?
 The configuration and data are client-side only. The Video Room Calculator does not save the room configuration or personally identifiable information in the cloud. The number of visitors and buttons clicked (seen as 'heartbeat' in the JavaScript) is stored by the Video Room Calculator cloud.
@@ -79,7 +79,7 @@ A **Room Part** is one room inside a larger floor plan. Draw the whole floor onc
 1. Press the space bar for **Quick Add** and search for "room part", or find it through the sidebar search.
 2. Pick **Room Part with Default Walls**, **Room Part w/ No Walls**, or **Room Part Irregular Shape** for an outline that is not a rectangle.
 3. The first Room Part you add offers to turn on **Multi-Room Floor Plan Mode**. Accept it. The mode is saved with the design and can be turned off later under **Room** --> **Settings**.
-4. Size and position each Room Part on the floor. A background image of the building floor plan makes this much easier. See **Room** --> **Floor Plan**.
+4. Size and position each Room Part on the floor. A background image of the building floor plan makes this much easier. See **Room** --> **Background**.
 
 **Working inside a room**
 - **Double-click a Room Part to enter it.** On a touch screen use the right-click menu or the ellipsis (`...`) button and choose **Enter Room**, since a double-tap can be awkward.
@@ -235,7 +235,7 @@ Zoomed into a **Room Part**, walls, columns and doors are drawn above everything
 ### Can I import a CAD DXF or DWG file?
 No. There is no import for DXF, DWG or any other CAD format, and none is planned.
 
-What works well instead is a picture of the floor plan. Take a screenshot of the drawing, or export it from your CAD tool as a PNG, JPEG or SVG, then load it under **Room** --> **Floor Plan** and scale it to the room. From there you can trace walls over it and it becomes an accurate backdrop for the whole design. The image stays in the design file, and **Recent Floor Plans** keeps it in this browser so it can be reapplied to another design.
+What works well instead is a picture of the floor plan. Take a screenshot of the drawing, or export it from your CAD tool as a PNG, JPEG or SVG, then load it under **Room** --> **Background** and scale it to the room. From there you can trace walls over it and it becomes an accurate backdrop for the whole design. The image stays in the design file, and **Recent Floor Plans** keeps it in this browser so it can be reapplied to another design.
 
 Export in the other direction does work. **Save** --> **Export CAD DXF (meters)**, or `ctrl-shift-d`, writes an AutoCAD R12 DXF of the design with objects on named layers. It is a simple drawing meant for handing the layout to someone working in CAD, not a full construction drawing.
 
