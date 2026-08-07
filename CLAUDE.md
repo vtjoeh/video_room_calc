@@ -4064,6 +4064,25 @@ xConfig line formats, the coordinate model + Quad Camera handling,
 the xConfig XYZ tracking columns, room-sizing rules, and the export
 contract (label format checks, summary dialog, etc.).
 
+### The floor plan's bytes: `backgroundImageFile`
+
+`roomObj.backgroundImage` is the geometry (position, size, rotation,
+opacity, `bgImageId`) and rides in every undo snapshot.
+`roomObj.backgroundImageFile` is the picture itself as a data URL, and it
+is **stripped from every snapshot** by `saveToUndoArray()`, since keeping
+it would multiply a multi-MB image by the stack depth. Three separate
+things then have to agree, and a saved room that looks right on screen
+but opens with no floor plan is what happens when they do not.
+
+| Concern | Where |
+|---------|-------|
+| What actually paints the canvas | The module-level `backgroundImageFloor` `<img>` (`js/roomcalc.js`), which `insertKonvaBackgroundImageFloor()` hands to the `Konva.Image`. It is **independent of `roomObj`**, so the picture stays on screen no matter what happens to `backgroundImageFile`. That is exactly why losing the field is invisible until the file is reopened |
+| Recovery after an undo | `rehydrateBackgroundImageFromIdb()` re-reads the blob from the "Recent Floor Plans" IDB library by `bgImageId`, and only that. It cannot help once the entry is gone, which the 10-entry FIFO (`MAX_BG_IMAGES`) and the library's own delete button both arrange, and it does nothing at all when `bgImageId` was never stamped (IDB unavailable) |
+| **Carry the bytes across a restore** | `restoreSnapshotToCanvas()` copies `prev.backgroundImageFile` onto `next` when `next` has a `backgroundImage` and the two `bgImageId`s match, which is the same test `requiresFullRedraw()` uses to decide the picture did not change. Gating on the id is what stops a genuine image swap inheriting the wrong bytes on undo |
+| **Anything visible is saveable** | `currentBackgroundImageDataUrl()` is the one reader every export goes through (`buildRoomObjJsonPayload()` and the WD export's `data.vrc.backgroundImageFile`). It prefers `backgroundImageFloor.src`, then `roomObj.backgroundImageFile`, then **re-encodes the loaded `<img>` through a canvas**. The last step is the backstop: the `<img>` is what the user is looking at, so if the picture is on screen the save has something to write. It stamps the result back onto `roomObj` so the next save and the rehydrate skip the work |
+| Why a `blob:` URL is never persisted | Rehydration leaves `backgroundImageFloor.src` as a session-scoped `blob:`, which is dead on reload or in someone else's browser. `isValidBackgroundImageDataUrl()` is the gate, and it is why the rasterizing fallback exists at all: a `blob:`-backed `<img>` plus an evicted library entry used to save a room carrying `backgroundImage` geometry and no picture |
+| Reproducing the loss | Upload a floor plan, force the rehydrate path (reload, or clear `backgroundImageFile` and call `rehydrateBackgroundImageFromIdb()`), delete that entry from the IDB library, then make one edit and undo it. Before the fix the save wrote 1.9 KB with no image while the canvas still showed it; after, it writes the same bytes the original did |
+
 ### SVG floor plans are sanitized at ingest
 
 The Floor Plan background image accepts SVG (`accept="image/*"` matches

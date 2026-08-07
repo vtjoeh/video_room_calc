@@ -14943,6 +14943,18 @@ function restoreSnapshotToCanvas(prev, next) {
     const undoApply = window.VRC && window.VRC.undoApply;
     const fallback = !undoApply || undoApply.requiresFullRedraw(prev, next);
 
+    /* saveToUndoArray() strips backgroundImageFile from every snapshot, so installing one drops the floor
+     * plan's bytes from roomObj while the <img> keeps the picture on screen. Recovery used to depend on the
+     * IDB library still holding the blob, which it does not once that entry is evicted or deleted, and the
+     * next save then wrote a room with no floor plan in it. Carry the live bytes across whenever the snapshot
+     * is of the same picture, which is the same bgImageId test requiresFullRedraw() uses. */
+    const prevBgId = (prev && prev.backgroundImage && prev.backgroundImage.bgImageId) || undefined;
+    const nextBgId = (next && next.backgroundImage && next.backgroundImage.bgImageId) || undefined;
+    if (next && next.backgroundImage && !next.backgroundImageFile
+        && prev && prev.backgroundImageFile && prevBgId === nextBgId) {
+        next.backgroundImageFile = prev.backgroundImageFile;
+    }
+
     roomObj = next;
     /* Backfill missing overlaysVisible before any reader touches it. */
     ensureOverlaysVisibleDefaulted(roomObj);
@@ -29615,6 +29627,31 @@ function isValidBackgroundImageDataUrl(val) {
     return typeof val === 'string' && val.startsWith('data:');
 }
 
+/* The bytes to write for the floor plan, in order of preference: the <img>'s own src, roomObj's copy, then
+ * the pixels the user is looking at. That last one is the point. roomObj.backgroundImageFile is stripped
+ * from every undo snapshot, and rehydrating from IDB leaves the <img> on a blob: URL, so a room whose
+ * library entry has since been evicted or deleted ends up with neither of the first two while the picture is
+ * still plainly on screen. Re-encoding the loaded <img> means anything visible is saveable. */
+function currentBackgroundImageDataUrl() {
+    const src = (backgroundImageFloor && backgroundImageFloor.src) || '';
+    if (isValidBackgroundImageDataUrl(src)) return src;
+    if (isValidBackgroundImageDataUrl(roomObj && roomObj.backgroundImageFile)) return roomObj.backgroundImageFile;
+
+    const w = backgroundImageFloor && backgroundImageFloor.naturalWidth;
+    const h = backgroundImageFloor && backgroundImageFloor.naturalHeight;
+    if (!w || !h) return '';
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(backgroundImageFloor, 0, 0);
+        return canvas.toDataURL('image/png');
+    } catch (e) {
+        console.warn('[VRC] Re-encoding the floor plan image failed:', e && e.message);
+        return '';
+    }
+}
+
 /* Persist a freshly-loaded background image into the IDB bgImages library if not already present (called from importJson()'s VRC branch so opening a saved file populates "Recent Floor Plans"). */
 function persistImportedBackgroundImageToIdb() {
     if (!roomObj || !roomObj.backgroundImageFile) return Promise.resolve(null);
@@ -33573,9 +33610,12 @@ function exportRoomObjToWorkspace() {
         workspaceObj.data.vrc.multiRoomFloorPlanMode = true;
     }
 
-    if ('backgroundImageFile' in roomObj && 'backgroundImage' in roomObj2) {
-        workspaceObj.data.vrc.backgroundImageFile = roomObj.backgroundImageFile;
-        workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
+    if ('backgroundImage' in roomObj2) {
+        const bgDataUrl = currentBackgroundImageDataUrl();
+        if (bgDataUrl) {
+            workspaceObj.data.vrc.backgroundImageFile = bgDataUrl;
+            workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
+        }
     }
 
     /* VRC Groups round-trip via data.vrc.groups: each member's data_groupId rides as a plain "group" attr, and the Group rect's geometry/metadata is stashed here (meters, VRC top-left frame). groupMembers is NOT emitted — it's rebuilt on import by matching data_groupId. Empty groups are skipped. */
@@ -35632,15 +35672,13 @@ function buildRoomObjJsonPayload() {
     /* because undo might mess up roomObj.backgroundImageFile, just add the current background image to roomObj2 or get rid of all references to the backgroundImage */
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
     if (konvaBackgroundImageFloor && 'backgroundImage' in roomObj2) {
-        /* Prefer the <img>.src when it is a data: URL. If it is a
-         * temporary blob: URL (from IDB rehydration), fall back to the
-         * already-converted data URL on roomObj. Never persist blob: URLs
-         * — they are session-scoped and break on reload/import. */
-        const imgSrc = backgroundImageFloor.src || '';
-        if (imgSrc.startsWith('data:')) {
-            roomObj2.backgroundImageFile = imgSrc;
-        } else if (roomObj.backgroundImageFile && String(roomObj.backgroundImageFile).startsWith('data:')) {
-            roomObj2.backgroundImageFile = roomObj.backgroundImageFile;
+        /* Never persist a blob: URL, which is what the <img> carries after an IDB rehydration: they are
+         * session-scoped and break on reload/import. currentBackgroundImageDataUrl() is what keeps a visible
+         * floor plan saveable when neither the <img> nor roomObj still holds the original bytes. */
+        const dataUrl = currentBackgroundImageDataUrl();
+        if (dataUrl) {
+            roomObj2.backgroundImageFile = dataUrl;
+            roomObj.backgroundImageFile = dataUrl;
         } else {
             delete roomObj2.backgroundImageFile;
         }
