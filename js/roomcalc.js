@@ -3186,14 +3186,30 @@ function applyLayerLockOpacity(node, locked) {
     applyNodeDimming(node, 'data_lockOpacityApplied', locked);
 }
 
-/* The item AND its coverage, so a camera that is not this room's does not keep painting a full strength
- * wedge over a greyed icon. */
+const ROOM_PART_COVERAGE_PREFIXES = ['audio~', 'speaker~', 'fov~', 'dispDist~'];
+
+/* A greyed item's camera, mic, speaker and display coverage comes OFF, rather than being dimmed with the
+ * item: a wedge cast by the room next door is the one thing the zoomed view is there to keep out, and a
+ * faint one still reads as this room's. The label rides the dim, since it only names the item. */
 function applyRoomGhostOpacity(node, ghost) {
     applyNodeDimming(node, 'data_roomGhostApplied', ghost);
     const id = node && node.id();
     if (!id) return;
-    ['audio~', 'speaker~', 'fov~', 'dispDist~', 'label~'].forEach(prefix => {
-        applyNodeDimming(stage.findOne('#' + prefix + id), 'data_roomGhostApplied', ghost);
+    applyNodeDimming(stage.findOne('#label~' + id), 'data_roomGhostApplied', ghost);
+    setRoomPartCoverageVisible(node, !ghost);
+}
+
+/* Coming back on goes through applyLayerStateToCoverageNodes so the per-item data_*Hidden flags and the
+ * VRC layer decide it, not this. */
+function setRoomPartCoverageVisible(node, on) {
+    if (!node || !node.id()) return;
+    if (on) {
+        applyLayerStateToCoverageNodes(node, !isItemInHiddenLayer(node));
+        return;
+    }
+    ROOM_PART_COVERAGE_PREFIXES.forEach(prefix => {
+        const cov = stage.findOne('#' + prefix + node.id());
+        if (cov) cov.hide();
     });
 }
 
@@ -20928,26 +20944,28 @@ loadRoomPartTolerance();
 
 const ROOM_PART_TOLERANCE_MENU_ID = 'deviceMenu-roomPartTolerance';
 
+/* Every help string spells both units out, because the boxes show whichever unit the room is in and the
+ * numbers people compare them against (a 0.10 m wall) are quoted in the other one as often as not. */
 const ROOM_PART_TOLERANCE_FIELDS = [
     {
-        key: 'wdWallCapture',
-        label: 'WD export Room Part wall capture',
-        help: 'How far outside a rectangular Room Part a wall is kept and trimmed to when the room is sent to the Workspace Designer. A wall running past the room is cut back to the room plus this much. At 0 a wall whose centre line sits outside the room is left at full length instead of being cut.',
-    },
-    {
-        key: 'wdPolyWallCapture',
-        label: 'WD Irregular Room Part wall capture',
-        help: 'The same measurement for an irregular Room Part. An irregular room uses this value for both cuts, the bounding box and the outline itself, so this one number decides everything it keeps.',
+        key: 'wdItemCapture',
+        label: 'Items belong to this room',
+        help: 'Chairs, tables, displays and video devices measure INWARD from the outline, which is why the default is negative. At -0.03 m / -0.098 ft an item has to reach just past the inside wall face to be counted, so furniture in the next room pushed up against the shared wall is not pulled into this one. A positive value reaches outside the room instead.',
     },
     {
         key: 'wdEdgeCapture',
-        label: 'WD export wall &amp; door capture',
-        help: 'How far outside the outline a wall, column or door still counts as this room’s own, for the shareable link and the Workspace Designer export. Walls are 0.10 m thick, so the default lets a wall drawn flush against the outer face still belong to the room.',
+        label: 'Walls and doors belong to this room',
+        help: 'Walls, columns, doorways and wall Navigators are drawn ON the outline rather than inside it, so this one measures OUTWARD. The default 0.13 m / 0.427 ft is the wall thickness (0.10 m / 0.328 ft) plus a little slack, so a wall drawn anywhere between the inside and outside faces still counts as this room’s.',
     },
     {
-        key: 'wdItemCapture',
-        label: 'WD export item capture',
-        help: 'The same test for ordinary items such as chairs, tables and video devices. A negative value measures inside the outline, which is what keeps the next room’s furniture pushed up against a shared wall out of this one.',
+        key: 'wdWallCapture',
+        label: 'How much of a long wall is kept',
+        help: 'A wall running past the room is cut back to the room plus this much before it is sent. The default 0.10 m / 0.328 ft is one wall thickness, which is what lets a wall reach the outside corner of the room instead of stopping short at the inside one. At 0 a wall whose centre line sits outside the room is left at full length instead of being cut.',
+    },
+    {
+        key: 'wdPolyWallCapture',
+        label: 'The same, for an irregular room',
+        help: 'An irregular Room Part uses this one value for both of its cuts, the bounding box and the outline itself, so this number alone decides what it keeps. Default 0.10 m / 0.328 ft, the same wall thickness as above.',
     },
 ];
 
@@ -21037,12 +21055,18 @@ function createRoomPartToleranceMenu() {
 
     menu.appendChild(head);
 
+    /* The inside vs outside face is what every field below is measured from, so it is said once here
+     * rather than four times in the help bubbles. */
     const notice = document.createElement('div');
     notice.className = 'menuToleranceNotice';
     const noticeLead = document.createElement('b');
     noticeLead.textContent = 'These values are for testing.';
     notice.appendChild(noticeLead);
-    notice.appendChild(document.createTextNode(' They change how far outside a Room Part an object still belongs to it. Saved in this browser only, never in the room file or a shared link.'));
+    notice.appendChild(document.createTextNode(' They decide which objects a Room Part sends to the Workspace Designer, and how much of a long wall it keeps. A Room Part outline is the '));
+    const noticeInside = document.createElement('b');
+    noticeInside.textContent = 'inside';
+    notice.appendChild(noticeInside);
+    notice.appendChild(document.createTextNode(' face of its walls, and a wall is 0.10 m / 0.328 ft thick, so the outside face sits that far beyond the outline. Saved in this browser only, never in the room file or a shared link.'));
     menu.appendChild(notice);
 
     ROOM_PART_TOLERANCE_FIELDS.forEach(field => {
@@ -21358,7 +21382,6 @@ function applyRoomPartOutsideItemVisibility() {
         if (node && canvasOnly.has(id) && !isItemInHiddenLayer(node)) {
             node.show();
             node.listening(!isItemInLockedLayer(node));
-            applyLayerStateToCoverageNodes(node, true);
             applyRoomGhostOpacity(node, true);
             roomPartGhostedIds.push(id);
             return;

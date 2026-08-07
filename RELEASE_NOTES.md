@@ -3,6 +3,12 @@
 https://collabexperience.com
 
 
+**0.1.671**
+- After entering a Room Part, there are updated the tolerances for item exports to the Workspace Designer. Whatever the room will not send to the Workspace Designer is grayed out (dimmed) on the Room Canvas, but still editable.
+- Removed the designer.cisco.com (beta) option from the Workspace Designer site list. The designer.cisco.com site now redirects to designer.webex.com, so the option is no longer needed.
+- Bug fixes.
+
+
 **0.1.670** 
 - Ceiling Grid is automatically added to the Ceiling Grid layer. If it does not exist, it is created. 
 - Ceiiing Grid has an optional first grid width and length value. 
