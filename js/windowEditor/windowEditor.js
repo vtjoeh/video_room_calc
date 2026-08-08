@@ -23,6 +23,8 @@
  *               height, baseZ, data_fill?, data_opacity? }]  (meters; caller converts unit)
  *   onClose(result): result = { wallHeightM, windows } — always called on close
  *     (there is no cancel; matches Path Editor's "any close applies" convention).
+ *   onChange(result): optional, same payload, fired on each settled edit (insert, delete,
+ *     drag end, resize end, field apply, undo/redo) so a live 3D view can follow along.
  * }
  *
  * Each record occupies an EXCLUSIVE horizontal slice of the wall (dotted guide lines
@@ -130,7 +132,7 @@
         if (!undoStack.length) return;
         redoStack.push(snapshot());
         restoreSnapshot(undoStack.pop());
-        refreshAll();
+        commitChange();
         syncUndoButtons();
     }
 
@@ -138,7 +140,7 @@
         if (!redoStack.length) return;
         undoStack.push(snapshot());
         restoreSnapshot(redoStack.pop());
-        refreshAll();
+        commitChange();
         syncUndoButtons();
     }
 
@@ -354,6 +356,14 @@
                     </div>
                 </div>
                 <div class="vrcwe-canvas" id="vrcweCanvas"></div>
+            </div>
+            <div class="vrcwe-ctxmenu" id="vrcweCtxMenu" style="display:none">
+                <button type="button" data-vrcwe-act="copy">Copy</button>
+                <button type="button" data-vrcwe-act="paste">Paste</button>
+                <hr>
+                <button type="button" data-vrcwe-act="window">Insert Window</button>
+                <button type="button" data-vrcwe-act="windowFrame">Insert Open Window</button>
+                <button type="button" data-vrcwe-act="doorFrame">Insert Open Doorway</button>
             </div>`;
         document.body.appendChild(dlg);
 
@@ -390,6 +400,7 @@
             colorSwatch: dlg.querySelector('#vrcweColorSwatch'),
             colorFill: dlg.querySelector('#vrcweColorFill'),
             colorOpacity: dlg.querySelector('#vrcweColorOpacity'),
+            ctxMenu: dlg.querySelector('#vrcweCtxMenu'),
         };
 
         ui.close.onclick = () => { finishAndApply(); dlg.close(); };
@@ -407,12 +418,30 @@
         ui.snapToggle.onclick = () => { snapEnabled = ui.snapToggle.checked; };
         ui.colorSwatch.onclick = () => openColorPickerForSelection();
 
+        ui.ctxMenu.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-vrcwe-act]');
+            if (!btn || btn.disabled) return;
+            const act = btn.dataset.vrcweAct;
+            const atX = ctxMenuX;
+            hideCtxMenu();
+            if (act === 'copy') copySelected();
+            else if (act === 'paste') pasteClipboard(atX);
+            else insertNewWindow(act, atX);
+        });
+        /* Capture, so a press that lands on the canvas closes the menu before the stage's
+         * own handlers see it and start a pan or a selection under an open menu. */
+        document.addEventListener('pointerdown', (e) => {
+            if (!ctxMenuOpen()) return;
+            if (ui.ctxMenu.contains(e.target)) return;
+            hideCtxMenu();
+        }, true);
+
         ui.wallHeight.addEventListener('change', () => {
             const v = displayToM(Number(ui.wallHeight.value));
             if (isFinite(v) && v > 0) {
                 pushUndo();
                 wallHeightM = v;
-                refreshAll();
+                commitChange();
             } else {
                 ui.wallHeight.value = roundDisplay(wallHeightM);
             }
@@ -459,6 +488,12 @@
                 e.stopPropagation();
                 if (e.key === 'Escape') { e.preventDefault(); confirmDlg.close(); }
                 return;
+            }
+            if (ctxMenuOpen()) {
+                /* Escape dismisses just the menu; anything else closes it and carries on,
+                 * so a shortcut is never swallowed by a menu the user has moved on from. */
+                hideCtxMenu();
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return; }
             }
             const typing = document.activeElement && (document.activeElement.tagName === 'INPUT');
             if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
@@ -546,12 +581,89 @@
     function showConfirmDialog(message, onContinue) {
         buildConfirmDialog();
         ui.confirmMsg.textContent = message;
+        ui.confirmCancel.style.display = '';
+        ui.confirmContinue.textContent = 'Continue';
         ui.confirmContinue.onclick = () => { confirmDlg.close(); onContinue(); };
         ui.confirmCancel.onclick = () => confirmDlg.close();
         confirmDlg.showModal();
     }
 
+    /* Same dialog with nothing to decide. The toolbar hint bar is easy to miss when the
+     * answer is about the spot the user just right-clicked on, so a refusal there says so
+     * where they are looking. */
+    function showMessageDialog(message) {
+        buildConfirmDialog();
+        ui.confirmMsg.textContent = message;
+        ui.confirmCancel.style.display = 'none';
+        ui.confirmContinue.textContent = 'OK';
+        ui.confirmContinue.onclick = () => confirmDlg.close();
+        confirmDlg.showModal();
+    }
+
     function round3(n) { return Math.round(n * 1000) / 1000; }
+
+    /* ---------------- right-click menu ---------------- */
+
+    let ctxMenuX = 0;   /* wall-run position (meters) the menu was opened at */
+
+    function ctxMenuOpen() { return !!(ui.ctxMenu && ui.ctxMenu.style.display !== 'none'); }
+
+    function hideCtxMenu() {
+        if (ui.ctxMenu) ui.ctxMenu.style.display = 'none';
+    }
+
+    /* The record occupying the wall-run position x. A column test rather than a hit test,
+     * which is what makes "above or below a window" count as being on it: the wall is
+     * sliced exclusively along its run, so that whole column is spoken for. */
+    function recordAtX(x) {
+        return windowsList.find(w => x >= w.distFromLeft && x < w.distFromLeft + w.width) || null;
+    }
+
+    /* The open span containing x, bounded by the nearest record on each side or the wall
+     * ends. Only meaningful when recordAtX(x) is null. */
+    function gapAtX(x) {
+        let start = 0, end = wallLengthM;
+        sortedWindows().forEach(w => {
+            const s = w.distFromLeft, e = w.distFromLeft + w.width;
+            if (e <= x + 1e-9) start = Math.max(start, e);
+            if (s >= x - 1e-9) end = Math.min(end, s);
+        });
+        return { start: start, end: end };
+    }
+
+    /* Centres desiredWidth on x, clamped into the gap x sits in, narrowing to the gap when
+     * it has to and refusing outright when there is nothing worth placing. */
+    function placeAtPointer(x, desiredWidth, place) {
+        const gap = gapAtX(x);
+        const available = round3(gap.end - gap.start);
+        if (available <= MIN_DIM_M) {
+            showMessageDialog('There is no open space at that point on the wall. Move a window or frame out of the way, or right click somewhere with a gap in it.');
+            return;
+        }
+        const width = Math.min(desiredWidth, available);
+        const start = Math.min(Math.max(x - width / 2, gap.start), gap.end - width);
+        placeWithNarrowConfirm(round3(start), round3(width), place);
+    }
+
+    function showCtxMenu(clientX, clientY, worldX) {
+        ctxMenuX = Math.max(0, Math.min(wallLengthM, worldX));
+        const onRecord = recordAtX(ctxMenuX);
+        if (onRecord) selectWindow(onRecord.id);
+
+        ui.ctxMenu.querySelectorAll('button[data-vrcwe-act]').forEach(btn => {
+            const act = btn.dataset.vrcweAct;
+            if (act === 'copy') btn.disabled = !onRecord;
+            else if (act === 'paste') btn.disabled = !!onRecord || !clipboard;
+            else btn.disabled = !!onRecord;
+        });
+
+        ui.ctxMenu.style.display = 'block';
+        ui.ctxMenu.style.left = '0px';
+        ui.ctxMenu.style.top = '0px';
+        const box = ui.ctxMenu.getBoundingClientRect();
+        ui.ctxMenu.style.left = Math.max(2, Math.min(clientX, window.innerWidth - box.width - 4)) + 'px';
+        ui.ctxMenu.style.top = Math.max(2, Math.min(clientY, window.innerHeight - box.height - 4)) + 'px';
+    }
 
     /* ---------------- shared color picker (js/colorPicker.js) ---------------- */
 
@@ -624,8 +736,20 @@
 
         konvaStage.on('dragmove', () => { if (konvaStage.isDragging()) drawGrid(); });
 
+        /* Bound on the stage rather than a rect, so a right click anywhere in the view is
+         * answered; the pointer's own wall-run position is what decides what the menu
+         * offers and where an insert lands. */
+        konvaStage.on('contextmenu', (e) => {
+            e.evt.preventDefault();
+            const pointer = konvaStage.getPointerPosition();
+            if (!pointer) return;
+            const world = konvaStage.getAbsoluteTransform().copy().invert().point(pointer);
+            showCtxMenu(e.evt.clientX, e.evt.clientY, world.x);
+        });
+
         konvaStage.on('wheel', (e) => {
             e.evt.preventDefault();
+            hideCtxMenu();
             const oldScale = konvaStage.scaleX();
             const pointer = konvaStage.getPointerPosition();
             const factor = Math.pow(1.06, -e.evt.deltaY / 53);
@@ -641,6 +765,8 @@
             });
             drawGrid();
         });
+
+        konvaStage.on('dragstart', () => hideCtxMenu());
 
         konvaStage.on('click tap', (e) => {
             if (e.target === konvaStage) selectWindow(null);
@@ -748,7 +874,7 @@
                 drawGrid();
                 populateSelectionFields();
             });
-            rect.on('dragend', () => { drawGrid(); drawSnapGuides(null, null); });
+            rect.on('dragend', () => { drawGrid(); drawSnapGuides(null, null); notifyChange(); });
             rect.on('transformstart', () => pushUndo());
             rect.on('transformend', () => {
                 const newWidth = Math.max(MIN_DIM_M, rect.width() * rect.scaleX());
@@ -764,6 +890,7 @@
                 }
                 drawGrid();
                 populateSelectionFields();
+                notifyChange();
             });
             itemLayer.add(rect);
             rectNodes[w.id] = rect;
@@ -968,7 +1095,7 @@
             rec.data_opacity = op;
         }
 
-        refreshAll();
+        commitChange();
     }
 
     /* ---------------- insert / copy / paste / duplicate / delete ---------------- */
@@ -1027,9 +1154,13 @@
 
     const INSERT_LEFT_GAP_M = 0.3048; /* 1 ft, applied to fresh Insert placements only */
 
-    function insertNewWindow(type) {
+    /* atX (meters along the wall's run) is the right-click menu's placement: the item is
+     * centred there instead of hunting for the first gap, which is the whole point of that
+     * menu. The toolbar buttons pass nothing and keep the original behaviour. */
+    function insertNewWindow(type, atX) {
         const def = defaultSizeFor(type);
-        fitAndPlace(Math.min(def.width, wallLengthM), (start, width) => {
+        const desired = Math.min(def.width, wallLengthM);
+        const place = (start, width) => {
             const height = Math.min(def.height, wallHeightM - def.baseZ);
             pushUndo();
             const rec = {
@@ -1046,8 +1177,10 @@
             }
             windowsList.push(rec);
             selId = rec.id;
-            refreshAll();
-        }, INSERT_LEFT_GAP_M);
+            commitChange();
+        };
+        if (atX != null) placeAtPointer(atX, desired, place);
+        else fitAndPlace(desired, place, INSERT_LEFT_GAP_M);
     }
 
     function alertNoRoom() {
@@ -1065,9 +1198,9 @@
         ui.paste.disabled = false;
     }
 
-    function pasteClipboard() {
+    function pasteClipboard(atX) {
         if (!clipboard) return;
-        fitAndPlace(clipboard.width, (start, width) => {
+        const place = (start, width) => {
             pushUndo();
             const rec = JSON.parse(JSON.stringify(clipboard));
             rec.id = crypto.randomUUID();
@@ -1075,8 +1208,10 @@
             rec.distFromLeft = round3(start);
             windowsList.push(rec);
             selId = rec.id;
-            refreshAll();
-        });
+            commitChange();
+        };
+        if (atX != null) placeAtPointer(atX, clipboard.width, place);
+        else fitAndPlace(clipboard.width, place);
     }
 
     /* Duplicates the selected record, placing the copy so the gap BEFORE it repeats
@@ -1123,7 +1258,7 @@
             newRec.width = round3(w);
             windowsList.push(newRec);
             selId = newRec.id;
-            refreshAll();
+            commitChange();
         });
     }
 
@@ -1132,7 +1267,7 @@
         pushUndo();
         windowsList = windowsList.filter(w => w.id !== selId);
         selId = null;
-        refreshAll();
+        commitChange();
     }
 
     /* ---------------- refresh / open / close ---------------- */
@@ -1146,12 +1281,16 @@
         ui.paste.disabled = !clipboard;
     }
 
-    function finishAndApply() {
-        const opts = activeOpts;
-        activeOpts = null;
-        destroyStage();
-        if (!opts || typeof opts.onClose !== 'function') return;
-        opts.onClose({
+    /* Redraw AND tell the caller. Every mutation goes through this rather than refreshAll()
+     * directly, so a resize or a first fit (which also call refreshAll) never reads as an
+     * edit. */
+    function commitChange() {
+        refreshAll();
+        notifyChange();
+    }
+
+    function buildResult() {
+        return {
             wallHeightM: wallHeightM,
             windows: windowsList.map(w => {
                 const out = {
@@ -1164,7 +1303,31 @@
                 }
                 return out;
             }),
-        });
+        };
+    }
+
+    /* Fired on a settled change, never on every frame of a drag: the caller's answer to one
+     * of these is a whole Workspace Designer export, which is far too much to run per frame. */
+    let notifyTimer = null;
+
+    function notifyChange() {
+        if (!activeOpts || typeof activeOpts.onChange !== 'function') return;
+        clearTimeout(notifyTimer);
+        notifyTimer = setTimeout(() => {
+            if (!activeOpts || typeof activeOpts.onChange !== 'function') return;
+            activeOpts.onChange(buildResult());
+        }, 120);
+    }
+
+    function finishAndApply() {
+        const opts = activeOpts;
+        activeOpts = null;
+        clearTimeout(notifyTimer);
+        hideCtxMenu();
+        const result = buildResult();
+        destroyStage();
+        if (!opts || typeof opts.onClose !== 'function') return;
+        opts.onClose(result);
     }
 
     async function open(opts) {
@@ -1188,6 +1351,7 @@
         redoStack = [];
         syncUndoButtons();
         if (ui.snapToggle) { ui.snapToggle.checked = snapEnabled; }
+        hideCtxMenu();
 
         dlg.showModal();
         buildStage();

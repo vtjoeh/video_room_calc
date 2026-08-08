@@ -189,6 +189,48 @@ button.vrcwe-close:hover {
     cursor: pointer;
 }
 
+/* Right-click menu. A child of the editor dialog, so it shares that dialog's top-layer
+   entry — anything outside it draws underneath however high its z-index (the same rule
+   that made the shared color picker reparent itself; see openColorPickerForSelection). */
+.vrcwe-ctxmenu {
+    position: fixed;
+    z-index: 10;
+    min-width: 168px;
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    font-family: 'Inter', Helvetica, sans-serif;
+}
+
+.vrcwe-ctxmenu button {
+    display: block;
+    width: 100%;
+    padding: 6px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 13px;
+    color: #1a1a1a;
+    cursor: pointer;
+}
+
+.vrcwe-ctxmenu button:hover:not(:disabled) {
+    background: #dceafc;
+}
+
+.vrcwe-ctxmenu button:disabled {
+    color: #aaa;
+    cursor: default;
+}
+
+.vrcwe-ctxmenu hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 4px 0;
+}
+
 /* Nested Cancel/Continue confirm modal (appended to document.body, a sibling of the
  * main editor dialog — see the comment on buildConfirmDialog() in windowEditor.js). */
 .vrcwe-confirm-dialog {

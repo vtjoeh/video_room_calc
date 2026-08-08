@@ -1922,6 +1922,37 @@ Delete keys), Undo / Redo (local snapshot stack, same 100-entry-cap
 model as Path Editor's, forgotten on close), zoom +/− buttons, the
 Snap to Objects checkbox, drag to pan, scroll to zoom.
 
+**An open Workspace Designer follows the edit.** `opts.onChange(result)`
+carries the same payload `onClose` does and fires on each settled change,
+so the 3D view rebuilds the wall while the editor is still up rather than
+only once it closes.
+
+| Concern | Where |
+|---------|-------|
+| Settled, not per frame | `commitChange()` (= `refreshAll()` + `notifyChange()`) replaces the bare `refreshAll()` at every mutation site, plus the rects' own `dragend` and `transformend`. The caller's answer to one of these is a whole WD export, which is far too much to run on each frame of a drag. `notifyChange()` coalesces on a 120 ms timer on top of that |
+| Why `refreshAll()` is still called directly in two places | A window resize and the first fit both re-render, and neither is an edit |
+| It is NOT `updateItem()` | That rebuilds the Konva node and spends an undo step, and a session in the editor is meant to be one step. The glue writes `data_customWindows` and `data_vHeight` straight onto the roomObj item and mirrors them onto the node, which is enough: the WD export reads `roomObj`, and the 2D `sceneFunc` reads the node's own `data_customWindows` at draw time. Confirmed live: a whole session of inserts, a delete and a drag still lands as exactly one undo entry |
+| Nothing listening, nothing done | `isWorkspaceViewOpen()` (a window that is open, the test iframe, or the split view) gates the whole handler, so with no 3D view up the editor behaves exactly as it did: `roomObj` is untouched until Close. `postMessageToWorkspacNow()` builds the entire export before it checks, which is fine once per redraw and not fine while somebody is dragging |
+| Undo and redo report too | They are edits from the 3D view's point of view, so both go through `commitChange()` |
+
+**Right-click puts the item where the pointer is.** The toolbar's Insert
+buttons hunt for the first gap that fits, which is the wrong answer when
+the user already knows where the window goes. `#vrcweCtxMenu` (Copy,
+Paste, and the three Inserts) opens on the stage's `contextmenu` and
+remembers the wall-run position it was opened at (`ctxMenuX`);
+`placeAtPointer()` then CENTRES the item there, clamped into the gap that
+position sits in.
+
+| Concern | Where |
+|---------|-------|
+| What decides the enabled entries | `recordAtX()`, a COLUMN test rather than a hit test. The wall is sliced exclusively along its run, so the whole column above and below a window is spoken for: pointing anywhere in it offers Copy and nothing else, which is the same answer the user would get from the window itself. In an open gap the three Inserts are live and Copy is not, since there is nothing under the pointer to copy |
+| Copy also selects | Right-clicking a window selects it before the menu opens, so the side panel names what Copy just took |
+| Paste | Enabled only in a gap, and only with something on the clipboard. It narrows to the gap exactly as the toolbar's does, through the same `placeWithNarrowConfirm()` |
+| Nothing to place into | `placeAtPointer()` refuses a gap of `MIN_DIM_M` or less with `showMessageDialog()` rather than the toolbar's `alertNoRoom()` hint. The hint bar is at the top of the window and the answer is about the spot the user just clicked on, so it says so where they are looking. Same `<dialog>` as the confirm, Cancel hidden and the button reading OK |
+| It has to be a CHILD of the editor dialog | A modal `<dialog>` renders in the browser's top layer, which beats any z-index outside its own subtree. The same rule sent the shared colour picker behind the editor (see `openColorPickerForSelection`), so the menu is built inside `dlg` and positioned `fixed`. Confirmed live with `elementFromPoint` on the Copy button |
+| Placed by measurement | Shown at the pointer, then clamped to the viewport from its own measured box, so a right click in the bottom right corner does not put half the menu off screen |
+| Ways out | An action, a press anywhere else (a CAPTURE-phase `pointerdown` on `document`, so the press closes the menu before the stage starts a pan under it), a zoom, a pan, or Escape. Escape is taken at the top of `handleEditorKeydown` and returns, or the editor's own Escape branch would close the whole editor along with the menu |
+
 **Auto-narrow + Cancel/Continue confirm** (`fitAndPlace()` /
 `placeWithNarrowConfirm()`, shared by Insert, Paste, and Duplicate).
 Earlier builds failed outright ("no room" hint) whenever nothing was

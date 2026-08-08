@@ -12824,31 +12824,51 @@ function openWindowEditor(idOverride) {
         data_opacity: w.data_opacity,
     }));
 
+    const toRoomUnits = (res) => res.windows.map(w => {
+        const out = {
+            id: w.id,
+            type: w.type,
+            distFromLeft: round(w.distFromLeft / toM),
+            width: round(w.width / toM),
+            height: round(w.height / toM),
+            baseZ: round(w.baseZ / toM),
+        };
+        if (w.type === 'window') {
+            out.data_fill = w.data_fill;
+            out.data_opacity = w.data_opacity;
+        }
+        return out;
+    });
+
     loadScriptOnce(VRC.constants.SCRIPT_WINDOW_EDITOR).then(() => {
         return window.VRC.windowEditor.open({
             wallLengthM: wallLengthM,
             wallHeightM: wallHeightM,
             windows: windowsM,
             unit: roomObj.unit,
+            /* Each settled edit, so an open Workspace Designer view tracks the wall while the
+             * editor is still up. Deliberately NOT updateItem(): that rebuilds the node and
+             * spends an undo step, and a session in here is meant to be one step. Writing the
+             * item and the node directly is enough, since the WD export reads roomObj and the
+             * 2D sceneFunc reads the node's own data_customWindows at draw time. */
+            onChange: (res) => {
+                if (!res || !isWorkspaceViewOpen()) return;
+                const live = roomObjItemsMap.get(id) || roomObj.items.find(i => i.id === id);
+                if (!live) return;
+                const liveNode = stage.findOne('#' + id);
+                const windowsOut = toRoomUnits(res);
+                live.data_vHeight = round(res.wallHeightM / toM);
+                live.data_customWindows = windowsOut;
+                if (liveNode) {
+                    liveNode.data_customWindows = structuredClone(windowsOut);
+                    liveNode.getLayer() && liveNode.getLayer().batchDraw();
+                }
+                postMessageToWorkspace();
+            },
             onClose: (res) => {
                 if (!res) return;
                 document.getElementById('itemVheight').value = round(res.wallHeightM / toM);
-                const outWindows = res.windows.map(w => {
-                    const out = {
-                        id: w.id,
-                        type: w.type,
-                        distFromLeft: round(w.distFromLeft / toM),
-                        width: round(w.width / toM),
-                        height: round(w.height / toM),
-                        baseZ: round(w.baseZ / toM),
-                    };
-                    if (w.type === 'window') {
-                        out.data_fill = w.data_fill;
-                        out.data_opacity = w.data_opacity;
-                    }
-                    return out;
-                });
-                document.getElementById('customWindowsData').value = JSON.stringify(outWindows);
+                document.getElementById('customWindowsData').value = JSON.stringify(toRoomUnits(res));
                 updateItem();
             },
         });
@@ -33133,6 +33153,15 @@ function openModalWorkspace() {
 
 function closeModalWorkspace() {
     document.getElementById('modalWorkspace').close();
+}
+
+/* Is anything actually listening for a plan? postMessageToWorkspacNow() builds the whole
+ * export before it checks, which is fine for the once-per-redraw call but not for a caller
+ * that fires while somebody is editing. */
+function isWorkspaceViewOpen() {
+    if (workspaceWindow && !workspaceWindow.closed) return true;
+    if (testiFrame && testiFrameInitialized) return true;
+    return !!(typeof splitViewState !== 'undefined' && splitViewState && splitViewState.iframeLoaded);
 }
 
 function postMessageToWorkspace() {
