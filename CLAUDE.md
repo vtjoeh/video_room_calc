@@ -1002,6 +1002,30 @@ actually live.
 | The programmatic callers are untouched | The guard is on the buttons, not on `cameraCoverageVisible()` and friends, so the undo fast path and `applyAllLayerStates()` still drive the overlays freely |
 | The tooltip already agreed | `applyMultiRoomModeUi()` swaps the hover text to `Not available in Multi-Room Floor Plan mode` in overview and restores `tip.dataset.defaultHtml` on the way out |
 
+### Losing the last Room Part leaves Multi-Room mode
+
+A design with no Room Parts left is a plain single room again, so it drops
+out of Multi-Room Floor Plan Mode on its own: the coverage buttons come back
+to life, `Floor` reverts to `Room`, `Floor Setup` to `Room Setup`,
+`Floor name:` / `Rotate Floor:` / `Default Software Experience:` to their
+room wording, and the Equipment menu is rebuilt with the full device set
+instead of the overview's walls-and-Room-Parts subset.
+
+**The self-heal lives at the top of `applyMultiRoomModeUi()`**, not at each
+delete site: that one function is what paints every mode-dependent surface,
+so clearing `roomObj.multiRoomFloorPlanMode` there means the entire pass
+below reverts together and every route an item can leave by is covered at
+once.
+
+| Concern | Where |
+|---------|-------|
+| Why not gate on the sticky flag | The old check in `deleteTrNodes()` was `deletedRoomPart && roomObj.multiRoomFloorPlanMode && !roomObjHasRoomPart()`. **The flag does not ride the shareable URL**, so a design that arrived by link is in the mode purely because `roomObjHasRoomPart()` is true; its flag is already false, the guard never fired, `applyMultiRoomModeUi()` was never called, and the design sat wearing the Floor labels with no Room Part left to justify them. Confirmed live before the fix. `deleteTrNodes()` now calls `applyMultiRoomModeUi()` on ANY Room Part delete and lets it decide |
+| Undo and redo | The fast path (`applyRoomObjDelta()`) never redraws, so it never reached `drawRoom()`'s tail where `applyMultiRoomModeUi()` normally runs — undoing or redoing across the first or last Room Part left the labels and buttons in the previous mode's dress. The orchestrator now calls it just before setting `document.title`. The fallback branch was always fine |
+| Which routes this covers | Delete key and the toolbar Delete (`deleteTrNodes()`), undo/redo, and anything that redraws. A route that removes an item without either is still covered the moment the next `drawRoom()` runs |
+| Restoring the flag | Nothing re-sets it here; adding a Room Part again runs `enterRoomFloorPlanModeOnFirstRoomPart()`, which sets it and shows the one-time explainer. Undo restores whatever the snapshot held, so undoing the delete puts both the part and the flag back |
+| One Room Part is still Multi-Room | The mode ends only at zero. Deleting one of two leaves the design in the overview, which is right: it still has a Room Part to zoom into |
+| The Settings toggle | `syncMultiRoomFloorPlanModeToggle()` is called alongside so `#multiRoomFloorPlanModeCheckBox` tracks the flag, even though `applyMultiRoomModeUi()` currently hides `#multiRoomFloorPlanModeDiv` outright |
+
 The sub-tab bar is a fixed **336px at every viewport width** (measured at
 1280, 760 and 400 — the sidebar does not scale), so the four labels have
 to total under that or the bar goes to two rows and pushes the whole

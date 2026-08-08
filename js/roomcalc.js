@@ -364,6 +364,15 @@ function syncMultiRoomFloorPlanModeToggle() {
 
 /* Single source of truth for mode-dependent UI gating; called from drawRoom() and every mode transition. */
 function applyMultiRoomModeUi() {
+    /* No Room Parts left means this is a plain single room again, so drop the sticky flag before anything below
+     * reads it and the whole pass reverts together: Floor to Room, Floor Setup to Room Setup, coverage buttons
+     * live, menus rebuilt. Doing it here rather than at each delete site is what covers every route an item can
+     * leave by (Delete, cut, ungroup-and-delete, undo/redo, an import that lands on a design with none). */
+    if (roomObj.multiRoomFloorPlanMode && !roomObjHasRoomPart()) {
+        roomObj.multiRoomFloorPlanMode = false;
+        syncMultiRoomFloorPlanModeToggle();
+    }
+
     const overview = isMultiRoomOverviewMode();
     const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
     const dwMessageOnly = polyRoomActive; /* Default Walls panel is read-only message only for irregular rooms; the overview edits the FLOOR's outside walls (activeDefaultWalls* fall back to the globals there). */
@@ -16140,15 +16149,13 @@ function deleteTrNodes(save = true) {
         drawRoomPartDefaultWallsPreviews();
     }
 
-    /* Deleting the LAST Room Part (boxRoomPart or polyRoom) exits Multi-Room Floor Plan
-     * Mode entirely, mirroring the Settings-tab "Turn off" toggle — otherwise the design
-     * is stuck in an empty MultiRoom overview with no way back to a normal single room
-     * short of re-adding a Room Part. Only reachable in overview: Room Part nodes are
-     * hidden/unlistening while zoomed into another Room Part, so this can't fire mid-zoom. */
-    if (deletedRoomPart && roomObj.multiRoomFloorPlanMode && !roomObjHasRoomPart()) {
-        roomObj.multiRoomFloorPlanMode = false;
+    /* Deleting the LAST Room Part exits Multi-Room Floor Plan Mode entirely, mirroring the Settings-tab
+     * "Turn off" toggle. Called unconditionally after any Room Part delete and NOT gated on the sticky flag:
+     * a design that arrived by shareable link is in the mode purely because it HAS Room Parts (the flag does
+     * not ride the URL), so gating on the flag left that design wearing the Floor labels with no part left to
+     * justify them. applyMultiRoomModeUi() clears the flag itself when there is nothing left. */
+    if (deletedRoomPart) {
         applyMultiRoomModeUi();
-        syncMultiRoomFloorPlanModeToggle();
     }
 
     enableCopyDelBtn();
@@ -16330,6 +16337,11 @@ function applyRoomObjDelta(prev, next) {
     roomObj.items.forEach(it => { if (it && it.id) roomObjItemsMap.set(it.id, it); });
 
     trNodesFromUuids(safeArr(next && next.trNodes), false);
+
+    /* The fallback branch gets this from drawRoom()'s tail; the fast path never redraws, so undoing or redoing
+     * across the first or last Room Part would otherwise leave the labels, coverage buttons and menus in the
+     * previous mode's dress. */
+    applyMultiRoomModeUi();
 
     document.title = (next && next.name)
         ? ('VRC: ' + next.name)
