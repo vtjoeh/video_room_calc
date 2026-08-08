@@ -984,6 +984,24 @@ numbered a list with no other numbers in it. **The row's `<label>` is a
 flex container**, so that span computes to `display: block` and still
 lays out on the line: do not read that as a wrapping bug.
 
+### The coverage buttons on the floor plan
+
+Camera, microphone, display and speaker coverage are per-room overlays, so
+in the overview the four `#btnCamShadeToggle` / `#btnMicShadeToggle` /
+`#btnDisplayDistance` / `#btnSpeakerShadeToggle` buttons are greyed by
+`applyMultiRoomModeUi()` — **and stay clickable**, because a greyed control
+that does nothing at all reads as broken. A press says where the overlays
+actually live.
+
+| Concern | Where |
+|---------|-------|
+| Why not `disabled` | The attribute drops the button out of the tab order and swallows the click, which is the one thing this needs to keep. `aria-disabled="true"` says the same to assistive tech while the press still lands, and `.coverageBtnDisabledMultiRoom` (opacity 0.5, grey text, greyed `.holdIndicator`) is what makes it LOOK disabled |
+| Why the CSS may not say `pointer-events: none` | It used to, as a second lock on top of `disabled`. Both are gone: either one silently swallows the press before `coverageBlockedInFloorPlanMode()` can answer, and the button goes back to being mute |
+| Where the guard sits | `coverageBlockedInFloorPlanMode(announce)`, checked at the top of BOTH listeners in `addButtonListeners()`. `pointerdown` returns silently (which also means the hold-to-multi-select timer never starts, so no device menu opens); `pointerup` is the one that raises the dialog, since announcing on both would give two dialogs for one click |
+| Not gated behind "Don't show this again" | `alertDialog()`'s third argument is deliberately omitted. The dialog is the ONLY feedback a greyed button gives, so letting it be silenced restores the "this button does nothing" problem it exists to solve |
+| The programmatic callers are untouched | The guard is on the buttons, not on `cameraCoverageVisible()` and friends, so the undo fast path and `applyAllLayerStates()` still drive the overlays freely |
+| The tooltip already agreed | `applyMultiRoomModeUi()` swaps the hover text to `Not available in Multi-Room Floor Plan mode` in overview and restores `tip.dataset.defaultHtml` on the way out |
+
 The sub-tab bar is a fixed **336px at every viewport width** (measured at
 1280, 760 and 400 — the sidebar does not scale), so the four labels have
 to total under that or the bar goes to two rows and pushes the whole

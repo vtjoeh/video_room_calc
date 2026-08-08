@@ -1732,12 +1732,12 @@ input:placeholder-shown {
 }
 
 /* MultiRoom overview: coverage buttons (camera / mic / display) are not
-   applicable at the floor level. Block interaction outright (pointerdown/up
-   listeners ignore the `disabled` attribute) and grey out the button + its
-   little hold-to-multi-select triangle. */
+   applicable at the floor level, so grey out the button + its little
+   hold-to-multi-select triangle. Deliberately NOT pointer-events: none —
+   the press still has to reach coverageBlockedInFloorPlanMode(), which is
+   what tells the user to open a Room Part first. */
 .coverageBtnDisabledMultiRoom,
 .coverageBtnDisabledMultiRoom.active {
-  pointer-events: none;
   opacity: 0.5;
   /* Override the .btn.active blue pill so a remembered selection doesn't stay
      coloured while disabled in the MultiRoom overview. */

@@ -368,12 +368,14 @@ function applyMultiRoomModeUi() {
     const polyRoomActive = isRoomSubMode() && activeRoomPartItem && activeRoomPartItem.data_deviceid === 'polyRoom';
     const dwMessageOnly = polyRoomActive; /* Default Walls panel is read-only message only for irregular rooms; the overview edits the FLOOR's outside walls (activeDefaultWalls* fall back to the globals there). */
 
-    /* Coverage-shading buttons are disabled in the MultiRoom overview (per-room concerns). */
+    /* Coverage-shading buttons read as disabled in the MultiRoom overview (per-room concerns) but stay clickable, so a
+     * press can say where the overlays live. aria-disabled rather than disabled: the latter drops the button out of the
+     * tab order and swallows the click, which is the one thing this needs to keep. */
     ['btnCamShadeToggle', 'btnMicShadeToggle', 'btnDisplayDistance', 'btnSpeakerShadeToggle'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
-        el.disabled = overview;
-        /* belt-and-braces: coverage buttons can still fire on a disabled <button>, so also kill pointer-events + grey it. */
+        if (overview) el.setAttribute('aria-disabled', 'true');
+        else el.removeAttribute('aria-disabled');
         el.classList.toggle('coverageBtnDisabledMultiRoom', overview);
         /* Hover tooltip explains WHY the button is greyed instead of naming the coverage. */
         const tip = el.parentElement ? el.parentElement.querySelector('.tooltiptextTitle') : null;
@@ -20044,6 +20046,18 @@ let menuExisted = false; /* used on mouseUp on menuButtons to determine if the m
 
 addButtonListeners();
 
+/* Coverage is a per-room overlay, so the four buttons are greyed on the floor plan. They stay clickable on purpose:
+ * a greyed button that does nothing reads as broken, so the press says where the overlays actually live. Announce on
+ * the release only, or the pointerdown and the pointerup would each raise a dialog for one click. */
+function coverageBlockedInFloorPlanMode(announce) {
+    if (!isMultiRoomOverviewMode()) return false;
+    if (announce) {
+        alertDialog('Coverage Overlays',
+            'Camera, microphone, display and speaker coverage are shown one room at a time, and you are in Multi-Room Floor Plan mode.<br><br>Double click a Room Part to open it, then switch the coverage on in there.');
+    }
+    return true;
+}
+
 function addButtonListeners() {
     let parentButtonAttributes = [
         ['btnMicShadeToggle', 'hasMic'],
@@ -20058,11 +20072,14 @@ function addButtonListeners() {
         parentButton.title = '';
 
         parentButton.addEventListener('pointerup', () => {
+            if (coverageBlockedInFloorPlanMode(true)) return;
             clearTimeout(timerMenuHoverButton);
             buttonMouseUp(attributeType);
         });
 
         parentButton.addEventListener('pointerdown', (event) => {
+            /* Returning here also means the hold-to-multi-select timer never starts, so no device menu opens either. */
+            if (coverageBlockedInFloorPlanMode(false)) return;
 
             buttonMouseDown(attributeType);
 
