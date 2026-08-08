@@ -1953,6 +1953,16 @@ position sits in.
 | Placed by measurement | Shown at the pointer, then clamped to the viewport from its own measured box, so a right click in the bottom right corner does not put half the menu off screen |
 | Ways out | An action, a press anywhere else (a CAPTURE-phase `pointerdown` on `document`, so the press closes the menu before the stage starts a pan under it), a zoom, a pan, or Escape. Escape is taken at the top of `handleEditorKeydown` and returns, or the editor's own Escape branch would close the whole editor along with the menu |
 
+**Keyboard**: Ctrl+C / Ctrl+V / Ctrl+D / Delete, Ctrl+Z / Shift+Ctrl+Z /
+Ctrl+Y, Escape, and the four arrows.
+
+| Concern | Where |
+|---------|-------|
+| Ctrl+V aims at the pointer | A keyboard paste has no event of its own to read a position from, so `hoverX` (the stage's `mousemove`, cleared on `mouseleave`) stands in for one. Where the pointer is resting cannot take the item, it falls back to the ordinary gap search rather than refusing: a shortcut that does nothing is worse than one that places it somewhere sensible. That is what `placeAtPointer`'s `onNoRoom` is for — the right-click menu passes nothing and gets the message instead, since the user aimed at that spot deliberately |
+| Arrows move the selection | `nudgeSelection()`, clamped exactly as a drag is: inside the neighbouring records horizontally, inside the wall vertically, and an Open Doorway stays on the floor. The step is in the room's own unit, 0.1 ft or 0.05 m, times ten with Shift |
+| One undo entry per run | `NUDGE_UNDO_GAP_MS` (700 ms) coalesces a run of presses, the same shape as the Path Editor's typing, or holding an arrow down would fill the stack. Confirmed live: six quick presses undo as one, two presses a second apart undo separately |
+| Not while typing | Every one of these is gated on the focused element not being an `INPUT`, so an arrow in the Width box still moves the caret |
+
 **Auto-narrow + Cancel/Continue confirm** (`fitAndPlace()` /
 `placeWithNarrowConfirm()`, shared by Insert, Paste, and Duplicate).
 Earlier builds failed outright ("no room" hint) whenever nothing was
@@ -1963,8 +1973,22 @@ instead of refusing. If that narrowed width drops under
 `NARROW_CONFIRM_THRESHOLD_M` (0.5 m, a fixed physical threshold
 regardless of display unit), a small Cancel/Continue `<dialog>`
 (`showConfirmDialog()`) gates the placement, its message formatted in
-the room's current unit via `formatLenForMsg()` (e.g. "Only 0.17 ft of
-space is available here…"). The confirm dialog is appended to
+the room's current unit via `formatLenForMsg()`.
+
+**It asks only when the item was actually made smaller.** The gate is
+`width < desiredWidth` AND under the threshold, not the final width on
+its own. Gating on the width alone was wrong in a way that fired
+constantly: an item that is **narrow by nature** — a copied or
+duplicated 0.3 m window — fits a wide-open wall perfectly and was still
+asked about every single time, with a message that reported its own
+width back as the space available ("Only 0.97 ft of space is available
+here", on an empty 20 ft wall). Every caller therefore passes its
+desired width as the fourth argument, and the message now names both
+numbers. Confirmed live: pasting and duplicating a 0.97 ft window on an
+open wall is silent, while squeezing a full 3.28 ft window into a
+0.98 ft gap still asks.
+
+The confirm dialog is appended to
 `document.body` — a SIBLING of the main editor `dlg`, never a child —
 mirroring Path Editor's `#vrcpeDrawChoice` precedent: the main dialog's
 own keydown handler treats Escape as "apply and close the whole

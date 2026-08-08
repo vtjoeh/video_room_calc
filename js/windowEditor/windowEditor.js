@@ -513,7 +513,18 @@
             }
             if (!typing && (e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
                 e.preventDefault(); e.stopPropagation();
-                pasteClipboard();
+                /* Aim at the pointer, but fall back to the ordinary gap search when the spot it
+                 * is resting on cannot take the item: a shortcut that refuses to do anything is
+                 * worse than one that places it somewhere sensible. */
+                if (hoverX != null) pasteClipboard(hoverX, () => pasteClipboard());
+                else pasteClipboard();
+                return;
+            }
+            if (!typing && selId != null && ARROW_KEYS[e.key]) {
+                e.preventDefault(); e.stopPropagation();
+                const step = displayToM((unitLabel === 'ft' ? 0.1 : 0.05) * (e.shiftKey ? 10 : 1));
+                const dir = ARROW_KEYS[e.key];
+                nudgeSelection(dir.x * step, dir.z * step);
                 return;
             }
             if (!typing && (e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
@@ -604,7 +615,15 @@
 
     /* ---------------- right-click menu ---------------- */
 
-    let ctxMenuX = 0;   /* wall-run position (meters) the menu was opened at */
+    let ctxMenuX = 0;      /* wall-run position (meters) the menu was opened at */
+    let hoverX = null;     /* wall-run position under the pointer, null once it leaves the stage */
+
+    function pointerWallX() {
+        if (!konvaStage) return null;
+        const p = konvaStage.getPointerPosition();
+        if (!p) return null;
+        return konvaStage.getAbsoluteTransform().copy().invert().point(p).x;
+    }
 
     function ctxMenuOpen() { return !!(ui.ctxMenu && ui.ctxMenu.style.display !== 'none'); }
 
@@ -631,18 +650,21 @@
         return { start: start, end: end };
     }
 
-    /* Centres desiredWidth on x, clamped into the gap x sits in, narrowing to the gap when
-     * it has to and refusing outright when there is nothing worth placing. */
-    function placeAtPointer(x, desiredWidth, place) {
-        const gap = gapAtX(x);
-        const available = round3(gap.end - gap.start);
+    /* Centres desiredWidth on x, clamped into the gap x sits in, narrowing to the gap when it
+     * has to. With nothing worth placing there it runs onNoRoom, which the right-click menu
+     * answers with a message (the user aimed at that spot) and the keyboard paste answers by
+     * falling back to the ordinary gap search. */
+    function placeAtPointer(x, desiredWidth, place, onNoRoom) {
+        const gap = recordAtX(x) ? null : gapAtX(x);
+        const available = gap ? round3(gap.end - gap.start) : 0;
         if (available <= MIN_DIM_M) {
-            showMessageDialog('There is no open space at that point on the wall. Move a window or frame out of the way, or right click somewhere with a gap in it.');
+            if (onNoRoom) onNoRoom();
+            else showMessageDialog('There is no open space at that point on the wall. Move a window or frame out of the way, or right click somewhere with a gap in it.');
             return;
         }
         const width = Math.min(desiredWidth, available);
         const start = Math.min(Math.max(x - width / 2, gap.start), gap.end - width);
-        placeWithNarrowConfirm(round3(start), round3(width), place);
+        placeWithNarrowConfirm(round3(start), round3(width), place, desiredWidth);
     }
 
     function showCtxMenu(clientX, clientY, worldX) {
@@ -767,6 +789,11 @@
         });
 
         konvaStage.on('dragstart', () => hideCtxMenu());
+
+        /* Where Ctrl+V aims. A keyboard paste has no event of its own to read a position from,
+         * so the last place the pointer was seen over the stage stands in for it. */
+        konvaStage.on('mousemove', () => { hoverX = pointerWallX(); });
+        konvaStage.on('mouseleave', () => { hoverX = null; });
 
         konvaStage.on('click tap', (e) => {
             if (e.target === konvaStage) selectWindow(null);
@@ -1098,6 +1125,35 @@
         commitChange();
     }
 
+    const ARROW_KEYS = {
+        ArrowLeft: { x: -1, z: 0 }, ArrowRight: { x: 1, z: 0 },
+        ArrowUp: { x: 0, z: 1 }, ArrowDown: { x: 0, z: -1 },
+    };
+    const NUDGE_UNDO_GAP_MS = 700;
+    let lastNudgeAt = 0;
+
+    /* Arrow-key move for the selected record, clamped exactly as a drag is: inside the
+     * neighbouring records horizontally, inside the wall vertically, and an Open Doorway stays
+     * on the floor. A run of presses coalesces into one undo entry, the same way the Path
+     * Editor's typing does, or holding an arrow down would fill the stack. */
+    function nudgeSelection(dx, dz) {
+        const rec = windowsList.find(w => w.id === selId);
+        if (!rec) return;
+
+        const now = Date.now();
+        if (now - lastNudgeAt > NUDGE_UNDO_GAP_MS) pushUndo();
+        lastNudgeAt = now;
+
+        if (dx) {
+            const { leftEdge, rightEdge } = neighborBounds(rec.id);
+            rec.distFromLeft = round3(Math.min(Math.max(rec.distFromLeft + dx, leftEdge), Math.max(leftEdge, rightEdge - rec.width)));
+        }
+        if (dz && rec.type !== DOOR_TYPE) {
+            rec.baseZ = round3(Math.min(Math.max(rec.baseZ + dz, 0), Math.max(0, wallHeightM - rec.height)));
+        }
+        commitChange();
+    }
+
     /* ---------------- insert / copy / paste / duplicate / delete ---------------- */
 
     /* Default door height (6.5 ft) and window/frame base elevation (2 ft) are always
@@ -1138,13 +1194,19 @@
             if (!gap || (gap.end - gap.start) <= MIN_DIM_M) { alertNoRoom(); return; }
             start = gap.start; width = round3(gap.end - gap.start);
         }
-        placeWithNarrowConfirm(start, width, place);
+        placeWithNarrowConfirm(start, width, place, desiredWidth);
     }
 
-    function placeWithNarrowConfirm(start, width, place) {
-        if (width < NARROW_CONFIRM_THRESHOLD_M) {
+    /* Asks ONLY when the item had to be made smaller to fit AND what is left is too small to
+     * be worth placing without saying so. Gating on the final width alone was wrong: an item
+     * that is NARROW BY NATURE (a copied or duplicated 0.3 m window) fits an empty wall
+     * perfectly and was still asked about every single time, with a message that reported
+     * its own width as the space available. */
+    function placeWithNarrowConfirm(start, width, place, desiredWidth) {
+        const narrowed = (desiredWidth != null) && (width < desiredWidth - 1e-6);
+        if (narrowed && width < NARROW_CONFIRM_THRESHOLD_M) {
             showConfirmDialog(
-                `Only ${formatLenForMsg(width)} of space is available here. Continue and insert at ${formatLenForMsg(width)} wide?`,
+                `Only ${formatLenForMsg(width)} of space is available here. Continue and insert at ${formatLenForMsg(width)} wide instead of ${formatLenForMsg(desiredWidth)}?`,
                 () => place(start, width)
             );
         } else {
@@ -1198,7 +1260,9 @@
         ui.paste.disabled = false;
     }
 
-    function pasteClipboard(atX) {
+    /* atX places at a point (the right-click menu, or the pointer for Ctrl+V); onNoRoom null
+     * means say so rather than look elsewhere, which is what the menu wants. */
+    function pasteClipboard(atX, onNoRoom) {
         if (!clipboard) return;
         const place = (start, width) => {
             pushUndo();
@@ -1210,7 +1274,7 @@
             selId = rec.id;
             commitChange();
         };
-        if (atX != null) placeAtPointer(atX, clipboard.width, place);
+        if (atX != null) placeAtPointer(atX, clipboard.width, place, onNoRoom);
         else fitAndPlace(clipboard.width, place);
     }
 
@@ -1259,7 +1323,7 @@
             windowsList.push(newRec);
             selId = newRec.id;
             commitChange();
-        });
+        }, rec.width);
     }
 
     function deleteSelected() {
@@ -1347,6 +1411,8 @@
         windowsList.forEach(w => { if (w.type === DOOR_TYPE) w.baseZ = 0; });
         selId = null;
         clipboard = null;
+        hoverX = null;
+        lastNudgeAt = 0;
         undoStack = [];
         redoStack = [];
         syncUndoButtons();
