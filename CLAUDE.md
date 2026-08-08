@@ -3138,6 +3138,21 @@ complete item-prefix tables, the `B` visibility-flag positions, the
 are explicit and not derived), worked examples, and the encoder /
 parser cross-reference table.
 
+### What the copied hyperlink is called
+
+`copyLinkToClipboard()` writes the clipboard twice over: the plain text
+is the address, and the `text/html` flavour is an `<a>` whose text is
+`shareLinkDisplayName()`. That name is what somebody reads in whatever
+they paste it into, which is a different job from the name stored
+inside the link.
+
+| Concern | Where |
+|---------|-------|
+| Inside a Room Part it names both | `Level 2 - Huddle 4`: the link holds only that one room, so the floor it came from is the context a reader needs. The floor name is `roomObj.name` and the room's is `activeRoomPartItem.data_labelField`, the same field the Room Setup tab edits |
+| It is NOT what the link stores | `buildRoomModeLinkSource()` still stores the Room Part's name alone, so opening the link gives a design called `Huddle 4` rather than a doubled-up name. The two are deliberately different |
+| Either half may be missing | A blank floor or a blank room name leaves just the other one, and a room named the same as its floor is not repeated (compared case-insensitively). With neither, the old `Video Room Calculator` fallback stands, plus the first video device |
+| On the floor plan | Nothing changed: `isActiveRoomPart` is false, so the name is the floor's alone |
+
 ---
 
 ## VRC Group System

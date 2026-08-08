@@ -8917,6 +8917,27 @@ function windowResizeEvent() {
 }
 
 
+/* Anchor text for the copied hyperlink. Inside a Room Part the link holds only that room, so
+ * the floor it came from is half of what names it: "Level 2 - Huddle 4". The link's own stored
+ * name is the Room Part's alone (see buildRoomModeLinkSource) — this is what a person reads in
+ * the document they paste it into, where the floor is the context they need. */
+function shareLinkDisplayName() {
+    const floorName = String(roomObj.name || '').trim();
+    const roomName = (isActiveRoomPart && activeRoomPartItem)
+        ? String(activeRoomPartItem.data_labelField || '').trim()
+        : '';
+
+    const parts = [];
+    if (floorName) parts.push(floorName);
+    if (roomName && roomName.toLowerCase() !== floorName.toLowerCase()) parts.push(roomName);
+    if (parts.length) return parts.join(' - ');
+
+    let fallback = 'Video Room Calculator';
+    const firstVideoDevice = firstItemOfParentGroup('videoDevices');
+    if (firstVideoDevice) fallback = fallback + ' - ' + firstVideoDevice.name;
+    return fallback;
+}
+
 function copyLinkToClipboard(splitViewPercent = null) {
     roomObj.items = reorderItemsForSharing(roomObj.items);
     createShareableLink();
@@ -8925,23 +8946,12 @@ function copyLinkToClipboard(splitViewPercent = null) {
         alertDialog('Room Part Only', 'Only the viewed room part is captured in the Shareable Template Hyperlink.');
     }
 
-    let hyperTextName;
-
     let textUrl = document.getElementById('shareLink').getAttribute('href');
     if (splitViewPercent !== null && splitViewPercent >= 1 && splitViewPercent <= 100) {
         textUrl = textUrl + '&s=' + splitViewPercent;
     }
-    if (roomObj.name === '') {
-        hyperTextName = 'Video Room Calculator';
-        const firstVideoDevice = firstItemOfParentGroup('videoDevices');
-        if (firstVideoDevice) {
-            hyperTextName = hyperTextName + ' - ' + firstVideoDevice.name;
-        }
-    } else {
-        hyperTextName = roomObj.name;
-    }
 
-    const anchorUrl = '<a href="' + textUrl + '">' + hyperTextName + '</a>';
+    const anchorUrl = '<a href="' + textUrl + '">' + shareLinkDisplayName() + '</a>';
     const blobHtml = new Blob([anchorUrl], { type: "text/html" });
     const blobText = new Blob([textUrl], { type: "text/plain" });
 
