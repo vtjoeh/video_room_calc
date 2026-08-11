@@ -95,6 +95,12 @@
         AV_PERF:   { name: 'E-AV-PERF',   color: 8 },
         AV_IDEN:   { name: 'E-AV-IDEN',   color: C_DARK },
         ROOM_PATH: { name: 'A-ROOM-PATH', color: 9 },
+        /* Room Part outlines and their space names get a layer pair of
+         * their own so map tooling (Cisco Spaces Digital Map) finds the
+         * space boundaries and identifiers without wading through
+         * pathShape doodles or floor labels. */
+        AREA:      { name: 'A-AREA',      color: 9 },
+        AREA_IDEN: { name: 'A-AREA-IDEN', color: C_DARK },
     };
 
     /* DASHED linetype pattern in *meters* (the export unit). Pattern is
@@ -159,7 +165,7 @@
         displays: LAYER.AV_DSPL,
         stageFloors: LAYER.FLOR_RISR,
         boxes: LAYER.EQPM,
-        rooms: LAYER.ROOM_PATH,
+        rooms: LAYER.AREA,
     };
 
     /* Items that always live on the people layer, even though their
@@ -175,8 +181,8 @@
         'doorDoubleRight', 'doorDoubleLeft'
     ]);
 
-    /* Wall-builder primitives whose parentGroup is 'tables'. */
-    const WALL_DEVICE_IDS = new Set(['wallStd', 'wallGlass', 'wallWindow', 'wallChairs']);
+    /* Wall-builder primitives whose parentGroup is 'tables'. wallCustomWindow rides as a Standard Wall: the interior windows and door openings are deliberately ignored in CAD. */
+    const WALL_DEVICE_IDS = new Set(['wallStd', 'wallGlass', 'wallWindow', 'wallChairs', 'wallCustomWindow']);
     const COLUMN_DEVICE_IDS = new Set(['columnRect', 'cylinder']);
 
     /* Devices that should always carry a model-name label on the drawing,
@@ -247,6 +253,7 @@
         if (id === 'stageFloor') return LAYER.FLOR_RISR;
         if (id === 'box' || id === 'sphere') return LAYER.EQPM;
         if (id === 'pathShape') return LAYER.ROOM_PATH;
+        if (id === 'boxRoomPart' || id === 'polyRoom') return LAYER.AREA;
 
         if (DEVICE_LAYER_FOR_DEVICE_ID[id]) return DEVICE_LAYER_FOR_DEVICE_ID[id];
 
@@ -266,6 +273,7 @@
             itemLayer === LAYER.FURN_PEOP) {
             return LAYER.FURN_IDEN;
         }
+        if (itemLayer === LAYER.AREA) return LAYER.AREA_IDEN;
         return LAYER.FLOR_IDEN;
     };
 

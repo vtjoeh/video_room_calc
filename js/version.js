@@ -5,4 +5,4 @@
 const APP_VERSION = "v0.1.671";
 
 /* Build tag: bump this INSTEAD of APP_VERSION for small pushes that shouldn't */ 
-const BUILD_VERSION = "be";
+const BUILD_VERSION = "bf";

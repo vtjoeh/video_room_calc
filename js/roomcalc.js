@@ -31102,12 +31102,15 @@ async function exportDxfFile() {
 
     let exportedCount = 0;
 
-    function maybeLabel(item, group, cxCad, cyCad, rotCad) {
+    /* Room Part names print larger than device labels: they are the space names Cisco Spaces' Digital Map reads, and 8 cm text disappears at floor scale. */
+    const ROOM_NAME_TEXT_HEIGHT_M = 0.25;
+
+    function maybeLabel(item, group, cxCad, cyCad, rotCad, textHeightM) {
         const text = labelTextFor(item);
         if (!text) return;
         const labelLayer = lib.useLayer(lib.labelLayerForItem(item, group));
         dxf.text(cxCad, cyCad, text, {
-            height: 0.08,
+            height: textHeightM || 0.08,
             rotation: rotCad,
             layer: labelLayer,
             halign: 1,
@@ -31164,6 +31167,7 @@ async function exportDxfFile() {
 
         if (group === 'tables' || group === 'stageFloors' || group === 'boxes' || group === 'rooms') {
             emitFootprintItem(item, group, layerName);
+            if (item.data_deviceid === 'boxRoomPart') emitRoomPartDefaultWalls(item);
             return;
         }
         if (group === 'displays') {
@@ -31241,13 +31245,18 @@ async function exportDxfFile() {
             return;
         }
         if (id === 'polyRoom') {
+            /* points are node-local: rotate about the node origin, translate by the item's x/y, then flip into the CAD frame. The room name goes at the outline's bbox center, unrotated, so the space label reads level. */
             const pts = (item.points || []);
             const polyPts = [];
             for (let i = 0; i + 1 < pts.length; i += 2) {
-                polyPts.push([toM(pts[i]), flipY(toM(pts[i + 1]))]);
+                const [rx, ry] = rotatePoint(toM(pts[i]), toM(pts[i + 1]), rotDeg);
+                polyPts.push([tlxM + rx, flipY(tlyM + ry)]);
             }
             if (polyPts.length >= 2) {
                 dxf.lwpolyline(polyPts, { closed: true, layer: layerName });
+                const xs = polyPts.map(p => p[0]);
+                const ys = polyPts.map(p => p[1]);
+                maybeLabel(item, group, (Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, 0, ROOM_NAME_TEXT_HEIGHT_M);
                 exportedCount++;
             }
             return;
@@ -31263,6 +31272,23 @@ async function exportDxfFile() {
         const cxCad = cxVrc;
         const cyCad = flipY(cyVrc);
         const rotCad = flipRot(rotDeg);
+
+        /* A text item IS its text: one TEXT entity sized from the bbox, not a dashed rectangle around a label. Space names written this way are exactly what Cisco Spaces reads. */
+        if (isTextItem(id)) {
+            const text = labelTextFor(item);
+            if (text) {
+                const labelLayer = lib.useLayer(lib.labelLayerForItem(item, group));
+                dxf.text(cxCad, cyCad, text, {
+                    height: Math.min(Math.max(heightM * 0.5, 0.08), 1.5),
+                    rotation: rotCad,
+                    layer: labelLayer,
+                    halign: 1,
+                    valign: 2
+                });
+                exportedCount++;
+            }
+            return;
+        }
 
         if (id === 'tblEllip') {
             emitEllipse(cxCad, cyCad, widthM / 2, heightM / 2, rotCad, layerName);
@@ -31398,8 +31424,42 @@ async function exportDxfFile() {
             const pts = corners.map(([px, py]) => [cxCad + px, cyCad + py]);
             dxf.lwpolyline(pts, { closed: true, layer: layerName });
         }
-        maybeLabel(item, group, cxCad, cyCad, rotCad);
+        maybeLabel(item, group, cxCad, cyCad, rotCad,
+            id === 'boxRoomPart' ? ROOM_NAME_TEXT_HEIGHT_M : undefined);
         exportedCount++;
+    }
+
+    /* A walled boxRoomPart exports its default walls as 4 wall rects on the OUTSIDE of the part, each on the layer its data_roomSurfaces type names. Mirror of the WD export's pushRoomPartDefaultWalls; polyRoom parts have hand-drawn walls, so only boxRoomPart gets these. */
+    function emitRoomPartDefaultWalls(part) {
+        if (part.data_workspace && part.data_workspace.removeDefaultWalls) return;
+        if (!(part.width > 0) || !(part.height > 0)) return;
+        const t = WALL_THICKNESS_M;
+        const w = toM(part.width);
+        const h = toM(part.height);
+        const tlxM = toM(part.x);
+        const tlyM = toM(part.y);
+        const rotDeg = part.rotation || 0;
+        const surfaces = part.data_roomSurfaces || {};
+        const typeToDevice = { regular: 'wallStd', glass: 'wallGlass', window: 'wallWindow' };
+        const localRects = {
+            videowall: [-t, -t, w + t, 0],
+            backwall: [-t, h, w + t, h + t],
+            leftwall: [-t, 0, 0, h],
+            rightwall: [w, 0, w + t, h]
+        };
+        Object.keys(localRects).forEach(wallName => {
+            const surface = surfaces[wallName] || {};
+            const wallShadow = { data_deviceid: typeToDevice[surface.type] || 'wallStd' };
+            if (part.data_layerId) wallShadow.data_layerId = part.data_layerId;
+            const wallLayerName = layerNameForItem(wallShadow, 'tables');
+            const [x1, y1, x2, y2] = localRects[wallName];
+            const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]].map(([px, py]) => {
+                const [rx, ry] = rotatePoint(px, py, rotDeg);
+                return [tlxM + rx, flipY(tlyM + ry)];
+            });
+            dxf.lwpolyline(pts, { closed: true, layer: wallLayerName });
+            exportedCount++;
+        });
     }
 
     /* Emit a (possibly rotated) ELLIPSE entity. halfW/halfH are un-rotated semi-axes; the larger is the major axis. */
@@ -31450,9 +31510,10 @@ async function exportDxfFile() {
         catch (_) { return; }
         const path = json && json.path;
         if (!path) return;
-        const scaleArr = Array.isArray(json.scale) ? json.scale : [1, 1];
-        const sx = (scaleArr[0] || 1) * unitToM;
-        const sy = (scaleArr[1] || 1) * unitToM;
+        /* Path coords are METERS whatever the room unit (the canvas scales them by pixels-per-meter), so no unit conversion here — applying unitToM shrank every shape 3.28x in feet rooms. A stored scale is the WD-style [x, y, z] triple; the canvas reads elements 0 and 2, so this does too. */
+        const scaleArr = Array.isArray(json.scale) ? json.scale : null;
+        const sx = (scaleArr && scaleArr.length >= 3) ? (Number(scaleArr[0]) || 1) : 1;
+        const sy = (scaleArr && scaleArr.length >= 3) ? (Number(scaleArr[2]) || 1) : 1;
         const rotCad = flipRot(rotDeg);
         const subpaths = DxfWriter.tessellateSvgPath(path, 24);
         for (const pts of subpaths) {

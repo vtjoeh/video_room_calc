@@ -67,9 +67,11 @@ so the file drops cleanly into a real architectural set:
 | Layer | ACI color | Used for |
 |-------|-----------|----------|
 | `A-WALL-EXTR` | 250 (near‑black) | Room perimeter |
-| `A-WALL-FULL` | 250 (near‑black) | Standard interior walls (`wallStd`) |
+| `A-WALL-FULL` | 250 (near‑black) | Standard interior walls (`wallStd`, and `wallCustomWindow` — a Custom Window Wall exports as if it were a Standard Wall; its interior windows and door openings are deliberately ignored in CAD) |
 | `A-WALL-GLAZ` | 141 | Glass walls (`wallGlass`) |
 | `A-WALL-PATT` | 8 | Window walls and acoustic panels (`wallWindow`, `wallChairs`) |
+| `A-AREA` | 9 | Room Part outlines (`boxRoomPart` rectangle, `polyRoom` polygon) |
+| `A-AREA-IDEN` | 250 (near‑black) | Room Part names (the space labels Cisco Spaces reads) |
 | `A-DOOR` | 4 | Doors (single/double, left/right swings) |
 | `A-FLOR-RISR` | 30 (DASHED) | Stage floors / risers |
 | `A-FLOR-CARP` | 8 (DASHED) | Carpets |
@@ -118,8 +120,43 @@ layer:
 - All other items (chairs, tables, displays, walls, etc.) → show the
   user's `data_labelField` if set, otherwise no label.
 
-Text height is 0.10 m (≈4 inches), single‑line `TEXT` (chosen over
-`MTEXT` for cross‑tool compatibility).
+Text height is 0.08 m, single‑line `TEXT` (chosen over `MTEXT` for
+cross‑tool compatibility). Room Part names print at 0.25 m
+(`ROOM_NAME_TEXT_HEIGHT_M`) so space names read at floor scale.
+
+Text items (`vrcText` / `wdText`, via `isTextItem()`) emit a single
+`TEXT` entity sized from the item bbox (`height × 0.5`, clamped to
+0.08–1.5 m) instead of a dashed rectangle plus label — a text item IS
+its text.
+
+## Room Parts
+
+- `boxRoomPart` emits its (possibly rotated) rectangle on `A-AREA`
+  plus its name on `A-AREA-IDEN`. A **walled** part (no
+  `data_workspace.removeDefaultWalls`) also emits its 4 default walls
+  as wall rectangles on the OUTSIDE of the part, each on the layer its
+  `data_roomSurfaces` type names (regular → `A-WALL-FULL`, glass →
+  `A-WALL-GLAZ`, window → `A-WALL-PATT`) — mirror of the WD export's
+  `pushRoomPartDefaultWalls()` geometry (`emitRoomPartDefaultWalls()`).
+- `polyRoom` points are NODE-LOCAL: the exporter rotates them about
+  the node origin, translates by the item's x/y, then flips into the
+  CAD frame. (An earlier version emitted them untranslated, which
+  piled every irregular Room Part at the drawing's upper-left.) The
+  name lands at the outline's bbox center, unrotated. polyRoom parts
+  have hand-drawn walls, so they get no default walls — same rule as
+  the WD export.
+
+## Cisco Spaces (Digital Map Pro)
+
+The export is shaped to drop into Cisco Spaces' CAD import
+([best practices](https://runbooks.ciscospaces.io/docs/digital-map-pro-and-cad-dwg-pdf-best-practices)),
+which wants three things in a floor file: architectural layers
+(walls / doors / windows), a furniture layer, and **space names**.
+The AIA wall/door layers and `A-FURN-*` cover the first two; every
+Room Part's name is a `TEXT` on `A-AREA-IDEN` with its outline on
+`A-AREA`, which is what makes rooms identifiable and editable there.
+Everything is in one file on bound layers (no XREFs), so nothing else
+is needed before upload.
 
 ## Block library
 
@@ -148,6 +185,13 @@ blocks it needs. Block names use the pattern `VRC_<DEVICEID>`
 Tables, walls, columns, displays, stage floors, boxes, carpets, and
 `pathShape` items are emitted **inline** (no block) because their
 geometry varies per‑item.
+
+**pathShape coordinates are METERS whatever the room unit** — the
+canvas scales them by pixels-per-meter, so `emitPathShape()` applies
+no unit conversion (an earlier version multiplied by `unitToM`, which
+shrank every shape 3.28× in feet-mode rooms). A stored labelField
+`"scale"` is the WD-style `[x, y, z]` triple; the canvas reads
+elements 0 and 2, and the exporter mirrors that.
 
 ## Adding a new device block
 
