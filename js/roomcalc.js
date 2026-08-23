@@ -31551,10 +31551,12 @@ async function exportDxfFile() {
     const layerPlural = layerCount === 1 ? 'layer' : 'layers';
     alertDialog(
         'DXF Export',
-        `A DXF file was successfully exported with ${exportedCount} ${itemPlural} on ${layerCount} ${layerPlural}.<br><br>` +
+        `A DXF file was successfully exported with ${exportedCount} ${itemPlural} on ${layerCount} CAD ${layerPlural}.<br><br>` +
         `Objects and video devices represented with simplified geometry.<br><br>` +
-        'The file uses meters and the AIA / National CAD Standard layer scheme ' +
-        '(<code>A-FURN-CHRS</code>, <code>E-AV-CMRA</code>, <code>A-WALL-EXTR</code>, etc.).'
+        'These are CAD layers, not the VRC Layers on the Layers tab. The file uses meters and the ' +
+        'AIA / National CAD Standard layer scheme (<code>A-FURN-CHRS</code>, <code>E-AV-CMRA</code>, ' +
+        '<code>A-WALL-EXTR</code>, etc.). Every VRC Layer is also mirrored as its own ' +
+        '<code>Z-VRC-LAYER-&lt;name&gt;</code> CAD layer, so hidden and locked layers carry across.'
     );
 }
 

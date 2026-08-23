@@ -232,12 +232,19 @@ From top to bottom, here are the different implicit levels of the objects:
 
 Zoomed into a **Room Part**, walls, columns and doors are drawn above everything else in the room, so structure is never hidden behind whatever sits against it.
 
+### How to export to Cisco Spaces?
+Export the design as a DXF and import that into Cisco Spaces. **Save** --> **Export CAD DXF/Cisco Spaces (meters)**, or `ctrl-shift-d`, writes the file. To try it without touching a production map, use the Cisco Spaces mapping demo at [mapsdemo.ciscospaces.io](https://mapsdemo.ciscospaces.io).
+
+**Give every room a Room Name**, including the ones that are not meeting spaces: bathrooms, storage, corridors, everything with walls around it. Where a room has no name Cisco Spaces guesses one, and it usually guesses Quiet Room, so an unnamed store cupboard arrives as a bookable Quiet Room. Type the name into the **Item Label** of each Room Part; the export writes it as text on the `A-AREA-IDEN` layer with the room outline on `A-AREA`, which is what Cisco Spaces reads as the space name.
+
+Walls, doors, furniture and the AV devices all come across on their own named CAD layers, so the imported map has the architecture Cisco Spaces expects alongside the room names.
+
 ### Can I import a CAD DXF or DWG file?
 No. There is no import for DXF, DWG or any other CAD format, and none is planned.
 
 What works well instead is a picture of the floor plan. Take a screenshot of the drawing, or export it from your CAD tool as a PNG, JPEG or SVG, then load it under **Room** --> **Background** and scale it to the room. From there you can trace walls over it and it becomes an accurate backdrop for the whole design. The image stays in the design file, and **Recent Floor Plans** keeps it in this browser so it can be reapplied to another design.
 
-Export in the other direction does work. **Save** --> **Export CAD DXF (meters)**, or `ctrl-shift-d`, writes an AutoCAD R12 DXF of the design with objects on named layers. It is a simple drawing meant for handing the layout to someone working in CAD, not a full construction drawing.
+Export in the other direction does work. **Save** --> **Export CAD DXF/Cisco Spaces (meters)**, or `ctrl-shift-d`, writes an AutoCAD R12 DXF of the design with objects on named layers. It is a simple drawing meant for handing the layout to someone working in CAD, not a full construction drawing.
 
 ### How do I turn Snap to Objects on and off?
 **Snap to Objects** is on the **More** menu, the `...` button at the right of the toolbar above the canvas. It is on by default.
