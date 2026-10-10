@@ -123,7 +123,7 @@ roomObj = {
     roomLength: 20,
     roomHeight: ""          // Optional
   },
-  software: "",             // "mtr" or "webex"
+  software: "",             // "webex", "mtr", "zoomRooms" or "google"
   authorVersion: "",        // User-defined version
   items: [                  // FLAT array. Each item's category is derived
                             // dynamically from
@@ -409,6 +409,21 @@ height changes just change the derived height.
 | URL key | `WU`. `b` carries z as usual; `j` (vHeight) is never emitted. |
 | WD export | Cylinder branch in `workspaceObjWallPush()`: `length = max(0.01, ceiling − z)`, `position[1] = z + length/2` (WD cylinder position y is the CENTER; ceiling = `roomObj2.room.roomHeight \|\| defaultWallHeight`, meters). Round-trip identity via the frontSpeaker pattern: dispatch prefixes the id `cylinderPole~`, `workspaceKey.cylinderPole = { objectType: 'cylinder', idRegex: '^cylinderPole~' }` sits BELOW `workspaceKey.cylinder` (tie rule), and the import strips the prefix, keeps the computed z (`position[1] − length/2`), and deletes `data_vHeight`. |
 | Group / CustomItem Z | No special case: `applyBundleDeltaZToMember(m, deltaZ)` (shared by `updateGroupItem` / `updateCustomItemItem`) moves the pole's stored z like any member; the derived height shrinks/grows automatically so the top stays at the ceiling. |
+
+### Hanging on a wire: Ceiling Mic Pro and Ceiling Speaker Pro
+
+Both export a second `objectType: "ceilingMount"` object (id
+`secondary-ceilingMount-<id>`, dropped on import) at the device's x/y,
+`data_vHeight` = ceiling height − z (sent as `scale: [1, h, 1]`) and z
+nudged up by `h / 35`. The two name the wire differently:
+
+| Device | Wire mount | Its default (no `data_mount`) | Mount on its own WD object |
+|---|---|---|---|
+| `ceilingMicPro` | `ceilingMount` | the wire | deleted, so the default round-trips as the wire |
+| `loudspeakerPro` (WD `loudspeaker`, model `Ceiling Speaker Pro`) | `suspended` | `normal`, the bracket | kept as `mount: 'suspended'`, since deleting it would come back as the bracket |
+
+Speaker coverage has no inner hole unless the device def sets
+`innerSpeakerRadius`, in millimeters like `speakerRadius`.
 
 ### Ceiling-hung family (`isCeilingHungItem`)
 

@@ -133,6 +133,8 @@ workspaceKey.tableMicPro = { objectType: 'microphone', model: 'Table Mic Pro' };
 workspaceKey.tableMic = { objectType: 'microphone', model: 'Table Mic' };
 workspaceKey.ceilingMic = { objectType: 'microphone', model: 'Ceiling Mic', yOffset: 0.275 };
 
+workspaceKey.loudspeakerPro = { objectType: 'loudspeaker', model: 'Ceiling Speaker Pro' };
+
 workspaceKey.loudspeaker = { objectType: 'loudspeaker' };
 /* frontSpeaker moved below workspaceKey.box — it exports as a fixed-size box, and scoring
  * ties must keep resolving generic WD boxes to 'box' (first entry wins a tie). */

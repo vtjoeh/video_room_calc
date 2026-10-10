@@ -3,6 +3,11 @@
 https://collabexperience.com
 
 
+**0.1.672**
+- New **Ceiling Speaker Pro**!!!
+- Support for **speaker coverage**, matching the new speaker coverage in the Workspace Designer, for video devices with speakers and the new Ceiling Speaker Pro.
+- **Google Meet** as a new Software Experience.
+
 **0.1.671**
 - After entering a Room Part, there are updated the tolerances for item exports to the Workspace Designer. Whatever the room will not send to the Workspace Designer is grayed out (dimmed) on the Room Canvas, but still editable.
 - Removed the designer.cisco.com (beta) option from the Workspace Designer site list. The designer.cisco.com site now redirects to designer.webex.com, so the option is no longer needed.

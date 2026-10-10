@@ -227,14 +227,15 @@
           <div class="inputField">
             <label class="tooltipBottom"><span id="softwareExperienceLabel">Software Experience:</span>
               <i class="icon icon-info-circle-bold"></i>
-              <span class="tooltiptextBottom">Cisco RoomOS or Microsoft Teams Rooms (MTR), the
-                Software Experience setting does not verify if the video device supports
-                MTR.</span></label>
+              <span class="tooltiptextBottom">Cisco RoomOS, Microsoft Teams Rooms (MTR), Zoom Rooms or
+                Google Meet. The Software Experience setting does not verify that the video
+                device supports it.</span></label>
             <select id="drpSoftware" class="drpDown" onChange="updateButtonRoomDimensions()" data-drpDownName="Software Experience:">
               <option value="select">-</option>
               <option value="webex">RoomOS Cisco Rooms</option>
               <option value="mtr">Microsoft Teams Rooms</option>
               <option value="zoomRooms">Zoom Rooms</option>
+              <option value="google">Google Meet</option>
             </select>
           </div>
           <div class="inputRow">
@@ -703,7 +704,7 @@
 
 
             <div class="menuDivider">
-              Cisco Microphones
+              Cisco Microphones &amp; Speakers
             </div>
             <div id="microphoneMenuContainer" class="containerItems">
               <!-- Menu will be inserted -->

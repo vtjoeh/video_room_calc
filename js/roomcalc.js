@@ -6912,11 +6912,11 @@ let videoDevices = [
 
 
 
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4850, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5100, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5850, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: 'Room Kit EQX: Wall Mount**', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 7000, speakerDeg: 140, },
+    { name: 'Room Kit EQX: Wall Mount**', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 6830, speakerDeg: 140, },
 
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
 
@@ -6936,11 +6936,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Mount**", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
-    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
 
@@ -6970,7 +6970,7 @@ let videoDevices = [
 
     { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
 
-    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 2300, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
+    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
 
     { name: "Room Kit Pro G2: Quad Camera", key: 'BF', id: 'roomKitProG2QuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitProG2QuadCam-menu.png', newItem: true },
 
@@ -7011,7 +7011,7 @@ let cameras = [
 
     { name: "_PTZ 4K Camera*", id: 'ptz4k', key: 'CB', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4k-top.png', frontImage: 'ptz4k-front.png', width: 158.4, depth: 200.2, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], speakerRadius: 4000, speakerDeg: 140, },
+    { name: "Quad Camera", id: 'quadCam', key: 'CC', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonDistance: 5.96, twoPersonDistance: 10.96, teleFullWidth: true, topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], speakerRadius: 6930, speakerDeg: 140, },
 
     { name: "_Quad Cam Extended (720p)", id: 'quadCamExt', key: 'CD', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 4, twoPersonZoom: 4, teleFullWidth: true, topImage: 'quadCamExt-top.png', frontImage: 'quadCamExt-front.png', width: 950, depth: 102.5, height: 120, defaultVert: 890, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
@@ -7386,7 +7386,7 @@ let microphones = [
         defaultVert: 1180,
     },
     {
-        name: "Ceiling Speaker (generic)*",
+        name: "Ceiling Speaker (generic)**",
         id: "loudspeaker",
         key: "MZ",
         topImage: 'ceilingSpeaker-top.png',
@@ -7438,6 +7438,24 @@ let microphones = [
         height: 400,
         defaultVert: 2280,
         defaultLayerId: "1"
+    },
+    {
+        name: "Ceiling Speaker Pro",
+        id: "loudspeakerPro",
+        key: "ND",
+        topImage: 'ceilingSpeaker-top.png',
+        frontImage: 'ceilingSpeaker-menu.png',
+        width: 420,
+        depth: 420,
+        height: 88,
+        defaultVert: 2500,
+        speakerRadius: 1600,
+        innerSpeakerRadius: 0,
+        speakerDeg: 360,
+        speakerMount: 'ceiling',
+        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], 
+        mounts: [{ normal: 'Ceiling Bracket Mount' }, { recessed: 'Drop Ceiling Grid Mount' }, { suspended: 'Wire Hanging Mount' }], 
+        newItem: true,
     },
 
 ]
@@ -9602,6 +9620,9 @@ function parseShortenedXYUrl(parameters) {
                 }
                 else if (item.e == '2'){
                     roomObj.software = 'zoomRooms';
+                } 
+                else if (item.e == '3'){
+                    roomObj.software = 'google';
                 }
             }
 
@@ -10194,9 +10215,9 @@ function parseShortenedXYUrl(parameters) {
                 decodeRoomPartWallsDigits(item.rs, newItem);
             }
 
-            /* sw = boxRoomPart per-room software (0=webex 1=mtr 2=zoomRooms). */
+            /* sw = boxRoomPart per-room software (0=webex 1=mtr 2=zoomRooms 3=google). */
             if ('sw' in item && newItem.data_deviceid === 'boxRoomPart') {
-                const swDecoded = ['webex', 'mtr', 'zoomRooms'][parseInt(item.sw, 10)];
+                const swDecoded = ['webex', 'mtr', 'zoomRooms', 'google'][parseInt(item.sw, 10)];
                 if (swDecoded) newItem.data_software = swDecoded;
             }
 
@@ -11945,6 +11966,9 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
         } else if (roomObj.software == 'zoomRooms'){
             document.getElementById('drpSoftware').value = 'zoomRooms';
         }
+        else if (roomObj.software == 'google') { 
+            document.getElementById('drpSoftware').value = 'google';
+        }
         else {
             document.getElementById('drpSoftware').value = 'select';
         }
@@ -13316,7 +13340,9 @@ function createShareableLink() {
     }
     else if (linkSrc.software === 'zoomRooms'){
         strUrlQuery2 += 'e2';
-    }
+    } else if (linkSrc.software === 'google') {
+        strUrlQuery2 += 'e3';
+    } 
 
 
     /* Zoomed into a room, the standalone room link carries the room's effective height (activeRoomHeight falls back to the floor's). */
@@ -14078,7 +14104,7 @@ function createShareableLinkItem(item, prevTokens) {
         if (rsDigits) add('rs', 'rs' + rsDigits);
 
         /* sw = per-room software (same digit mapping as the room-level e code). */
-        const swIndex = ['webex', 'mtr', 'zoomRooms'].indexOf(item.data_software);
+        const swIndex = ['webex', 'mtr', 'zoomRooms', 'google'].indexOf(item.data_software);
         if (swIndex > -1) add('sw', 'sw' + swIndex);
     }
 
@@ -22864,10 +22890,11 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         let speakerDeg = spkGeom.deg;
         let lblSpeakerRadius = spkGeom.radius;
 
-        let innerRadius = speakerRadius * 0.2;
+        let innerRadius = 0;
 
+        /* millimeters, like speakerRadius */
         if ('innerSpeakerRadius' in insertDevice) {
-            innerRadius = insertDevice.innerSpeakerRadius * scale;
+            innerRadius = insertDevice.innerSpeakerRadius / 1000 * scale;
             if (unit === 'feet') {
                 innerRadius = innerRadius * 3.28084;
             }
@@ -26768,7 +26795,7 @@ function createEquipmentMenu() {
         document.getElementById('legacyVideoDevicesMenuDivider').style.display = 'none';
     }
 
-    let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic'];
+    let microphonesMenu = ['ceilingMicPro', 'tableMicPro', 'tableMic', 'ceilingMic', 'loudspeakerPro'];
 
     let displaysMenu = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'projector', 'displayScreen_2'];
 
@@ -34111,18 +34138,22 @@ function exportRoomObjToWorkspace() {
 
     (wdBuckets.microphones || []).forEach((item) => {
 
-        if ((item.data_mount && item.data_mount.value.startsWith('ceilingMount')) || ((item.data_deviceid === 'ceilingMicPro') && !item.data_mount)) {
+        /* Hanging on a wire: the mic calls it ceilingMount (and it is the mic's default), the speaker calls it suspended. Both get a ceilingMount object up to the ceiling. */
+        const micOnWire = (item.data_mount && item.data_mount.value.startsWith('ceilingMount')) || ((item.data_deviceid === 'ceilingMicPro') && !item.data_mount);
+        const speakerOnWire = item.data_deviceid === 'loudspeakerPro' && item.data_mount && item.data_mount.value === 'suspended';
+        if (micOnWire || speakerOnWire) {
             let ceilingMount = structuredClone(item);
             let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
             ceilingMount.data_vHeight = poleHeight;
             ceilingMount.data_deviceid = "ceilingMount";
-            ceilingMount.data_zPosition = item.data_zPosition + (poleHeight / 35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
+            ceilingMount.data_zPosition = (item.data_zPosition || 0) + (poleHeight / 35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
             ceilingMount.id = "secondary-ceilingMount-" + item.id;
             delete ceilingMount.data_mount;
 
             workspaceObjItemPush(ceilingMount);
 
-            delete item.data_mount;
+            /* The mic's default mount is the wire, so dropping it round-trips. The speaker's default is the bracket, so it keeps mount: 'suspended'. */
+            if (micOnWire) delete item.data_mount;
 
         }
 

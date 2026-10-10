@@ -43,7 +43,7 @@ Do not confuse them.
 | `v` | Prefix | App version (e.g., `v0.1.631`) — **legacy/optional**: no longer emitted by the encoder, ignored on decode |
 | `b` | Param | Room width in mm (e.g., `b2600` = 2600mm) |
 | `c` | Param | Room length in mm |
-| `e` | Param | Software: `e0`=Webex, `e1`=MTR |
+| `e` | Param | Software: `e0`=Webex, `e1`=MTR, `e2`=Zoom Rooms, `e3`=Google Meet. A Room Part's own software rides the per-item `sw` code with the same digits |
 | `f` | Param | Room height in mm (optional) |
 | `~text~` | Delim | Room name (URL encoded, spaces as `+`) |
 | `B` | Prefix | Visibility flags (8-digit binary string) |
