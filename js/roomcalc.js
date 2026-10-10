@@ -6938,7 +6938,7 @@ let videoDevices = [
 
     { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3550, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
@@ -6970,7 +6970,7 @@ let videoDevices = [
 
     { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
 
-    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
+    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3550, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
 
     { name: "Room Kit Pro G2: Quad Camera", key: 'BF', id: 'roomKitProG2QuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitProG2QuadCam-menu.png', newItem: true },
 
