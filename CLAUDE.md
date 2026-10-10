@@ -2392,19 +2392,23 @@ display.
 ## Speaker Reach (audio/test-mode feature)
 
 Per-item override of the hardcoded device `speakerRadius` / `speakerDeg`
-speaker-coverage specs. **Everything user-facing is gated on
-`isAudioTestMode()`**, which is true when `localStorage.audio === 'true'`
-OR `localStorage.test === 'true'`. `?audio` (also `?audio=1` / `on`)
-persists the audio flag and shows an `alertDialog` explaining that
-speaker reach is a testing mode with dummy video-device values;
-`?audio=0` / `off` clears it. `?test` continues to enable everything
-including speakers. The gate covers the speaker coverage toolbar button
-(the `#test` span reveal at boot), the Details-panel `#speakerReachDiv`
-button (gated in `updateFormatDetails()`), AND display:
-`speakerCoverageVisible()` force-hides and clears
-`roomObj.overlaysVisible.speakerCoverage` when the mode is off, so a
-shared URL `B` flag or imported JSON with speaker coverage on stays
-hidden for users who never activated the mode. `#speakerReachDiv`
+speaker-coverage specs. **Speaker coverage itself is public; only the
+editor is gated.** The toolbar button (`#btnSpeakerShadeToggle`) is
+always shown and `speakerCoverageVisible()` honours the stored flag for
+everyone, so a shared URL `B` flag or imported JSON with speaker
+coverage on now shows it. Every item's coverage draws from
+`speakerComputeGeometry()`, so a stored override (`data_speakerCalc`
+and friends) is drawn for everyone too: the override is part of the
+design, the gate is only on changing it. The default is off
+(`overlaysVisible.speakerCoverage: false`), so an existing room is
+unchanged unless it was saved with the flag on.
+
+The Details-panel `#speakerReachDiv` button is the one thing behind
+`isAudioTestMode()`, true when `localStorage.audio === 'true'` OR
+`localStorage.test === 'true'` (gated in `updateFormatDetails()`).
+`?audio` (also `?audio=1` / `on`) persists the flag and shows an
+`alertDialog` saying Speaker Reach is a testing feature; `?audio=0` /
+`off` clears it. `?test` enables it as well. `#speakerReachDiv`
 opens `#dialogSpeakerReach`, a DISCAS-style dialog with a
 **Calculation Method dropdown** whose AVIXA option adapts to the
 device class:

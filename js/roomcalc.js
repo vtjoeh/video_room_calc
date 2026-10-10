@@ -9227,15 +9227,11 @@ function getQueryString() {
         const audioValue = urlParams.get('audio');
         if (audioValue === '' || audioValue == 1 || audioValue == 'on') {
             setItemForLocalStorage('audio', 'true');
-            alertDialog('Speaker Coverage Test Mode',
-                'This is a testing mode for audio speaker reach. Current values may not be correct. Speaker coverage for video devices uses dummy values for development.');
+            alertDialog('Speaker Reach Test Mode',
+                'Speaker Reach is a testing feature. It lets you change how far a speaker\'s coverage reaches, from the Speaker Reach button in the Details panel. Its calculations may not be correct.');
         } else if (audioValue == '0' || audioValue === 'off') {
             localStorage.removeItem('audio');
         }
-    }
-
-    if (isAudioTestMode() && document.getElementById('test')) {
-        document.getElementById('test').setAttribute('style', 'visibility: visible;');
     }
 
     /* ?debug=1: fps/item/node overlay; persisted in localStorage. */
@@ -15970,7 +15966,7 @@ function microphoneCoverageVisible(state = 'buttonPress') {
     if (saveToUndo) saveToUndoArray();
 }
 
-/* Speaker coverage is experimental: shown only in ?audio or ?test mode (both persisted in localStorage). */
+/* Gates the Speaker Reach editor only (?audio or ?test, both persisted in localStorage). Speaker coverage itself is always available. */
 function isAudioTestMode() {
     return localStorage.getItem('audio') === 'true' || localStorage.getItem('test') === 'true';
 }
@@ -15979,13 +15975,6 @@ function speakerCoverageVisible(state = 'buttonPress') {
     closeTooltipTitleText();
 
     let button = document.getElementById('btnSpeakerShadeToggle');
-
-    if (!isAudioTestMode()) {
-        speakerCoverage.visible(false);
-        button.classList.toggle('active', false);
-        roomObj.overlaysVisible.speakerCoverage = false;
-        return;
-    }
 
     let saveToUndo = false;
     if (state === 'buttonPress') {
