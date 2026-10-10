@@ -6912,11 +6912,11 @@ let videoDevices = [
 
 
 
-    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4850, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar", id: 'roomBar', key: 'AB', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4365, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5850, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar Pro", id: 'roomBarPro', key: 'AC', wideHorizontalFOV: 110, teleHorizontalFOV: 44, onePersonDistance: 5.45, twoPersonDistance: 8, topImage: 'roomBarPro-top.png', frontImage: 'roomBarPro-front.png', width: 960, depth: 90, height: 120, micRadius: 4000, micDeg: 100, speakerRadius: 5265, speakerDeg: 140, defaultVert: 900, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
-    { name: 'Room Kit EQX: Wall Mount**', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 6830, speakerDeg: 140, },
+    { name: 'Room Kit EQX: Wall Mount**', id: 'roomKitEqx', key: 'AD', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1230, diagonalInches: 75, defaultVert: 681, colors: null, speakerRadius: 6147, speakerDeg: 140, },
 
     { name: "Room Kit EQ: Quad Camera", key: 'AE', id: 'roomKitEqQuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'quadCam-front.png' },
 
@@ -6936,11 +6936,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Mount**", id: 'brdPro75G2', key: 'AM', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 760 },
 
-    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk [RoomOS]", id: 'webexDesk', key: 'AN', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDesk-top.png', frontImage: 'webexDesk-front.png', width: 565, depth: 160, height: 474, diagonalInches: 24, speakerRadius: 2475, speakerDeg: 140, innerSpeakerRadius: 0, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3550, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Pro (G1)", id: 'webexDeskPro', key: 'AO', wideHorizontalFOV: 71, teleHorizontalFOV: 71, onePersonDistance: 1.45, twoPersonDistance: 2.45, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskPro-front.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3195, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
-    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2750, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
+    { name: "Desk Mini [RoomOS]", id: 'webexDeskMini', key: 'AP', wideHorizontalFOV: 64, teleHorizontalFOV: 64, onePersonZoom: 1, twoPersonZoom: 1, topImage: 'webexDeskMini-top.png', frontImage: 'webexDeskMini-front.png', width: 371, depth: 135, height: 162.5, diagonalInches: 15, speakerRadius: 2475, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 30, defaultVert: 710, micRadius: 1049, micDeg: 140 },
 
     { name: "Room 55*", id: 'room55', key: 'AQ', wideHorizontalFOV: 83, teleHorizontalFOV: 83, onePersonZoom: 2.72, twoPersonZoom: 3.99, topImage: 'room55-top.png', frontImage: 'room55-front.png', width: 1245, depth: 775, height: 1593, diagonalInches: 55, displayOffSetY: 370 },
 
@@ -6950,13 +6950,13 @@ let videoDevices = [
 
     { name: "_Virtual Lens Bar Pro", id: 'rmBarProVirtualLens', key: 'AT', codecParent: 'roomBarPro', wideHorizontalFOV: 112, teleHorizontalFOV: 70, onePersonZoom: 4.335, twoPersonZoom: 3.5, defaultVert: 1200 },
 
-    { name: 'Room Kit EQX: Floor Stand**', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
+    { name: 'Room Kit EQX: Floor Stand**', id: 'roomKitEqxFS', key: 'AU', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqxFS-top.png', frontImage: 'roomKitEqxFS-front.png', width: 3362, depth: 924, height: 1910, diagonalInches: 75, displayOffSetY: 450, defaultVert: 0, colors: null, speakerRadius: 6300, speakerDeg: 140 },
 
     { name: "Board Pro 55 G2: Floor Stand**", id: 'brdPro55G2FS', key: 'AV', codecParent: 'roomBarPro', topImage: 'brdPro55G2FS-top.png', frontImage: 'brdPro55G2FS-front.png', width: 1278, depth: 944, height: 1778, diagonalInches: 55, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
     { name: "Board Pro 75 G2: Floor Stand**", id: 'brdPro75G2FS', key: 'AW', codecParent: 'roomBarPro', topImage: 'brdPro75G2FS-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 926, height: 1866, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
-    { name: 'Room Kit EQX: Wall Stand**', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 7000, speakerDeg: 140 },
+    { name: 'Room Kit EQX: Wall Stand**', id: 'roomKitEqxWS', key: 'AX', codecParent: "roomKitEqQuadCam", cameraParent: "quadCam", topImage: 'roomKitEqx-top.png', frontImage: 'roomKitEqx-front.png', width: 3362, depth: 152, height: 1892, diagonalInches: 75, defaultVert: 0, colors: null, speakerRadius: 6300, speakerDeg: 140 },
 
     { name: "Board Pro 75 G2: Wheel Stand**", id: 'brdPro75G2Wheel', key: 'AY', codecParent: 'roomBarPro', topImage: 'brdPro75G2Wheel-top.png', frontImage: 'brdPro75G2FS-front.png', width: 1719, depth: 950, height: 1905, diagonalInches: 75, micRadius: 4000, micDeg: 100, displayOffSetY: 420, defaultVert: 0 },
 
@@ -6966,11 +6966,11 @@ let videoDevices = [
 
     { name: "Board Pro 75 G2: Wall Stand**", id: 'brdPro75G2WS', key: 'BB', codecParent: 'roomBarPro', topImage: 'brdPro75G2-top.png', frontImage: 'brdPro75G2-front.png', width: 1719, depth: 95, height: 1102, diagonalInches: 75, micRadius: 4000, micDeg: 100, defaultVert: 0 },
 
-    { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4500, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Bar BYOD", id: 'roomBarByod', key: 'BC', wideHorizontalFOV: 120, teleHorizontalFOV: 120, onePersonZoom: 2.94, twoPersonDistance: 4.456, topImage: 'roomBar-top.png', frontImage: 'roomBar-front.png', width: 534, depth: 64.4, height: 82, micRadius: 2951, micDeg: 140, speakerRadius: 4050, speakerDeg: 160, cameraShadeOffSet: 20, defaultVert: 930, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
 
     { name: "Unkown Video Device**", id: 'unknownVideoDevice', key: 'BD', topImage: 'unknownCamera-top.png', frontImage: 'unknownCamera-menu.png', width: 350, depth: 350, opacity: 0.6, },
 
-    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3550, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
+    { name: "Desk Pro G2", id: 'webexDeskProG2', key: 'BE', wideHorizontalFOV: 105, teleHorizontalFOV: 71, onePersonDistance: 1.6, twoPersonDistance: 3.9, topImage: 'webexDeskPro-top.png', frontImage: 'webexDeskProG2-menu2.png', width: 627.7, depth: 169.9, height: 497.8, diagonalInches: 27, speakerRadius: 3195, speakerDeg: 140, innerSpeakerRadius: 0, cameraShadeOffSet: 40, defaultVert: 710, micRadius: 2150, micDeg: 140, mounts: [{ desk: 'Desk' }, { wall: 'Wall' }], newItem: true },
 
     { name: "Room Kit Pro G2: Quad Camera", key: 'BF', id: 'roomKitProG2QuadCam', cameraParent: 'quadCam', topImage: 'quadCam-top.png', frontImage: 'roomKitProG2QuadCam-menu.png', newItem: true },
 
