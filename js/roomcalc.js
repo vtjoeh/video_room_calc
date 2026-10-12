@@ -57,6 +57,8 @@ let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
+/* Theme of the embedded Workspace Designer ('light' or 'dark'), iframes only. Sent in the iframe URL, which the WD reads on load, and as settings.theme in every postMessage to an iframe. A WD opened in its own tab keeps the user's own theme. */
+const workspaceDesignerTheme = 'light';
 let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Window representing the iframe */
@@ -17007,7 +17009,7 @@ function refreshSplitViewIframe() {
         : newWorkspaceTab;
     if (!wdUrl) return;
 
-    iframe.src = wdUrl + '?preview=1&removeEditButton=1';
+    iframe.src = wdUrl + '?preview=1&removeEditButton=1&theme=' + workspaceDesignerTheme;
     setTimeout(function () { postMessageToWorkspace(); }, 1500);
     setTimeout(function () { postMessageToWorkspace(); }, 3500);
     setTimeout(function () { postMessageToWorkspace(); }, 6000);
@@ -33214,7 +33216,7 @@ function openWorkspaceWindow(fromButton = true) {
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         // iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
 
-        iFrameWorkspaceWindow.src = newWorkspaceTab;
+        iFrameWorkspaceWindow.src = newWorkspaceTab + '?theme=' + workspaceDesignerTheme;
     }
 
 
@@ -33287,8 +33289,10 @@ function postMessageToWorkspacNow() {
         workspaceWindow.postMessage(message, '*');
     }
 
+    const iframeMessage = { roomdesigner: { ...message.roomdesigner, settings: { ...message.roomdesigner.settings, theme: workspaceDesignerTheme } } };
+
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage(message, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage(iframeMessage, '*');
     }
 
     /* Also send room state to the split view iframe when it is loaded */
@@ -33296,7 +33300,7 @@ function postMessageToWorkspacNow() {
         let splitIframe = document.getElementById('splitViewIframe');
         if (splitIframe && splitIframe.contentWindow) {
             try {
-                splitIframe.contentWindow.postMessage(message, '*');
+                splitIframe.contentWindow.postMessage(iframeMessage, '*');
             } catch (splitPostErr) {
                 console.warn('splitView postMessage failed:', splitPostErr);
             }
@@ -36831,7 +36835,7 @@ function splitViewSetWidth(pct, forceExact) {
         if (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl) {
             wdUrl = workspaceDesignerTestUrl;
         }
-        iframe.src = wdUrl + '?preview=1&removeEditButton=1';
+        iframe.src = wdUrl + '?preview=1&removeEditButton=1&theme=' + workspaceDesignerTheme;
         splitViewState.iframeLoaded = true;
         setTimeout(function () { postMessageToWorkspace(); }, 1500);
         setTimeout(function () { postMessageToWorkspace(); }, 3500);
