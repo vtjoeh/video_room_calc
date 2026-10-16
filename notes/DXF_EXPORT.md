@@ -11,7 +11,7 @@ the always-applied workspace rules. Open it on demand when working on
 DXF export code or adding/changing a device block.
 
 Companion files:
-- `../CLAUDE.md` — user-facing dev reference (has a short stub linking
+- `../.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short stub linking
   here for the deep dive).
 - Source files: `js/dxfWriter.js`, `js/dxfBlockLibrary.js`,
   `exportDxfFile()` in `js/roomcalc.js`.

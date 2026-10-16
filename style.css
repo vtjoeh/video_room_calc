@@ -3252,7 +3252,7 @@ hr.rightClickHorizontalLine {
 /* Quick Add: green left-border is a CustomItem-only marker.
  * The green echoes the green CustomItem rect convention used on the
  * canvas (#B6EAB0 fill / green dashed stroke — see "Konva rendering"
- * in CLAUDE.md), so a user familiar with the canvas surface
+ * in .ai/PROJECT_CONTEXT.md), so a user familiar with the canvas surface
  * immediately recognizes these tiles as "the bundles I built". 3px is
  * narrow enough not to crowd the 9em tile width but visible against
  * the regular grey tile background. Regular device tiles in the same
@@ -4028,7 +4028,7 @@ body.svBp405 .closeDialogX { right: unset; top: 15px; left: 10px; }
  * applied ONLY in the Quick Add gallery via `.gallery button.customItemTile`
  * above — it echoes the green CustomItem rect convention used on the
  * canvas (#B6EAB0 fill / green dashed stroke — see "Konva rendering"
- * in CLAUDE.md), so a user familiar with the canvas surface
+ * in .ai/PROJECT_CONTEXT.md), so a user familiar with the canvas surface
  * immediately recognizes those tiles as "the bundles I built". The
  * Equipment-tab sidebar copy intentionally omits the green marker so
  * the customItem tiles blend with the surrounding device tiles in the

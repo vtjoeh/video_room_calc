@@ -11,7 +11,7 @@
  *
  * Loaded BEFORE roomcalc.js via a <script> tag in RoomCalculator.html
  * and attached to `window.VRC.undoApply` per the namespace convention
- * documented in notes/TECH_NOTES.md and CLAUDE.md.
+ * documented in notes/TECH_NOTES.md and .ai/PROJECT_CONTEXT.md.
  *
  * Contract (consumed by the orchestrator in roomcalc.js):
  *

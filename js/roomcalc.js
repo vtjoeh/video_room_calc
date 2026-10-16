@@ -3702,7 +3702,7 @@ function finishCertifiedDisplayInsert(attrs) {
     canvasToJson();
 }
 
-/* displayCustom AVIXA DISCAS BDM coverage: FV = IH x %EH x 2, CV = max(0, IH + IO) x 1.732; only non-default inputs stored, geometry always derived — formulas and the deliberate ADM omission are documented in CLAUDE.md "Custom Reach Display". */
+/* displayCustom AVIXA DISCAS BDM coverage: FV = IH x %EH x 2, CV = max(0, IH + IO) x 1.732; only non-default inputs stored, geometry always derived — formulas and the deliberate ADM omission are documented in .ai/PROJECT_CONTEXT.md "Custom Reach Display". */
 
 const DISCAS_DEFAULT_PERCENT_EL = 3;
 const DISCAS_DEFAULT_ASPECT = 1.78;      /* 16:9 */
@@ -3922,7 +3922,7 @@ function finishDiscasInsert(attrs) {
     canvasToJson();
 }
 
-/* Speaker Reach (test-mode): per-item simple/cone/spl coverage overrides, geometry always derived — see CLAUDE.md "Speaker Reach". */
+/* Speaker Reach (test-mode): per-item simple/cone/spl coverage overrides, geometry always derived — see .ai/PROJECT_CONTEXT.md "Speaker Reach". */
 
 const SPKR_DEFAULT_CONE_ANGLE = 90;    /* deg — typical conical ceiling speaker (-6 dB angle) */
 const SPKR_DEFAULT_SENSITIVITY = 86;   /* dB SPL at 1 W / 1 m */
@@ -5962,7 +5962,7 @@ function convertPointsToPixel(points) {
     return newPoints;
 }
 
-/* polyRoom vertex-edit mode (floor overview only) — see CLAUDE.md "polyRoom Point Editing". */
+/* polyRoom vertex-edit mode (floor overview only) — see .ai/PROJECT_CONTEXT.md "polyRoom Point Editing". */
 let polyRoomEditNodeId = null;
 let _polyRoomEditSuppressed = false;
 let _polyRoomEditPreDragPoints = null;
@@ -7552,7 +7552,7 @@ let tables = [{
 {
     /* Wall with an editable list of windows/door frames (data_customWindows). Solid segments,
      * window glass, and open frames are all DERIVED from the sorted array at render/export time.
-     * See CLAUDE.md "Custom Window Wall". */
+     * See .ai/PROJECT_CONTEXT.md "Custom Window Wall". */
     name: 'Custom Window Wall',
     id: 'wallCustomWindow',
     key: 'WY',
@@ -19800,7 +19800,7 @@ function updateItem() {
             }
         }
 
-        /* certifiedDisplay: resolve index from dropdown, else item, else first entry; size locks to the model, data_role preserved — see CLAUDE.md "Certified Display item". */
+        /* certifiedDisplay: resolve index from dropdown, else item, else first entry; size locks to the model, data_role preserved — see .ai/PROJECT_CONTEXT.md "Certified Display item". */
         if (data_deviceid === 'certifiedDisplay') {
             const __cdSel = document.getElementById('certifiedDisplaySelect');
             const __cdDiv = document.getElementById('certifiedDisplayDiv');
@@ -20988,7 +20988,7 @@ function doPolygonsIntersect(a, b) {
 
 /* Room Part tolerances, all held in METERS so a feet/meters switch never changes what a saved value means.
  * Every one of these was a hardcoded constant; the Settings panel's "Room Part wall tolerance" popover
- * edits them live for testing. See CLAUDE.md "Which items a Room Part captures". */
+ * edits them live for testing. See .ai/PROJECT_CONTEXT.md "Which items a Room Part captures". */
 const ROOM_PART_TOLERANCE_KEY = 'roomPartTolerance';
 
 const ROOM_PART_TOLERANCE_DEFAULTS = Object.freeze({
@@ -21901,7 +21901,7 @@ function ungroupCustomItem(customItemId, keepItems) {
     /* No batchDraw() — Konva v8+ auto-redraws after node.destroy() / .remove() above. */
 }
 
-/* Create a CustomItem from tr.nodes() (or supplied nodes). Dissolves any existing CustomItem memberships and every Group touched by the selection (CustomItem can't contain Groups; co-tenants lose membership too — see CLAUDE.md). `name` optional for programmatic callers. */
+/* Create a CustomItem from tr.nodes() (or supplied nodes). Dissolves any existing CustomItem memberships and every Group touched by the selection (CustomItem can't contain Groups; co-tenants lose membership too — see .ai/PROJECT_CONTEXT.md). `name` optional for programmatic callers. */
 function createCustomItem(nodesToGroup, name, author, description) {
     ensureCustomItems();
 
@@ -22969,7 +22969,7 @@ function insertShapeItem(deviceId, groupName, attrs, uuid = '', selectTrNode = f
         const apexY = halfPx * TAN30; /* depth where the two 60-deg edge lines cross */
         const nearY = Math.max(cvPx, apexY);
 
-        /* Far boundary = TWO FV arcs centered on the image EDGES (not one center arc), so every conforming viewer is within FV of both edges — see CLAUDE.md "Custom Reach Display". */
+        /* Far boundary = TWO FV arcs centered on the image EDGES (not one center arc), so every conforming viewer is within FV of both edges — see .ai/PROJECT_CONTEXT.md "Custom Reach Display". */
         const xFar = -halfPx + SIN60 * fvPx;  /* right-far corner x (left-far is the mirror) */
         const yFar = 0.5 * fvPx;
         const yCross = Math.sqrt(Math.max(0, fvPx * fvPx - halfPx * halfPx)); /* two-arc crease on the centerline */
@@ -30379,7 +30379,7 @@ function importXConfigFile(text, fileName) {
     const X_CONFIG_LAYER_NAME = 'xConfig XYZ';
     const X_CONFIG_COL_WIDTH_M = 0.01;
     const xConfigLayerId = crypto.randomUUID();
-    /* _urlNum mirrors nextLayerUrlNumber() but reads roomObj2.layers (roomObj isn't swapped in yet). Custom layers start at 20 — see CLAUDE.md. */
+    /* _urlNum mirrors nextLayerUrlNumber() but reads roomObj2.layers (roomObj isn't swapped in yet). Custom layers start at 20 — see .ai/PROJECT_CONTEXT.md. */
     const usedUrlNums = new Set(
         roomObj2.layers
             .filter(l => l.layerid !== '0' && l.layerid !== '1' && typeof l._urlNum === 'number')
@@ -31937,7 +31937,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
         if (wdItem) {
 
-            /* Children of a VRC parentItem (composite parts of e.g. genericSecurityCamera). The parent is rebuilt below from data.vrc.parentItems[]; these child WD objects are derived geometry and never become roomObj items. `vrcParent` is the discriminator — see CLAUDE.md "Parent Items". */
+            /* Children of a VRC parentItem (composite parts of e.g. genericSecurityCamera). The parent is rebuilt below from data.vrc.parentItems[]; these child WD objects are derived geometry and never become roomObj items. `vrcParent` is the discriminator — see .ai/PROJECT_CONTEXT.md "Parent Items". */
             if (wdItem.vrcParent) {
                 delete wdItems[i];
                 continue;
@@ -32266,7 +32266,7 @@ function importWorkspaceDesignerFile(workspaceObj) {
     }
 
     /* Restore VRC Parent Items from data.vrc.parentItems (verbatim meters); child WD primitives were already dropped via the vrcParent
-     * early-continue. MUST run BEFORE the groups/customItems restores (member-array rebuild). See CLAUDE.md "Parent Items". */
+     * early-continue. MUST run BEFORE the groups/customItems restores (member-array rebuild). See .ai/PROJECT_CONTEXT.md "Parent Items". */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.parentItems)) {
         if (!Array.isArray(roomObj2.items)) roomObj2.items = [];
         workspaceObj.data.vrc.parentItems.forEach(p => {
@@ -32950,7 +32950,7 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         }
     }
 
-    /* For wdText the `comment` field falls through to the unused-keys merger so it lands INSIDE the JSON blob (the free-text prefix slot is reserved for the rendered glyph, wdItem.text, captured earlier). See CLAUDE.md / notes/WORKSPACE_DESIGNER.md. */
+    /* For wdText the `comment` field falls through to the unused-keys merger so it lands INSIDE the JSON blob (the free-text prefix slot is reserved for the rendered glyph, wdItem.text, captured earlier). See .ai/PROJECT_CONTEXT.md / notes/WORKSPACE_DESIGNER.md. */
     let comment = '';
     if (wdItem.comment && data_deviceid !== 'wdText') {
         comment = wdItem.comment.trim();
@@ -34071,7 +34071,7 @@ function exportRoomObjToWorkspace() {
      * passes (N=7). See plan flatten-roomobj-items-array. */
     const wdBuckets = bucketItemsByParentGroup(roomObj2);
 
-    /* Parent Items: a single VRC item with workspaceKey[id].parentItem===true is emitted as multiple WD primitives (one per childItemParts) plus a data.vrc.parentItems[] record. Each child carries vrcParent / vrcParentDeviceId so the importer drops them before scoring. This pre-pass pulls flagged items from every bucket before the per-bucket push. See CLAUDE.md "Parent Items". */
+    /* Parent Items: a single VRC item with workspaceKey[id].parentItem===true is emitted as multiple WD primitives (one per childItemParts) plus a data.vrc.parentItems[] record. Each child carries vrcParent / vrcParentDeviceId so the importer drops them before scoring. This pre-pass pulls flagged items from every bucket before the per-bucket push. See .ai/PROJECT_CONTEXT.md "Parent Items". */
     const exportedParentItems = [];
     for (const bucketName in wdBuckets) {
         const bucket = wdBuckets[bucketName];
@@ -34622,7 +34622,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.opacity = "1";
         }
 
-        /* WD drops pathShape color at opacity exactly 1 — clamp to the "0.999" sentinel, mirrored by the import-side snap-back (see CLAUDE.md "pathShape-only WD opacity sentinel"). */
+        /* WD drops pathShape color at opacity exactly 1 — clamp to the "0.999" sentinel, mirrored by the import-side snap-back (see .ai/PROJECT_CONTEXT.md "pathShape-only WD opacity sentinel"). */
         if (item.data_deviceid === 'pathShape'
             && 'opacity' in workspaceItem
             && Number(workspaceItem.opacity) === 1) {
@@ -35147,7 +35147,7 @@ function exportRoomObjToWorkspace() {
             workspaceItem.mount = item.data_mount.value;
         }
 
-        /* Fill/opacity WD export, gated on device-def flags (never coexists with dropdown data_color); opacity emitted as a STRING — see CLAUDE.md "Configurable Fill & Opacity". */
+        /* Fill/opacity WD export, gated on device-def flags (never coexists with dropdown data_color); opacity emitted as a STRING — see .ai/PROJECT_CONTEXT.md "Configurable Fill & Opacity". */
         const __deviceDefWdRT = allDeviceTypes[item.data_deviceid];
         if (__deviceDefWdRT && __deviceDefWdRT.configurableColor && item.data_fill) {
             workspaceItem.color = item.data_fill;
@@ -35190,7 +35190,7 @@ function exportRoomObjToWorkspace() {
         workspaceObj.customObjects.push(workspaceItem);
     }
 
-    /* Parent Items helpers (see CLAUDE.md "Parent Items"). function
+    /* Parent Items helpers (see .ai/PROJECT_CONTEXT.md "Parent Items"). function
      * declarations so they hoist above the pre-pass call site near the
      * top of exportRoomObjToWorkspace(). */
     function buildParentItemExportRecord(item) {
@@ -35222,7 +35222,7 @@ function exportRoomObjToWorkspace() {
     }
 
     function pushParentItemChildren(parent, wsKey) {
-        /* UL-vs-center anchor keys off the device CLASS (parentGroup), never off instance width/height (reload backfills them and would flip the anchor) — see CLAUDE.md "Parent anchor heuristic". */
+        /* UL-vs-center anchor keys off the device CLASS (parentGroup), never off instance width/height (reload backfills them and would flip the anchor) — see .ai/PROJECT_CONTEXT.md "Parent anchor heuristic". */
         const dev = (typeof allDeviceTypes !== 'undefined'
             ? allDeviceTypes[parent.data_deviceid] : null) || {};
         const pg = dev.parentGroup;
@@ -35232,7 +35232,7 @@ function exportRoomObjToWorkspace() {
         const hasH = (parent.height != null && parent.height !== '');
         const parentEffW = hasW ? Number(parent.width) : ((dev.width || 0) / 1000);
         const parentEffH = hasH ? Number(parent.height) : ((dev.depth || 0) / 1000);
-        /* Pivot + anchor-offset model: the anchor offset is part of the LOCAL vector and must rotate with it, or rotated parents misplace every child — see CLAUDE.md "Parent anchor heuristic". */
+        /* Pivot + anchor-offset model: the anchor offset is part of the LOCAL vector and must rotate with it, or rotated parents misplace every child — see .ai/PROJECT_CONTEXT.md "Parent anchor heuristic". */
         const pivotX = Number(parent.x) || 0;
         const pivotY = Number(parent.y) || 0;
         const anchorOffX = parentIsUL ? 0 : -parentEffW / 2;
@@ -35487,7 +35487,7 @@ function exportRoomObjToWorkspace() {
             /* windowFrame / doorFrame: the band itself is a literal gap — no WD object pushed. */
         });
 
-        /* Full-width + floor-to-ceiling opening pushes 0 pieces (wall vanishes in 3D) — fall back to a thin top sentinel strip; see CLAUDE.md "Wall vanishing in the WD 3D view". */
+        /* Full-width + floor-to-ceiling opening pushes 0 pieces (wall vanishes in 3D) — fall back to a thin top sentinel strip; see .ai/PROJECT_CONTEXT.md "Wall vanishing in the WD 3D view". */
         if (idx === 0) {
             const sentinelHeight = Math.min(0.05, wallVHeight);
             pushPiece(0, runTotal, wallVHeight - sentinelHeight, sentinelHeight, parent.data_fill, parent.data_opacity);
@@ -35680,7 +35680,7 @@ function normalizeSvgPathWindingForWd(pathStr) {
         return d;
     });
 
-    /* WD winding is ABSOLUTE: positive shoelace = solid, negative = hole — see CLAUDE.md "pathShape sub-path winding normalization". */
+    /* WD winding is ABSOLUTE: positive shoelace = solid, negative = hole — see .ai/PROJECT_CONTEXT.md "pathShape sub-path winding normalization". */
     const refSign = 1;
 
     let changed = false;
@@ -35984,7 +35984,7 @@ function closeRightClickMenu() {
  * .itemEllipseBtn (fixed-position popover). Menu contents derive from
  * `tr.nodes()`, not from which button was clicked. CustomItem actions
  * live ONLY here (not on the right-click menu); only Group/Ungroup are
- * shared between the two surfaces. See CLAUDE.md → ellipse menu. */
+ * shared between the two surfaces. See .ai/PROJECT_CONTEXT.md → ellipse menu. */
 const ITEM_ACTIONS_MENU_ID = 'itemActionsMenu';
 
 function closeItemActionsMenu() {
@@ -36049,7 +36049,7 @@ function toggleItemActionsMenu(event, mode) {
     const activeCustomItemSel = getActiveCustomItemSelection(trNodes);
     const singleCustomItemBundleSelected = !!activeCustomItemSel;
 
-    /* Group disabled for: <2 real items, all already one Group, or exactly one lone CustomItem bundle — see CLAUDE.md "Create-action enable matrix". */
+    /* Group disabled for: <2 real items, all already one Group, or exactly one lone CustomItem bundle — see .ai/PROJECT_CONTEXT.md "Create-action enable matrix". */
     const canGroup = itemsOnly.length >= 2 && !allSameExistingGroup && !singleCustomItemBundleSelected;
     const canUngroup = trNodes.some(n => n.data_deviceid === 'group' || n.data_groupId);
 
@@ -36265,7 +36265,7 @@ function createRightClickMenu(usePreviousPosition = false) {
         }
         createMenuItem('quickAddMenu', 'Quick Add', 'space', false);
         rightClickMenuDiv.appendChild(hr.cloneNode(true));
-        /* Group/CustomItem enable rules (itemsOnly excludes bundle rects) — must match toggleItemActionsMenu(); see CLAUDE.md "Create-action enable matrix". */
+        /* Group/CustomItem enable rules (itemsOnly excludes bundle rects) — must match toggleItemActionsMenu(); see .ai/PROJECT_CONTEXT.md "Create-action enable matrix". */
         const trNodesRC = tr.nodes();
         const itemsOnly = trNodesRC.filter(n =>
             n.data_deviceid !== 'group' && n.data_deviceid !== 'customItem');

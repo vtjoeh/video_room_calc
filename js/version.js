@@ -4,5 +4,6 @@
  * Format example "v0.1" or "v0.2.3" */
 const APP_VERSION = "v0.1.672";
 
-/* Build tag: bump this INSTEAD of APP_VERSION for small pushes that shouldn't */ 
+/* Source fallback. Deployment preparation writes a content digest here
+ * in the deployable staging copy. */
 const BUILD_VERSION = "ah";

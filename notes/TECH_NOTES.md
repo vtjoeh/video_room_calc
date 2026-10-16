@@ -1,7 +1,7 @@
 # Technical Notes & Refactor Targets
 
 A running log of architectural debt, known workarounds, and refactor goals.
-Future Claude sessions and the human author can use this to remember WHY
+Future AI sessions and developers can use this to remember WHY
 certain code looks the way it does and what the long-term direction is.
 
 This file is **not** end-user documentation. It is engineering notes only.
@@ -205,8 +205,8 @@ lives in `groupGroupRects`. Members carry `data_groupId` on both the
 Konva node and the roomObj item (matches the `data_layerId` convention).
 
 End-user details (selection, drag, Details panel, group-rect props)
-live in **VRC Group System** in `CLAUDE.md`. URL spec lives in
-**Group URL Encoding** in `CLAUDE.md`. The persistence invariants below
+live in **VRC Group System** in `.ai/PROJECT_CONTEXT.md`. URL spec lives in
+**Group URL Encoding** in `.ai/PROJECT_CONTEXT.md`. The persistence invariants below
 are the load-bearing rules to keep in mind for future changes.
 
 #### Persistence invariants

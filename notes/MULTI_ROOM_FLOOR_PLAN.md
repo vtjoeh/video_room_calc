@@ -49,8 +49,8 @@ Add a sticky, design-level "Multi-Room Floor Plan Mode" with two sub-modes (Mult
 - **Manual `wallWindow` item** — uses the shared `applyWindowPatternToRect()` too, replacing its own un-scaled/no-redraw pattern code (same black-bar fix).
 - **Overview keeps an outline, suppresses filled walls** — `drawRoom()` gate (`js/roomcalc.js:10856-10861`) draws the outer-wall outline in the MultiRoom overview but `drawOutsideWall()` suppresses the filled default walls there (`!isMultiRoomOverviewMode()` gate, `js/roomcalc.js:10098`). Filled per-room default walls draw only in normal single-room mode or boxRoomPart Room sub-mode. Default Walls subtab is message-only in overview.
 - **Preview wall thickness scales for feet** — `drawRoomPartDefaultWallsPreviews()` thickness is `0.115 * (feet? 3.28084 : 1) * scale`; feet rooms were drawn too thin.
-- **Deleting the last Room Part leaves the mode automatically** — the self-heal sits at the TOP of `applyMultiRoomModeUi()` (clears `roomObj.multiRoomFloorPlanMode` when `!roomObjHasRoomPart()`), so the whole pass below reverts together: coverage buttons live, `Floor`→`Room`, `Floor Setup`→`Room Setup`, `Floor name:`/`Rotate Floor:`/`Default Software Experience:` back to the room wording, Equipment menu rebuilt. `deleteTrNodes()` calls `applyMultiRoomModeUi()` on ANY Room Part delete rather than gating on the sticky flag — a link-loaded design has the flag false and is in the mode only via `roomObjHasRoomPart()`, so the old gate never fired for it. `applyRoomObjDelta()` (undo/redo fast path) calls it too, since it never reaches `drawRoom()`'s tail. See CLAUDE.md → "Losing the last Room Part leaves Multi-Room mode".
-- **Coverage buttons greyed but still clickable in overview** — `applyMultiRoomModeUi()` toggles class `coverageBtnDisabledMultiRoom` on `btnCamShadeToggle`/`btnMicShadeToggle`/`btnDisplayDistance`/`btnSpeakerShadeToggle` and sets `aria-disabled`; CSS greys the button and the `.holdIndicator` triangle via `filter: grayscale(100%) brightness(1.8)`. It deliberately does NOT set `disabled` or `pointer-events:none` any more: both swallow the press, and the press is what raises `coverageBlockedInFloorPlanMode()`'s dialog telling the user to double click a Room Part. See CLAUDE.md → "The coverage buttons on the floor plan".
+- **Deleting the last Room Part leaves the mode automatically** — the self-heal sits at the TOP of `applyMultiRoomModeUi()` (clears `roomObj.multiRoomFloorPlanMode` when `!roomObjHasRoomPart()`), so the whole pass below reverts together: coverage buttons live, `Floor`→`Room`, `Floor Setup`→`Room Setup`, `Floor name:`/`Rotate Floor:`/`Default Software Experience:` back to the room wording, Equipment menu rebuilt. `deleteTrNodes()` calls `applyMultiRoomModeUi()` on ANY Room Part delete rather than gating on the sticky flag — a link-loaded design has the flag false and is in the mode only via `roomObjHasRoomPart()`, so the old gate never fired for it. `applyRoomObjDelta()` (undo/redo fast path) calls it too, since it never reaches `drawRoom()`'s tail. See .ai/PROJECT_CONTEXT.md → "Losing the last Room Part leaves Multi-Room mode".
+- **Coverage buttons greyed but still clickable in overview** — `applyMultiRoomModeUi()` toggles class `coverageBtnDisabledMultiRoom` on `btnCamShadeToggle`/`btnMicShadeToggle`/`btnDisplayDistance`/`btnSpeakerShadeToggle` and sets `aria-disabled`; CSS greys the button and the `.holdIndicator` triangle via `filter: grayscale(100%) brightness(1.8)`. It deliberately does NOT set `disabled` or `pointer-events:none` any more: both swallow the press, and the press is what raises `coverageBlockedInFloorPlanMode()`'s dialog telling the user to double click a Room Part. See .ai/PROJECT_CONTEXT.md → "The coverage buttons on the floor plan".
 
 ## Decisions confirmed
 - **Mode flag:** sticky design-level boolean, mirrored into `data.vrc`. Explicit OFF lives as a **Details > Settings toggle that warns** before reverting to normal mode.
@@ -182,7 +182,7 @@ Zoomed into a Room Part, the shareable link is a standalone single-room design o
 
 ### 11. Docs
 - Add `notes/MULTI_ROOM_FLOOR_PLAN.md` (new TECH note) describing modes, storage, WD/link behavior.  — DONE (this file)
-- Add a short pointer in `CLAUDE.md` (keep it brief — file is already large).  — PENDING (CLAUDE.md notes list does not yet reference this file).
+- Add a short pointer in `.ai/PROJECT_CONTEXT.md` (keep it brief — file is already large).  — PENDING (.ai/PROJECT_CONTEXT.md notes list does not yet reference this file).
 - Opportunistically trim long block comments in the `roomcalc.js` sections touched (export, share link, menu build, default walls). Add no new comments except brief function-header notes; prefer long names + single-line `/* */` descriptions.
 
 ## Resolved decisions (round 2)
@@ -466,7 +466,7 @@ stay on-stage.
 
 Round 17's scale-only guard was **incomplete**. The actual trigger is
 the stage **pan position**, not the zoom scale. `repositionStage()`
-([js/roomcalc.js](js/roomcalc.js), bound to the scroll-container's
+([roomcalc.js](../js/roomcalc.js), bound to the scroll-container's
 `'scroll'` event) sets `stage.x(-scrollLeft)` / `stage.y(-scrollTop)`
 every time the canvas scrolls. When the user toolbar-zooms (zoomValue >
 100) and **scrolls** to bring a Room Part into view before

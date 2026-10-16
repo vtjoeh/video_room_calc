@@ -9,7 +9,7 @@ URL encoding/decoding, adding a new item attribute, or debugging a
 shareable link.
 
 Companion files:
-- `../CLAUDE.md` — user-facing dev reference (has a short stub linking
+- `../.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short stub linking
   here for the deep dive).
 - `WORKSPACE_DESIGNER.md` — for the JSON-based round-trip format.
 - `XCONFIG.md` — for the Cisco xConfiguration text round-trip.

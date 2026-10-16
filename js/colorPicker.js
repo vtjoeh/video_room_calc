@@ -244,7 +244,7 @@
         if (opEl && cfg.showOpacity) {
             /* App-wide convention: opacity 1.0 (100%) means "no override, use the device
              * default" and is stored as '' so it round-trips through updateItem()'s
-             * delete-on-default rule (see CLAUDE.md "Configurable Fill & Opacity"). That
+             * delete-on-default rule (see .ai/PROJECT_CONTEXT.md "Configurable Fill & Opacity"). That
              * assumes the device's own default IS full opacity, which is true for most
              * configurableColor/wdOpacity devices but NOT for every caller (e.g. the
              * Window Editor's glass window, whose default is 0.15) — cfg.omitOpacityAtFull

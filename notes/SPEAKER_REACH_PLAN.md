@@ -8,16 +8,15 @@ are what the finished work must reproduce.
 
 Ground rules that apply to every phase:
 
-- Bump `BUILD_VERSION` per change. The user runs git; give commands only.
-  One commit per phase.
+- Generate `BUILD_VERSION` when preparing a deployment. Keep each completed phase reviewable.
 - No em dashes or hyphens breaking sentences in strings, comments or docs.
-- Comments to a minimum; the reasoning lives in CLAUDE.md, not inline.
+- Comments to a minimum; the reasoning lives in .ai/PROJECT_CONTEXT.md, not inline.
 - No new `data_*` attribute unless a phase says so. Every field below
   already exists and already rides the four-place rule and the URL codes.
 - The wire values `data_speakerCalc = 'cone' | 'spl'` and the URL codes
   (`sm`, `sr`, `sg`, `sn`, `sh`, `sq`, `sw`, `st`) do NOT change. Only
   labels change. A saved room or link from today must load identically.
-- Update the "Speaker Reach" section of CLAUDE.md at the end of each phase.
+- Update the "Speaker Reach" section of .ai/PROJECT_CONTEXT.md at the end of each phase.
 - Verify live through the real dialog (preview server, SW cache cleared),
   not by calling functions in isolation. The 180 degree bug was only
   provable that way.
@@ -157,7 +156,7 @@ already the reach's definition.
 No Cisco-specific formula. Cisco's published reach IS the formula, so
 Manual reach with the Cisco provenance line (Phase 2) is the default and
 the Sound level method is the override. Remove the "their own formula
-comes later" note from CLAUDE.md when this lands.
+comes later" note from .ai/PROJECT_CONTEXT.md when this lands.
 
 ---
 

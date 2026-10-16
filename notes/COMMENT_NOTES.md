@@ -143,4 +143,4 @@ data_slant` follow VRC's native item convention: `x/y` is the offset (meters)
 from the parent's upper-left corner in the parent's local (un-rotated) frame,
 with `width` as the X-extent and `height` as the Y-extent.
 `data_fill/data_opacity/data_radius2/data_labelField` pass through verbatim when
-present. See CLAUDE.md "Parent Items" for the full round-trip contract.
+present. See .ai/PROJECT_CONTEXT.md "Parent Items" for the full round-trip contract.

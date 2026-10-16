@@ -2969,7 +2969,7 @@
     dialogCustomItemAdd; only the Name field is required. Buttons:
       * Save                — persist edited metadata to IDB (and cascade to any
                               live canvas instances of the same customItemBaseId
-                              per the strict-family model in CLAUDE.md).
+                              per the strict-family model in .ai/PROJECT_CONTEXT.md).
       * Export from Library — download as .vrcCustomItems.json (single record).
       * Delete / Remove From Library — destructive removal of the IDB record
                               (both buttons call the same handler; the dialog
@@ -3067,7 +3067,7 @@
       * Clear All — wipes IDB stores + localStorage prefs and navigates
                     to the base URL (drops ?x=… shareable-link params)
                     so the user lands on a fresh default room.
-    See CLAUDE.md "Storage settings modal" section (the plan that introduced
+    See .ai/PROJECT_CONTEXT.md "Storage settings modal" section (the plan that introduced
     this dialog) and js/roomcalc.js openStorageDialog() for behaviour.
   -->
   <dialog id="dialogStorage" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
@@ -3444,7 +3444,7 @@
          * importScripts, i.e. js/version.js) on every load, rather than
          * waiting on the browser's internal (~24h) background check. Cheap:
          * this is a network HEAD/GET-equivalent check, not a full re-cache --
-         * the cache only refreshes if APP_VERSION actually changed. */
+         * the cache refreshes when APP_VERSION or the generated BUILD_VERSION changes. */
         registration.update();
       }).catch((error) => {
         console.log('Service Worker registration failed:', error);

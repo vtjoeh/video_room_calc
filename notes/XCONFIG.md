@@ -11,7 +11,7 @@ the always-applied workspace rules. Open it on demand when working on
 file import/export code or debugging an xConfig round-trip.
 
 Companion files:
-- `../CLAUDE.md` — user-facing dev reference (has a short stub linking
+- `../.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short stub linking
   here for the deep dive).
 - `URL_ENCODING.md` — for the `?x=` URL-based round-trip.
 - `WORKSPACE_DESIGNER.md` — for the WD JSON-based round-trip.

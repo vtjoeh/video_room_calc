@@ -10,7 +10,7 @@ the always-applied workspace rules. Open it on demand when working on
 Konva-touching code.
 
 Companion files:
-- `../CLAUDE.md` — user-facing dev reference (has a short stub linking
+- `../.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short stub linking
   here for the deep dive).
 - `TECH_NOTES_KONVA.md` — the catalogue of Konva.js footguns specific
   to this codebase (selectors, the `data_*` JS-property convention,

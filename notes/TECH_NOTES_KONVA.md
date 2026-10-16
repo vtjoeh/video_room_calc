@@ -10,7 +10,7 @@ the always-applied workspace rules. Open it on demand when working on
 Konva-touching code.
 
 Companion files:
-- `CLAUDE.md` — user-facing dev reference (has a short Konva.js Notes
+- `.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short Konva.js Notes
   section that points here for the deep dives).
 - `TECH_NOTES.md` — engineering log of refactor targets and known
   workarounds (e.g. the `setTimeout` cluster around the rAF gap that
@@ -117,12 +117,12 @@ Practical consequences:
 VRC has THREE different "z-axis" concepts; do not mix them up:
 
 1. **VRC layers** (`roomObj.layers[]`) — logical grouping with
-   show/hide/lock. See `CLAUDE.md` → "VRC Layer System".
+   show/hide/lock. See `.ai/PROJECT_CONTEXT.md` → "VRC Layer System".
 2. **Konva layers** (`layerGrid`, `layerTransform`, `layerSelectionBox`)
    — separate `<canvas>` elements stacked in the DOM. (The
    `*Coverage` / `overlayLabels` nodes are Konva.Group children of
    `layerTransform`, NOT separate layers — see the table in
-   `CLAUDE.md`.)
+   `.ai/PROJECT_CONTEXT.md`.)
 3. **Konva `zIndex`** — sibling-array order within a single Konva
    layer or group.
 
@@ -150,7 +150,7 @@ node.data_labelField = 'My Label';
 
 This works because **nothing in Konva reads these fields** — they're
 plain JS-object properties, kept in sync manually by `canvasToJson()`
-(see `CLAUDE.md` → "Critical Data Flow: Item Updates").
+(see `.ai/PROJECT_CONTEXT.md` → "Critical Data Flow: Item Updates").
 
 Two completely separate storage systems:
 
@@ -183,7 +183,7 @@ rect.scaleX();  // 2
 // visible width = width * scaleX = 200
 ```
 
-Common Claude error: writing `if (node.width() > 200) …` and missing
+Common implementation error: writing `if (node.width() > 200) …` and missing
 the user's resize entirely. To "bake" the resize into width/height in
 the `transformend` handler:
 
@@ -637,7 +637,7 @@ win.
 
 - [ ] Am I about to write a CSS-style selector? → Re-read trap #1.
 - [ ] Am I assigning to `node.x` / `node.fill` / etc. directly? → Use the function form (trap #6).
-- [ ] Am I adding a new `data_*` field? → Update all FOUR sites listed in `CLAUDE.md` → "Critical Data Flow" (and remember it is a JS-object slot, not a Konva attr — trap #6).
+- [ ] Am I adding a new `data_*` field? → Update all FOUR sites listed in `.ai/PROJECT_CONTEXT.md` → "Critical Data Flow" (and remember it is a JS-object slot, not a Konva attr — trap #6).
 - [ ] Am I about to add a `layer.batchDraw()` call? → Don't. Konva v8+ auto-draws (trap #12). The only legitimate use is `someGroup.batchDraw()` — and that throws because Groups have no `batchDraw` method.
 - [ ] Am I reading a node's pixel-derived state in the same tick as a mutation (e.g. before `toDataURL()`)? → Use `layer.draw()` (sync), or defer to the next rAF (trap #12, trap #16).
 - [ ] Am I calling `e.stopPropagation()` inside a Konva listener? → It is `e.evt.stopPropagation()` for DOM, or `e.cancelBubble = true` for Konva (trap #11).

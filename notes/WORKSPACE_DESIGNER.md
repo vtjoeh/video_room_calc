@@ -9,7 +9,7 @@ the always-applied workspace rules. Open it on demand when working on
 WD export/import code or debugging a round-trip.
 
 Companion files:
-- `../CLAUDE.md` — user-facing dev reference (has a short stub linking
+- `../.ai/PROJECT_CONTEXT.md` — user-facing dev reference (has a short stub linking
   here for the deep dive).
 - `URL_ENCODING.md` — for the `?x=` URL-based round-trip.
 - `XCONFIG.md` — for the Cisco xConfiguration text round-trip.
@@ -158,7 +158,7 @@ each item carries both attributes, and the two room-level blocks are
 independent. On import, `groupMembers` and `customItemMembers` are
 rebuilt independently from the per-item refs. The reverse (a Group
 that contains CustomItems) is **not** supported — see the design
-discussion in `CLAUDE.md`.
+discussion in `.ai/PROJECT_CONTEXT.md`.
 
 ### Implementation cross-reference
 

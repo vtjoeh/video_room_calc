@@ -302,7 +302,7 @@ workspaceKey.roomKitEqQuadPtz4k = { objectType: 'videoDevice', model: 'Room Kit 
 /* end of defining workSpaceKey */
 
 
-/* Parent Items: `parentItem: true` emits one WD primitive per childItemParts entry plus a data.vrc.parentItems[] record. See notes/COMMENT_NOTES.md "Parent Items" and CLAUDE.md. */
+/* Parent Items: `parentItem: true` emits one WD primitive per childItemParts entry plus a data.vrc.parentItems[] record. See notes/COMMENT_NOTES.md "Parent Items" and .ai/PROJECT_CONTEXT.md. */
 
 // workspaceKey.genericSecurityCamera = {
 //     parentItem: true,
@@ -369,7 +369,7 @@ workspaceKey.ceilingFan = {
             "data_slant": 0
         },
         {
-            /* cylinderPole hangs from the room's actual ceiling down to this z (see CLAUDE.md "Ceiling Pole") — no data_vHeight here, its length is always derived, never stored. */
+            /* cylinderPole hangs from the room's actual ceiling down to this z (see .ai/PROJECT_CONTEXT.md "Ceiling Pole") — no data_vHeight here, its length is always derived, never stored. */
             "data_deviceid": "cylinderPole",
             "x": 0.5018,
             "y": 0.4572,
