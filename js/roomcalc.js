@@ -33542,7 +33542,7 @@ function exportRoomObjToWorkspace() {
     let swapXY = true;
 
     let roomObj2 = structuredClone(roomObj);  /* clone roomObj to make changes to units */
-
+    
     /* Zoomed into a room with its own height: the export's room height (roomShape + wall defaults) inherits the part's value; still in current unit here, convertToMeters scales it. */
     if (isActiveRoomPart && activeRoomPartItem && activeRoomPartItem.data_roomHeight) {
         roomObj2.room.roomHeight = activeRoomPartItem.data_roomHeight;
@@ -33583,10 +33583,10 @@ function exportRoomObjToWorkspace() {
             if ('x' in item) item.x = item.x - frameShiftX;
             if ('y' in item) item.y = item.y - frameShiftY;
         });
-        if (roomObj2.backgroundImage) {
-            roomObj2.backgroundImage.x = roomObj2.backgroundImage.x - frameShiftX;
-            roomObj2.backgroundImage.y = roomObj2.backgroundImage.y - frameShiftY;
-        }
+        // if (roomObj2.backgroundImage) {
+        //     roomObj2.backgroundImage.x = roomObj2.backgroundImage.x - frameShiftX;
+        //     roomObj2.backgroundImage.y = roomObj2.backgroundImage.y - frameShiftY;
+        // }
 
         /* Odd-rotated room: roomShape can't rotate, so capture a frame-space part record to emit as real rotated walls below. */
         if (isActiveRoomPartRotated()) {
@@ -33772,13 +33772,13 @@ function exportRoomObjToWorkspace() {
         workspaceObj.data.vrc.multiRoomFloorPlanMode = true;
     }
 
-    if ('backgroundImage' in roomObj2) {
-        const bgDataUrl = currentBackgroundImageDataUrl();
-        if (bgDataUrl) {
-            workspaceObj.data.vrc.backgroundImageFile = bgDataUrl;
-            workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
-        }
-    }
+    // if ('backgroundImage' in roomObj2) {
+    //     const bgDataUrl = currentBackgroundImageDataUrl();
+    //     if (bgDataUrl) {
+    //         workspaceObj.data.vrc.backgroundImageFile = bgDataUrl;
+    //         workspaceObj.data.vrc.backgroundImage = roomObj2.backgroundImage;
+    //     }
+    // }
 
     /* VRC Groups round-trip via data.vrc.groups: each member's data_groupId rides as a plain "group" attr, and the Group rect's geometry/metadata is stashed here (meters, VRC top-left frame). groupMembers is NOT emitted — it's rebuilt on import by matching data_groupId. Empty groups are skipped. */
     if (Array.isArray(roomObj.groups) && roomObj.groups.length > 0) {
