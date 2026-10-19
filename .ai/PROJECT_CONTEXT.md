@@ -33,7 +33,7 @@ video_room_calculator/
 │   ├── KEYBOARD_SHORTCUTS.md       # Canonical keyboard shortcut list
 │   └── DEPENDENCIES_AND_ISSUES.md  # Vendored third-party deps + common issues cheat sheet
 ├── js/
-│   ├── version.js           # APP_VERSION + BUILD_VERSION single source of truth (loaded first; also read by sw.js via importScripts — bumping EITHER forces the PWA cache refresh; bump BUILD_VERSION alone for small pushes that keep the visible version)
+│   ├── version.js           # APP_VERSION release + BUILD_VERSION build/cache identity (source fallback; content-derived value generated into deployment staging copy, see below)
 │   ├── konva.min.js         # Canvas rendering library (third party, minified)
 │   ├── constants.js         # Global constants + window.VRC namespace bootstrap (loaded first)
 │   ├── data/
@@ -68,11 +68,16 @@ There is no build step. Open `RoomCalculator.html` directly in a browser.
 The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
 `constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →
 `data/menuItemsAndMessages.js` → `util/units.js` → `undoApply.js` →
-`idbStorage.js` → `templates.js` → `roomcalc.js`. `version.js` is the
-single source of truth for `APP_VERSION` (also read by `sw.js` via
-`importScripts()` — see "PWA / Service Worker caching" in
-`notes/DEPENDENCIES_AND_ISSUES.md`); it carries no `VRC` surface and
-loads first because everything else may want it. Every other module
+`idbStorage.js` → `templates.js` → `roomcalc.js`. `version.js` supplies
+the visible release version, `APP_VERSION`, and the build identifier,
+`BUILD_VERSION`. The source checkout retains a fallback `BUILD_VERSION`;
+`scripts/prepare-deployment.py` generates a value from application content
+and replaces it only in the staging copy. `sw.js` reads both constants via
+`importScripts()` and uses them in its cache name, so a changed value
+refreshes the cache when the service-worker update succeeds. See "PWA /
+Service Worker caching" in `notes/DEPENDENCIES_AND_ISSUES.md` for deployment
+and local-testing behavior. `version.js` carries no `VRC` surface and loads
+first because everything else may want it. Every other module
 before `roomcalc.js` attaches to the shared `window.VRC` namespace
 (per the convention in `notes/TECH_NOTES.md`); `roomcalc.js` then aliases
 the public names back into local `const` bindings near the top of the

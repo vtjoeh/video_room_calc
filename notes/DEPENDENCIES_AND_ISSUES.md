@@ -62,8 +62,21 @@ its *active* service worker regardless of how the reload was
 triggered, and a cache-first worker answers from its own cache without
 ever asking the network.
 
-**If you land a change and still see old behavior while testing**, the
-version bump normally handles it, but the reliable manual fallback is
+**If you land a change and still see old behavior while testing**, check
+whether you are serving prepared deployment output or the source checkout.
+Deploying a changed generated `BUILD_VERSION` changes the imported
+`js/version.js` and the cache name. When the browser detects the update, a
+successful installation precaches assets under the new name, and activation
+deletes older `vrc-pwa-*` caches. An intentional
+`APP_VERSION` change also changes the cache name; Git release tags name source
+snapshots and do not drive the cache key.
+
+Local source testing keeps the fallback `BUILD_VERSION`. If a service worker
+controls the local page, editing application assets alone may leave `sw.js`
+and its imported `js/version.js` unchanged, so the cache-first worker can
+continue serving old assets. Preparing identical application content also
+retains the same generated build identifier. For
+stale cached behavior, use the existing manual fallback:
 DevTools → Application → **Storage** → **Clear site data** (or,
 narrower: Application → Service Workers → Unregister, then Application
 → Cache Storage → delete the `vrc-pwa-*` entry, then reload).

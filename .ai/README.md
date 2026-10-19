@@ -9,7 +9,18 @@ This directory is the canonical home for project-specific context shared by all 
 
 ## Detailed references
 
-These existing notes remain authoritative for specialized topics. Read them when relevant instead of copying their detail into this menu.
+Specialized project notes live in [`notes/`](../notes/). The entries below are
+starting points, not a complete catalog. Discover notes with `rg --files notes`
+and search their headings and contents for the feature, domain terms, and
+affected files or functions. Read matching notes and their linked references
+before working on that topic instead of copying their detail into this menu.
+
+Extend an existing relevant note before creating another source for the same
+topic. Put new specialized project notes in `notes/`, with a descriptive title
+and scope that make them searchable. When adding, renaming, or moving a note,
+maintain pointers in the relevant shared context or related notes so readers
+can find it. Keep this menu's discovery guidance and selected starting points
+current without turning it into an exhaustive file list.
 
 - Architecture and persistence: `notes/TECH_NOTES.md`
 - Konva behavior: `notes/TECH_NOTES_KONVA.md`, `notes/KONVA.md`
