@@ -31735,6 +31735,14 @@ function showToast(msg, durationMs) {
     }, visibleMs);
 }
 
+/* WD meetingPlatform to VRC software. 'bolt' is the older WD name for Zoom. Anything else returns '' so the import leaves software blank, as before. */
+function wdMeetingPlatformToSoftware(platform) {
+    const p = String(platform || '').trim().toLowerCase();
+    if (p === 'zoom' || p === 'bolt') return 'zoomRooms';
+    if (p === 'webex' || p === 'mtr' || p === 'google') return p;
+    return '';
+}
+
 function importWorkspaceDesignerFile(workspaceObj) {
 
     /* WD JSON is meters-native; remember the unit the user was working in so the
@@ -31757,6 +31765,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
     roomObj2.room.roomHeight = 2;
 
     roomObj2.roomId = workspaceObj.roomId || roomObj.roomId;
+
+    const importedSoftware = wdMeetingPlatformToSoftware(workspaceObj.meetingPlatform);
+    if (importedSoftware) roomObj2.software = importedSoftware;
 
 
 
@@ -33747,7 +33758,7 @@ function exportRoomObjToWorkspace() {
     const exportSoftware = activeSoftware(); /* zoomed into a room, its per-room software wins */
     if (exportSoftware) {
         if (exportSoftware === 'zoomRooms') {
-            workspaceObj.meetingPlatform = 'bolt'; /* 'bolt' is used for Zoom Rooms */
+            workspaceObj.meetingPlatform = 'zoom';
         } else {
             workspaceObj.meetingPlatform = exportSoftware;
         }
