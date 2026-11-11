@@ -157,12 +157,13 @@ Each device/furniture type has a 2-character uppercase key:
 
 | Key | Table Type |
 |-----|------------|
-| `TA` | Rectangle Table |
+| `TA` | Rectangle Table (round corners) |
 | `TB` | Ellipse Table |
-| `TC` | Stadium Table |
-| `TD` | Boat Table |
-| `TE` | Trapezoid Table |
-| `TF` | Curved Table |
+| `TC` | Tapered Table (trapezoid) |
+| `TD` | U-Shaped Table |
+| `TE` | School Desk |
+| `TF` | Podium, round |
+| `TG` | Table Desk (a rectangle table with no corner rounding) |
 
 **Walls/Shapes (W_):**
 
@@ -224,7 +225,7 @@ After an item type prefix, lowercase letters encode attributes:
 | `e` | height | Number | ×100, in mm. Skipped for `tblSchoolDesk` (fixed at 0.59m) and for `wdText` / `vrcText` (same auto-size reason as `c`) |
 | `f` | rotation | Number | ×10, in degrees |
 | `g` | diagonal inches | Number | Display size |
-| `h` | corner radius | Number | ×100, table corner radius |
+| `h` | corner radius | Number | ×100, table corner radius. Never written for `tblDesk` or `tblSchoolDesk` |
 | `i` | corner radius right | Number | ×100, right side corner radius |
 | `j` | vertical height | Number | ×100, data_vHeight |
 | `k` | trapezoid narrow width | Number | ×100, data_trapNarrowWidth |

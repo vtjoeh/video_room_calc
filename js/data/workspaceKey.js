@@ -116,6 +116,7 @@ workspaceKey.plant = { objectType: 'plant', scale: [1, 1, 1] };
 workspaceKey.tree = { objectType: 'tree', scale: [0.533, 0.533, 0.533] }
 
 workspaceKey.tblRect = { objectType: 'table', model: 'regular' };
+workspaceKey.tblDesk = { objectType: 'table', model: 'desk' };
 workspaceKey.tblShapeU = { objectType: 'table', model: 'ushape' };
 workspaceKey.tblTrap = { objectType: 'table', model: 'tapered' };
 workspaceKey.tblEllip = { objectType: 'table', model: 'round' };
@@ -210,7 +211,7 @@ workspaceKey.personStanding = { objectType: 'person', model: 'woman-standing' };
 
 workspaceKey.personStandingMan = { objectType: 'person', model: 'man-standing-pen' };
 
-workspaceKey.wheelchair = { objectType: 'person', model: 'woman-sitting-wheelchair' };
+workspaceKey.wheelchair = { objectType: 'wheelchair' };
 
 workspaceKey.wheelchairTurnCycle = { objectType: 'person', model: 'woman-sitting-wheelchair' };
 

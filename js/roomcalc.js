@@ -7472,6 +7472,15 @@ let tables = [{
     resizeable: ['width', 'depth', 'vheight']
 },
 {
+    name: 'Table Desk',
+    id: 'tblDesk',
+    key: 'TG',
+    frontImage: 'tblRect-front.png',
+    family: 'resizeItem',
+    resizeable: ['width', 'depth', 'vheight'],
+    newItem: true,
+},
+{
     name: 'Table Ellipse',
     id: 'tblEllip',
     key: 'TB',
@@ -7496,7 +7505,7 @@ let tables = [{
     resizeable: ['width', 'depth', 'vheight']
 },
 {
-    name: 'Desk',
+    name: 'School Desk',
     id: 'tblSchoolDesk',
     key: 'TE',
     depth: 590,
@@ -13910,11 +13919,11 @@ function createShareableLinkItem(item, prevTokens) {
         }
     }
 
-    if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
+    if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk' && item.data_deviceid != 'tblDesk') { /* tblSchoolDesk tblRectRadius and tblRectRadiusRight are set and don't need to be in the URL */
         add('h', 'h' + Math.round(round(item.tblRectRadius) * 100));
     }
 
-    if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk') {
+    if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk' && item.data_deviceid != 'tblDesk') {
         add('i', 'i' + Math.round(round(item.tblRectRadiusRight) * 100));
     }
 
@@ -17216,7 +17225,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
         radius[3] = tblRectRadius;
     }
 
-    if ('tblRectRadiusRight' in attrs) {
+    if ('tblRectRadiusRight' in attrs && insertDevice.id !== 'tblDesk') {
         radius[0] = attrs.tblRectRadiusRight * scale;
         radius[1] = attrs.tblRectRadiusRight * scale;
     }
@@ -17478,7 +17487,7 @@ function insertTable(insertDevice, groupName, attrs, uuid, selectTrNode) {
             draggable: true,
             opacity: opacity,
         });
-    } else if (insertDevice.id === 'tblRect') {
+    } else if (insertDevice.id === 'tblRect' || insertDevice.id === 'tblDesk') {
         tblWallFlr = new Konva.Rect({
             x: pixelX,
             y: pixelY,
@@ -19862,6 +19871,11 @@ function updateItem() {
             else if ('tblRectRadiusRight' in item) {
                 delete item.tblRectRadiusRight;
             }
+        }
+
+        if (item.data_deviceid === 'tblDesk') {
+            delete item.tblRectRadius;
+            delete item.tblRectRadiusRight;
         }
 
         if (item.data_deviceid === 'pathShape') {
@@ -25755,7 +25769,7 @@ function updateDevicesDropDown(selectElement, item) {
 
     deviceGroups[4] = ['wallGlass', 'wallWindow', 'wallStd', 'wallCustomWindow'];
 
-    deviceGroups[5] = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
+    deviceGroups[5] = ['tblRect', 'tblDesk', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblBullet'];
 
     deviceGroups[6] = ['displaySngl_2', 'displayDbl_2', 'displayTrpl_2', 'display21_9', 'certifiedDisplay', 'displayScreen_2'];
 
@@ -26818,7 +26832,7 @@ function createEquipmentMenu() {
         desktopMenu = desktopMenu.concat('unknownObj', 'tblUnknownObj');
     }
 
-    let tablesMenu = ['tblRect', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
+    let tablesMenu = ['tblRect', 'tblDesk', 'tblEllip', 'tblTrap', 'tblShapeU', 'tblSchoolDesk', 'tblPodium', 'tblCurved', 'tblBullet', 'credenza', 'tblBar'];
 
     let wallsMenu = ['wallBuilder', 'wallStd', 'wallGlass', 'wallWindow', 'wallCustomWindow', 'columnRect', 'cylinder', 'cylinderPole','ceilingGrid', 'box','cone',  'sphere', 'pathShape', 'wdText', 'vrcText', 'dimensionLine'];
 
@@ -31977,6 +31991,11 @@ function importWorkspaceDesignerFile(workspaceObj) {
 
             }
 
+            if (wdItem.objectType === 'person' && wdItem.model === 'woman-sitting-wheelchair') {
+                wdItem.objectType = 'wheelchair';
+                delete wdItem.model;
+            }
+
             if (wdItem.objectType === 'tree' && document.getElementById('convertDefaultWallsOffCheckBox').checked === false) {
                 wdItem.objectType = 'plant';
 
@@ -34871,11 +34890,11 @@ function exportRoomObjToWorkspace() {
         }
 
         /* tblSchoolDesk does not support radius or radiusRight in the Workspace Designer, remove if present */
-        if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk') {
+        if ('tblRectRadius' in item && item.data_deviceid != 'tblSchoolDesk' && item.data_deviceid != 'tblDesk') {
             workspaceItem.radius = item.tblRectRadius;
         }
 
-        if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk') {
+        if ('tblRectRadiusRight' in item && item.data_deviceid != 'tblSchoolDesk' && item.data_deviceid != 'tblDesk') {
             workspaceItem.radiusRight = item.tblRectRadiusRight;
         }
 
