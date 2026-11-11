@@ -7477,8 +7477,7 @@ let tables = [{
     key: 'TG',
     frontImage: 'tblRect-front.png',
     family: 'resizeItem',
-    resizeable: ['width', 'depth', 'vheight'],
-    newItem: true,
+    resizeable: ['width', 'depth', 'vheight']
 },
 {
     name: 'Table Ellipse',
