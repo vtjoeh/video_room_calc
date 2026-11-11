@@ -1,3 +1,4 @@
 .DS_Store
 .cursor/
 .vscode/
+.claude/launch.json
