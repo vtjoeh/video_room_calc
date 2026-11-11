@@ -123,6 +123,22 @@ git reset --hard v0.1.645
 
 ---
 
+## AI assistants
+
+An AI assistant may stage and commit, and may not push, merge, rebase,
+reset, or tag without being asked. The full rule is in `CLAUDE.md` under
+"When an AI assistant is working in this repo"; it lives there only, so
+the two can never disagree. To review what an assistant committed before
+pushing:
+
+```bash
+git log --oneline origin/main..main   # commits not pushed yet
+git show <hash>                       # one of them in full
+git reset --soft HEAD~1               # take the last one back, keep the changes
+```
+
+---
+
 ## Useful inspection commands
 
 ```bash

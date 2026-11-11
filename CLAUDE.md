@@ -4270,7 +4270,8 @@ but opens with no floor plan is what happens when they do not.
 | What actually paints the canvas | The module-level `backgroundImageFloor` `<img>` (`js/roomcalc.js`), which `insertKonvaBackgroundImageFloor()` hands to the `Konva.Image`. It is **independent of `roomObj`**, so the picture stays on screen no matter what happens to `backgroundImageFile`. That is exactly why losing the field is invisible until the file is reopened |
 | Recovery after an undo | `rehydrateBackgroundImageFromIdb()` re-reads the blob from the "Recent Floor Plans" IDB library by `bgImageId`, and only that. It cannot help once the entry is gone, which the 10-entry FIFO (`MAX_BG_IMAGES`) and the library's own delete button both arrange, and it does nothing at all when `bgImageId` was never stamped (IDB unavailable) |
 | **Carry the bytes across a restore** | `restoreSnapshotToCanvas()` copies `prev.backgroundImageFile` onto `next` when `next` has a `backgroundImage` and the two `bgImageId`s match, which is the same test `requiresFullRedraw()` uses to decide the picture did not change. Gating on the id is what stops a genuine image swap inheriting the wrong bytes on undo |
-| **Anything visible is saveable** | `currentBackgroundImageDataUrl()` is the one reader every export goes through (`buildRoomObjJsonPayload()` and the WD export's `data.vrc.backgroundImageFile`). It prefers `backgroundImageFloor.src`, then `roomObj.backgroundImageFile`, then **re-encodes the loaded `<img>` through a canvas**. The last step is the backstop: the `<img>` is what the user is looking at, so if the picture is on screen the save has something to write. It stamps the result back onto `roomObj` so the next save and the rehydrate skip the work |
+| **Anything visible is saveable** | `currentBackgroundImageDataUrl()` is the one reader the `.vrc.json` save goes through (`buildRoomObjJsonPayload()`, its only caller). It prefers `backgroundImageFloor.src`, then `roomObj.backgroundImageFile`, then **re-encodes the loaded `<img>` through a canvas**. The last step is the backstop: the `<img>` is what the user is looking at, so if the picture is on screen the save has something to write. It stamps the result back onto `roomObj` so the next save and the rehydrate skip the work |
+| **Never sent to the Workspace Designer** | `exportRoomObjToWorkspace()` writes neither `data.vrc.backgroundImageFile` nor `data.vrc.backgroundImage`; both blocks are commented out, along with the Room Part frame shift of `roomObj2.backgroundImage` that only existed to feed them. That covers every route to the WD, the downloaded file and every postMessage (split view, floating iframe, new tab), since all of them go through that one function. Confirmed live with an 11.6 KB floor plan on the room: each export was 640 to 730 bytes with no field name, no image data, no `bgImageId` and nothing under `data.vrc` but `workspace`. The image stays in VRC and in its own `.vrc.json` save. The WD import still reads `data.vrc.backgroundImageFile`, so a WD file made before this still brings its floor plan back |
 | Why a `blob:` URL is never persisted | Rehydration leaves `backgroundImageFloor.src` as a session-scoped `blob:`, which is dead on reload or in someone else's browser. `isValidBackgroundImageDataUrl()` is the gate, and it is why the rasterizing fallback exists at all: a `blob:`-backed `<img>` plus an evicted library entry used to save a room carrying `backgroundImage` geometry and no picture |
 | Reproducing the loss | Upload a floor plan, force the rehydrate path (reload, or clear `backgroundImageFile` and call `rehydrateBackgroundImageFromIdb()`), delete that entry from the IDB library, then make one edit and undo it. Before the fix the save wrote 1.9 KB with no image while the canvas still showed it; after, it writes the same bytes the original did |
 
@@ -4316,10 +4317,10 @@ VRC sanitizes anyway, for two reasons that survive that guarantee:
 
 1. **VRC would otherwise be a carrier.** The bytes are persisted
    verbatim into `roomObj.backgroundImageFile` (and therefore into
-   `.vrc.json` downloads and the WD export's
-   `data.vrc.backgroundImageFile`) and as a Blob in the IDB
-   "Recent Floor Plans" library. A shared room file would hand a live
-   payload to whatever opens it next.
+   `.vrc.json` downloads) and as a Blob in the IDB "Recent Floor
+   Plans" library. A shared room file would hand a live payload to
+   whatever opens it next. The Workspace Designer export no longer
+   carries the image at all.
 2. **The safety is incidental, not enforced.** It holds only while
    nothing inlines the SVG. A future "import SVG as a pathShape"
    feature would silently void it; sanitizing at ingest makes the
@@ -4339,7 +4340,7 @@ Three ingest points, all covered:
 |---|---|---|
 | Upload / drag-drop / paste / IDB replay | Guard at the top of `processBackgroundImageFile()` | Re-enters itself with the cleaned `File` under `options.svgSanitized`, so the IDB blob, the `roomObj` data URL, and every downstream export are all clean. A rejected SVG surfaces an `alertDialog` suggesting PNG/JPEG. |
 | `.vrc.json` import | `importJson()`, immediately before the `backgroundImageFile` branch | Sanitizes `roomObj.backgroundImageFile` in place. An empty result falls through to the pre-existing invalid-image branch (strip + IDB rehydration fallback). |
-| Workspace Designer import | `data.vrc.backgroundImageFile` block in `importWorkspaceDesignerFile()` | Same, and deletes the key outright when the SVG sanitizes to nothing. |
+| Workspace Designer import | `data.vrc.backgroundImageFile` block in `importWorkspaceDesignerFile()` | Same, and deletes the key outright when the SVG sanitizes to nothing. Only a WD file made before the export stopped sending the image still has this key. |
 
 **Why `use` is re-allowed:** DOMPurify's default SVG profile strips
 `<use>`, but CAD-exported floor plans rely on it for symbol reuse, so
@@ -4446,11 +4447,11 @@ alerts), comments, and docs. Use separate sentences or commas instead.
 3. **Modify RoomCalculator.html** for layout changes
 4. Refresh browser to see changes (no build step needed)
 5. **Bump `BUILD_VERSION` in `js/version.js`** for every modification to
-   this project, no matter how small. It is a single lowercase letter;
-   go to the next letter in the alphabet (`k` → `l` → `m` … `z` → `aa`
-   → `ab` …). This forces the PWA service worker to refresh its cache
-   on the next load (see the `js/version.js` entry in Project
-   Structure above).
+   this project, no matter how small. Set it to the current UTC time,
+   `YYYYMMDD-HHMM` (`date -u +%Y%m%d-%H%M`), so two people can never
+   pick the same value. This forces the PWA service worker to refresh
+   its cache on the next load (see the `js/version.js` entry in
+   Project Structure above).
 
 ### Key Areas for Common Modifications:
 
@@ -4526,34 +4527,31 @@ in `notes/GIT_WORKFLOW.md`.
 Tags (e.g. `v0.1.645`) mark deployed/stable snapshots and are pushed to
 `origin` alongside the branch.
 
-### When working in this repo, the assistant should
+### When an AI assistant is working in this repo
 
-**Hard rule: the user always runs git themselves.** The assistant must
-NOT run any state-changing git command — no `git add`, `git commit`,
-`git push`, `git pull`, `git merge`, `git rebase`, `git reset`,
-`git checkout` of a different branch, `git stash`, branch creation /
-deletion, tag creation / deletion, or anything else that mutates the
-repo. This applies even when the user says "let's commit" — that means
-"give me the commands to run", not "run them for me".
+**It may stage and commit. It may not publish.**
 
-Read-only inspection is fine and encouraged: `git status`, `git diff`,
-`git log`, `git branch`, `git show`, `git blame`, `git remote -v`, etc.
+- Commit each finished change once it has been checked. A failed check
+  means no commit, and so does being told not to change anything.
+- Stage only the files it changed, by name. Never `git add -A` or
+  `git add .`. If a file it changed also holds somebody else's unrelated
+  edits, ask first.
+- Say what was committed in the reply, with the short hash, so it can be
+  read back with `git show`.
+- The commit message is the repo's style: a short summary line, a body
+  only when it helps. **No AI co-author trailer**, whatever a tool's own
+  default says.
+- `main` is the maintainer's working branch. A contributor's assistant
+  commits on that contributor's own branch, and the maintainer merges it.
+- Never push, pull, merge, rebase, reset, amend a pushed commit, switch
+  branches, stash, or create or delete a branch or tag without being
+  asked. Flag the risk first on anything destructive (`reset --hard`,
+  `push --force`, deleting a branch).
+- Read-only inspection (`git status`, `diff`, `log`, `show`, `blame`)
+  needs no permission.
 
-When the user is ready to commit, the assistant should provide:
-
-1. The exact CLI commands to run (copy-paste-ready, with proper
-   quoting and HEREDOC for multi-line commit messages).
-2. A drafted commit message in the repo's style.
-3. Commands that assume `main` (the default for all day-to-day work);
-   only mention `next` if the user asks for a parallel branch.
-
-Other guidance:
-
-- Before suggesting commits, the assistant may run read-only
-  `git status` / `git branch` to see the lay of the land.
-- Never suggest destructive git operations (`reset --hard`,
-  `push --force`, branch deletion) without flagging the risk
-  prominently first.
-- See `notes/GIT_WORKFLOW.md` for the day-to-day cheat sheet, the
-  merge-forward pattern for hotfixes, and the "everything went wrong"
-  recovery steps.
+Review happens before a push, not before a commit: a local commit is
+undone with `git reset --soft HEAD~1`, so asking first would only slow
+every change down. See `notes/GIT_WORKFLOW.md` for the day-to-day cheat
+sheet, the merge-forward pattern for hotfixes, and the "everything went
+wrong" recovery steps.
