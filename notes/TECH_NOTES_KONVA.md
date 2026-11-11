@@ -183,7 +183,7 @@ rect.scaleX();  // 2
 // visible width = width * scaleX = 200
 ```
 
-Common Claude error: writing `if (node.width() > 200) …` and missing
+Common implementation error: writing `if (node.width() > 200) …` and missing
 the user's resize entirely. To "bake" the resize into width/height in
 the `transformend` handler:
 

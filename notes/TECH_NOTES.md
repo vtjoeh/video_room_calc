@@ -1,7 +1,7 @@
 # Technical Notes & Refactor Targets
 
 A running log of architectural debt, known workarounds, and refactor goals.
-Future Claude sessions and the human author can use this to remember WHY
+Future AI sessions and developers can use this to remember WHY
 certain code looks the way it does and what the long-term direction is.
 
 This file is **not** end-user documentation. It is engineering notes only.

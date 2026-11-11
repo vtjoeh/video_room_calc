@@ -466,7 +466,7 @@ stay on-stage.
 
 Round 17's scale-only guard was **incomplete**. The actual trigger is
 the stage **pan position**, not the zoom scale. `repositionStage()`
-([js/roomcalc.js](js/roomcalc.js), bound to the scroll-container's
+([roomcalc.js](../js/roomcalc.js), bound to the scroll-container's
 `'scroll'` event) sets `stage.x(-scrollLeft)` / `stage.y(-scrollTop)`
 every time the canvas scrolls. When the user toolbar-zooms (zoomValue >
 100) and **scrolls** to bring a Room Part into view before

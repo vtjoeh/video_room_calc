@@ -3444,7 +3444,7 @@
          * importScripts, i.e. js/version.js) on every load, rather than
          * waiting on the browser's internal (~24h) background check. Cheap:
          * this is a network HEAD/GET-equivalent check, not a full re-cache --
-         * the cache only refreshes if APP_VERSION actually changed. */
+         * the cache refreshes when APP_VERSION or BUILD_VERSION changes. */
         registration.update();
       }).catch((error) => {
         console.log('Service Worker registration failed:', error);
