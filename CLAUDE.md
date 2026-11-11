@@ -1075,8 +1075,9 @@ coordinate mapping: VRC x = WD x, VRC y = WD z, VRC `data_zPosition`
 = WD y, VRC degrees = `-1 * radians`.
 
 See `notes/WORKSPACE_DESIGNER.md` for the per-item mapping conventions
-and the VRC Group round-trip (per-member `"group": "<groupid>"` plus
-the room-level `data.vrc.groups[]` block).
+and the VRC Group and CustomItem round-trip (the WD's own per-object
+`"groupId"` plus the room-level `data.vrc.groups[]` and
+`data.vrc.customItems[]` blocks).
 
 ---
 
@@ -1198,8 +1199,7 @@ parent so a layer hide / Group / CustomItem / hidden-in-Designer flag
 applied to the parent flows to every WD primitive:
 
 - `data_layerId` → emitted as `layerName` via `setLayerOnWorkspaceItem()`
-- `data_groupId` → emitted as `group: "<groupid>"`
-- `data_customItemId` → emitted as `customItem: "<customitemid>"`
+- `data_groupId`, else `data_customItemId` → emitted as `groupId`
 - `data_hiddenInDesigner` → emitted as `hidden: true`
 
 ### Parent anchor heuristic — UL vs. visual-center
@@ -3104,9 +3104,8 @@ adjustments:
    regenerates layer UUIDs. Default ('0') is implicit. Import resolves
    the name back to a UUID via `resolveImportLayerName()` (creates a
    custom layer if the name isn't already present).
-3. **`data_groupId` / `data_customItemId` pass through verbatim.** Same
-   `"group"` / `"customItem"` semantics other items use on
-   `customObjects`. The vrcText restore runs **before** the
+3. **`data_groupId` / `data_customItemId` pass through verbatim**, both
+   of them, since this record is VRC's own and not a WD object. The vrcText restore runs **before** the
    `data.vrc.groups` / `data.vrc.customItems` restore blocks so the
    group / customItem membership-rebuild passes (which scan
    `roomObj2.items` for matching ids) pick them up automatically.
@@ -3491,7 +3490,7 @@ Hook points:
  `notes/URL_ENCODING.md` for the format and the implementation
  cross-reference table.
 - **Workspace Designer round-trip** — items carry their `data_groupId`
- on the WD JSON as a `"group": "<groupid>"` string attribute, and the
+ on the WD JSON as the WD's own `"groupId"` attribute, and the
  Group rect's geometry / metadata round-trips via
  `workspaceObj.data.vrc.groups[]`. See the stub immediately below and
  `notes/WORKSPACE_DESIGNER.md` for the full format and the
@@ -3499,14 +3498,18 @@ Hook points:
 
 ### Workspace Designer Group Round-Trip
 
-Groups round-trip through Workspace Designer via two parallel pieces:
-each member item carries a plain `"group": "<groupid>"` string
-attribute on its `customObjects[]` entry, and the Group rect itself
-(geometry + metadata + `layerName`) is stashed in
-`workspaceObj.data.vrc.groups[]` (always meters, VRC top-left
-coords — same convention as `data.vrc.backgroundImage`). On import,
-`groupMembers` is rebuilt by scanning items for `data_groupId`
-references; empty groups are filtered.
+The Workspace Designer groups objects by a `"groupId"` attribute, and
+VRC writes both its Groups and its CustomItems through it. Each member
+carries its bundle's id, and the bundle itself (geometry, metadata,
+`layerName`) is stashed in `workspaceObj.data.vrc.groups[]` or
+`data.vrc.customItems[]` (always meters, VRC top-left coords). An item
+in a CustomItem that sits inside a Group carries the **outer Group**,
+so the WD moves the whole Group as one, and the CustomItem record lists
+those items in `customItemMembers`. On import `groupId` and the older
+`group` read the same; an id that matches a CustomItem record becomes
+`data_customItemId`; an id with no record at all was made in the WD and
+becomes a new VRC Group, sized once its members are drawn
+(`measureGroupBoundsWhenDrawn()`). Empty bundles are filtered.
 
 See `notes/WORKSPACE_DESIGNER.md` for the JSON shape, the coordinate
 asymmetry between items and groups, hidden-layer handling, and the
@@ -3787,14 +3790,14 @@ per-item ref, and the implementation cross-reference table.
 
 ### Workspace Designer round-trip
 
-Items carry their `data_customItemId` on the WD JSON as a
-`"customItem": "<customitemid>"` string attribute, and the CustomItem
-rect's geometry / metadata round-trips via
-`workspaceObj.data.vrc.customItems[]` (mirror of `data.vrc.groups[]`).
-On import, `customItemMembers` is rebuilt by scanning items for
-`data_customItemId` references; empty customItems are filtered.
+A CustomItem is a group to the Workspace Designer: its members carry
+its `customitemid` as `"groupId"`, unless they are also in a Group, in
+which case they carry the Group's id and the CustomItem record lists
+them in `customItemMembers`. The rect's geometry and metadata ride in
+`workspaceObj.data.vrc.customItems[]`. Files from before this used a
+separate `"customItem"` attribute, which still imports.
 
-See `notes/WORKSPACE_DESIGNER.md` → "VRC CustomItem Round-Trip" for
+See `notes/WORKSPACE_DESIGNER.md` → "VRC Group and CustomItem Round-Trip" for
 the JSON shape and implementation cross-reference table.
 
 ### Where `data_customItemId` Must Be Updated

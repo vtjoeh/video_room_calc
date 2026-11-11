@@ -921,6 +921,16 @@ function getGroupMemberNodes(groupId) {
     return members;
 }
 
+/* Image items join the canvas only once their image loads, so a Group with no stored size (one made in the WD) waits
+ * for its members before measuring. Gives up waiting after about two seconds and measures what is there. */
+function measureGroupBoundsWhenDrawn(groupId, memberCount, tries = 0) {
+    if (getGroupMemberNodes(groupId).length >= memberCount || tries >= 40) {
+        updateGroupBounds(groupId);
+        return;
+    }
+    setTimeout(() => measureGroupBoundsWhenDrawn(groupId, memberCount, tries + 1), 50);
+}
+
 /* Recalculate the Group rect x/y/width/height from member positions; update both the Konva node and the roomObj.groups entry. */
 function updateGroupBounds(groupId) {
     if (!groupGroupRects) return;
@@ -16252,7 +16262,7 @@ function roomObjToCanvas(updateExisting = false) {
         roomObj.groups.forEach(g => {
             insertGroupRect(g);
             if (!g.width || !g.height) {
-                updateGroupBounds(g.groupid);
+                measureGroupBoundsWhenDrawn(g.groupid, (g.groupMembers || []).length);
             }
         });
     }
@@ -31748,6 +31758,62 @@ function showToast(msg, durationMs) {
     }, visibleMs);
 }
 
+/* A WD groupId names either a Group or a CustomItem. Move the CustomItem ones over to data_customItemId, then apply
+ * customItemMembers, which lists the members whose groupId had to name their outer Group. */
+function resolveImportedGroupIds(roomObj2, vrcData) {
+    if (!Array.isArray(roomObj2.items)) return;
+    const vrcGroups = (vrcData && Array.isArray(vrcData.groups)) ? vrcData.groups : [];
+    const vrcCustomItems = (vrcData && Array.isArray(vrcData.customItems)) ? vrcData.customItems : [];
+    const groupIds = new Set(vrcGroups.filter(g => g && g.groupid).map(g => g.groupid));
+    const customItemIds = new Set(vrcCustomItems.filter(c => c && c.customitemid).map(c => c.customitemid));
+    const byId = new Map();
+    roomObj2.items.forEach(it => {
+        byId.set(it.id, it);
+        if (!it.data_groupId || groupIds.has(it.data_groupId) || !customItemIds.has(it.data_groupId)) return;
+        if (!it.data_customItemId) it.data_customItemId = it.data_groupId;
+        delete it.data_groupId;
+    });
+    vrcCustomItems.forEach(c => {
+        if (!c || !c.customitemid || !Array.isArray(c.customItemMembers)) return;
+        c.customItemMembers.forEach(id => {
+            const it = byId.get(id);
+            if (it && !it.data_customItemId) it.data_customItemId = c.customitemid;
+        });
+    });
+}
+
+/* A group made in the WD has a groupId and no data.vrc.groups record. It becomes a VRC Group whose bounds are measured
+ * on draw (insertGroupRect with zero size). Members share one layer, as createGroup() requires. A lone member is ungrouped. */
+function groupsFromWorkspaceDesigner(roomObj2) {
+    if (!Array.isArray(roomObj2.items)) return;
+    ensureGroups(roomObj2);
+    const known = new Set(roomObj2.groups.map(g => g.groupid));
+    const found = new Map();
+    roomObj2.items.forEach(it => {
+        if (!it.data_groupId || known.has(it.data_groupId)) return;
+        if (!found.has(it.data_groupId)) found.set(it.data_groupId, []);
+        found.get(it.data_groupId).push(it);
+    });
+    found.forEach((members, groupid) => {
+        if (members.length < 2) {
+            members.forEach(m => { delete m.data_groupId; });
+            return;
+        }
+        const layerId = members[0].data_layerId || '0';
+        members.forEach(m => {
+            if (layerId === '0') delete m.data_layerId;
+            else m.data_layerId = layerId;
+        });
+        roomObj2.groups.push({
+            groupid: groupid,
+            name: '',
+            data_layerId: layerId,
+            x: 0, y: 0, width: 0, height: 0, rotation: 0, data_zPosition: 0,
+            groupMembers: members.map(m => m.id),
+        });
+    });
+}
+
 /* WD meetingPlatform to VRC software. 'bolt' is the older WD name for Zoom. Anything else returns '' so the import leaves software blank, as before. */
 function wdMeetingPlatformToSoftware(platform) {
     const p = String(platform || '').trim().toLowerCase();
@@ -32321,7 +32387,9 @@ function importWorkspaceDesignerFile(workspaceObj) {
         });
     }
 
-    /* Restore VRC Groups from data.vrc.groups (paired with the per-item "group" attr from wdItemToRoomObjItem). Geometry is meters in VRC
+    resolveImportedGroupIds(roomObj2, workspaceObj.data && workspaceObj.data.vrc);
+
+    /* Restore VRC Groups from data.vrc.groups (paired with the per-item "groupId" attr from wdItemToRoomObjItem). Geometry is meters in VRC
      * top-left coords, copied straight across; groupMembers is rebuilt below by scanning items for data_groupId (empty groups dropped). */
     if (workspaceObj.data && workspaceObj.data.vrc && Array.isArray(workspaceObj.data.vrc.groups)) {
         ensureGroups(roomObj2);
@@ -32397,6 +32465,8 @@ function importWorkspaceDesignerFile(workspaceObj) {
         /* Backfill customItemBaseId for pre-baseId WD files before the clone into roomObj, so imported customItems are immediately addressable by family id (canvasToJson() repeats this defensively). */
         ensureCustomItemBaseIds(roomObj2);
     }
+
+    groupsFromWorkspaceDesigner(roomObj2);
 
     setTimeout(() => {
         roomObj = structuredClone(roomObj2);
@@ -32527,15 +32597,15 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
         delete wdItem.layer;
     }
 
-    /* Restore VRC group membership from the optional WD "group" attr (group geometry restored separately; groupMembers rebuilt later by scanning data_groupId). Strip the key so it doesn't leak into data_labelField. */
-    if ('group' in wdItem) {
-        if (wdItem.group && typeof wdItem.group === 'string') {
-            item.data_groupId = wdItem.group;
-        }
-        delete wdItem.group;
-    }
+    /* "groupId" is the WD's own attribute, "group" the older VRC one. Either may name a Group or a CustomItem, so
+     * resolveImportedGroupIds() sorts them out once data.vrc is read. Strip both so they don't leak into data_labelField. */
+    const wdGroupRef = (typeof wdItem.groupId === 'string' && wdItem.groupId)
+        || (typeof wdItem.group === 'string' && wdItem.group) || '';
+    if (wdGroupRef) item.data_groupId = wdGroupRef;
+    delete wdItem.groupId;
+    delete wdItem.group;
 
-    /* Restore VRC customItem membership from the optional WD "customItem" attr — mirror of the "group" extraction above. */
+    /* Older VRC exports also carried a separate "customItem" attr. */
     if ('customItem' in wdItem) {
         if (wdItem.customItem && typeof wdItem.customItem === 'string') {
             item.data_customItemId = wdItem.customItem;
@@ -33591,11 +33661,11 @@ function exportRoomObjToWorkspace() {
         if (layer && layer.name) workspaceItem.layer = layer.name;
     }
 
-    /* Attach a Group/CustomItem id as a "group"/"customItem" attr so the reference round-trips (WD preserves arbitrary string attrs). Bundle geometry is emitted separately under data.vrc.groups/customItems; the Konva group/customItem rects are never pushed to customObjects. */
+    /* WD has one "groupId" per object and treats a CustomItem as a group. An item in both carries the outer Group, so the WD moves the whole Group as one; its CustomItem is listed in data.vrc.customItems[].customItemMembers instead. */
     function setGroupOnWorkspaceItem(workspaceItem, item) {
         if (!item) return;
-        if (item.data_groupId) workspaceItem.group = item.data_groupId;
-        if (item.data_customItemId) workspaceItem.customItem = item.data_customItemId;
+        const groupId = item.data_groupId || item.data_customItemId;
+        if (groupId) workspaceItem.groupId = groupId;
     }
 
     let activeRoomLength = roomObj2.activeRoomLength;
@@ -33866,6 +33936,12 @@ function exportRoomObjToWorkspace() {
             if (!exportedCustomItem.author) delete exportedCustomItem.author;
             if (!exportedCustomItem.description) delete exportedCustomItem.description;
             if (!exportedCustomItem.version) delete exportedCustomItem.version;
+            if (Array.isArray(roomObj.items)) {
+                const nested = roomObj.items
+                    .filter(it => it.data_customItemId === c.customitemid && it.data_groupId)
+                    .map(it => it.id);
+                if (nested.length) exportedCustomItem.customItemMembers = nested;
+            }
             const customItemLayerId = c.data_layerId;
             if (customItemLayerId && customItemLayerId !== '0' && roomObj.layers) {
                 const customItemLayer = roomObj.layers.find(l => l.layerid === customItemLayerId);
