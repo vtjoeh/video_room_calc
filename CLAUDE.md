@@ -1,4 +1,9 @@
+@AGENTS.md
+
 # Video Room Calculator - Developer Reference
+
+The shared rules for every AI tool are in `AGENTS.md`, loaded above. This
+file is the full developer reference behind them.
 
 ## Overview
 
@@ -16,12 +21,14 @@ The **Video Room Calculator** is a web-based tool for designing Cisco video coll
 video_room_calculator/
 ├── RoomCalculator.html      # Main entry point
 ├── style.css                # Styles with CSS custom properties
+├── AGENTS.md                # Shared rules for every AI tool (Claude loads it via @AGENTS.md)
 ├── CLAUDE.md                # This developer reference
 ├── README.md                # Project description, links to RELEASE_NOTES.md / FAQ.md / collabexperience.com, license/attribution
 ├── FAQ.md                   # Frequently asked questions
 ├── LICENSE                  # MIT NON-AI license
 ├── notes/                          # Lazy-loaded references (not in CLAUDE.md context)
 │   ├── GIT_WORKFLOW.md             # Branching, tagging, day-to-day cheatsheet
+│   ├── FLOORPLAN_TO_VRC.md         # Floor plan image/PDF to .vrc.json workflow (shared by the Claude and Codex skills)
 │   ├── TECH_NOTES.md               # Engineering notes & refactor targets
 │   ├── TECH_NOTES_KONVA.md         # Konva.js footguns specific to this codebase
 │   ├── KONVA.md                    # Konva.js API/CSS cheat sheet (companion to footgun file)
@@ -50,6 +57,7 @@ video_room_calculator/
 │   ├── drpDownOverride.js   # Dropdown UI for RoomOS               (lazy-loaded — RoomOS only)
 │   ├── dxfWriter.js         # DXF (CAD) writer                     (lazy-loaded — first DXF export)
 │   └── dxfBlockLibrary.js   # DXF symbol block library             (lazy-loaded — first DXF export)
+├── scripts/                 # Optional helper tools, never deployed (prepare-deployment.py)
 ├── data/                    # Device specifications
 │   ├── README.md            # Documentation for data files
 │   ├── videoDevices.json    # Video device specs
@@ -4425,20 +4433,7 @@ when focus lands on the canvas.
 
 ### Code Style
 
-**Keep comments in code to an absolute minimum.** Do not add comments
-that narrate what the code does, explain obvious behaviour, mark the
-edit being made, or restate what is already in `CLAUDE.md` /
-`notes/*.md`. Only write a comment when the code itself cannot convey
-non-obvious intent, a trade-off, a workaround for a documented bug, or
-a footgun (e.g. the Konva quirks in `notes/TECH_NOTES_KONVA.md`). When
-in doubt, leave it out. This codebase prefers readable code and
-out-of-band reference docs over inline commentary. Comments longer
-than one line belong only at the start of a function, and only when
-needed; one-line comments are permitted but rare.
-
-**Never use em dashes or hyphens to break up sentences** in any text
-written for this project: user-facing strings (dialogs, tooltips,
-alerts), comments, and docs. Use separate sentences or commas instead.
+Comment and wording rules are in `AGENTS.md` under "Every change".
 
 ### To Make Changes:
 
@@ -4446,12 +4441,7 @@ alerts), comments, and docs. Use separate sentences or commas instead.
 2. **Modify style.css** for styling changes
 3. **Modify RoomCalculator.html** for layout changes
 4. Refresh browser to see changes (no build step needed)
-5. **Bump `BUILD_VERSION` in `js/version.js`** for every modification to
-   this project, no matter how small. Set it to the current UTC time,
-   `YYYYMMDD-HHMM` (`date -u +%Y%m%d-%H%M`), so two people can never
-   pick the same value. This forces the PWA service worker to refresh
-   its cache on the next load (see the `js/version.js` entry in
-   Project Structure above).
+5. **Bump `BUILD_VERSION`** as `AGENTS.md` describes under "Every change".
 
 ### Key Areas for Common Modifications:
 
@@ -4529,29 +4519,6 @@ Tags (e.g. `v0.1.645`) mark deployed/stable snapshots and are pushed to
 
 ### When an AI assistant is working in this repo
 
-**It may stage and commit. It may not publish.**
-
-- Commit each finished change once it has been checked. A failed check
-  means no commit, and so does being told not to change anything.
-- Stage only the files it changed, by name. Never `git add -A` or
-  `git add .`. If a file it changed also holds somebody else's unrelated
-  edits, ask first.
-- Say what was committed in the reply, with the short hash, so it can be
-  read back with `git show`.
-- The commit message is the repo's style: a short summary line, a body
-  only when it helps. **No AI co-author trailer**, whatever a tool's own
-  default says.
-- `main` is the maintainer's working branch. A contributor's assistant
-  commits on that contributor's own branch, and the maintainer merges it.
-- Never push, pull, merge, rebase, reset, amend a pushed commit, switch
-  branches, stash, or create or delete a branch or tag without being
-  asked. Flag the risk first on anything destructive (`reset --hard`,
-  `push --force`, deleting a branch).
-- Read-only inspection (`git status`, `diff`, `log`, `show`, `blame`)
-  needs no permission.
-
-Review happens before a push, not before a commit: a local commit is
-undone with `git reset --soft HEAD~1`, so asking first would only slow
-every change down. See `notes/GIT_WORKFLOW.md` for the day-to-day cheat
-sheet, the merge-forward pattern for hotfixes, and the "everything went
-wrong" recovery steps.
+The git rule is in `AGENTS.md` under "Git". See `notes/GIT_WORKFLOW.md`
+for the day-to-day cheat sheet, the merge-forward pattern for hotfixes, and
+the "everything went wrong" recovery steps.

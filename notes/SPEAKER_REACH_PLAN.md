@@ -8,8 +8,8 @@ are what the finished work must reproduce.
 
 Ground rules that apply to every phase:
 
-- Bump `BUILD_VERSION` per change. The user runs git; give commands only.
-  One commit per phase.
+- Bump `BUILD_VERSION` per change and commit each phase, per the git rule
+  in `AGENTS.md`.
 - No em dashes or hyphens breaking sentences in strings, comments or docs.
 - Comments to a minimum; the reasoning lives in CLAUDE.md, not inline.
 - No new `data_*` attribute unless a phase says so. Every field below

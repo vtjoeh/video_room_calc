@@ -123,13 +123,14 @@ git reset --hard v0.1.645
 
 ---
 
-## AI assistants
+## AI assistants and contributors
 
-An AI assistant may stage and commit, and may not push, merge, rebase,
-reset, or tag without being asked. The full rule is in `CLAUDE.md` under
-"When an AI assistant is working in this repo"; it lives there only, so
-the two can never disagree. To review what an assistant committed before
-pushing:
+An AI tool may stage and commit, and may not push, merge, rebase, reset, or
+tag without being asked. The full rule is in `AGENTS.md` under "Git"; it
+lives there only, so the two can never disagree. Contributors work on a
+branch named `<tool>/<username>/<topic>`, for example
+`codex/bomcgoni/floorplan-import`, and the maintainer merges it into `main`.
+To review what an assistant committed before pushing:
 
 ```bash
 git log --oneline origin/main..main   # commits not pushed yet
