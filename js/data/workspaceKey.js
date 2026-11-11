@@ -213,7 +213,7 @@ workspaceKey.personStandingMan = { objectType: 'person', model: 'man-standing-pe
 
 workspaceKey.wheelchair = { objectType: 'wheelchair' };
 
-workspaceKey.wheelchairTurnCycle = { objectType: 'person', model: 'woman-sitting-wheelchair' };
+workspaceKey.wheelchairTurnCycle = { objectType: 'wheelchair' };
 
 workspaceKey.circulationSpace = { objectType: 'box', opacity: '0.5', color: '#8FDBCE', height: 0.02, length: 1.2, width: 1.2 };
 
