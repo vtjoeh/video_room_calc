@@ -24897,6 +24897,8 @@ function populateDrpColor(item) {
 
     document.getElementById('colorDiv').style.display = 'none';
 
+    if (/^(?:boardPro|brdPro)\d/.test(item.data_deviceid || '')) return;
+
     let device = allDeviceTypes[item.data_deviceid];
 
     if ('colors' in device && device.colors) {
