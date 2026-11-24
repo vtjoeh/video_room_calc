@@ -43,7 +43,7 @@ only (visible only if `populateTemplates()` ever throws). See
 and "Reload last design" tile insertion details.
 
 Template thumbnail images live under
-`assets/images/templates/<image>` and are sized to fit a fixed 120 px
-height in `.room-template img` (width follows aspect ratio after
-load — see the loading-state width pin in `style.css` and the
-`.loaded` class transition in `createTemplateButton()`).
+`assets/images/templates/<image>`. Template cards share the equipment
+tile surface and border tokens. Their light preview area contains the
+full room image at 120 px high on desktop and 104 px on narrow screens.
+The placeholders and Reload last design use the same preview dimensions.

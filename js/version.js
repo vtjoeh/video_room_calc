@@ -6,4 +6,4 @@ const APP_VERSION = "v0.1.672";
 
 /* Build tag: bump this INSTEAD of APP_VERSION for small pushes. Set it to the current UTC
  * time, YYYYMMDD-HHMM (date -u +%Y%m%d-%H%M), so two people can never pick the same value. */
-const BUILD_VERSION = "20261124-1933";
+const BUILD_VERSION = "20261124-1944";

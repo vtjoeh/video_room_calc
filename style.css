@@ -1940,12 +1940,18 @@ textarea:focus {
   align-items: flex-start;
   margin-top: 1em;
   position: relative;
+}
+
+.flexItems,
+.room-template {
   border: 1px solid var(--mds-color-theme-outline-secondary-normal);
   border-radius: 8px;
   background: var(--mds-color-theme-background-solid-secondary-normal);
 }
 
-.flexItems:hover {
+.flexItems:hover,
+.room-template:hover,
+.room-template:focus-within {
   background-color: var(--mds-color-theme-background-solid-tertiary-normal);
 }
 
@@ -1977,7 +1983,9 @@ textarea:focus {
   pointer-events: none;
 }
 
-.equipmentItemOnMenu > img {
+.equipmentItemOnMenu > img,
+.room-template img,
+.reloadLastDesignIconWrap {
   display: block;
   width: 100%;
   border-radius: 4px;
@@ -2013,10 +2021,9 @@ textarea:focus {
 }
 
 #room-templates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 30px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+  gap: 12px;
 }
 
 /* Slight blur over the templates grid until templates.js loads and
@@ -2030,90 +2037,75 @@ textarea:focus {
   transition: filter 0.2s ease-out;
 }
 
-/* Hide the placeholder image's blue border while the real templates are
- * still loading — the data-URI src is already transparent, so dropping
- * the border to transparent makes the tile visually empty (the
- * "Loading image" label still shows) without changing the laid-out
- * size. The real `.room-template img` border returns the moment
- * `populateTemplates()` swaps in the real tiles. */
-.room-template-placeholder img {
-  border-color: transparent;
-}
-
 .room-template-placeholder span {
   color: var(--mds-color-theme-text-secondary-normal);
   font-style: italic;
 }
 
 .room-template {
-  width: 150px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  font-size: 16px;
+  min-width: 0;
+  text-align: center;
 }
 
 .room-template img {
-  /* Explicit width keeps the tile box at its full 122 × 120 footprint
-   * even before the image bytes have decoded — without it, a freshly-
-   * inserted <img> with an unloaded src renders at 0 × 120, which makes
-   * just the 1px border visible as a thin vertical line in the brief
-   * window between `populateTemplates()` swapping in the real tiles
-   * and the browser finishing the image decode. The width is dropped
-   * back to `auto` (matching the original look — each thumbnail rendered
-   * at its own aspect ratio with a fixed 120px height) once the image's
-   * `load` event fires; see the `.loaded` rule below and the matching
-   * handler in `createTemplateButton()`. */
-  width: 122px;
   height: 120px;
-  max-width: 100%;
-  border: 1px solid var(--active);
   object-fit: contain;
 }
 
-.room-template img.loaded {
-  width: auto;
-}
-
-.templateLinks {
+.room-template .templateLinks {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  align-items: center;
   border: 0;
-  gap: 10px;
+  border-radius: 8px;
+  padding: 8px;
+  gap: 8px;
   background-color: transparent;
+  font-weight: var(--mds-font-weight-medium);
 }
 
-.templateLinks:hover {
-  text-decoration: underline;
+.room-template > a {
+  padding: 0 8px 8px;
+  font-size: var(--mds-font-size-body-small);
 }
 
-.templatelinks:hover {
-  background-color: var(--mds-color-theme-button-secondary-hover);
-}
-
-/* "Reload last design" tile — surfaced as the first item in the new-room
- * templates grid when the user has a saved design in localStorage and the
- * new-room dialog is being opened for the first time after page load.
- * The tile is sized to match `.room-template img` (120px square) so it
- * lines up with the template thumbnails next to it. */
-#btnReloadLastDesign .reloadLastDesignIconWrap {
+.reloadLastDesignIconWrap {
   height: 120px;
-  width: 120px;
-  border: 1px solid var(--active);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--active);
-  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  color: var(--mds-color-theme-button-accent-hover);
 }
 
-#btnReloadLastDesign .reloadLastDesignIcon {
-  width: 80px;
-  height: 80px;
-  font-size: 80px;
-  line-height: 80px;
-  color: var(--active);
+.reloadLastDesignIcon {
+  width: 48px;
+  height: 48px;
+  font-size: 48px;
+  line-height: 48px;
+}
+
+@media screen and (max-width: 405px) {
+  #newRoomDialog header .buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  #newRoomDialog header .buttons button {
+    justify-content: center;
+  }
+
+  #room-templates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-inline: 16px;
+  }
+
+  .room-template img,
+  .reloadLastDesignIconWrap {
+    height: 104px;
+  }
 }
 
 #singleShadingDiv button:hover {
@@ -3975,6 +3967,10 @@ hr.rightClickHorizontalLine {
 /* not viewport width. JS adds svBp* classes to <body> during split view.    */
 
 /* Mirror @media (max-width: 900px) */
+body.svBp900 .ContainerHeader button:not(.primary, .pocCloudLoginBtn) span {
+  display: none;
+}
+
 body.svBp900 #ContainerRoomSvg {
   width: calc(100% - 40px); min-width: 340px; display: inline;
   vertical-align: top; margin: 0 0 10px 30px;
@@ -4014,21 +4010,30 @@ body.svBp783 #lblHeaderTitle { max-width: 145px; }
 
 
 /* Mirror @media (max-width: 650px) */
-body.svBp650 .ContainerHeader { gap: 2px; }
+body.svBp650 .ContainerHeader {
+  gap: 2px;
+  padding-inline: 12px;
+}
 
-
+body.svBp650 .ContainerHeader button:not(.primary) { padding-inline: 7px; }
 body.svBp650 .ContainerHeader button span { display: none; }
 body.svBp650 .theme-picker-label { display: none; }
-body.svBp650 .ContainerHeader i {
+body.svBp650 .ContainerHeader button i {
   padding: 0; width: 28px; height: 28px; line-height: 28px; font-size: 24px;
 }
-body.svBp650 .primary i {
+body.svBp650 .ContainerHeader .primary i {
   padding: 0; width: 20px; height: 20px; line-height: 20px; font-size: 16px;
 }
 
 /* Mirror @media (max-width: 405px) */
 body.svBp405 #lblHeaderTitle { display: none; }
 body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
+body.svBp405 .ContainerHeader { padding-inline: 8px; }
+body.svBp405 .ContainerHeader button:not(.primary) { padding-inline: 4px; }
+body.svBp405 .ContainerHeader button.primary { padding-inline: 10px; }
+body.svBp405 .ContainerHeader button:not(.primary) i {
+  width: 24px; height: 24px; line-height: 24px; font-size: 20px;
+}
 
 /* ---- Layers Tab UI ---- */
 .layers-list {

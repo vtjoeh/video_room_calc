@@ -18,6 +18,12 @@ Companion files:
 
 ## Workspace Designer Integration
 
+The split view follows the effective VRC appearance. Its preview route sets
+`theme=light` or `theme=dark` on launch. Changes after launch send only
+`roomdesigner.settings.theme` to the split iframe so the view can update in
+place. The standalone tab opens with its own Workspace Designer preference.
+[Cisco Workspace Designer](https://designer.webex.com/)
+
 The app exports to Cisco's Workspace Designer using `workspaceKey`
 mappings (lines 223-427 of `js/roomcalc.js`). Each device type maps to
 a Workspace Designer object:

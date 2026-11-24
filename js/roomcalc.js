@@ -58,8 +58,7 @@ let allGuideLines = []; /* keep track of all guide-line nodes to delete later */
 
 const defaultWorkspaceTab = "https://designer.webex.com/#/room/custom"; /* URL for custom rooms. Internal test against "https://prototypes.cisco.com/roomdesigner-007/#/room/custom"; */
 let newWorkspaceTab = defaultWorkspaceTab;
-/* Theme of the embedded Workspace Designer ('light' or 'dark'), iframes only. Sent in the iframe URL, which the WD reads on load, and as settings.theme in every postMessage to an iframe. A WD opened in its own tab keeps the user's own theme. */
-const workspaceDesignerTheme = 'light';
+const floatingWorkspaceTheme = 'light';
 let defaultWorkspaceTestSite = 'https://designer.webex.com/#/room/custom'; /* if the URL is not http://collabexperience.com, then use the test site */
 let workspaceWindow; /* window representing the workspace designer window being open */
 let iFrameWorkspaceWindow; /* Window representing the iframe */
@@ -10639,19 +10638,15 @@ function createTemplateButton(template) {
     const button = document.createElement('button');
     const label = document.createElement('span');
     label.innerText = name;
+    button.type = 'button';
     button.className = 'templateLinks';
     button.onclick = () => loadTemplate(url);
     box.appendChild(button);
 
     const img = document.createElement('img');
     img.src = `./assets/images/templates/${image}`;
+    img.alt = '';
     img.inert = true; /* used to remove the Edge image search */
-    const markImgLoaded = () => img.classList.add('loaded');
-    if (img.complete && img.naturalWidth > 0) {
-        markImgLoaded();
-    } else {
-        img.addEventListener('load', markImgLoaded, { once: true });
-    }
     button.appendChild(img);
 
     button.appendChild(label);
@@ -10725,6 +10720,7 @@ function syncReloadLastDesignButton() {
     box.className = 'room-template';
 
     const button = document.createElement('button');
+    button.type = 'button';
     button.className = 'templateLinks';
     button.title = 'Reload last design';
     button.onclick = () => {
@@ -10736,6 +10732,7 @@ function syncReloadLastDesignButton() {
     iconWrap.className = 'reloadLastDesignIconWrap';
     const i = document.createElement('i');
     i.className = 'icon icon-undo-regular reloadLastDesignIcon';
+    i.setAttribute('aria-hidden', 'true');
     iconWrap.appendChild(i);
     button.appendChild(iconWrap);
 
@@ -14953,7 +14950,7 @@ function showUndoRedoRoomOs() {
 
 function showNewRoomSection(sectionId) {
     const showTemplates = sectionId === 'room-templates';
-    document.querySelector('#room-templates').style.display = showTemplates ? 'flex' : 'none'
+    document.querySelector('#room-templates').style.display = showTemplates ? '' : 'none'
     document.querySelector('#quick-setup').style.display = !showTemplates ? 'flex' : 'none'
 
     document.querySelector('#roomTemplateBtn').className = showTemplates ? 'buttonHighlight' : '';
@@ -17018,19 +17015,24 @@ function wdSiteCustomBlur() {
 }
 
 function refreshSplitViewIframe() {
-    if (typeof splitViewState === 'undefined' || !splitViewState
-        || !splitViewState.iframeLoaded) {
-        return;
-    }
+    if (!splitViewState?.iframeLoaded) return;
+    loadSplitViewIframe();
+}
+
+function loadSplitViewIframe() {
     const iframe = document.getElementById('splitViewIframe');
     if (!iframe) return;
 
-    let wdUrl = (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl)
-        ? workspaceDesignerTestUrl
-        : newWorkspaceTab;
-    if (!wdUrl) return;
+    const url = new URL(workspaceDesignerTestUrl || newWorkspaceTab, location.href);
+    const [route, ...query] = url.hash.split('?');
+    const params = new URLSearchParams(query.join('?'));
+    params.set('preview', '1');
+    params.set('removeEditButton', '1');
+    params.set('theme', getSplitViewTheme());
+    url.hash = route + '?' + params.toString();
 
-    iframe.src = wdUrl + '?preview=1&removeEditButton=1&theme=' + workspaceDesignerTheme;
+    iframe.src = url.href;
+    splitViewState.iframeLoaded = true;
     setTimeout(function () { postMessageToWorkspace(); }, 1500);
     setTimeout(function () { postMessageToWorkspace(); }, 3500);
     setTimeout(function () { postMessageToWorkspace(); }, 6000);
@@ -33323,7 +33325,7 @@ function openWorkspaceWindow(fromButton = true) {
         iFrameWorkspaceWindow = document.getElementById('iFrameFloatingWorkspace');
         // iFrameWorkspaceWindow.src = newWorkspaceTab + '?preview=1&embed=1';
 
-        iFrameWorkspaceWindow.src = newWorkspaceTab + '?theme=' + workspaceDesignerTheme;
+        iFrameWorkspaceWindow.src = newWorkspaceTab + '?theme=' + floatingWorkspaceTheme;
     }
 
 
@@ -33371,6 +33373,25 @@ function postMessageToWorkspace() {
     postMessageToWorkspaceTimer = setTimeout(postMessageToWorkspacNow, time)
 }
 
+function getSplitViewTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function postToSplitView(message) {
+    if (!splitViewState.iframeLoaded) return;
+    const iframe = document.getElementById('splitViewIframe');
+    if (!iframe?.contentWindow) return;
+
+    try {
+        iframe.contentWindow.postMessage({ roomdesigner: message }, '*');
+    } catch (error) {
+        console.warn('splitView postMessage failed:', error);
+    }
+}
+
+function syncSplitViewTheme() {
+    postToSplitView({ settings: { theme: getSplitViewTheme() } });
+}
 
 function postMessageToWorkspacNow() {
 
@@ -33396,22 +33417,18 @@ function postMessageToWorkspacNow() {
         workspaceWindow.postMessage(message, '*');
     }
 
-    const iframeMessage = { roomdesigner: { ...message.roomdesigner, settings: { ...message.roomdesigner.settings, theme: workspaceDesignerTheme } } };
-
     if (testiFrame && testiFrameInitialized) {
-        iFrameWorkspaceWindow.contentWindow.postMessage(iframeMessage, '*');
+        iFrameWorkspaceWindow.contentWindow.postMessage({ roomdesigner: {
+            ...message.roomdesigner,
+            settings: { ...message.roomdesigner.settings, theme: floatingWorkspaceTheme }
+        } }, '*');
     }
 
-    /* Also send room state to the split view iframe when it is loaded */
     if (splitViewState.iframeLoaded) {
-        let splitIframe = document.getElementById('splitViewIframe');
-        if (splitIframe && splitIframe.contentWindow) {
-            try {
-                splitIframe.contentWindow.postMessage(iframeMessage, '*');
-            } catch (splitPostErr) {
-                console.warn('splitView postMessage failed:', splitPostErr);
-            }
-        }
+        postToSplitView({
+            ...message.roomdesigner,
+            settings: { ...message.roomdesigner.settings, theme: getSplitViewTheme() }
+        });
     }
 
 }
@@ -33419,6 +33436,12 @@ function postMessageToWorkspacNow() {
 window.addEventListener(
     "message",
     (event) => {
+        if (splitViewState?.iframeLoaded && event.data?.roomdesigner?.status === 'ready') {
+            const iframe = document.getElementById('splitViewIframe');
+            if (event.source === iframe?.contentWindow) {
+                syncSplitViewTheme();
+            }
+        }
         if (event.origin.match(/https:\/\/.*(\.cisco|\.webex|)\.com$/) || event.origin.startsWith('https://collabexperience.com') || event.origin.startsWith('http://127.0.0.1')) {
             console.info('message received postMessage() back: ', event.data);
         }
@@ -36817,6 +36840,7 @@ var splitViewState = {
     iframeLoaded: false
 };
 
+window.addEventListener('vrc:themechange', syncSplitViewTheme);
 
 /* New snap zones (right panel %):                              */
 /*   0  - 12%  -> close                                         */
@@ -36933,7 +36957,6 @@ function splitViewSetWidth(pct, forceExact) {
     let container = document.getElementById('splitViewContainer');
     let right = document.getElementById('splitViewRight');
     let expandBtn = document.getElementById('splitViewExpandBtn');
-    let iframe = document.getElementById('splitViewIframe');
     let reopenTab = document.getElementById('splitViewReopenTab');
     let leftPct = 100 - pct;
 
@@ -36949,17 +36972,7 @@ function splitViewSetWidth(pct, forceExact) {
     /* Constrain body content width so sidebar/canvas reflow properly */
     document.body.style.maxWidth = leftPct + '%';
 
-    if (!splitViewState.iframeLoaded && iframe) {
-        let wdUrl = newWorkspaceTab;
-        if (typeof workspaceDesignerTestUrl !== 'undefined' && workspaceDesignerTestUrl) {
-            wdUrl = workspaceDesignerTestUrl;
-        }
-        iframe.src = wdUrl + '?preview=1&removeEditButton=1&theme=' + workspaceDesignerTheme;
-        splitViewState.iframeLoaded = true;
-        setTimeout(function () { postMessageToWorkspace(); }, 1500);
-        setTimeout(function () { postMessageToWorkspace(); }, 3500);
-        setTimeout(function () { postMessageToWorkspace(); }, 6000);
-    }
+    if (!splitViewState.iframeLoaded) loadSplitViewIframe();
 
     if (expandBtn) { expandBtn.style.display = (pct === 100) ? 'flex' : 'none'; }
     splitViewState.isActive = true;

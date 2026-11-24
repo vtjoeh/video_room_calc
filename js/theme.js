@@ -15,12 +15,15 @@ const THEME_STORAGE_KEY = 'vrcTheme';
     function applyTheme(value = preference) {
         preference = value === 'light' || value === 'dark' ? value : 'system';
         const isDark = preference === 'dark' || (preference === 'system' && systemDark.matches);
-        document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+        const theme = isDark ? 'dark' : 'light';
+        const previousTheme = document.documentElement.dataset.theme;
+        document.documentElement.dataset.theme = theme;
         themeColor.content = isDark ? '#000000' : '#ffffff';
         if (select) {
             select.value = preference;
             icon.className = `icon theme-picker-icon ${themeIcons[preference]}`;
         }
+        if (theme !== previousTheme) window.dispatchEvent(new Event('vrc:themechange'));
     }
 
     try {
