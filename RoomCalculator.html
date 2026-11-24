@@ -11,10 +11,10 @@
   <meta name="keywords"
     content="Cisco Video Devices, Video Room Calculator, Meeting Room Design, Microsoft Teams Rooms">
   <meta name="author" content="Joe Hughes">
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
+  <script src="./js/theme.js"></script>
   <script src="./js/purify.min.js"></script>
   <link rel="stylesheet" href="./assets/momentum-tokens.css" />
   <link rel="stylesheet" href="./style.css" />
@@ -28,25 +28,25 @@
     <h1 id="lblHeaderTitle">Video Room Calculator <span id="lblSubtitle">Beta</span></h1>
 
     <button onclick="openNewRoomDialog()" title="New Room or Template">
-      <i class="icon icon-plus-regular"></i>
+      <i class="icon icon-plus-regular" aria-hidden="true"></i>
       <span>New</span>
     </button>
     <button onclick="openSaveDialog()" title="Save Files or Link">
-      <i class="icon icon-save-regular"></i>
+      <i class="icon icon-save-regular" aria-hidden="true"></i>
       <span>Save</span>
     </button>
 
 
     <button id="btnUndo" onclick="btnUndoClicked()" disabled title="Undo [Ctrl-Z]">
-      <i class="icon icon-undo-regular"></i>
+      <i class="icon icon-undo-regular" aria-hidden="true"></i>
       <span>Undo</span>
     </button>
     <button id="btnRedo" onclick="btnRedoClicked()" disabled title="Redo [Ctrl-Y]">
-      <i class="icon icon-redo-regular"></i>
+      <i class="icon icon-redo-regular" aria-hidden="true"></i>
       <span>Redo</span>
     </button>
     <button id="btnHelp" onclick="openQuestionDialog()" title="Help">
-      <i class="icon icon-help-circle-regular"></i>
+      <i class="icon icon-help-circle-regular" aria-hidden="true"></i>
       <span>Help</span>
     </button>
 
@@ -63,6 +63,15 @@
       title="Webex Cloud (PoC)">
       <img id="pocCloudAvatarImg" alt="Webex avatar">
     </button>
+
+    <label class="theme-picker">
+      <span>Theme</span>
+      <select id="themeSelect" aria-label="Theme">
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
 
     <button id="btnModalWorkspace" class="primary" aria-label="Open in Workspace Designer" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>

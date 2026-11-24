@@ -19,6 +19,7 @@ const PRECACHE_ASSETS = [
   './assets/momentum-tokens.css',
   './manifest.json',
   './js/version.js',
+  './js/theme.js',
   './js/purify.min.js',
   './js/konva.min.js',
   './js/constants.js',

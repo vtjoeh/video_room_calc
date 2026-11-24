@@ -98,10 +98,12 @@ room-level panels need `defaultOpenTab.click()` + the sub-tab button's
 ## Momentum Design
 
 The main page, FAQ, release notes and both editors use the stable Webex theme
-tokens and typography from `assets/momentum-tokens.css`. The interface follows
-the system appearance through `prefers-color-scheme`. The room canvas and the
-editor canvases use light drawing surfaces to keep plan and overlay colors
-readable. [Momentum color and theming](https://momentum.design/en/foundations/color/)
+tokens and typography from `assets/momentum-tokens.css`. The header's Theme
+selector defaults to System and remembers the user's choice on this browser.
+`js/theme.js` applies the saved preference before the page paints and follows
+`prefers-color-scheme` changes in System mode. The room canvas and the editor
+canvases use light drawing surfaces to keep plan and overlay colors readable.
+[Momentum color and theming](https://momentum.design/en/foundations/color/)
 
 The app loads a local copy of Inter and the Momentum icon font. When updating
 the icon package, copy the glyph mappings used by the HTML and JavaScript from
@@ -113,7 +115,7 @@ monochrome interface icons so the surrounding control sets their color.
 
 | Breakpoint | Changes |
 |------------|---------|
-| `max-width: 900px` | Sidebar stacks below canvas |
+| `max-width: 900px` | Sidebar overlays canvas and main header actions switch to icons |
 | `max-width: 783px` | Full-screen dialogs |
-| `max-width: 650px` | Hide header text, icon-only |
+| `max-width: 650px` | Hide the header title and compact the Theme and 3D View controls |
 | `max-width: 405px` | iPhone SE specific adjustments |

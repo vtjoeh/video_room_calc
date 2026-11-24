@@ -316,10 +316,12 @@ button:not(:disabled) {
   background-color: transparent;
   color: var(--mds-color-theme-text-primary-normal);
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
   border-radius: 20px;
+  white-space: nowrap;
 }
 
 .ContainerHeader button.primary {
@@ -350,6 +352,25 @@ button:not(:disabled) {
   color: var(--mds-color-theme-text-primary-disabled);
 }
 
+.theme-picker {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--mds-font-size-body-small);
+  font-weight: var(--mds-font-weight-medium);
+}
+
+.theme-picker select {
+  min-height: 32px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.theme-picker select:hover {
+  border-color: var(--mds-color-theme-outline-input-active);
+}
+
 #ContainerFooter {
   display: inline-block;
   border: 1px solid var(--mds-color-theme-outline-secondary-normal);
@@ -365,6 +386,10 @@ button:not(:disabled) {
   font-weight: var(--mds-font-weight-bold);
   line-height: var(--mds-font-lineheight-heading-small);
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #lblSubtitle {
@@ -3123,6 +3148,10 @@ hr.rightClickHorizontalLine {
     /* only show icons in header buttons */
   }
 
+  .theme-picker > span {
+    display: none;
+  }
+
   .ContainerHeader i {
     padding: 0;
     width: 28px;
@@ -3145,6 +3174,27 @@ hr.rightClickHorizontalLine {
   }
 
 
+}
+
+@media screen and (max-width: 405px) {
+  .ContainerHeader {
+    padding-inline: 8px;
+  }
+
+  .ContainerHeader button:not(.primary) {
+    padding-inline: 4px;
+  }
+
+  .ContainerHeader button.primary {
+    padding-inline: 10px;
+  }
+
+  .ContainerHeader button:not(.primary) i {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    font-size: 20px;
+  }
 }
 
 .dropDownJSON,
@@ -3466,6 +3516,10 @@ hr.rightClickHorizontalLine {
 
 /* On screens that are 1180px wide or less, go from four columns to two columns */
 @media screen and (max-width: 900px) {
+
+  .ContainerHeader button:not(.primary, .pocCloudLoginBtn) span {
+    display: none;
+  }
 
   body.room-calculator {
     height: max-content;
@@ -3892,6 +3946,7 @@ body.svBp650 .ContainerHeader { gap: 2px; }
 
 
 body.svBp650 .ContainerHeader button span { display: none; }
+body.svBp650 .theme-picker > span { display: none; }
 body.svBp650 .ContainerHeader i {
   padding: 0; width: 28px; height: 28px; line-height: 28px; font-size: 24px;
 }
