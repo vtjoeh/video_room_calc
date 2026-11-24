@@ -7030,11 +7030,11 @@ let cameras = [
 
     { name: "_Quad Cam + PTZ 4K Extended*", id: 'quadPtz4kExt', key: 'CE', wideHorizontalFOV: 83, teleHorizontalFOV: 50, onePersonZoom: 2.64, twoPersonZoom: 5, teleFullWidth: true, topImage: 'quadPtz4kExt-top.png', frontImage: 'quadPtz4kExt-front.png', width: 950, depth: 200.2, height: 177.5, displayOffSetY: 60, defaultVert: 1900 },
 
-    { name: "_Room Vision PTZ", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "_Room Vision PTZ", id: 'ptzVision', key: 'CF', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles, colors: [{ light: 'Arctic White' }, { dark: 'Carbon Black' }] },
 
     { name: "_PTZ 4K & Bracket", id: 'ptz4kMount', key: 'CG', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
-    { name: "Room Vision PTZ Camera & Bracket ", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }] },
+    { name: "Room Vision PTZ Camera & Bracket ", id: 'ptzVision2', key: 'CH', wideHorizontalFOV: 80, teleHorizontalFOV: 80, onePersonDistance: 5, twoPersonDistance: 10, topImage: 'ptzVision-top.png', frontImage: 'ptzVision-menu.png', width: 165, depth: 248, height: 193, cameraShadeOffSet: 34, defaultVert: 1900, mounts: ptzCameraMounts, roles: roomVisionRoles, colors: [{ light: 'Arctic White' }, { dark: 'Carbon Black' }] },
 
     { name: "PTZ 4K Camera & Bracket", id: 'ptz4kMount2', key: 'CI', wideHorizontalFOV: 70, teleHorizontalFOV: 70, onePersonZoom: 2.4, twoPersonZoom: 3, topImage: 'ptz4kMount-top.png', frontImage: 'ptz4kMount-menu.png', width: 158.4, depth: 290, height: 177.5, cameraShadeOffSet: 50, displayOffSetY: 60, defaultVert: 1900, mounts: ptzCameraMounts, roles: ptzCameraRoles },
 
@@ -7149,7 +7149,7 @@ let microphones = [
         depth: 420,
         height: 48,
         defaultVert: 2500,
-        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }],
+        colors: [{ light: 'Arctic White' }, { dark: 'Carbon Black' }],
         mounts: [{ ceilingMount: 'Wired Hanging Mount' }, { ceilingBracket: 'Ceiling Bracket Mount' }, { dropCeilingGrid: 'Drop Ceiling Grid Mount' }]
     },
     {
@@ -7466,7 +7466,7 @@ let microphones = [
         innerSpeakerRadius: 0,
         speakerDeg: 360,
         speakerMount: 'ceiling',
-        colors: [{ light: 'First Light' }, { dark: 'Carbon Black' }], 
+        colors: [{ light: 'Arctic White' }, { dark: 'Carbon Black' }],
         mounts: [{ normal: 'Ceiling Bracket Mount' }, { recessed: 'Drop Ceiling Grid Mount' }, { suspended: 'Wire Hanging Mount' }], 
         newItem: true,
     },
