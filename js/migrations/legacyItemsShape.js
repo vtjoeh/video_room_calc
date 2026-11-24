@@ -34,11 +34,12 @@
  */
 
 window.VRC = window.VRC || {};
+window.VRC.migrations = window.VRC.migrations || {};
 
 (function () {
     let loggedThisSession = false;
 
-    window.VRC.migrateLegacyItemsShape = function migrateLegacyItemsShape(obj) {
+    window.VRC.migrations.migrateLegacyItemsShape = function migrateLegacyItemsShape(obj) {
         if (!obj || typeof obj !== 'object') return obj;
         if (!obj.items) return obj;
         if (Array.isArray(obj.items)) return obj;

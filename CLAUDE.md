@@ -49,6 +49,9 @@ video_room_calculator/
 │   │   └── certifiedDisplays.js # Certified-display catalogue (window.VRC.certifiedDisplays; APPEND-ONLY — see "Certified Display item" below)
 │   ├── util/
 │   │   └── units.js         # convertToUnit / convertToMeters / convertMetersFeet (Phase 2 extract; window.VRC.util)
+│   ├── migrations/
+│   │   ├── ceilingKitMounts.js # Legacy ceiling-kit mount normalization (window.VRC.migrations)
+│   │   └── legacyItemsShape.js # Legacy bucketed items migration (lazy-loaded)
 │   ├── undoApply.js         # VRC.undoApply diff helpers for incremental undo/redo restore (Konva-free; see "Incremental undo/redo restore" below)
 │   ├── idbStorage.js        # IndexedDB wrapper (undo/redo + bg image library + VRC Custom Item Library)
 │   ├── roomcalc.js          # Core application logic (~36,000 lines)
@@ -76,7 +79,8 @@ There is no build step. Open `RoomCalculator.html` directly in a browser.
 
 The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
 `constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →
-`data/menuItemsAndMessages.js` → `util/units.js` → `undoApply.js` →
+`data/menuItemsAndMessages.js` → `util/units.js` →
+`migrations/ceilingKitMounts.js` → `undoApply.js` →
 `idbStorage.js` → `templates.js` → `roomcalc.js`. `version.js` is the
 single source of truth for `APP_VERSION` (also read by `sw.js` via
 `importScripts()` — see "PWA / Service Worker caching" in
@@ -92,7 +96,7 @@ comment in `roomcalc.js` and the IIFE pattern note in
 Room dialog can render its tiles synchronously the first time it opens.
 
 The lazy-loaded scripts (`qrcode.js`, `drpDownOverride.js`,
-`dxfWriter.js`, `dxfBlockLibrary.js`, `migrateLegacyItemsShape.js`) are
+`dxfWriter.js`, `dxfBlockLibrary.js`, `migrations/legacyItemsShape.js`) are
 pulled in on demand by `loadScriptOnce()` and are *not* listed in
 `RoomCalculator.html`.
 
@@ -142,7 +146,7 @@ roomObj = {
                             // time. Legacy `.vrc.json` files that carry the
                             // older `items: { videoDevices: [...], ... }` shape
                             // are auto-migrated on read via
-                            // `js/migrateLegacyItemsShape.js` (see "Legacy
+                            // `js/migrations/legacyItemsShape.js` (see "Legacy
                             // items shape migration" below).
     { data_deviceid: "roomBarPro", id: "uuid", x: 1.2, y: 3.4, /* ... */ },
     { data_deviceid: "tblRect",    id: "uuid", x: 2.5, y: 4.5, /* ... */ }
@@ -210,12 +214,12 @@ the legacy shape:
 
 | Load path | Where | Behaviour |
 |-----------|-------|-----------|
-| `.vrc.json` file import | `importJson()` in `js/roomcalc.js` | Inline shape check; if legacy, lazy-loads `js/migrateLegacyItemsShape.js` via `loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS)`, runs the migration, then continues the import. |
-| IndexedDB undo/redo hydration | Boot IIFE in `js/roomcalc.js` (after `idbReady.then(...)`) | Walks `undoArray` + `redoArray`; if any entry has the legacy shape, lazy-loads the helper and runs `window.VRC.migrateLegacyItemsShape(entry)` across both arrays before `onLoad()`. |
+| `.vrc.json` file import | `importJson()` in `js/roomcalc.js` | Inline shape check; if legacy, lazy-loads `js/migrations/legacyItemsShape.js` via `loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS)`, runs the migration, then continues the import. |
+| IndexedDB undo/redo hydration | Boot IIFE in `js/roomcalc.js` (after `idbReady.then(...)`) | Walks `undoArray` + `redoArray`; if any entry has the legacy shape, lazy-loads the helper and runs `window.VRC.migrations.migrateLegacyItemsShape(entry)` across both arrays before `onLoad()`. |
 | Shareable URL parser | `parseShortenedXYUrl()` | Builds the flat array directly; no migration needed. |
 
-`js/migrateLegacyItemsShape.js` exposes a single function
-`window.VRC.migrateLegacyItemsShape(obj)`:
+`js/migrations/legacyItemsShape.js` exposes a single function
+`window.VRC.migrations.migrateLegacyItemsShape(obj)`:
 
 - No-op if `obj.items` is already an array.
 - Otherwise flattens the bucket map into a single array (insertion
@@ -882,7 +886,7 @@ branch falls through).
 | IDB schema (`undoEntries` / `redoEntries`, v2) | Unchanged. Same one-record-per-snapshot, same 100-entry cap, same shape (full `roomObj` minus `backgroundImageFile`). |
 | Existing browser undo stacks | Survive the upgrade verbatim. |
 | `roomObj` shape | Unchanged. |
-| Legacy items-shape migration | Unchanged ([js/migrateLegacyItemsShape.js](js/migrateLegacyItemsShape.js)). |
+| Legacy items-shape migration | Unchanged ([js/migrations/legacyItemsShape.js](js/migrations/legacyItemsShape.js)). |
 
 #### Module surface ([js/undoApply.js](js/undoApply.js))
 

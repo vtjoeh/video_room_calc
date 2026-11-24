@@ -23,7 +23,7 @@ window.VRC.constants = Object.freeze({
     SCRIPT_DRPDOWN_OVERRIDE:       './js/drpDownOverride.js',
     SCRIPT_DXF_WRITER:             './js/dxfWriter.js',
     SCRIPT_DXF_BLOCK_LIB:          './js/dxfBlockLibrary.js',
-    SCRIPT_MIGRATE_LEGACY_ITEMS:   './js/migrateLegacyItemsShape.js',
+    SCRIPT_MIGRATE_LEGACY_ITEMS:   './js/migrations/legacyItemsShape.js',
     SCRIPT_COLOR_PICKER:           './js/colorPicker.js',
     SCRIPT_PATH_EDITOR:            './js/pathEditor/pathEditor.js',
     SCRIPT_WINDOW_EDITOR:          './js/windowEditor/windowEditor.js',

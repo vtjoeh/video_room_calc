@@ -30,10 +30,11 @@ There is **no**
 build step — every JS file under `js/` is loaded directly from disk.
 The eager-loaded `<script>` order is `version.js` → `konva.min.js` →
 `constants.js` → `data/workspaceKey.js` → `data/certifiedDisplays.js` →
-`data/menuItemsAndMessages.js` → `util/units.js` → `undoApply.js` →
+`data/menuItemsAndMessages.js` → `util/units.js` →
+`migrations/ceilingKitMounts.js` → `undoApply.js` →
 `idbStorage.js` → `templates.js` → `roomcalc.js`. Lazy-loaded modules
 (`qrcode.js`, `drpDownOverride.js`, `dxfWriter.js`, `dxfBlockLibrary.js`,
-`migrateLegacyItemsShape.js`) are pulled in on demand by
+`migrations/legacyItemsShape.js`) are pulled in on demand by
 `loadScriptOnce()`.
 
 ## PWA / Service Worker caching

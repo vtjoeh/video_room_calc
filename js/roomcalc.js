@@ -5,6 +5,7 @@ const convertToUnit = window.VRC.util.convertToUnit;
 const convertToMeters = window.VRC.util.convertToMeters;
 const convertMetersFeet = window.VRC.util.convertMetersFeet;
 const dummyMenuKey = window.VRC.dummyMenuKey;
+const migrateLegacyCeilingKitMounts = window.VRC.migrations.migrateLegacyCeilingKitMounts;
 
 window.convertMetersFeet = convertMetersFeet;
 
@@ -146,7 +147,7 @@ roomObj.room.roomLength = 20; /* roomLength default value in feet */
 roomObj.room.roomHeight = ''; /* default value of room is blank*/
 roomObj.software = ''; /* mtr or webex. RoomOS = webex */
 roomObj.authorVersion = ''; /* field for the author to change version numbers */
-roomObj.items = []; /* Flat array of every device in the room. Item categories (videoDevices/chairs/tables/...) are derived on demand via allDeviceTypes[item.data_deviceid].parentGroup — see the parentGroup helpers above. Legacy bucketed shape from older saved files is auto-migrated on read via window.VRC.migrateLegacyItemsShape. */
+roomObj.items = []; /* Flat array of every device in the room. Item categories (videoDevices/chairs/tables/...) are derived on demand via allDeviceTypes[item.data_deviceid].parentGroup — see the parentGroup helpers above. Legacy bucketed shape from older saved files is auto-migrated on read via VRC.migrations.migrateLegacyItemsShape. */
 roomObj.trNodes = []; /* These are the selected shape items used for undo / redo. Does not need to be saved in URL */
 roomObj.workspace = {}; /* settings used for exporting to the Workspace Designer */
 roomObj.overlaysVisible = {};
@@ -553,53 +554,6 @@ function dedupeRoomItems(obj) {
         try { console.info('[VRC] dedupeRoomItems removed ' + dropped + ' duplicate item(s) from roomObj.items'); } catch (e) { }
     }
     return dropped;
-}
-
-/* Older VRC files may store either kit's mount as a string or use the other format's mount names. */
-function migrateLegacyCeilingKitMounts(obj) {
-    if (!obj || !Array.isArray(obj.items)) return 0;
-
-    const mountAliases = {
-        ceilingMicPro: {
-            suspended: 'ceilingMount',
-            normal: 'ceilingBracket',
-            recessed: 'dropCeilingGrid'
-        },
-        loudspeakerPro: {
-            ceilingMount: 'suspended',
-            ceilingBracket: 'normal',
-            dropCeilingGrid: 'recessed'
-        }
-    };
-    let migrated = 0;
-
-    obj.items.forEach(item => {
-        if (!item || !mountAliases[item.data_deviceid]) return;
-        const mounts = allDeviceTypes[item.data_deviceid]?.mounts || [];
-        if (!mounts.length) return;
-
-        const oldMount = item.data_mount;
-        let mountValue = typeof oldMount === 'string' ? oldMount : oldMount?.value;
-        if (mountValue) mountValue = mountAliases[item.data_deviceid][mountValue] || mountValue;
-
-        let mountIndex = mounts.findIndex(option =>
-            (typeof option === 'string' ? option : Object.keys(option)[0]) === mountValue
-        );
-        if (mountIndex < 0 && Number.isInteger(oldMount?.index) && oldMount.index >= 0 && oldMount.index < mounts.length) {
-            mountIndex = oldMount.index;
-        }
-        if (mountIndex < 0) mountIndex = 0;
-
-        const option = mounts[mountIndex];
-        const normalizedValue = typeof option === 'string' ? option : Object.keys(option)[0];
-        if (typeof oldMount !== 'object' || !oldMount
-            || oldMount.value !== normalizedValue || oldMount.index !== mountIndex) {
-            item.data_mount = { value: normalizedValue, index: mountIndex };
-            migrated++;
-        }
-    });
-
-    return migrated;
 }
 
 /* Snapshot of sibling + rect start positions for member-direct drag follow. */
@@ -10511,8 +10465,8 @@ function resetRoomObj() {
             && !Array.isArray(e.items)
             && typeof e.items === 'object');
         const migrateAll = () => {
-            undoArray.forEach(e => window.VRC.migrateLegacyItemsShape(e));
-            redoArray.forEach(e => window.VRC.migrateLegacyItemsShape(e));
+            undoArray.forEach(e => window.VRC.migrations.migrateLegacyItemsShape(e));
+            redoArray.forEach(e => window.VRC.migrations.migrateLegacyItemsShape(e));
         };
         const needsMigration = hasLegacy(undoArray) || hasLegacy(redoArray);
 
@@ -10544,7 +10498,7 @@ function resetRoomObj() {
         };
 
         if (needsMigration) {
-            if (typeof window.VRC?.migrateLegacyItemsShape === 'function') {
+            if (typeof window.VRC?.migrations?.migrateLegacyItemsShape === 'function') {
                 migrateAll();
                 finishBoot();
             } else {
@@ -30068,12 +30022,12 @@ function importJson(jsonFile) {
             };
 
             if (needsLegacyMigration) {
-                if (typeof window.VRC?.migrateLegacyItemsShape === 'function') {
-                    window.VRC.migrateLegacyItemsShape(roomObj);
+                if (typeof window.VRC?.migrations?.migrateLegacyItemsShape === 'function') {
+                    window.VRC.migrations.migrateLegacyItemsShape(roomObj);
                     finishVrcImport();
                 } else {
                     loadScriptOnce(VRC.constants.SCRIPT_MIGRATE_LEGACY_ITEMS).then(() => {
-                        window.VRC.migrateLegacyItemsShape(roomObj);
+                        window.VRC.migrations.migrateLegacyItemsShape(roomObj);
                         finishVrcImport();
                     });
                 }

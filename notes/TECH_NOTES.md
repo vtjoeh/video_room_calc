@@ -97,11 +97,13 @@ Split into focused modules under `js/` using a `window.VRC` namespace
 1. Pure data: `js/data/workspaceKey.js`
 2. Self-contained leaves: `js/util/uuid.js`, `js/util/geometry.js`,
    `js/util/units.js`
-3. State + I/O: `js/state/layers.js`, `js/state/url.js`,
+3. Saved-data migrations: one module per migration under
+   `js/migrations/`, exposed through `window.VRC.migrations`.
+4. State + I/O: `js/state/layers.js`, `js/state/url.js`,
    `js/io/dxfExport.js`, `js/io/workspaceExport.js`,
    `js/io/workspaceImport.js`, `js/io/xconfig.js`
-4. Rendering: `js/render/itemRender.js`, `js/render/wallBuilder.js`
-5. Glue: a slim `js/main.js` that wires everything together.
+5. Rendering: `js/render/itemRender.js`, `js/render/wallBuilder.js`
+6. Glue: a slim `js/main.js` that wires everything together.
 
 ### Status (May 2026)
 
