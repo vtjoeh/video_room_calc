@@ -39,6 +39,20 @@ workspaceKey.roomBar = {
 - VRC data_zPosition = Designer y
 - VRC degrees = Designer -1*(radians)
 
+### Ceiling Mic Pro and Ceiling Speaker Pro mounts
+
+Workspace Designer renders these mounting kits from the device's own
+`mount` attribute. Export one device object. A suspended object also needs
+`ceilingHeight` in meters, taken from the exported room height. Its WD
+position uses the VRC item's configured elevation.
+
+VRC keeps the Ceiling Mic Pro mount values used by saved rooms and maps them
+at the WD boundary: `ceilingMount` to `suspended`, `ceilingBracket` to
+`normal`, and `dropCeilingGrid` to `recessed`. The speaker mount values
+already match WD. When a mic has no stored mount, it uses the default wired
+mount and exports as `suspended`. Import maps WD's mic values back to VRC's
+existing values and consumes `ceilingHeight`.
+
 ---
 
 ## VRC Group and CustomItem Round-Trip

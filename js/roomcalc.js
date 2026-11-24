@@ -33036,6 +33036,14 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
     }
 
     if ('mount' in wdItem) {
+        if (data_deviceid === 'ceilingMicPro') {
+            const vrcMount = {
+                suspended: 'ceilingMount',
+                normal: 'ceilingBracket',
+                recessed: 'dropCeilingGrid'
+            }[wdItem.mount];
+            if (vrcMount) wdItem.mount = vrcMount;
+        }
         if (deviceType.mounts) {
             deviceType.mounts.forEach((mountKey, index) => {
                 let mountObj = Object.keys(mountKey);
@@ -33049,6 +33057,10 @@ function wdItemToRoomObjItem(wdItemIn, data_deviceid, roomObj2, workspaceObj) {
                 }
             });
         }
+    }
+
+    if (data_deviceid === 'ceilingMicPro' || data_deviceid === 'loudspeakerPro') {
+        delete wdItem.ceilingHeight;
     }
 
     /* For wdText the `comment` field falls through to the unused-keys merger so it lands INSIDE the JSON blob (the free-text prefix slot is reserved for the rendered glyph, wdItem.text, captured earlier). See CLAUDE.md / notes/WORKSPACE_DESIGNER.md. */
@@ -34247,23 +34259,29 @@ function exportRoomObjToWorkspace() {
 
     (wdBuckets.microphones || []).forEach((item) => {
 
-        /* Hanging on a wire: the mic calls it ceilingMount (and it is the mic's default), the speaker calls it suspended. Both get a ceilingMount object up to the ceiling. */
-        const micOnWire = (item.data_mount && item.data_mount.value.startsWith('ceilingMount')) || ((item.data_deviceid === 'ceilingMicPro') && !item.data_mount);
-        const speakerOnWire = item.data_deviceid === 'loudspeakerPro' && item.data_mount && item.data_mount.value === 'suspended';
-        if (micOnWire || speakerOnWire) {
-            let ceilingMount = structuredClone(item);
-            let poleHeight = (roomObj2.room.roomHeight || defaultWallHeight) - (item.data_zPosition || 0);
-            ceilingMount.data_vHeight = poleHeight;
-            ceilingMount.data_deviceid = "ceilingMount";
-            ceilingMount.data_zPosition = (item.data_zPosition || 0) + (poleHeight / 35); /* the ceilingMount is a little off in zPosition, so adjust slightly */
-            ceilingMount.id = "secondary-ceilingMount-" + item.id;
-            delete ceilingMount.data_mount;
-
-            workspaceObjItemPush(ceilingMount);
-
-            /* The mic's default mount is the wire, so dropping it round-trips. The speaker's default is the bracket, so it keeps mount: 'suspended'. */
-            if (micOnWire) delete item.data_mount;
-
+        const mountMappings = {
+            ceilingMicPro: {
+                ceilingMount: 'suspended',
+                ceilingBracket: 'normal',
+                dropCeilingGrid: 'recessed'
+            },
+            loudspeakerPro: {
+                normal: 'normal',
+                recessed: 'recessed',
+                suspended: 'suspended'
+            }
+        };
+        if (mountMappings[item.data_deviceid]) {
+            item = structuredClone(item);
+            const mountValue = item.data_mount && item.data_mount.value;
+            const wdMount = mountMappings[item.data_deviceid][mountValue]
+                || (item.data_deviceid === 'ceilingMicPro' && !mountValue ? 'suspended' : null);
+            if (wdMount) {
+                item.data_mount = { value: wdMount };
+                if (wdMount === 'suspended') {
+                    item.data_ceilingHeight = roomObj2.room.roomHeight || defaultWallHeight;
+                }
+            }
         }
 
 

@@ -420,15 +420,20 @@ height changes just change the derived height.
 
 ### Hanging on a wire: Ceiling Mic Pro and Ceiling Speaker Pro
 
-Both export a second `objectType: "ceilingMount"` object (id
-`secondary-ceilingMount-<id>`, dropped on import) at the device's x/y,
-`data_vHeight` = ceiling height − z (sent as `scale: [1, h, 1]`) and z
-nudged up by `h / 35`. The two name the wire differently:
+Workspace Designer now renders the mounting kit from the device's own
+`mount` attribute. Export one device object, never a second
+`objectType: "ceilingMount"` object. A suspended device also carries
+`ceilingHeight` in meters. Its position remains the VRC item's configured
+elevation.
 
-| Device | Wire mount | Its default (no `data_mount`) | Mount on its own WD object |
+| Device | VRC mount values | Workspace Designer mount values | Default (no `data_mount`) |
 |---|---|---|---|
-| `ceilingMicPro` | `ceilingMount` | the wire | deleted, so the default round-trips as the wire |
-| `loudspeakerPro` (WD `loudspeaker`, model `Ceiling Speaker Pro`) | `suspended` | `normal`, the bracket | kept as `mount: 'suspended'`, since deleting it would come back as the bracket |
+| `ceilingMicPro` | `ceilingMount` / `ceilingBracket` / `dropCeilingGrid` | `suspended` / `normal` / `recessed` | the wire (`suspended`) |
+| `loudspeakerPro` (WD `loudspeaker`, model `Ceiling Speaker Pro`) | `suspended` / `normal` / `recessed` | same values | `normal`, the bracket |
+
+Mic mount names are translated only for WD export and import, so saved VRC
+files keep their existing values. Import consumes `ceilingHeight`; the room
+height comes from the WD room shape.
 
 Speaker coverage has no inner hole unless the device def sets
 `innerSpeakerRadius`, in millimeters like `speakerRadius`.
