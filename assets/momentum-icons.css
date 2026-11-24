@@ -11,6 +11,8 @@
 .icon-arrow-down-bold::before { content: "\f1d2"; }
 .icon-arrow-down-regular::before { content: "\f1d5"; }
 .icon-back-bold::before { content: "\f222"; }
+.icon-brightness-auto-regular::before { content: "\f27d"; }
+.icon-brightness-high-regular::before { content: "\f283"; }
 .icon-camera-bold::before { content: "\f31b"; }
 .icon-cancel-bold::before { content: "\f336"; }
 .icon-cancel-regular::before { content: "\f339"; }
@@ -44,6 +46,7 @@
 .icon-plus-bold::before { content: "\f99c"; }
 .icon-plus-regular::before { content: "\f9a2"; }
 .icon-pop-out-regular::before { content: "\f9b0"; }
+.icon-quiet-hours-presence-regular::before { content: "\fa23"; }
 .icon-raise-hand-bold::before { content: "\fa29"; }
 .icon-recurring-bold::before { content: "\fa57"; }
 .icon-redo-regular::before { content: "\fa5f"; }

@@ -349,7 +349,7 @@ button:not(:disabled) {
 }
 
 .ContainerHeader button:disabled {
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
 }
 
 .theme-picker {
@@ -361,14 +361,42 @@ button:not(:disabled) {
   font-weight: var(--mds-font-weight-medium);
 }
 
+.theme-picker-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .theme-picker select {
+  appearance: none;
+  -webkit-appearance: none;
   min-height: 32px;
-  padding: 4px 6px;
+  padding: 4px 26px 4px 28px;
   cursor: pointer;
 }
 
 .theme-picker select:hover {
   border-color: var(--mds-color-theme-outline-input-active);
+  background: var(--mds-color-theme-background-solid-secondary-normal);
+}
+
+.theme-picker-field .icon {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.theme-picker-icon {
+  inset-inline-start: 8px;
+}
+
+.theme-picker-field .theme-picker-arrow {
+  inset-inline-end: 8px;
+  width: 12px;
+  font-size: 12px;
 }
 
 #ContainerFooter {
@@ -830,11 +858,10 @@ textarea::placeholder {
   opacity: 1;
 }
 
-input:disabled,
-textarea:disabled,
-select:disabled {
-  color: var(--mds-color-theme-text-primary-disabled);
-  border-color: var(--mds-color-theme-outline-primary-disabled);
+:is(input:not([type="button"], [type="submit"], [type="reset"], [type="range"]), textarea, select):disabled {
+  color: var(--mds-color-theme-text-secondary-normal);
+  -webkit-text-fill-color: currentColor;
+  border-color: var(--mds-color-theme-outline-input-normal);
   background-color: var(--mds-color-theme-background-input-disabled);
   opacity: 1;
 }
@@ -931,7 +958,9 @@ textarea:focus {
 
 .button:disabled {
   background-color: var(--mds-color-theme-button-primary-disabled);
-  color: var(--mds-color-theme-inverted-text-primary-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
   cursor: auto;
 }
 
@@ -956,13 +985,15 @@ textarea:focus {
   font-size: 12px;
 }
 
-.linkButton:hover,
+.linkButton:hover:not(:disabled),
 .linkButton:focus-visible {
   text-decoration: underline;
 }
 
 .linkButton:disabled {
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
   cursor: default;
   text-decoration: none;
 }
@@ -995,57 +1026,60 @@ textarea:focus {
 
 
 
+.wallPicker {
+  display: grid;
+  grid-template-columns: 1fr 50px 1fr;
+  grid-template-areas:
+    ". video ."
+    "left preview right"
+    ". back .";
+  place-items: center;
+  gap: 8px;
+}
+
+#videowall { grid-area: video; }
+#leftwall { grid-area: left; justify-self: end; }
+#rightwall { grid-area: right; justify-self: start; }
+#backwall { grid-area: back; }
+
 .wallButton {
-  border: 0px;
-  border-radius: 12px;
-  font-size: 0.7rem;
+  border: 1px solid var(--mds-color-theme-outline-button-normal);
+  border-radius: 20px;
+  min-height: 28px;
+  font-size: var(--mds-font-size-body-small);
   padding: 4px 12px;
-  background-color: var(--mds-color-theme-background-solid-secondary-normal);
+  background-color: var(--mds-color-theme-button-secondary-normal);
   color: var(--mds-color-theme-text-primary-normal);
   width: max-content;
-  touch-action: manipulation;
-  cursor: pointer;
-  align-self: center;
-  position: absolute;
 }
 
 .wallButton:hover {
   background-color: var(--mds-color-theme-button-secondary-hover);
-  color: var(--mds-color-theme-text-secondary-normal);
 }
 
 .wallButton:active {
-  box-shadow: none;
-  color: var(--mds-color-theme-text-primary-normal);
+  background-color: var(--mds-color-theme-button-secondary-pressed);
 }
 
-.wallButton:disabled {
-  opacity: 0.6;
-  cursor: auto;
-}
-
-.wallButton:hover:disabled {
-  background-color: var(--mds-color-theme-button-secondary-hover);
-}
-
-
-
-.wallButtonSelected {
+.wallButton[aria-pressed="true"] {
+  border-color: transparent;
   background-color: var(--mds-color-theme-button-primary-normal);
   color: var(--mds-color-theme-inverted-text-primary-normal);
 }
 
-.wallButtonSelected:hover {
-  color: var(--mds-color-theme-inverted-text-primary-normal);
+.wallButton[aria-pressed="true"]:hover {
   background-color: var(--mds-color-theme-button-primary-hover);
 }
 
+.wallButton[aria-pressed="true"]:active {
+  background-color: var(--mds-color-theme-button-primary-pressed);
+}
 
 .wallSelection {
+  grid-area: preview;
   width: 50px;
   height: 50px;
   background-image: url('./assets/images/wallsAll.png');
-  position: absolute;
 }
 
 .doorSelection {
@@ -1406,7 +1440,7 @@ textarea:focus {
 }
 
 .btn:disabled {
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
 }
 
 .btn.active {
@@ -1556,7 +1590,7 @@ textarea:focus {
   transition: color 0.15s, border-color 0.15s;
 }
 
-.equipmentCategoryPill:hover {
+.equipmentCategoryPill:hover:not(:disabled) {
   color: var(--mds-color-theme-text-primary-normal);
   background: var(--mds-color-theme-button-secondary-hover);
 }
@@ -1618,15 +1652,10 @@ textarea:focus {
   box-shadow: -4px 0 4px -2px var(--mds-color-theme-background-solid-primary-normal);
 }
 
-/* Pill that has zero matching items during a search. Muted + non-
- * interactive so the user can see at-a-glance which categories have
- * results without us also auto-hiding pills (preserving the user's
- * sense of "this is the whole list of categories"). Cleared on
- * search-clear by removing the `.disabled` class. */
-.equipmentCategoryPill.disabled {
-  opacity: 0.35;
+.equipmentCategoryPill:disabled {
+  color: var(--mds-color-theme-control-indicator-inactive-normal);
+  border-bottom-color: transparent;
   cursor: default;
-  pointer-events: none;
 }
 
 /* ---------------------------------------------------------------------
@@ -1776,12 +1805,13 @@ textarea:focus {
   text-align: center;
 }
 
-.roleSelectButton:hover {
+.roleSelectButton:hover:not(:disabled) {
   background-color: var(--mds-color-theme-button-secondary-hover);
 }
 
 .roleSelectButton:disabled {
-  opacity: 0.6;
+  background: var(--mds-color-theme-background-input-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
 }
 
 
@@ -1835,19 +1865,14 @@ textarea:focus {
 
 
 .holdIndicator {
-  width: 5.5px;
-  /*width of your image*/
-  content: url('./assets/images/expandImageTriangle.png');
-  margin: 0;
-  /* If you want no margin */
-  padding: 0;
-  /*if your want to padding */
-  font-size: 5px;
+  width: 6px;
+  height: 6px;
+  flex: none;
   position: relative;
   bottom: -6px;
   left: -4px;
-  background-color: transparent;
-
+  background-color: currentColor;
+  clip-path: polygon(0 100%, 100% 0, 100% 100%);
 }
 
 /* MultiRoom overview: coverage buttons (camera / mic / display) are not
@@ -1857,16 +1882,8 @@ textarea:focus {
    what tells the user to open a Room Part first. */
 .coverageBtnDisabledMultiRoom,
 .coverageBtnDisabledMultiRoom.active {
-  opacity: 0.5;
-  /* Override the .btn.active blue pill so a remembered selection doesn't stay
-     coloured while disabled in the MultiRoom overview. */
   background-color: transparent !important;
-  color: var(--mds-color-theme-text-primary-disabled) !important;
-}
-
-.coverageBtnDisabledMultiRoom .holdIndicator {
-  filter: grayscale(100%) brightness(1.8);
-  opacity: 0.7;
+  color: var(--mds-color-theme-text-secondary-normal) !important;
 }
 
 #controlButtons button {
@@ -1923,13 +1940,13 @@ textarea:focus {
   align-items: flex-start;
   margin-top: 1em;
   position: relative;
+  border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+  border-radius: 8px;
+  background: var(--mds-color-theme-background-solid-secondary-normal);
 }
 
-
-
 .flexItems:hover {
-  background-color: var(--mds-color-theme-button-secondary-hover);
-  opacity: 0.9;
+  background-color: var(--mds-color-theme-background-solid-tertiary-normal);
 }
 
 /* Touch long-press "drag armed" cue. Applied by the touchStart timer
@@ -1958,6 +1975,14 @@ textarea:focus {
   object-fit: contain;
   position: relative;
   pointer-events: none;
+}
+
+.equipmentItemOnMenu > img {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+  padding: 4px;
+  background-color: var(--vrc-drawing-surface);
 }
 
 .flexSubItemLabel {
@@ -2249,12 +2274,40 @@ a.tooltiptext {
 
 
 .sliderB {
+  --opacity-fill: var(--mds-color-theme-control-active-normal);
+  --opacity-track: var(--mds-color-theme-control-indicator-inactive-normal);
   appearance: none;
+  -webkit-appearance: none;
   width: 90%;
-  height: 10px;
-  background: var(--mds-color-theme-control-inactive-normal);
-  border-radius: 12px;
-  padding: 0px;
+  height: 24px;
+  background: linear-gradient(to right, var(--opacity-fill) var(--opacity-progress, 50%),
+    var(--opacity-track) 0) center / calc(100% - 16px) 6px no-repeat;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sliderB:disabled {
+  --opacity-fill: var(--mds-color-theme-control-indicator-inactive-normal);
+  --opacity-track: var(--mds-color-theme-control-inactive-normal);
+  cursor: default;
+}
+
+.sliderB::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--opacity-fill);
+  background-color: var(--mds-color-theme-background-solid-primary-normal);
+}
+
+.sliderB::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--opacity-fill);
+  background-color: var(--mds-color-theme-background-solid-primary-normal);
 }
 
 /* checkbox toggle CSS swith checkbox*/
@@ -2311,7 +2364,6 @@ input:checked + .slider {
 
 .switch input:disabled + .slider {
   background-color: var(--mds-color-theme-control-inactive-disabled);
-  opacity: 0.6;
   cursor: default;
 }
 
@@ -2716,7 +2768,7 @@ dialog.pleaseWaitDialogNoBackdrop::backdrop {
 
 
 .rightClickMenuItemDisable {
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-control-indicator-inactive-normal);
   cursor: default;
 }
 
@@ -2991,7 +3043,7 @@ hr.rightClickHorizontalLine {
 
 .itemEllipseBtn[disabled],
 .itemEllipseBtn.itemEllipseBtnDisabled {
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-control-indicator-inactive-normal);
   cursor: not-allowed;
   background: transparent;
   border-color: transparent;
@@ -3023,7 +3075,7 @@ hr.rightClickHorizontalLine {
 
 #itemActionsMenu .itemActionsMenuItemDisable {
   padding: 6px 12px;
-  color: var(--mds-color-theme-text-primary-disabled);
+  color: var(--mds-color-theme-control-indicator-inactive-normal);
   cursor: default;
 }
 
@@ -3148,7 +3200,7 @@ hr.rightClickHorizontalLine {
     /* only show icons in header buttons */
   }
 
-  .theme-picker > span {
+  .theme-picker-label {
     display: none;
   }
 
@@ -3195,6 +3247,18 @@ hr.rightClickHorizontalLine {
     line-height: 24px;
     font-size: 20px;
   }
+
+  .theme-picker select {
+    padding-inline: 23px 21px;
+  }
+
+  .theme-picker-icon {
+    inset-inline-start: 5px;
+  }
+
+  .theme-picker-field .theme-picker-arrow {
+    inset-inline-end: 5px;
+  }
 }
 
 .dropDownJSON,
@@ -3229,8 +3293,16 @@ hr.rightClickHorizontalLine {
   color: var(--mds-color-theme-text-primary-normal);
 }
 
-.dropDownBtnWhite:hover {
+.dropDownBtnWhite:hover:not(:disabled) {
   background-color: var(--mds-color-theme-button-secondary-hover);
+}
+
+.dropDownBtnWhite:active:not(:disabled) {
+  background-color: var(--mds-color-theme-button-secondary-pressed);
+}
+
+.dropDownBtnWhite:disabled {
+  background-color: var(--mds-color-theme-background-input-disabled);
 }
 
 .drpDownBtnMainFull {
@@ -3424,10 +3496,10 @@ hr.rightClickHorizontalLine {
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 0.3em;
+  border-radius: 8px;
   color: var(--mds-color-theme-text-primary-normal);
   background-color: var(--mds-color-theme-background-solid-secondary-normal);
-  border: 2px solid transparent;
+  border: 1px solid var(--mds-color-theme-outline-secondary-normal);
 }
 
 /* Quick Add: green left-border is a CustomItem-only marker.
@@ -3459,7 +3531,7 @@ hr.rightClickHorizontalLine {
 }
 
 .gallery button:hover {
-  background-color: var(--mds-color-theme-button-secondary-hover);
+  background-color: var(--mds-color-theme-background-solid-tertiary-normal);
 }
 
 
@@ -3946,7 +4018,7 @@ body.svBp650 .ContainerHeader { gap: 2px; }
 
 
 body.svBp650 .ContainerHeader button span { display: none; }
-body.svBp650 .theme-picker > span { display: none; }
+body.svBp650 .theme-picker-label { display: none; }
 body.svBp650 .ContainerHeader i {
   padding: 0; width: 28px; height: 28px; line-height: 28px; font-size: 24px;
 }
@@ -4026,7 +4098,7 @@ body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
   transition: background 0.1s, border-color 0.1s;
 }
 
-.layer-icon-btn:hover {
+.layer-icon-btn:hover:not(:disabled) {
   background: var(--mds-color-theme-button-secondary-hover);
   border-color: var(--mds-color-theme-outline-theme-normal);
   color: var(--mds-color-theme-text-accent-normal);
@@ -4045,14 +4117,9 @@ body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
 }
 
 .layer-icon-btn:disabled {
-  opacity: 0.35;
+  background: var(--mds-color-theme-background-input-disabled);
+  color: var(--mds-color-theme-text-secondary-normal);
   cursor: default;
-}
-
-.layer-icon-btn:disabled:hover {
-  background: transparent;
-  border-color: var(--mds-color-theme-outline-secondary-normal);
-  color: var(--mds-color-theme-text-primary-disabled);
 }
 
 .layer-name {
@@ -4092,11 +4159,7 @@ body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
   border-radius: 4px;
 }
 
-.layer-delete-btn {
-  color: var(--mds-color-theme-text-secondary-normal);
-}
-
-.layer-delete-btn:hover {
+.layer-icon-btn.layer-delete-btn:hover:not(:disabled) {
   color: var(--mds-color-theme-text-error-normal);
   border-color: var(--mds-color-theme-text-error-normal);
   background: var(--mds-color-theme-background-alert-error-normal);

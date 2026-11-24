@@ -101,8 +101,10 @@ The main page, FAQ, release notes and both editors use the stable Webex theme
 tokens and typography from `assets/momentum-tokens.css`. The header's Theme
 selector defaults to System and remembers the user's choice on this browser.
 `js/theme.js` applies the saved preference before the page paints and follows
-`prefers-color-scheme` changes in System mode. The room canvas and the editor
-canvases use light drawing surfaces to keep plan and overlay colors readable.
+`prefers-color-scheme` changes in System mode. The appearance preference is
+stored separately from room files and survives the app's local data reset.
+The room canvas, editor canvases and equipment thumbnails use light surfaces
+to keep drawing colors and dark equipment artwork readable in either theme.
 [Momentum color and theming](https://momentum.design/en/foundations/color/)
 
 The app loads a local copy of Inter and the Momentum icon font. When updating

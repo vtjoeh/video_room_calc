@@ -57,7 +57,7 @@
 }
 
 .vrcwe-toolbar button:disabled {
-    color: var(--mds-color-theme-text-primary-disabled);
+    color: var(--mds-color-theme-control-indicator-inactive-normal);
     cursor: default;
 }
 
@@ -221,7 +221,7 @@
 }
 
 .vrcwe-ctxmenu button:disabled {
-    color: var(--mds-color-theme-text-primary-disabled);
+    color: var(--mds-color-theme-control-indicator-inactive-normal);
     cursor: default;
 }
 

@@ -2338,7 +2338,7 @@ function onClearAllClicked() {
             'All undo and redo history',
             'Your Custom Item Library (' + customCount + ' template' + (customCount === 1 ? '' : 's') + ')',
             'Your Background Image Library (' + bgCount + ' image' + (bgCount === 1 ? '' : 's') + ')',
-            'All saved preferences (snap settings, default unit, Workspace Designer site, etc.)',
+            'Room settings such as snap preferences, default unit, and Workspace Designer site',
             'Browser cookies and session data for this site'
         ];
         items.forEach(function (label) {
@@ -2362,12 +2362,11 @@ function onClearAllClicked() {
     }).catch(function (e) {
         console.warn('[storageDialog] count fetch for Clear All failed:', e && e.message);
         /* Fall back to a generic warning if the count fetch failed. */
-        main.textContent = 'This will permanently delete all local data (undo/redo history, libraries, and preferences) and reload the page to a fresh default room. Your current room layout will be lost.';
+        main.textContent = 'This will permanently delete local room data, including history, libraries, and room settings. The page will reload to a fresh default room. Your current room layout will be lost.';
         dialogConfirm.showModal();
     });
 }
 
-/* Confirm Clear All: wipe IDB + localStorage + sessionStorage + cookies, close WD iframe, navigate to base URL (drops ?x=) for a fresh default room. Reload restarts all in-memory caches. */
 function confirmClearAllStorage() {
     /* Disable the button so the user can't double-click during the async IDB clear. */
     const btn = document.getElementById('btnConfirmClearAllStorage');
@@ -2379,9 +2378,11 @@ function confirmClearAllStorage() {
 
     idbClearP.then(function () {
         try {
-            if (typeof localStorage !== 'undefined') localStorage.clear();
+            for (const key of Object.keys(localStorage)) {
+                if (key !== THEME_STORAGE_KEY) localStorage.removeItem(key);
+            }
         } catch (e) {
-            console.warn('[storageDialog] localStorage.clear failed:', e && e.message);
+            console.warn('[storageDialog] clearing local room settings failed:', e && e.message);
         }
         try {
             if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
@@ -10338,8 +10339,7 @@ function deleteBackgroundImage() {
     delete roomObj.backgroundImage;
     delete roomObj.backgroundImageFile;
 
-    document.getElementById('transparencySlider').value = 50
-    document.getElementById('transparencyOutput').innerText = 50;
+    updateFloorPlanOpacityControl();
 
     turnOffBackgroundImageButtons();
 
@@ -12022,8 +12022,7 @@ function drawRoom(redrawShapes = false, dontCloseDetailsTab = false, dontSaveUnd
 
     if (roomObj.backgroundImage) {
         turnOnBackgroundImageButtons();
-        document.getElementById('transparencySlider').value = roomObj.backgroundImage.opacity || 50;
-        document.getElementById('transparencyOutput').innerText = roomObj.backgroundImage.opacity || 50;
+        updateFloorPlanOpacityControl(roomObj.backgroundImage.opacity ?? 50);
     }
 
     scrollContainer.setAttribute('style', 'height:' + (canvasWindowHeight) + 'px');
@@ -12361,11 +12360,19 @@ function getFullHeightIncludingMargin(element) {
     return element.offsetHeight + marginTop + marginBottom;
 }
 
+function updateFloorPlanOpacityControl(value = 50) {
+    const slider = document.getElementById('transparencySlider');
+    slider.value = value;
+    const percentage = `${slider.value}%`;
+    slider.style.setProperty('--opacity-progress', percentage);
+    document.getElementById('transparencyOutput').textContent = percentage;
+}
+
 function changeTransparency(value = 50) {
     let konvaBackgroundImageFloor = getKonvaBackgroundImageFloor();
     if (!konvaBackgroundImageFloor) return;
 
-    document.getElementById('transparencyOutput').innerText = value;
+    updateFloorPlanOpacityControl(value);
     konvaBackgroundImageFloor.opacity(value / 100);
 
     if (!roomObj.backgroundImage) {
@@ -12461,8 +12468,7 @@ function insertKonvaBackgroundImageFloor() {
             name: roomObj.backgroundImage.name,
         });
 
-        document.getElementById('transparencySlider').value = roomObj.backgroundImage.opacity;
-        document.getElementById('transparencyOutput').innerText = roomObj.backgroundImage.opacity;
+        updateFloorPlanOpacityControl(roomObj.backgroundImage.opacity ?? 50);
 
         konvaBackgroundImageFloor.data_deviceid = 'backgroundImageFloor';
 
@@ -14555,8 +14561,8 @@ function onEquipmentSearchChange(e) {
             + '#Insert .containerItems.searchHidden, '
             + '#Insert .subtabcontent.searchHidden')
             .forEach(el => el.classList.remove('searchHidden'));
-        document.querySelectorAll('.equipmentCategoryPill.disabled')
-            .forEach(p => p.classList.remove('disabled'));
+        document.querySelectorAll('.equipmentCategoryPill:disabled')
+            .forEach(pill => { pill.disabled = false; });
         /* Other panel tiles exist only during search. */
         if (otherContainer) otherContainer.innerHTML = '';
         if (otherPanel) otherPanel.classList.remove('hasMatches');
@@ -14642,7 +14648,7 @@ function onEquipmentSearchChange(e) {
         panel.classList.toggle('searchHidden', !matched);
         const pill = document.querySelector(
             '.equipmentCategoryPill[data-target="' + panel.id + '"]');
-        if (pill) pill.classList.toggle('disabled', !matched);
+        if (pill) pill.disabled = !matched;
     });
 
     /* Auto-scroll to first matching panel (or Other if only match). */
@@ -20339,7 +20345,7 @@ function createDeviceMenu(parentButton, attributeType) {
     /* Create the menu container and position it below the button. */
 
     const rect = parentButton.getBoundingClientRect();
-    const unavailableTextColor = 'var(--mds-color-theme-text-primary-disabled)';
+    const unavailableTextColor = 'var(--mds-color-theme-control-indicator-inactive-normal)';
     menuExisted = true;
     const menuReach = document.createElement('div');
     menuReach.id = `deviceMenu-${attributeType}`;
@@ -24103,14 +24109,7 @@ function btnWallSelected(wallSelected) {
 
 function updateBtnWallUpateMenu(wallSelected) {
     ['leftwall', 'rightwall', 'videowall', 'backwall'].forEach(wall => {
-        let buttonWall = document.getElementById(wall);
-        let wallButtonSelected = 'wallButtonSelected';
-        if (wall === wallSelected) {
-            buttonWall.classList.add(wallButtonSelected);
-        } else {
-            buttonWall.classList.remove(wallButtonSelected);
-        }
-
+        document.getElementById(wall).setAttribute('aria-pressed', String(wall === wallSelected));
     });
 }
 
@@ -29414,7 +29413,6 @@ function processBackgroundImageFile(file, displayName, options) {
                 : (file.name || 'pasted-image');
             konvaBackgroundImageFloor.name(nameForKonva);
 
-            document.getElementById('transparencySlider').value = 50;
             changeTransparency(50);
 
             /* Persist to IDB "Recent Floor Plans" (FIFO); the returned id stamps roomObj.backgroundImage. */

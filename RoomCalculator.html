@@ -65,12 +65,16 @@
     </button>
 
     <label class="theme-picker">
-      <span>Theme</span>
-      <select id="themeSelect" aria-label="Theme">
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
+      <span class="theme-picker-label">Theme</span>
+      <span class="theme-picker-field">
+        <i id="themeSelectIcon" class="icon icon-brightness-auto-regular theme-picker-icon" aria-hidden="true"></i>
+        <select id="themeSelect" aria-label="Theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <i class="icon icon-arrow-down-regular theme-picker-arrow" aria-hidden="true"></i>
+      </span>
     </label>
 
     <button id="btnModalWorkspace" class="primary" aria-label="Open in Workspace Designer" onclick="openModalWorkspace()" title="Open in Workspace Designer">
@@ -325,22 +329,17 @@
 
               <div class="inputRow">
                 <div class="inputField inputFieldMaxWdith">
-                  <label class="tooltipBottom">Choose Wall:
-                    <!-- <i class="icon icon-info-circle-bold"></i>
-                    <span class="tooltiptextBottom">Default walls are always on the outside of the room.</span> --></label>
-                  <br>
-                  <div class="parentWallSelection">
-
-                    <div class="wallSelection">
-                      <button id="leftwall" class="wallButton wallButtonSelected" style="left: -70px; top: 15px;"
-                        onclick="btnWallSelected('leftwall')">Left Wall</button>
-                      <button id="videowall" class="wallButton" style="left: -14px; top: -24.5px;"
-                        onclick="btnWallSelected('videowall')">Video Wall</button>
-                      <button id="rightwall" class="wallButton" style="right: -78px; top: 15px;"
-                        onclick="btnWallSelected('rightwall')">Right Wall</button>
-                      <button id="backwall" class="wallButton" style="left: -11px; top: 53px;"
-                        onclick="btnWallSelected('backwall')">Back Wall</button>
-                    </div>
+                  <label id="defaultWallPickerLabel">Choose Wall:</label>
+                  <div class="wallPicker" role="group" aria-labelledby="defaultWallPickerLabel">
+                    <button type="button" id="videowall" class="wallButton" aria-pressed="false"
+                      onclick="btnWallSelected('videowall')">Video Wall</button>
+                    <button type="button" id="leftwall" class="wallButton" aria-pressed="true"
+                      onclick="btnWallSelected('leftwall')">Left Wall</button>
+                    <div class="wallSelection" aria-hidden="true"></div>
+                    <button type="button" id="rightwall" class="wallButton" aria-pressed="false"
+                      onclick="btnWallSelected('rightwall')">Right Wall</button>
+                    <button type="button" id="backwall" class="wallButton" aria-pressed="false"
+                      onclick="btnWallSelected('backwall')">Back Wall</button>
                   </div>
 
                 </div>
@@ -454,8 +453,8 @@
             </div>
 
 
-            <div class="inputField" style="padding: 0.2rem"><label><span class="bgFloorOnlySetting bgStepNum">4)&nbsp;</span>Opacity:
-                <span id="transparencyOutput">50</span></label></div>
+            <div class="inputField" style="padding: 0.2rem"><label for="transparencySlider"><span class="bgFloorOnlySetting bgStepNum">4)&nbsp;</span>Opacity:
+                <span id="transparencyOutput" aria-hidden="true">50%</span></label></div>
             <div class="inputField">
               <input class="sliderB" type="range" min="0" max="100" value="50" id="transparencySlider"
                 oninput="changeTransparency(this.value)" disabled>
@@ -3074,7 +3073,7 @@
                                   Designer iframe so its in-memory page
                                   is released alongside undo history.
                                   No page reload.
-      * Clear All — wipes IDB stores + localStorage prefs and navigates
+      * Clear All resets room data and room preferences, then navigates
                     to the base URL (drops ?x=… shareable-link params)
                     so the user lands on a fresh default room.
     See CLAUDE.md "Storage settings modal" section (the plan that introduced
@@ -3146,11 +3145,11 @@
   <!--
     Clear All confirmation — separate dialog so the destructive warning is
     isolated and unmissable. Opened by onClearAllClicked(). The confirm
-    button wipes IDB + localStorage and reloads the page.
+    button clears room storage and reloads the page.
   -->
   <dialog id="dialogStorageClearAllConfirm" class='dialogWhiteBox dialogAlertModal'
     onclick="onDialogClick(event)">
-    <header class="dialogWhiteBoxHeader">Clear All Local Data?</header>
+    <header class="dialogWhiteBoxHeader">Clear Local Room Data?</header>
     <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div id="dialogStorageClearAllMain" style="font-size: 13px;"></div>
