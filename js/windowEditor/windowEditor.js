@@ -1249,7 +1249,7 @@
         if (!ui.hint) return;
         const original = ui.hint.textContent;
         ui.hint.textContent = 'No open space left on this wall for a new window/frame.';
-        ui.hint.style.color = '#ff8080';
+        ui.hint.style.color = 'var(--mds-color-theme-text-error-normal)';
         setTimeout(() => { ui.hint.textContent = original; ui.hint.style.color = ''; }, 2500);
     }
 

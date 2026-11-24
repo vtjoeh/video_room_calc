@@ -1,0 +1,127 @@
+/* @momentum-design/tokens 0.19.0. Stable Webex and typography tokens used by VRC.
+   See MOMENTUM-LICENSE.md. */
+
+@font-face {
+  font-family: Inter;
+  src: url('./Inter-VariableFont.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  --mds-color-theme-text-primary-normal: #000000f2;
+  --mds-color-theme-text-primary-disabled: #00000066;
+  --mds-color-theme-text-secondary-normal: #000000b3;
+  --mds-color-theme-text-error-normal: #ab0a15;
+  --mds-color-theme-text-success-normal: #185e46;
+  --mds-color-theme-text-warning-normal: #7d4705;
+  --mds-color-theme-text-accent-normal: #0353a8;
+  --mds-color-theme-inverted-text-primary-normal: #fffffff2;
+  --mds-color-theme-inverted-text-accent-normal: #64b4fa;
+  --mds-color-theme-inverted-text-primary-disabled: #ffffff66;
+  --mds-color-theme-inverted-background-normal: #000000;
+  --mds-color-theme-background-solid-primary-normal: #ffffff;
+  --mds-color-theme-background-solid-secondary-normal: #f7f7f7;
+  --mds-color-theme-background-solid-tertiary-normal: #ededed;
+  --mds-color-theme-background-alert-warning-normal: #ffebc2;
+  --mds-color-theme-background-alert-error-normal: #ffe8ea;
+  --mds-color-theme-background-alert-theme-normal: #dbf0ff;
+  --mds-color-theme-background-input-disabled: #0000001c;
+  --mds-color-theme-button-primary-normal: #000000f2;
+  --mds-color-theme-button-primary-hover: #000000cc;
+  --mds-color-theme-button-primary-pressed: #000000b3;
+  --mds-color-theme-button-primary-disabled: #00000033;
+  --mds-color-theme-button-secondary-normal: #00000000;
+  --mds-color-theme-button-secondary-hover: #00000012;
+  --mds-color-theme-button-secondary-pressed: #00000033;
+  --mds-color-theme-button-secondary-active-normal: #00000033;
+  --mds-color-theme-button-secondary-active-hover: #0000004d;
+  --mds-color-theme-button-secondary-active-pressed: #00000066;
+  --mds-color-theme-button-accent-normal: #1170cf;
+  --mds-color-theme-button-accent-hover: #0353a8;
+  --mds-color-theme-outline-primary-disabled: #00000033;
+  --mds-color-theme-outline-theme-normal: #1170cf;
+  --mds-color-theme-outline-secondary-normal: #00000033;
+  --mds-color-theme-outline-input-normal: #00000080;
+  --mds-color-theme-outline-input-active: #000000e6;
+  --mds-color-theme-outline-button-normal: #00000080;
+  --mds-color-theme-outline-warning-normal: #7d4705;
+  --mds-color-theme-control-active-normal: #1170cf;
+  --mds-color-theme-control-active-hover: #0353a8;
+  --mds-color-theme-control-indicator-inactive-normal: #707070;
+  --mds-color-theme-control-inactive-normal: #0000001c;
+  --mds-color-theme-control-inactive-hover: #00000033;
+  --mds-color-theme-control-inactive-disabled: #00000012;
+  --mds-color-theme-common-text-primary-normal: #fffffff2;
+  --mds-color-theme-common-overlays-secondary-normal: #00000066;
+  --mds-color-theme-focus-default-0: #ffffff;
+  --mds-color-theme-focus-default-1: #1170cf;
+  --mds-color-theme-focus-default-2: #1570cf59;
+
+  --mds-font-lineheight-body-midsize: 1.25rem;
+  --mds-font-lineheight-body-large: 1.5rem;
+  --mds-font-lineheight-heading-small: 1.75rem;
+  --mds-font-lineheight-heading-large: 2.5rem;
+  --mds-font-family-primary: Momentum, Inter, Arial, Helvetica Neue, Helvetica, sans-serif;
+  --mds-font-weight-medium: 500;
+  --mds-font-weight-bold: 700;
+  --mds-font-size-body-small: 0.75rem;
+  --mds-font-size-body-midsize: 0.875rem;
+  --mds-font-size-body-large: 1rem;
+  --mds-font-size-heading-small: 1.25rem;
+  --mds-font-size-heading-large: 2rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --mds-color-theme-text-primary-normal: #fffffff2;
+    --mds-color-theme-text-primary-disabled: #ffffff66;
+    --mds-color-theme-text-secondary-normal: #ffffffb3;
+    --mds-color-theme-text-error-normal: #fc8b98;
+    --mds-color-theme-text-success-normal: #3cc29a;
+    --mds-color-theme-text-warning-normal: #f2990a;
+    --mds-color-theme-text-accent-normal: #64b4fa;
+    --mds-color-theme-inverted-text-primary-normal: #000000f2;
+    --mds-color-theme-inverted-text-accent-normal: #0353a8;
+    --mds-color-theme-inverted-text-primary-disabled: #00000066;
+    --mds-color-theme-inverted-background-normal: #ffffff;
+    --mds-color-theme-background-solid-primary-normal: #000000;
+    --mds-color-theme-background-solid-secondary-normal: #1a1a1a;
+    --mds-color-theme-background-solid-tertiary-normal: #262626;
+    --mds-color-theme-background-alert-warning-normal: #36220c;
+    --mds-color-theme-background-alert-error-normal: #4f0e10;
+    --mds-color-theme-background-alert-theme-normal: #0a274a;
+    --mds-color-theme-background-input-disabled: #ffffff1c;
+    --mds-color-theme-button-primary-normal: #fffffff2;
+    --mds-color-theme-button-primary-hover: #ffffffcc;
+    --mds-color-theme-button-primary-pressed: #ffffffb3;
+    --mds-color-theme-button-primary-disabled: #ffffff33;
+    --mds-color-theme-button-secondary-normal: #ffffff00;
+    --mds-color-theme-button-secondary-hover: #ffffff12;
+    --mds-color-theme-button-secondary-pressed: #ffffff33;
+    --mds-color-theme-button-secondary-active-normal: #ffffff33;
+    --mds-color-theme-button-secondary-active-hover: #ffffff4d;
+    --mds-color-theme-button-secondary-active-pressed: #ffffff66;
+    --mds-color-theme-outline-primary-disabled: #ffffff33;
+    --mds-color-theme-outline-theme-normal: #64b4fa;
+    --mds-color-theme-outline-secondary-normal: #ffffff33;
+    --mds-color-theme-outline-input-normal: #ffffff80;
+    --mds-color-theme-outline-input-active: #ffffffe6;
+    --mds-color-theme-outline-button-normal: #ffffff80;
+    --mds-color-theme-outline-warning-normal: #f2990a;
+    --mds-color-theme-control-active-normal: #64b4fa;
+    --mds-color-theme-control-active-hover: #3492eb;
+    --mds-color-theme-control-indicator-inactive-normal: #8f8f8f;
+    --mds-color-theme-control-inactive-normal: #ffffff1c;
+    --mds-color-theme-control-inactive-hover: #ffffff33;
+    --mds-color-theme-control-inactive-disabled: #ffffff12;
+    --mds-color-theme-focus-default-0: #000000;
+    --mds-color-theme-focus-default-1: #64b4fa;
+    --mds-color-theme-focus-default-2: #64b4fa59;
+  }
+}

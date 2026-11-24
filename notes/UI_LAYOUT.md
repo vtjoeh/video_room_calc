@@ -83,8 +83,8 @@ room-level panels need `defaultOpenTab.click()` + the sub-tab button's
 
 | Class | Purpose |
 |-------|---------|
-| `.ContainerHeader` | Fixed black header bar |
-| `.ContainerInputsFeedback` | White panel containers |
+| `.ContainerHeader` | Fixed header bar |
+| `.ContainerInputsFeedback` | Sidebar panel containers |
 | `.tabcontent` | Tab panel content |
 | `.subtabcontent` | Nested tab content |
 | `.inputField` | Form field wrapper |
@@ -95,13 +95,19 @@ room-level panels need `defaultOpenTab.click()` + the sub-tab button's
 | `.dialog` | Modal dialog base |
 | `.tooltip` | Hover tooltip |
 
-## CSS Variables
+## Momentum Design
 
-```css
-:root {
-  --active: #0352a6;  /* Primary blue color */
-}
-```
+The main page, FAQ, release notes and both editors use the stable Webex theme
+tokens and typography from `assets/momentum-tokens.css`. The interface follows
+the system appearance through `prefers-color-scheme`. The room canvas and the
+editor canvases use light drawing surfaces to keep plan and overlay colors
+readable. [Momentum color and theming](https://momentum.design/en/foundations/color/)
+
+The app loads a local copy of Inter and the Momentum icon font. When updating
+the icon package, copy the glyph mappings used by the HTML and JavaScript from
+the same package version as `MomentumFontIcon.woff2`. Use `currentColor` for
+monochrome interface icons so the surrounding control sets their color.
+[Momentum icon catalog](https://momentum.design/en/tokens/icons/)
 
 ## Responsive Breakpoints
 

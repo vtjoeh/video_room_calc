@@ -1806,7 +1806,7 @@ function openDeleteCustomItemFromLibraryDialog(baseId, name) {
     const displayName = (name && String(name).trim().length) ? String(name).trim() : '(unnamed)';
     const safeName = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(displayName) : displayName;
     let html = `<div>Delete <b>"${safeName}"</b> from your local Custom Item Library?</div>`;
-    html += `<div style="margin-top: 8px; color: #555;">This only removes the saved template. Existing instances of this Custom Item already on the room canvas are unaffected.</div>`;
+    html += `<div style="margin-top: 8px; color: var(--mds-color-theme-text-secondary-normal);">This only removes the saved template. Existing instances of this Custom Item already on the room canvas are unaffected.</div>`;
 
     const main = document.getElementById('dialogCustomItemDeleteMain');
     if (main) main.innerHTML = html;
@@ -2778,7 +2778,7 @@ function showCustomItemsImportSummaryDialog(saved, alreadyHad, skippedNoName, fa
         body += '<p><em>Inserted at the center of the room canvas.</em></p>';
     }
     if (failureCount > 0) {
-        body += '<p style="color: #c00;"><strong>Errors:</strong></p><ul style="color: #c00;">';
+        body += '<p style="color: var(--mds-color-theme-text-error-normal);"><strong>Errors:</strong></p><ul style="color: var(--mds-color-theme-text-error-normal);">';
         failures.forEach(f => {
             body += '<li><strong>' + esc(f.name || '(unnamed)') + '</strong>: ' + esc(f.reason) + '</li>';
         });
@@ -4179,7 +4179,7 @@ function openDeleteLayerDialog(layerId) {
     let html = `<div>Delete layer <b>"${layerNameSafe}"</b>?</div>`;
     html += `<div style="margin-top: 8px;">${itemCount} ${itemWord} will move to <b>${destNameSafe}</b>.</div>`;
     if (!layer.visible) {
-        html += `<div style="margin-top: 8px; color: #b35900;"><i class="icon icon-hide-bold" style="vertical-align: middle;"></i> Note: this layer is currently <b>hidden</b>.</div>`;
+        html += `<div style="margin-top: 8px; color: var(--mds-color-theme-text-warning-normal);"><i class="icon icon-hide-bold" style="vertical-align: middle;"></i> Note: this layer is currently <b>hidden</b>.</div>`;
     }
 
     const main = document.getElementById('dialogLayerDeleteMain');
@@ -9069,21 +9069,21 @@ function updateFeetMetersToggleBtn() {
     unitPartsFeet.forEach(unitPartFeet => {
         if (roomObj.unit === 'feet') {
             unitPartFeet.style.fontWeight = 'bold';
-            unitPartFeet.style.color = 'black';
+            unitPartFeet.style.color = 'var(--mds-color-theme-text-primary-normal)';
 
         } else {
             unitPartFeet.style.fontWeight = 'normal';
-            unitPartFeet.style.color = 'grey';
+            unitPartFeet.style.color = 'var(--mds-color-theme-text-secondary-normal)';
         }
     });
 
     unitPartsMeters.forEach(unitPartMeter => {
         if (roomObj.unit === 'meters') {
             unitPartMeter.style.fontWeight = 'bold';
-            unitPartMeter.style.color = 'black';
+            unitPartMeter.style.color = 'var(--mds-color-theme-text-primary-normal)';
         } else {
             unitPartMeter.style.fontWeight = 'normal';
-            unitPartMeter.style.color = 'grey';
+            unitPartMeter.style.color = 'var(--mds-color-theme-text-secondary-normal)';
         }
     });
 }
@@ -13557,7 +13557,8 @@ function createShareableLink() {
 
     document.getElementById('shareLink').setAttribute('href', fullShareLink);
 
-    document.getElementById('qrCodeLinkText').value = 'QR Code Character Length: ' + fullShareLink.length + ' / 2950 max';
+    const qrCodeLinkText = document.getElementById('qrCodeLinkText');
+    qrCodeLinkText.value = 'QR Code Character Length: ' + fullShareLink.length + ' / 2950 max';
 
     if (fullShareLink.length > 8189 && !firstLoad) {
 
@@ -13575,15 +13576,8 @@ function createShareableLink() {
         document.getElementById('shareLink').style.display = ''
     }
 
-    if (fullShareLink.length > 2500) {
-        document.getElementById('qrCodeLinkText').style.backgroundColor = '#ffffc5';
-    } else {
-        document.getElementById('qrCodeLinkText').style.backgroundColor = '#ffffff';
-    }
-
-    if (fullShareLink.length > 2950) {
-        document.getElementById('qrCodeLinkText').style.backgroundColor = '#f9bfbf';
-    }
+    qrCodeLinkText.classList.toggle('qr-length-warning', fullShareLink.length > 2500 && fullShareLink.length <= 2950);
+    qrCodeLinkText.classList.toggle('qr-length-error', fullShareLink.length > 2950);
 
     let regex = /^A[01](?:v[0-9\.]+)?b(2[56][09]|79)\dc(200|61)\dB[01]{4,10}(D0a1)?$/;
     let queryParams = new URLSearchParams(window.location.search);
@@ -20275,18 +20269,23 @@ function closeDeviceMenu(attributeType) {
 function closeOpenSidebar(tabToOpen) {
 
     let closeOpenMenu = document.getElementById('closeOpenMenu');
+    const openSideBarBtn = document.getElementById('openSideBarBtn');
     let sideBar = document.getElementById('sidebar');
     let openSidebarDiv = document.getElementById('openSideBar');
     let containerRoomSvg = document.getElementById('ContainerRoomSvg');
     if (sideBar.style.display === 'none') {
+        const restoreFocus = document.activeElement === openSideBarBtn;
         sideBar.style.display = '';
         openSidebarDiv.style.display = 'none';
+        if (restoreFocus) closeOpenMenu.focus();
         //  containerRoomSvg.style.paddingLeft = '';
 
 
     } else {
+        const restoreFocus = document.activeElement === closeOpenMenu;
         sideBar.style.display = 'none';
         openSidebarDiv.style.display = '';
+        if (restoreFocus) openSideBarBtn.focus();
         //  containerRoomSvg.style.paddingLeft = '0px';
 
     }
@@ -20340,7 +20339,7 @@ function createDeviceMenu(parentButton, attributeType) {
     /* Create the menu container and position it below the button. */
 
     const rect = parentButton.getBoundingClientRect();
-    let unavailableTextColor = 'darkgrey';
+    const unavailableTextColor = 'var(--mds-color-theme-text-primary-disabled)';
     menuExisted = true;
     const menuReach = document.createElement('div');
     menuReach.id = `deviceMenu-${attributeType}`;
@@ -20418,11 +20417,6 @@ function createDeviceMenu(parentButton, attributeType) {
         menuReachItem.addEventListener('mouseover', () => {
             if (devices.length < 1) return;
 
-            // menuReachItem.style.backgroundColor = '#555';
-            menuReachItem.style.backgroundColor = '#d6eaff';
-            menuReachItem.style.borderRadius = '25px';
-
-
             hightlightOverlayForDevice(opt, attributeType, true, checkbox);
 
             clearTimeout(highlightedSelectNodeTimer);
@@ -20433,7 +20427,6 @@ function createDeviceMenu(parentButton, attributeType) {
         });
 
         menuReachItem.addEventListener('mouseout', () => {
-            menuReachItem.style.backgroundColor = 'transparent';
             hightlightOverlayForDevice(opt, attributeType, false, checkbox);
         });
 
@@ -20694,7 +20687,7 @@ function dragElement(element) {
         pos4 = e.clientY;
         document.onmouseup = closeDragElement;
         document.onmousemove = elementDrag;
-        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+        element.style.boxShadow = 'var(--vrc-shadow-2)';
     }
 
     function dragTouchStart(e) {
@@ -20704,7 +20697,7 @@ function dragElement(element) {
         pos4 = touch.clientY;
         document.ontouchend = closeDragElement;
         document.ontouchmove = elementTouchDrag;
-        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+        element.style.boxShadow = 'var(--vrc-shadow-2)';
     }
 
     function elementDrag(e) {
@@ -20750,7 +20743,7 @@ function dragElement(element) {
 
         element.style.top = elementTop + 'px';
         element.style.left = elementLeft + 'px';
-        element.style.boxShadow = "10px 10px 20px rgba(0, 0, 0, 0.8)";
+        element.style.boxShadow = 'var(--vrc-shadow-2)';
     }
 
     function closeDragElement() {
@@ -20866,7 +20859,7 @@ function changeZheightOfItem(dragItem, dragNode) {
                         document.getElementById('itemZposition').value = height;
                         document.getElementById('itemTopElevation').value = '';
                         dragItem.data_zPosition = round(height);
-                        document.getElementById('itemZposition').style.backgroundColor = '#ffcc5449';
+                        document.getElementById('itemZposition').style.backgroundColor = 'var(--mds-color-theme-background-alert-warning-normal)';
 
                         overlapItemOutline.data_dragNode = dragNode;
 
@@ -28121,11 +28114,12 @@ function onKeyDown(e) {
     const inputElements = ['input', 'textarea']
 
     {
-        if (key === ' ' && !inputElements.includes(target.tagName?.toLowerCase())) {
+        if (key === ' ' && target.tagName !== 'BUTTON'
+            && !inputElements.includes(target.tagName?.toLowerCase())) {
             /* Space default-scrolls the nearest scrollable ancestor (#scroll-container has
              * overflow when zoomValue > 100), jumping the canvas as Quick Add opens.
              * Focused buttons keep their native Space activation. */
-            if (target.tagName !== 'BUTTON') e.preventDefault();
+            e.preventDefault();
             quickAddMouse.x = mouseUnit.x;
             quickAddMouse.y = mouseUnit.y;
             toggleQuickAdd(true);
@@ -30549,7 +30543,7 @@ function importXConfigFile(text, fileName) {
 
     let importDialogBody = '';
     if (missingDeviceMessage) {
-        importDialogBody += `<p style="color: #b35900; margin-top: 0;"><b>${missingDeviceMessage}.</b></p>`;
+        importDialogBody += `<p style="color: var(--mds-color-theme-text-warning-normal); margin-top: 0;"><b>${missingDeviceMessage}.</b></p>`;
     }
     importDialogBody += `
         <p>xConfiguration import complete. <b>${importedMicCount} ${micLabel}</b> and <b>${importedCameraCount} ${camLabel}</b> imported.</p>

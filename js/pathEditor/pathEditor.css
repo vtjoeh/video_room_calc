@@ -11,13 +11,12 @@
     max-height: 94vh;
     margin: auto;
     padding: 0;
-    border: 1px solid #bbb;
-    border-radius: 10px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 8px;
+    box-shadow: var(--vrc-shadow-3);
     display: none; /* the [open] rule below flips to flex — a bare `display: flex` here would override the UA's display:none for CLOSED dialogs and leave a ghost on screen */
     flex-direction: column;
     overflow: hidden;
-    font-family: 'Inter', Helvetica, sans-serif;
 }
 
 #vrcPathEditorDialog[open] {
@@ -30,49 +29,54 @@
     gap: 10px;
     flex-wrap: wrap;
     padding: 8px 12px;
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--mds-color-theme-background-solid-secondary-normal);
+    color: var(--mds-color-theme-text-primary-normal);
+    border-bottom: 1px solid var(--mds-color-theme-outline-secondary-normal);
     flex: 0 0 auto;
 }
 
 .vrcpe-title {
-    font-weight: 600;
-    font-size: 15px;
+    font-weight: var(--mds-font-weight-bold);
+    font-size: var(--mds-font-size-body-large);
     margin-right: 6px;
 }
 
 .vrcpe-toolbar button {
-    background: #fff;
-    color: #1a1a1a;
-    border: 1px solid #888;
-    border-radius: 14px;
+    background: transparent;
+    color: var(--mds-color-theme-text-primary-normal);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 20px;
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--mds-font-size-body-small);
     cursor: pointer;
 }
 
 .vrcpe-toolbar button:hover:not(:disabled) {
-    background: #dceafc;
-    border-color: var(--active, #0352a6);
+    background: var(--mds-color-theme-button-secondary-hover);
+    border-color: var(--mds-color-theme-outline-input-normal);
 }
 
 .vrcpe-toolbar button:disabled {
-    opacity: 0.4;
+    color: var(--mds-color-theme-text-primary-disabled);
     cursor: default;
 }
 
 .vrcpe-toolbar button.vrcpe-mode-active {
-    background: var(--active, #0352a6);
-    color: #fff;
-    border-color: var(--active, #0352a6);
+    background: var(--mds-color-theme-button-secondary-active-normal);
+    color: var(--mds-color-theme-text-primary-normal);
+    border-color: var(--mds-color-theme-outline-input-normal);
 }
 
-/* +/- glyphs read larger without growing the button: line-height pinned to what the
+.vrcpe-toolbar button.vrcpe-mode-active:hover {
+    background: var(--mds-color-theme-button-secondary-active-hover);
+}
+
+ /* +/- glyphs read larger without growing the button: line-height pinned to what the
  * 12px toolbar text produces, so the content box height is unchanged. */
 .vrcpe-toolbar button.vrcpe-zoom {
     font-size: 17px;
     line-height: 14px;
-    font-weight: 600;
+    font-weight: var(--mds-font-weight-bold);
     padding: 4px 10px;
 }
 
@@ -89,28 +93,30 @@
 .vrcpe-sep {
     width: 1px;
     align-self: stretch;
-    background: #555;
+    background: var(--mds-color-theme-outline-secondary-normal);
     margin: 2px 2px;
 }
 
 .vrcpe-hint {
-    font-size: 11px;
-    color: #bbb;
-    margin-left: auto;
-    margin-right: 10px;
+    order: 1;
+    flex: 1 1 16em;
+    min-width: 0;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-secondary-normal);
+    text-align: end;
 }
 
-button.vrcpe-close {
-    background: var(--active, #0352a6);
-    color: #fff;
-    border-color: var(--active, #0352a6);
-    font-weight: 600;
+.vrcpe-toolbar button.vrcpe-close {
+    margin-inline-start: auto;
+    background: var(--mds-color-theme-button-primary-normal);
+    color: var(--mds-color-theme-inverted-text-primary-normal);
+    border-color: transparent;
+    font-weight: var(--mds-font-weight-bold);
     padding: 5px 18px;
 }
 
-button.vrcpe-close:hover {
-    background: #0466cc !important;
-    color: #fff;
+.vrcpe-toolbar button.vrcpe-close:hover:not(:disabled) {
+    background: var(--mds-color-theme-button-primary-hover);
 }
 
 .vrcpe-body {
@@ -126,51 +132,49 @@ button.vrcpe-close:hover {
     flex-direction: column;
     gap: 6px;
     padding: 10px;
-    background: #f0f0f0;
-    border-right: 1px solid #ccc;
+    background: var(--mds-color-theme-background-solid-secondary-normal);
+    border-right: 1px solid var(--mds-color-theme-outline-secondary-normal);
 }
 
 .vrcpe-sidepane label {
-    font-size: 12px;
-    color: #333;
-    font-weight: 600;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-primary-normal);
+    font-weight: var(--mds-font-weight-bold);
 }
 
 .vrcpe-sidepane textarea {
     flex: 1 1 auto;
     resize: none;
     font-family: monospace;
-    font-size: 12px;
+    font-size: var(--mds-font-size-body-small);
     line-height: 1.5;
     padding: 6px 8px;
-    border: 1px solid #999;
+    border: 1px solid var(--mds-color-theme-outline-input-normal);
     border-radius: 6px;
     white-space: pre-wrap;
     word-break: break-word;
 }
 
 .vrcpe-sidepane textarea.vrcpe-invalid {
-    border-color: #b00020;
-    outline: 1px solid #b00020;
-    background: #fff3f4;
+    border-color: var(--mds-color-theme-text-error-normal);
+    background: var(--mds-color-theme-background-alert-error-normal);
 }
 
 .vrcpe-canvas {
     flex: 1 1 auto;
     min-width: 0;
-    background: #fafafa;
+    background: var(--vrc-drawing-surface);
     position: relative;
     overflow: hidden;
 }
 
 /* nested Draw Mode choice dialog */
 dialog.vrcpe-choice {
-    border: 1px solid #bbb;
-    border-radius: 10px;
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 8px;
     padding: 18px 22px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--vrc-shadow-3);
     display: none;
-    font-family: 'Inter', Helvetica, sans-serif;
 }
 
 dialog.vrcpe-choice[open] {
@@ -180,33 +184,33 @@ dialog.vrcpe-choice[open] {
 }
 
 dialog.vrcpe-choice::backdrop {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--mds-color-theme-common-overlays-secondary-normal);
 }
 
 .vrcpe-choice-title {
-    font-weight: 600;
-    font-size: 15px;
+    font-weight: var(--mds-font-weight-bold);
+    font-size: var(--mds-font-size-body-large);
     margin-bottom: 4px;
 }
 
 .vrcpe-choice-body {
-    font-size: 13px;
-    color: #444;
+    font-size: var(--mds-font-size-body-midsize);
+    color: var(--mds-color-theme-text-secondary-normal);
     max-width: 280px;
     margin-bottom: 6px;
 }
 
 dialog.vrcpe-choice button {
-    background: #fff;
-    color: #1a1a1a;
-    border: 1px solid #888;
-    border-radius: 14px;
+    background: transparent;
+    color: var(--mds-color-theme-text-primary-normal);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 20px;
     padding: 7px 16px;
-    font-size: 13px;
+    font-size: var(--mds-font-size-body-midsize);
     cursor: pointer;
 }
 
 dialog.vrcpe-choice button:hover {
-    background: #dceafc;
-    border-color: var(--active, #0352a6);
+    background: var(--mds-color-theme-button-secondary-hover);
+    border-color: var(--mds-color-theme-outline-input-normal);
 }

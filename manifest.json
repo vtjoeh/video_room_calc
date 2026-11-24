@@ -4,8 +4,8 @@
   "description": "Room designer for Cisco video devices running Microsoft Teams Rooms or RoomOS",
   "start_url": "./RoomCalculator.html",
   "display": "standalone",
-  "background_color": "#f5f5f5",
-  "theme_color": "#1a1a2e",
+  "background_color": "#f7f7f7",
+  "theme_color": "#ffffff",
   "orientation": "any",
   "icons": [
     {

@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+  <meta charset="UTF-8">
   <title>Video Room Calculator by Joe Hughes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
   <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
@@ -10,20 +11,21 @@
   <meta name="keywords"
     content="Cisco Video Devices, Video Room Calculator, Meeting Room Design, Microsoft Teams Rooms">
   <meta name="author" content="Joe Hughes">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
   <script src="./js/purify.min.js"></script>
+  <link rel="stylesheet" href="./assets/momentum-tokens.css" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./assets/momentum-icons.css" />
 </head>
 
-<body>
+<body class="room-calculator">
 
   <div id="ContainerHeader" class="ContainerHeader">
 
-    <label id="lblHeaderTitle">Video Room Calculator<label id="lblSubtitle">Beta</label>
-    </label>
+    <h1 id="lblHeaderTitle">Video Room Calculator <span id="lblSubtitle">Beta</span></h1>
 
     <button onclick="openNewRoomDialog()" title="New Room or Template">
       <i class="icon icon-plus-regular"></i>
@@ -62,19 +64,19 @@
       <img id="pocCloudAvatarImg" alt="Webex avatar">
     </button>
 
-    <button id="btnModalWorkspace" class="primary" onclick="openModalWorkspace()" title="Open in Workspace Designer">
+    <button id="btnModalWorkspace" class="primary" aria-label="Open in Workspace Designer" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>
-      <span>3D<span style="color:white">_</span>View</span>
+      <span>3D View</span>
     </button>
 
   </div>
 
-  <div id="openSideBar" class="button-group" style="display: none;" onpointerdown="closeOpenSidebar()">
+  <div id="openSideBar" class="button-group" style="display: none;" onclick="closeOpenSidebar()">
 
 
-    <button id="openSideBarBtn" class="btn closeOpenButton"><i
-        style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
-        class="icon icon-arrow-circle-right-regular"></i></button>
+    <button type="button" id="openSideBarBtn" class="btn closeOpenButton" aria-label="Open sidebar">
+      <i class="icon icon-arrow-circle-right-regular" aria-hidden="true"></i>
+    </button>
     <div class="displayWhenLessThan900" id="0">
     </div>
   </div>
@@ -90,7 +92,7 @@
             displayed on the buttons. Hold the shift key to create vertical or horizontal walls. </span>
 
         </label>
-        <div class="closeWallBuilderX" onclick="wallBuilderOn(false);">✕</div>
+        <button type="button" class="closeWallBuilderX" aria-label="Close" onclick="wallBuilderOn(false);"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
       </div>
 
       <div class="inputField" style="position: relative; ">
@@ -167,13 +169,13 @@
     <div id="ContainerInputs" class="ContainerInputsFeedback">
       <div class="tab">
         <button class="tablinks active" onclick="openTab(event, 'Room')" id="defaultOpenTab">Room</button>
-        <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment&nbsp;&nbsp; </button>
+        <button class="tablinks" onclick="openTab(event, 'Insert')" id="tabEquipment">Equipment</button>
         <button class="tablinks" onclick="openTab(event, 'Layers')" id="tabLayers">Layers</button>
         <button class="tablinks" onclick="openTab(event, 'Item')" id="tabItem">Details</button>
 
-        <button id="closeOpenMenu" class="btn closeOpenButton" onpointerdown="closeOpenSidebar()">
-          <i style="font-size: 20px; transform: translateY(1px) scale(1.3); background-color: white; border-radius: 100%; color: black;"
-            id="closeOpenIcon" class="icon icon-arrow-circle-left-regular"></i>
+        <button type="button" id="closeOpenMenu" class="btn closeOpenButton" aria-label="Close sidebar"
+          onclick="closeOpenSidebar()">
+          <i id="closeOpenIcon" class="icon icon-arrow-circle-left-regular" aria-hidden="true"></i>
         </button>
       </div>
       <div id="containerInputTabContent">
@@ -1557,7 +1559,7 @@
         </div>
         <div class="button-group">
           <button class="btn" id="btnWallBuilder" onclick="btnWallBuilderClicked()" title="Wall Builder [Esc to exit]">
-            <i class="icon icon-pen-bold"></i>
+            <i class="icon icon-edit-bold"></i>
           </button>
         </div>
         <div class="button-group">
@@ -1775,7 +1777,7 @@
     <header>
       Save your project
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main>
       <div id="downloadButtons" class="downloadButtons">
         <div class="dropDownJSON">
@@ -1783,7 +1785,9 @@
             <span style="position: relative; ">Download File<i
                 class="icon icon-file-code-bold iconLeftOfText"></i></span></button>
           <span>
-            <button class="button drpDownBtnArrow" id="drpDownBtnArrowJSON">▼</button>
+            <button type="button" class="button drpDownBtnArrow" id="drpDownBtnArrowJSON" aria-label="File download options">
+              <i class="icon icon-arrow-down-regular" aria-hidden="true"></i>
+            </button>
 
             <div class="dropDownBtnMenu" id="drpDownJSONContent">
               <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadVRCJSONMenuItem"
@@ -1819,7 +1823,9 @@
               style="position: relative; ">Download Image<i
                 class="icon icon-file-image-bold iconLeftOfText"></i></span></button>
           <span>
-            <button class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowPNG">▼</button>
+            <button type="button" class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowPNG" aria-label="Image download options">
+              <i class="icon icon-arrow-down-regular" aria-hidden="true"></i>
+            </button>
 
             <div class="dropDownBtnMenu" id="drpDownPNGContent">
               <div role="dropDownMenuItem" class="dropDownMenuItem" id="downloadPNGMenuItem">
@@ -1836,12 +1842,14 @@
 
         <div class="dropDownPNG">
           <button class="button drpDownBtnMain dropDownBtnWhite" id="shareLink" onclick="copyLinkToClipboard(null)"
-            href="" style="padding-left: 50px; ">
+            href="">
             <span style="position: relative; ">Shareable Template Hyperlink<i
                 class="icon icon-copy-bold iconLeftOfText"></i></span>
           </button>
           <span>
-            <button class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowShareLink">▼</button>
+            <button type="button" class="button drpDownBtnArrow dropDownBtnWhite" id="drpDownBtnArrowShareLink" aria-label="Shareable link options">
+              <i class="icon icon-arrow-down-regular" aria-hidden="true"></i>
+            </button>
             <div class="dropDownBtnMenu" id="drpDownShareLinkContent">
               <div role="dropDownMenuItem" class="dropDownMenuItem" id="shareLinkSplitViewMenuItem" onclick="customSplitView()">
                 <i class="icon icon-video-layout-equal-dual-regular"
@@ -1919,7 +1927,7 @@
         </button>
       </div>
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <!--
       Defensive fallback only. templates.js is now eager-loaded at the
       bottom of this file, and `populateTemplates()` runs from the top
@@ -1991,7 +1999,7 @@
       <div id="quickSetupItems">
         <h3 style="margin-bottom: -10px;">Room <div class="inputField"><button id="btnToggleUnit"
               onclick="toggleFeetMeters()">
-              <span class='btnPartFoot'>ft</span><span style="color: grey;"> / </span><span
+              <span class='btnPartFoot'>ft</span><span style="color: var(--mds-color-theme-text-secondary-normal);"> / </span><span
                 class='btnPartMeters'>m</span>
             </button>
           </div>
@@ -2158,7 +2166,7 @@
   <dialog id="modalWorkspace" onclick="onDialogClick(event)">
     <header><img id="workspaceIcon" width="32px" src="assets/images/WorkspaceDesignerIcon.png"
         style="transform: translate(-10px, 10px);"> 3D powered by Cisco Workspace Designer</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main>
 
       <div>
@@ -2222,10 +2230,12 @@
                 onclick="closeModalWorkspace(); splitViewOpen();">
                 <span style="position: relative;">
                   <span id="txtOpenWorkspaceDesigner"> Open Workspace Designer</span>
-                  <i class="icon icon-view-regular iconLeftOfText"></i></span>
+                  <i class="icon wd iconLeftOfText"></i></span>
               </button>
               <span>
-                <button class="button drpDownBtnArrow" type="button" id="drpDownBtnArrowWSD">▼</button>
+                <button class="button drpDownBtnArrow" type="button" id="drpDownBtnArrowWSD" aria-label="Workspace Designer options">
+                  <i class="icon icon-arrow-down-regular" aria-hidden="true"></i>
+                </button>
                 <div class="dropDownBtnMenu" id="drpDownWSDContent">
                   <div role="dropDownMenuItem" class="dropDownMenuItem" id="wsdSplitViewMenuItem"
                     onclick="closeModalWorkspace(); splitViewOpen();">
@@ -2272,45 +2282,38 @@
     <header>
       Have a question, comment or feedback?
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <div>
       <main>
 
         <div>For questions or feature requests, please join the Webex space <a href="https://eurl.io/#4d-kKP6l1"
-            target="_blank" style="outline: none; ">
+            target="_blank">
             <br>Video Room Calculator discussion
-          </a> <img src="assets/images/pop-out-bold.svg" width="14px">.
+          </a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>.
         </div>
         <br>
 
 
         <label class="underlineHeader">Tutorial videos</label>
-        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/2ab4d21e-72f5-4555-91da-bbd6f9b0e813" target="_blank"
-            style="outline: none; ">Getting Started and Tips & Tricks</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/2ab4d21e-72f5-4555-91da-bbd6f9b0e813" target="_blank">Getting Started and Tips & Tricks</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
-        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/46328bec-9a79-402e-8a71-5b3fcccaa513" target="_blank"
-            style="outline: none; ">Multi-Room Floor Plan</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/46328bec-9a79-402e-8a71-5b3fcccaa513" target="_blank">Multi-Room Floor Plan</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
-        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/903091d1-3ec2-4396-9a69-2ec278ca8183" target="_blank"
-            style="outline: none; ">Custom Path Shapes</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/903091d1-3ec2-4396-9a69-2ec278ca8183" target="_blank">Custom Path Shapes</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
-        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/cb7990f1-00e7-453f-9eab-c36a96d803c3" target="_blank"
-            style="outline: none; ">Creating a Custom Window Wall</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div style="margin-top: 4px;"><a href="https://app.vidcast.io/share/cb7990f1-00e7-453f-9eab-c36a96d803c3" target="_blank">Creating a Custom Window Wall</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
         <br>
 
         <hr />
-        <div><a href="faq.html" target="_blank"
-            style="outline: none; ">Frequently Asked Questions</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div><a href="faq.html" target="_blank">Frequently Asked Questions</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
         <br>
 
-        <div><a href="releasenotes.html" target="_blank"
-            style="outline: none; ">Release Notes</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+        <div><a href="releasenotes.html" target="_blank">Release Notes</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
         <br>
-       <div><a href="https://apps.apple.com/us/app/video-room-scanner/id6771168512" target="_blank"
-            style="outline: none; ">Video Room Scanner</a> <img src="assets/images/pop-out-bold.svg" width="14px"> iPhone app by Richard Hermann (requires iPhone Pro lidar)
+       <div><a href="https://apps.apple.com/us/app/video-room-scanner/id6771168512" target="_blank">Video Room Scanner</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i> iPhone app by Richard Hermann (requires iPhone Pro lidar)
         </div>
         <br>
 
@@ -2421,7 +2424,7 @@
           ranges will be somewhat different. See <a
             href="https://github.com/vtjoeh/video_room_calc/blob/main/FAQ.md#how-is-the-display-coverage-for-the-closest-and-farthest-participants-determined"
             target="_blank">FAQ: How is the display coverage for the closest and farthest participants determined?</a>
-          <img src="assets/images/pop-out-bold.svg" width="14px">.
+          <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>.
         </div>
 
 
@@ -2429,11 +2432,11 @@
 
         <div>
           <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room Calculator discussion (Webex
-            Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">
+            Space)</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>
         </div>
         <br>
 
-        <div class="underlineHeader">Essential Links<img src="assets/images/pop-out-bold.svg" width="14px"></div>
+        <div class="underlineHeader">Essential Links</div>
 
         <div>
           &#x2022&nbsp;<a href="https://www.webex.com/us/en/workspaces/workspace-designer.html" target="_blank">Cisco
@@ -2472,7 +2475,7 @@
 
         <br>
 
-        <div class="underlineHeader">Other useful tools & links<img src="assets/images/pop-out-bold.svg" width="14px">
+        <div class="underlineHeader">Other useful tools & links
         </div>
         &#x2022&nbsp;<a href="https://eurl.io/#ejV0ptTs8" target="_blank">Workspace Designer Feedback (Webex
           Space)</a>
@@ -2544,8 +2547,7 @@
         setting. Reduces image resolution for a tighter zoom. Lighting can be important.
         <br> -->
         <!-- <br>
-        <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <img
-            src="assets/images/pop-out-bold.svg" width="14px"></a> for this project. -->
+        <a href="https://github.com/vtjoeh/video_room_calc" target="_blank"> GitHub site <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i></a> for this project. -->
 
 
         <hr />
@@ -2563,15 +2565,14 @@
           (joehughe 𓇬 @️ 𓇬 ciscoㆍcom).
           Please direct questions to the <a href="https://eurl.io/#4d-kKP6l1" target="_blank">Video Room
             Calculator discussion (Webex
-            Space)</a> <img src="assets/images/pop-out-bold.svg" width="14px">.
+            Space)</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>.
           <br>
           <br>
           <div> For more info on proper room design see the document <a
               href="https://www.cisco.com/c/dam/en/us/td/docs/telepresence/endpoint/technical-papers/workspace-best-practices.pdf"
               target="_blank">Cisco's Best practices Creating effective video-enabled workspaces
-            </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <img
-                src="assets/images/pop-out-bold.svg" width="14px"> Webex
-              Workspaces</a> <img src="assets/images/pop-out-bold.svg" width="14px">site.</div>
+            </a>and visit <a href="https://www.webex.com/us/en/workspaces.html" target="_blank"> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i> Webex
+              Workspaces</a> <i class="icon icon-pop-out-regular externalLinkIcon" aria-hidden="true"></i>site.</div>
 
           <hr>
 
@@ -2587,7 +2588,7 @@
   </dialog>
 
   <div id="dialogQuickAdd" class="quick-dialog" onclick="onDialogClick(event)">
-    <div class="closeDialogX" onclick="toggleQuickAdd(false);">X</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="toggleQuickAdd(false);"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <h2>Quick Add</h2>
     <div>What do you want to quickly add to the scene?</div>
     <input type="search" placeholder="Board Pro, Table Mic, tapered table, plant, ..." id="quick-add-input"
@@ -2599,7 +2600,7 @@
     <header>
       Multiple Video Device Alert
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
 
     <main>
       There are 2 video devices on the room canvas. This is allowed, but if you meant to add a camera instead,
@@ -2622,7 +2623,7 @@
     <header class="dialogWhiteBoxHeader">
       <div id="dialogAlertHeader"></div>
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
 
     <main class="dialogAlertMain">
       <div id="dialogAlertMain">
@@ -2639,7 +2640,7 @@
 
   <dialog id="dialogInventoryCsv" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Export Inventory CSV</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div style="margin-bottom: 10px;">Choose which items to include in the CSV:</div>
       <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -2655,7 +2656,7 @@
 
   <dialog id="dialogLayerAdd" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Add Layer</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
         <label for="layerAddNameInput" style="margin-bottom: 6px; display: block;">Layer name:</label>
@@ -2671,10 +2672,10 @@
 
   <dialog id="dialogCustomItemAdd" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Create Custom Item</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
-        <label for="customItemAddNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: #c00;">*</span>:</label>
+        <label for="customItemAddNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: var(--mds-color-theme-text-error-normal);">*</span>:</label>
         <input type="text" id="customItemAddNameInput" maxlength="60" style="width: 100%; box-sizing: border-box;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmCreateCustomItemFromDialog();}" />
       </div>
@@ -2705,9 +2706,9 @@
   -->
   <dialog id="dialogDiscas" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Custom Reach Display: Viewer Coverage</header>
-    <div class="closeDialogX" onclick="document.getElementById('dialogDiscas').close()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="document.getElementById('dialogDiscas').close()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
-      <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
+      <div style="font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-bottom: 10px;">
         Calculates the closest viewer, farthest viewer, and 60&deg; horizontal viewing angles for this display,
         based on AVIXA DISCAS Basic Decision Making (BDM).
         <br><b>These viewer coverage values are not sent to or shown in the Workspace Designer.</b>
@@ -2771,17 +2772,17 @@
         </div>
       </div>
 
-      <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 13px;">
+      <div style="border-top: 1px solid var(--mds-color-theme-outline-secondary-normal); margin-top: 8px; padding-top: 8px; font-size: 13px;">
         <div>Image size: <b id="discasOutImage"></b></div>
         <div>Closest viewer: <b id="discasOutClosest"></b></div>
         <div>Farthest viewer: <b id="discasOutFarthest"></b></div>
-        <div id="discasOutWarning" style="display: none; color: #b00020; font-weight: bold; margin-top: 6px;">
+        <div id="discasOutWarning" style="display: none; color: var(--mds-color-theme-text-error-normal); font-weight: bold; margin-top: 6px;">
           No conforming viewing area: the farthest-viewer distance is too short for this image width, so no
           position keeps the entire image within reach. Increase the display size or raise the %Element Height.
         </div>
       </div>
 
-      <div style="font-size: 11px; color: #777; margin-top: 10px; font-style: italic;">
+      <div style="font-size: 11px; color: var(--mds-color-theme-text-secondary-normal); margin-top: 10px; font-style: italic;">
         
         Based on the <a href="https://www.avixa.org/resources/display-image-size-calculators/analytical-and-basic-decision-making-calculations" target="_blank" rel="noopener noreferrer">AVIXA DISCAS BDM</a>.
         DISCAS is a standard of AVIXA. This tool is not affiliated with or endorsed by AVIXA.
@@ -2795,9 +2796,9 @@
 
   <dialog id="dialogSpeakerReach" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Speaker Reach</header>
-    <div class="closeDialogX" onclick="document.getElementById('dialogSpeakerReach').close()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="document.getElementById('dialogSpeakerReach').close()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
-      <div style="font-size: 12px; color: #555; margin-bottom: 10px;">
+      <div style="font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-bottom: 10px;">
         Sets how far this speaker's coverage overlay reaches on the room canvas.
         <br><b>Speaker reach values are not sent to or shown in the Workspace Designer.</b>
       </div>
@@ -2897,12 +2898,12 @@
         </div>
       </div>
 
-      <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 13px;">
+      <div style="border-top: 1px solid var(--mds-color-theme-outline-secondary-normal); margin-top: 8px; padding-top: 8px; font-size: 13px;">
         <div>Coverage reach: <b id="spkrOutReach"></b></div>
-        <div id="spkrOutSpacing" style="display: none; margin-top: 4px; font-size: 12px; color: #555;"></div>
+        <div id="spkrOutSpacing" style="display: none; margin-top: 4px; font-size: 12px; color: var(--mds-color-theme-text-secondary-normal);"></div>
       </div>
 
-      <div style="font-size: 11px; color: #777; margin-top: 10px; font-style: italic;">
+      <div style="font-size: 11px; color: var(--mds-color-theme-text-secondary-normal); margin-top: 10px; font-style: italic;">
         Ceiling coverage per the AVIXA/CTS ceiling-loudspeaker convention; SPL reach per the
         inverse-square law. This tool is not affiliated with or endorsed by AVIXA.
       </div>
@@ -2929,14 +2930,14 @@
   -->
   <dialog id="dialogTextInsert" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader" id="dialogTextInsertHeader">Add Text</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
         <label for="textInsertInput" style="margin-bottom: 6px; display: block;">Text:</label>
         <input type="text" id="textInsertInput" maxlength="500" style="width: 100%; box-sizing: border-box;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmTextInsertFromDialog();}" />
       </div>
-      <div id="textInsertVrcNote" style="display: none; font-size: 12px; color: #555; margin-top: 6px; font-style: italic;">
+      <div id="textInsertVrcNote" style="display: none; font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-top: 6px; font-style: italic;">
         VRC Text does not appear in the Workspace Designer.
       </div>
     </main>
@@ -2948,7 +2949,7 @@
 
   <dialog id="dialogCustomSplitView" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Custom split view</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
         <label for="customSplitViewInput" style="margin-bottom: 6px; display: block;">Please enter the percent to show the Workspace Designer on open. Enter a number 25-100:</label>
@@ -2981,10 +2982,10 @@
   -->
   <dialog id="dialogCustomItemEdit" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Edit Custom Item</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div class="inputField" style="max-width: none;">
-        <label for="customItemEditNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: #c00;">*</span>:</label>
+        <label for="customItemEditNameInput" style="margin-bottom: 6px; display: block;">Custom Item Name<span style="color: var(--mds-color-theme-text-error-normal);">*</span>:</label>
         <input type="text" id="customItemEditNameInput" maxlength="60" style="width: 100%; box-sizing: border-box;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditCustomItemFromDialog();}" />
       </div>
@@ -3002,7 +3003,7 @@
         <button class="button dropDownBtnWhite" id="customItemEditExportBtn" type="button">Export from Library</button>
         <button class="button dropDownBtnWhite" id="customItemEditRemoveBtn" type="button">Delete From Library</button>
         <button class="button" id="customItemEditCopyAsParentBtn" type="button"
-          style="display: none; background: #ff8c00; color: #000; border: 1px solid #d97400;">Copy as parentItem template</button>
+          style="display: none; background: var(--mds-color-theme-background-alert-warning-normal); color: var(--mds-color-theme-text-warning-normal); border: 1px solid var(--mds-color-theme-outline-warning-normal);">Copy as parentItem template</button>
       </div>
     </main>
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
@@ -3013,7 +3014,7 @@
 
   <dialog id="dialogLayerDelete" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Delete Layer</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div id="dialogLayerDeleteMain"></div>
     </main>
@@ -3025,7 +3026,7 @@
 
   <dialog id="dialogCustomItemDelete" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Delete Custom Item</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div id="dialogCustomItemDeleteMain"></div>
     </main>
@@ -3043,7 +3044,7 @@
   -->
   <dialog id="dialogVrcConfirm" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader"><div id="dialogVrcConfirmHeader"></div></header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div id="dialogVrcConfirmMain"></div>
     </main>
@@ -3072,16 +3073,16 @@
   -->
   <dialog id="dialogStorage" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Storage and Local Data</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
-      <div id="storageDialogTip" style="font-size: 12px; color: #555; margin-bottom: 12px;">
+      <div id="storageDialogTip" style="font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-bottom: 12px;">
         Tip: each open Video Room Calculator tab keeps its own in-memory undo history.
         Close unused tabs if the app feels sluggish.
       </div>
 
       <div id="storageDialogSummary" style="font-size: 13px; margin-bottom: 12px;">
         <div id="storageDialogTotalLine">Loading&hellip;</div>
-        <div id="storageDialogIdbLine" style="color: #666; font-size: 12px;"></div>
+        <div id="storageDialogIdbLine" style="color: var(--mds-color-theme-text-secondary-normal); font-size: 12px;"></div>
       </div>
 
       <table id="storageDialogBreakdown"
@@ -3113,7 +3114,7 @@
       <!-- Inline confirm row for the (low-risk) Clear Undo/Redo action.
            Toggled visible by onClearUndoRedoClicked(); hidden by default. -->
       <div id="storageInlineConfirmUndo" style="display: none; padding: 8px;
-        background: #f5f5f5; border-radius: 4px; font-size: 13px; margin-bottom: 12px;">
+        background: var(--mds-color-theme-background-solid-secondary-normal); border-radius: 4px; font-size: 13px; margin-bottom: 12px;">
         <div style="margin-bottom: 8px;">Clear undo and redo history? This cannot be undone.</div>
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
           <button class="button dropDownBtnWhite" type="button"
@@ -3141,7 +3142,7 @@
   <dialog id="dialogStorageClearAllConfirm" class='dialogWhiteBox dialogAlertModal'
     onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Clear All Local Data?</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div id="dialogStorageClearAllMain" style="font-size: 13px;"></div>
     </main>
@@ -3163,18 +3164,18 @@
   <dialog id="dialogPocCloudPat" class='dialogWhiteBox' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">
       Sign in with Personal Access Token
-      <div style="font-size: 11px; color: #b00; font-weight: normal;">
+      <div style="font-size: 11px; color: var(--mds-color-theme-text-error-normal); font-weight: normal;">
         Proof of concept &mdash; not for production
       </div>
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main style="min-width: 360px;">
-      <div style="font-size: 12px; color: #555; margin-bottom: 10px; line-height: 1.4;">
+      <div style="font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-bottom: 10px; line-height: 1.4;">
         Paste your Webex Personal Access Token below.<br>
         Get one (12&nbsp;hour lifetime) from
         <a href="https://developer.webex.com/docs/api/getting-started"
           target="_blank" rel="noopener noreferrer"
-          style="color: #0352a6;">developer.webex.com</a>
+          style="color: var(--mds-color-theme-text-accent-normal);">developer.webex.com</a>
         &mdash; click your avatar in the upper-right after signing in.
       </div>
       <div class="inputField" style="margin-bottom: 10px;">
@@ -3182,7 +3183,7 @@
         <input type="password" id="pocCloudPatInput" class="textInput" autocomplete="new-password"
           spellcheck="false" style="width: 100%; font-family: monospace; font-size: 12px;">
       </div>
-      <div id="pocCloudPatError" style="color: #b00; font-size: 12px; min-height: 16px;"></div>
+      <div id="pocCloudPatError" style="color: var(--mds-color-theme-text-error-normal); font-size: 12px; min-height: 16px;"></div>
     </main>
     <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 8px 0;">
       <button class="button dropDownBtnWhite" type="button"
@@ -3201,11 +3202,11 @@
   <dialog id="dialogPocLoginCloud" class='dialogWhiteBox' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">
       Webex Cloud (PoC)
-      <div style="font-size: 11px; color: #b00; font-weight: normal;">
+      <div style="font-size: 11px; color: var(--mds-color-theme-text-error-normal); font-weight: normal;">
         Proof of concept &mdash; not for production
       </div>
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main style="min-width: 380px;">
 
       <!-- User identity row -->
@@ -3222,7 +3223,7 @@
       <!-- Space status -->
       <div id="pocCloudSpaceStatus" class="pocCloudSpaceStatus">
         <div id="pocCloudSpaceTitle" style="font-weight: 600;">&hellip;</div>
-        <div id="pocCloudSpaceMeta" style="color: #666; font-size: 12px;">&hellip;</div>
+        <div id="pocCloudSpaceMeta" style="color: var(--mds-color-theme-text-secondary-normal); font-size: 12px;">&hellip;</div>
       </div>
 
       <!-- Save row -->
@@ -3250,9 +3251,9 @@
 
   <dialog id="dialogRecentFloorPlans" class='dialogWhiteBox' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Recent Floor Plans</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main>
-      <div style="font-size: 12px; color: #555; margin-bottom: 12px;">
+      <div style="font-size: 12px; color: var(--mds-color-theme-text-secondary-normal); margin-bottom: 12px;">
         Up to 10 previously uploaded floor plan images are remembered in this browser. Click a
         thumbnail to apply it as the current room's background image. The oldest is removed when an
         11th image is added.
@@ -3262,7 +3263,7 @@
           <!-- Cards populated by openRecentFloorPlansDialog() -->
         </div>
       </div>
-      <div id="recentFloorPlansEmpty" style="display: none; padding: 24px; text-align: center; color: #666; font-style: italic;">
+      <div id="recentFloorPlansEmpty" style="display: none; padding: 24px; text-align: center; color: var(--mds-color-theme-text-secondary-normal); font-style: italic;">
         No saved floor plans yet. Upload an image above to start your library.
       </div>
     </main>
@@ -3273,7 +3274,7 @@
 
   <dialog id="dialogFloorPlanScaleChoice" class='dialogWhiteBox dialogAlertModal' onclick="onDialogClick(event)">
     <header class="dialogWhiteBoxHeader">Load the image:</header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main class="dialogAlertMain">
       <div style="display: flex; flex-direction: column; gap: 8px; min-width: 220px;">
         <button class="button" id="btnFloorPlanScaleFit"
@@ -3292,7 +3293,7 @@
     <header>
       Warning URL Length Alert
     </header>
-    <div class="closeDialogX" onclick="closeAllDialogModals()">&#x2715;</div>
+    <button type="button" class="closeDialogX" aria-label="Close" onclick="closeAllDialogModals()"><i class="icon icon-cancel-regular" aria-hidden="true"></i></button>
     <main>
       You have exceeded the limit of the number of characters for the URL of 8190.
       <b>To maintain the Shareable Template Link, please click the 'undo' button or delete some objects until the

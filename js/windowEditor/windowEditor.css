@@ -11,13 +11,12 @@
     max-height: 94vh;
     margin: auto;
     padding: 0;
-    border: 1px solid #bbb;
-    border-radius: 10px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 8px;
+    box-shadow: var(--vrc-shadow-3);
     display: none; /* the [open] rule below flips to flex — a bare display:flex here would override the UA's display:none for CLOSED dialogs */
     flex-direction: column;
     overflow: hidden;
-    font-family: 'Inter', Helvetica, sans-serif;
 }
 
 #vrcWindowEditorDialog[open] {
@@ -30,41 +29,42 @@
     gap: 10px;
     flex-wrap: wrap;
     padding: 8px 12px;
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--mds-color-theme-background-solid-secondary-normal);
+    color: var(--mds-color-theme-text-primary-normal);
+    border-bottom: 1px solid var(--mds-color-theme-outline-secondary-normal);
     flex: 0 0 auto;
 }
 
 .vrcwe-title {
-    font-weight: 600;
-    font-size: 15px;
+    font-weight: var(--mds-font-weight-bold);
+    font-size: var(--mds-font-size-body-large);
     margin-right: 6px;
 }
 
 .vrcwe-toolbar button {
-    background: #fff;
-    color: #1a1a1a;
-    border: 1px solid #888;
-    border-radius: 14px;
+    background: transparent;
+    color: var(--mds-color-theme-text-primary-normal);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 20px;
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--mds-font-size-body-small);
     cursor: pointer;
 }
 
 .vrcwe-toolbar button:hover:not(:disabled) {
-    background: #dceafc;
-    border-color: var(--active, #0352a6);
+    background: var(--mds-color-theme-button-secondary-hover);
+    border-color: var(--mds-color-theme-outline-input-normal);
 }
 
 .vrcwe-toolbar button:disabled {
-    opacity: 0.4;
+    color: var(--mds-color-theme-text-primary-disabled);
     cursor: default;
 }
 
 .vrcwe-toolbar button.vrcwe-zoom {
     font-size: 17px;
     line-height: 14px;
-    font-weight: 600;
+    font-weight: var(--mds-font-weight-bold);
     padding: 4px 10px;
 }
 
@@ -79,29 +79,30 @@
 .vrcwe-sep {
     width: 1px;
     align-self: stretch;
-    background: #555;
+    background: var(--mds-color-theme-outline-secondary-normal);
     margin: 2px 2px;
 }
 
 .vrcwe-hint {
-    font-size: 11px;
-    color: #bbb;
-    margin-left: auto;
-    margin-right: 10px;
-    white-space: nowrap;
+    order: 1;
+    flex: 1 1 8em;
+    min-width: 0;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-secondary-normal);
+    text-align: end;
 }
 
-button.vrcwe-close {
-    background: var(--active, #0352a6);
-    color: #fff;
-    border-color: var(--active, #0352a6);
-    font-weight: 600;
+.vrcwe-toolbar button.vrcwe-close {
+    margin-inline-start: auto;
+    background: var(--mds-color-theme-button-primary-normal);
+    color: var(--mds-color-theme-inverted-text-primary-normal);
+    border-color: transparent;
+    font-weight: var(--mds-font-weight-bold);
     padding: 5px 18px;
 }
 
-button.vrcwe-close:hover {
-    background: #0466cc !important;
-    color: #fff;
+.vrcwe-toolbar button.vrcwe-close:hover:not(:disabled) {
+    background: var(--mds-color-theme-button-primary-hover);
 }
 
 .vrcwe-body {
@@ -117,27 +118,27 @@ button.vrcwe-close:hover {
     flex-direction: column;
     gap: 4px;
     padding: 12px;
-    background: #f0f0f0;
-    border-right: 1px solid #ccc;
+    background: var(--mds-color-theme-background-solid-secondary-normal);
+    border-right: 1px solid var(--mds-color-theme-outline-secondary-normal);
     overflow-y: auto;
 }
 
 .vrcwe-sidepane label {
-    font-size: 12px;
-    color: #333;
-    font-weight: 600;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-primary-normal);
+    font-weight: var(--mds-font-weight-bold);
     margin-top: 6px;
 }
 
 .vrcwe-sidepane label.vrcwe-sublabel {
     font-weight: 500;
-    color: #444;
+    color: var(--mds-color-theme-text-secondary-normal);
     margin-top: 10px;
 }
 
 .vrcwe-sidepane hr {
     border: none;
-    border-top: 1px solid #ccc;
+    border-top: 1px solid var(--mds-color-theme-outline-secondary-normal);
     margin: 10px 0 2px;
 }
 
@@ -150,14 +151,14 @@ button.vrcwe-close:hover {
 .vrcwe-num {
     width: 80px;
     padding: 4px 6px;
-    border: 1px solid #999;
+    border: 1px solid var(--mds-color-theme-outline-input-normal);
     border-radius: 4px;
-    font-size: 13px;
+    font-size: var(--mds-font-size-body-midsize);
 }
 
 .vrcwe-unit {
-    font-size: 12px;
-    color: #666;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-secondary-normal);
 }
 
 .vrcwe-selection-panel {
@@ -169,7 +170,7 @@ button.vrcwe-close:hover {
 .vrcwe-canvas {
     flex: 1 1 auto;
     min-width: 0;
-    background: #fafafa;
+    background: var(--vrc-drawing-surface);
     position: relative;
     overflow: hidden;
 }
@@ -178,8 +179,8 @@ button.vrcwe-close:hover {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
-    color: #ddd;
+    font-size: var(--mds-font-size-body-small);
+    color: var(--mds-color-theme-text-secondary-normal);
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
@@ -197,11 +198,10 @@ button.vrcwe-close:hover {
     z-index: 10;
     min-width: 168px;
     padding: 4px 0;
-    background: #fff;
-    border: 1px solid #999;
+    background: var(--mds-color-theme-background-solid-primary-normal);
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
     border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    font-family: 'Inter', Helvetica, sans-serif;
+    box-shadow: var(--vrc-shadow-2);
 }
 
 .vrcwe-ctxmenu button {
@@ -211,23 +211,23 @@ button.vrcwe-close:hover {
     border: none;
     background: none;
     text-align: left;
-    font-size: 13px;
-    color: #1a1a1a;
+    font-size: var(--mds-font-size-body-midsize);
+    color: var(--mds-color-theme-text-primary-normal);
     cursor: pointer;
 }
 
 .vrcwe-ctxmenu button:hover:not(:disabled) {
-    background: #dceafc;
+    background: var(--mds-color-theme-button-secondary-hover);
 }
 
 .vrcwe-ctxmenu button:disabled {
-    color: #aaa;
+    color: var(--mds-color-theme-text-primary-disabled);
     cursor: default;
 }
 
 .vrcwe-ctxmenu hr {
     border: none;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid var(--mds-color-theme-outline-secondary-normal);
     margin: 4px 0;
 }
 
@@ -236,19 +236,18 @@ button.vrcwe-close:hover {
 .vrcwe-confirm-dialog {
     max-width: 360px;
     padding: 18px 20px;
-    border: 1px solid #bbb;
-    border-radius: 10px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
-    font-family: 'Inter', Helvetica, sans-serif;
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 8px;
+    box-shadow: var(--vrc-shadow-3);
 }
 
 .vrcwe-confirm-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--mds-color-theme-common-overlays-secondary-normal);
 }
 
 .vrcwe-confirm-msg {
-    font-size: 13px;
-    color: #222;
+    font-size: var(--mds-font-size-body-midsize);
+    color: var(--mds-color-theme-text-primary-normal);
     margin-bottom: 16px;
     line-height: 1.4;
 }
@@ -260,17 +259,25 @@ button.vrcwe-close:hover {
 }
 
 .vrcwe-confirm-btns button {
-    border: 1px solid #888;
-    border-radius: 14px;
+    border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+    border-radius: 20px;
     padding: 5px 14px;
-    font-size: 12px;
-    background: #fff;
+    font-size: var(--mds-font-size-body-small);
+    background: transparent;
     cursor: pointer;
 }
 
 .vrcwe-confirm-btns button.vrcwe-confirm-primary {
-    background: var(--active, #0352a6);
-    color: #fff;
-    border-color: var(--active, #0352a6);
-    font-weight: 600;
+    background: var(--mds-color-theme-button-primary-normal);
+    color: var(--mds-color-theme-inverted-text-primary-normal);
+    border-color: transparent;
+    font-weight: var(--mds-font-weight-bold);
+}
+
+.vrcwe-confirm-btns button:hover {
+    background: var(--mds-color-theme-button-secondary-hover);
+}
+
+.vrcwe-confirm-btns button.vrcwe-confirm-primary:hover {
+    background: var(--mds-color-theme-button-primary-hover);
 }

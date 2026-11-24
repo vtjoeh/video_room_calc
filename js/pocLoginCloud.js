@@ -796,9 +796,8 @@
         const el = document.getElementById('pocCloudSaveStatus');
         if (!el) return;
         el.textContent = message || '';
-        el.style.color = kind === 'error' ? '#b00'
-            : kind === 'ok' ? '#0a7a0a'
-                : '#555';
+        el.style.color = kind === 'error' ? 'var(--mds-color-theme-text-error-normal)'
+            : kind === 'ok' ? 'var(--mds-color-theme-text-success-normal)' : '';
     }
 
     function renderModalContent() {
