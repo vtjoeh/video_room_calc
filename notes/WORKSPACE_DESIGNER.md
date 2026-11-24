@@ -51,7 +51,10 @@ at the WD boundary: `ceilingMount` to `suspended`, `ceilingBracket` to
 `normal`, and `dropCeilingGrid` to `recessed`. The speaker mount values
 already match WD. When a mic has no stored mount, it uses the default wired
 mount and exports as `suspended`. Import maps WD's mic values back to VRC's
-existing values and consumes `ceilingHeight`.
+existing values and consumes `ceilingHeight`. VRC file and undo snapshot
+loads normalize legacy string values and cross-format mount names, then
+store the current mount option and index. Missing mounts become the device's
+current default.
 
 ---
 

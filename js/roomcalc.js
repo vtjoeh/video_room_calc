@@ -555,6 +555,53 @@ function dedupeRoomItems(obj) {
     return dropped;
 }
 
+/* Older VRC files may store either kit's mount as a string or use the other format's mount names. */
+function migrateLegacyCeilingKitMounts(obj) {
+    if (!obj || !Array.isArray(obj.items)) return 0;
+
+    const mountAliases = {
+        ceilingMicPro: {
+            suspended: 'ceilingMount',
+            normal: 'ceilingBracket',
+            recessed: 'dropCeilingGrid'
+        },
+        loudspeakerPro: {
+            ceilingMount: 'suspended',
+            ceilingBracket: 'normal',
+            dropCeilingGrid: 'recessed'
+        }
+    };
+    let migrated = 0;
+
+    obj.items.forEach(item => {
+        if (!item || !mountAliases[item.data_deviceid]) return;
+        const mounts = allDeviceTypes[item.data_deviceid]?.mounts || [];
+        if (!mounts.length) return;
+
+        const oldMount = item.data_mount;
+        let mountValue = typeof oldMount === 'string' ? oldMount : oldMount?.value;
+        if (mountValue) mountValue = mountAliases[item.data_deviceid][mountValue] || mountValue;
+
+        let mountIndex = mounts.findIndex(option =>
+            (typeof option === 'string' ? option : Object.keys(option)[0]) === mountValue
+        );
+        if (mountIndex < 0 && Number.isInteger(oldMount?.index) && oldMount.index >= 0 && oldMount.index < mounts.length) {
+            mountIndex = oldMount.index;
+        }
+        if (mountIndex < 0) mountIndex = 0;
+
+        const option = mounts[mountIndex];
+        const normalizedValue = typeof option === 'string' ? option : Object.keys(option)[0];
+        if (typeof oldMount !== 'object' || !oldMount
+            || oldMount.value !== normalizedValue || oldMount.index !== mountIndex) {
+            item.data_mount = { value: normalizedValue, index: mountIndex };
+            migrated++;
+        }
+    });
+
+    return migrated;
+}
+
 /* Snapshot of sibling + rect start positions for member-direct drag follow. */
 let _groupDragSnapshot = null;
 
@@ -9210,6 +9257,7 @@ function getQueryString() {
 
         keepDefaultUnit();
 
+        migrateLegacyCeilingKitMounts(roomObj);
         dedupeRoomItems(roomObj);
         roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
         drawRoom(true, true, false);
@@ -15050,6 +15098,7 @@ function restoreSnapshotToCanvas(prev, next) {
     }
 
     roomObj = next;
+    migrateLegacyCeilingKitMounts(roomObj);
     /* Backfill missing overlaysVisible before any reader touches it. */
     ensureOverlaysVisibleDefaulted(roomObj);
     /* Defensive: strip duplicate item ids from a poisoned snapshot BEFORE materialising Konva nodes, else they survive as phantoms in canvasNodesMap / roomObjItemsMap. */
@@ -30012,6 +30061,7 @@ function importJson(jsonFile) {
                 document.getElementById('removeDefaultWallsCheckBox2').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('removeDefaultWallsCheckBox3').checked = roomObj.workspace.removeDefaultWalls || false;
                 document.getElementById('addCeilingCheckBox').checked = roomObj.workspace.addCeiling || false;
+                migrateLegacyCeilingKitMounts(roomObj);
                 dedupeRoomItems(roomObj);
                 roomObj.items = reorderItemsForSharing(roomObj.items); /* pre-optimize URL order on load, same as the template-link click */
                 drawRoom(true, false, false);

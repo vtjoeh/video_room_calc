@@ -433,7 +433,10 @@ elevation.
 
 Mic mount names are translated only for WD export and import, so saved VRC
 files keep their existing values. Import consumes `ceilingHeight`; the room
-height comes from the WD room shape.
+height comes from the WD room shape. VRC file loads, shareable links, and undo
+snapshot restores normalize legacy mount strings and cross-format values to
+the current option and index. Missing mounts become the device's current
+default.
 
 Speaker coverage has no inner hole unless the device def sets
 `innerSpeakerRadius`, in millimeters like `speakerRadius`.
