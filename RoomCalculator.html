@@ -64,18 +64,34 @@
       <img id="pocCloudAvatarImg" alt="Webex avatar">
     </button>
 
-    <label class="theme-picker">
-      <span class="theme-picker-label">Theme</span>
-      <span class="theme-picker-field">
-        <i id="themeSelectIcon" class="icon icon-brightness-auto-regular theme-picker-icon" aria-hidden="true"></i>
-        <select id="themeSelect" aria-label="Theme">
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-        <i class="icon icon-arrow-down-regular theme-picker-arrow" aria-hidden="true"></i>
-      </span>
-    </label>
+    <div class="theme-picker">
+      <span id="themePickerLabel" class="theme-picker-label">Theme</span>
+      <div class="theme-picker-field">
+        <button type="button" id="themeSelect" class="theme-picker-trigger" role="combobox"
+          aria-labelledby="themePickerLabel themeSelectValue" aria-controls="themeOptions" aria-expanded="false">
+          <i id="themeSelectIcon" class="icon icon-brightness-auto-regular" aria-hidden="true"></i>
+          <span id="themeSelectValue">System</span>
+          <i class="icon icon-arrow-down-regular theme-picker-arrow" aria-hidden="true"></i>
+        </button>
+        <div id="themeOptions" class="theme-picker-menu" role="listbox" aria-labelledby="themePickerLabel" hidden>
+          <div id="themeSystem" class="theme-picker-option" role="option" data-value="system" aria-selected="true">
+            <i class="icon icon-brightness-auto-regular" aria-hidden="true"></i>
+            <span>System</span>
+            <i class="icon icon-check-regular theme-picker-check" aria-hidden="true"></i>
+          </div>
+          <div id="themeLight" class="theme-picker-option" role="option" data-value="light" aria-selected="false">
+            <i class="icon icon-brightness-high-regular" aria-hidden="true"></i>
+            <span>Light</span>
+            <i class="icon icon-check-regular theme-picker-check" aria-hidden="true"></i>
+          </div>
+          <div id="themeDark" class="theme-picker-option" role="option" data-value="dark" aria-selected="false">
+            <i class="icon icon-quiet-hours-presence-regular" aria-hidden="true"></i>
+            <span>Dark</span>
+            <i class="icon icon-check-regular theme-picker-check" aria-hidden="true"></i>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <button id="btnModalWorkspace" class="primary" aria-label="Open in Workspace Designer" onclick="openModalWorkspace()" title="Open in Workspace Designer">
       <i class="icon wd"></i>

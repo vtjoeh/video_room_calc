@@ -100,6 +100,7 @@ room-level panels need `defaultOpenTab.click()` + the sub-tab button's
 The main page, FAQ, release notes and both editors use the stable Webex theme
 tokens and typography from `assets/momentum-tokens.css`. The header's Theme
 selector defaults to System and remembers the user's choice on this browser.
+It uses Momentum's select pattern with an in-page listbox below the trigger.
 `js/theme.js` applies the saved preference before the page paints and follows
 `prefers-color-scheme` changes in System mode. The appearance preference is
 stored separately from room files and survives the app's local data reset.

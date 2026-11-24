@@ -17,6 +17,7 @@
 .icon-cancel-bold::before { content: "\f336"; }
 .icon-cancel-regular::before { content: "\f339"; }
 .icon-center-bold::before { content: "\f34c"; }
+.icon-check-regular::before { content: "\f375"; }
 .icon-clear-bold::before { content: "\f37e"; }
 .icon-copy-bold::before { content: "\f3fc"; }
 .icon-delete-bold::before { content: "\f42e"; }

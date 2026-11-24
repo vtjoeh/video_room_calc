@@ -311,7 +311,7 @@ button:not(:disabled) {
 
 
 
-.ContainerHeader button {
+.ContainerHeader > button {
   border: 0;
   background-color: transparent;
   color: var(--mds-color-theme-text-primary-normal);
@@ -324,7 +324,7 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 
-.ContainerHeader button.primary {
+.ContainerHeader > button.primary {
   background-color: var(--mds-color-theme-button-primary-normal);
   color: var(--mds-color-theme-inverted-text-primary-normal);
   border-radius: 30px;
@@ -332,23 +332,23 @@ button:not(:disabled) {
   gap: 10px;
 }
 
-.ContainerHeader button:hover:not(:disabled) {
+.ContainerHeader > button:hover:not(:disabled) {
   background-color: var(--mds-color-theme-button-secondary-hover);
 }
 
-.ContainerHeader button.primary:hover:not(:disabled) {
+.ContainerHeader > button.primary:hover:not(:disabled) {
   background-color: var(--mds-color-theme-button-primary-hover);
 }
 
-.ContainerHeader button:active:not(:disabled) {
+.ContainerHeader > button:active:not(:disabled) {
   background-color: var(--mds-color-theme-button-secondary-pressed);
 }
 
-.ContainerHeader button.primary:active:not(:disabled) {
+.ContainerHeader > button.primary:active:not(:disabled) {
   background-color: var(--mds-color-theme-button-primary-pressed);
 }
 
-.ContainerHeader button:disabled {
+.ContainerHeader > button:disabled {
   color: var(--mds-color-theme-text-secondary-normal);
 }
 
@@ -367,36 +367,89 @@ button:not(:disabled) {
   align-items: center;
 }
 
-.theme-picker select {
-  appearance: none;
-  -webkit-appearance: none;
+.theme-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   min-height: 32px;
-  padding: 4px 26px 4px 28px;
-  cursor: pointer;
+  padding: 4px 8px;
+  border: 1px solid var(--mds-color-theme-outline-input-normal);
+  border-radius: 8px;
+  background: var(--mds-color-theme-background-solid-primary-normal);
 }
 
-.theme-picker select:hover {
+.theme-picker-trigger:hover,
+.theme-picker-trigger[aria-expanded="true"] {
   border-color: var(--mds-color-theme-outline-input-active);
   background: var(--mds-color-theme-background-solid-secondary-normal);
 }
 
-.theme-picker-field .icon {
-  position: absolute;
+#themeSelectValue {
+  min-inline-size: 2.75rem;
+  text-align: start;
+}
+
+.theme-picker .icon {
   width: 16px;
   height: 16px;
   line-height: 16px;
-  font-size: 16px;
-  pointer-events: none;
+  flex: none;
 }
 
-.theme-picker-icon {
-  inset-inline-start: 8px;
-}
-
-.theme-picker-field .theme-picker-arrow {
-  inset-inline-end: 8px;
+.theme-picker .theme-picker-arrow {
   width: 12px;
   font-size: 12px;
+}
+
+.ContainerHeader:has(#themeSelect[aria-expanded="true"]) {
+  z-index: 100;
+}
+
+.theme-picker-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 10px);
+  inset-inline-end: 0;
+  min-inline-size: max(100%, 8rem);
+  max-block-size: calc(100vh - 50px);
+  max-block-size: calc(100dvh - 50px);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--mds-color-theme-outline-secondary-normal);
+  border-radius: 8px;
+  background: var(--mds-color-theme-background-solid-primary-normal);
+  box-shadow: var(--vrc-shadow-2);
+}
+
+.theme-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.theme-picker-option:hover {
+  background: var(--mds-color-theme-button-secondary-hover);
+}
+
+.theme-picker-option[aria-selected="true"] {
+  background: var(--mds-color-theme-button-secondary-active-normal);
+}
+
+.theme-picker-option.is-active {
+  outline: 2px solid var(--mds-color-theme-focus-default-1);
+  outline-offset: -2px;
+}
+
+.theme-picker-check {
+  margin-inline-start: auto;
+  visibility: hidden;
+}
+
+.theme-picker-option[aria-selected="true"] .theme-picker-check {
+  visibility: visible;
 }
 
 #ContainerFooter {
@@ -3175,7 +3228,7 @@ hr.rightClickHorizontalLine {
     padding-inline: 12px;
   }
 
-  .ContainerHeader button:not(.primary) {
+  .ContainerHeader > button:not(.primary) {
     padding-inline: 7px;
   }
 
@@ -3187,7 +3240,7 @@ hr.rightClickHorizontalLine {
     display: none;
   }
 
-  .ContainerHeader button span {
+  .ContainerHeader > button span {
     display: none;
     /* only show icons in header buttons */
   }
@@ -3196,7 +3249,7 @@ hr.rightClickHorizontalLine {
     display: none;
   }
 
-  .ContainerHeader i {
+  .ContainerHeader > button i {
     padding: 0;
     width: 28px;
     height: 28px;
@@ -3205,7 +3258,7 @@ hr.rightClickHorizontalLine {
 
   }
 
-  .primary i {
+  .ContainerHeader > .primary i {
     padding: 0;
     width: 20px;
     height: 20px;
@@ -3225,31 +3278,24 @@ hr.rightClickHorizontalLine {
     padding-inline: 8px;
   }
 
-  .ContainerHeader button:not(.primary) {
+  .ContainerHeader > button:not(.primary) {
     padding-inline: 4px;
   }
 
-  .ContainerHeader button.primary {
+  .ContainerHeader > button.primary {
     padding-inline: 10px;
   }
 
-  .ContainerHeader button:not(.primary) i {
+  .ContainerHeader > button:not(.primary) i {
     width: 24px;
     height: 24px;
     line-height: 24px;
     font-size: 20px;
   }
 
-  .theme-picker select {
-    padding-inline: 23px 21px;
-  }
-
-  .theme-picker-icon {
-    inset-inline-start: 5px;
-  }
-
-  .theme-picker-field .theme-picker-arrow {
-    inset-inline-end: 5px;
+  .theme-picker-trigger {
+    padding-inline: 5px;
+    gap: 4px;
   }
 }
 
@@ -3581,7 +3627,7 @@ hr.rightClickHorizontalLine {
 /* On screens that are 1180px wide or less, go from four columns to two columns */
 @media screen and (max-width: 900px) {
 
-  .ContainerHeader button:not(.primary, .pocCloudLoginBtn) span {
+  .ContainerHeader > button:not(.primary, .pocCloudLoginBtn) span {
     display: none;
   }
 
@@ -3967,7 +4013,7 @@ hr.rightClickHorizontalLine {
 /* not viewport width. JS adds svBp* classes to <body> during split view.    */
 
 /* Mirror @media (max-width: 900px) */
-body.svBp900 .ContainerHeader button:not(.primary, .pocCloudLoginBtn) span {
+body.svBp900 .ContainerHeader > button:not(.primary, .pocCloudLoginBtn) span {
   display: none;
 }
 
@@ -4015,10 +4061,10 @@ body.svBp650 .ContainerHeader {
   padding-inline: 12px;
 }
 
-body.svBp650 .ContainerHeader button:not(.primary) { padding-inline: 7px; }
-body.svBp650 .ContainerHeader button span { display: none; }
+body.svBp650 .ContainerHeader > button:not(.primary) { padding-inline: 7px; }
+body.svBp650 .ContainerHeader > button span { display: none; }
 body.svBp650 .theme-picker-label { display: none; }
-body.svBp650 .ContainerHeader button i {
+body.svBp650 .ContainerHeader > button i {
   padding: 0; width: 28px; height: 28px; line-height: 28px; font-size: 24px;
 }
 body.svBp650 .ContainerHeader .primary i {
@@ -4029,9 +4075,9 @@ body.svBp650 .ContainerHeader .primary i {
 body.svBp405 #lblHeaderTitle { display: none; }
 body.svBp405 .ContainerHeader #lblSubtitle { display: none; }
 body.svBp405 .ContainerHeader { padding-inline: 8px; }
-body.svBp405 .ContainerHeader button:not(.primary) { padding-inline: 4px; }
-body.svBp405 .ContainerHeader button.primary { padding-inline: 10px; }
-body.svBp405 .ContainerHeader button:not(.primary) i {
+body.svBp405 .ContainerHeader > button:not(.primary) { padding-inline: 4px; }
+body.svBp405 .ContainerHeader > button.primary { padding-inline: 10px; }
+body.svBp405 .ContainerHeader > button:not(.primary) i {
   width: 24px; height: 24px; line-height: 24px; font-size: 20px;
 }
 
