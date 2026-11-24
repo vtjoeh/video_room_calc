@@ -3,6 +3,11 @@
 https://collabexperience.com
 
 
+**0.1.673**
+- Refreshed the interface with Cisco Momentum design tokens.
+- Added System, Light and Dark theme options, with improved theme controls and consistent appearance across the app and editors.
+- Updated Cisco color labels and hid the color control for Board Pro.
+
 **0.1.672**
 - New **Ceiling Speaker Pro**!!!
 - Support for **speaker coverage**, matching the new speaker coverage in the Workspace Designer, for video devices with speakers and the new Ceiling Speaker Pro.
